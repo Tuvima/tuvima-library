@@ -393,8 +393,9 @@ public sealed partial class DashboardIdentityClient(
         return true;
     }
 
-    public Task<AccountAccessResponse?> GetManagedAccountAsync(Guid accountId, CancellationToken ct = default) =>
-        GetAsync<AccountAccessResponse>($"/access/accounts/{accountId:D}", ct);
+    /// <summary>"Ask for my PIN on admin pages" for a profile: a person reads their own, a server administrator any.</summary>
+    public Task<ProfileAdminProtectionResponse?> GetProfileAdminProtectionAsync(Guid profileId, CancellationToken ct = default) =>
+        GetAsync<ProfileAdminProtectionResponse>($"/access/profiles/{profileId:D}/admin-protection", ct);
 
     /// <summary>Paired phones and TVs: every device for an administrator, only your own otherwise.</summary>
     public async Task<List<ManagedClientDeviceDto>> GetManagedDevicesAsync(CancellationToken ct = default) =>
@@ -528,8 +529,8 @@ public sealed partial class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult> SetProfilePinResultAsync(Guid profileId, string pin, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Put, $"/auth/profiles/{profileId:D}/pin", new SetProfilePinRequest { Pin = pin }, ct);
 
-    public Task<DashboardAccessMutationResult> SetGrantProtectionResultAsync(Guid accountId, Guid profileId, SetGrantAdminProtectionRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}/admin-protection", request, ct, includeMessage: true);
+    public Task<DashboardAccessMutationResult> SetProfileAdminProtectionResultAsync(Guid profileId, SetProfileAdminProtectionRequest request, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Put, $"/access/profiles/{profileId:D}/admin-protection", request, ct, includeMessage: true);
 
     public Task<List<ApplicationPermissionDefinitionDto>> GetApplicationPermissionsAsync(CancellationToken ct = default) =>
         GetAsync<List<ApplicationPermissionDefinitionDto>>("/access/applications/permissions", ct).ContinueWith(task => task.Result ?? [], ct);
@@ -699,8 +700,8 @@ public sealed partial class DashboardIdentityClient(
     }
 
     /// <summary>Sets a new password for a person. By default it is temporary; <c>MustChangePassword = false</c> sets an ordinary one.</summary>
-    public Task<DashboardAccessMutationResult<AccountAccessResponse>> SetTemporaryPasswordResultAsync(Guid accountId, SetTemporaryPasswordRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<SetTemporaryPasswordRequest, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/temporary-password", request, ct);
+    public Task<DashboardAccessMutationResult<UserTemporaryPasswordResponse>> SetTemporaryPasswordResultAsync(Guid accountId, SetTemporaryPasswordRequest request, CancellationToken ct = default) =>
+        SendMutationAsync<SetTemporaryPasswordRequest, UserTemporaryPasswordResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/temporary-password", request, ct);
 
     /// <summary>Finishes a password sign-in that asked for a code from the authenticator app (or a recovery code).</summary>
     public async Task<DashboardSessionAttempt> CompleteTwoStepSignInAsync(CompleteTwoStepSignInRequest request, CancellationToken ct = default)
@@ -722,8 +723,8 @@ public sealed partial class DashboardIdentityClient(
         SendMutationAsync(HttpMethod.Post, "/auth/two-step/disable", new DisableTwoStepRequest { Code = code }, ct);
 
     /// <summary>An administrator turns two-step codes off for someone who lost their phone and recovery codes.</summary>
-    public Task<DashboardAccessMutationResult<AccountAccessResponse>> ResetAccountTwoStepResultAsync(Guid accountId, CancellationToken ct = default) =>
-        SendMutationAsync<object, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct, includeMessage: true);
+    public Task<DashboardAccessMutationResult<UserSummaryResponse>> ResetAccountTwoStepResultAsync(Guid accountId, CancellationToken ct = default) =>
+        SendMutationAsync<object, UserSummaryResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct, includeMessage: true);
 
     /// <summary>The biggest user export file the Engine takes (the same cap as the Engine's), so the Dashboard can refuse a bigger one before sending it.</summary>
     public const long MaxUserImportBytes = 256L * 1024 * 1024;

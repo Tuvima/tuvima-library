@@ -286,32 +286,6 @@ public sealed record AdministratorElevationResponse(
     [property: JsonPropertyName("expires_at")] DateTimeOffset? ExpiresAt,
     [property: JsonPropertyName("error")] string? Error = null);
 
-public sealed class AccountResponse
-{
-    [JsonPropertyName("id")] public Guid Id { get; init; }
-    [JsonPropertyName("email")] public string? Email { get; init; }
-    [JsonPropertyName("is_enabled")] public bool IsEnabled { get; init; }
-    [JsonPropertyName("profile_ids")] public IReadOnlyList<Guid> ProfileIds { get; init; } = [];
-    [JsonPropertyName("default_profile_id")] public Guid? DefaultProfileId { get; init; }
-}
-
-public sealed class CreateAccountRequest
-{
-    [JsonPropertyName("email")] public string? Email { get; init; }
-    [JsonPropertyName("profile_ids")] public IReadOnlyList<Guid> ProfileIds { get; init; } = [];
-    [JsonPropertyName("default_profile_id")] public Guid? DefaultProfileId { get; init; }
-}
-public sealed record SetAccountProfileGrantRequest(
-    [property: JsonPropertyName("is_default")] bool IsDefault = false);
-
-public sealed class CreateAccountInvitationRequest
-{
-    [JsonPropertyName("email")] public string Email { get; init; } = string.Empty;
-    [JsonPropertyName("profile_ids")] public IReadOnlyList<Guid> ProfileIds { get; init; } = [];
-    [JsonPropertyName("default_profile_id")] public Guid? DefaultProfileId { get; init; }
-    /// <summary>Invite someone outside the household: they start a household of their own with this first person.</summary>
-    [JsonPropertyName("new_household_person_name")] public string? NewHouseholdPersonName { get; init; }
-}
 /// <summary>
 /// A new invitation. <c>code</c> is shown as <c>XXXXX-XXXXX</c> and is never available again. <c>public_address</c>
 /// is the one public address (<c>network.remote.public_hostname</c>) when it is set; the invitation link is built on it.

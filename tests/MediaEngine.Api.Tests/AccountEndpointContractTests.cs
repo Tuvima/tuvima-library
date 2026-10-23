@@ -38,12 +38,14 @@ public sealed class AccountEndpointContractTests
             .SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>()
             .ToArray();
-        AssertPolicy(endpoints, "/access/accounts/", "GET", ApplicationPermissionIds.IdentityUsersRead);
-        AssertPolicy(endpoints, "/access/accounts/", "POST", ApplicationPermissionIds.IdentityUsersWrite);
-        AssertPolicy(endpoints, "/access/accounts/{accountId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite);
-        AssertPolicy(endpoints, "/access/accounts/{accountId:guid}/email", "PUT", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/users/", "GET", ApplicationPermissionIds.IdentityUsersRead);
+        AssertPolicy(endpoints, "/access/users/", "POST", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/users/{userId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/users/{userId:guid}/email", "PUT", ApplicationPermissionIds.IdentityUsersWrite);
         AssertPolicy(endpoints, "/access/libraries", "GET", ApplicationPermissionIds.IdentityUsersRead);
-        AssertPolicy(endpoints, "/access/profiles/", "POST", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/accounts/{accountId:guid}/temporary-password", "POST", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/profiles/{profileId:guid}/admin-protection", "GET", ApplicationPermissionIds.IdentityUsersRead);
+        AssertPolicy(endpoints, "/access/profiles/{profileId:guid}/admin-protection", "PUT", ApplicationPermissionIds.IdentityUsersWrite);
     }
 
     [Fact]
@@ -65,12 +67,6 @@ public sealed class AccountEndpointContractTests
             ("/access/users/{userId:guid}/email", "PUT", ApplicationPermissionIds.IdentityUsersWrite),
             ("/access/users/{userId:guid}/deletion-preview", "GET", ApplicationPermissionIds.IdentityUsersWrite),
             ("/access/users/{userId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite),
-            // The older routes that reach the same actions keep the same rule.
-            ("/access/accounts/{accountId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite),
-            ("/access/accounts/{accountId:guid}/deletion-preview", "GET", ApplicationPermissionIds.IdentityUsersWrite),
-            // A sign-in is a user: only the server administrator gives or removes a person's own sign-in (D4).
-            ("/access/profiles/{profileId:guid}/own-sign-in", "POST", ApplicationPermissionIds.IdentityUsersWrite),
-            ("/access/accounts/{accountId:guid}/own-sign-in", "DELETE", ApplicationPermissionIds.IdentityUsersWrite),
         };
         foreach (var (route, method, permission) in users)
         {
@@ -83,6 +79,7 @@ public sealed class AccountEndpointContractTests
         {
             ("/access/profiles/{profileId:guid}/access", "PUT"),
             ("/access/profiles/{profileId:guid}/roles", "PUT"),
+            ("/access/profiles/{profileId:guid}/admin-protection", "PUT"),
             ("/access/profiles/{profileId:guid}", "DELETE"),
         };
         foreach (var (route, method) in profiles)

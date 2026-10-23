@@ -244,14 +244,11 @@ public sealed class UserTransferEndpointTests : IDisposable
         var profile = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "INSERT INTO accounts (id, email, normalized_email, created_at, updated_at) VALUES (@account, @email, @normalized, @now, @now)",
-            new { account = GuidSql.ToBlob(account), email, normalized = email.ToUpperInvariant(), now = "2026-10-21T10:00:00Z" });
-        connection.Execute(
             "INSERT INTO profiles (id, display_name, role, created_at) VALUES (@profile, @name, 'StandardUser', @now)",
             new { profile = GuidSql.ToBlob(profile), name = email.StartsWith("maya", StringComparison.Ordinal) ? "Maya" : "Other " + email, now = "2026-10-21T10:00:00Z" });
         connection.Execute(
-            "INSERT INTO account_profile_grants (account_id, profile_id, is_default, is_enabled, admin_enabled, granted_at) VALUES (@account, @profile, 1, 1, 0, @now)",
-            new { account = GuidSql.ToBlob(account), profile = GuidSql.ToBlob(profile), now = "2026-10-21T10:00:00Z" });
+            "INSERT INTO accounts (id, email, normalized_email, created_at, updated_at, profile_id) VALUES (@account, @email, @normalized, @now, @now, @profile)",
+            new { account = GuidSql.ToBlob(account), profile = GuidSql.ToBlob(profile), email, normalized = email.ToUpperInvariant(), now = "2026-10-21T10:00:00Z" });
         return account;
     }
 

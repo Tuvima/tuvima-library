@@ -444,11 +444,12 @@ public sealed class ViewOtherPeopleTests
         private Guid AddAccount(string email, Guid household)
         {
             var id = Guid.NewGuid();
+            var profile = AddProfile($"Person of {email}", household);
             using var connection = _database.CreateConnection();
             connection.Execute("""
-                INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id)
-                VALUES(@id,@email,@normalized,1,0,1,@now,@now,@household);
-                """, new { id, email, normalized = email.ToUpperInvariant(), now = DateTimeOffset.UtcNow.ToString("O"), household });
+                INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id)
+                VALUES(@id,@email,@normalized,1,1,@now,@now,@profile);
+                """, new { id, email, normalized = email.ToUpperInvariant(), now = DateTimeOffset.UtcNow.ToString("O"), profile });
             return id;
         }
 

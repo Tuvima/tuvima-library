@@ -40,9 +40,9 @@ public sealed record UserImportResult(Guid AccountId, string Email, IReadOnlyLis
 
 /// <summary>
 /// Puts one user's export (<see cref="UserExportScope"/>) into this data store as a new user, in one write transaction (backup and restore
-/// spec D19). Access rights are never carried: the person is not an administrator, has no feature or library grants and no grant is an
-/// administrator grant, so they can sign in and see nothing until an administrator chooses. Their profile's Vault access is switched off
-/// for the same reason. If the household already exists here the person joins it; otherwise it is created with them as its primary account.
+/// spec D19). Access rights are never carried: the person is not an administrator and has no feature or library access, so they can sign
+/// in and see nothing until an administrator chooses. Their profile's Vault access is switched off for the same reason. If the household
+/// already exists here the person's profile joins it; otherwise it is created from the file.
 /// Rows are written with a plain INSERT (never REPLACE), so anything that already exists fails the whole import. Rows that point at titles
 /// wait, exactly as in a restore, and attach when their title is found.
 /// </summary>
@@ -200,9 +200,8 @@ public sealed class UserImportRepository
     internal static string NormalizedEmail(string email) => email.Trim().ToUpperInvariant();
 
     /// <summary>
-    /// The export with the access rights taken out: not an administrator, no administrator grant, no follow-another-account link, no Vault
-    /// access, no administrator profile role; the household joined or created, and no household administrator role either (the
-    /// administrator chooses after the import, D9). Every excluded column (a file path, someone else's id) is emptied whatever the file says, so no file can
+    /// The export with the access rights taken out: no Vault access and no administrator role on the profile (server or household; the
+    /// administrator chooses after the import, D9); the household joined or created. Every excluded column (a file path, someone else's id) is emptied whatever the file says, so no file can
     /// make the Engine open, serve or delete a path it chose; collections arrive private and not featured, and keep a parent only when
     /// the parent is in the same file.
     /// </summary>
@@ -222,28 +221,16 @@ public sealed class UserImportRepository
                     {
                         ["email"] = BackupValue.FromText(summary.Email),
                         ["normalized_email"] = BackupValue.FromText(NormalizedEmail(summary.Email)),
-                        ["is_administrator"] = BackupValue.FromInteger(0),
-                        ["grants_inherit_from_account_id"] = BackupValue.Null,
-                        ["household_admin"] = BackupValue.FromInteger(0),
-                        ["household_id"] = keepHousehold ? BackupValue.FromBlob(GuidSql.ToBlob(summary.HouseholdId!.Value)) : BackupValue.Null,
-                    },
-                    // The profile the sign-in opens travels only when it is one of the profiles in the file.
-                    ("profile_id", value => UserExportReader.GuidOf(value) is { } opened && summary.ProfileIds.Contains(opened) ? value : BackupValue.Null)));
+                    }));
                     break;
                 case "households":
-                    // A household that already exists is joined as it is; its primary account is not changed.
+                    // A household that already exists is joined as it is. A new one is never the Library's default household.
                     tables.Add(householdExists || !keepHousehold
                         ? table with { Rows = [] }
                         : Rewrite(table, new Dictionary<string, BackupValue>(StringComparer.OrdinalIgnoreCase)
                         {
-                            ["primary_account_id"] = BackupValue.FromBlob(accountBlob),
+                            ["is_default"] = BackupValue.FromInteger(0),
                         }));
-                    break;
-                case "account_profile_grants":
-                    tables.Add(Rewrite(table, new Dictionary<string, BackupValue>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["admin_enabled"] = BackupValue.FromInteger(0),
-                    }));
                     break;
                 case "profiles":
                     tables.Add(Rewrite(

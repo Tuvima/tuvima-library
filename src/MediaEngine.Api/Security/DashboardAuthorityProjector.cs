@@ -41,38 +41,7 @@ public sealed class DashboardAuthorityProjector(
         var surfaceUnlocked = authority.IsEffectiveAdministrator &&
             (unlock is null || !unlock.ProtectionEnabled || unlock.IsUnlocked);
 
-        var grants = new List<AccountProfileGrantDto>();
-        foreach (var grant in await accounts.GetGrantsAsync(accountId, ct).ConfigureAwait(false))
-        {
-            if (!grant.IsEnabled)
-            {
-                continue;
-            }
-
-            var profile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
-            if (profile is null)
-            {
-                continue;
-            }
-
-            var protection = await profileAccess.GetAdminProtectionAsync(grant.ProfileId, ct)
-                .ConfigureAwait(false);
-            grants.Add(new AccountProfileGrantDto(
-                accountId,
-                grant.ProfileId,
-                profile.DisplayName,
-                profile.AvatarImagePath,
-                grant.IsDefault,
-                grant.IsEnabled,
-                grant.AdminEnabled,
-                new GrantAdminProtectionDto(
-                    protection?.IsEnabled == true,
-                    protection?.UnlockMode ?? AdminUnlockMode.FixedDuration.ToString(),
-                    protection?.UnlockMinutes,
-                    protection?.ProtectionVersion ?? 0),
-                grant.AuthorizationVersion,
-                grant.GrantedAt));
-        }
+        var grants = await HouseholdProfileProjection.MapAsync(accountId, accounts, profiles, profileAccess, ct).ConfigureAwait(false);
 
         var navigation = authority.IsEffectiveAdministrator
             ? AccountFeatureId.All.Select(feature => feature.Value).ToList()

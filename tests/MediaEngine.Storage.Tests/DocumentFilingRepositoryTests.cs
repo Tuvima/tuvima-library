@@ -91,10 +91,10 @@ public sealed class DocumentFilingRepositoryTests : IDisposable
         var member = await CreatePerson(household: household, role: "StandardUser");
         var child = await CreatePerson(household: household, role: "RestrictedProfile");
         var outsider = await CreatePerson(household: Guid.NewGuid(), role: "StandardUser");
-        MakeAccount(admin.ProfileId, household, householdAdmin: true);
-        MakeAccount(member.ProfileId, household, householdAdmin: false);
-        MakeAccount(child.ProfileId, household, householdAdmin: true);
-        MakeAccount(outsider.ProfileId, outsider.Household!.Value, householdAdmin: true);
+        MakeAccount(admin.ProfileId, householdAdmin: true);
+        MakeAccount(member.ProfileId, householdAdmin: false);
+        MakeAccount(child.ProfileId, householdAdmin: true);
+        MakeAccount(outsider.ProfileId, householdAdmin: true);
         var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
         var sharedDocument = await AddSharedDocument(shared.LibraryId, 's');
         var tag = (await _catalogue.CreateEntryAsync(admin.Viewer(), ViewCatalogueKind.Tag, "Household", null)).Id;
@@ -655,17 +655,15 @@ public sealed class DocumentFilingRepositoryTests : IDisposable
         return new Person(profileId, space.Id, libraryId, household);
     }
 
-    private Guid MakeAccount(Guid profileId, Guid household, bool householdAdmin)
+    private Guid MakeAccount(Guid profileId, bool householdAdmin)
     {
         var account = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute("""
-            INSERT INTO accounts (id, is_enabled, is_administrator, authorization_version, created_at, updated_at, household_id, household_admin, profile_id)
-            VALUES (@account, 1, 0, 1, @now, @now, @household, @householdAdmin, @profileId);
-            INSERT INTO account_profile_grants (account_id, profile_id, is_default, is_enabled, admin_enabled, authorization_version, granted_at)
-            VALUES (@account, @profileId, 1, 1, 0, 1, @now);
+            INSERT INTO accounts (id, is_enabled, authorization_version, created_at, updated_at, profile_id)
+            VALUES (@account, 1, 1, @now, @now, @profileId);
             UPDATE profiles SET is_household_admin = @householdAdmin WHERE id = @profileId;
-            """, new { account, profileId, household, householdAdmin = householdAdmin ? 1 : 0, now = DateTimeOffset.UtcNow });
+            """, new { account, profileId, householdAdmin = householdAdmin ? 1 : 0, now = DateTimeOffset.UtcNow });
         return account;
     }
 

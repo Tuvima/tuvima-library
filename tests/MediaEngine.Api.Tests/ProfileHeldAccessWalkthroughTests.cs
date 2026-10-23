@@ -187,7 +187,7 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
     private async Task<World> WorldAsync()
     {
         var shy = await _service.BootstrapAdministratorAsync("shy@example.com", ShyPassword, "Shy", "setup-device", "Setup", "Dashboard");
-        var household = (await _accounts.GetByIdAsync(shy.Account.Id))!.HouseholdId!.Value;
+        var household = (await _accounts.GetHouseholdIdAsync(_database, shy.Account.Id))!.Value;
         var now = DateTimeOffset.UtcNow;
 
         var momProfile = new Profile { Id = Guid.NewGuid(), DisplayName = "Mom", AvatarColor = "#7C4DFF", Role = ProfileRole.StandardUser, CreatedAt = now };
@@ -196,14 +196,7 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
         var kid1 = await AddUserAsync("kid1@example.com", kid1Profile, household, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
 
         var kid2 = new Profile { Id = Guid.NewGuid(), DisplayName = "Kid 2", AvatarColor = "#7C4DFF", Role = ProfileRole.RestrictedProfile, CreatedAt = now };
-        await _accounts.CreateManagedProfileAsync(kid2, new AccountProfileGrant
-        {
-            AccountId = shy.Account.Id,
-            ProfileId = kid2.Id,
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-            GrantedAt = now,
-        });
+        await _accounts.CreateHouseholdPersonAsync(kid2, household);
 
         await _access.ReplaceAccessAsync(kid2.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), now);
 
@@ -225,12 +218,11 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
             AuthorizationVersion = 1,
             CreatedAt = now,
             UpdatedAt = now,
-            HouseholdId = household,
         };
         await _accounts.CreateAccountAsync(
             account,
-            new AccountProfileGrant { AccountId = account.Id, ProfileId = profile.Id, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
-            features, libraries, newProfile: profile);
+            new TestGrant(account.Id, profile.Id, IsDefault: true, AdminEnabled: false),
+            features, libraries, newProfile: profile, householdId: household);
         return (await _accounts.GetByIdAsync(account.Id))!;
     }
 

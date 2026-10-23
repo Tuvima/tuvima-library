@@ -27,6 +27,16 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return Task.FromResult<IReadOnlyList<Account>>(rows);
     }
 
+    public Task<IReadOnlyList<Account>> GetEnabledServerAdministratorsAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        var rows = conn.Query<AccountRow>(Select + """
+             WHERE is_enabled = 1 AND profile_id IN (SELECT id FROM profiles WHERE is_server_admin = 1) ORDER BY created_at;
+            """).Select(Map).ToList();
+        return Task.FromResult<IReadOnlyList<Account>>(rows);
+    }
+
     public Task InsertAsync(Account account, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((conn, tx, token) =>
         {
@@ -44,7 +54,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             // repository, so saving a sign-in read a moment ago can never put back a role that was just changed.
             return conn.Execute("""
                 UPDATE accounts SET email = @Email, normalized_email = @NormalizedEmail,
-                    is_enabled = @IsEnabled, is_administrator = @IsAdministrator,
+                    is_enabled = @IsEnabled,
                     this_computer_only = @ThisComputerOnly,
                     authorization_version = authorization_version + 1, updated_at = @UpdatedAt
                 WHERE id = @Id;
@@ -67,47 +77,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             changedAt = changedAt.ToString("O"),
         }) > 0);
     }
-
-    public Task GrantProfileAsync(AccountProfileGrant grant, CancellationToken ct = default)
-    {
-        return db.ExecuteWriteAsync((conn, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            JoinHousehold(conn, transaction, grant.AccountId, grant.ProfileId, grant.GrantedAt);
-            if (grant.IsDefault)
-            {
-                conn.Execute("UPDATE account_profile_grants SET is_default = 0 WHERE account_id = @accountId;",
-                    new { accountId = grant.AccountId }, transaction);
-            }
-            conn.Execute("""
-                INSERT INTO account_profile_grants
-                    (account_id, profile_id, is_default, is_enabled, admin_enabled, authorization_version, granted_at)
-                VALUES (@AccountId, @ProfileId, @IsDefault, @IsEnabled, @AdminEnabled, @AuthorizationVersion, @GrantedAt)
-                ON CONFLICT(account_id, profile_id) DO UPDATE SET
-                    is_default = excluded.is_default, is_enabled = excluded.is_enabled,
-                    admin_enabled = excluded.admin_enabled,
-                    authorization_version = account_profile_grants.authorization_version + 1;
-                """, new
-            {
-                grant.AccountId,
-                grant.ProfileId,
-                IsDefault = grant.IsDefault ? 1 : 0,
-                IsEnabled = grant.IsEnabled ? 1 : 0,
-                AdminEnabled = grant.AdminEnabled ? 1 : 0,
-                grant.AuthorizationVersion,
-                GrantedAt = grant.GrantedAt.ToString("O"),
-            }, transaction);
-        }, ct);
-    }
-
-    public Task<bool> RevokeProfileAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
-        db.ExecuteWriteAsync((conn, tx, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            return conn.Execute(
-                "DELETE FROM account_profile_grants WHERE account_id = @accountId AND profile_id = @profileId;",
-                new { accountId, profileId }, tx) > 0;
-        }, ct);
 
     public Task<bool> HasProfileAccessAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
     {
@@ -193,17 +162,13 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return Task.FromResult(row is null ? null : Map(row));
     }
 
-    // The household of a user is its own profile's household (the same source authority uses); accounts.household_id is written as
-    // before but read for no decision.
+    // The household of a user is its own profile's household (the same source authority uses); the roles are the profile's.
     private const string Select = """
         SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail,
                is_enabled AS IsEnabled,
-               COALESCE((SELECT p.is_server_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS IsAdministrator,
+               COALESCE((SELECT p.is_server_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS IsServerAdministrator,
                authorization_version AS AuthorizationVersion,
                created_at AS CreatedAt, updated_at AS UpdatedAt,
-               (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id) AS HouseholdId,
-               COALESCE((SELECT p.is_household_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS HouseholdAdmin,
-               grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                this_computer_only AS ThisComputerOnly,
                must_change_password AS MustChangePassword,
                temporary_password_expires_at AS TemporaryPasswordExpiresAt,
@@ -217,13 +182,9 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         account.Email,
         account.NormalizedEmail,
         IsEnabled = account.IsEnabled ? 1 : 0,
-        IsAdministrator = account.IsAdministrator ? 1 : 0,
         account.AuthorizationVersion,
         CreatedAt = account.CreatedAt.ToString("O"),
         UpdatedAt = account.UpdatedAt.ToString("O"),
-        account.HouseholdId,
-        HouseholdAdmin = account.HouseholdAdmin ? 1 : 0,
-        account.GrantsInheritFromAccountId,
         ThisComputerOnly = account.IsThisComputerOnly ? 1 : 0,
         MustChangePassword = account.MustChangePassword ? 1 : 0,
         TemporaryPasswordExpiresAt = account.TemporaryPasswordExpiresAt?.ToString("O"),
@@ -232,39 +193,28 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
     private static Account Map(AccountRow row)
     {
-        var account = MapFields(row);
+        var account = new Account
+        {
+            Id = row.Id,
+            Email = row.Email,
+            NormalizedEmail = row.NormalizedEmail,
+            IsEnabled = row.IsEnabled,
+            AuthorizationVersion = row.AuthorizationVersion,
+            CreatedAt = DateTimeOffset.Parse(row.CreatedAt),
+            UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt),
+            ProfileId = row.ProfileId,
+            MustChangePassword = row.MustChangePassword,
+            TemporaryPasswordExpiresAt = string.IsNullOrWhiteSpace(row.TemporaryPasswordExpiresAt)
+                ? null
+                : DateTimeOffset.Parse(row.TemporaryPasswordExpiresAt),
+        };
         if (row.ThisComputerOnly)
         {
             account.MarkThisComputerOnly();
         }
 
-        // A person's own sign-in never administers a household, whatever a stray row says.
-        if (row.HouseholdAdmin && row.GrantsInheritFromAccountId is null)
-        {
-            account.MakeHouseholdAdmin();
-        }
-
         return account;
     }
-
-    private static Account MapFields(AccountRow row) => new()
-    {
-        Id = row.Id,
-        Email = row.Email,
-        NormalizedEmail = row.NormalizedEmail,
-        IsEnabled = row.IsEnabled,
-        IsAdministrator = row.IsAdministrator,
-        AuthorizationVersion = row.AuthorizationVersion,
-        CreatedAt = DateTimeOffset.Parse(row.CreatedAt),
-        UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt),
-        HouseholdId = row.HouseholdId,
-        ProfileId = row.ProfileId,
-        GrantsInheritFromAccountId = row.GrantsInheritFromAccountId,
-        MustChangePassword = row.MustChangePassword,
-        TemporaryPasswordExpiresAt = string.IsNullOrWhiteSpace(row.TemporaryPasswordExpiresAt)
-            ? null
-            : DateTimeOffset.Parse(row.TemporaryPasswordExpiresAt),
-    };
 
     private sealed class AccountRow
     {
@@ -272,17 +222,14 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public string? Email { get; set; }
         public string? NormalizedEmail { get; set; }
         public bool IsEnabled { get; set; }
-        public bool IsAdministrator { get; set; }
+        public bool IsServerAdministrator { get; set; }
         public long AuthorizationVersion { get; set; }
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
-        public Guid? HouseholdId { get; set; }
-        public bool HouseholdAdmin { get; set; }
-        public Guid? GrantsInheritFromAccountId { get; set; }
         public bool ThisComputerOnly { get; set; }
         public bool MustChangePassword { get; set; }
         public string? TemporaryPasswordExpiresAt { get; set; }
-        public Guid? ProfileId { get; set; }
+        public Guid ProfileId { get; set; }
     }
     private sealed class InvitationRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string TokenHash { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
 
@@ -324,18 +271,13 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             ?? throw new InvalidOperationException("Account not found.");
         // Switching a sign-in off must leave a server administrator who can still sign in. (Demoting is a change to the profile's
         // role, made through the profile access repository, which keeps the same promise.)
-        if (current.IsEnabled && current.IsAdministrator && !account.IsEnabled
+        if (current.IsEnabled && current.IsServerAdministrator && !account.IsEnabled
            && !ProfileAccessRepository.HasUsableServerAdministratorWithoutAccount(conn, tx, account.Id))
         {
             throw new InvalidOperationException("The final effective administrator account cannot be disabled or demoted.");
         }
 
-        if (account.IsEnabled && conn.ExecuteScalar<int>("SELECT COUNT(*) FROM account_profile_grants WHERE account_id=@Id AND is_enabled=1;", account, tx) == 0)
-        {
-            throw new InvalidOperationException("An enabled account must retain an enabled profile grant.");
-        }
-
-        conn.Execute("UPDATE accounts SET email=@Email,normalized_email=@NormalizedEmail,is_enabled=@IsEnabled,is_administrator=@IsAdministrator,authorization_version=authorization_version+1,updated_at=@UpdatedAt WHERE id=@Id;", Parameters(account), tx);
+        conn.Execute("UPDATE accounts SET email=@Email,normalized_email=@NormalizedEmail,is_enabled=@IsEnabled,authorization_version=authorization_version+1,updated_at=@UpdatedAt WHERE id=@Id;", Parameters(account), tx);
     }, ct);
 
     public Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default) =>
@@ -381,11 +323,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             }
 
             var householdId = plan.HouseholdId!.Value;
-            // A user belongs to the household of its profile; the old column answers only for a user with no profile.
+            // A user belongs to the household of its profile.
             var userIds = connection.Query<Guid>("""
                 SELECT a.id FROM accounts a
                 WHERE a.profile_id IN (SELECT id FROM profiles WHERE household_id=@householdId)
-                   OR (a.profile_id IS NULL AND a.household_id=@householdId)
                 ORDER BY a.created_at, a.id;
                 """, new { householdId }, transaction).ToList();
             foreach (var id in userIds)
@@ -411,21 +352,21 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             return new UserRemovalOutcome(householdId, profileIds, userIds);
         }, ct);
 
-    /// <summary>The account row's own work: the last-administrator backstop, handing its followers on, and removing it.</summary>
+    /// <summary>The account row's own work: the last-administrator backstop and removing it.</summary>
     private static void DeleteAccountRows(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
     {
         var account = connection.QuerySingleOrDefault<AccountRow>(
             Select + " WHERE id=@accountId;", new { accountId }, transaction)
             ?? throw new KeyNotFoundException("Account not found.");
-        if (account.IsEnabled && account.IsAdministrator &&
+        if (account.IsEnabled && account.IsServerAdministrator &&
             !ProfileAccessRepository.HasUsableServerAdministratorWithoutAccount(connection, transaction, accountId))
         {
             throw new InvalidOperationException("The final effective administrator account cannot be deleted.");
         }
 
         // The only server administrator profile never loses its role by losing a sign-in that cannot sign in anyway.
-        if (account.ProfileId is { } adminProfileId &&
-            connection.ExecuteScalar<int>("""
+        var adminProfileId = account.ProfileId;
+        if (connection.ExecuteScalar<int>("""
                 SELECT EXISTS(SELECT 1 FROM profiles WHERE id=@adminProfileId AND is_server_admin=1)
                    AND NOT EXISTS(SELECT 1 FROM accounts WHERE profile_id=@adminProfileId AND id<>@accountId)
                    AND NOT EXISTS(SELECT 1 FROM profiles WHERE is_server_admin=1 AND id<>@adminProfileId);
@@ -434,54 +375,42 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new InvalidOperationException("The final effective administrator account cannot be deleted.");
         }
 
-        // People whose access followed this account follow the household's next main sign-in instead.
-        connection.Execute("""
-            UPDATE accounts SET grants_inherit_from_account_id=(
-                SELECT other.id FROM accounts other
-                WHERE (SELECT po.household_id FROM profiles po WHERE po.id=other.profile_id)
-                    = (SELECT pa.household_id FROM profiles pa WHERE pa.id=accounts.profile_id)
-                  AND other.id<>@accountId
-                  AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
-                ORDER BY other.created_at LIMIT 1)
-            WHERE grants_inherit_from_account_id=@accountId;
-            """, new { accountId }, transaction);
-        // A household whose main sign-in goes away hands "primary" to its next main sign-in (or none).
-        connection.Execute("""
-            UPDATE households SET primary_account_id=(
-                SELECT other.id FROM accounts other
-                WHERE other.household_id=households.id AND other.id<>@accountId
-                  AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
-                ORDER BY other.created_at LIMIT 1)
-            WHERE primary_account_id=@accountId;
-            """, new { accountId }, transaction);
         connection.Execute("DELETE FROM accounts WHERE id=@accountId;", new { accountId }, transaction);
         // A person left without a sign-in cannot be an administrator (D15). The last-administrator checks above and in the service
         // run first, so this never removes the last one that can sign in.
-        if (account.ProfileId is { } profileId)
-        {
-            connection.Execute("""
-                UPDATE profiles
-                SET is_server_admin=0, is_household_admin=0, authorization_version=authorization_version+1
-                WHERE id=@profileId AND (is_server_admin=1 OR is_household_admin=1)
-                  AND NOT EXISTS (SELECT 1 FROM accounts WHERE profile_id=@profileId);
-                """, new { profileId }, transaction);
-        }
+        connection.Execute("""
+            UPDATE profiles
+            SET is_server_admin=0, is_household_admin=0, authorization_version=authorization_version+1
+            WHERE id=@profileId AND (is_server_admin=1 OR is_household_admin=1)
+              AND NOT EXISTS (SELECT 1 FROM accounts WHERE profile_id=@profileId);
+            """, new { profileId = account.ProfileId }, transaction);
     }
 
-    public Task<IReadOnlyList<AccountProfileGrant>> GetGrantsAsync(Guid accountId, CancellationToken ct = default)
+    public Task<IReadOnlyList<HouseholdProfileAccess>> GetHouseholdProfilesAsync(Guid accountId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
         // What a user may act as is its own profile and the rest of its household; roles and versions are the profile's.
-        var rows = conn.Query<GrantRow>("""
-            SELECT a.id AS AccountId, p.id AS ProfileId, (p.id = a.profile_id) AS IsDefault, 1 AS IsEnabled,
-                   p.is_server_admin AS AdminEnabled, p.authorization_version AS AuthorizationVersion, p.created_at AS GrantedAt
+        var rows = conn.Query<HouseholdProfileRow>("""
+            SELECT p.id AS ProfileId, (p.id = a.profile_id) AS IsOwn, p.is_server_admin AS IsServerAdministrator,
+                   p.authorization_version AS AuthorizationVersion, p.created_at AS CreatedAt
             FROM accounts a
             JOIN profiles own ON own.id = a.profile_id
             JOIN profiles p ON p.household_id = own.household_id
             WHERE a.id = @accountId AND own.household_id IS NOT NULL
             ORDER BY (p.id = a.profile_id) DESC, p.created_at, p.id;
             """, new { accountId });
-        return Task.FromResult<IReadOnlyList<AccountProfileGrant>>(rows.Select(MapGrant).ToList());
+        return Task.FromResult<IReadOnlyList<HouseholdProfileAccess>>(rows
+            .Select(r => new HouseholdProfileAccess(r.ProfileId, r.IsOwn, r.IsServerAdministrator, r.AuthorizationVersion, ParseRequired(r.CreatedAt)))
+            .ToList());
+    }
+
+    private sealed class HouseholdProfileRow
+    {
+        public Guid ProfileId { get; set; }
+        public bool IsOwn { get; set; }
+        public bool IsServerAdministrator { get; set; }
+        public long AuthorizationVersion { get; set; }
+        public string CreatedAt { get; set; } = string.Empty;
     }
 
     public Task WriteAuthorizationAuditAsync(AuthorizationAuditEvent e, CancellationToken ct = default) => db.ExecuteWriteAsync((conn, tx, token) => { token.ThrowIfCancellationRequested(); InsertAuthorizationAudit(conn, tx, e); }, ct);
@@ -497,250 +426,128 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     internal static void InsertAuthorizationAudit(System.Data.IDbConnection conn, System.Data.IDbTransaction tx, AuthorizationAuditEvent e) =>
         conn.Execute("INSERT INTO authorization_audit_events(event_type,occurred_at,actor_account_id,actor_profile_id,actor_application_id,subject_type,subject_id,changes_json) VALUES(@EventType,@OccurredAt,@ActorAccountId,@ActorProfileId,@ActorApplicationId,@SubjectType,@SubjectId,@ChangesJson);", new { e.EventType, OccurredAt = Iso(e.OccurredAt), e.ActorAccountId, e.ActorProfileId, e.ActorApplicationId, e.SubjectType, e.SubjectId, ChangesJson = JsonSerializer.Serialize(e.Changes) }, tx);
 
-    public Task CreateAccountAsync(Account account, AccountProfileGrant initialGrant,
-        IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
-        CancellationToken ct = default, Profile? newProfile = null, bool preserveProfileAccess = false,
-        string? newHouseholdName = null) =>
-        db.ExecuteWriteAsync((connection, transaction, token) =>
+    public Task CreateUserAsync(Account user, NewUserPlacement placement, AccountInvitation? invitation = null, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(placement);
+        return db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            if (initialGrant.AccountId != account.Id || !initialGrant.IsDefault || !initialGrant.IsEnabled ||
-                initialGrant.ProfileId == Guid.Empty ||
-                (newProfile is not null && newProfile.Id != initialGrant.ProfileId))
+            var newProfile = placement.NewProfile;
+            if (user.ProfileId == Guid.Empty || (newProfile is not null && newProfile.Id != user.ProfileId))
             {
-                throw new InvalidOperationException("The initial profile grant must be enabled and default.");
+                throw new InvalidOperationException("A user must open the profile it is created with.");
             }
 
-            // The account's household: the one it names, else the one its existing profile is in, else a new one.
-            var existingName = newProfile?.DisplayName ?? connection.QueryFirstOrDefault<string>(
-                "SELECT display_name FROM profiles WHERE id=@ProfileId;", initialGrant, transaction);
-            var startedHousehold = false;
-            if (newHouseholdName is not null)
-            {
-                // The household is made here, in the same transaction as the user and its profile.
-                if (account.HouseholdId is not null || newProfile is null)
-                {
-                    throw new InvalidOperationException("A new household is made only for a new profile that names no household.");
-                }
-
-                account.HouseholdId = CreateNamedHousehold(connection, transaction, newHouseholdName, account.CreatedAt);
-                startedHousehold = true;
-            }
-            else
-            {
-                account.HouseholdId = ResolveAccountHousehold(
-                    connection, transaction, account, newProfile is null ? initialGrant.ProfileId : null,
-                    existingName ?? account.Email, out startedHousehold);
-            }
-
-            if (newProfile is not null)
-            {
-                RequireRoom(connection, transaction, account.HouseholdId.Value);
-                newProfile.HouseholdId = account.HouseholdId;
-                connection.Execute("""
-                    INSERT INTO profiles
-                        (id,display_name,avatar_color,avatar_image_path,avatar_icon,content_limit,content_limit_allow_unrated,role,created_at,navigation_config,household_id)
-                    VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@ContentLimit,@ContentLimitAllowUnrated,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
-                    """, new
-                {
-                    newProfile.Id,
-                    newProfile.DisplayName,
-                    newProfile.AvatarColor,
-                    newProfile.AvatarImagePath,
-                    newProfile.AvatarIcon,
-                    newProfile.ContentLimit,
-                    newProfile.ContentLimitAllowUnrated,
-                    Role = newProfile.Role.ToString(),
-                    CreatedAt = Iso(newProfile.CreatedAt),
-                    newProfile.NavigationConfig,
-                    newProfile.HouseholdId,
-                }, transaction);
-            }
-            else if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id=@ProfileId;",
-                         initialGrant, transaction) != 1)
-            {
-                throw new KeyNotFoundException("Profile not found.");
-            }
-            // Every user opens its own profile: the profile it signs in as. A profile has at most one user.
-            AttachToSignInProfile(connection, transaction, account, initialGrant.ProfileId);
-
-            InsertAccount(connection, transaction, account);
-            InsertGrant(connection, transaction, initialGrant);
-            ReplaceAccess(connection, transaction, account.Id, features, libraries, account.UpdatedAt);
-            EnsureHouseholdPrimary(connection, transaction, account.Id,
-                mayLookAfter: startedHousehold && (newProfile is not null || !preserveProfileAccess));
-            // A brand-new profile (or one the caller asked to set up, like the administrator's first start) takes the roles and access
-            // this sign-in was created with. A person who already exists keeps exactly what they have.
-            if (newProfile is not null || !preserveProfileAccess)
-            {
-                SeedProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
-            }
-            else
-            {
-                ClearStaleRolesForNewSignIn(connection, transaction, account);
-            }
-        }, ct);
-
-    public Task CreateInvitedAccountAsync(
-        Account account,
-        IReadOnlyList<AccountProfileGrant> grants,
-        AccountInvitation invitation,
-        CancellationToken ct = default,
-        Profile? newProfile = null,
-        bool preserveProfileAccess = false,
-        string? newHouseholdName = null) =>
-        db.ExecuteWriteAsync((connection, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            if (grants.Count is 0 || grants.Count > Household.MaximumProfiles || grants.Count(grant => grant.IsDefault && grant.IsEnabled) != 1 ||
-                grants.Any(grant => grant.AccountId != account.Id || !grant.IsEnabled || grant.AdminEnabled))
-            {
-                throw new InvalidOperationException("Invitation grants must contain one enabled default and at most eight profiles.");
-            }
-
-            if (invitation.AccountId != account.Id || string.IsNullOrWhiteSpace(invitation.TokenHash))
+            if (invitation is not null && (invitation.AccountId != user.Id || string.IsNullOrWhiteSpace(invitation.TokenHash)))
             {
                 throw new InvalidOperationException("Invitation identity is invalid.");
             }
 
-            if (newProfile is not null && (grants.Count != 1 || grants[0].ProfileId != newProfile.Id))
+            if (newProfile is null && (placement.HouseholdId is not null || placement.NewHouseholdName is not null))
             {
-                throw new InvalidOperationException("A new person's invitation must open exactly that person.");
+                throw new InvalidOperationException("A household is named only for a new profile.");
             }
 
-            // Someone outside the household starts a household of their own. Existing people keep their household.
-            var profileHouseholds = new List<Guid>();
-            if (newProfile is null)
+            if (placement.HouseholdId is not null && placement.NewHouseholdName is not null)
             {
-                profileHouseholds.AddRange(grants
-                    .Select(grant => HouseholdOfProfile(connection, transaction, grant.ProfileId))
-                    .Where(household => household is not null).Select(household => household!.Value).Distinct());
-            }
-            if (profileHouseholds.Count > 1)
-            {
-                throw new InvalidOperationException(CrossHouseholdMessage);
+                throw new InvalidOperationException("Name an existing household or a new one, not both.");
             }
 
-            if (account.HouseholdId is { } named && connection.ExecuteScalar<int>(
-                    "SELECT COUNT(*) FROM households WHERE id=@named;", new { named }, transaction) == 0)
-            {
-                throw new KeyNotFoundException("Household not found.");
-            }
-
+            // The household of the profile this user opens: the one named, the one a new profile is made in, or the one the profile
+            // already has; a profile with none (only the seeded Owner, before the first server administrator) gets a new one.
             var startedHousehold = false;
-            if (newHouseholdName is not null)
+            Guid householdId;
+            if (newProfile is not null)
             {
-                // The household is made here, in the same transaction as the user and its profile.
-                if (account.HouseholdId is not null || newProfile is null)
+                if (placement.NewHouseholdName is { } householdName)
                 {
-                    throw new InvalidOperationException("A new household is made only for a new profile that names no household.");
+                    // The household is made here, in the same transaction as the user and its profile.
+                    householdId = CreateNamedHousehold(connection, transaction, householdName, user.CreatedAt);
+                    startedHousehold = true;
                 }
-
-                account.HouseholdId = CreateNamedHousehold(connection, transaction, newHouseholdName, account.CreatedAt);
-                startedHousehold = true;
-            }
-            else if (account.HouseholdId is null)
-            {
-                if (profileHouseholds.Count == 1)
+                else if (placement.HouseholdId is { } named)
                 {
-                    account.HouseholdId = profileHouseholds[0];
+                    if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id=@named;", new { named }, transaction) == 0)
+                    {
+                        throw new KeyNotFoundException("Household not found.");
+                    }
+
+                    householdId = named;
                 }
                 else
                 {
-                    account.HouseholdId = CreateOrAdoptHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account);
+                    householdId = CreateOrAdoptHousehold(connection, transaction, newProfile.DisplayName, placement.IsServerAdministrator, user.CreatedAt);
+                    startedHousehold = true;
+                }
+
+                RequireRoom(connection, transaction, householdId);
+                InsertProfileRow(connection, transaction, newProfile, householdId);
+            }
+            else
+            {
+                var existing = connection.QueryFirstOrDefault<ExistingProfileRow>(
+                    "SELECT display_name AS DisplayName, household_id AS HouseholdId FROM profiles WHERE id=@ProfileId;",
+                    new { user.ProfileId }, transaction) ?? throw new KeyNotFoundException("Profile not found.");
+                if (existing.HouseholdId is { } own)
+                {
+                    householdId = own;
+                }
+                else
+                {
+                    householdId = CreateOrAdoptHousehold(connection, transaction, existing.DisplayName, placement.IsServerAdministrator, user.CreatedAt);
+                    connection.Execute("UPDATE profiles SET household_id=@householdId WHERE id=@ProfileId;",
+                        new { householdId, user.ProfileId }, transaction);
                     startedHousehold = true;
                 }
             }
 
-            if (newProfile is not null)
+            // A profile has at most one user.
+            if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM accounts WHERE profile_id=@ProfileId AND id<>@Id;",
+                    new { user.ProfileId, user.Id }, transaction) > 0)
             {
-                // A household holds up to eight people (D14), however the new person arrives.
-                RequireRoom(connection, transaction, account.HouseholdId.Value);
-                InsertProfileRow(connection, transaction, newProfile, account.HouseholdId.Value);
+                throw new InvalidOperationException(ProfileAlreadyHasSignInMessage);
             }
 
-            // The invited user opens the invitation's default profile, and a profile has at most one user.
-            AttachToSignInProfile(connection, transaction, account, grants.Single(grant => grant.IsDefault && grant.IsEnabled).ProfileId);
-            InsertAccount(connection, transaction, account);
-            foreach (var grant in grants)
+            InsertAccount(connection, transaction, user);
+            if (invitation is not null)
             {
-                InsertGrant(connection, transaction, grant);
+                connection.Execute("""
+                    INSERT INTO account_invitations
+                        (id, account_id, token_hash, created_at, expires_at, consumed_at)
+                    VALUES (@Id, @AccountId, @TokenHash, @CreatedAt, @ExpiresAt, NULL);
+                    """, new
+                {
+                    invitation.Id,
+                    invitation.AccountId,
+                    invitation.TokenHash,
+                    CreatedAt = Iso(invitation.CreatedAt),
+                    ExpiresAt = Iso(invitation.ExpiresAt),
+                }, transaction);
             }
 
-            connection.Execute("""
-                INSERT INTO account_invitations
-                    (id, account_id, token_hash, created_at, expires_at, consumed_at)
-                VALUES (@Id, @AccountId, @TokenHash, @CreatedAt, @ExpiresAt, NULL);
-                """, new
+            // A brand-new profile (or one the caller asked to set up, like the administrator's first start) takes the roles and access
+            // this user was created with. A person who already exists keeps exactly what they have.
+            if (newProfile is not null || placement.SetUpProfile)
             {
-                invitation.Id,
-                invitation.AccountId,
-                invitation.TokenHash,
-                CreatedAt = Iso(invitation.CreatedAt),
-                ExpiresAt = Iso(invitation.ExpiresAt),
-            }, transaction);
-            // Someone invited from outside starts a household of their own and looks after it.
-            EnsureHouseholdPrimary(connection, transaction, account.Id,
-                mayLookAfter: startedHousehold && (newProfile is not null || !preserveProfileAccess));
-            if (newProfile is not null || !preserveProfileAccess)
-            {
-                SeedProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
+                SetUpProfile(connection, transaction, user, placement, householdId, startedHousehold, bumpVersion: newProfile is null);
             }
             else
             {
-                ClearStaleRolesForNewSignIn(connection, transaction, account);
+                ClearStaleRolesForNewSignIn(connection, transaction, user.ProfileId);
             }
         }, ct);
+    }
 
-    public Task CreateManagedProfileAsync(
-        Profile profile,
-        AccountProfileGrant targetGrant,
-        CancellationToken ct = default,
-        Guid? accessFromProfileId = null) => db.ExecuteWriteAsync((connection, transaction, token) =>
+    private sealed class ExistingProfileRow
     {
-        token.ThrowIfCancellationRequested();
-        if (targetGrant.ProfileId != profile.Id || !targetGrant.IsEnabled || targetGrant.AdminEnabled)
-        {
-            throw new InvalidOperationException("The target profile grant is invalid.");
-        }
-
-        // The limit is the household's (eight profiles, D14, checked below), not a count of the sign-in's own grants.
-        var grantCount = connection.ExecuteScalar<int>(
-            "SELECT COUNT(*) FROM account_profile_grants WHERE account_id=@AccountId;",
-            targetGrant, transaction);
-        if (!targetGrant.IsDefault && grantCount == 0)
-        {
-            throw new InvalidOperationException("The first profile grant must be the default.");
-        }
-
-        // The new person joins the account's household; a household holds up to eight people.
-        var householdId = HouseholdOfAccount(connection, transaction, targetGrant.AccountId)
-            ?? CreateHousehold(connection, transaction, null, profile.CreatedAt);
-        connection.Execute("UPDATE accounts SET household_id=@householdId WHERE id=@AccountId AND household_id IS NULL;",
-            new { householdId, targetGrant.AccountId }, transaction);
-        RequireRoom(connection, transaction, householdId);
-        InsertProfileRow(connection, transaction, profile, householdId);
-        GiveNewProfileAccess(connection, transaction, profile.Id, householdId, accessFromProfileId, profile.CreatedAt);
-        if (targetGrant.IsDefault)
-        {
-            connection.Execute("""
-                UPDATE account_profile_grants SET is_default=0,
-                    authorization_version=authorization_version+1
-                WHERE account_id=@AccountId AND is_default=1;
-                """, targetGrant, transaction);
-        }
-
-        InsertGrant(connection, transaction, targetGrant);
-        connection.Execute("""
-            UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
-            WHERE id=@accountId;
-            """, new { accountId = targetGrant.AccountId, now = Iso(profile.CreatedAt) }, transaction);
-    }, ct);
+        public string DisplayName { get; set; } = string.Empty;
+        public Guid? HouseholdId { get; set; }
+    }
 
     public Task CreateHouseholdPersonAsync(
         Profile profile,
         Guid householdId,
-        IReadOnlyList<AccountProfileGrant> grants,
         CancellationToken ct = default,
         Guid? accessFromProfileId = null) => db.ExecuteWriteAsync((connection, transaction, token) =>
     {
@@ -751,23 +558,9 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new KeyNotFoundException("Household not found.");
         }
 
-        if (grants.Any(grant => grant.ProfileId != profile.Id || grant.IsDefault || !grant.IsEnabled || grant.AdminEnabled
-            || HouseholdOfAccount(connection, transaction, grant.AccountId) != householdId))
-        {
-            throw new InvalidOperationException("A new person can only be opened by sign-ins in their own household.");
-        }
-
         RequireRoom(connection, transaction, householdId);
         InsertProfileRow(connection, transaction, profile, householdId);
         GiveNewProfileAccess(connection, transaction, profile.Id, householdId, accessFromProfileId, profile.CreatedAt);
-        foreach (var grant in grants)
-        {
-            InsertGrantRow(connection, transaction, grant);
-            connection.Execute("""
-                UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
-                WHERE id=@accountId;
-                """, new { accountId = grant.AccountId, now = Iso(profile.CreatedAt) }, transaction);
-        }
     }, ct);
 
     public Task UpdateManagedProfileAsync(Profile profile, CancellationToken ct = default) =>
@@ -967,130 +760,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
     }
 
-    public Task UpsertGrantAsync(AccountProfileGrant grant, CancellationToken ct = default) =>
-        db.ExecuteWriteAsync((connection, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            // The limit is the household's (eight profiles, D14), enforced when a profile joins a household.
-            if (grant.IsDefault && !grant.IsEnabled)
-            {
-                throw new InvalidOperationException("The default profile grant must be enabled.");
-            }
-
-            var account = connection.QuerySingle<(bool IsEnabled, bool IsAdministrator)>(
-                "SELECT is_enabled AS IsEnabled," + AdministratorSql + " AS IsAdministrator FROM accounts WHERE id=@AccountId;",
-                grant, transaction);
-            if (grant.AdminEnabled && !account.IsAdministrator)
-            {
-                throw new InvalidOperationException("Only administrator accounts can enable grant administration.");
-            }
-
-            if (!grant.IsEnabled && account.IsEnabled && connection.ExecuteScalar<int>("""
-                    SELECT COUNT(*) FROM account_profile_grants
-                    WHERE account_id=@AccountId AND profile_id<>@ProfileId AND is_enabled=1;
-                    """, grant, transaction) == 0)
-            {
-                throw new InvalidOperationException("An enabled account must retain an enabled profile grant.");
-            }
-
-            if (grant.IsDefault)
-            {
-                connection.Execute("""
-                    UPDATE account_profile_grants SET is_default=0,
-                        authorization_version=authorization_version+1
-                    WHERE account_id=@AccountId AND is_default=1 AND profile_id<>@ProfileId;
-                    """, grant, transaction);
-            }
-
-            InsertGrant(connection, transaction, grant);
-            EnsureEnabledDefault(connection, transaction, grant.AccountId);
-            connection.Execute("""
-                UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now WHERE id=@id;
-                """, new { id = grant.AccountId, now = Iso(grant.GrantedAt) }, transaction);
-        }, ct);
-
-    public Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
-        db.ExecuteWriteAsync((connection, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            var account = connection.QuerySingle<(bool IsEnabled, bool IsAdministrator)>(
-                "SELECT is_enabled AS IsEnabled," + AdministratorSql + " AS IsAdministrator FROM accounts WHERE id=@accountId;",
-                new { accountId }, transaction);
-            var grant = connection.QuerySingleOrDefault<GrantRow>(
-                GrantSelect + " WHERE account_id=@accountId AND profile_id=@profileId;",
-                new { accountId, profileId }, transaction)
-                ?? throw new InvalidOperationException("Profile grant not found.");
-            var enabledRemaining = connection.ExecuteScalar<int>("""
-                SELECT COUNT(*) FROM account_profile_grants
-                WHERE account_id=@accountId AND profile_id<>@profileId AND is_enabled=1;
-                """, new { accountId, profileId }, transaction);
-            if (account.IsEnabled && enabledRemaining == 0)
-            {
-                throw new InvalidOperationException("An enabled account must retain an enabled profile grant.");
-            }
-
-            connection.Execute("""
-                DELETE FROM account_profile_grants WHERE account_id=@accountId AND profile_id=@profileId;
-                """, new { accountId, profileId }, transaction);
-            EnsureEnabledDefault(connection, transaction, accountId);
-            connection.Execute("""
-                UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
-                WHERE id=@accountId;
-                """, new { accountId, now = Iso(DateTimeOffset.UtcNow) }, transaction);
-        }, ct);
-
-    public Task<Guid?> GetHouseholdPrimaryAccountIdAsync(Guid householdId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = db.CreateConnection();
-        var id = conn.QuerySingleOrDefault<Guid?>(
-            "SELECT primary_account_id FROM households WHERE id=@householdId;", new { householdId });
-        return Task.FromResult(id);
-    }
-
-    public Task<bool> SetHouseholdAdminAsync(Guid accountId, bool isHouseholdAdmin, DateTimeOffset changedAt, CancellationToken ct = default) =>
-        db.ExecuteWriteAsync((connection, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            var account = connection.QuerySingleOrDefault<(Guid? HouseholdId, bool Follows)>(
-                "SELECT (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id) AS HouseholdId, (grants_inherit_from_account_id IS NOT NULL) AS Follows FROM accounts WHERE id=@accountId;",
-                new { accountId }, transaction);
-            if (account.HouseholdId is null)
-            {
-                return false;
-            }
-
-            if (isHouseholdAdmin && account.Follows)
-            {
-                throw new InvalidOperationException("A person's own sign-in can't be a household administrator.");
-            }
-
-            var changed = connection.Execute("""
-                UPDATE accounts SET household_admin=@flag, authorization_version=authorization_version+1, updated_at=@now
-                WHERE id=@accountId AND household_admin<>@flag;
-                """, new { accountId, flag = isHouseholdAdmin ? 1 : 0, now = Iso(changedAt) }, transaction);
-            if (isHouseholdAdmin)
-            {
-                connection.Execute(
-                    "UPDATE households SET primary_account_id=@accountId WHERE id=@household AND primary_account_id IS NULL;",
-                    new { accountId, household = account.HouseholdId.Value }, transaction);
-            }
-
-            return changed > 0;
-        }, ct);
-
-    public Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default) =>
-        db.ExecuteWriteAsync((connection, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            ReplaceAccess(connection, transaction, accountId, features, libraries, changedAt);
-            connection.Execute("""
-                UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
-                WHERE id=@accountId;
-                """, new { accountId, now = Iso(changedAt) }, transaction);
-        }, ct);
-
     public Task<bool> HasEnabledAdminProtectionAsync(Guid profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
@@ -1103,47 +772,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             "DELETE FROM profile_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
-    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,household_admin,grants_inherit_from_account_id,this_computer_only,must_change_password,temporary_password_expires_at,profile_id) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@HouseholdAdmin,@GrantsInheritFromAccountId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt,@ProfileId);", Parameters(a), tx);
-    private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g)
-    {
-        JoinHousehold(c, tx, g.AccountId, g.ProfileId, g.GrantedAt);
-        InsertGrantRow(c, tx, g);
-    }
-
-    private static void InsertGrantRow(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g) => c.Execute("INSERT INTO account_profile_grants(account_id,profile_id,is_default,is_enabled,admin_enabled,authorization_version,granted_at) VALUES(@AccountId,@ProfileId,@IsDefault,@IsEnabled,@AdminEnabled,@AuthorizationVersion,@GrantedAt) ON CONFLICT(account_id,profile_id) DO UPDATE SET is_default=excluded.is_default,is_enabled=excluded.is_enabled,admin_enabled=excluded.admin_enabled,authorization_version=account_profile_grants.authorization_version+1;", new { g.AccountId, g.ProfileId, IsDefault = g.IsDefault ? 1 : 0, IsEnabled = g.IsEnabled ? 1 : 0, AdminEnabled = g.AdminEnabled ? 1 : 0, g.AuthorizationVersion, GrantedAt = Iso(g.GrantedAt) }, tx);
-    private static void ReplaceAccess(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset at)
-    {
-        c.Execute("DELETE FROM account_feature_grants WHERE account_id=@accountId;DELETE FROM account_library_grants WHERE account_id=@accountId;", new { accountId }, tx); foreach (var f in features)
-        {
-            c.Execute("INSERT INTO account_feature_grants(account_id,feature_id,granted_at) VALUES(@accountId,@feature,@at);", new { accountId, feature = f.Value, at = Iso(at) }, tx);
-        }
-
-        // The Vault is only ever opened through Vault mode, never through a library grant (owner decision 2026-10-22).
-        var vaultIds = c.Query<string>("SELECT library_id FROM vault_libraries;", transaction: tx)
-            .Select(text => Guid.TryParse(text, out var parsed) ? parsed : Guid.Empty)
-            .ToHashSet();
-        if (libraries.Any(vaultIds.Contains))
-        {
-            throw new ArgumentException("The Vault can't be given to an account as a library. It opens only through Vault mode.");
-        }
-
-        foreach (var id in libraries)
-        {
-            c.Execute("INSERT INTO account_library_grants(account_id,library_id,granted_at) VALUES(@accountId,@id,@at);", new { accountId, id, at = Iso(at) }, tx);
-        }
-    }
-    private static void EnsureEnabledDefault(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId)
-    {
-        if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM account_profile_grants WHERE account_id=@accountId AND is_enabled=1;", new { accountId }, tx) == 0)
-        {
-            return;
-        }
-
-        if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM account_profile_grants WHERE account_id=@accountId AND is_enabled=1 AND is_default=1;", new { accountId }, tx) == 0)
-        {
-            c.Execute("UPDATE account_profile_grants SET is_default=1,authorization_version=authorization_version+1 WHERE rowid=(SELECT rowid FROM account_profile_grants WHERE account_id=@accountId AND is_enabled=1 ORDER BY granted_at LIMIT 1);", new { accountId }, tx);
-        }
-    }
+    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,this_computer_only,must_change_password,temporary_password_expires_at,profile_id) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt,@ProfileId);", Parameters(a), tx);
     private static void InsertProfileRow(
         System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, Profile profile, Guid householdId)
     {
@@ -1167,8 +796,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }, transaction);
     }
 
-    private const string CrossHouseholdMessage = "A sign-in can only open people from its own household.";
-
     /// <summary>A household with exactly the name the administrator chose (trimmed and checked as every household name is).</summary>
     private static Guid CreateNamedHousehold(System.Data.IDbConnection c, System.Data.IDbTransaction tx, string name, DateTimeOffset at)
     {
@@ -1178,91 +805,23 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return household.Id;
     }
 
-    private static Guid CreateHousehold(System.Data.IDbConnection c, System.Data.IDbTransaction tx, string? name, DateTimeOffset at)
-    {
-        var id = Guid.NewGuid();
-        c.Execute("INSERT INTO households(id,name,created_at) VALUES(@id,@name,@at);",
-            new { id, name = Household.DefaultNameFor(name), at = Iso(at) }, tx);
-        return id;
-    }
-
-    /// <summary>
-    /// The first main sign-in a household gets (never a person's own sign-in, which follows another) becomes its
-    /// primary account. It also becomes the household's administrator only when <paramref name="mayLookAfter"/> (the household was
-    /// made for this very sign-in: a new household's first person looks after it, because a household needs one). Joining a
-    /// household that already exists never promotes anyone; administrator roles are given only through the roles actions.
-    /// </summary>
-    private static void EnsureHouseholdPrimary(
-        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, bool mayLookAfter)
-    {
-        var householdId = HouseholdOfAccount(c, tx, accountId);
-        if (householdId is null)
-        {
-            return;
-        }
-
-        var named = c.Execute("""
-            UPDATE households SET primary_account_id=@accountId
-            WHERE id=@householdId AND primary_account_id IS NULL
-              AND EXISTS (SELECT 1 FROM accounts WHERE id=@accountId AND grants_inherit_from_account_id IS NULL);
-            """, new { accountId, householdId = householdId.Value }, tx);
-        if (named > 0 && mayLookAfter)
-        {
-            // A brand-new account has no open sessions to re-check, so its authorization version stays as created.
-            c.Execute("UPDATE accounts SET household_admin=1 WHERE id=@accountId;",
-                new { accountId }, tx);
-        }
-    }
-
-    /// <summary>
-    /// Makes the sign-in open its own profile: the profile it signs in as (<paramref name="profileId"/>, the initial default grant). A
-    /// profile has at most one user, so a profile that already has another sign-in is refused. Sets <see cref="Account.ProfileId"/>.
-    /// </summary>
-    private static void AttachToSignInProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account, Guid profileId)
-    {
-        if (account.ProfileId is { } named && named != profileId)
-        {
-            throw new InvalidOperationException("A sign-in can only be attached to the profile it opens.");
-        }
-
-        if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM accounts WHERE profile_id=@profileId AND id<>@accountId;",
-                new { profileId, accountId = account.Id }, tx) > 0)
-        {
-            throw new InvalidOperationException(ProfileAlreadyHasSignInMessage);
-        }
-
-        account.ProfileId = profileId;
-    }
-
     /// <summary>What a person is told when a profile that already has a sign-in is given a second one.</summary>
     internal const string ProfileAlreadyHasSignInMessage = "That profile already has a sign-in.";
 
     /// <summary>
-    /// Sets up the profile a new sign-in opens from what the sign-in was created with, in the caller's transaction (profile-held
-    /// access): the roles (server administrator when the account is an administrator with administrator access on its own profile,
-    /// household administrator when it is its household's first main sign-in), the Read/Watch/Listen/View and library access it was
-    /// given, and the server administrator's household as the default household when there is none yet. Only for a brand-new profile
-    /// or a first start; a person who already exists is never changed by getting a sign-in. Does nothing for a sign-in with no profile.
+    /// Sets up the profile a new user opens from the placement it was created with, in the caller's transaction (profile-held access):
+    /// the server administrator role (in the Library's own household, D17), the household administrator role when the household was
+    /// just made for this profile (a household needs one, D7; the user is attached, D15), and the Read/Watch/Listen/View access and
+    /// libraries it starts with. Only for a brand-new profile or a first start; a person who already exists is never changed by
+    /// getting a user.
     /// </summary>
-    internal static void SeedProfileFromAccount(
-        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, bool bumpVersion = true)
+    private static void SetUpProfile(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account user, NewUserPlacement placement, Guid householdId,
+        bool startedHousehold, bool bumpVersion)
     {
-        var account = c.QueryFirstOrDefault<SyncRow>("""
-            SELECT a.profile_id AS ProfileId, a.is_administrator AS IsAdministrator, a.household_admin AS HouseholdAdmin,
-                   COALESCE(a.grants_inherit_from_account_id, a.id) AS AccessAccountId,
-                   EXISTS(SELECT 1 FROM account_profile_grants g
-                          WHERE g.account_id=a.id AND g.profile_id=a.profile_id AND g.is_enabled=1 AND g.admin_enabled=1) AS OwnGrantAdmin
-            FROM accounts a WHERE a.id=@accountId;
-            """, new { accountId }, tx);
-        if (account?.ProfileId is not { } profileId)
+        var profileId = user.ProfileId;
+        if (placement.IsServerAdministrator)
         {
-            return;
-        }
-
-        var server = account.IsAdministrator && account.OwnGrantAdmin;
-        if (server)
-        {
-            // D17: a server administrator profile lives in the Library's own household.
             ProfileAccessRepository.RequireInDefaultHousehold(c, tx, profileId);
         }
 
@@ -1270,54 +829,33 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             UPDATE profiles
             SET is_server_admin=@server, is_household_admin=@household, authorization_version=authorization_version+@bump
             WHERE id=@profileId;
-            DELETE FROM profile_feature_grants WHERE profile_id=@profileId;
-            DELETE FROM profile_library_grants WHERE profile_id=@profileId;
-            INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at)
-                SELECT @profileId,feature_id,granted_at FROM account_feature_grants WHERE account_id=@accessAccountId;
-            INSERT INTO profile_library_grants(profile_id,library_id,granted_at)
-                SELECT @profileId,library_id,granted_at FROM account_library_grants WHERE account_id=@accessAccountId;
             """, new
         {
             profileId,
-            accessAccountId = account.AccessAccountId,
-            server = server ? 1 : 0,
-            household = account.HouseholdAdmin ? 1 : 0,
+            server = placement.IsServerAdministrator ? 1 : 0,
+            household = startedHousehold ? 1 : 0,
             bump = bumpVersion ? 1 : 0,
         }, tx);
-        if (server && HouseholdOfProfile(c, tx, profileId) is { } householdId)
+        ProfileAccessRepository.WriteAccessRows(c, tx, profileId, placement.Features ?? new HashSet<AccountFeatureId>(),
+            placement.Libraries ?? new HashSet<Guid>(), user.CreatedAt);
+        if (placement.IsServerAdministrator)
         {
             ProfileAccessRepository.MarkDefaultHouseholdIfNone(c, tx, householdId);
         }
     }
 
     /// <summary>
-    /// A person who already exists gets a sign-in: no administrator role left on the profile from an earlier sign-in comes back with
-    /// it. The profile had no sign-in until now, so clearing a role cannot strand a server administrator; a role is given again only
+    /// A person who already exists gets a user: no administrator role left on the profile from an earlier sign-in comes back with
+    /// it. The profile had no user until now, so clearing a role cannot strand a server administrator; a role is given again only
     /// by an explicit choice afterwards (the server administrator's own, in the service). Their Read/Watch/Listen/View and library
     /// access stay as they are.
     /// </summary>
-    private static void ClearStaleRolesForNewSignIn(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account)
-    {
-        if (account.ProfileId is not { } profileId)
-        {
-            return;
-        }
-
+    private static void ClearStaleRolesForNewSignIn(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId) =>
         c.Execute("""
             UPDATE profiles
             SET is_server_admin=0, is_household_admin=0, authorization_version=authorization_version+1
             WHERE id=@profileId AND (is_server_admin=1 OR is_household_admin=1);
             """, new { profileId }, tx);
-    }
-
-    private sealed class SyncRow
-    {
-        public Guid? ProfileId { get; set; }
-        public bool IsAdministrator { get; set; }
-        public bool HouseholdAdmin { get; set; }
-        public Guid AccessAccountId { get; set; }
-        public bool OwnGrantAdmin { get; set; }
-    }
 
     /// <summary>
     /// A person added without a sign-in starts with the Read/Watch/Listen/View access and libraries of the profile of whoever
@@ -1363,13 +901,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
     }
 
-    // Creation-time bookkeeping (household size, joining a household): the household of the profile the sign-in opens. The written
-    // accounts.household_id column answers only for a sign-in that has no profile yet; no access decision reads it.
-    private static Guid? HouseholdOfAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId) =>
-        c.QueryFirstOrDefault<Guid?>(
-            "SELECT COALESCE(p.household_id, a.household_id) FROM accounts a LEFT JOIN profiles p ON p.id=a.profile_id WHERE a.id=@accountId;",
-            new { accountId }, tx);
-
     private static Guid? HouseholdOfProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId) =>
         c.QueryFirstOrDefault<Guid?>("SELECT household_id FROM profiles WHERE id=@profileId;", new { profileId }, tx);
 
@@ -1382,41 +913,16 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     }
 
     /// <summary>
-    /// The household a new account belongs to: the one it already names, else the one of the profile it is opening
-    /// (<paramref name="profileId"/>), else a new household named after <paramref name="name"/>.
-    /// </summary>
-    private static Guid ResolveAccountHousehold(
-        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account, Guid? profileId, string? name,
-        out bool started)
-    {
-        started = false;
-        if (account.HouseholdId is { } named)
-        {
-            if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id=@named;", new { named }, tx) == 0)
-            {
-                throw new KeyNotFoundException("Household not found.");
-            }
-
-            return named;
-        }
-
-        var fromProfile = profileId is { } p ? HouseholdOfProfile(c, tx, p) : null;
-        started = fromProfile is null;
-        return fromProfile ?? CreateOrAdoptHousehold(c, tx, name, account);
-    }
-
-    /// <summary>
-    /// A new household for <paramref name="account"/>. The first server administrator joins the server's still-empty
-    /// household (made by the Shared Library upgrade, or by the first shared item) instead of leaving it as a phantom.
+    /// A new household for a profile. The first server administrator joins the server's still-empty household (made by the Shared
+    /// Library upgrade, or by the first shared item) instead of leaving it as a phantom.
     /// </summary>
     private static Guid CreateOrAdoptHousehold(
-        System.Data.IDbConnection c, System.Data.IDbTransaction tx, string? name, Account account)
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, string? name, bool isServerAdministrator, DateTimeOffset at)
     {
-        if (account.IsAdministrator &&
+        if (isServerAdministrator &&
             c.QueryFirstOrDefault<Guid?>("""
                 SELECT h.id FROM households h
-                WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.household_id = h.id)
-                  AND NOT EXISTS (SELECT 1 FROM profiles p WHERE p.household_id = h.id)
+                WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.household_id = h.id)
                   AND EXISTS (SELECT 1 FROM view_shared_library v WHERE v.household_id = h.id)
                 ORDER BY h.created_at, h.id LIMIT 1;
                 """, transaction: tx) is { } empty)
@@ -1424,50 +930,11 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             return empty;
         }
 
-        return CreateHousehold(c, tx, name, account.CreatedAt);
+        var id = Guid.NewGuid();
+        c.Execute("INSERT INTO households(id,name,created_at) VALUES(@id,@name,@at);",
+            new { id, name = Household.DefaultNameFor(name), at = Iso(at) }, tx);
+        return id;
     }
 
-    /// <summary>
-    /// Keeps an account and a profile in one household. A profile without a household (only the seeded Owner,
-    /// before the first administrator exists) joins the account's household, and counts towards its limit of
-    /// eight. Two different households are refused.
-    /// </summary>
-    private static void JoinHousehold(
-        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, Guid profileId, DateTimeOffset at)
-    {
-        var accountHousehold = HouseholdOfAccount(c, tx, accountId);
-        var profileHousehold = HouseholdOfProfile(c, tx, profileId);
-        if (accountHousehold is { } a && profileHousehold is { } p)
-        {
-            if (a != p)
-            {
-                throw new InvalidOperationException(CrossHouseholdMessage);
-            }
-
-            return;
-        }
-
-        if (accountHousehold is null && profileHousehold is null)
-        {
-            var created = CreateHousehold(c, tx, null, at);
-            c.Execute("UPDATE accounts SET household_id=@created WHERE id=@accountId;", new { created, accountId }, tx);
-            c.Execute("UPDATE profiles SET household_id=@created WHERE id=@profileId;", new { created, profileId }, tx);
-        }
-        else if (accountHousehold is null)
-        {
-            c.Execute("UPDATE accounts SET household_id=@profileHousehold WHERE id=@accountId;", new { profileHousehold, accountId }, tx);
-        }
-        else
-        {
-            RequireRoom(c, tx, accountHousehold.Value);
-            c.Execute("UPDATE profiles SET household_id=@accountHousehold WHERE id=@profileId;", new { accountHousehold, profileId }, tx);
-        }
-    }
-    /// <summary>SQL for "the profile this sign-in opens is a server administrator" (0 or 1), for use in a query over <c>accounts</c>.</summary>
-    private const string AdministratorSql = "COALESCE((SELECT p.is_server_admin FROM profiles p WHERE p.id = accounts.profile_id), 0)";
-
-    private const string GrantSelect = "SELECT account_id AS AccountId,profile_id AS ProfileId,is_default AS IsDefault,is_enabled AS IsEnabled,admin_enabled AS AdminEnabled,authorization_version AS AuthorizationVersion,granted_at AS GrantedAt FROM account_profile_grants";
-    private static AccountProfileGrant MapGrant(GrantRow r) => new() { AccountId = r.AccountId, ProfileId = r.ProfileId, IsDefault = r.IsDefault, IsEnabled = r.IsEnabled, AdminEnabled = r.AdminEnabled, AuthorizationVersion = r.AuthorizationVersion, GrantedAt = ParseRequired(r.GrantedAt) };
     private static string Iso(DateTimeOffset v) => v.ToString("O", System.Globalization.CultureInfo.InvariantCulture); private static DateTimeOffset ParseRequired(string v) => DateTimeOffset.Parse(v, System.Globalization.CultureInfo.InvariantCulture); private static DateTimeOffset? Parse(string? v) => string.IsNullOrWhiteSpace(v) ? null : ParseRequired(v);
-    private sealed class GrantRow { public Guid AccountId { get; set; } public Guid ProfileId { get; set; } public bool IsDefault { get; set; } public bool IsEnabled { get; set; } public bool AdminEnabled { get; set; } public long AuthorizationVersion { get; set; } public string GrantedAt { get; set; } = ""; }
 }

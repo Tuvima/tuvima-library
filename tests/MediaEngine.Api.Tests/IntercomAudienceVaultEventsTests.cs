@@ -226,19 +226,10 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
                 Email = "viewer@example.com",
                 NormalizedEmail = "VIEWER@EXAMPLE.COM",
                 IsEnabled = true,
-                IsAdministrator = administrator,
                 CreatedAt = now,
                 UpdatedAt = now,
             },
-            new AccountProfileGrant
-            {
-                AccountId = _accountId,
-                ProfileId = Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AdminEnabled = administrator,
-                GrantedAt = now,
-            },
+            new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator),
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
             new HashSet<Guid> { _ordinaryLibrary });
         await _identities.InsertSessionAsync(new AuthSession

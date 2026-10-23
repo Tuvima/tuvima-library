@@ -192,21 +192,11 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
                 Email = email,
                 NormalizedEmail = email.ToUpperInvariant(),
                 IsEnabled = true,
-                IsAdministrator = administrator,
                 AuthorizationVersion = 1,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new AccountProfileGrant
-            {
-                AccountId = id,
-                ProfileId = ownProfile?.Id ?? Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AdminEnabled = administrator,
-                AuthorizationVersion = 1,
-                GrantedAt = DateTimeOffset.UtcNow,
-            },
+            new TestGrant(id, ownProfile?.Id ?? Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator),
             new HashSet<AccountFeatureId>(),
             new HashSet<Guid>(),
             newProfile: ownProfile).GetAwaiter().GetResult();

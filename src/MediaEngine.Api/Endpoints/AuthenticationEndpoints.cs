@@ -1107,14 +1107,6 @@ public static class AuthenticationEndpoints
             return false;
         }
 
-        var grants = (await accounts.GetGrantsAsync(accountId, ct).ConfigureAwait(false))
-            .Where(grant => grant.IsEnabled)
-            .ToArray();
-        if (grants.Length == 0)
-        {
-            return false;
-        }
-
         if (policy.PasswordSignInEnabled &&
             await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct)
                 .ConfigureAwait(false) is not null)

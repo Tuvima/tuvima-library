@@ -161,7 +161,7 @@ public sealed class DashboardFirstRunExperienceTests
         Assert.Contains("Use one of the one-time recovery codes", dashboard, StringComparison.Ordinal);
         Assert.Contains("Reset with recovery code", dashboard, StringComparison.Ordinal);
         Assert.Contains("ResetAdministratorPasswordFromHostAsync", hostRecoveryContract, StringComparison.Ordinal);
-        Assert.Contains("account.IsAdministrator", identity, StringComparison.Ordinal);
+        Assert.Contains("IsServerAdministrator: true", identity, StringComparison.Ordinal);
         Assert.DoesNotContain("ProfileRole.Administrator", identity, StringComparison.Ordinal);
         Assert.Contains("host_administrator_password_reset", identity, StringComparison.Ordinal);
         Assert.Contains("RevokeAccountSessionsAsync", identity, StringComparison.Ordinal);

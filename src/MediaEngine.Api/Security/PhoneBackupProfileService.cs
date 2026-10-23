@@ -109,7 +109,8 @@ public sealed class PhoneBackupProfileService(
     {
         var device = await devices.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
         var account = device is null ? null : await accounts.GetByIdAsync(device.AccountId, ct).ConfigureAwait(false);
-        await RequireAuthorityAsync(actor, account?.HouseholdId, ct).ConfigureAwait(false);
+        var owner = account is null ? null : await profiles.GetByIdAsync(account.ProfileId, ct).ConfigureAwait(false);
+        await RequireAuthorityAsync(actor, owner?.HouseholdId, ct).ConfigureAwait(false);
         if (device is null || !device.IsActive)
         {
             return BackupProfileOutcome.DeviceNotFound;
@@ -145,8 +146,9 @@ public sealed class PhoneBackupProfileService(
     private async Task<bool> InHouseholdAsync(Guid deviceAccountId, Guid profileId, CancellationToken ct)
     {
         var account = await accounts.GetByIdAsync(deviceAccountId, ct).ConfigureAwait(false);
+        var owner = account is null ? null : await profiles.GetByIdAsync(account.ProfileId, ct).ConfigureAwait(false);
         var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
-        return account?.HouseholdId is { } household && profile?.HouseholdId == household;
+        return owner?.HouseholdId is { } household && profile?.HouseholdId == household;
     }
 
     /// <summary>Same rule as other household actions: a server administrator, or a household administrator inside their own household. Throws otherwise.</summary>

@@ -80,8 +80,7 @@ public sealed class UsableAdministratorService(
     }
 
     private async Task<IEnumerable<Account>> EnabledAdministratorsAsync(CancellationToken ct) =>
-        (await accounts.GetAllAsync(ct).ConfigureAwait(false))
-            .Where(account => account.IsEnabled && account.IsAdministrator);
+        await accounts.GetEnabledServerAdministratorsAsync(ct).ConfigureAwait(false);
 
     private async Task<bool> IsUsableAsync(
         AuthSettings policy, Account account, CancellationToken ct, AdministratorSignInLoss? loss = null)
@@ -98,7 +97,7 @@ public sealed class UsableAdministratorService(
 
         // A server administrator is a user attached to a server administrator profile (the roles live on the profile); the user
         // is not an administrator while that profile is the one being lost.
-        if (account.ProfileId is null || IsLost(loss, account))
+        if (IsLost(loss, account))
         {
             return false;
         }
@@ -133,9 +132,8 @@ public sealed class UsableAdministratorService(
         return false;
     }
 
-    // The role is lost when the change names the profile the user opens, for this user or for every user of that profile.
+    // The role is lost when the change names the profile the user opens.
     private static bool IsLost(AdministratorSignInLoss? loss, Account account) => loss is { } change
         && change.ProfileId is { } lostProfile
-        && lostProfile == account.ProfileId
-        && (change.AccountId is null || change.AccountId == account.Id);
+        && lostProfile == account.ProfileId;
 }

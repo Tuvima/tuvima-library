@@ -281,12 +281,12 @@ public sealed class PersonalStateBackupRepository
         return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
     }
 
-    /// <summary>Every profile the account may use, enabled or not.</summary>
+    /// <summary>The profile the user opens (a user opens exactly one).</summary>
     private static List<Guid> ReadProfileIds(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "SELECT profile_id FROM account_profile_grants WHERE account_id = $id ORDER BY is_default DESC, granted_at, profile_id";
+        command.CommandText = "SELECT profile_id FROM accounts WHERE id = $id";
         command.Parameters.AddWithValue("$id", GuidSql.ToBlob(accountId));
         var ids = new List<Guid>();
         using var reader = command.ExecuteReader();

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0042 storage_epoch_profile_held_access).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0043 drop_account_held_access).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -32,13 +32,6 @@ CREATE TABLE account_external_logins (
     UNIQUE(provider, issuer, subject)
 );
 
-CREATE TABLE account_feature_grants (
-    account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    feature_id TEXT NOT NULL CHECK (feature_id IN ('read','watch','listen','view')),
-    granted_at TEXT NOT NULL,
-    PRIMARY KEY (account_id, feature_id)
-);
-
 CREATE TABLE account_invitations (
     id          BLOB NOT NULL PRIMARY KEY,
     account_id  BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -46,13 +39,6 @@ CREATE TABLE account_invitations (
     created_at  TEXT NOT NULL,
     expires_at  TEXT NOT NULL,
     consumed_at TEXT
-);
-
-CREATE TABLE account_library_grants (
-    account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    library_id BLOB NOT NULL,
-    granted_at TEXT NOT NULL,
-    PRIMARY KEY (account_id, library_id)
 );
 
 CREATE TABLE account_notice_dismissals (
@@ -71,17 +57,6 @@ CREATE TABLE account_passkeys (
     last_used_at  TEXT
 );
 
-CREATE TABLE account_profile_grants (
-    account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
-    is_enabled INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
-    admin_enabled INTEGER NOT NULL DEFAULT 0 CHECK (admin_enabled IN (0, 1)),
-    authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0),
-    granted_at TEXT NOT NULL,
-    PRIMARY KEY (account_id, profile_id)
-);
-
 CREATE TABLE account_two_step (
     account_id      BLOB NOT NULL PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
     secret_protected TEXT NOT NULL,
@@ -90,22 +65,19 @@ CREATE TABLE account_two_step (
     last_used_step  INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE accounts (
+CREATE TABLE "accounts" (
     id               BLOB NOT NULL PRIMARY KEY,
     email            TEXT,
     normalized_email TEXT,
     is_enabled       INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
-    is_administrator INTEGER NOT NULL DEFAULT 0 CHECK (is_administrator IN (0, 1)),
     authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0),
     created_at       TEXT NOT NULL,
     updated_at       TEXT NOT NULL,
-    household_id     BLOB REFERENCES households(id),
-    household_admin  INTEGER NOT NULL DEFAULT 0 CHECK (household_admin IN (0, 1)),
-    grants_inherit_from_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL,
     this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1)),
     must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
-    temporary_password_expires_at TEXT
-, profile_id BLOB REFERENCES profiles(id) ON DELETE CASCADE);
+    temporary_password_expires_at TEXT,
+    profile_id       BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE
+);
 
 CREATE TABLE adaptive_hls_packages (
     id              BLOB NOT NULL PRIMARY KEY,
@@ -1123,36 +1095,11 @@ CREATE TABLE folder_organise_log (
   PRIMARY KEY (operation_id, old_path)
 );
 
-CREATE TABLE "grant_admin_protections" (
-    account_id         BLOB NOT NULL,
-    profile_id         BLOB NOT NULL,
-    is_enabled         INTEGER NOT NULL DEFAULT 0 CHECK (is_enabled IN (0, 1)),
-    unlock_mode        TEXT NOT NULL DEFAULT 'FixedDuration'
-        CHECK (unlock_mode IN ('FixedDuration','UntilProfileSwitch','LockOnLeave')),
-    unlock_minutes     INTEGER,
-    protection_version INTEGER NOT NULL DEFAULT 1 CHECK (protection_version > 0),
-    updated_at         TEXT NOT NULL,
-    PRIMARY KEY (account_id, profile_id),
-    FOREIGN KEY (account_id, profile_id) REFERENCES account_profile_grants(account_id, profile_id) ON DELETE CASCADE
-);
-
-CREATE TABLE grant_admin_unlocks (
-    session_id BLOB NOT NULL PRIMARY KEY REFERENCES auth_sessions(id) ON DELETE CASCADE,
-    account_id BLOB NOT NULL,
-    profile_id BLOB NOT NULL,
-    protection_version INTEGER NOT NULL,
-    method TEXT NOT NULL,
-    granted_at TEXT NOT NULL,
-    expires_at TEXT,
-    FOREIGN KEY (account_id, profile_id) REFERENCES account_profile_grants(account_id, profile_id) ON DELETE CASCADE
-);
-
 CREATE TABLE households (
     id         BLOB NOT NULL PRIMARY KEY,
     name       TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    primary_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL
-, is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)));
+    is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)));
 
 CREATE TABLE identity_audit_events (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3604,8 +3551,6 @@ CREATE INDEX idx_works_wikidata_qid
 
 CREATE INDEX idx_works_work_kind      ON works(work_kind) WHERE work_kind != 'standalone';
 
-CREATE INDEX ix_accounts_household ON accounts(household_id);
-
 CREATE INDEX ix_ai_usage_records_caller ON ai_usage_records(caller_kind, caller_id, started_at);
 
 CREATE INDEX ix_ai_usage_records_started ON ai_usage_records(started_at);
@@ -3783,13 +3728,10 @@ CREATE INDEX ix_view_personal_spaces_library
 CREATE INDEX ix_view_sources_space_activity
     ON view_sources(personal_space_id, last_activity_at DESC, id);
 
-CREATE UNIQUE INDEX ux_account_profile_default
-    ON account_profile_grants(account_id) WHERE is_default = 1;
-
 CREATE UNIQUE INDEX ux_accounts_normalized_email
     ON accounts(normalized_email);
 
-CREATE UNIQUE INDEX ux_accounts_profile ON accounts(profile_id) WHERE profile_id IS NOT NULL;
+CREATE UNIQUE INDEX ux_accounts_profile ON accounts(profile_id);
 
 CREATE UNIQUE INDEX ux_collection_view_sources_gallery
     ON collection_view_sources(collection_id, gallery_id)

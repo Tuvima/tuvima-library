@@ -135,7 +135,7 @@ public sealed class ProfilePickerDeleteTests : AsyncBunitContext
 
         string[] actions = serverAdministrator ? ["access.manage"] : householdAdministrator ? ["household.manage"] : [];
         var grants = _managed.Select(person => new AccountProfileGrantDto(person.Id, person.Id, person.DisplayName, null,
-            true, true, true, new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)).ToList();
+            true, true, true, new ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow)).ToList();
         var authority = new DashboardAuthorityResponse(Guid.NewGuid(), OwnId, true, true, 1, 1, serverAdministrator, serverAdministrator, null, 1,
             grants, serverAdministrator ? ["settings.administration"] : [], actions);
         var session = new DashboardSessionAccessor();

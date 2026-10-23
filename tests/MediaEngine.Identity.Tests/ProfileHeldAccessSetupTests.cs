@@ -44,13 +44,13 @@ public sealed class ProfileHeldAccessSetupTests : IDisposable
             "owner@example.com", "correct horse battery staple", "Owner", "device", "Browser", "Dashboard");
 
         var account = Assert.Single(await _accounts.GetAllAsync());
-        var profile = (await new ProfileRepository(_database).GetByIdAsync(account.ProfileId!.Value))!;
+        var profile = (await new ProfileRepository(_database).GetByIdAsync(account.ProfileId))!;
         Assert.Equal(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, profile.Id);
         Assert.True(profile.IsServerAdministrator);
         Assert.True(profile.IsHouseholdAdministrator);
         Assert.Equal(AccountFeatureId.All.OrderBy(feature => feature.Value), (await _access.GetFeatureGrantsAsync(profile.Id)).OrderBy(feature => feature.Value));
         Assert.NotNull(profile.HouseholdId);
-        Assert.Equal(account.HouseholdId, profile.HouseholdId);
+        Assert.Equal(profile.HouseholdId, (await new HouseholdRepository(_database).GetForAccountAsync(account.Id))!.Id);
         Assert.Equal(profile.HouseholdId, await _access.GetDefaultHouseholdIdAsync());
         Assert.Equal(account.Id, await _access.FindUserIdOfProfileAsync(profile.Id));
     }
@@ -63,7 +63,7 @@ public sealed class ProfileHeldAccessSetupTests : IDisposable
 
         var account = Assert.Single(await _accounts.GetAllAsync());
         Assert.Equal(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, account.ProfileId);
-        var flags = (await _access.GetAdminFlagsAsync(account.ProfileId!.Value))!;
+        var flags = (await _access.GetAdminFlagsAsync(account.ProfileId))!;
         Assert.True(flags.IsServerAdministrator);
         Assert.True(flags.IsHouseholdAdministrator);
     }

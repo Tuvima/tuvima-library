@@ -31,7 +31,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private bool _settingsAvailable = true;
     private bool _samHasPin;
     private bool _ownHasPin;
-    private readonly List<AccountAccessResponse> _accounts = [];
+    private readonly Dictionary<Guid, ProfileAdminProtectionResponse> _protections = [];
     private readonly List<AccessLibraryOptionDto> _libraries = [];
     private HttpStatusCode _accessSaveStatus = HttpStatusCode.NoContent;
     private string? _accessSaveDetail;
@@ -823,22 +823,22 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _ownHasPin = true;
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
-        _accounts.Add(UserWithProtection(OwnAccountId, OwnId, "Test User", protectionEnabled: false));
+        _protections[OwnId] = Protection(protectionEnabled: false);
 
         var cut = RenderFor(OwnId);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='pin-protection']")));
 
         Assert.Empty(cut.FindAll("[data-profile-section='pin-protection'] input[type='password']"));
         Assert.False(AdminSwitch(cut, "Ask for a PIN to open administrator settings").HasAttribute("checked"));
-        Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
+        Assert.Empty(ProtectionSaves());
 
         cut.InvokeAsync(() => AdminSwitch(cut, "Ask for a PIN to open administrator settings").Change(true));
 
         cut.WaitForAssertion(() => Assert.Contains("Administrator settings now ask for Test User", cut.Markup));
-        var request = Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
+        var request = Assert.Single(ProtectionSaves());
         Assert.Equal(HttpMethod.Put, request.Method);
-        Assert.Equal($"/access/accounts/{OwnAccountId:D}/grants/{OwnId:D}/admin-protection", request.Path);
-        var payload = System.Text.Json.JsonSerializer.Deserialize<SetGrantAdminProtectionRequest>(request.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        Assert.Equal($"/access/profiles/{OwnId:D}/admin-protection", request.Path);
+        var payload = System.Text.Json.JsonSerializer.Deserialize<SetProfileAdminProtectionRequest>(request.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
         Assert.True(payload.Enabled);
         Assert.Equal("FixedDuration", payload.UnlockMode);
         Assert.Equal(30, payload.UnlockMinutes);
@@ -850,7 +850,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _ownHasPin = false;
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
-        _accounts.Add(UserWithProtection(OwnAccountId, OwnId, "Test User", protectionEnabled: false));
+        _protections[OwnId] = Protection(protectionEnabled: false);
 
         var cut = RenderFor(OwnId);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='pin-protection']")));
@@ -859,7 +859,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.InvokeAsync(() => AdminSwitch(cut, "Ask for a PIN to open administrator settings").Change(true));
 
         cut.WaitForAssertion(() => Assert.Contains("Set a PIN for this profile first", cut.Markup, StringComparison.Ordinal));
-        Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
+        Assert.Empty(ProtectionSaves());
     }
 
     [Fact]
@@ -868,15 +868,15 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _ownHasPin = true;
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
-        _accounts.Add(UserWithProtection(OwnAccountId, OwnId, "Test User", protectionEnabled: true));
+        _protections[OwnId] = Protection(protectionEnabled: true);
 
         var cut = RenderFor(OwnId);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("select[aria-label='How long the PIN unlocks administrator settings for Test User']")));
         cut.Find("select[aria-label='How long the PIN unlocks administrator settings for Test User']").Change("FixedDuration:60");
 
-        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal)));
-        var request = Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
-        var payload = System.Text.Json.JsonSerializer.Deserialize<SetGrantAdminProtectionRequest>(request.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        cut.WaitForAssertion(() => Assert.Single(ProtectionSaves()));
+        var request = Assert.Single(ProtectionSaves());
+        var payload = System.Text.Json.JsonSerializer.Deserialize<SetProfileAdminProtectionRequest>(request.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
         Assert.True(payload.Enabled);
         Assert.Equal(60, payload.UnlockMinutes);
     }
@@ -887,15 +887,15 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _ownHasPin = true;
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
-        _accounts.Add(UserWithProtection(OwnAccountId, OwnId, "Test User", protectionEnabled: true));
+        _protections[OwnId] = Protection(protectionEnabled: true);
 
         var cut = RenderFor(OwnId);
         cut.WaitForAssertion(() => Assert.True(AdminSwitch(cut, "Ask for a PIN to open administrator settings").HasAttribute("checked")));
         cut.InvokeAsync(() => AdminSwitch(cut, "Ask for a PIN to open administrator settings").Change(false));
 
         cut.WaitForAssertion(() => Assert.Contains("no longer ask for Test User", cut.Markup));
-        var removal = Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
-        Assert.False(System.Text.Json.JsonSerializer.Deserialize<SetGrantAdminProtectionRequest>(removal.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!.Enabled);
+        var removal = Assert.Single(ProtectionSaves());
+        Assert.False(System.Text.Json.JsonSerializer.Deserialize<SetProfileAdminProtectionRequest>(removal.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!.Enabled);
     }
 
     [Fact]
@@ -905,13 +905,13 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _managed.AddRange([
             Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"),
             Person(SamId, "Sam", false, householdAdmin: true, signInEmail: "sam@home.test")]);
-        _accounts.Add(UserWithProtection(SamAccountId, SamId, "Sam", protectionEnabled: false));
+        _protections[SamId] = Protection(protectionEnabled: false);
 
         var cut = RenderFor(SamId);
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
         Assert.Empty(cut.FindAll("[data-profile-section='pin-protection']"));
-        Assert.DoesNotContain(_requests, request => request.Path.StartsWith("/access/accounts", StringComparison.Ordinal));
+        Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -922,26 +922,26 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _managed.AddRange([
             Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"),
             Person(SamId, "Mom", false, householdAdmin: true, signInEmail: "mom@home.test")]);
-        _accounts.Add(UserWithProtection(SamAccountId, SamId, "Mom", protectionEnabled: false));
+        _protections[SamId] = Protection(protectionEnabled: false);
 
         var cut = RenderFor(SamId);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='pin-protection']")));
         cut.InvokeAsync(() => AdminSwitch(cut, "Ask for a PIN to open administrator settings").Change(true));
 
-        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Path == $"/access/accounts/{SamAccountId:D}/grants/{SamId:D}/admin-protection"));
+        cut.WaitForAssertion(() => Assert.Single(ProtectionSaves(), request => request.Path == $"/access/profiles/{SamId:D}/admin-protection"));
     }
 
     [Fact]
     public void AdministratorPin_IsNotOffered_ToAMemberOnTheirOwnPage()
     {
         Setup(actions: [], navigation: []);
-        _accounts.Add(UserWithProtection(OwnAccountId, OwnId, "Test User", protectionEnabled: false));
+        _protections[OwnId] = Protection(protectionEnabled: false);
 
         var cut = RenderFor(OwnId);
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
         Assert.Empty(cut.FindAll("[data-profile-section='pin-protection']"));
-        Assert.DoesNotContain(_requests, request => request.Path.StartsWith("/access/accounts", StringComparison.Ordinal));
+        Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
     }
 
     private void UsePhone()
@@ -986,12 +986,12 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Assert.DoesNotContain("Robin", adult.Markup);
     }
 
-    // The user a profile opens, with the profile's administrator PIN setting as the Engine reports it on the user's own profile grant.
-    private static AccountAccessResponse UserWithProtection(Guid userId, Guid profileId, string name, bool protectionEnabled, string mode = "FixedDuration", int? minutes = 30) =>
-        new(userId, "admin@home.test", true, false, 1, [], [],
-            [new AccountProfileGrantDto(userId, profileId, name, null, true, true, false,
-                new GrantAdminProtectionDto(protectionEnabled, mode, minutes, 1), 1, DateTimeOffset.UtcNow)],
-            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, HouseholdId);
+    // The profile's administrator PIN setting as the Engine reports it for the profile.
+    private static ProfileAdminProtectionResponse Protection(bool protectionEnabled, string mode = "FixedDuration", int? minutes = 30) =>
+        new(protectionEnabled, mode, minutes, 1);
+
+    private IEnumerable<RecordedRequest> ProtectionSaves() =>
+        _requests.Where(request => request.Method == HttpMethod.Put && request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
 
     private IRenderedComponent<ProfileDetailPage> RenderFor(Guid profileId) =>
         Render<ProfileDetailPage>(parameters => parameters.Add(page => page.ProfileId, profileId));
@@ -1029,7 +1029,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Services.AddSingleton(api);
 
         var grants = new[] { OwnId, KidId, SamId }.Select(id => new AccountProfileGrantDto(id, id, "Test User", null,
-            true, true, true, new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)).ToList();
+            true, true, true, new ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow)).ToList();
         var authority = new DashboardAuthorityResponse(OwnAccountId, OwnId, true, true, 1, 1, effective, effective, null, 1,
             grants, navigation, actions);
         var session = new DashboardSessionAccessor();
@@ -1064,17 +1064,13 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._managed) };
             }
 
-            if (path == "/access/accounts" && request.Method == HttpMethod.Get)
+            if (request.Method == HttpMethod.Get && path.StartsWith("/access/profiles/", StringComparison.Ordinal)
+                && path.EndsWith("/admin-protection", StringComparison.Ordinal))
             {
-                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._accounts) };
-            }
-
-            if (path.StartsWith("/access/accounts/", StringComparison.Ordinal) && request.Method == HttpMethod.Get)
-            {
-                var account = owner._accounts.FirstOrDefault(known => path == $"/access/accounts/{known.Id:D}");
-                return account is null
-                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
-                    : new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(account) };
+                var profileText = path["/access/profiles/".Length..^"/admin-protection".Length];
+                return Guid.TryParse(profileText, out var profileId) && owner._protections.TryGetValue(profileId, out var known)
+                    ? new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(known) }
+                    : new HttpResponseMessage(HttpStatusCode.NotFound);
             }
 
             if (path == "/access/libraries" && request.Method == HttpMethod.Get)

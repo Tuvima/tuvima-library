@@ -84,3 +84,11 @@ public sealed record ReplaceProfileAccessRequest(
 public sealed record SetProfileRolesRequest(
     [property: JsonPropertyName("is_household_admin")] bool IsHouseholdAdmin,
     [property: JsonPropertyName("is_server_admin")] bool IsServerAdmin);
+
+/// <summary>
+/// A user after a new starting password was set for it (<c>POST /access/accounts/{id}/temporary-password</c>): the user as the list shows
+/// it, and when a temporary password stops working (null for an ordinary password).
+/// </summary>
+public sealed record UserTemporaryPasswordResponse(
+    [property: JsonPropertyName("user")] UserSummaryResponse User,
+    [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt);

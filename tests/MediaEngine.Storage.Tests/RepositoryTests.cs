@@ -51,6 +51,7 @@ public sealed class RepositoryTests : IDisposable
             NormalizedEmail = "OWNER@EXAMPLE.COM",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
+            ProfileId = Profile.SeedProfileId,
         });
         var login = new AccountExternalLogin
         {
@@ -88,6 +89,14 @@ public sealed class RepositoryTests : IDisposable
             otherIssuer.Id,
             (await repo.GetByProviderSubjectAsync(otherIssuer.Provider, otherIssuer.Issuer, otherIssuer.Subject))?.Id);
 
+        var secondProfile = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            Dapper.SqlMapper.Execute(connection,
+                "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@secondProfile,'Other','#7C4DFF','StandardUser',@now);",
+                new { secondProfile, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
         var secondAccount = new Account
         {
             Id = Guid.NewGuid(),
@@ -95,6 +104,7 @@ public sealed class RepositoryTests : IDisposable
             NormalizedEmail = "OTHER@EXAMPLE.COM",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
+            ProfileId = secondProfile,
         };
         await accountRepo.InsertAsync(secondAccount);
         var stolenIdentity = new AccountExternalLogin

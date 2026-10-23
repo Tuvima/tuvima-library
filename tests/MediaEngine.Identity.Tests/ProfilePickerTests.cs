@@ -52,12 +52,7 @@ public sealed class ProfilePickerTests : IDisposable
             CreatedAt = DateTimeOffset.UtcNow.AddMinutes(1),
         };
         await InsertProfileAsync(mary);
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = owner.Account.Id,
-            ProfileId = mary.Id,
-            GrantedAt = DateTimeOffset.UtcNow.AddMinutes(1),
-        });
+        await JoinHouseholdOfAsync(owner.Account.Id, mary.Id);
 
         var signedIn = await _service.SignInThisComputerAccountAsync("laptop", "Laptop", "Dashboard", ClientIngress.HomeNetwork);
 
@@ -171,6 +166,8 @@ public sealed class ProfilePickerTests : IDisposable
         var mary = (await ExtraProfilesAsync(owner.Account.Id))[0];
         var laptop = await SignInAsync("laptop");
         await _service.SetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id, mary.Id);
+        var strangerProfile = new Profile { Id = Guid.NewGuid(), DisplayName = "Stranger", AvatarColor = "#222222", Role = ProfileRole.StandardUser, CreatedAt = DateTimeOffset.UtcNow };
+        await InsertProfileAsync(strangerProfile);
         var stranger = new Account
         {
             Id = Guid.NewGuid(),
@@ -179,6 +176,7 @@ public sealed class ProfilePickerTests : IDisposable
             IsEnabled = true,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
+            ProfileId = strangerProfile.Id,
         };
         await _accounts.InsertAsync(stranger);
         var outsider = new Profile { Id = Guid.NewGuid(), DisplayName = "Outsider", AvatarColor = "#111111", Role = ProfileRole.StandardUser, CreatedAt = DateTimeOffset.UtcNow };
@@ -220,12 +218,7 @@ public sealed class ProfilePickerTests : IDisposable
                 CreatedAt = DateTimeOffset.UtcNow.AddMinutes(index + 1),
             };
             await InsertProfileAsync(profile);
-            await _accounts.GrantProfileAsync(new AccountProfileGrant
-            {
-                AccountId = owner.Account.Id,
-                ProfileId = profile.Id,
-                GrantedAt = DateTimeOffset.UtcNow.AddMinutes(index + 1),
-            });
+            await JoinHouseholdOfAsync(owner.Account.Id, profile.Id);
         }
 
         return owner;
@@ -269,6 +262,16 @@ public sealed class ProfilePickerTests : IDisposable
             CreatedAt = profile.CreatedAt.ToString("O"),
             profile.NavigationConfig,
         });
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Puts a profile into the household of the profile the user opens, so the user may act as it.</summary>
+    private Task JoinHouseholdOfAsync(Guid accountId, Guid profileId)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "UPDATE profiles SET household_id = (SELECT p.household_id FROM profiles p JOIN accounts a ON a.profile_id = p.id WHERE a.id = @accountId) WHERE id = @profileId;",
+            new { accountId, profileId });
         return Task.CompletedTask;
     }
 

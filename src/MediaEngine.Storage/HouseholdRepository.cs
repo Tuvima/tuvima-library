@@ -14,7 +14,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         var row = conn.QueryFirstOrDefault<HouseholdRow>(
-            "SELECT id AS Id, name AS Name, created_at AS CreatedAt, primary_account_id AS PrimaryAccountId, is_default AS IsDefault FROM households WHERE id = @householdId LIMIT 1;",
+            "SELECT id AS Id, name AS Name, created_at AS CreatedAt, is_default AS IsDefault FROM households WHERE id = @householdId LIMIT 1;",
             new { householdId });
         return Task.FromResult(row is null ? null : Map(row));
     }
@@ -24,7 +24,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         var row = conn.QueryFirstOrDefault<HouseholdRow>("""
-            SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId, h.is_default AS IsDefault
+            SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.is_default AS IsDefault
             FROM accounts a
             JOIN profiles own ON own.id = a.profile_id
             JOIN households h ON h.id = own.household_id
@@ -72,41 +72,24 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         using var conn = db.CreateConnection();
         var rows = conn.Query<AccountRow>("""
             SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail, is_enabled AS IsEnabled,
-                   COALESCE((SELECT p.is_server_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS IsAdministrator,
                    authorization_version AS AuthorizationVersion,
                    created_at AS CreatedAt, updated_at AS UpdatedAt,
-                   (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id) AS HouseholdId,
-                   COALESCE((SELECT p.is_household_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS HouseholdAdmin,
-                   grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                    profile_id AS ProfileId
             FROM accounts
             WHERE (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id) = @householdId
             ORDER BY created_at, id;
             """, new { householdId }).ToList();
-        var accounts = new List<Account>(rows.Count);
-        foreach (var row in rows)
+        var accounts = rows.Select(row => new Account
         {
-            var account = new Account
-            {
-                Id = row.Id,
-                Email = row.Email,
-                NormalizedEmail = row.NormalizedEmail,
-                IsEnabled = row.IsEnabled,
-                IsAdministrator = row.IsAdministrator,
-                AuthorizationVersion = row.AuthorizationVersion,
-                CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
-                UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt, System.Globalization.CultureInfo.InvariantCulture),
-                HouseholdId = row.HouseholdId,
-                GrantsInheritFromAccountId = row.GrantsInheritFromAccountId,
-                ProfileId = row.ProfileId,
-            };
-            if (row.HouseholdAdmin && row.GrantsInheritFromAccountId is null)
-            {
-                account.MakeHouseholdAdmin();
-            }
-
-            accounts.Add(account);
-        }
+            Id = row.Id,
+            Email = row.Email,
+            NormalizedEmail = row.NormalizedEmail,
+            IsEnabled = row.IsEnabled,
+            AuthorizationVersion = row.AuthorizationVersion,
+            CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
+            UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt, System.Globalization.CultureInfo.InvariantCulture),
+            ProfileId = row.ProfileId,
+        }).ToList();
 
         return Task.FromResult<IReadOnlyList<Account>>(accounts);
     }
@@ -187,23 +170,15 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             return HouseholdDeleteOutcome.IsDefaultHousehold;
         }
 
-        // A safety check. A sign-in belongs to its profile's household; the account column answers only for a sign-in with no profile.
+        // A safety check. A user belongs to its profile's household.
         if (conn.ExecuteScalar<int>("""
             SELECT (SELECT COUNT(*) FROM accounts
-                    WHERE profile_id IN (SELECT id FROM profiles WHERE household_id = @householdId)
-                       OR (profile_id IS NULL AND household_id = @householdId))
+                    WHERE profile_id IN (SELECT id FROM profiles WHERE household_id = @householdId))
                  + (SELECT COUNT(*) FROM profiles WHERE household_id = @householdId);
             """, new { householdId }, tx) > 0)
         {
             return HouseholdDeleteOutcome.NotEmpty;
         }
-
-        // A sign-in of another household whose old column still names this one is pointed at its profile's household, so the column
-        // does not hold the removed household.
-        conn.Execute("""
-            UPDATE accounts SET household_id = (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id)
-            WHERE household_id = @householdId AND profile_id IS NOT NULL;
-            """, new { householdId }, tx);
 
         // The household's Shared Library in View keeps the household while it holds shared photos. An empty one is
         // only a shell, so it goes with the household in this same step.
@@ -228,7 +203,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
     }
 
     private const string SummarySelect = """
-        SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId, h.is_default AS IsDefault,
+        SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.is_default AS IsDefault,
                (SELECT COUNT(*) FROM profiles p WHERE p.household_id = h.id) AS ProfileCount,
                (SELECT COUNT(*) FROM accounts a JOIN profiles own ON own.id = a.profile_id WHERE own.household_id = h.id) AS AccountCount
         FROM households h
@@ -238,19 +213,18 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
 
     private static HouseholdSummary MapSummary(HouseholdSummaryRow row) =>
         new(new Household(row.Id, row.Name,
-                DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture), row.PrimaryAccountId, row.IsDefault),
+                DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture), row.IsDefault),
             row.ProfileCount, row.AccountCount);
 
     private static Household Map(HouseholdRow row) =>
         new(row.Id, row.Name, DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
-            row.PrimaryAccountId, row.IsDefault);
+            row.IsDefault);
 
     private sealed class HouseholdRow
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
-        public Guid? PrimaryAccountId { get; set; }
         public bool IsDefault { get; set; }
     }
 
@@ -259,7 +233,6 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
-        public Guid? PrimaryAccountId { get; set; }
         public bool IsDefault { get; set; }
         public int ProfileCount { get; set; }
         public int AccountCount { get; set; }
@@ -289,13 +262,9 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public string? Email { get; set; }
         public string? NormalizedEmail { get; set; }
         public bool IsEnabled { get; set; }
-        public bool IsAdministrator { get; set; }
         public long AuthorizationVersion { get; set; }
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
-        public Guid? HouseholdId { get; set; }
-        public bool HouseholdAdmin { get; set; }
-        public Guid? GrantsInheritFromAccountId { get; set; }
-        public Guid? ProfileId { get; set; }
+        public Guid ProfileId { get; set; }
     }
 }

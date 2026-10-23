@@ -33,120 +33,6 @@ public sealed class AccountAccessMutationService(
     public const string LastAdministratorMessage =
         "This is the last administrator who can sign in. Make someone else an administrator first.";
 
-    public async Task<Account> CreateAsync(
-        RequestAuthority actor,
-        CreateAccountAccessCommand command,
-        CancellationToken ct = default)
-    {
-        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
-        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-        await RequireWriteAsync(actor, ct).ConfigureAwait(false);
-        if ((command.ProfileId is null) == (command.NewProfile is null))
-        {
-            throw new ArgumentException("Choose one existing profile or create one new default profile.");
-        }
-
-        Profile? newProfile = null;
-        var profileId = command.ProfileId.GetValueOrDefault();
-        if (command.NewProfile is { } requestedProfile)
-        {
-            profileId = Guid.NewGuid();
-            newProfile = new Profile
-            {
-                Id = profileId,
-                DisplayName = NormalizeDisplayName(requestedProfile.DisplayName),
-                AvatarColor = NormalizeAvatarColor(requestedProfile.AvatarColor),
-                // A new profile is an ordinary member (Kids only by an explicit choice, which this route has none for).
-                Role = ProfileRole.StandardUser,
-                CreatedAt = clock.GetUtcNow(),
-            };
-            if (!command.IsAdministrator)
-            {
-                // Someone who is not a server administrator starts a household of their own (D10).
-                await RequireAdministratorsSecuredAsync(ct).ConfigureAwait(false);
-            }
-        }
-        else if (await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is not { } existingProfile)
-        {
-            throw new KeyNotFoundException("Profile not found.");
-        }
-        else if (command.IsAdministrator && existingProfile.Role == ProfileRole.RestrictedProfile)
-        {
-            throw new InvalidOperationException("Child profiles can't be administrators.");
-        }
-        else if (command.IsAdministrator)
-        {
-            await RequireInDefaultHouseholdAsync(existingProfile, ct).ConfigureAwait(false);
-        }
-        ValidateLibraries(command.Libraries);
-
-        var now = clock.GetUtcNow();
-        var email = NormalizeEmail(command.Email);
-        if (command.IsAdministrator && string.IsNullOrEmpty(command.TemporaryPassword) &&
-            !await IsPasswordlessFirstAdministratorAsync(ct).ConfigureAwait(false))
-        {
-            // D17: a server administrator needs an email and a password (a new sign-in has no passkey yet).
-            throw new InvalidOperationException(HouseholdRules.ServerAdministratorNeedsSecuredSignIn);
-        }
-
-        var account = new Account
-        {
-            Id = Guid.NewGuid(),
-            Email = email,
-            NormalizedEmail = email.ToUpperInvariant(),
-            IsEnabled = true,
-            IsAdministrator = command.IsAdministrator,
-            AuthorizationVersion = 1,
-            CreatedAt = now,
-            UpdatedAt = now,
-            // A server administrator lives in the Library's own (default) household (D17); anyone else starts their own household.
-            HouseholdId = newProfile is not null && command.IsAdministrator
-                ? await profileAccess.GetDefaultHouseholdIdAsync(ct).ConfigureAwait(false)
-                : null,
-        };
-        var grant = new AccountProfileGrant
-        {
-            AccountId = account.Id,
-            ProfileId = profileId,
-            IsDefault = true,
-            IsEnabled = true,
-            AdminEnabled = command.IsAdministrator,
-            AuthorizationVersion = 1,
-            GrantedAt = now,
-        };
-        // A brand-new profile takes the roles and access chosen here. A person who already exists keeps exactly what they have:
-        // attaching a sign-in never changes it (only an explicit administrator choice below turns the server administrator role on).
-        await accounts.CreateAccountAsync(
-            account, grant, command.Features, command.Libraries, ct, newProfile,
-            preserveProfileAccess: newProfile is null).ConfigureAwait(false);
-        if (newProfile is null && command.IsAdministrator)
-        {
-            await profileAccess.SetServerAdministratorAsync(profileId, true, now, ct).ConfigureAwait(false);
-        }
-
-        if (!string.IsNullOrEmpty(command.TemporaryPassword))
-        {
-            try
-            {
-                await firstParty.SetTemporaryPasswordAsync(
-                    account.Id, command.TemporaryPassword, TemporaryPasswordExpiry(), ct: ct).ConfigureAwait(false);
-            }
-            catch
-            {
-                // A password that does not meet the rules must not leave a half-made account behind.
-                await accounts.DeleteAccountAsync(account.Id, CancellationToken.None).ConfigureAwait(false);
-                throw;
-            }
-
-        }
-
-        account = await accounts.GetByIdAsync(account.Id, ct).ConfigureAwait(false) ?? account;
-        await ChangedAsync(actor, "account.created", "account", account.Id.ToString("D"),
-            account.Id, null, ct).ConfigureAwait(false);
-        await AuditIfHouseholdAdminAsync(actor, account.Id, ct).ConfigureAwait(false);
-        return account;
-    }
-
     public async Task<CreatedUser> CreateUserAsync(
         RequestAuthority actor,
         CreateUserCommand command,
@@ -256,19 +142,17 @@ public sealed class AccountAccessMutationService(
             Email = email,
             NormalizedEmail = email.ToUpperInvariant(),
             IsEnabled = true,
-            IsAdministrator = false,
             AuthorizationVersion = 1,
             CreatedAt = now,
             UpdatedAt = now,
-            HouseholdId = householdId,
+            ProfileId = profileId,
         };
-        var grant = NewProfileGrant(account.Id, profileId, true, now);
         IssuedAccountInvitation? issued = null;
-        // The user, its profile and any new household are saved in one transaction, so a failure here leaves nothing behind.
+        AccountInvitation? invitation = null;
         if (command.Method == NewUserSignInMethod.Invitation)
         {
             var code = InvitationCode.Generate();
-            var invitation = new AccountInvitation
+            invitation = new AccountInvitation
             {
                 Id = Guid.NewGuid(),
                 AccountId = account.Id,
@@ -276,29 +160,18 @@ public sealed class AccountAccessMutationService(
                 CreatedAt = now,
                 ExpiresAt = now.Add(InvitationLifetime()),
             };
-            await accounts.CreateInvitedAccountAsync(
-                account, [grant], invitation, ct, newProfile, preserveProfileAccess: newProfile is null,
-                newHouseholdName: newHouseholdName).ConfigureAwait(false);
             issued = new IssuedAccountInvitation(account.Id, InvitationCode.Format(code), invitation.ExpiresAt);
         }
-        else
-        {
-            await accounts.CreateAccountAsync(
-                account, grant, new HashSet<AccountFeatureId>(), new HashSet<Guid>(), ct, newProfile,
-                preserveProfileAccess: newProfile is null, newHouseholdName: newHouseholdName).ConfigureAwait(false);
-        }
 
-        // Set by the data store when it made the household for this user.
-        var createdHouseholdId = newHouseholdName is not null ? account.HouseholdId : null;
+        // The user, its profile (with the access a new person starts with) and any new household are saved in one transaction, so a
+        // failure here leaves nothing behind.
+        await accounts.CreateUserAsync(
+            account,
+            new NewUserPlacement(newProfile, householdId, newHouseholdName, Features: newProfile is null ? null : features),
+            invitation, ct).ConfigureAwait(false);
 
         try
         {
-            if (newProfile is not null)
-            {
-                // The access a new person starts with (an invited person otherwise starts with none).
-                await profileAccess.ReplaceAccessAsync(profileId, features, new HashSet<Guid>(), now, ct).ConfigureAwait(false);
-            }
-
             if (command.Method == NewUserSignInMethod.TemporaryPassword)
             {
                 await firstParty.SetTemporaryPasswordAsync(
@@ -308,7 +181,7 @@ public sealed class AccountAccessMutationService(
         catch
         {
             // A password that does not meet the rules must not leave a half-made user (or the profile and household made for it) behind.
-            await RollBackNewUserAsync(account.Id, newProfile?.Id, createdHouseholdId is not null).ConfigureAwait(false);
+            await RollBackNewUserAsync(account.Id, newProfile?.Id, newHouseholdName is not null).ConfigureAwait(false);
             throw;
         }
 
@@ -316,13 +189,19 @@ public sealed class AccountAccessMutationService(
         var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) ?? newProfile!;
         await ChangedAsync(actor, "account.created", "account", account.Id.ToString("D"),
             account.Id, null, ct).ConfigureAwait(false);
-        if (createdHouseholdId is { } startedHousehold)
+        if (newHouseholdName is not null && profile.HouseholdId is { } startedHousehold)
         {
             await ChangedAsync(actor, "household.created", "household", startedHousehold.ToString("D"),
                 account.Id, null, ct).ConfigureAwait(false);
         }
 
-        await AuditIfHouseholdAdminAsync(actor, account.Id, ct).ConfigureAwait(false);
+        // The first person of a household made for them looks after it; that is a change of authority, so it is recorded like any other.
+        if (profile.IsHouseholdAdministrator)
+        {
+            await ChangedAsync(actor, "household.admin_granted", "account", account.Id.ToString("D"),
+                account.Id, null, ct).ConfigureAwait(false);
+        }
+
         return new CreatedUser(account, profile, issued);
     }
 
@@ -371,7 +250,8 @@ public sealed class AccountAccessMutationService(
         CancellationToken ct = default)
     {
         var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var householdOnly = await RequireHouseholdWriteAsync(actor, target?.HouseholdId, ct).ConfigureAwait(false);
+        var targetProfile = await ProfileOfUserAsync(target, ct).ConfigureAwait(false);
+        var householdOnly = await RequireHouseholdWriteAsync(actor, targetProfile?.HouseholdId, ct).ConfigureAwait(false);
         if (target is null)
         {
             throw new KeyNotFoundException("Account not found.");
@@ -381,10 +261,10 @@ public sealed class AccountAccessMutationService(
             throw new InvalidOperationException("Use Account > Security to change your own password.");
         }
 
-        RequireNotAdministratorTarget(target, householdOnly);
+        RequireNotAdministratorTarget(targetProfile, householdOnly);
 
         // Taking over an administrator's sign-in needs a person who is an unlocked administrator, not an application.
-        if (target.IsAdministrator
+        if (targetProfile is { IsServerAdministrator: true }
             && (actor.PrincipalKind != PrincipalKind.Human || !actor.ActiveProfileIsServerAdministrator))
         {
             throw new UnauthorizedAccessException("Only an unlocked administrator can set an administrator's temporary password.");
@@ -403,12 +283,13 @@ public sealed class AccountAccessMutationService(
         CancellationToken ct = default)
     {
         var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var householdOnly = await RequireHouseholdWriteAsync(actor, target?.HouseholdId, ct).ConfigureAwait(false);
+        var targetProfile = await ProfileOfUserAsync(target, ct).ConfigureAwait(false);
+        var householdOnly = await RequireHouseholdWriteAsync(actor, targetProfile?.HouseholdId, ct).ConfigureAwait(false);
         if (target is null)
         {
             throw new KeyNotFoundException("Account not found.");
         }
-        RequireMayChangeEmail(actor, target, householdOnly);
+        RequireMayChangeEmail(actor, target, targetProfile, householdOnly);
 
         var normalized = NormalizeEmail(email);
         var normalizedKey = normalized.ToUpperInvariant();
@@ -424,21 +305,18 @@ public sealed class AccountAccessMutationService(
         return (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false))!;
     }
 
-    /// <summary>
-    /// The rules for moving someone's sign-in address, shared by <see cref="ChangeEmailAsync"/> and the email part of
-    /// <see cref="UpdateAsync"/> so neither route can do what the other refuses.
-    /// </summary>
-    private static void RequireMayChangeEmail(RequestAuthority actor, Account target, bool householdOnly)
+    /// <summary>The rules for moving someone's sign-in address.</summary>
+    private static void RequireMayChangeEmail(RequestAuthority actor, Account target, Profile? targetProfile, bool householdOnly)
     {
         if (actor.AccountId == target.Id)
         {
             throw new InvalidOperationException("Email changes are made by an administrator, not for your own sign-in.");
         }
 
-        RequireNotAdministratorTarget(target, householdOnly);
+        RequireNotAdministratorTarget(targetProfile, householdOnly);
 
         // Taking over an administrator's sign-in address would let its password reset reach someone else.
-        if (target.IsAdministrator
+        if (targetProfile is { IsServerAdministrator: true }
             && (actor.PrincipalKind != PrincipalKind.Human || !actor.ActiveProfileIsServerAdministrator))
         {
             throw new UnauthorizedAccessException("Only an unlocked administrator can change an administrator's email.");
@@ -480,7 +358,8 @@ public sealed class AccountAccessMutationService(
         CancellationToken ct = default)
     {
         var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var householdOnly = await RequireHouseholdWriteAsync(actor, target?.HouseholdId, ct).ConfigureAwait(false);
+        var targetProfile = await ProfileOfUserAsync(target, ct).ConfigureAwait(false);
+        var householdOnly = await RequireHouseholdWriteAsync(actor, targetProfile?.HouseholdId, ct).ConfigureAwait(false);
         if (target is null)
         {
             throw new KeyNotFoundException("Account not found.");
@@ -490,10 +369,10 @@ public sealed class AccountAccessMutationService(
             throw new InvalidOperationException("Use Account > Security to turn off your own two-step codes.");
         }
 
-        RequireNotAdministratorTarget(target, householdOnly);
+        RequireNotAdministratorTarget(targetProfile, householdOnly);
 
         // Switching off an administrator's second sign-in step needs a person who is an unlocked administrator.
-        if (target.IsAdministrator
+        if (targetProfile is { IsServerAdministrator: true }
             && (actor.PrincipalKind != PrincipalKind.Human || !actor.ActiveProfileIsServerAdministrator))
         {
             throw new UnauthorizedAccessException("Only an unlocked administrator can turn off an administrator's two-step codes.");
@@ -506,108 +385,6 @@ public sealed class AccountAccessMutationService(
 
         await ChangedAsync(actor, "account.two_step_reset", "account", accountId.ToString("D"),
             accountId, null, ct).ConfigureAwait(false);
-    }
-
-    public async Task<Account> UpdateAsync(
-        RequestAuthority actor,
-        Guid accountId,
-        UpdateAccountAccessCommand command,
-        CancellationToken ct = default)
-    {
-        // Held across the last-administrator check and the save, so two administrators removing each other cannot both pass.
-        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-        await RequireWriteAsync(actor, ct).ConfigureAwait(false);
-        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
-            ?? throw new KeyNotFoundException("Account not found.");
-        if (account.GrantsInheritFromAccountId is not null && command.IsAdministrator)
-        {
-            throw new InvalidOperationException("A person's own sign-in can't be an administrator.");
-        }
-
-        if (account.IsEnabled && !command.IsEnabled)
-        {
-            await RequireNotLastMainSignInAsync(account, ct).ConfigureAwait(false);
-        }
-
-        // Switching an administrator off, or taking administrator away, must leave someone who can still sign in as one.
-        if (account.IsEnabled && account.IsAdministrator && (!command.IsEnabled || !command.IsAdministrator))
-        {
-            await RequireAdministratorRemainsAsync(AdministratorSignInLoss.OfAccount(accountId), ct).ConfigureAwait(false);
-        }
-
-        // D7: switching off the sign-in of a household's last household administrator would leave the household without one.
-        if (account.IsEnabled && !command.IsEnabled && account.ProfileId is { } disabledProfile &&
-            await profiles.GetByIdAsync(disabledProfile, ct).ConfigureAwait(false) is { IsHouseholdAdministrator: true, HouseholdId: not null } &&
-            !await profileAccess.HasAnotherHouseholdAdministratorAsync(disabledProfile, ct).ConfigureAwait(false))
-        {
-            throw new InvalidOperationException(UserRemovalMessages.LastHouseholdAdministrator);
-        }
-
-        var changesAdministrator = command.IsAdministrator != account.IsAdministrator;
-        if (command.IsAdministrator && !account.IsAdministrator)
-        {
-            // The role is the profile's: the profile the user opens must be a grown-up's, in the Library's own household (D17).
-            var ownProfile = account.ProfileId is { } ownId
-                ? await profiles.GetByIdAsync(ownId, ct).ConfigureAwait(false)
-                : null;
-            if (ownProfile is null)
-            {
-                throw new InvalidOperationException("This user has no profile to make an administrator.");
-            }
-
-            if (ownProfile.Role == ProfileRole.RestrictedProfile)
-            {
-                throw new InvalidOperationException("Child profiles can't be administrators.");
-            }
-
-            await RequireInDefaultHouseholdAsync(ownProfile, ct).ConfigureAwait(false);
-
-            // D17: the user needs an email and a password or passkey (the same rule as the roles route).
-            if (!await accounts.IsUserSecuredAsync(accountId, ct).ConfigureAwait(false) &&
-                !await IsPasswordlessFirstAdministratorAsync(ct).ConfigureAwait(false))
-            {
-                throw new InvalidOperationException(HouseholdRules.ServerAdministratorNeedsSecuredSignIn);
-            }
-        }
-
-        // An account made on this computer has no email yet; turning it on or off must not demand one.
-        var emailChanged = false;
-        if (!string.IsNullOrWhiteSpace(command.Email) || account.HasEmail)
-        {
-            var email = NormalizeEmail(command.Email);
-            var emailKey = email.ToUpperInvariant();
-            emailChanged = !string.Equals(account.NormalizedEmail, emailKey, StringComparison.Ordinal);
-            if (emailChanged)
-            {
-                // RequireWriteAsync above already limits this route to an unlocked server administrator or a trusted application.
-                RequireMayChangeEmail(actor, account, householdOnly: false);
-                await RequireEmailAvailableAsync(accountId, emailKey, ct).ConfigureAwait(false);
-            }
-
-            account.Email = email;
-            account.NormalizedEmail = emailKey;
-        }
-
-        account.IsEnabled = command.IsEnabled;
-        account.IsAdministrator = command.IsAdministrator;
-        account.UpdatedAt = clock.GetUtcNow();
-
-        await UpdateAccountWithEmailGuardAsync(account, emailChanged, ct).ConfigureAwait(false);
-        if (changesAdministrator && account.ProfileId is { } administratorProfile)
-        {
-            // The server administrator role is written on the profile, which keeps its own last-administrator backstop.
-            await profileAccess.SetServerAdministratorAsync(
-                administratorProfile, command.IsAdministrator, account.UpdatedAt, ct).ConfigureAwait(false);
-        }
-
-        if (emailChanged)
-        {
-            await InvalidateChallengesForOldEmailAsync(accountId, ct).ConfigureAwait(false);
-        }
-
-        await ChangedAsync(actor, "account.updated", "account", accountId.ToString("D"),
-            accountId, null, ct).ConfigureAwait(false);
-        return (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false))!;
     }
 
     public async Task DeleteUserAsync(
@@ -771,177 +548,6 @@ public sealed class AccountAccessMutationService(
             plan.RemovesHousehold && await AnyPersonalPhotosAsync(plan.HouseholdProfiles, ct).ConfigureAwait(false));
     }
 
-    public async Task<IssuedAccountInvitation> IssueInvitationAsync(
-        RequestAuthority actor,
-        IssueAccountInvitationCommand command,
-        CancellationToken ct = default)
-    {
-        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
-        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-        await RequireWriteAsync(actor, ct).ConfigureAwait(false);
-        var email = NormalizeEmail(command.Email);
-        var profileIds = command.ProfileIds.Distinct().ToArray();
-        Profile? newPerson = null;
-        if (command.NewHouseholdPersonName is not null)
-        {
-            // Someone outside the household: they start a household of their own, with one person to open.
-            if (profileIds.Length != 0)
-            {
-                throw new ArgumentException("An invitation to a new household cannot also open existing profiles.");
-            }
-
-            await RequireAdministratorsSecuredAsync(ct).ConfigureAwait(false);
-
-            if (command.DefaultProfileId is not null)
-            {
-                throw new ArgumentException("An invitation to a new household chooses its first person itself, so it cannot name a default profile.");
-            }
-
-            if (string.IsNullOrWhiteSpace(command.NewHouseholdPersonName))
-            {
-                throw new ArgumentException("Give the new household's first person a name.");
-            }
-
-            newPerson = new Profile
-            {
-                Id = Guid.NewGuid(),
-                DisplayName = NormalizeDisplayName(command.NewHouseholdPersonName),
-                AvatarColor = NormalizeAvatarColor(null),
-                Role = ProfileRole.StandardUser,
-                CreatedAt = clock.GetUtcNow(),
-            };
-            profileIds = [newPerson.Id];
-        }
-        else if (profileIds.Length == 0 || profileIds.Length > Household.MaximumProfiles)
-        {
-            throw new ArgumentException("An invitation must grant between one and eight profiles.");
-        }
-
-        var defaultProfileId = command.DefaultProfileId ?? profileIds[0];
-        if (!profileIds.Contains(defaultProfileId))
-        {
-            throw new ArgumentException("The default profile must be included in the invitation.");
-        }
-
-        foreach (var profileId in profileIds.Where(id => newPerson is null || id != newPerson.Id))
-        {
-            if (await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is null)
-            {
-                throw new KeyNotFoundException($"Profile '{profileId:D}' was not found.");
-            }
-        }
-        var now = clock.GetUtcNow();
-        var account = await accounts.GetByNormalizedEmailAsync(email.ToUpperInvariant(), ct).ConfigureAwait(false);
-        var isExisting = account is not null;
-        account ??= new Account
-        {
-            Id = Guid.NewGuid(),
-            Email = email,
-            NormalizedEmail = email.ToUpperInvariant(),
-            IsEnabled = true,
-            IsAdministrator = false,
-            AuthorizationVersion = 1,
-            CreatedAt = now,
-            UpdatedAt = now,
-        };
-        if (isExisting && newPerson is not null)
-        {
-            throw new InvalidOperationException("This email already has a sign-in, so it cannot start a new household.");
-        }
-
-        if (isExisting)
-        {
-            if (!account.IsEnabled ||
-                await identities.GetAccountCredentialAsync(
-                    account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is not null)
-            {
-                throw new InvalidOperationException("This account cannot receive an invitation.");
-            }
-
-            // A new invitation for a user who has not chosen a password yet opens the profile that user is attached to, and only
-            // people of that user's own household.
-            if (account.ProfileId != defaultProfileId || !profileIds.Contains(defaultProfileId))
-            {
-                throw new InvalidOperationException("Invitation profiles must match the account's current grants.");
-            }
-
-            foreach (var invitedProfile in profileIds)
-            {
-                if (!await accounts.HasProfileAccessAsync(account.Id, invitedProfile, ct).ConfigureAwait(false))
-                {
-                    throw new InvalidOperationException("Invitation profiles must match the account's current grants.");
-                }
-            }
-        }
-        var grants = profileIds.Select(profileId => new AccountProfileGrant
-        {
-            AccountId = account.Id,
-            ProfileId = profileId,
-            IsDefault = profileId == defaultProfileId,
-            IsEnabled = true,
-            AdminEnabled = false,
-            AuthorizationVersion = 1,
-            GrantedAt = now,
-        }).ToArray();
-        var code = InvitationCode.Generate();
-        var invitation = new AccountInvitation
-        {
-            Id = Guid.NewGuid(),
-            AccountId = account.Id,
-            TokenHash = InvitationCode.Hash(code),
-            CreatedAt = now,
-            ExpiresAt = now.Add(InvitationLifetime()),
-        };
-
-        if (isExisting)
-        {
-            await accounts.InsertInvitationAsync(invitation, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            // A new person is set up from this invitation's account; people who already exist keep exactly what they have.
-            await accounts.CreateInvitedAccountAsync(
-                account, grants, invitation, ct, newPerson, preserveProfileAccess: newPerson is null).ConfigureAwait(false);
-        }
-
-        await ChangedAsync(actor, "account.invitation_issued", "account", account.Id.ToString("D"),
-            account.Id, defaultProfileId, ct).ConfigureAwait(false);
-        await AuditIfHouseholdAdminAsync(actor, account.Id, ct).ConfigureAwait(false);
-        return new IssuedAccountInvitation(account.Id, InvitationCode.Format(code), invitation.ExpiresAt);
-    }
-
-    public async Task<Profile> CreateProfileAsync(
-        RequestAuthority actor,
-        CreateManagedProfileCommand command,
-        CancellationToken ct = default)
-    {
-        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
-        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-        await RequireWriteAsync(actor, ct).ConfigureAwait(false);
-        var now = clock.GetUtcNow();
-        var profile = new Profile
-        {
-            Id = Guid.NewGuid(),
-            DisplayName = NormalizeDisplayName(command.DisplayName),
-            AvatarColor = NormalizeAvatarColor(command.AvatarColor),
-            Role = ProfileRole.RestrictedProfile,
-            CreatedAt = now,
-        };
-        if (await accounts.GetByIdAsync(command.AccountId, ct).ConfigureAwait(false) is null)
-        {
-            throw new KeyNotFoundException("Target account not found.");
-        }
-
-        var targetGrant = NewProfileGrant(
-            command.AccountId, profile.Id, command.IsDefault, now);
-        var targetHousehold = (await accounts.GetByIdAsync(command.AccountId, ct).ConfigureAwait(false))?.HouseholdId;
-        await accounts.CreateManagedProfileAsync(
-            profile, targetGrant, ct, await AccessSourceProfileAsync(actor, targetHousehold, ct).ConfigureAwait(false)).ConfigureAwait(false);
-        await ChangedAsync(actor, "profile.created", "profile", profile.Id.ToString("D"),
-            command.AccountId, profile.Id, ct).ConfigureAwait(false);
-        return profile;
-    }
-
     public async Task<Profile> AddHouseholdPersonAsync(
         RequestAuthority actor,
         AddHouseholdPersonCommand command,
@@ -952,12 +558,11 @@ public sealed class AccountAccessMutationService(
         await RequireHouseholdWriteAsync(actor, command.HouseholdId, ct).ConfigureAwait(false);
         var name = NormalizeDisplayName(command.DisplayName);
         var color = NormalizeAvatarColor(command.AvatarColor);
-        var openers = (await accounts.GetAllAsync(ct).ConfigureAwait(false))
-            .Where(account => account.HouseholdId == command.HouseholdId && account.GrantsInheritFromAccountId is null)
-            .ToList();
+        // The people of a household are opened by its users (they switch inside the household), so it needs at least one.
+        var openers = await UsersOfHouseholdAsync(command.HouseholdId, ct).ConfigureAwait(false);
         if (openers.Count == 0)
         {
-            throw new InvalidOperationException("This household has no main sign-in to open the new person.");
+            throw new InvalidOperationException("This household has no sign-in to open the new person.");
         }
 
         var now = clock.GetUtcNow();
@@ -975,9 +580,8 @@ public sealed class AccountAccessMutationService(
             Role = command.IsChild ? ProfileRole.RestrictedProfile : ProfileRole.StandardUser,
             CreatedAt = now,
         };
-        var grants = openers.Select(account => NewProfileGrant(account.Id, profile.Id, false, now)).ToArray();
         await accounts.CreateHouseholdPersonAsync(
-            profile, command.HouseholdId, grants, ct,
+            profile, command.HouseholdId, ct,
             await AccessSourceProfileAsync(actor, command.HouseholdId, ct).ConfigureAwait(false)).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(command.Pin))
         {
@@ -1003,162 +607,8 @@ public sealed class AccountAccessMutationService(
         return profile;
     }
 
-    public async Task<GivenOwnSignIn> GiveOwnSignInAsync(
-        RequestAuthority actor,
-        GiveOwnSignInCommand command,
-        CancellationToken ct = default)
-    {
-        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
-        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-        var profile = await profiles.GetByIdAsync(command.ProfileId, ct).ConfigureAwait(false);
-        var householdOnly = await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
-        if (profile is null)
-        {
-            throw new KeyNotFoundException("Person not found.");
-        }
-        if (profile.HouseholdId is not { } householdId)
-        {
-            throw new InvalidOperationException("This person is not in a household yet.");
-        }
-        if (householdOnly)
-        {
-            // A direct sign-in to an administrator's own person would sidestep that person's PIN and the administrator.
-            await RequireNotAdministratorProfileAsync(profile, actor, ct).ConfigureAwait(false);
-        }
-
-        var members = (await accounts.GetAllAsync(ct).ConfigureAwait(false))
-            .Where(account => account.HouseholdId == householdId)
-            .ToList();
-        foreach (var member in members.Where(member => member.GrantsInheritFromAccountId is not null))
-        {
-            if (member.ProfileId == profile.Id)
-            {
-                throw new InvalidOperationException($"{profile.DisplayName} already has their own sign-in.");
-            }
-        }
-
-        var main = members
-            .Where(account => account.GrantsInheritFromAccountId is null && account.IsEnabled)
-            .OrderBy(account => account.CreatedAt)
-            .FirstOrDefault()
-            ?? throw new InvalidOperationException("This household has no main sign-in to take library access from.");
-        // An own sign-in always has a password: either the one chosen here, or the one the person picks from an invitation.
-        if (command.Invite && !string.IsNullOrEmpty(command.TemporaryPassword))
-        {
-            throw new ArgumentException("Choose a starting password or an invitation link, not both.");
-        }
-        if (!command.Invite && string.IsNullOrEmpty(command.TemporaryPassword))
-        {
-            throw new ArgumentException("Set a starting password.");
-        }
-
-        var email = NormalizeEmail(command.Email);
-        if (await accounts.GetByNormalizedEmailAsync(email.ToUpperInvariant(), ct).ConfigureAwait(false) is not null)
-        {
-            throw new InvalidOperationException("That email already has a sign-in.");
-        }
-
-        var now = clock.GetUtcNow();
-        var account = new Account
-        {
-            Id = Guid.NewGuid(),
-            Email = email,
-            NormalizedEmail = email.ToUpperInvariant(),
-            IsEnabled = true,
-            IsAdministrator = false,
-            AuthorizationVersion = 1,
-            CreatedAt = now,
-            UpdatedAt = now,
-            HouseholdId = householdId,
-            // Library and feature access follows the household's main sign-in, so later changes reach this person.
-            GrantsInheritFromAccountId = main.Id,
-        };
-        var grant = NewProfileGrant(account.Id, profile.Id, true, now);
-        IssuedAccountInvitation? issued = null;
-        if (!command.Invite)
-        {
-            // The person already exists: their sign-in is attached to them and changes nothing about what they may do.
-            await accounts.CreateAccountAsync(account, grant, new HashSet<AccountFeatureId>(), new HashSet<Guid>(), ct,
-                preserveProfileAccess: true).ConfigureAwait(false);
-            try
-            {
-                await firstParty.SetTemporaryPasswordAsync(
-                    account.Id, command.TemporaryPassword!, TemporaryPasswordExpiry(), command.MustChangePassword, ct)
-                    .ConfigureAwait(false);
-            }
-            catch
-            {
-                // A password that does not meet the rules must not leave a half-made sign-in behind.
-                await accounts.DeleteAccountAsync(account.Id, CancellationToken.None).ConfigureAwait(false);
-                throw;
-            }
-
-            account = await accounts.GetByIdAsync(account.Id, ct).ConfigureAwait(false) ?? account;
-        }
-        else
-        {
-            var code = InvitationCode.Generate();
-            var invitation = new AccountInvitation
-            {
-                Id = Guid.NewGuid(),
-                AccountId = account.Id,
-                TokenHash = InvitationCode.Hash(code),
-                CreatedAt = now,
-                ExpiresAt = now.Add(InvitationLifetime()),
-            };
-            await accounts.CreateInvitedAccountAsync(account, [grant], invitation, ct, preserveProfileAccess: true).ConfigureAwait(false);
-            issued = new IssuedAccountInvitation(account.Id, InvitationCode.Format(code), invitation.ExpiresAt);
-        }
-
-        await ChangedAsync(actor, "household.own_sign_in_given", "account", account.Id.ToString("D"),
-            account.Id, profile.Id, ct).ConfigureAwait(false);
-        return new GivenOwnSignIn(account, issued);
-    }
-
-    public async Task RemoveOwnSignInAsync(
-        RequestAuthority actor,
-        Guid accountId,
-        CancellationToken ct = default)
-    {
-        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
-        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        await RequireHouseholdWriteAsync(actor, account?.HouseholdId, ct).ConfigureAwait(false);
-        if (account is null)
-        {
-            throw new KeyNotFoundException("Sign-in not found.");
-        }
-        const string NotOwnSignIn = "That sign-in is not a person's own sign-in.";
-        if (account.GrantsInheritFromAccountId is null || account.IsAdministrator || account.ProfileId is not { } profileId)
-        {
-            throw new InvalidOperationException(NotOwnSignIn);
-        }
-
-        // Removing the only way to open a person would strand them and their history.
-        var someoneElseOpens = false;
-        foreach (var other in (await accounts.GetAllAsync(ct).ConfigureAwait(false))
-            .Where(other => other.Id != accountId && other.HouseholdId == account.HouseholdId))
-        {
-            if (await accounts.HasProfileAccessAsync(other.Id, profileId, ct).ConfigureAwait(false))
-            {
-                someoneElseOpens = true;
-                break;
-            }
-        }
-
-        if (!someoneElseOpens)
-        {
-            throw new InvalidOperationException("Nobody else in the household can open this person, so their sign-in cannot be removed.");
-        }
-
-        // Deleting the account also ends its sessions and paired devices; the person stays in the household.
-        await accounts.DeleteAccountAsync(accountId, ct).ConfigureAwait(false);
-        await ChangedAsync(actor, "household.own_sign_in_removed", "account", accountId.ToString("D"),
-            accountId, null, ct).ConfigureAwait(false);
-    }
-
     /// <summary>
-    /// The profile a new person (one without a sign-in of their own) takes their starting access from: the profile of the person
+    /// The profile a new person (one without a user) takes their starting access from: the profile of the person
     /// adding them. An application or service caller has none, so the household's first household-administrator profile is used;
     /// with none of those, <see langword="null"/> (every feature, no library).
     /// </summary>
@@ -1191,24 +641,6 @@ public sealed class AccountAccessMutationService(
         if (!await usableAdministrators.HasUsableAdministratorSignInAfterAsync(loss, ct).ConfigureAwait(false))
         {
             throw new InvalidOperationException(LastAdministratorMessage);
-        }
-    }
-
-    /// <summary>Own sign-ins follow a household's main sign-in, so the last enabled one must stay while any follow it.</summary>
-    private async Task RequireNotLastMainSignInAsync(Account account, CancellationToken ct)
-    {
-        if (account.GrantsInheritFromAccountId is not null || account.HouseholdId is null)
-        {
-            return;
-        }
-
-        var household = (await accounts.GetAllAsync(ct).ConfigureAwait(false))
-            .Where(other => other.HouseholdId == account.HouseholdId && other.Id != account.Id)
-            .ToList();
-        if (household.Any(other => other.GrantsInheritFromAccountId is not null) &&
-            !household.Any(other => other.GrantsInheritFromAccountId is null && other.IsEnabled))
-        {
-            throw new InvalidOperationException("Remove the household's own sign-ins first. They follow this sign-in's access.");
         }
     }
 
@@ -1531,185 +963,30 @@ public sealed class AccountAccessMutationService(
         }
     }
 
-    public async Task ReplaceAccessAsync(
+    public async Task SetProfileAdminProtectionAsync(
         RequestAuthority actor,
-        Guid accountId,
-        IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries,
+        Guid profileId,
+        ProfileAdminProtectionCommand command,
         CancellationToken ct = default)
     {
-        var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var householdOnly = await RequireHouseholdWriteAsync(actor, target?.HouseholdId, ct).ConfigureAwait(false);
-        if (target is null)
-        {
-            throw new KeyNotFoundException("Account not found.");
-        }
-        ValidateLibraries(libraries);
-        if (householdOnly)
-        {
-            RequireNotAdministratorTarget(target, householdOnly);
-            await RequireWithinHouseholdAccessAsync(actor, features, libraries, ct).ConfigureAwait(false);
-        }
-
-        // What a user may use is its profile's: the access is written there, and the profile's version goes up so its open sessions
-        // and paired apps check again.
-        if (target.ProfileId is not { } targetProfile ||
-            !await profileAccess.ReplaceAccessAsync(targetProfile, features, libraries, clock.GetUtcNow(), ct).ConfigureAwait(false))
+        var protectedProfile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
+        var householdOnly = await RequireProfileScopeAsync(actor, protectedProfile, ct).ConfigureAwait(false);
+        if (protectedProfile is null)
         {
             throw new KeyNotFoundException("Profile not found.");
         }
 
-        await ChangedAsync(actor, "account.access_replaced", "account", accountId.ToString("D"),
-            accountId, null, ct).ConfigureAwait(false);
-    }
-
-    public async Task UpsertGrantAsync(
-        RequestAuthority actor,
-        AccountProfileGrant grant,
-        CancellationToken ct = default)
-    {
-        // Held across the last-administrator check and the save, so two administrators removing each other cannot both pass.
-        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-        var grantee = await accounts.GetByIdAsync(grant.AccountId, ct).ConfigureAwait(false);
-        var householdOnly = await RequireHouseholdWriteAsync(actor, grantee?.HouseholdId, ct).ConfigureAwait(false);
-        var grantedProfile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
-        if (householdOnly)
+        if (householdOnly && !await IsActorsOwnProfileAsync(actor, profileId, ct).ConfigureAwait(false))
         {
-            // A household administrator opens people with sign-ins of their own household, and never makes an administrator.
-            // A person who is missing or in another household gets the same answer, so other households can't be probed.
-            if (grantee is null || grantedProfile is null || grantedProfile.HouseholdId != grantee.HouseholdId)
-            {
-                throw new UnauthorizedAccessException("A household administrator can only manage their own household.");
-            }
-
-            RequireNotAdministratorTarget(grantee, householdOnly);
-            if (grant.AdminEnabled)
-            {
-                throw new UnauthorizedAccessException("Only a server administrator can turn on administrator access.");
-            }
-        }
-
-        if (grantedProfile is null)
-        {
-            throw new KeyNotFoundException("Profile not found.");
-        }
-
-        if (await accounts.GetByIdAsync(grant.AccountId, ct).ConfigureAwait(false) is { GrantsInheritFromAccountId: not null } follower)
-        {
-            // A person's own sign-in opens only that person and is never an administrator.
-            if (grant.AdminEnabled || follower.ProfileId != grant.ProfileId)
-            {
-                throw new InvalidOperationException("A person's own sign-in opens only that person and can't be an administrator.");
-            }
-        }
-
-        // Administrator access is the profile's role, and a user can only hold it on the profile it opens.
-        if (grant.AdminEnabled && grantee?.ProfileId != grant.ProfileId)
-        {
-            throw new InvalidOperationException("Administrator access belongs to the profile a sign-in opens.");
-        }
-
-        if (grant.AdminEnabled &&
-            await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false) is { Role: ProfileRole.RestrictedProfile })
-        {
-            throw new InvalidOperationException("Child profiles can't be administrators.");
-        }
-
-        // Switching administrator access off for an administrator's grant must leave someone who can still sign in as one.
-        var demotesAdministrator = grantee is { IsEnabled: true, IsAdministrator: true } &&
-            grantee.ProfileId == grant.ProfileId && (!grant.IsEnabled || !grant.AdminEnabled);
-        if (demotesAdministrator)
-        {
-            await RequireAdministratorRemainsAsync(
-                AdministratorSignInLoss.OfGrant(grant.AccountId, grant.ProfileId), ct).ConfigureAwait(false);
-        }
-
-        grant.GrantedAt = clock.GetUtcNow();
-        await accounts.UpsertGrantAsync(grant, ct).ConfigureAwait(false);
-        if (demotesAdministrator)
-        {
-            await profileAccess.SetServerAdministratorAsync(grant.ProfileId, false, grant.GrantedAt, ct).ConfigureAwait(false);
-        }
-
-        await ChangedAsync(actor, "account.grant_updated", "grant",
-            $"{grant.AccountId:D}/{grant.ProfileId:D}", grant.AccountId, grant.ProfileId, ct)
-            .ConfigureAwait(false);
-    }
-
-    public async Task RevokeGrantAsync(
-        RequestAuthority actor,
-        Guid accountId,
-        Guid profileId,
-        CancellationToken ct = default)
-    {
-        // Held across the last-administrator check and the save, so two administrators removing each other cannot both pass.
-        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-        var grantee = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var householdOnly = await RequireHouseholdWriteAsync(actor, grantee?.HouseholdId, ct).ConfigureAwait(false);
-        if (householdOnly && grantee is not null)
-        {
-            RequireNotAdministratorTarget(grantee, householdOnly);
-        }
-
-        // Taking an administrator's own profile away from them also takes the role: the role is the profile's.
-        var losesAdministrator = grantee is { IsEnabled: true, IsAdministrator: true } && grantee.ProfileId == profileId;
-        if (losesAdministrator)
-        {
-            await RequireAdministratorRemainsAsync(AdministratorSignInLoss.OfGrant(accountId, profileId), ct).ConfigureAwait(false);
-        }
-
-        await accounts.RevokeGrantAsync(accountId, profileId, ct).ConfigureAwait(false);
-        if (losesAdministrator)
-        {
-            await profileAccess.SetServerAdministratorAsync(profileId, false, clock.GetUtcNow(), ct).ConfigureAwait(false);
-        }
-
-        await ChangedAsync(actor, "account.grant_revoked", "grant",
-            $"{accountId:D}/{profileId:D}", accountId, profileId, ct).ConfigureAwait(false);
-    }
-
-    public async Task SetAdminProtectionAsync(
-        RequestAuthority actor,
-        Guid accountId,
-        Guid profileId,
-        GrantAdminProtectionCommand command,
-        CancellationToken ct = default)
-    {
-        var protectedAccount = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var householdOnly = await RequireHouseholdWriteAsync(actor, protectedAccount?.HouseholdId, ct).ConfigureAwait(false);
-        if (householdOnly && accountId != actor.AccountId)
-        {
-            // A household administrator protects their own household administration, and no one else's.
+            // The protection belongs to the profile. A household administrator changes it only on the profile their own user opens,
+            // never on another administrator's (server or household), however the request names it.
             throw new UnauthorizedAccessException("A household administrator can only protect their own administrator access.");
         }
 
-        if (householdOnly)
-        {
-            // The protection belongs to the profile. A person changes it only on the profile their own sign-in opens; a household
-            // administrator never changes another administrator's (server or household), however the request names it.
-            var ownProfileId = actor.AccountId is { } actorAccountId
-                ? (await accounts.GetByIdAsync(actorAccountId, ct).ConfigureAwait(false))?.ProfileId
-                : null;
-            if (ownProfileId != profileId)
-            {
-                throw new UnauthorizedAccessException("A household administrator can only protect their own administrator access.");
-            }
-        }
-
-        // The question is about a profile the user can act as (its household), and only a profile that holds an administrator role has
-        // administrator pages to protect.
-        var protectedProfile = protectedAccount is not null &&
-            await accounts.HasProfileAccessAsync(accountId, profileId, ct).ConfigureAwait(false)
-            ? await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false)
-            : null;
-        if (protectedProfile is null)
-        {
-            throw new KeyNotFoundException("Profile grant not found.");
-        }
-
+        // Only a profile that holds an administrator role has administrator pages to protect.
         if (!protectedProfile.IsServerAdministrator && !protectedProfile.IsHouseholdAdministrator)
         {
-            throw new InvalidOperationException("Administrator access is not enabled for this grant.");
+            throw new InvalidOperationException("Administrator access is not enabled for this profile.");
         }
 
         if (!Enum.IsDefined(command.UnlockMode))
@@ -1736,70 +1013,68 @@ public sealed class AccountAccessMutationService(
             UpdatedAt = clock.GetUtcNow(),
         };
         await profileAccess.SetAdminProtectionAsync(protection, ct).ConfigureAwait(false);
-        await ChangedAsync(actor, "grant.admin_protection_changed", "grant",
-            $"{accountId:D}/{profileId:D}", accountId, profileId, ct).ConfigureAwait(false);
+        await ChangedAsync(actor, "profile.admin_protection_changed", "profile", profileId.ToString("D"),
+            await profileAccess.FindUserIdOfProfileAsync(profileId, ct).ConfigureAwait(false) ?? Guid.Empty, profileId, ct)
+            .ConfigureAwait(false);
     }
 
-    public async Task SetHouseholdAdminAsync(
+    public async Task<ProfileAdminProtection> GetProfileAdminProtectionAsync(
         RequestAuthority actor,
-        Guid accountId,
-        bool isHouseholdAdmin,
+        Guid profileId,
         CancellationToken ct = default)
     {
-        // Only a server administrator (or an application they trust) decides who looks after a household.
-        await RequireWriteAsync(actor, ct).ConfigureAwait(false);
-        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
-            ?? throw new KeyNotFoundException("Account not found.");
-        if (account.HouseholdId is null)
+        var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
+        var householdOnly = false;
+        if (actor.PrincipalKind == PrincipalKind.Human)
         {
-            throw new InvalidOperationException("This sign-in is not in a household.");
+            householdOnly = await RequireProfileScopeAsync(actor, profile, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            await RequireReadAsync(actor, ct).ConfigureAwait(false);
         }
 
-        if (isHouseholdAdmin && account.GrantsInheritFromAccountId is not null)
+        if (profile is null)
         {
-            throw new InvalidOperationException("A person's own sign-in can't be a household administrator.");
+            throw new KeyNotFoundException("Profile not found.");
         }
 
-        if (isHouseholdAdmin && !account.IsEnabled)
+        if (householdOnly && !await IsActorsOwnProfileAsync(actor, profileId, ct).ConfigureAwait(false))
         {
-            throw new InvalidOperationException("Turn this sign-in on before making it a household administrator.");
+            // Another administrator's setting is theirs (and the server administrator's) to see.
+            throw new UnauthorizedAccessException("A household administrator can only see their own administrator PIN setting.");
         }
 
-        // The role is the profile's, and a household administrator always has a user: the profile this sign-in opens.
-        var ownProfile = account.ProfileId is { } ownId
-            ? await profiles.GetByIdAsync(ownId, ct).ConfigureAwait(false)
-            : null;
-        if (isHouseholdAdmin && ownProfile is null)
-        {
-            throw new InvalidOperationException("A household administrator needs a profile. Attach this sign-in to one first.");
-        }
-
-        if (isHouseholdAdmin && ownProfile is { Role: ProfileRole.RestrictedProfile })
-        {
-            throw new InvalidOperationException("A Kids profile can't look after a household.");
-        }
-
-        if (ownProfile is not null)
-        {
-            await profileAccess.SetHouseholdAdministratorAsync(ownProfile.Id, isHouseholdAdmin, clock.GetUtcNow(), ct).ConfigureAwait(false);
-        }
-
-        await accounts.SetHouseholdAdminAsync(accountId, isHouseholdAdmin, clock.GetUtcNow(), ct).ConfigureAwait(false);
-        await ChangedAsync(actor, isHouseholdAdmin ? "household.admin_granted" : "household.admin_removed",
-            "account", accountId.ToString("D"), accountId, null, ct).ConfigureAwait(false);
+        return await profileAccess.GetAdminProtectionAsync(profileId, ct).ConfigureAwait(false)
+            ?? new ProfileAdminProtection
+            {
+                ProfileId = profileId,
+                IsEnabled = false,
+                UnlockMode = AdminUnlockMode.FixedDuration.ToString(),
+                UnlockMinutes = 30,
+                ProtectionVersion = 0,
+            };
     }
 
-    /// <summary>
-    /// The first main sign-in of a household becomes its administrator when the account is created; that is a change of
-    /// authority, so it is recorded like any other grant of household administration.
-    /// </summary>
-    private async Task AuditIfHouseholdAdminAsync(RequestAuthority actor, Guid accountId, CancellationToken ct)
+    /// <summary>True when <paramref name="profileId"/> is the profile the actor's own user opens.</summary>
+    private async Task<bool> IsActorsOwnProfileAsync(RequestAuthority actor, Guid profileId, CancellationToken ct) =>
+        actor.AccountId is { } actorUser
+        && (await accounts.GetByIdAsync(actorUser, ct).ConfigureAwait(false))?.ProfileId == profileId;
+
+    /// <summary>The profile a user opens, or <see langword="null"/> for no user.</summary>
+    private async Task<Profile?> ProfileOfUserAsync(Account? user, CancellationToken ct) =>
+        user is null ? null : await profiles.GetByIdAsync(user.ProfileId, ct).ConfigureAwait(false);
+
+    /// <summary>Every user attached to a profile of the household.</summary>
+    private async Task<IReadOnlyList<Account>> UsersOfHouseholdAsync(Guid householdId, CancellationToken ct)
     {
-        if (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { HouseholdAdmin: true })
-        {
-            await ChangedAsync(actor, "household.admin_granted", "account", accountId.ToString("D"),
-                accountId, null, ct).ConfigureAwait(false);
-        }
+        var householdProfiles = (await profiles.GetAllAsync(ct).ConfigureAwait(false))
+            .Where(profile => profile.HouseholdId == householdId)
+            .Select(profile => profile.Id)
+            .ToHashSet();
+        return (await accounts.GetAllAsync(ct).ConfigureAwait(false))
+            .Where(account => householdProfiles.Contains(account.ProfileId))
+            .ToList();
     }
 
     public async Task SetProfilePinAsync(
@@ -1857,10 +1132,10 @@ public sealed class AccountAccessMutationService(
         return false;
     }
 
-    /// <summary>A household administrator can't act on a server administrator or on another household administrator.</summary>
-    private static void RequireNotAdministratorTarget(Account target, bool householdOnly)
+    /// <summary>A household administrator can't act on a user of a server administrator's or another household administrator's profile.</summary>
+    private static void RequireNotAdministratorTarget(Profile? targetProfile, bool householdOnly)
     {
-        if (householdOnly && (target.IsAdministrator || target.HouseholdAdmin))
+        if (householdOnly && targetProfile is { } profile && (profile.IsServerAdministrator || profile.IsHouseholdAdministrator))
         {
             throw new UnauthorizedAccessException("Only a server administrator can change an administrator's sign-in.");
         }
@@ -1893,31 +1168,6 @@ public sealed class AccountAccessMutationService(
         }
 
         throw new UnauthorizedAccessException("Only a server administrator can change a person who is an administrator's own.");
-    }
-
-    /// <summary>
-    /// A household administrator hands out only what they already hold: nothing beyond the libraries and features of the profile
-    /// they are acting as.
-    /// </summary>
-    private async Task RequireWithinHouseholdAccessAsync(
-        RequestAuthority actor,
-        IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries,
-        CancellationToken ct)
-    {
-        var source = actor.ActiveProfileId;
-        var allowedFeatures = source is { } featureSource
-            ? (await profileAccess.GetFeatureGrantsAsync(featureSource, ct).ConfigureAwait(false)).Select(feature => feature.Value).ToHashSet()
-            : [];
-        var allowedLibraries = source is { } librarySource
-            ? (await profileAccess.GetLibraryGrantsAsync(librarySource, ct).ConfigureAwait(false)).ToHashSet()
-            : [];
-        if (features.Any(feature => !allowedFeatures.Contains(feature.Value)) ||
-            libraries.Any(library => !allowedLibraries.Contains(library)))
-        {
-            throw new UnauthorizedAccessException(
-                "A household administrator can only hand out the libraries and features the household already has.");
-        }
     }
 
     /// <summary>
@@ -2106,18 +1356,6 @@ public sealed class AccountAccessMutationService(
             throw new ArgumentException("Enter a valid email address.");
         }
     }
-
-    private static AccountProfileGrant NewProfileGrant(
-        Guid accountId, Guid profileId, bool isDefault, DateTimeOffset now) => new()
-        {
-            AccountId = accountId,
-            ProfileId = profileId,
-            IsDefault = isDefault,
-            IsEnabled = true,
-            AdminEnabled = false,
-            AuthorizationVersion = 1,
-            GrantedAt = now,
-        };
 
     private static string NormalizeDisplayName(string value)
     {

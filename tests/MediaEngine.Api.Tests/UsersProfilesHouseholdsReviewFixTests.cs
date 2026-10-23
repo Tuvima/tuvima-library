@@ -26,28 +26,29 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
 {
     private const string Password = "a long temporary password";
 
-    // ---- D17 on the older routes ----
+    // ---- D17 on the roles route ----
 
     [Fact]
-    public async Task TheOlderUpdateRoute_RefusesAServerAdministratorWithoutAnEmailAndPassword_AndAllowsOneThatHasThem()
+    public async Task TheRolesRoute_RefusesAServerAdministratorWithoutAnEmailAndPassword_AndAllowsOneThatHasThem()
     {
         await using var world = await World.CreateAsync();
         var partner = await PartnerWithoutPasswordAsync(world);
+        var householdRole = (await world.Access.GetAdminFlagsAsync(partner.Profile.Id))!.IsHouseholdAdministrator;
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.UpdateAsync(
-            world.ServerAdmin, partner.User.Id, new UpdateAccountAccessCommand(partner.User.Email, true, true)));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.SetProfileRolesAsync(
+            world.ServerAdmin, partner.Profile.Id, householdRole, isServerAdministrator: true));
 
         Assert.Equal(HouseholdRules.ServerAdministratorNeedsSecuredSignIn, refused.Message);
         Assert.False((await world.Access.GetAdminFlagsAsync(partner.Profile.Id))!.IsServerAdministrator);
 
         await world.GivePasswordAsync(partner.User.Id);
-        await world.Mutations.UpdateAsync(world.ServerAdmin, partner.User.Id, new UpdateAccountAccessCommand(partner.User.Email, true, true));
+        await world.Mutations.SetProfileRolesAsync(world.ServerAdmin, partner.Profile.Id, householdRole, isServerAdministrator: true);
 
         Assert.True((await world.Access.GetAdminFlagsAsync(partner.Profile.Id))!.IsServerAdministrator);
     }
 
     [Fact]
-    public async Task TheOlderUpdateRoute_StillRefusesAKidsProfile_AndAProfileOutsideTheLibrarysHousehold()
+    public async Task TheRolesRoute_RefusesAKidsProfile_AndAProfileOutsideTheLibrarysHousehold()
     {
         await using var world = await World.CreateAsync();
         var home = (await world.Households.GetForAccountAsync(world.ServerAdminAccount.Id))!;
@@ -56,53 +57,13 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
         var kidsUser = await world.Mutations.CreateUserAsync(world.ServerAdmin, new CreateUserCommand(
             "little@example.com", little.Id, null, NewUserSignInMethod.TemporaryPassword, Password));
 
-        var kids = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.UpdateAsync(
-            world.ServerAdmin, kidsUser.User.Id, new UpdateAccountAccessCommand(kidsUser.User.Email, true, true)));
-        var elsewhere = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.UpdateAsync(
-            world.ServerAdmin, world.Kim.Id, new UpdateAccountAccessCommand(world.Kim.Email, true, true)));
+        var kids = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.SetProfileRolesAsync(
+            world.ServerAdmin, kidsUser.Profile.Id, false, isServerAdministrator: true));
+        var elsewhere = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.SetProfileRolesAsync(
+            world.ServerAdmin, world.KimProfile.Id, false, isServerAdministrator: true));
 
         Assert.Equal("Child profiles can't be administrators.", kids.Message);
         Assert.Equal("A server administrator must belong to the Library's own household.", elsewhere.Message);
-    }
-
-    [Fact]
-    public async Task TheOlderCreateRoute_RefusesAServerAdministratorWithoutAPassword_AndAllowsOneWithAStartingPassword()
-    {
-        await using var world = await World.CreateAsync();
-        var profilesBefore = (await world.Profiles.GetAllAsync()).Count;
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.CreateAsync(world.ServerAdmin,
-            new CreateAccountAccessCommand("second@example.com", IsAdministrator: true, ProfileId: null,
-                NewProfile: new NewAccountProfileCommand("Second", null),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>())));
-
-        Assert.Equal(HouseholdRules.ServerAdministratorNeedsSecuredSignIn, refused.Message);
-        Assert.Null(await world.Accounts.GetByNormalizedEmailAsync("SECOND@EXAMPLE.COM"));
-        Assert.Equal(profilesBefore, (await world.Profiles.GetAllAsync()).Count);
-
-        var allowed = await world.Mutations.CreateAsync(world.ServerAdmin,
-            new CreateAccountAccessCommand("second@example.com", IsAdministrator: true, ProfileId: null,
-                NewProfile: new NewAccountProfileCommand("Second", null),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(),
-                TemporaryPassword: Password));
-        Assert.True((await world.Access.GetAdminFlagsAsync(allowed.ProfileId!.Value))!.IsServerAdministrator);
-    }
-
-    [Fact]
-    public async Task TheOlderCreateRoute_RefusesAKidsProfileAsAServerAdministrator()
-    {
-        await using var world = await World.CreateAsync();
-        var home = (await world.Households.GetForAccountAsync(world.ServerAdminAccount.Id))!;
-        var little = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
-            new AddHouseholdPersonCommand(home.Id, "Little", null, true, null));
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.CreateAsync(world.ServerAdmin,
-            new CreateAccountAccessCommand("little@example.com", IsAdministrator: true, ProfileId: little.Id, NewProfile: null,
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(),
-                TemporaryPassword: Password)));
-
-        Assert.Equal("Child profiles can't be administrators.", refused.Message);
-        Assert.Null(await world.Accounts.GetByNormalizedEmailAsync("LITTLE@EXAMPLE.COM"));
     }
 
     // ---- A household removal always needs the confirmed list ----
@@ -142,8 +103,7 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
 
     [Theory]
     [InlineData("/access/users/{userId:guid}", "userId")]
-    [InlineData("/access/accounts/{accountId:guid}", "accountId")]
-    public async Task TheDeleteRoutes_AnswerConflict_ForAHouseholdRemovalSentWithoutTheList(string route, string parameter)
+    public async Task TheDeleteRoute_AnswersConflict_ForAHouseholdRemovalSentWithoutTheList(string route, string parameter)
     {
         await using var world = await World.CreateAsync(secondOwner: false);
         await using var host = EndpointHost.Create(world);
@@ -181,10 +141,7 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
     public async Task APersonJoiningAHouseholdThatHasNoAdministrator_IsNeverQuietlyPromoted()
     {
         await using var world = await World.CreateAsync();
-        world.Run("""
-            UPDATE profiles SET is_household_admin = 0 WHERE household_id = @household;
-            UPDATE households SET primary_account_id = NULL WHERE id = @household;
-            """, new { household = world.Household.Id });
+        world.Run("UPDATE profiles SET is_household_admin = 0 WHERE household_id = @household;", new { household = world.Household.Id });
 
         var made = await world.Mutations.CreateUserAsync(world.ServerAdmin, new CreateUserCommand(
             "new.person@example.com", null, new NewUserProfileCommand("New Person", null, world.Household.Id, null),
@@ -193,33 +150,28 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
             new AddHouseholdPersonCommand(world.Household.Id, "Older Person", null, false, null));
         var attached = await world.Mutations.CreateUserAsync(world.ServerAdmin, new CreateUserCommand(
             "older.person@example.com", person.Id, null, NewUserSignInMethod.TemporaryPassword, Password));
-        var invited = await world.Mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
-            "invited.person@example.com", [(await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
-                new AddHouseholdPersonCommand(world.Household.Id, "Invited", null, false, null))).Id], null));
+        var invitedPerson = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
+            new AddHouseholdPersonCommand(world.Household.Id, "Invited", null, false, null));
+        var invited = await world.Mutations.CreateUserAsync(world.ServerAdmin, new CreateUserCommand(
+            "invited.person@example.com", invitedPerson.Id, null, NewUserSignInMethod.Invitation));
 
-        foreach (var profileId in new[] { made.Profile.Id, attached.Profile.Id,
-                     (await world.Accounts.GetDefaultProfileIdAsync(invited.AccountId))!.Value })
+        foreach (var profileId in new[] { made.Profile.Id, attached.Profile.Id, invited.Profile.Id })
         {
             Assert.False((await world.Access.GetAdminFlagsAsync(profileId))!.IsHouseholdAdministrator);
         }
 
-        Assert.False((await world.Accounts.GetByIdAsync(made.User.Id))!.HouseholdAdmin);
         Assert.DoesNotContain(await world.Profiles.GetAllAsync(), profile => profile.HouseholdId == world.Household.Id && profile.IsHouseholdAdministrator);
     }
 
     [Fact]
-    public async Task ThePersonWhoStartsAHousehold_ByInvitationOrByUser_IsItsFirstHouseholdAdministrator()
+    public async Task ThePersonWhoStartsAHousehold_IsItsFirstHouseholdAdministrator()
     {
         await using var world = await World.CreateAsync();
 
         var byUser = await world.Mutations.CreateUserAsync(world.ServerAdmin, new CreateUserCommand(
             "first.one@example.com", null, new NewUserProfileCommand("First One", null, null, "Household 2"), NewUserSignInMethod.Invitation));
-        var byInvitation = await world.Mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
-            "first.two@example.com", [], null, "First Two"));
 
         Assert.True((await world.Access.GetAdminFlagsAsync(byUser.Profile.Id))!.IsHouseholdAdministrator);
-        Assert.True((await world.Access.GetAdminFlagsAsync(
-            (await world.Accounts.GetDefaultProfileIdAsync(byInvitation.AccountId))!.Value))!.IsHouseholdAdministrator);
         // The next person who joins that household is an ordinary member.
         var joined = await world.Mutations.CreateUserAsync(world.ServerAdmin, new CreateUserCommand(
             "joined@example.com", null, new NewUserProfileCommand("Joined", null, byUser.Profile.HouseholdId, null), NewUserSignInMethod.Invitation));
@@ -229,25 +181,23 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
     // ---- One meaning of "a household administrator who counts" ----
 
     [Fact]
-    public async Task WithTheOtherHouseholdAdministratorsUserDisabled_TheLastOneCannotBeTurnedOffDeletedOrDisabled()
+    public async Task WithTheOtherHouseholdAdministratorsUserDisabled_TheLastOneCannotBeTurnedOffOrDeleted()
     {
         await using var world = await World.CreateAsync();
         var alexProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.Alex.Id))!.Value;
         var samProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.Sam.Id))!.Value;
         // Alice (Alex) is enabled; Carol (Sam) is switched off. Both are household administrators.
-        await world.Mutations.UpdateAsync(world.ServerAdmin, world.Sam.Id, new UpdateAccountAccessCommand(world.Sam.Email, false, false));
+        world.Run("UPDATE accounts SET is_enabled = 0 WHERE id = @id;", new { id = world.Sam.Id });
         Assert.True((await world.Access.GetAdminFlagsAsync(samProfile))!.IsHouseholdAdministrator);
 
         var turnOff = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             world.Mutations.SetProfileRolesAsync(world.ServerAdmin, alexProfile, false, false));
         var delete = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             world.Mutations.DeleteProfileAsync(world.ServerAdmin, alexProfile));
-        var disable = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            world.Mutations.UpdateAsync(world.ServerAdmin, world.Alex.Id, new UpdateAccountAccessCommand(world.Alex.Email, false, false)));
         var store = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             world.Access.SetHouseholdAdministratorAsync(alexProfile, false, DateTimeOffset.UtcNow));
 
-        Assert.All(new[] { turnOff, delete, disable, store }, refusal =>
+        Assert.All(new[] { turnOff, delete, store }, refusal =>
             Assert.Equal(UserRemovalMessages.LastHouseholdAdministrator, refusal.Message));
         Assert.True((await world.Access.GetAdminFlagsAsync(alexProfile))!.IsHouseholdAdministrator);
         Assert.NotNull(await world.Profiles.GetByIdAsync(alexProfile));
@@ -271,48 +221,11 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
     public async Task TheHouseholdRemovalPlan_DoesNotCountAHouseholdAdministratorWhoseUserIsDisabled()
     {
         await using var world = await World.CreateAsync();
-        await world.Mutations.UpdateAsync(world.ServerAdmin, world.Sam.Id, new UpdateAccountAccessCommand(world.Sam.Email, false, false));
+        world.Run("UPDATE accounts SET is_enabled = 0 WHERE id = @id;", new { id = world.Sam.Id });
 
         var plan = (await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id)).Plan;
 
         Assert.True(plan.RemovesHousehold);
-    }
-
-    // ---- A household removal follows each profile's household ----
-
-    [Fact]
-    public async Task AHouseholdRemoval_TakesTheUsersOfItsProfiles_AndNeverAUserOnlyBecauseOfAnOutOfDateColumn()
-    {
-        await using var world = await World.CreateAsync(secondOwner: false);
-        // Bea's own column wrongly names Alex's household; Kim's profile is still in it. Kim's user has lost its profile link and
-        // is matched by the column alone.
-        world.Run("UPDATE accounts SET household_id = @household WHERE id = @bea;",
-            new { household = world.Household.Id, bea = world.Bea.Id });
-        var beaHousehold = world.Bea.HouseholdId!.Value;
-        var confirmed = (await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id))
-            .Plan.HouseholdProfiles.Select(profile => profile.Id).ToArray();
-
-        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.MoveToShared, confirmed);
-
-        Assert.Null(await world.Households.GetByIdAsync(world.Household.Id));
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Bea.Id));
-        Assert.NotNull(await world.Households.GetByIdAsync(beaHousehold));
-        Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
-    }
-
-    [Fact]
-    public async Task AHouseholdRemoval_AlsoTakesAUserWithNoProfile_WhoseColumnNamesTheHousehold()
-    {
-        await using var world = await World.CreateAsync(secondOwner: false);
-        world.Run("UPDATE accounts SET profile_id = NULL, household_id = @household WHERE id = @kim;",
-            new { household = world.Household.Id, kim = world.Kim.Id });
-        var confirmed = (await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id))
-            .Plan.HouseholdProfiles.Select(profile => profile.Id).ToArray();
-
-        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.MoveToShared, confirmed);
-
-        Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
-        Assert.Null(await world.Households.GetByIdAsync(world.Household.Id));
     }
 
     // ---- A household made with its first user ----
@@ -335,15 +248,7 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
             UpdatedAt = now,
         };
         var profile = new Profile { Id = Guid.NewGuid(), DisplayName = "Dup", AvatarColor = "#7C4DFF", CreatedAt = now };
-        var grant = new AccountProfileGrant
-        {
-            AccountId = account.Id,
-            ProfileId = profile.Id,
-            IsDefault = true,
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-            GrantedAt = now,
-        };
+        var grant = new TestGrant(account.Id, profile.Id, IsDefault: true, AdminEnabled: false);
 
         // The same email is already a user, so the step fails after the household would have been made.
         await Assert.ThrowsAnyAsync<Exception>(() => world.Accounts.CreateAccountAsync(

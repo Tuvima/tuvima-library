@@ -26,7 +26,6 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     private readonly List<ManagedProfileResponse> _managed = [];
     private readonly List<HouseholdResponse> _households = [];
     private readonly List<RequestRecord> _requests = [];
-    private readonly List<AccountAccessResponse> _accounts = [];
     private DashboardAuthorityResponse? _authority;
     private string? _addPersonDetail;
 
@@ -317,7 +316,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Services.AddSingleton(api);
 
         var grants = new[] { OwnId, KidId, SamId }.Select(id => new AccountProfileGrantDto(id, id, "Test User", null,
-            true, true, true, new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)).ToList();
+            true, true, true, new ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow)).ToList();
         string[] actions = serverAdministrator ? ["access.manage"] : householdAdministrator ? ["household.manage"] : [];
         string[] navigation = serverAdministrator ? ["settings.administration"] : [];
         var authority = new DashboardAuthorityResponse(OwnId, OwnId, true, true, 1, 1, serverAdministrator, serverAdministrator, null, 1,
@@ -378,27 +377,6 @@ public sealed class ProfilesTabTests : AsyncBunitContext
                         Authority = authority,
                     }),
                 };
-            }
-
-            if (request.Method == HttpMethod.Get && path == "/access/accounts")
-            {
-                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._accounts) };
-            }
-
-            if (request.Method == HttpMethod.Get && path.EndsWith("/deletion-preview", StringComparison.Ordinal))
-            {
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = JsonContent.Create(new AccountDeletionPreviewResponse([new AccountDeletionProfileDto(SamId, "Sam")])),
-                };
-            }
-
-            if (request.Method == HttpMethod.Delete && path.StartsWith("/access/accounts/", StringComparison.Ordinal))
-            {
-                // The user's own profile goes with them.
-                owner._managed.RemoveAll(person => person.Id == SamId);
-                owner._accounts.Clear();
-                return new HttpResponseMessage(HttpStatusCode.NoContent);
             }
 
             if (request.Method == HttpMethod.Post && path.EndsWith("/people", StringComparison.Ordinal) && owner._addPersonDetail is { } refusal)

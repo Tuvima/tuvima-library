@@ -88,10 +88,10 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         using (var connection = _database.CreateConnection())
         {
             connection.Execute(
-                "UPDATE accounts SET is_enabled=0,is_administrator=0 WHERE id=@accountId;",
+                "UPDATE accounts SET is_enabled=0 WHERE id=@accountId;",
                 new { accountId = Account.SeedAccountId });
             connection.Execute(
-                "UPDATE account_profile_grants SET is_enabled=0,admin_enabled=0 WHERE account_id=@accountId;",
+                "UPDATE profiles SET is_server_admin=0 WHERE id=(SELECT profile_id FROM accounts WHERE id=@accountId);",
                 new { accountId = Account.SeedAccountId });
             connection.Execute(
                 "DELETE FROM account_credentials WHERE account_id=@accountId;",
@@ -470,12 +470,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             CreatedAt = DateTimeOffset.UtcNow,
         };
         await InsertProfileAsync(profile);
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = bootstrap.Account.Id,
-            ProfileId = profile.Id,
-            GrantedAt = DateTimeOffset.UtcNow,
-        });
+        await JoinHouseholdOfAsync(bootstrap.Account.Id, profile.Id);
         await _service.SetProfilePinAsync(profile.Id, "2468");
 
         await Assert.ThrowsAsync<ProfilePinRequiredException>(() =>
@@ -500,12 +495,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             CreatedAt = DateTimeOffset.UtcNow,
         };
         await InsertProfileAsync(kid);
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = bootstrap.Account.Id,
-            ProfileId = kid.Id,
-            GrantedAt = DateTimeOffset.UtcNow,
-        });
+        await JoinHouseholdOfAsync(bootstrap.Account.Id, kid.Id);
         await _service.SetProfilePinAsync(kid.Id, "2468");
         return (bootstrap, kid);
     }
@@ -685,7 +675,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AccountProfileGrants_ControlSwitchingAndSwitchingClearsGrantUnlock()
+    public async Task TheHousehold_ControlsSwitchingAndSwitchingClearsTheAdminUnlock()
     {
         var bootstrap = await _service.BootstrapAdministratorAsync(
             "owner@example.com", "correct horse battery staple", "Dad", "browser-1", "Server", "Dashboard");
@@ -718,12 +708,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         };
         await InsertProfileAsync(child);
         await InsertProfileAsync(ungranted);
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = bootstrap.Account.Id,
-            ProfileId = child.Id,
-            GrantedAt = _clock.GetUtcNow(),
-        });
+        await JoinHouseholdOfAsync(bootstrap.Account.Id, child.Id);
 
         await _service.SwitchActiveProfileAsync(bootstrap.PlaintextToken, child.Id, null);
         await _service.SwitchActiveProfileAsync(bootstrap.PlaintextToken, bootstrap.Profile.Id, null);
@@ -802,7 +787,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         var person = new Profile { Id = Guid.NewGuid(), DisplayName = "Invited", AvatarColor = "#7C4DFF", Role = ProfileRole.StandardUser, CreatedAt = _clock.GetUtcNow() };
         await _accounts.CreateAccountAsync(
             invited,
-            new AccountProfileGrant { AccountId = invited.Id, ProfileId = person.Id, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = _clock.GetUtcNow() },
+            new TestGrant(invited.Id, person.Id, IsDefault: true),
             new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: person);
         return (invited, person.Id);
     }
@@ -1036,6 +1021,16 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         using var again = _database.CreateConnection();
         Assert.Equal(1, again.ExecuteScalar<int>(
             "SELECT COUNT(*) FROM pragma_table_info('auth_sessions') WHERE name = 'issued_ingress';"));
+    }
+
+    /// <summary>Puts a profile into the household of the profile the user opens, so the user may act as it.</summary>
+    private Task JoinHouseholdOfAsync(Guid accountId, Guid profileId)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "UPDATE profiles SET household_id = (SELECT p.household_id FROM profiles p JOIN accounts a ON a.profile_id = p.id WHERE a.id = @accountId) WHERE id = @profileId;",
+            new { accountId, profileId });
+        return Task.CompletedTask;
     }
 
     public void Dispose()

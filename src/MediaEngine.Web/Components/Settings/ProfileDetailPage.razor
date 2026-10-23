@@ -314,7 +314,7 @@
     private RoleSwitchState _serverRole = RoleSwitchState.Hidden;
     private bool _roleBusy;
     private string? _roleError;
-    private GrantAdminProtectionDto? _protection;
+    private ProfileAdminProtectionResponse? _protection;
     private string? _protectionChoice;
     private bool _protectionBusy;
     private string? _protectionMessage;
@@ -618,21 +618,20 @@
         }
     }
 
-    // The profile's administrator PIN setting is read through the user attached to it (the Engine keeps it on the profile).
+    // The profile's administrator PIN setting is the profile's own (a person reads their own, a server administrator any).
     private async Task LoadProtectionAsync()
     {
         _protection = null;
         _protectionChoice = null;
-        if (_managedPerson is not { User: { } user } person || !(person.IsServerAdmin || person.IsHouseholdAdmin) || !(IsSelf || IsServerAdministrator))
+        if (_managedPerson is not { } person || !(person.IsServerAdmin || person.IsHouseholdAdmin) || !(IsSelf || IsServerAdministrator))
         {
             return;
         }
 
         try
         {
-            var account = await Identity.GetManagedAccountAsync(user.Id);
-            _protection = account?.ProfileGrants.FirstOrDefault(grant => grant.ProfileId == ProfileId)?.AdminProtection
-                ?? new GrantAdminProtectionDto(false, "FixedDuration", 30, 0);
+            _protection = await Identity.GetProfileAdminProtectionAsync(ProfileId)
+                ?? new ProfileAdminProtectionResponse(false, "FixedDuration", 30, 0);
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -736,7 +735,7 @@
 
     private async Task SaveProtectionAsync(bool enabled)
     {
-        if (_protectionBusy || _managedPerson is not { User: { } user })
+        if (_protectionBusy || _managedPerson is null)
         {
             return;
         }
@@ -751,8 +750,8 @@
             var unlockMinutes = unlockMode == "FixedDuration" && parts.Length == 2 && int.TryParse(parts[1], out var minutes)
                 ? minutes
                 : _protection?.UnlockMinutes;
-            var result = await Confirmed.RunAsync(() => Identity.SetGrantProtectionResultAsync(user.Id, ProfileId,
-                new SetGrantAdminProtectionRequest(enabled, unlockMode, unlockMinutes)));
+            var result = await Confirmed.RunAsync(() => Identity.SetProfileAdminProtectionResultAsync(ProfileId,
+                new SetProfileAdminProtectionRequest(enabled, unlockMode, unlockMinutes)));
             if (!result.Succeeded)
             {
                 _protectionError = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou

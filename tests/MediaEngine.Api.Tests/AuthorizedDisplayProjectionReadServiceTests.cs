@@ -1703,21 +1703,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 Email = $"{accountId:N}@example.com",
                 NormalizedEmail = $"{accountId:N}@EXAMPLE.COM",
                 IsEnabled = true,
-                IsAdministrator = administrator,
                 AuthorizationVersion = 1,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new AccountProfileGrant
-            {
-                AccountId = accountId,
-                ProfileId = ownProfile?.Id ?? MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AdminEnabled = administrator,
-                AuthorizationVersion = 1,
-                GrantedAt = DateTimeOffset.UtcNow,
-            },
+            new TestGrant(accountId, ownProfile?.Id ?? MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator),
             features,
             libraries,
             newProfile: ownProfile);

@@ -129,10 +129,8 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
         connection.Execute("""
             INSERT INTO profiles(id,display_name,avatar_color,role,created_at)
             VALUES(@profileId,'Viewer','#000000','RestrictedProfile',@now);
-            INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,profile_id)
-            VALUES(@accountId,@email,@normalized,1,0,1,@now,@now,@profileId);
-            INSERT INTO account_profile_grants(account_id,profile_id,is_default,is_enabled,admin_enabled,authorization_version,granted_at)
-            VALUES(@accountId,@profileId,1,1,0,1,@now);
+            INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id)
+            VALUES(@accountId,@email,@normalized,1,1,@now,@now,@profileId);
             INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,'watch',@now);
             INSERT INTO profile_library_grants(profile_id,library_id,granted_at) VALUES(@profileId,@libraryId,@now);
             """, new

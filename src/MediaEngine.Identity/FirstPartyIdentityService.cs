@@ -129,15 +129,16 @@ public sealed class FirstPartyIdentityService(
             }
 
             var now = UtcNow;
-            var account = new Account { Id = Account.SeedAccountId, Email = hasEmail ? email!.Trim() : null, NormalizedEmail = normalizedEmail, IsEnabled = true, IsAdministrator = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now, ProfileId = profile.Id };
+            var account = new Account { Id = Account.SeedAccountId, Email = hasEmail ? email!.Trim() : null, NormalizedEmail = normalizedEmail, IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now, ProfileId = profile.Id };
             if (!withPassword)
             {
                 account.MarkThisComputerOnly();
             }
 
-            await accounts.CreateAccountAsync(account,
-                new AccountProfileGrant { AccountId = account.Id, ProfileId = profile.Id, IsDefault = true, IsEnabled = true, AdminEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
-                AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), ct).ConfigureAwait(false);
+            // The first start: the Owner profile becomes the server administrator's (in a household made for it) and starts with every feature.
+            await accounts.CreateUserAsync(account,
+                new NewUserPlacement(SetUpProfile: true, IsServerAdministrator: true, Features: AccountFeatureId.All.ToHashSet(), Libraries: new HashSet<Guid>()),
+                ct: ct).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(pin))
             {
                 await SetProfilePinAsync(profile.Id, pin, ct).ConfigureAwait(false);
@@ -491,7 +492,8 @@ public sealed class FirstPartyIdentityService(
         try { account = await accounts.GetByNormalizedEmailAsync(NormalizeEmail(email), ct).ConfigureAwait(false); }
         catch (ArgumentException) { account = null; }
         var credential = account is null ? null : await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false);
-        if (account is null || credential is null || !account.IsAdministrator)
+        if (account is null || credential is null
+            || await profiles.GetByIdAsync(account.ProfileId, ct).ConfigureAwait(false) is not { IsServerAdministrator: true })
         {
             throw new UnauthorizedAccessException("The local administrator information is invalid.");
         }
@@ -908,12 +910,8 @@ public sealed class FirstPartyIdentityService(
             throw new UnauthorizedAccessException("This account cannot use that profile.");
         }
 
+        // Everyone, a server administrator included, switches only inside their own household (checked above by the data store).
         var target = await profiles.GetByIdAsync(targetProfileId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Profile '{targetProfileId}' was not found.");
-        // Everyone, a server administrator included, switches only inside their own household.
-        if (!current.Account.MaySwitchInto(target.HouseholdId))
-        {
-            throw new UnauthorizedAccessException("This account cannot use that profile.");
-        }
 
         // Same rule as profile sign-in: only sessions made from outside the home count toward, or are
         // blocked by, the PIN lockout. A session's issuing place is checked on every request by the Dashboard.
@@ -1175,9 +1173,7 @@ public sealed class FirstPartyIdentityService(
 
     /// <summary>Whether the account may use the person under the household rule (the person is in the household of the user's own profile).</summary>
     private async Task<bool> MayUseInHouseholdAsync(Guid accountId, Guid profileId, CancellationToken ct) =>
-        await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { } account &&
-        await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is { } profile &&
-        account.MaySwitchInto(profile.HouseholdId);
+        await accounts.HasProfileAccessAsync(accountId, profileId, ct).ConfigureAwait(false);
 
     private async Task<SessionIssueResult> IssueSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
     {

@@ -160,14 +160,14 @@ public sealed class MappedEndpointInventoryTests
         await using var app = BuildEndpointOnlyApplication();
         var inventory = EndpointInventory.From(app);
 
-        inventory.Require("/access/accounts", HttpMethods.Get)
+        inventory.Require("/access/users", HttpMethods.Get)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersRead);
-        inventory.Require("/access/accounts/{accountId:guid}", HttpMethods.Put)
+        inventory.Require("/access/users/{userId:guid}", HttpMethods.Delete)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
-        inventory.Require("/access/accounts/{accountId:guid}/access", HttpMethods.Put)
-            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
-        inventory.Require("/access/accounts/{accountId:guid}/grants/{profileId:guid}/admin-protection", HttpMethods.Put)
-            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
+        inventory.Require("/access/profiles/{profileId:guid}/access", HttpMethods.Put)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: true);
+        inventory.Require("/access/profiles/{profileId:guid}/admin-protection", HttpMethods.Put)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: true);
 
         // Households: anyone eligible may ask for the list (the service limits a household administrator to their own);
         // adding, renaming and removing are for server administrators and trusted applications only.
@@ -252,7 +252,7 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/intercom").AllowsAnonymous();
         inventory.Require("/intercom/negotiate").AllowsAnonymous();
 
-        Assert.False(inventory.Require("/access/accounts", HttpMethods.Get).AllowsAnonymousEndpoint);
+        Assert.False(inventory.Require("/access/users", HttpMethods.Get).AllowsAnonymousEndpoint);
         Assert.False(inventory.Require("/access/applications", HttpMethods.Get).AllowsAnonymousEndpoint);
         Assert.False(inventory.Require("/auth/login", HttpMethods.Post).AllowsAnonymousEndpoint);
 

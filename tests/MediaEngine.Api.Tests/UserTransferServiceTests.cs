@@ -206,7 +206,7 @@ public sealed class UserTransferServiceTests : IDisposable
     {
         var old = Computer.New(this, "old");
         var fresh = Computer.New(this, "new");
-        var maya = old.AddUser("maya@example.com", ["Maya", "Maya (kids)"], administrator: true);
+        var maya = old.AddUser("maya@example.com", ["Maya"], administrator: true);
         var admin = fresh.AddUser("admin@example.com", ["Admin"]);
         var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
         var audit = new ManagedSessionServiceTests.RecordingAudit();
@@ -216,7 +216,7 @@ public sealed class UserTransferServiceTests : IDisposable
 
         Assert.Null(preview.BlockedReason);
         Assert.Equal("maya@example.com", preview.Email);
-        Assert.Equal(["Maya", "Maya (kids)"], preview.Profiles.Select(profile => profile.Name));
+        Assert.Equal(["Maya"], preview.Profiles.Select(profile => profile.Name));
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM accounts WHERE email = 'maya@example.com'"));
         Assert.Single(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
 
@@ -224,16 +224,16 @@ public sealed class UserTransferServiceTests : IDisposable
 
         Assert.Equal(maya.Account, result.AccountId);
         Assert.Equal("maya@example.com", result.DisplayName);
-        Assert.Equal(["Maya", "Maya (kids)"], result.Profiles);
+        Assert.Equal(["Maya"], result.Profiles);
         Assert.Equal(old.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(maya.Account)),
             fresh.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(maya.Account)));
         Assert.Equal(TwoStepSecret, fresh.Protector.Unprotect(fresh.Text("SELECT secret_protected FROM account_two_step WHERE account_id = " + Blob(maya.Account))));
         Assert.Null(old.Protector.Unprotect(fresh.Text("SELECT secret_protected FROM account_two_step WHERE account_id = " + Blob(maya.Account))));
-        Assert.Equal(0, fresh.Scalar("SELECT is_administrator FROM accounts WHERE email = 'maya@example.com'"));
-        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_feature_grants WHERE account_id = " + Blob(maya.Account)));
-        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_library_grants WHERE account_id = " + Blob(maya.Account)));
-        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE admin_enabled = 1 AND account_id = " + Blob(maya.Account)));
-        Assert.Equal(2, fresh.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE account_id = " + Blob(maya.Account)));
+        // The imported person is no administrator of any kind and holds no access; the user opens exactly the imported profile.
+        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM profiles WHERE is_server_admin = 1 OR is_household_admin = 1"));
+        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM profile_feature_grants g JOIN accounts a ON a.profile_id = g.profile_id WHERE a.email = 'maya@example.com'"));
+        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM profile_library_grants g JOIN accounts a ON a.profile_id = g.profile_id WHERE a.email = 'maya@example.com'"));
+        Assert.Equal(1, fresh.Scalar("SELECT COUNT(*) FROM accounts a JOIN profiles p ON p.id = a.profile_id WHERE a.email = 'maya@example.com' AND p.display_name = 'Maya'"));
         Assert.Empty(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
 
         var imported = Assert.Single(audit.Events);
@@ -249,12 +249,12 @@ public sealed class UserTransferServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Inspect_ShowsEachProfilesRoleAndContentLimit_SoAnAdministratorCanSpotAFileThatWasChanged()
+    public async Task Inspect_ShowsTheProfilesRoleAndContentLimit_SoAnAdministratorCanSpotAFileThatWasChanged()
     {
         var old = Computer.New(this, "old");
         var fresh = Computer.New(this, "new");
-        var maya = old.AddUser("maya@example.com", ["Maya", "Maya (kids)"]);
-        old.Execute("UPDATE profiles SET role = 'RestrictedProfile', content_limit = 'PG', content_limit_allow_unrated = 1 WHERE display_name = 'Maya (kids)'");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        old.Execute("UPDATE profiles SET role = 'RestrictedProfile', content_limit = 'PG', content_limit_allow_unrated = 1 WHERE display_name = 'Maya'");
         var admin = fresh.AddUser("admin@example.com", ["Admin"]);
         var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
 
@@ -262,8 +262,7 @@ public sealed class UserTransferServiceTests : IDisposable
 
         Assert.Equal(
             [
-                new MediaEngine.Contracts.Backups.UserImportProfileDto("Maya", "StandardUser", null, false),
-                new MediaEngine.Contracts.Backups.UserImportProfileDto("Maya (kids)", "RestrictedProfile", "PG", true),
+                new MediaEngine.Contracts.Backups.UserImportProfileDto("Maya", "RestrictedProfile", "PG", true),
             ],
             preview.Profiles);
     }
@@ -693,14 +692,35 @@ public sealed class UserTransferServiceTests : IDisposable
             connection.Execute(sql);
         }
 
+        /// <summary>
+        /// A user with its sign-in and the profile it opens (the first name), which holds the features, libraries and roles. Any further
+        /// names are other people of the same household: they exist, but the user does not open them and an export never holds them.
+        /// </summary>
         public Person AddUser(string email, string[] profileNames, bool administrator = false, Guid? household = null)
         {
             var account = Guid.NewGuid();
             var accountBlob = GuidSql.ToBlob(account);
             using var connection = Database.CreateConnection();
+            Guid first = Guid.Empty;
+            for (var i = 0; i < profileNames.Length; i++)
+            {
+                var profile = Guid.NewGuid();
+                first = i == 0 ? profile : first;
+                connection.Execute(
+                    "INSERT INTO profiles (id, display_name, role, created_at, household_id, is_server_admin) VALUES (@id, @name, 'StandardUser', @now, @household, @admin)",
+                    new
+                    {
+                        id = GuidSql.ToBlob(profile),
+                        name = profileNames[i],
+                        now = Stamp,
+                        household = household is { } h ? GuidSql.ToBlob(h) : null,
+                        admin = i == 0 && administrator ? 1 : 0,
+                    });
+            }
+
             connection.Execute(
-                "INSERT INTO accounts (id, email, normalized_email, is_administrator, created_at, updated_at, household_id) VALUES (@account, @email, @normalized, @admin, @now, @now, @household)",
-                new { account = accountBlob, email, normalized = email.ToUpperInvariant(), admin = administrator ? 1 : 0, now = Stamp, household = household is { } h ? GuidSql.ToBlob(h) : null });
+                "INSERT INTO accounts (id, email, normalized_email, created_at, updated_at, profile_id) VALUES (@account, @email, @normalized, @now, @now, @profile)",
+                new { account = accountBlob, email, normalized = email.ToUpperInvariant(), now = Stamp, profile = GuidSql.ToBlob(first) });
             connection.Execute(
                 """
                 INSERT INTO account_credentials (id, account_id, credential_kind, secret_hash, hash_scheme, hash_version, security_stamp, created_at, updated_at)
@@ -710,23 +730,10 @@ public sealed class UserTransferServiceTests : IDisposable
             connection.Execute(
                 "INSERT INTO account_two_step (account_id, secret_protected, created_at) VALUES (@account, @secret, @now)",
                 new { account = accountBlob, secret = Protector.Protect(TwoStepSecret), now = Stamp });
-            connection.Execute("INSERT INTO account_feature_grants (account_id, feature_id, granted_at) VALUES (@account, 'read', @now)", new { account = accountBlob, now = Stamp });
+            connection.Execute("INSERT INTO profile_feature_grants (profile_id, feature_id, granted_at) VALUES (@profile, 'read', @now)", new { profile = GuidSql.ToBlob(first), now = Stamp });
             connection.Execute(
-                "INSERT INTO account_library_grants (account_id, library_id, granted_at) VALUES (@account, @library, @now)",
-                new { account = accountBlob, library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
-            Guid first = Guid.Empty;
-            for (var i = 0; i < profileNames.Length; i++)
-            {
-                var profile = Guid.NewGuid();
-                first = i == 0 ? profile : first;
-                connection.Execute(
-                    "INSERT INTO profiles (id, display_name, role, created_at) VALUES (@id, @name, 'StandardUser', @now)",
-                    new { id = GuidSql.ToBlob(profile), name = profileNames[i], now = Stamp });
-                connection.Execute(
-                    "INSERT INTO account_profile_grants (account_id, profile_id, is_default, is_enabled, admin_enabled, granted_at) VALUES (@account, @profile, @isDefault, 1, @admin, @now)",
-                    new { account = accountBlob, profile = GuidSql.ToBlob(profile), isDefault = i == 0 ? 1 : 0, admin = administrator ? 1 : 0, now = Stamp });
-            }
-
+                "INSERT INTO profile_library_grants (profile_id, library_id, granted_at) VALUES (@profile, @library, @now)",
+                new { profile = GuidSql.ToBlob(first), library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
             return new Person(account, first);
         }
 

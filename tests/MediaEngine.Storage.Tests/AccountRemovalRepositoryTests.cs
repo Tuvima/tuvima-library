@@ -66,7 +66,6 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         await _accounts.DeleteUserAsync(sam.Id);
 
         var again = NewAccount("sam@new.example.com");
-        again.HouseholdId = owner.HouseholdId;
         await _accounts.CreateAccountAsync(again, Grant(again.Id, samProfile, isDefault: true),
             new HashSet<AccountFeatureId>(), new HashSet<Guid>(), preserveProfileAccess: true);
 
@@ -122,7 +121,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         var pat = await AddMainSignInAsync("pat@example.com", "Pat");
         var sam = await AddMainSignInAsync("sam@example.com", "Sam", pat.HouseholdId);
         var mary = NewProfile("Mary");
-        await _accounts.CreateHouseholdPersonAsync(mary, pat.HouseholdId!.Value, [Grant(pat.Id, mary.Id)]);
+        await _accounts.CreateHouseholdPersonAsync(mary, pat.HouseholdId!.Value);
         var patProfile = await DefaultProfileAsync(pat);
         var samProfile = await DefaultProfileAsync(sam);
         var asset = AddAsset();
@@ -240,10 +239,10 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     [Fact]
     public async Task DeletingTheUserOfTheOwnerProfile_KeepsTheOwnerProfile_AndItLosesTheAdministratorRole()
     {
-        var admin = NewAccount("admin@example.com", administrator: true);
+        var admin = NewAccount("admin@example.com");
         await _accounts.CreateAccountAsync(admin, Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
-        var other = await AddMainSignInAsync("other@example.com", "Other", admin.HouseholdId);
+        var other = await AddMainSignInAsync("other@example.com", "Other", (await UserAsync(admin.Id)).HouseholdId);
         AddPassword(admin.Id);
         AddPassword(other.Id);
         await _profileAccess.SetServerAdministratorAsync(await DefaultProfileAsync(other), true, _now);
@@ -258,7 +257,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     [Fact]
     public async Task DeletingTheLastServerAdministratorsUser_StopsAtTheDataStoresBackstop()
     {
-        var admin = NewAccount("admin@example.com", administrator: true);
+        var admin = NewAccount("admin@example.com");
         var profile = NewProfile("Admin");
         await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
@@ -303,7 +302,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     {
         var owner = await AddMainSignInAsync("alex@example.com", "Alex");
         var mary = NewProfile("Mary");
-        await _accounts.CreateHouseholdPersonAsync(mary, owner.HouseholdId!.Value, [Grant(owner.Id, mary.Id)]);
+        await _accounts.CreateHouseholdPersonAsync(mary, owner.HouseholdId!.Value);
 
         var outcome = await _accounts.DeleteManagedProfileAsync(mary.Id);
 
@@ -341,7 +340,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     {
         Assert.True(await _accounts.AreServerAdministratorsSecuredAsync());
 
-        var admin = NewAccount("admin@example.com", administrator: true);
+        var admin = NewAccount("admin@example.com");
         var profile = NewProfile("Admin");
         await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
@@ -353,7 +352,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         Assert.True(await _accounts.IsUserSecuredAsync(admin.Id));
 
         // A second server administrator without a password makes the Library unsecured again.
-        var second = await AddMainSignInAsync("second@example.com", "Second", admin.HouseholdId);
+        var second = await AddMainSignInAsync("second@example.com", "Second", (await UserAsync(admin.Id)).HouseholdId);
         await _profileAccess.SetServerAdministratorAsync(await DefaultProfileAsync(second), true, _now);
         Assert.False(await _accounts.AreServerAdministratorsSecuredAsync());
         AddPassword(second.Id);
@@ -363,7 +362,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     [Fact]
     public async Task AServerAdministratorWithoutAnEmail_IsNotSecured_EvenWithAPassword()
     {
-        var admin = NewAccount("admin@example.com", administrator: true);
+        var admin = NewAccount("admin@example.com");
         admin.Email = null;
         admin.NormalizedEmail = null;
         var profile = NewProfile("Admin");
@@ -382,7 +381,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     {
         var owner = await AddMainSignInAsync("alex@example.com", "Alex");
         var kids = NewProfile("Kids");
-        await _accounts.CreateHouseholdPersonAsync(kids, owner.HouseholdId!.Value, [Grant(owner.Id, kids.Id)]);
+        await _accounts.CreateHouseholdPersonAsync(kids, owner.HouseholdId!.Value);
         var bystander = await DefaultProfileAsync(owner);
         var asset = AddAsset();
         var left = Behind(kids.Id, asset);
@@ -418,7 +417,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     {
         var owner = await AddMainSignInAsync("alex@example.com", "Alex");
         var kids = NewProfile("Kids");
-        await _accounts.CreateHouseholdPersonAsync(kids, owner.HouseholdId!.Value, [Grant(owner.Id, kids.Id)]);
+        await _accounts.CreateHouseholdPersonAsync(kids, owner.HouseholdId!.Value);
         var asset = AddAsset();
         Execute("INSERT INTO encode_jobs(id,asset_id,owner_profile_id,profile_key,source_hash,status,created_at) VALUES(@id,@asset,NULL,'k','h','complete',@now)",
             new { id = Guid.NewGuid(), asset, now = _now.ToString("O") });
@@ -530,27 +529,35 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         return asset;
     }
 
-    /// <summary>A main sign-in with its own new default profile. The first one in a household owns it.</summary>
-    private async Task<Account> AddMainSignInAsync(string email, string profileName, Guid? householdId = null)
+    /// <summary>A user with its own new profile. The first one in a household owns it.</summary>
+    private async Task<TestUser> AddMainSignInAsync(string email, string profileName, Guid? householdId = null)
     {
         var account = NewAccount(email);
-        account.HouseholdId = householdId;
         var profile = NewProfile(profileName);
         await _accounts.CreateAccountAsync(account, Grant(account.Id, profile.Id, isDefault: true),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: profile);
-        return (await _accounts.GetByIdAsync(account.Id))!;
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: profile, householdId: householdId);
+        return await UserAsync(account.Id);
     }
 
     /// <summary>A server administrator with a password: its own profile in the Library's own (default) household.</summary>
-    private async Task<Account> AddServerAdministratorAsync(string email, string profileName)
+    private async Task<TestUser> AddServerAdministratorAsync(string email, string profileName)
     {
-        var account = NewAccount(email, administrator: true);
+        var account = NewAccount(email);
         var profile = NewProfile(profileName);
         await _accounts.CreateAccountAsync(account, Grant(account.Id, profile.Id, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
         AddPassword(account.Id);
-        return (await _accounts.GetByIdAsync(account.Id))!;
+        return await UserAsync(account.Id);
     }
+
+    private async Task<TestUser> UserAsync(Guid userId)
+    {
+        var user = (await _accounts.GetByIdAsync(userId))!;
+        return new TestUser(user.Id, (await _profiles.GetByIdAsync(user.ProfileId))!.HouseholdId);
+    }
+
+    /// <summary>A user and the household of the profile it opens.</summary>
+    private sealed record TestUser(Guid Id, Guid? HouseholdId);
 
     private void AddPassword(Guid accountId) => Execute(
         "INSERT INTO account_credentials(id,account_id,credential_kind,secret_hash,hash_scheme,hash_version,security_stamp,created_at,updated_at) VALUES(@id,@accountId,'Password','h','pbkdf2',1,'s',@now,@now)",
@@ -560,15 +567,14 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     private async Task<Guid[]> ConfirmedAsync(Guid userId) =>
         (await _accounts.PlanUserRemovalAsync(userId)).HouseholdProfiles.Select(profile => profile.Id).ToArray();
 
-    private async Task<Guid> DefaultProfileAsync(Account account) => (await _accounts.GetDefaultProfileIdAsync(account.Id))!.Value;
+    private async Task<Guid> DefaultProfileAsync(TestUser user) => (await _accounts.GetDefaultProfileIdAsync(user.Id))!.Value;
 
-    private Account NewAccount(string email, bool administrator = false) => new()
+    private Account NewAccount(string email) => new()
     {
         Id = Guid.NewGuid(),
         Email = email,
         NormalizedEmail = email.ToUpperInvariant(),
         IsEnabled = true,
-        IsAdministrator = administrator,
         AuthorizationVersion = 1,
         CreatedAt = _now.AddSeconds(++_counter),
         UpdatedAt = _now,
@@ -583,16 +589,8 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         CreatedAt = _now,
     };
 
-    private AccountProfileGrant Grant(Guid accountId, Guid profileId, bool isDefault = false, bool administrator = false) => new()
-    {
-        AccountId = accountId,
-        ProfileId = profileId,
-        IsDefault = isDefault,
-        IsEnabled = true,
-        AdminEnabled = administrator,
-        AuthorizationVersion = 1,
-        GrantedAt = _now.AddSeconds(++_counter),
-    };
+    private static TestGrant Grant(Guid accountId, Guid profileId, bool isDefault = false, bool administrator = false) =>
+        new(accountId, profileId, isDefault, administrator);
 
     private void Execute(string sql, object parameters)
     {

@@ -147,15 +147,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
                 CreatedAt = now,
                 UpdatedAt = now,
             },
-            new AccountProfileGrant
-            {
-                AccountId = _accountId,
-                ProfileId = Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = now,
-            },
+            new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
             new HashSet<Guid> { _libraryId });
         await _applications.ReplacePermissionsAsync(

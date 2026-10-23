@@ -177,8 +177,11 @@ public sealed class AccountNoticeEndpointTests : IAsyncLifetime
         var id = Guid.NewGuid();
         using var conn = _database.CreateConnection();
         conn.Execute(
-            "INSERT INTO accounts (id, created_at, updated_at) VALUES (@id, @now, @now);",
-            new { id, now = DateTimeOffset.UtcNow.ToString("O") });
+            """
+            INSERT INTO profiles (id, display_name, created_at) VALUES (@profile, 'Notice reader', @now);
+            INSERT INTO accounts (id, created_at, updated_at, profile_id) VALUES (@id, @now, @now, @profile);
+            """,
+            new { id, profile = Guid.NewGuid(), now = DateTimeOffset.UtcNow.ToString("O") });
         return id;
     }
 

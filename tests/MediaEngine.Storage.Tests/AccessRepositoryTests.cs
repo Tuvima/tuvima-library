@@ -33,55 +33,39 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task Grants_EnforceMaximumAndTheFinalAdministratorIsKeptOnTheProfileTransactionally()
+    public async Task AHouseholdHoldsAtMostEightPeople_AndTheFinalAdministratorIsKeptOnTheProfileTransactionally()
     {
-        var account = new Account
-        {
-            Id = Guid.NewGuid(),
-            Email = "owner@example.com",
-            NormalizedEmail = "OWNER@EXAMPLE.COM",
-            IsEnabled = true,
-            IsAdministrator = true,
-            AuthorizationVersion = 1,
-            CreatedAt = _now,
-            UpdatedAt = _now,
-        };
+        var account = NewAdministrator("owner@example.com");
         await _accounts.CreateAccountAsync(
             account,
             Grant(account.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(),
             new HashSet<Guid>());
+        var householdId = (await new HouseholdRepository(_database).GetForAccountAsync(account.Id))!.Id;
 
-        var profileIds = new List<Guid>();
         for (var index = 0; index < 7; index++)
         {
-            var profileId = Guid.NewGuid();
-            profileIds.Add(profileId);
-            InsertProfile(NewProfile(profileId, $"Profile {index + 2}"));
-            await _accounts.UpsertGrantAsync(Grant(account.Id, profileId));
+            await _accounts.CreateHouseholdPersonAsync(NewProfile(Guid.NewGuid(), $"Profile {index + 2}"), householdId);
         }
 
-        var ninthProfile = Guid.NewGuid();
-        InsertProfile(NewProfile(ninthProfile, "Ninth"));
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _accounts.UpsertGrantAsync(Grant(account.Id, ninthProfile)));
+            _accounts.CreateHouseholdPersonAsync(NewProfile(Guid.NewGuid(), "Ninth"), householdId));
 
-        // A sign-in signs in as the profile it is attached to; asking for another default does not move it.
-        await _accounts.UpsertGrantAsync(Grant(account.Id, profileIds[0], isDefault: true));
-        var grants = await _accounts.GetGrantsAsync(account.Id);
-        Assert.Single(grants, grant => grant.IsDefault);
-        Assert.Equal(Profile.SeedProfileId, grants.Single(grant => grant.IsDefault).ProfileId);
+        // A user signs in as the profile it is attached to and may act as the rest of its household.
+        var household = await _accounts.GetHouseholdProfilesAsync(account.Id);
+        Assert.Equal(8, household.Count);
+        Assert.Single(household, entry => entry.IsOwn);
+        Assert.Equal(Profile.SeedProfileId, household[0].ProfileId);
         Assert.Equal(Profile.SeedProfileId, await _accounts.GetDefaultProfileIdAsync(account.Id));
 
-        // The administrator role is the profile's: the last one cannot be taken away, and saving the sign-in never changes it.
+        // The administrator role is the profile's: the last one cannot be taken away, and saving the user never changes it.
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _profileAccess.SetServerAdministratorAsync(Profile.SeedProfileId, false, _now.AddMinutes(1)));
-        Assert.True(grants.Single(grant => grant.ProfileId == Profile.SeedProfileId).AdminEnabled);
+        Assert.True(household.Single(entry => entry.ProfileId == Profile.SeedProfileId).IsServerAdministrator);
 
-        account.IsAdministrator = false;
         account.UpdatedAt = _now.AddMinutes(1);
         await _accounts.UpdateAccountAsync(account);
-        Assert.True((await _accounts.GetByIdAsync(account.Id))?.IsAdministrator);
+        Assert.True((await _profiles.GetByIdAsync(Profile.SeedProfileId))!.IsServerAdministrator);
         account.IsEnabled = false;
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _accounts.UpdateAccountAsync(account));
@@ -110,9 +94,8 @@ public sealed class AccessRepositoryTests : IDisposable
 
         var pending = NewAdministrator("pending@example.com");
         // A server administrator lives in the Library's own household, like the one who signs in.
-        pending.HouseholdId = (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id;
         var pendingProfile = Guid.NewGuid();
-        InsertProfile(NewProfile(pendingProfile, "Pending"));
+        InsertProfile(NewProfile(pendingProfile, "Pending"), (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id);
         await _accounts.CreateAccountAsync(
             pending,
             Grant(pending.Id, pendingProfile, isDefault: true, administrator: true),
@@ -121,7 +104,7 @@ public sealed class AccessRepositoryTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _profileAccess.SetServerAdministratorAsync(Profile.SeedProfileId, false, _now.AddMinutes(1)));
-        Assert.True((await _accounts.GetByIdAsync(owner.Id))?.IsAdministrator);
+        Assert.True((await _profiles.GetByIdAsync(Profile.SeedProfileId))!.IsServerAdministrator);
     }
 
     [Fact]
@@ -148,9 +131,8 @@ public sealed class AccessRepositoryTests : IDisposable
 
         var pending = NewAdministrator("pending@example.com");
         // A server administrator lives in the Library's own household, like the one who signs in.
-        pending.HouseholdId = (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id;
         var pendingProfile = Guid.NewGuid();
-        InsertProfile(NewProfile(pendingProfile, "Pending"));
+        InsertProfile(NewProfile(pendingProfile, "Pending"), (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id);
         await _accounts.CreateAccountAsync(
             pending,
             Grant(pending.Id, pendingProfile, isDefault: true, administrator: true),
@@ -172,10 +154,8 @@ public sealed class AccessRepositoryTests : IDisposable
             owner, Grant(owner.Id, ownerProfile.Id, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: ownerProfile);
         var personId = Guid.NewGuid();
-        InsertProfile(NewProfile(personId, "Mary"));
+        InsertProfile(NewProfile(personId, "Mary"), (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id);
         var signIn = NewAdministrator("mary@example.com");
-        signIn.IsAdministrator = false;
-        signIn.HouseholdId = (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id;
         await _accounts.CreateAccountAsync(
             signIn,
             Grant(signIn.Id, personId, isDefault: true),
@@ -216,10 +196,8 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task InvitationAccount_CreatesAllGrantsAndHashOnlyInvitationAtomically()
+    public async Task InvitationAccount_CreatesTheUserAndAHashOnlyInvitationAtomically()
     {
-        var secondProfileId = Guid.NewGuid();
-        InsertProfile(NewProfile(secondProfileId, "Second"));
         var account = new Account
         {
             Id = Guid.NewGuid(),
@@ -242,12 +220,10 @@ public sealed class AccessRepositoryTests : IDisposable
         };
 
         await _accounts.CreateInvitedAccountAsync(account,
-            [Grant(account.Id, Profile.SeedProfileId, isDefault: true),
-             Grant(account.Id, secondProfileId)], invitation);
+            [Grant(account.Id, Profile.SeedProfileId, isDefault: true)], invitation);
 
-        var grants = await _accounts.GetGrantsAsync(account.Id);
-        Assert.Equal(2, grants.Count);
-        Assert.Single(grants, grant => grant.IsDefault && grant.IsEnabled);
+        Assert.Equal(Profile.SeedProfileId, (await _accounts.GetByIdAsync(account.Id))!.ProfileId);
+        Assert.Single(await _accounts.GetHouseholdProfilesAsync(account.Id), entry => entry.IsOwn);
         Assert.Equal(invitation.Id, (await _accounts.GetActiveInvitationAsync(hash, _now))?.Id);
         using var connection = _database.CreateConnection();
         Assert.Equal(hash, connection.QuerySingle<string>(
@@ -289,7 +265,7 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ManagedProfileCreationAndDeletion_AreAtomicAcrossProfileAndAccountGrants()
+    public async Task HouseholdPersonCreationAndDeletion_AreAtomicAcrossTheProfileAndItsHousehold()
     {
         var target = new Account
         {
@@ -305,10 +281,9 @@ public sealed class AccessRepositoryTests : IDisposable
             Grant(target.Id, Profile.SeedProfileId, isDefault: true),
             new HashSet<AccountFeatureId>(), new HashSet<Guid>());
         var profile = NewProfile(Guid.NewGuid(), "Managed");
+        var householdId = (await new HouseholdRepository(_database).GetForAccountAsync(target.Id))!.Id;
 
-        await _accounts.CreateManagedProfileAsync(
-            profile,
-            Grant(target.Id, profile.Id));
+        await _accounts.CreateHouseholdPersonAsync(profile, householdId);
 
         Assert.NotNull(await _profiles.GetByIdAsync(profile.Id));
         Assert.True(await _accounts.HasProfileAccessAsync(target.Id, profile.Id));
@@ -382,38 +357,7 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AccountSideAccessReplacement_LeavesTheProfilesAccessAlone()
-    {
-        var account = new Account
-        {
-            Id = Guid.NewGuid(),
-            Email = "legacy@example.test",
-            NormalizedEmail = "LEGACY@EXAMPLE.TEST",
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-            CreatedAt = _now,
-            UpdatedAt = _now,
-        };
-        await _accounts.CreateAccountAsync(
-            account,
-            Grant(account.Id, Profile.SeedProfileId, isDefault: true),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid>());
-        var versionBefore = (await _profileAccess.GetAdminFlagsAsync(Profile.SeedProfileId))!.AuthorizationVersion;
-
-        await _accounts.ReplaceAccountAccessAsync(
-            account.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Listen },
-            new HashSet<Guid>(),
-            _now.AddMinutes(1));
-
-        // The profile holds the access; the sign-in's own rows are never read for a decision.
-        Assert.Equal([AccountFeatureId.Read], (await _profileAccess.GetFeatureGrantsAsync(Profile.SeedProfileId)).ToArray());
-        Assert.Equal(versionBefore, (await _profileAccess.GetAdminFlagsAsync(Profile.SeedProfileId))!.AuthorizationVersion);
-    }
-
-    [Fact]
-    public async Task AVaultLibrary_CanNeverBeGrantedToASignInsAccessRows_AndTheProfileIsUnchangedWhenItIsTried()
+    public async Task AVaultLibrary_CanNeverBeGrantedToAProfilesAccessRows_AndTheProfileIsUnchangedWhenItIsTried()
     {
         var account = new Account
         {
@@ -439,8 +383,8 @@ public sealed class AccessRepositoryTests : IDisposable
                 new { vault = vault.ToString("D"), now = _now.ToString("O") });
         }
 
-        await Assert.ThrowsAsync<ArgumentException>(() => _accounts.ReplaceAccountAccessAsync(
-            account.Id,
+        await Assert.ThrowsAsync<ArgumentException>(() => _profileAccess.ReplaceAccessAsync(
+            Profile.SeedProfileId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
             new HashSet<Guid> { ordinary, vault },
             _now.AddMinutes(1)));
@@ -522,14 +466,15 @@ public sealed class AccessRepositoryTests : IDisposable
         Assert.NotNull(await _profileAccess.GetAdminUnlockAsync(kept, Profile.SeedProfileId, _now.AddMinutes(2)));
     }
 
-    private void InsertProfile(Profile profile)
+    private void InsertProfile(Profile profile, Guid? householdId = null)
     {
         using var connection = _database.CreateConnection();
         connection.Execute("""
-            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config)
-            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig);
+            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config,household_id)
+            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig,@householdId);
             """, new
         {
+            householdId,
             profile.Id,
             profile.DisplayName,
             profile.AvatarColor,
@@ -540,21 +485,12 @@ public sealed class AccessRepositoryTests : IDisposable
         });
     }
 
-    private AccountProfileGrant Grant(
+    private static TestGrant Grant(
         Guid accountId,
         Guid profileId,
         bool isDefault = false,
         bool administrator = false) =>
-        new()
-        {
-            AccountId = accountId,
-            ProfileId = profileId,
-            IsDefault = isDefault,
-            IsEnabled = true,
-            AdminEnabled = administrator,
-            AuthorizationVersion = 1,
-            GrantedAt = _now,
-        };
+        new(accountId, profileId, isDefault, administrator);
 
     private Profile NewProfile(Guid id, string name) =>
         new()
@@ -582,7 +518,6 @@ public sealed class AccessRepositoryTests : IDisposable
         Email = email,
         NormalizedEmail = email.ToUpperInvariant(),
         IsEnabled = true,
-        IsAdministrator = true,
         AuthorizationVersion = 1,
         CreatedAt = _now,
         UpdatedAt = _now,

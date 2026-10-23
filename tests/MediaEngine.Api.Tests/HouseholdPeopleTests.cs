@@ -35,10 +35,9 @@ public sealed class HouseholdPeopleTests
         Assert.Equal(3, (await households.ListProfilesAsync(household.Id)).Count);
 
         // The household's sign-in can open the new person, but it is not the default.
-        var grant = await accounts.GetGrantAsync(owner.Id, mary.Id);
-        Assert.NotNull(grant);
-        Assert.False(grant.IsDefault);
-        Assert.False(grant.AdminEnabled);
+        var opened = Assert.Single(await accounts.GetHouseholdProfilesAsync(owner.Id), profile => profile.ProfileId == mary.Id);
+        Assert.False(opened.IsOwn);
+        Assert.False(opened.IsServerAdministrator);
 
         // A PIN that is too short is refused and leaves nobody half-added.
         await Assert.ThrowsAnyAsync<ArgumentException>(() => mutations.AddHouseholdPersonAsync(actor,
@@ -98,7 +97,7 @@ public sealed class HouseholdPeopleTests
     }
 
     [Fact]
-    public async Task OwnSignIn_OpensStraightIntoThePerson_KeepsThePersonsOwnAccess_AndIsNeverAnAdministrator()
+    public async Task UserForAPerson_OpensStraightIntoThePerson_KeepsThePersonsOwnAccess_AndIsNeverAnAdministrator()
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, households) = (fixture.Mutations, fixture.Accounts, fixture.Households);
@@ -112,106 +111,93 @@ public sealed class HouseholdPeopleTests
             new AddHouseholdPersonCommand(household.Id, "Tom", null, false, null));
         var before = (await fixture.Access.GetAdminFlagsAsync(mary.Id))!.AuthorizationVersion;
 
-        var given = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long temporary password"));
+        var given = await mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary@example.com", mary.Id, null, NewUserSignInMethod.TemporaryPassword, "a long temporary password"));
         Assert.Null(given.Invitation);
-        var maryAccount = given.Account;
-        Assert.Equal(household.Id, maryAccount.HouseholdId);
-        Assert.False(maryAccount.IsAdministrator);
-        Assert.Equal(owner.Id, maryAccount.GrantsInheritFromAccountId);
+        var maryAccount = given.User;
+        Assert.Equal(household.Id, (await households.GetForAccountAsync(maryAccount.Id))!.Id);
         Assert.Equal(mary.Id, maryAccount.ProfileId);
-        var maryGrant = Assert.Single(await accounts.GetGrantsAsync(maryAccount.Id), grant => grant.IsDefault);
-        Assert.Equal(mary.Id, maryGrant.ProfileId);
-        Assert.True(maryGrant.IsEnabled);
-        Assert.False(maryGrant.AdminEnabled);
+        var flags = (await fixture.Access.GetAdminFlagsAsync(mary.Id))!;
+        Assert.False(flags.IsServerAdministrator);
+        Assert.False(flags.IsHouseholdAdministrator);
+        Assert.True(Assert.Single(await accounts.GetHouseholdProfilesAsync(maryAccount.Id), profile => profile.IsOwn).ProfileId == mary.Id);
 
         // Attaching a sign-in never changes the person: Mary keeps exactly the access she started with (and her version).
         Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
         Assert.Equal(before, (await fixture.Access.GetAdminFlagsAsync(mary.Id))!.AuthorizationVersion);
 
         // Each profile holds its own access: changing the owner's does not reach Mary.
-        await mutations.ReplaceAccessAsync(actor, owner.Id,
+        await mutations.ReplaceProfileAccessAsync(actor, owner.ProfileId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
         Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
 
-        // Her access is edited on her own profile, through her sign-in.
-        await mutations.ReplaceAccessAsync(actor, maryAccount.Id,
+        // Her access is edited on her own profile.
+        await mutations.ReplaceProfileAccessAsync(actor, mary.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
         Assert.Equal(new[] { "listen" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
 
         // An invitation works the same way and the new sign-in opens only that person.
-        var invited = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(tom.Id, "tom@example.com", null, Invite: true));
+        var invited = await mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "tom@example.com", tom.Id, null, NewUserSignInMethod.Invitation));
         Assert.NotNull(invited.Invitation);
         var accepted = await fixture.Identity.AcceptInvitationAsync(
             invited.Invitation.Code, "invited password", "browser", "Browser", "Dashboard");
-        Assert.Equal(invited.Account.Id, accepted.Account.Id);
-        Assert.Equal(tom.Id, Assert.Single(await accounts.GetGrantsAsync(invited.Account.Id), grant => grant.IsDefault).ProfileId);
+        Assert.Equal(invited.User.Id, accepted.Account.Id);
+        Assert.Equal(tom.Id, invited.User.ProfileId);
 
-        // One own sign-in per person, and an email only ever has one sign-in.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary2@example.com", null, Invite: true)));
+        // One user per person, and an email only ever has one sign-in.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary2@example.com", mary.Id, null, NewUserSignInMethod.Invitation)));
         var third = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Third", null, false, null));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(third.Id, "MARY@example.com", null, Invite: true)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "MARY@example.com", third.Id, null, NewUserSignInMethod.Invitation)));
     }
 
     [Fact]
-    public async Task ReplaceAccess_ForAnOwnSignIn_ChangesOnlyThatPersonsProfile()
+    public async Task ReplaceProfileAccess_ForAUser_ChangesOnlyThatPersonsProfile()
     {
         // A person's access lives on their profile (users, profiles and households spec D1): nothing follows the household's main sign-in.
         await using var fixture = await Fixture.CreateAsync();
-        var (mutations, accounts, households) = (fixture.Mutations, fixture.Accounts, fixture.Households);
+        var (mutations, households) = (fixture.Mutations, fixture.Households);
         var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read, AccountFeatureId.Watch);
         var actor = fixture.Actor with { ActiveProfileId = owner.ProfileId };
         var household = (await households.GetForAccountAsync(owner.Id))!;
         var mary = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
-        var maryAccount = (await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long temporary password"))).Account;
-        Assert.Equal(owner.Id, maryAccount.GrantsInheritFromAccountId);
+        await mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary@example.com", mary.Id, null, NewUserSignInMethod.TemporaryPassword, "a long temporary password"));
 
-        await mutations.ReplaceAccessAsync(actor, maryAccount.Id,
+        await mutations.ReplaceProfileAccessAsync(actor, mary.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
 
         Assert.Equal(new[] { "listen" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
-        Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(owner.ProfileId!.Value)).Select(feature => feature.Value).Order());
+        Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(owner.ProfileId)).Select(feature => feature.Value).Order());
     }
 
     [Fact]
-    public async Task OwnSignIn_StaysInThePersonsOwnHousehold()
+    public async Task ANewUser_StaysInThePersonsOwnHousehold()
     {
         await using var fixture = await Fixture.CreateAsync();
-        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var (mutations, households, actor) = (fixture.Mutations, fixture.Households, fixture.Actor);
         var owner = await fixture.CreateOwnerAsync();
         var ownerHousehold = (await households.GetForAccountAsync(owner.Id))!;
-        var invitation = await mutations.IssueInvitationAsync(actor, new IssueAccountInvitationCommand(
-            "guest@example.com", [], null, NewHouseholdPersonName: "Guest"));
-        var guestHousehold = (await households.GetForAccountAsync(invitation.AccountId))!;
-        // The guest's own person has the guest's sign-in already, so a friend of theirs gets the own sign-in.
+        var guest = await mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "guest@example.com", null, new NewUserProfileCommand("Guest", null, null, "Guest household"), NewUserSignInMethod.Invitation));
+        var guestHousehold = (await households.GetForAccountAsync(guest.User.Id))!;
+        // The guest's own person has the guest's sign-in already, so a friend of theirs gets a user of their own.
         var guestFriend = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(guestHousehold.Id, "Friend", null, false, null));
-        var guestSignIn = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(guestFriend.Id, "guest.own@example.com", null, Invite: true));
+        var friendSignIn = await mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "guest.own@example.com", guestFriend.Id, null, NewUserSignInMethod.Invitation));
 
         // The new sign-in lands in the person's household, not the household of whoever asked.
-        Assert.Equal(guestHousehold.Id, guestSignIn.Account.HouseholdId);
-        Assert.NotEqual(ownerHousehold.Id, guestSignIn.Account.HouseholdId);
-
-        // It can never be pointed at someone in another household.
-        var ownerPerson = Assert.Single(await accounts.GetGrantsAsync(owner.Id));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(actor, new AccountProfileGrant
-        {
-            AccountId = guestSignIn.Account.Id,
-            ProfileId = ownerPerson.ProfileId,
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-        }));
+        Assert.Equal(guestHousehold.Id, (await households.GetForAccountAsync(friendSignIn.User.Id))!.Id);
+        Assert.NotEqual(ownerHousehold.Id, (await households.GetForAccountAsync(friendSignIn.User.Id))!.Id);
     }
 
     [Fact]
-    public async Task RemovingAnOwnSignIn_KeepsThePersonAndEndsTheirSessions()
+    public async Task DeletingAUser_KeepsThePersonAndEndsTheirSessions()
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
@@ -219,96 +205,41 @@ public sealed class HouseholdPeopleTests
         var household = (await households.GetForAccountAsync(owner.Id))!;
         var mary = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
-        var invited = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", null, Invite: true));
+        var invited = await mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary@example.com", mary.Id, null, NewUserSignInMethod.Invitation));
         await fixture.Identity.AcceptInvitationAsync(
             invited.Invitation!.Code, "invited password", "phone", "Phone", "Dashboard");
-        Assert.NotEmpty(await fixture.Identities.GetSessionsAsync(invited.Account.Id));
+        Assert.NotEmpty(await fixture.Identities.GetSessionsAsync(invited.User.Id));
 
-        await mutations.RemoveOwnSignInAsync(actor, invited.Account.Id);
+        await mutations.DeleteUserAsync(actor, invited.User.Id);
 
-        Assert.Null(await accounts.GetByIdAsync(invited.Account.Id));
-        Assert.Empty(await fixture.Identities.GetSessionsAsync(invited.Account.Id));
+        Assert.Null(await accounts.GetByIdAsync(invited.User.Id));
+        Assert.Empty(await fixture.Identities.GetSessionsAsync(invited.User.Id));
         // Mary and her place in the household stay, and the household's sign-in still opens her.
         Assert.NotNull(await fixture.Profiles.GetByIdAsync(mary.Id));
         Assert.Contains(await households.ListProfilesAsync(household.Id), person => person.Id == mary.Id);
         Assert.True(await accounts.HasProfileAccessAsync(owner.Id, mary.Id));
 
-        // Only a person's own sign-in can be removed this way.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.RemoveOwnSignInAsync(actor, owner.Id));
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => mutations.RemoveOwnSignInAsync(actor, invited.Account.Id));
+        // Deleting it again finds nothing.
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => mutations.DeleteUserAsync(actor, invited.User.Id));
     }
 
     [Fact]
-    public async Task DeletingTheHouseholdsMainSignIn_HandsFollowersToTheNextOne()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
-        var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read);
-        actor = actor with { ActiveProfileId = owner.ProfileId };
-        var household = (await households.GetForAccountAsync(owner.Id))!;
-        // A user opens a profile of its own: the spouse is a person of the household first, then gets a sign-in.
-        var spouseProfile = await mutations.AddHouseholdPersonAsync(actor,
-            new AddHouseholdPersonCommand(household.Id, "Spouse", null, false, null));
-        var spouse = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
-            "spouse@example.com", false, spouseProfile.Id, null,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>()));
-        var mary = await mutations.AddHouseholdPersonAsync(actor,
-            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
-        var given = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long temporary password"));
-        Assert.Equal(owner.Id, given.Account.GrantsInheritFromAccountId);
-
-        // Spouse is made an owner too, so the household keeps one when the first owner goes.
-        await mutations.SetHouseholdAdminAsync(actor, spouse.Id, true);
-
-        await mutations.DeleteUserAsync(fixture.Actor, owner.Id);
-
-        var follower = (await accounts.GetByIdAsync(given.Account.Id))!;
-        Assert.Equal(spouse.Id, follower.GrantsInheritFromAccountId);
-        // Mary keeps the access her own profile holds; only the follow link moves on.
-        Assert.Equal(new[] { "read" }, (await fixture.Access.GetFeatureGrantsAsync(follower.ProfileId!.Value)).Select(feature => feature.Value));
-    }
-
-    [Fact]
-    public async Task OwnSignIn_CannotBeMadeAnAdministrator_OrOpenOthers_AndTheLastMainSignInStays()
+    public async Task TheHouseholdsLastAdministratorProfile_CannotGiveUpTheRole_AndDeletingItsUserRemovesTheHousehold()
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
         var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read);
         var household = (await households.GetForAccountAsync(owner.Id))!;
-        var ownerProfileId = Assert.Single(await accounts.GetGrantsAsync(owner.Id)).ProfileId;
         var mary = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
-        var given = (await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long temporary password"))).Account;
+        var given = (await mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary@example.com", mary.Id, null, NewUserSignInMethod.TemporaryPassword, "a long temporary password"))).User;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(actor, given.Id,
-            new UpdateAccountAccessCommand("mary@example.com", true, IsAdministrator: true)));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(actor, new AccountProfileGrant
-        {
-            AccountId = given.Id,
-            ProfileId = mary.Id,
-            IsEnabled = true,
-            AdminEnabled = true,
-            AuthorizationVersion = 1,
-        }));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(actor, new AccountProfileGrant
-        {
-            AccountId = given.Id,
-            ProfileId = ownerProfileId,
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-        }));
-
-        // The only main sign-in cannot be switched off while Mary's follows it.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(actor, owner.Id,
-            new UpdateAccountAccessCommand("owner@example.com", false, false)));
-        Assert.NotNull(await accounts.GetByIdAsync(owner.Id));
-
-        await mutations.RemoveOwnSignInAsync(actor, given.Id);
+        await mutations.DeleteUserAsync(actor, given.Id);
         // The household's only owner cannot give up the role (a household keeps one); deleting their sign-in removes the household.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.SetHouseholdAdminAsync(actor, owner.Id, false));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            mutations.SetProfileRolesAsync(actor, owner.ProfileId, false, isServerAdministrator: false));
         var preview = await mutations.PreviewDeleteUserAsync(actor, owner.Id);
         await mutations.DeleteUserAsync(actor, owner.Id,
             confirmedProfileIds: preview.Plan.HouseholdProfiles.Select(profile => profile.Id).ToArray());
@@ -316,10 +247,8 @@ public sealed class HouseholdPeopleTests
         Assert.Null(await households.GetByIdAsync(household.Id));
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task GiveOwnSignIn_WithAPassword_StoresATemporaryOrAnOrdinaryCredential(bool mustChange)
+    [Fact]
+    public async Task CreateUser_WithAPassword_StoresATemporaryCredential()
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
@@ -328,18 +257,18 @@ public sealed class HouseholdPeopleTests
         var mary = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
 
-        var given = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password", mustChange));
+        var given = await mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary@example.com", mary.Id, null, NewUserSignInMethod.TemporaryPassword, "a long starting password"));
 
         Assert.Null(given.Invitation);
-        var stored = (await accounts.GetByIdAsync(given.Account.Id))!;
-        Assert.Equal(mustChange, stored.MustChangePassword);
-        Assert.Equal(mustChange, stored.TemporaryPasswordExpiresAt is not null);
+        var stored = (await accounts.GetByIdAsync(given.User.Id))!;
+        Assert.True(stored.MustChangePassword);
+        Assert.NotNull(stored.TemporaryPasswordExpiresAt);
         Assert.NotNull(await fixture.Identities.GetAccountCredentialAsync(stored.Id, AccountCredentialKind.Password));
     }
 
     [Fact]
-    public async Task GiveOwnSignIn_AlwaysNeedsAPasswordOrAnInvitation_AndLeavesNothingBehindWhenRefused()
+    public async Task CreateUser_AlwaysNeedsAPasswordOrAnInvitation_AndLeavesNothingBehindWhenRefused()
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
@@ -350,25 +279,25 @@ public sealed class HouseholdPeopleTests
 
         foreach (var blank in new string?[] { null, string.Empty })
         {
-            var refused = await Assert.ThrowsAsync<ArgumentException>(() => mutations.GiveOwnSignInAsync(actor,
-                new GiveOwnSignInCommand(mary.Id, "mary@example.com", blank)));
+            var refused = await Assert.ThrowsAsync<ArgumentException>(() => mutations.CreateUserAsync(actor, new CreateUserCommand(
+                "mary@example.com", mary.Id, null, NewUserSignInMethod.TemporaryPassword, blank)));
             Assert.Equal("Set a starting password.", refused.Message);
         }
 
         // A password and an invitation together are ambiguous, and a weak password is refused by the usual rules.
-        await Assert.ThrowsAsync<ArgumentException>(() => mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password", Invite: true)));
-        await Assert.ThrowsAnyAsync<ArgumentException>(() => mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "short", MustChangePassword: false)));
-        await Assert.ThrowsAnyAsync<ArgumentException>(() => mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "mary@example.com", MustChangePassword: false)));
+        await Assert.ThrowsAsync<ArgumentException>(() => mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary@example.com", mary.Id, null, NewUserSignInMethod.Invitation, "a long starting password")));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary@example.com", mary.Id, null, NewUserSignInMethod.TemporaryPassword, "short")));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary@example.com", mary.Id, null, NewUserSignInMethod.TemporaryPassword, "mary@example.com")));
         Assert.Null(await accounts.GetByNormalizedEmailAsync("MARY@EXAMPLE.COM"));
 
-        // The invitation path is unchanged: no password yet, a code to choose one with.
-        var invited = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", null, Invite: true));
+        // The invitation path: no password yet, a code to choose one with.
+        var invited = await mutations.CreateUserAsync(actor, new CreateUserCommand(
+            "mary@example.com", mary.Id, null, NewUserSignInMethod.Invitation));
         Assert.NotNull(invited.Invitation);
-        Assert.Null(await fixture.Identities.GetAccountCredentialAsync(invited.Account.Id, AccountCredentialKind.Password));
+        Assert.Null(await fixture.Identities.GetAccountCredentialAsync(invited.User.Id, AccountCredentialKind.Password));
     }
 
     [Theory]
@@ -377,13 +306,8 @@ public sealed class HouseholdPeopleTests
     public async Task SetTemporaryPassword_KeepsOrDropsTheMustChangeFlag(bool mustChange)
     {
         await using var fixture = await Fixture.CreateAsync();
-        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
-        var owner = await fixture.CreateOwnerAsync();
-        var household = (await households.GetForAccountAsync(owner.Id))!;
-        var mary = await mutations.AddHouseholdPersonAsync(actor,
-            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
-        var given = (await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password", MustChangePassword: !mustChange))).Account;
+        var (mutations, accounts, actor) = (fixture.Mutations, fixture.Accounts, fixture.Actor);
+        var given = await fixture.CreateSignedInPersonAsync("Mary", "mary@example.com");
 
         await mutations.SetTemporaryPasswordAsync(actor, given.Id, "another long password", mustChange);
 
@@ -396,13 +320,9 @@ public sealed class HouseholdPeopleTests
     public async Task ChangeEmail_ByAServerAdministrator_NormalizesAuditsAndRefusesDuplicates()
     {
         await using var fixture = await Fixture.CreateAsync();
-        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
-        var owner = await fixture.CreateOwnerAsync();
-        var household = (await households.GetForAccountAsync(owner.Id))!;
-        var mary = await mutations.AddHouseholdPersonAsync(actor,
-            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
-        var given = (await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password"))).Account;
+        var (mutations, accounts, actor) = (fixture.Mutations, fixture.Accounts, fixture.Actor);
+        await fixture.CreateOwnerAsync();
+        var given = await fixture.CreateSignedInPersonAsync("Mary", "mary@example.com");
 
         var changed = await mutations.ChangeEmailAsync(actor, given.Id, "  Mary.New@Example.com ");
 
@@ -431,13 +351,8 @@ public sealed class HouseholdPeopleTests
     public async Task ChangingTheEmailOrPassword_EndsPasswordResetLinksAlreadySent(string change)
     {
         await using var fixture = await Fixture.CreateAsync();
-        var (mutations, households, actor) = (fixture.Mutations, fixture.Households, fixture.Actor);
-        var owner = await fixture.CreateOwnerAsync();
-        var household = (await households.GetForAccountAsync(owner.Id))!;
-        var mary = await mutations.AddHouseholdPersonAsync(actor,
-            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
-        var given = (await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password"))).Account;
+        var (mutations, actor) = (fixture.Mutations, fixture.Actor);
+        var given = await fixture.CreateSignedInPersonAsync("Mary", "mary@example.com");
         var token = await fixture.Identity.BeginPasswordResetAsync("mary@example.com");
         Assert.NotNull(token);
 
@@ -464,25 +379,11 @@ public sealed class HouseholdPeopleTests
         var self = fixture.Actor with { AccountId = owner.Id };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Mutations.ChangeEmailAsync(self, owner.Id, "elsewhere@example.com"));
+        Assert.Equal("owner@example.com", (await fixture.Accounts.GetByIdAsync(owner.Id))!.Email);
     }
 
     [Fact]
-    public async Task ResetLink_WithoutAnEmailChange_StillWorks_EvenAfterAnUpdateThatKeepsTheEmail()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        var (mutations, actor) = (fixture.Mutations, fixture.Actor);
-        var given = await fixture.CreateSignedInPersonAsync("Mary", "mary@example.com");
-        var token = await fixture.Identity.BeginPasswordResetAsync("mary@example.com");
-        Assert.NotNull(token);
-
-        // The same address in another case is not a change, so the link sent to it must survive.
-        await mutations.UpdateAsync(actor, given.Id, new UpdateAccountAccessCommand("MARY@example.com", true, IsAdministrator: false));
-
-        await fixture.Identity.ResetPasswordWithTokenAsync(token, "a newly chosen long password");
-    }
-
-    [Fact]
-    public async Task UpdateAsync_ChangingTheEmail_EndsPasswordResetLinksAndTwoStepChallengesAlreadySent()
+    public async Task ChangeEmail_EndsPasswordResetLinksAndTwoStepChallengesAlreadySent()
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, actor) = (fixture.Mutations, fixture.Accounts, fixture.Actor);
@@ -501,8 +402,7 @@ public sealed class HouseholdPeopleTests
         });
         Assert.NotNull(await fixture.Identities.GetActiveTwoStepChallengeAsync("two-step-hash", DateTimeOffset.UtcNow));
 
-        var updated = await mutations.UpdateAsync(actor, given.Id,
-            new UpdateAccountAccessCommand("  Mary.New@Example.com ", true, IsAdministrator: false));
+        var updated = await mutations.ChangeEmailAsync(actor, given.Id, "  Mary.New@Example.com ");
 
         Assert.Equal("Mary.New@Example.com", updated.Email);
         Assert.Equal(given.Id, (await accounts.GetByNormalizedEmailAsync("MARY.NEW@EXAMPLE.COM"))!.Id);
@@ -514,7 +414,7 @@ public sealed class HouseholdPeopleTests
     }
 
     [Fact]
-    public async Task UpdateAsync_ToAnotherAccountsEmail_IsAConflictNotAStorageError()
+    public async Task ChangeEmail_ToAnotherAccountsEmail_IsAConflictNotAStorageError()
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, actor) = (fixture.Mutations, fixture.Accounts, fixture.Actor);
@@ -522,15 +422,15 @@ public sealed class HouseholdPeopleTests
         var given = await fixture.CreateSignedInPersonAsync("Mary", "mary@example.com");
 
         // The Engine door turns InvalidOperationException into 409; a storage error would surface as 500.
-        var conflict = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(actor, given.Id,
-            new UpdateAccountAccessCommand("OWNER@example.com", true, IsAdministrator: false)));
+        var conflict = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            mutations.ChangeEmailAsync(actor, given.Id, "OWNER@example.com"));
 
         Assert.Equal("That email already has a sign-in.", conflict.Message);
         Assert.Equal("mary@example.com", (await accounts.GetByIdAsync(given.Id))!.Email);
     }
 
     [Fact]
-    public async Task EmailChange_LosingTheRaceForTheAddress_IsTheSameConflict_ThroughBothRoutes()
+    public async Task EmailChange_LosingTheRaceForTheAddress_IsTheSameConflict()
     {
         await using var fixture = await Fixture.CreateAsync();
         await fixture.CreateOwnerAsync();
@@ -541,18 +441,15 @@ public sealed class HouseholdPeopleTests
         ((HidesEmailOwners)(object)blind).Inner = fixture.Accounts;
         var racing = fixture.MutationsOver(blind);
 
-        var viaUpdate = await Assert.ThrowsAsync<InvalidOperationException>(() => racing.UpdateAsync(fixture.Actor, given.Id,
-            new UpdateAccountAccessCommand("owner@example.com", true, IsAdministrator: false)));
         var viaChange = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             racing.ChangeEmailAsync(fixture.Actor, given.Id, "owner@example.com"));
 
-        Assert.Equal("That email already has a sign-in.", viaUpdate.Message);
-        Assert.Equal(viaChange.Message, viaUpdate.Message);
+        Assert.Equal("That email already has a sign-in.", viaChange.Message);
         Assert.Equal("mary@example.com", (await fixture.Accounts.GetByIdAsync(given.Id))!.Email);
     }
 
     [Fact]
-    public async Task UpdateAsync_ByAnApplication_CannotChangeAnAdministratorsEmail_ButAnUnlockedAdministratorCan()
+    public async Task ChangeEmail_ByAnApplication_CannotChangeAnAdministratorsEmail_ButAnUnlockedAdministratorCan()
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, actor) = (fixture.Mutations, fixture.Accounts, fixture.Actor);
@@ -563,33 +460,11 @@ public sealed class HouseholdPeopleTests
         var application = actor with { PrincipalKind = PrincipalKind.ServiceApplication, ActiveProfileIsServerAdministrator = false };
 
         // A trusted application with identity.users.write could otherwise move the address and then reset the password to it.
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.UpdateAsync(application, admin.Id,
-            new UpdateAccountAccessCommand("attacker@example.com", true, IsAdministrator: true)));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.ChangeEmailAsync(application, admin.Id, "attacker@example.com"));
         Assert.Equal("admin@example.com", (await accounts.GetByIdAsync(admin.Id))!.Email);
-        // Turning the account on or off, with its address unchanged, is still allowed.
-        await mutations.UpdateAsync(application, admin.Id, new UpdateAccountAccessCommand("admin@example.com", true, IsAdministrator: true));
 
-        var changed = await mutations.UpdateAsync(actor, admin.Id,
-            new UpdateAccountAccessCommand("admin.new@example.com", true, IsAdministrator: true));
+        var changed = await mutations.ChangeEmailAsync(actor, admin.Id, "admin.new@example.com");
         Assert.Equal("admin.new@example.com", changed.Email);
-    }
-
-    [Fact]
-    public async Task UpdateAsync_ChangingYourOwnEmail_IsRefusedLikeTheEmailRoute()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        var owner = await fixture.CreateOwnerAsync();
-        var self = fixture.Actor with { AccountId = owner.Id };
-
-        var viaUpdate = await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Mutations.UpdateAsync(self, owner.Id,
-            new UpdateAccountAccessCommand("elsewhere@example.com", true, IsAdministrator: false)));
-        var viaChange = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            fixture.Mutations.ChangeEmailAsync(self, owner.Id, "elsewhere@example.com"));
-
-        Assert.Equal(viaChange.Message, viaUpdate.Message);
-        Assert.Equal("owner@example.com", (await fixture.Accounts.GetByIdAsync(owner.Id))!.Email);
-        // An update that keeps the address is not an email change.
-        await fixture.Mutations.UpdateAsync(self, owner.Id, new UpdateAccountAccessCommand("owner@example.com", true, IsAdministrator: false));
     }
 
     /// <summary>Forwards everything to the real repository except the email lookup, which finds no one.</summary>
@@ -660,7 +535,7 @@ public sealed class HouseholdPeopleTests
                 new PasswordHasher<ProfileCredential>(),
                 TimeProvider.System,
                 new ConfigurationAuthenticationPolicyProvider(fixture._configuration));
-            fixture.Mutations = new AccountAccessMutationService(
+            fixture.Mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                 fixture.Accounts,
                 fixture.Access,
                 fixture.Identities,
@@ -671,7 +546,8 @@ public sealed class HouseholdPeopleTests
                 new NoOpInvalidation(),
                 fixture.Audit,
                 fixture.Identity,
-                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+                fixture.Accounts, fixture.Access, fixture.Identity);
             return Task.FromResult(fixture);
         }
 
@@ -681,8 +557,8 @@ public sealed class HouseholdPeopleTests
             var household = (await Households.GetForAccountAsync(((await Accounts.GetAllAsync()).FirstOrDefault() ?? await CreateOwnerAsync()).Id))!;
             var person = await Mutations.AddHouseholdPersonAsync(Actor,
                 new AddHouseholdPersonCommand(household.Id, name, null, false, null));
-            return (await Mutations.GiveOwnSignInAsync(Actor,
-                new GiveOwnSignInCommand(person.Id, email, "a long starting password"))).Account;
+            return (await Mutations.CreateUserAsync(Actor, new CreateUserCommand(
+                email, person.Id, null, NewUserSignInMethod.TemporaryPassword, "a long starting password"))).User;
         }
 
         /// <summary>The same service over another view of the accounts, to stage a race the real repository would not allow.</summary>

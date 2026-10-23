@@ -19,12 +19,11 @@ public sealed record UserExportProfile(string Name, string Role, string? Content
 /// What a user export says about itself, read from its data (never from its manifest, which a person could have edited). Built only by
 /// <see cref="UserExportReader.Read"/>, which refuses a file that does not hold exactly one user and nothing of anyone else.
 /// </summary>
-/// <param name="AccountId">The account.</param>
+/// <param name="AccountId">The user (sign-in).</param>
 /// <param name="Email">The email the person signs in with.</param>
-/// <param name="HouseholdId">The household the account belongs to, when it belongs to one.</param>
+/// <param name="HouseholdId">The household the user's profile belongs to, when it belongs to one.</param>
 /// <param name="HouseholdName">The household's name, when the file holds the household.</param>
-/// <param name="HouseholdAdmin">Whether the person looked after their household.</param>
-/// <param name="ProfileIds">Every profile the account may use.</param>
+/// <param name="ProfileIds">The profile the user opens (one).</param>
 /// <param name="ProfileNames">Those profiles' names, in the same order.</param>
 /// <param name="Profiles">The same profiles with the role and content limit the file states.</param>
 /// <param name="CollectionIds">The collections the profiles built.</param>
@@ -38,7 +37,6 @@ public sealed record UserExportSummary(
     string Email,
     Guid? HouseholdId,
     string? HouseholdName,
-    bool HouseholdAdmin,
     IReadOnlyList<Guid> ProfileIds,
     IReadOnlyList<string> ProfileNames,
     IReadOnlyList<UserExportProfile> Profiles,
@@ -99,30 +97,12 @@ public static class UserExportReader
             ? rawEmail.Trim()
             : throw NotAUserExport();
 
-        // The profiles are the account's grants, no more and no fewer.
-        var grantsTable = tables.GetValueOrDefault("account_profile_grants") ?? throw NotAUserExport();
-        var grantedProfiles = new List<Guid>();
-        var defaults = 0;
-        foreach (var row in grantsTable.Rows)
-        {
-            var profile = GuidOf(Value(grantsTable, row, "profile_id")) ?? throw NotAUserExport();
-            if (grantedProfiles.Contains(profile))
-            {
-                throw NotAUserExport();
-            }
-
-            grantedProfiles.Add(profile);
-            defaults += Value(grantsTable, row, "is_default") is BackupValue.Integer { Value: 1 } ? 1 : 0;
-        }
-
-        if (grantedProfiles.Count is 0 or > 8 || defaults != 1)
-        {
-            throw NotAUserExport();
-        }
-
+        // The profile is the one the user opens, no more and no fewer.
+        var openedProfile = GuidOf(Value(accountsTable, account, "profile_id")) ?? throw NotAUserExport();
         var profilesTable = tables.GetValueOrDefault("profiles") ?? throw NotAUserExport();
         var names = new Dictionary<Guid, string>();
         var details = new Dictionary<Guid, UserExportProfile>();
+        Guid? householdId = null;
         foreach (var row in profilesTable.Rows)
         {
             var id = GuidOf(Value(profilesTable, row, "id")) ?? throw NotAUserExport();
@@ -137,28 +117,20 @@ public static class UserExportReader
                 Value(profilesTable, row, "role") is BackupValue.Text { Value: var role } ? role : "RestrictedProfile",
                 Value(profilesTable, row, "content_limit") is BackupValue.Text { Value: { Length: > 0 } limit } ? limit : null,
                 Value(profilesTable, row, "content_limit_allow_unrated") is BackupValue.Integer { Value: 1 });
+            if (id == openedProfile && Value(profilesTable, row, "household_id") is { } household and not BackupValue.NullValue)
+            {
+                householdId = GuidOf(household) ?? throw NotAUserExport();
+            }
         }
 
-        if (names.Count != grantedProfiles.Count || grantedProfiles.Any(id => !names.ContainsKey(id)))
+        if (names.Count != 1 || !names.ContainsKey(openedProfile))
         {
             throw NotAUserExport();
         }
 
-        CheckRows(tables, accountId, grantedProfiles.ToHashSet());
+        var ordered = new List<Guid> { openedProfile };
+        CheckRows(tables, accountId, ordered.ToHashSet());
 
-        // The default profile first, then the others by name, so the preview reads the same however the file was ordered.
-        var defaultProfile = grantsTable.Rows
-            .Where(row => Value(grantsTable, row, "is_default") is BackupValue.Integer { Value: 1 })
-            .Select(row => GuidOf(Value(grantsTable, row, "profile_id"))!.Value)
-            .Single();
-        var ordered = grantedProfiles
-            .OrderBy(id => id == defaultProfile ? 0 : 1)
-            .ThenBy(id => names[id], StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        Guid? householdId = Value(accountsTable, account, "household_id") is { } household && household is not BackupValue.NullValue
-            ? GuidOf(household) ?? throw NotAUserExport()
-            : null;
         string? householdName = null;
         if (tables.TryGetValue("households", out var householdsTable) && householdsTable.Rows.Count > 0)
         {
@@ -216,7 +188,6 @@ public static class UserExportReader
             email,
             householdId,
             householdName,
-            Value(accountsTable, account, "household_admin") is BackupValue.Integer { Value: 1 },
             ordered,
             ordered.Select(id => names[id]).ToList(),
             ordered.Select(id => details[id]).ToList(),

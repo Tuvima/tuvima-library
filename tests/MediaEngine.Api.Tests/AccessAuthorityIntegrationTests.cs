@@ -236,15 +236,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             AvatarColor = "#123456",
             Role = ProfileRole.RestrictedProfile,
             CreatedAt = _clock.GetUtcNow(),
-        }, (await _accounts.GetByIdAsync(_accountId))!.HouseholdId);
-        await _accounts.UpsertGrantAsync(new AccountProfileGrant
-        {
-            AccountId = _accountId,
-            ProfileId = profileId,
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-            GrantedAt = _clock.GetUtcNow(),
-        });
+        }, (await new HouseholdRepository(_database).GetForAccountAsync(_accountId))!.Id);
         var services = new ServiceCollection();
         services.AddSingleton<IRequestAuthorityResolver>(
             new RequestAuthorityResolver(_accounts, _applications));
@@ -591,40 +583,39 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         };
     }
 
-    private Account Account(Guid id, bool administrator) =>
-        new()
+    private Account Account(Guid id, bool administrator)
+    {
+        if (administrator)
+        {
+            _administrators.Add(id);
+        }
+
+        return new()
         {
             Id = id,
             Email = $"{id:N}@example.com",
             NormalizedEmail = $"{id:N}@EXAMPLE.COM",
             IsEnabled = true,
-            IsAdministrator = administrator,
             AuthorizationVersion = 1,
             CreatedAt = _clock.GetUtcNow(),
             UpdatedAt = _clock.GetUtcNow(),
         };
+    }
 
     /// <summary>Creates the account with a new person of its own to sign in as (a profile has at most one user); returns that profile's id.</summary>
     private async Task<Guid> CreateAccountWithOwnProfileAsync(Account account, IReadOnlySet<AccountFeatureId> features)
     {
         var profile = new Profile { Id = Guid.NewGuid(), DisplayName = "Person", Role = ProfileRole.StandardUser, CreatedAt = _clock.GetUtcNow() };
-        var grant = Grant(account.Id, administrator: account.IsAdministrator);
-        grant.ProfileId = profile.Id;
+        var grant = Grant(account.Id, administrator: _administrators.Contains(account.Id)) with { ProfileId = profile.Id };
         await _accounts.CreateAccountAsync(account, grant, features, new HashSet<Guid>(), newProfile: profile);
         return profile.Id;
     }
 
-    private AccountProfileGrant Grant(Guid accountId, bool administrator) =>
-        new()
-        {
-            AccountId = accountId,
-            ProfileId = Profile.SeedProfileId,
-            IsDefault = true,
-            IsEnabled = true,
-            AdminEnabled = administrator,
-            AuthorizationVersion = 1,
-            GrantedAt = _clock.GetUtcNow(),
-        };
+    private static TestGrant Grant(Guid accountId, bool administrator) =>
+        new(accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator);
+
+    /// <summary>The users the test made as server administrators (the role itself is written on their profile).</summary>
+    private readonly HashSet<Guid> _administrators = [];
 
     public void Dispose()
     {

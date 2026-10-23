@@ -12,11 +12,13 @@ internal static class StorageEpochGuard
     // baseline step are backed up and reingested once; nothing recognises or adopts them.
     // v12 moves roles and access from the sign-in to the profile (users, profiles and households spec D11: start fresh). A data store
     // set up before profile-held access has no administrator profile, so it is reset instead of running with nobody in charge.
+    // v13 removes the sign-in-held roles, grants and household owner (users, profiles and households spec, contract wave); a data store from
+    // before is reset (D11).
     /// <summary>
     /// The epoch this build creates and accepts. When you change it, add an upgrade step that updates
     /// <c>storage_metadata.storage_epoch</c> to the same value (the baseline step sets the first one).
     /// </summary>
-    public const string CurrentEpoch = "guid-blob-v12-profile-held-access";
+    public const string CurrentEpoch = "guid-blob-v13-profile-held-contract";
     public const string ResetEnvironmentVariable = "TUVIMA_STORAGE_RESET";
 
     public static void EnsureCurrentOrReset(string databasePath)

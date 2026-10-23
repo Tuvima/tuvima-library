@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
@@ -270,7 +271,6 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
             Email = "shy@tuvima.com",
             NormalizedEmail = "SHY@TUVIMA.COM",
             IsEnabled = true,
-            IsAdministrator = true,
             AuthorizationVersion = 1,
             CreatedAt = _now,
             UpdatedAt = _now,
@@ -280,7 +280,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
 
         await _accounts.CreateAccountAsync(
             account,
-            new AccountProfileGrant { AccountId = account.Id, ProfileId = profile.Id, IsDefault = true, IsEnabled = true, AdminEnabled = true, AuthorizationVersion = 1, GrantedAt = _now },
+            new TestGrant(account.Id, profile.Id, IsDefault: true, AdminEnabled: true),
             AccountFeatureId.All.ToHashSet(),
             new HashSet<Guid> { library },
             newProfile: profile);
@@ -292,7 +292,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
         Assert.Equal([library], await _access.GetLibraryGrantsAsync(profile.Id));
         Assert.Equal(account.Id, await _access.FindUserIdOfProfileAsync(profile.Id));
         Assert.Equal(profile.Id, (await _accounts.GetByIdAsync(account.Id))!.ProfileId);
-        var householdId = (await _accounts.GetByIdAsync(account.Id))!.HouseholdId;
+        var householdId = (await new HouseholdRepository(_database).GetForAccountAsync(account.Id))!.Id;
         Assert.Equal(householdId, await _access.GetDefaultHouseholdIdAsync());
         Assert.Equal(householdId, (await new ProfileRepository(_database).GetByIdAsync(profile.Id))!.HouseholdId);
     }
@@ -307,19 +307,15 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
             Email = "shy@tuvima.com",
             NormalizedEmail = "SHY@TUVIMA.COM",
             IsEnabled = true,
-            IsAdministrator = true,
             AuthorizationVersion = 1,
             CreatedAt = _now,
             UpdatedAt = _now,
             ProfileId = Guid.NewGuid(),
         };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.CreateAccountAsync(
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.CreateUserAsync(
             account,
-            new AccountProfileGrant { AccountId = account.Id, ProfileId = profile.Id, IsDefault = true, IsEnabled = true, GrantedAt = _now },
-            new HashSet<AccountFeatureId>(),
-            new HashSet<Guid>(),
-            newProfile: profile));
+            new NewUserPlacement(NewProfile: profile)));
         Assert.Null(await _accounts.GetByIdAsync(account.Id));
     }
 
@@ -341,7 +337,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
         var id = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,profile_id) VALUES(@id,@email,@normalized,1,0,1,@now,@now,@profileId);",
+            "INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id) VALUES(@id,@email,@normalized,1,1,@now,@now,@profileId);",
             new { id, email, normalized = email.ToUpperInvariant(), now = _now.ToString("O"), profileId });
         return id;
     }
@@ -353,8 +349,9 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
         using var connection = _database.CreateConnection();
         connection.Execute(
             """
-            INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at)
-            VALUES(@accountId,@email,@normalized,1,0,1,@now,@now);
+            INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@ownerProfileId,'Session owner','#7C4DFF','StandardUser',@now);
+            INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id)
+            VALUES(@accountId,@email,@normalized,1,1,@now,@now,@ownerProfileId);
             INSERT INTO auth_sessions(id,account_id,active_profile_id,token_hash,device_id,device_name,client,authentication_method,security_stamp,created_at,last_seen_at,expires_at)
             VALUES(@sessionId,@accountId,@profileId,@hash,'device','Device','Dashboard','password','stamp',@now,@now,@later);
             """,
@@ -363,6 +360,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
                 sessionId,
                 accountId,
                 profileId,
+                ownerProfileId = Guid.NewGuid(),
                 email = $"{accountId:N}@example.com",
                 normalized = $"{accountId:N}@EXAMPLE.COM",
                 hash = Guid.NewGuid().ToString("N"),

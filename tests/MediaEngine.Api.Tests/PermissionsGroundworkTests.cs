@@ -164,11 +164,9 @@ public sealed class PermissionsGroundworkTests
     // ----- Switching person -----
 
     [Fact]
-    public async Task AMemberOrHouseholdAdministrator_SwitchesOnlyInsideTheirHousehold_EvenWhenAGrantReachesAnotherHousehold()
+    public async Task AMemberOrHouseholdAdministrator_SwitchesOnlyInsideTheirHousehold()
     {
         await using var world = await World.CreateAsync();
-        world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
-        world.GrantDirectly(world.A.OwnSignIn.Id, world.B.Person.Id);
 
         foreach (var account in new[] { world.A.Owner, world.A.OwnSignIn })
         {
@@ -185,16 +183,15 @@ public sealed class PermissionsGroundworkTests
     public async Task AServerAdministrator_SwitchesInsideTheirOwnHousehold_AndNeverIntoAnotherOne()
     {
         await using var world = await World.CreateAsync();
-        var home = (await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id))!.HouseholdId!.Value;
+        var home = (await world.Households.GetForAccountAsync(world.ServerAdminAccount.Id))!.Id;
         var housemate = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
             new AddHouseholdPersonCommand(home, "Housemate", null, false, null));
-        world.GrantDirectly(world.ServerAdminAccount.Id, world.B.Person.Id);
 
         var session = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-admin", "Test", "Dashboard");
         var switched = await world.Identity.SwitchActiveProfileAsync(session.PlaintextToken, housemate.Id, null);
 
         Assert.Equal(housemate.Id, switched.ActiveProfile.Id);
-        // Another household stays out of reach, whatever a grant row says.
+        // Another household stays out of reach.
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             world.Identity.SwitchActiveProfileAsync(session.PlaintextToken, world.B.Person.Id, null));
     }
@@ -479,7 +476,6 @@ public sealed class PermissionsGroundworkTests
     public async Task AnOutOfHouseholdAlwaysOpenAs_IsRefusedWhenSet_AndAnInHouseholdOneIsKept()
     {
         await using var world = await World.CreateAsync();
-        world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
         var session = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-pref", "Test", "Dashboard");
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -494,8 +490,6 @@ public sealed class PermissionsGroundworkTests
     public async Task AnOutOfHouseholdAlwaysOpenAs_IsIgnoredAtSignIn_ForEveryone_BecauseASignInOpensItsOwnProfile()
     {
         await using var world = await World.CreateAsync();
-        world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
-        world.GrantDirectly(world.ServerAdminAccount.Id, world.B.Person.Id);
         // Set directly, as a data store from before this rule could hold it.
         await world.Identities.SetDeviceProfilePreferenceAsync(world.A.Owner.Id, "device-old", world.B.Person.Id, DateTimeOffset.UtcNow);
         await world.Identities.SetDeviceProfilePreferenceAsync(world.ServerAdminAccount.Id, "device-old", world.B.Person.Id, DateTimeOffset.UtcNow);
@@ -510,31 +504,12 @@ public sealed class PermissionsGroundworkTests
         Assert.Null(await world.Identity.GetDeviceProfilePreferenceAsync(world.ServerAdminAccount.Id, administrator.Session.Id));
     }
 
-    [Fact]
-    public async Task ADefaultProfileOutsideTheHousehold_IsNeverTheStartingProfile()
-    {
-        await using var world = await World.CreateAsync();
-        world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
-        using (var connection = world.Database.CreateConnection())
-        {
-            connection.Execute("UPDATE account_profile_grants SET is_default = 0 WHERE account_id = @account;", new { account = world.A.Owner.Id });
-            connection.Execute("UPDATE account_profile_grants SET is_default = 1 WHERE account_id = @account AND profile_id = @profile;",
-                new { account = world.A.Owner.Id, profile = world.B.Person.Id });
-        }
-
-        var session = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-default", "Test", "Dashboard");
-
-        Assert.Equal(world.A.Id, session.ActiveProfile.HouseholdId);
-    }
-
     // ----- Profile list -----
 
     [Fact]
     public async Task TheProfileList_HoldsOnlyPeopleInTheCallersHousehold_AServerAdministratorIncluded()
     {
         await using var world = await World.CreateAsync();
-        world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
-        world.GrantDirectly(world.ServerAdminAccount.Id, world.B.Person.Id);
         var everyone = await world.Profiles.GetAllAsync();
 
         var member = ProfileEndpoints.ProfilesForCaller(world.A.Owner, everyone, (await world.Accounts.GetProfileIdsAsync(world.A.Owner.Id)).ToHashSet());
@@ -543,7 +518,7 @@ public sealed class PermissionsGroundworkTests
         Assert.DoesNotContain(member, profile => profile.Id == world.B.Person.Id);
         Assert.Contains(member, profile => profile.Id == world.A.Person.Id);
         Assert.All(member, profile => Assert.Equal(world.A.Id, profile.HouseholdId));
-        var administratorHome = (await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id))!.HouseholdId;
+        var administratorHome = (await world.Households.GetForAccountAsync(world.ServerAdminAccount.Id))!.Id;
         Assert.DoesNotContain(administrator, profile => profile.Id == world.B.Person.Id);
         Assert.NotEmpty(administrator);
         Assert.All(administrator, profile => Assert.Equal(administratorHome, profile.HouseholdId));
@@ -724,10 +699,11 @@ public sealed class PermissionsGroundworkTests
                 TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(world._configuration));
             world.Decisions = new Decisions(world._lockedSession);
             var audit = new AuthorizationAuditWriter(world.Accounts);
-            world.Mutations = new AccountAccessMutationService(
+            world.Mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                 world.Accounts, new ProfileAccessRepository(world._database), identities, profiles, world._configuration, world.Decisions, new AllowEvaluator(),
                 new NoOpInvalidation(), new NoOpAudit(), world.Identity,
-                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+                world.Accounts, new ProfileAccessRepository(world._database), world.Identity);
             world.Management = new HouseholdManagementService(
                 world.Households, world.Accounts, world.Decisions, new AllowEvaluator(), audit, world.Clock);
             world.Scope = new PersonalScopeAuthorizer(
@@ -754,11 +730,11 @@ public sealed class PermissionsGroundworkTests
             world.B = await world.CreateHouseholdAsync("b@example.com", "Bea");
             var ownerProfileA = (await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value;
             var ownerProfileB = (await world.Accounts.GetDefaultProfileIdAsync(world.B.Owner.Id))!.Value;
-            world.AdminOfA = HouseholdAuthority(world.A.Owner, ownerProfileA);
-            world.AdminOfB = HouseholdAuthority(world.B.Owner, ownerProfileB);
-            world.MemberOfA = HouseholdAuthority(world.A.OwnSignIn, world.A.Person.Id, isHouseholdAdmin: false);
-            world.KidOfA = HouseholdAuthority(world.A.Owner, world.A.Kid.Id, restricted: true);
-            world.LockedAdminOfA = HouseholdAuthority(world.A.Owner, ownerProfileA, sessionId: world._lockedSession);
+            world.AdminOfA = HouseholdAuthority(world.A.Id, world.A.Owner, ownerProfileA);
+            world.AdminOfB = HouseholdAuthority(world.B.Id, world.B.Owner, ownerProfileB);
+            world.MemberOfA = HouseholdAuthority(world.A.Id, world.A.OwnSignIn, world.A.Person.Id, isHouseholdAdmin: false);
+            world.KidOfA = HouseholdAuthority(world.A.Id, world.A.Owner, world.A.Kid.Id, restricted: true);
+            world.LockedAdminOfA = HouseholdAuthority(world.A.Id, world.A.Owner, ownerProfileA, sessionId: world._lockedSession);
             world.Actors =
             [
                 new("server administrator", world.ServerAdmin, null),
@@ -779,8 +755,6 @@ public sealed class PermissionsGroundworkTests
                 new UpdateManagedProfileCommand($"Renamed {Next()}", null))),
             new("change a person's picture", (actor, place) => Mutations.RequireCanChangeProfileAsync(actor, place.Person.Id)),
             new("set a person's PIN", (actor, place) => Mutations.SetProfilePinAsync(actor, place.Person.Id, "4321")),
-            new("give a person their own sign-in", (actor, place) => Mutations.GiveOwnSignInAsync(actor,
-                new GiveOwnSignInCommand(place.Spare.Id, $"own{Next()}@example.com", TemporaryPassword))),
             new("remove a person", async (actor, place) =>
             {
                 var disposable = await Mutations.AddHouseholdPersonAsync(ServerAdmin,
@@ -808,16 +782,6 @@ public sealed class PermissionsGroundworkTests
                 }
             }),
         ];
-
-        /// <summary>Gives an account an enabled grant to a person it would not normally open, as an older data store could.</summary>
-        public void GrantDirectly(Guid accountId, Guid profileId)
-        {
-            using var connection = _database.CreateConnection();
-            connection.Execute("""
-                INSERT INTO account_profile_grants (account_id, profile_id, is_default, is_enabled, admin_enabled, authorization_version, granted_at)
-                VALUES (@accountId, @profileId, 0, 1, 0, 1, @now);
-                """, new { accountId, profileId, now = DateTimeOffset.UtcNow.ToString("O") });
-        }
 
         public async Task<PairedDevices> PairDevicesAsync() => new(
             await PairAsync(A.Owner.Id, (await Accounts.GetDefaultProfileIdAsync(A.Owner.Id))!.Value, "Alex phone"),
@@ -852,8 +816,8 @@ public sealed class PermissionsGroundworkTests
             }
 
             await Mutations.SetHouseholdAdminAsync(ServerAdmin, otherAdmin.Id, true);
-            Assert.Equal(A.Id, (await Accounts.GetByIdAsync(serverInA.Id))!.HouseholdId);
-            Assert.Equal(A.Id, (await Accounts.GetByIdAsync(otherAdmin.Id))!.HouseholdId);
+            Assert.Equal(A.Id, (await Households.GetForAccountAsync(serverInA.Id))!.Id);
+            Assert.Equal(A.Id, (await Households.GetForAccountAsync(otherAdmin.Id))!.Id);
             return (
                 await PairAsync(serverInA.Id, A.Spare.Id, "Server admin phone in A"),
                 await PairAsync(otherAdmin.Id, A.Kid.Id, "Other admin phone in A"));
@@ -909,12 +873,12 @@ public sealed class PermissionsGroundworkTests
                 new AddHouseholdPersonCommand(household.Id, $"{personName}'s spare", null, false, null));
             var kid = await Mutations.AddHouseholdPersonAsync(ServerAdmin,
                 new AddHouseholdPersonCommand(household.Id, $"{personName}'s kid", null, true, null));
-            var given = await Mutations.GiveOwnSignInAsync(ServerAdmin,
-                new GiveOwnSignInCommand(person.Id, $"friend.{email}", TemporaryPassword));
-            return new Place(household, (await Accounts.GetByIdAsync(owner.Id))!, person, given.Account, spare, kid);
+            var given = await Mutations.CreateUserAsync(ServerAdmin,
+                new CreateUserCommand($"friend.{email}", person.Id, null, NewUserSignInMethod.TemporaryPassword, TemporaryPassword));
+            return new Place(household, (await Accounts.GetByIdAsync(owner.Id))!, person, given.User, spare, kid);
         }
 
-        private static RequestAuthority HouseholdAuthority(Account account, Guid profileId, bool isHouseholdAdmin = true, bool restricted = false, Guid? sessionId = null) =>
+        private static RequestAuthority HouseholdAuthority(Guid householdId, Account account, Guid profileId, bool isHouseholdAdmin = true, bool restricted = false, Guid? sessionId = null) =>
             new(PrincipalKind.Human, true,
                 AccountId: account.Id,
                 ActiveProfileId: profileId,
@@ -922,7 +886,7 @@ public sealed class PermissionsGroundworkTests
                 AccountEnabled: true,
                 ActiveProfileInUserHousehold: true,
                 ActiveProfileIsRestricted: restricted,
-                ActiveProfileHouseholdId: account.HouseholdId,
+                ActiveProfileHouseholdId: householdId,
                 ActiveProfileIsHouseholdAdministrator: isHouseholdAdmin);
 
         private static RequestAuthority ServerAuthority(Guid accountId, Guid profileId, Guid? sessionId = null) =>

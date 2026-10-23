@@ -34,7 +34,7 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<ProfileCredential>(),
                         TimeProvider.System,
                         new ConfigurationAuthenticationPolicyProvider(configuration));
-                    var mutations = new AccountAccessMutationService(
+                    var mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                         accounts,
                         new ProfileAccessRepository(database),
                         identities,
@@ -45,7 +45,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
                         true,
@@ -74,7 +74,7 @@ public sealed class AccountEmailRequiredTests
                         NewProfile: new NewAccountProfileCommand("Household", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(),
                         Libraries: new HashSet<Guid>()));
-                    var profileId = Assert.Single(await accounts.GetGrantsAsync(account.Id)).ProfileId;
+                    var profileId = account.ProfileId;
                     var identity = new FirstPartyIdentityService(
                         identities,
                         accounts,
@@ -94,13 +94,15 @@ public sealed class AccountEmailRequiredTests
                     var core = configuration.LoadCore();
                     core.Auth.InvitationLifetimeHours = 3;
                     configuration.SaveCore(core);
-                    var invitation = await mutations.IssueInvitationAsync(actor, new IssueAccountInvitationCommand(
-                        "invited@example.com", [], null, NewHouseholdPersonName: "Invited"));
+                    var createdInvited = await mutations.CreateUserAsync(actor, new CreateUserCommand(
+                        "invited@example.com", null,
+                        new NewUserProfileCommand("Invited", null, null, "Invited household"), NewUserSignInMethod.Invitation));
+                    var invitation = createdInvited.Invitation!;
                     Assert.InRange(invitation.ExpiresAt - DateTimeOffset.UtcNow,
                         TimeSpan.FromHours(2.9), TimeSpan.FromHours(3.1));
                     var invited = await identity.AcceptInvitationAsync(
                         invitation.Code, "invited password", "browser", "Browser", "Dashboard");
-                    Assert.Equal(invitation.AccountId, invited.Account.Id);
+                    Assert.Equal(createdInvited.User.Id, invited.Account.Id);
                     await Assert.ThrowsAsync<UnauthorizedAccessException>(() => identity.AcceptInvitationAsync(
                         invitation.Code, "other password", "other", "Other", "Dashboard"));
                 }
@@ -146,7 +148,7 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<ProfileCredential>(),
                         TimeProvider.System,
                         new ConfigurationAuthenticationPolicyProvider(configuration));
-                    var mutations = new AccountAccessMutationService(
+                    var mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                         accounts,
                         new ProfileAccessRepository(database),
                         new IdentityRepository(database),
@@ -157,7 +159,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
                         true,
@@ -178,24 +180,26 @@ public sealed class AccountEmailRequiredTests
                     var ownerHousehold = await households.GetForAccountAsync(owner.Id);
                     Assert.NotNull(ownerHousehold);
 
-                    var invitation = await mutations.IssueInvitationAsync(actor, new IssueAccountInvitationCommand(
-                        "guest@example.com", [], null, NewHouseholdPersonName: "Guest"));
-                    var guestHousehold = await households.GetForAccountAsync(invitation.AccountId);
+                    var guest = await mutations.CreateUserAsync(actor, new CreateUserCommand(
+                        "guest@example.com", null,
+                        new NewUserProfileCommand("Guest", null, null, "Guest household"), NewUserSignInMethod.Invitation));
+                    var guestHousehold = await households.GetForAccountAsync(guest.User.Id);
                     Assert.NotNull(guestHousehold);
                     Assert.NotEqual(ownerHousehold.Id, guestHousehold.Id);
                     var guestPerson = Assert.Single(await households.ListProfilesAsync(guestHousehold.Id));
                     Assert.Equal("Guest", guestPerson.DisplayName);
-                    Assert.Equal(guestPerson.Id, Assert.Single(await accounts.GetGrantsAsync(invitation.AccountId)).ProfileId);
+                    Assert.Equal(guestPerson.Id, guest.User.ProfileId);
 
-                    // A new household picks its first person itself, and that person needs a name.
-                    await Assert.ThrowsAsync<ArgumentException>(() => mutations.IssueInvitationAsync(actor,
-                        new IssueAccountInvitationCommand("other@example.com", [], Guid.NewGuid(), NewHouseholdPersonName: "Other")));
-                    await Assert.ThrowsAsync<ArgumentException>(() => mutations.IssueInvitationAsync(actor,
-                        new IssueAccountInvitationCommand("blank@example.com", [], null, NewHouseholdPersonName: "   ")));
+                    // A new household needs a name for itself, and a person that is made needs a name too.
+                    await Assert.ThrowsAsync<ArgumentException>(() => mutations.CreateUserAsync(actor, new CreateUserCommand(
+                        "other@example.com", null, new NewUserProfileCommand("Other", null, Guid.NewGuid(), "Both"), NewUserSignInMethod.Invitation)));
+                    await Assert.ThrowsAsync<ArgumentException>(() => mutations.CreateUserAsync(actor, new CreateUserCommand(
+                        "blank@example.com", null, new NewUserProfileCommand("   ", null, null, "Blank"), NewUserSignInMethod.Invitation)));
 
                     // An email that already has a sign-in cannot start a second household.
-                    await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.IssueInvitationAsync(actor,
-                        new IssueAccountInvitationCommand("guest@example.com", [], null, NewHouseholdPersonName: "Guest again")));
+                    await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.CreateUserAsync(actor,
+                        new CreateUserCommand("guest@example.com", null,
+                            new NewUserProfileCommand("Guest again", null, null, "Again"), NewUserSignInMethod.Invitation)));
                 }
             }
         }
@@ -239,7 +243,7 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<ProfileCredential>(),
                         TimeProvider.System,
                         new ConfigurationAuthenticationPolicyProvider(configuration));
-                    var mutations = new AccountAccessMutationService(
+                    var mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                         accounts,
                         new ProfileAccessRepository(database),
                         new IdentityRepository(database),
@@ -250,7 +254,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,
@@ -260,7 +264,7 @@ public sealed class AccountEmailRequiredTests
                         "child@example.com", IsAdministrator: false, ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Child", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
-                    var childProfileId = Assert.Single(await accounts.GetGrantsAsync(child.Id)).ProfileId;
+                    var childProfileId = child.ProfileId;
                     // A new profile is an ordinary member; this one is then made a Kids profile.
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,
                         (await profiles.GetByIdAsync(childProfileId))!.Role);
@@ -273,31 +277,17 @@ public sealed class AccountEmailRequiredTests
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
                         (await profiles.GetByIdAsync(childProfileId))!.Role);
 
-                    var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(
-                        actor, new AccountProfileGrant
-                        {
-                            AccountId = child.Id,
-                            ProfileId = childProfileId,
-                            IsDefault = true,
-                            IsEnabled = true,
-                            AdminEnabled = true,
-                            AuthorizationVersion = 1,
-                        }));
+                    var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.SetProfileRolesAsync(
+                        actor, childProfileId, false, isServerAdministrator: true));
                     Assert.Equal("Child profiles can't be administrators.", refused.Message);
-
-                    var promoted = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(
-                        actor, child.Id, new UpdateAccountAccessCommand(
-                            "child@example.com", IsEnabled: true, IsAdministrator: true)));
-                    Assert.Equal("Child profiles can't be administrators.", promoted.Message);
 
                     var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "admin@example.com", IsAdministrator: true, ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Parent", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
-                    var adminGrant = Assert.Single(await accounts.GetGrantsAsync(admin.Id));
-                    Assert.True(adminGrant.AdminEnabled);
+                    Assert.True((await new ProfileAccessRepository(database).GetAdminFlagsAsync(admin.ProfileId))!.IsServerAdministrator);
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,
-                        (await profiles.GetByIdAsync(adminGrant.ProfileId))!.Role);
+                        (await profiles.GetByIdAsync(admin.ProfileId))!.Role);
                 }
             }
         }
@@ -336,12 +326,12 @@ public sealed class AccountEmailRequiredTests
                         new IdentityRepository(database), accounts, new ProfileRepository(database),
                         new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
                         TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(configuration));
-                    var mutations = new AccountAccessMutationService(
+                    var mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                         accounts,
                         new ProfileAccessRepository(database), new IdentityRepository(database), new ProfileRepository(database), configuration,
                         new AllowAdministratorDecisions(), new AllowEvaluator(),
                         new NoOpInvalidation(), new NoOpAudit(),
-                        firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+                        firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
                     var human = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,

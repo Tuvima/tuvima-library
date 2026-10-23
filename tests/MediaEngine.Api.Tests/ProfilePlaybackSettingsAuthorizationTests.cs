@@ -232,14 +232,14 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
             await ProfileTestData.InsertAsync(_database, profile, household);
         }
 
-        _serverAdmin = await CreateAccountAsync(null, administrator: true, householdAdmin: false, _serverAdminProfile, adminGrant: true);
-        _householdOneAdmin = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: true, _householdOneAdultProfile, adminGrant: false);
-        _householdOnePlain = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: false, _householdOnePlainProfile, adminGrant: false);
-        _householdOneKidAdmin = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: true, _householdOneKidProfile, adminGrant: false);
+        _serverAdmin = await CreateAccountAsync(administrator: true, householdAdmin: false, _serverAdminProfile, adminGrant: true);
+        _householdOneAdmin = await CreateAccountAsync(administrator: false, householdAdmin: true, _householdOneAdultProfile, adminGrant: false);
+        _householdOnePlain = await CreateAccountAsync(administrator: false, householdAdmin: false, _householdOnePlainProfile, adminGrant: false);
+        _householdOneKidAdmin = await CreateAccountAsync(administrator: false, householdAdmin: true, _householdOneKidProfile, adminGrant: false);
     }
 
     private async Task<Account> CreateAccountAsync(
-        Guid? household, bool administrator, bool householdAdmin, Profile profile, bool adminGrant)
+        bool administrator, bool householdAdmin, Profile profile, bool adminGrant)
     {
         var id = Guid.NewGuid();
         var account = new Account
@@ -248,31 +248,20 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
             Email = $"{id:N}@example.com",
             NormalizedEmail = $"{id:N}@EXAMPLE.COM",
             IsEnabled = true,
-            IsAdministrator = administrator,
-            HouseholdId = household,
             AuthorizationVersion = 1,
             CreatedAt = Now,
             UpdatedAt = Now,
         };
-        if (householdAdmin)
-        {
-            account.MakeHouseholdAdmin();
-        }
-
         await _accounts.CreateAccountAsync(
             account,
-            new AccountProfileGrant
-            {
-                AccountId = id,
-                ProfileId = profile.Id,
-                IsDefault = true,
-                IsEnabled = true,
-                AdminEnabled = adminGrant,
-                AuthorizationVersion = 1,
-                GrantedAt = Now,
-            },
+            new TestGrant(id, profile.Id, IsDefault: true, AdminEnabled: adminGrant),
             AccountFeatureId.All.ToHashSet(),
             new HashSet<Guid>());
+        if (householdAdmin)
+        {
+            await new ProfileAccessRepository(_database).SetHouseholdAdministratorAsync(profile.Id, true, Now);
+        }
+
         return account;
     }
 

@@ -63,48 +63,45 @@ public sealed class AccessContractTests
     {
         var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-        var json = JsonSerializer.Serialize(new AccountDeletionPreviewResponse([new AccountDeletionProfileDto(id, "Sam")]));
+        var json = JsonSerializer.Serialize(new UserDeletionPreviewResponse(
+            Guid.Empty, null, null, true, "Sam's household", [new AccountDeletionProfileDto(id, "Sam")], null));
 
-        Assert.Equal("{\"profiles\":[{\"id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"Sam\"}]}", json);
-        Assert.Equal("Sam", JsonSerializer.Deserialize<AccountDeletionPreviewResponse>(json)!.Profiles.Single().DisplayName);
+        using var document = JsonDocument.Parse(json);
+        var profiles = document.RootElement.GetProperty("household_profiles");
+        Assert.Equal("{\"id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"Sam\"}", profiles[0].GetRawText());
+        Assert.Equal("Sam", JsonSerializer.Deserialize<UserDeletionPreviewResponse>(json)!.HouseholdProfiles.Single().DisplayName);
     }
 
     [Fact]
-    public void SignInRequestsDefaultToATemporaryPasswordAndNoInvite()
+    public void StartingPasswordRequestsDefaultToATemporaryPassword()
     {
-        var give = JsonSerializer.Deserialize<GiveOwnSignInRequest>("{\"email\":\"sam@home.test\"}")!;
-        Assert.True(give.MustChangePassword);
-        Assert.False(give.Invite);
-        Assert.Null(give.TemporaryPassword);
-
         var set = JsonSerializer.Deserialize<SetTemporaryPasswordRequest>("{\"temporary_password\":\"a long password here\"}")!;
         Assert.True(set.MustChangePassword);
 
-        var explicitOff = JsonSerializer.Deserialize<GiveOwnSignInRequest>(
-            "{\"email\":\"sam@home.test\",\"temporary_password\":\"a long password here\",\"must_change_password\":false,\"invite\":false}")!;
+        var explicitOff = JsonSerializer.Deserialize<SetTemporaryPasswordRequest>(
+            "{\"temporary_password\":\"a long password here\",\"must_change_password\":false}")!;
         Assert.False(explicitOff.MustChangePassword);
         Assert.Equal("{\"email\":\"new@home.test\"}", JsonSerializer.Serialize(new ChangeAccountEmailRequest("new@home.test")));
     }
 
     [Fact]
-    public void ManagedProfileCarriesTheOwnSignInWithoutAnySecret()
+    public void ManagedProfileCarriesItsUserWithoutAnySecret()
     {
-        var accountId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        var userId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         var profile = new ManagedProfileResponse(Guid.Empty, "Sam", "#112233", null, DateTimeOffset.UnixEpoch,
-            OwnSignIn: new ManagedProfileSignInDto(accountId, "sam@home.test", true, true));
+            User: new ManagedProfileUserDto(userId, "sam@home.test"));
 
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(profile));
-        var signIn = document.RootElement.GetProperty("own_sign_in");
-        Assert.Equal(accountId, signIn.GetProperty("account_id").GetGuid());
-        Assert.Equal("sam@home.test", signIn.GetProperty("email").GetString());
-        Assert.True(signIn.GetProperty("must_change_password").GetBoolean());
-        Assert.True(signIn.GetProperty("is_enabled").GetBoolean());
-        Assert.DoesNotContain(typeof(ManagedProfileSignInDto).GetProperties(), property =>
+        var user = document.RootElement.GetProperty("user");
+        Assert.Equal(userId, user.GetProperty("id").GetGuid());
+        Assert.Equal("sam@home.test", user.GetProperty("email").GetString());
+        Assert.False(document.RootElement.TryGetProperty("own_sign_in", out _));
+        Assert.DoesNotContain(typeof(ManagedProfileUserDto).GetProperties(), property =>
             property.Name.Contains("Password", StringComparison.OrdinalIgnoreCase) && property.PropertyType == typeof(string));
 
         var without = JsonSerializer.Deserialize<ManagedProfileResponse>(
             "{\"id\":\"00000000-0000-0000-0000-000000000000\",\"display_name\":\"Sam\",\"avatar_color\":\"#112233\",\"avatar_path\":null,\"created_at\":\"1970-01-01T00:00:00+00:00\"}")!;
-        Assert.Null(without.OwnSignIn);
+        Assert.Null(without.User);
     }
 
     [Fact]
@@ -112,7 +109,7 @@ public sealed class AccessContractTests
     {
         var responseTypes = new[]
         {
-            typeof(AccountAccessResponse), typeof(AccountProfileGrantDto), typeof(GrantAdminProtectionDto),
+            typeof(UserSummaryResponse), typeof(AccountProfileGrantDto), typeof(ProfileAdminProtectionResponse),
             typeof(AccountSelfServiceResponse), typeof(ApplicationResponse),
             typeof(ApplicationCredentialResponse), typeof(ApplicationPermissionDefinitionDto),
             typeof(AuthorizationAuditEntryResponse),
@@ -167,15 +164,31 @@ public sealed class AccessContractTests
     }
 
     [Fact]
-    public void AccountIdentityCarriesItsEmailAndNoLocalOnlyFlag()
+    public void ProfileAdminProtection_KeepsItsWireNames_AndNeverCarriesAPin()
     {
-        var response = new AccountAccessResponse(
-            Guid.NewGuid(), "owner@example.com", true, false, 1, [], [], [],
-            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
-        var json = JsonSerializer.Serialize(response);
+        var json = JsonSerializer.Serialize(new ProfileAdminProtectionResponse(true, "FixedDuration", 30, 4));
 
-        Assert.Contains("\"email\":\"owner@example.com\"", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("local_only", json, StringComparison.Ordinal);
+        Assert.Equal("{\"enabled\":true,\"unlock_mode\":\"FixedDuration\",\"unlock_minutes\":30,\"protection_version\":4}", json);
+        var request = JsonSerializer.Deserialize<SetProfileAdminProtectionRequest>(
+            "{\"enabled\":false,\"unlock_mode\":\"LockOnLeave\",\"unlock_minutes\":null}")!;
+        Assert.False(request.Enabled);
+        Assert.Equal("LockOnLeave", request.UnlockMode);
+        Assert.Null(request.UnlockMinutes);
+    }
+
+    [Fact]
+    public void TemporaryPasswordResponse_CarriesTheUserAndWhenThePasswordStopsWorking()
+    {
+        var userId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var expires = DateTimeOffset.Parse("2026-10-30T12:00:00Z");
+
+        var json = JsonSerializer.Serialize(new UserTemporaryPasswordResponse(
+            new UserSummaryResponse(userId, "mom@home.test", null, null, null, null, true, false, true, false), expires));
+
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal(userId, document.RootElement.GetProperty("user").GetProperty("id").GetGuid());
+        Assert.Equal(expires, document.RootElement.GetProperty("temporary_password_expires_at").GetDateTimeOffset());
+        Assert.DoesNotContain("password\":\"", json, StringComparison.Ordinal);
     }
 
     [Fact]

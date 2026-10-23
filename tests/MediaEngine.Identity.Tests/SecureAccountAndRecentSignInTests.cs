@@ -50,8 +50,8 @@ public sealed class SecureAccountAndRecentSignInTests : IDisposable
         var after = Assert.Single(await _accounts.GetAllAsync());
         Assert.Equal(before.Id, after.Id);
         Assert.False(after.IsThisComputerOnly);
-        Assert.True(after.IsAdministrator);
-        Assert.Equal(before.HouseholdId, after.HouseholdId);
+        Assert.True((await new ProfileRepository(_database).GetByIdAsync(after.ProfileId))!.IsServerAdministrator);
+        Assert.Equal(before.ProfileId, after.ProfileId);
         Assert.Equal(profileIds, await _accounts.GetProfileIdsAsync(after.Id));
         foreach (var profileId in profileIds)
         {
@@ -204,7 +204,7 @@ public sealed class SecureAccountAndRecentSignInTests : IDisposable
         var otherProfile = new MediaEngine.Domain.Aggregates.Profile { Id = Guid.NewGuid(), DisplayName = "Other", CreatedAt = now };
         await _accounts.CreateAccountAsync(
             new Account { Id = otherId, Email = "taken@example.com", NormalizedEmail = "TAKEN@EXAMPLE.COM", IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now },
-            new AccountProfileGrant { AccountId = otherId, ProfileId = otherProfile.Id, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
+            new TestGrant(otherId, otherProfile.Id, IsDefault: true),
             new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: otherProfile);
 
         var taken = await Assert.ThrowsAsync<InvalidOperationException>(() =>

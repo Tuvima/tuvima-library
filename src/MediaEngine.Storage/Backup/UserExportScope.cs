@@ -43,9 +43,9 @@ public sealed record UserExportTable(
     IReadOnlyList<string>? ZeroedColumns = null);
 
 /// <summary>
-/// What one user's export holds, as one explicit map (backup and restore spec D19). A user export holds one account, every profile in that
-/// account's profile grants, those profiles' own state, and the playlists and collections they built. It never holds another account or
-/// profile, access rights (feature and library grants, administrator settings), devices, sign-ins, server settings or the catalogue.
+/// What one user's export holds, as one explicit map (backup and restore spec D19). A user export holds one user (sign-in), the one profile it
+/// opens, that profile's own state, and the playlists and collections it built. It never holds another user or profile, access rights
+/// (feature and library access, administrator settings), devices, server settings or the catalogue.
 /// A guardrail test fails when a Configuration or PersonalState table is neither in <see cref="Tables"/> nor in
 /// <see cref="NotInAUserExport"/>, so a new table forces a decision.
 /// </summary>
@@ -77,9 +77,6 @@ public static class UserExportScope
     /// </summary>
     public static IReadOnlyDictionary<string, string> NotInAUserExport { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["account_feature_grants"] = "Access rights: the receiving administrator chooses which features the person may use.",
-        ["account_library_grants"] = "Access rights: the receiving administrator chooses which libraries the person may use.",
-        ["grant_admin_protections"] = "An administrator's extra lock on a grant; administrator settings are never carried.",
         ["profile_feature_grants"] = "Access rights are never carried by a user file (backup spec D19).",
         ["profile_library_grants"] = "Access rights are never carried by a user file (backup spec D19).",
         ["profile_admin_protections"] = "Access rights are never carried by a user file (backup spec D19).",
@@ -150,21 +147,20 @@ public static class UserExportScope
         var tables = new List<UserExportTable>
         {
             // The account and how it signs in.
-            new("accounts", "id = {account}", ["grants_inherit_from_account_id"],
-                [new UserRowCheck.AccountColumn("id"), new UserRowCheck.ProfileColumn("profile_id", Nullable: true)]),
+            // A user opens exactly one profile, and the file holds that profile.
+            new("accounts", "id = {account}", [],
+                [new UserRowCheck.AccountColumn("id"), new UserRowCheck.ProfileColumn("profile_id")]),
             new("account_credentials", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
             new(TwoStepTable, "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
             new("account_passkeys", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
             new("account_external_logins", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
             new("account_notice_dismissals", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
 
-            // The household the account belongs to (the primary account may be somebody else, so it is left out).
-            new("households", "id IN (SELECT household_id FROM accounts WHERE id = {account})", ["primary_account_id"],
-                [new UserRowCheck.ParentRow("id", "accounts", "household_id")]),
+            // The household of the profile the user opens. Whether it is the Library's default household is never carried (written as 0).
+            new("households", "id IN (SELECT household_id FROM profiles WHERE id IN (" + InProfiles + "))", [],
+                [new UserRowCheck.ParentRow("id", "profiles", "household_id")], ["is_default"]),
 
-            // The profiles the account may use, and only this account's grants to them.
-            new("account_profile_grants", "account_id = {account}", [],
-                [new UserRowCheck.AccountColumn("account_id"), new UserRowCheck.ProfileColumn("profile_id")]),
+            // The profile the user opens, and nothing of anyone else.
             // The administrator roles are NOT NULL, so they are written as 0 rather than left out; an import forces them to 0 as well.
             new("profiles", "id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("id")], ["is_server_admin", "is_household_admin"]),
             new("profile_credentials", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),

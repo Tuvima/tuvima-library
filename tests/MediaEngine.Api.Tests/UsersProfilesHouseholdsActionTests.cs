@@ -33,7 +33,7 @@ public sealed class UsersProfilesHouseholdsActionTests
 
         Assert.Equal(world.KimProfile.Id, created.User.ProfileId);
         Assert.Equal(world.KimProfile.Id, created.Profile.Id);
-        Assert.Equal(world.Household.Id, created.User.HouseholdId);
+        Assert.Equal(world.Household.Id, (await world.Households.GetForAccountAsync(created.User.Id))!.Id);
         Assert.Null(created.Invitation);
         var flagsAfter = (await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!;
         Assert.Equal(flagsBefore.IsServerAdministrator, flagsAfter.IsServerAdministrator);
@@ -149,18 +149,6 @@ public sealed class UsersProfilesHouseholdsActionTests
     }
 
     [Fact]
-    public async Task TheOlderCreateAccountRoute_AlsoMakesAnOrdinaryMember_NotAKidsProfile()
-    {
-        await using var world = await World.CreateAsync();
-
-        var account = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
-            "older@example.com", IsAdministrator: false, ProfileId: null, NewProfile: new NewAccountProfileCommand("Older", null),
-            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(), TemporaryPassword: null));
-
-        Assert.Equal(ProfileRole.StandardUser, (await world.Profiles.GetByIdAsync(account.ProfileId!.Value))!.Role);
-    }
-
-    [Fact]
     public async Task ANewProfileInANewHousehold_StartsTheHousehold_LooksAfterIt_AndHasViewOff()
     {
         await using var world = await World.CreateAsync();
@@ -248,15 +236,9 @@ public sealed class UsersProfilesHouseholdsActionTests
         var viaUser = await Assert.ThrowsAsync<SecureAdministratorsFirstException>(() => world.Mutations.CreateUserAsync(world.ServerAdmin,
             new CreateUserCommand("pat@example.com", null, new NewUserProfileCommand("Pat", null, null, "Household 3"), NewUserSignInMethod.Invitation)));
         var viaHousehold = await Assert.ThrowsAsync<SecureAdministratorsFirstException>(() => world.Management.CreateAsync(world.ServerAdmin, "Household 3"));
-        var viaInvitation = await Assert.ThrowsAsync<SecureAdministratorsFirstException>(() => world.Mutations.IssueInvitationAsync(world.ServerAdmin,
-            new IssueAccountInvitationCommand("sue@example.com", [], null, "Sue")));
-        var viaOlderRoute = await Assert.ThrowsAsync<SecureAdministratorsFirstException>(() => world.Mutations.CreateAsync(world.ServerAdmin,
-            new CreateAccountAccessCommand("older@example.com", IsAdministrator: false, ProfileId: null,
-                NewProfile: new NewAccountProfileCommand("Older", null), Features: new HashSet<AccountFeatureId>(),
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null)));
 
         const string Sentence = "Set an email and password for your own sign-in first. A Library with several households must not be open to anyone who reaches it.";
-        Assert.All(new[] { viaUser, viaHousehold, viaInvitation, viaOlderRoute }, refused => Assert.Equal(Sentence, refused.Message));
+        Assert.All(new[] { viaUser, viaHousehold }, refused => Assert.Equal(Sentence, refused.Message));
         Assert.Equal(householdsBefore, (await world.Households.ListSummariesAsync()).Count);
         Assert.Equal(profilesBefore, (await world.Profiles.GetAllAsync()).Count);
         Assert.Null(await world.Accounts.GetByNormalizedEmailAsync("PAT@EXAMPLE.COM"));

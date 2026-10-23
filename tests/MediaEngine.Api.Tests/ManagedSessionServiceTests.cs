@@ -30,10 +30,10 @@ public sealed class ManagedSessionServiceTests
         var owner = listed.Single(person => person.AccountId == world.Owner.Id);
         Assert.Equal("owner@example.com", owner.AccountLabel);
         Assert.Equal("owner@example.com", owner.Email);
-        Assert.Null(owner.ProfileDisplayName);
+        Assert.Equal("Owner", owner.ProfileDisplayName);
         Assert.Equal(2, owner.Sessions.Count);
 
-        // A person's own sign-in is named by the person it opens.
+        // A user is named by the person it opens.
         var mary = listed.Single(person => person.AccountId == world.Mary.Id);
         Assert.Equal("Mary", mary.ProfileDisplayName);
         Assert.Equal("mary@example.com", mary.Email);
@@ -204,10 +204,11 @@ public sealed class ManagedSessionServiceTests
                 world.Identities, world._accounts, world._profiles,
                 new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
                 TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(world._configuration));
-            world._mutations = new AccountAccessMutationService(
+            world._mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                 world._accounts,
-                        new ProfileAccessRepository(world._database), world.Identities, world._profiles, world._configuration,
-                new AllowAllDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit, world._identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+                new ProfileAccessRepository(world._database), world.Identities, world._profiles, world._configuration,
+                new AllowAllDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit, world._identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+                world._accounts, new ProfileAccessRepository(world._database), world._identity);
             world._setupActor = new RequestAuthority(
                 PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(), SessionId: Guid.NewGuid(),
                 AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true);
@@ -227,8 +228,8 @@ public sealed class ManagedSessionServiceTests
             await world._mutations.SetHouseholdAdminAsync(world._setupActor, world.Owner.Id, true);
             var maryPerson = await world._mutations.AddHouseholdPersonAsync(world._setupActor,
                 new AddHouseholdPersonCommand(household.Id, "Mary", null, IsChild: false, Pin: null));
-            world.Mary = (await world._mutations.GiveOwnSignInAsync(world._setupActor,
-                new GiveOwnSignInCommand(maryPerson.Id, "mary@example.com", "a long temporary password"))).Account;
+            world.Mary = (await world._mutations.CreateUserAsync(world._setupActor,
+                new CreateUserCommand("mary@example.com", maryPerson.Id, null, NewUserSignInMethod.TemporaryPassword, "a long temporary password"))).User;
             world.OtherOwner = await world.CreateMainAsync("other@example.com", "Other", isAdministrator: false);
             world.Admin = await world.CreateMainAsync("admin@example.com", "Admin", isAdministrator: true);
             world.Owner = (await world._accounts.GetByIdAsync(world.Owner.Id))!;
@@ -247,13 +248,12 @@ public sealed class ManagedSessionServiceTests
 
         public async Task<AuthSession> AddSessionAsync(Account account, string deviceName, DateTimeOffset? expiresAt = null)
         {
-            var grants = await _accounts.GetGrantsAsync(account.Id);
             var now = DateTimeOffset.UtcNow;
             var session = new AuthSession
             {
                 Id = Guid.NewGuid(),
                 AccountId = account.Id,
-                ActiveProfileId = grants.First().ProfileId,
+                ActiveProfileId = account.ProfileId,
                 TokenHash = Guid.NewGuid().ToString("N"),
                 DeviceId = Guid.NewGuid().ToString("N"),
                 DeviceName = deviceName,
@@ -284,19 +284,10 @@ public sealed class ManagedSessionServiceTests
                 AuthorizationVersion = 1,
                 CreatedAt = now,
                 UpdatedAt = now,
-                HouseholdId = Owner.HouseholdId,
             };
             await _accounts.CreateAccountAsync(peer,
-                new AccountProfileGrant
-                {
-                    AccountId = peer.Id,
-                    ProfileId = peerProfile.Id,
-                    IsDefault = true,
-                    IsEnabled = true,
-                    AuthorizationVersion = 1,
-                    GrantedAt = now,
-                },
-                new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: peerProfile);
+                new TestGrant(peer.Id, peerProfile.Id, IsDefault: true, AdminEnabled: false),
+                new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: peerProfile, householdId: HouseholdOf(Owner));
             await _mutations.SetHouseholdAdminAsync(_setupActor, peer.Id, true);
             return (await _accounts.GetByIdAsync(peer.Id))!;
         }
@@ -310,7 +301,11 @@ public sealed class ManagedSessionServiceTests
             bool administrator = false, bool householdAdministrator = false) => new(
             PrincipalKind.Human, true, account.Id, session.ActiveProfileId, SessionId: session.Id,
             AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: administrator,
-            ActiveProfileHouseholdId: account.HouseholdId, ActiveProfileIsHouseholdAdministrator: householdAdministrator);
+            ActiveProfileHouseholdId: HouseholdOf(account), ActiveProfileIsHouseholdAdministrator: householdAdministrator);
+
+        /// <summary>The household of the profile a user opens.</summary>
+        private Guid? HouseholdOf(Account account) =>
+            new HouseholdRepository(_database).GetForAccountAsync(account.Id).GetAwaiter().GetResult()?.Id;
 
         public ValueTask DisposeAsync()
         {

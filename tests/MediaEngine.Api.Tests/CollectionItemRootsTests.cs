@@ -749,15 +749,7 @@ public sealed class CollectionItemRootsTests : IDisposable
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new AccountProfileGrant
-            {
-                AccountId = _account,
-                ProfileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = DateTimeOffset.UtcNow,
-            },
+            new TestGrant(_account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen },
             new HashSet<Guid> { _library }).GetAwaiter().GetResult();
     }

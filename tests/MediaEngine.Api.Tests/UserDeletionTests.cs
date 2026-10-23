@@ -114,7 +114,7 @@ public sealed class UserDeletionTests
         // The Library's own household and the other household are untouched.
         Assert.NotNull(await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id));
         Assert.NotNull(await world.Accounts.GetByIdAsync(world.Bea.Id));
-        Assert.NotNull(await world.Households.GetByIdAsync(world.Bea.HouseholdId!.Value));
+        Assert.NotNull(await world.Households.GetByIdAsync((await world.Households.GetForAccountAsync(world.Bea.Id))!.Id));
         var deleted = Assert.Single(world.Audit.Events, e => e.EventType == "account.deleted");
         Assert.Equal("4", deleted.Changes["profiles_deleted"]);
         Assert.Equal("true", deleted.Changes["household_removed"]);
@@ -436,11 +436,8 @@ public sealed class UserDeletionTests
         await using var world = await World.CreateAsync(gate: gate);
         using var held = await gate.EnterAsync(CancellationToken.None);
 
-        var profile = world.Mutations.CreateProfileAsync(world.ServerAdmin,
-            new CreateManagedProfileCommand(world.Sam.Id, "Sam (Kids)", null, false));
         var person = world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
             new AddHouseholdPersonCommand(world.Household.Id, "Zed", null, false, null));
-        var removal = world.Mutations.RemoveOwnSignInAsync(world.ServerAdmin, Guid.NewGuid());
         var deletion = world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Kim.Id);
         var profileDeletion = world.Mutations.DeleteProfileAsync(world.ServerAdmin, world.Mary.Id);
         var access = world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id, new HashSet<AccountFeatureId>(), new HashSet<Guid>());
@@ -451,12 +448,10 @@ public sealed class UserDeletionTests
         await Task.Delay(150);
 
         // All of them are queued behind the held gate, so a delete's plan and the delete itself see the same grants.
-        Assert.All(new Task[] { profile, person, removal, deletion, profileDeletion, access, roles, creation }, task => Assert.False(task.IsCompleted));
+        Assert.All(new Task[] { person, deletion, profileDeletion, access, roles, creation }, task => Assert.False(task.IsCompleted));
 
         held.Dispose();
-        await profile;
         await person;
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => removal);
         await deletion;
         await profileDeletion;
         await access;
@@ -689,12 +684,13 @@ public sealed class UserDeletionTests
                 identities, world.Accounts, world.Profiles,
                 new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
                 TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(world._configuration));
-            world.Mutations = new AccountAccessMutationService(
+            world.Mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                 world.Accounts,
-                        new ProfileAccessRepository(world._database), identities, world.Profiles, world._configuration,
+                world.Access, identities, world.Profiles, world._configuration,
                 new RealDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit,
                 identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), gate ?? new AuthenticationPolicyMutationGate(), world.Log,
-                world.Households);
+                world.Households),
+                world.Accounts, world.Access, identity);
             var households = world.Households;
             world.Management = new HouseholdManagementService(
                 world.Households, world.Accounts, new RealDecisions(), new AllowEvaluator(), world.Audit, TimeProvider.System);
@@ -717,23 +713,23 @@ public sealed class UserDeletionTests
             // Sam is a household person who is then invited to sign in as themselves; Alex keeps a plain grant on Sam.
             world.SamProfile = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
                 new AddHouseholdPersonCommand(world.Household.Id, "Sam", null, false, null));
-            var invitedSam = await world.Mutations.IssueInvitationAsync(world.ServerAdmin,
-                new IssueAccountInvitationCommand("sam@example.com", [world.SamProfile.Id], null));
+            var invitedSam = (await world.Mutations.CreateUserAsync(world.ServerAdmin,
+                new CreateUserCommand("sam@example.com", world.SamProfile.Id, null, NewUserSignInMethod.Invitation))).User;
             if (secondOwner)
             {
-                await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, invitedSam.AccountId, true);
+                await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, invitedSam.Id, true);
             }
 
-            world.Alex2 = (await world.Accounts.GetByIdAsync(invitedSam.AccountId))!;
+            world.Alex2 = (await world.Accounts.GetByIdAsync(invitedSam.Id))!;
 
             // Mary and Kim are added once both main sign-ins exist, so both hold Mary.
             world.Mary = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
                 new AddHouseholdPersonCommand(world.Household.Id, "Mary", null, false, null));
             world.KimProfile = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
                 new AddHouseholdPersonCommand(world.Household.Id, "Kim", null, false, null));
-            var invitedKim = await world.Mutations.IssueInvitationAsync(world.ServerAdmin,
-                new IssueAccountInvitationCommand("kim@example.com", [world.KimProfile.Id], null));
-            world.Kim = (await world.Accounts.GetByIdAsync(invitedKim.AccountId))!;
+            var invitedKim = (await world.Mutations.CreateUserAsync(world.ServerAdmin,
+                new CreateUserCommand("kim@example.com", world.KimProfile.Id, null, NewUserSignInMethod.Invitation))).User;
+            world.Kim = (await world.Accounts.GetByIdAsync(invitedKim.Id))!;
 
             world.Bea = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
                 "bea@example.com", IsAdministrator: false, ProfileId: null,
@@ -795,7 +791,7 @@ public sealed class UserDeletionTests
                 SessionId: Guid.NewGuid(),
                 AccountEnabled: true,
                 ActiveProfileInUserHousehold: true,
-                ActiveProfileHouseholdId: account.HouseholdId,
+                ActiveProfileHouseholdId: (await Households.GetForAccountAsync(account.Id))?.Id,
                 ActiveProfileIsHouseholdAdministrator: isOwner);
 
         internal static RequestAuthority ServerAuthority(Guid accountId, Guid profileId) =>

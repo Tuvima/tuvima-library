@@ -411,15 +411,7 @@ internal sealed record PairedDevice(
         };
         await accounts.CreateAccountAsync(
             account,
-            new AccountProfileGrant
-            {
-                AccountId = account.Id,
-                ProfileId = Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = now,
-            },
+            new TestGrant(account.Id, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
             new HashSet<Guid>());
 

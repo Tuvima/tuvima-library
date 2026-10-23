@@ -7,8 +7,8 @@ using Microsoft.Data.Sqlite;
 namespace MediaEngine.Storage.Tests.Backup;
 
 /// <summary>
-/// One user moved between data stores (backup and restore spec D19): the export holds the account, its profiles and their own state and
-/// nothing of anyone else, and the import makes them a new user who can sign in but has no access rights until an administrator chooses.
+/// One user moved between data stores (backup and restore spec D19): the export holds the user, the one profile it opens and that profile's
+/// own state and nothing of anyone else, and the import makes them a new user who can sign in but has no access rights until an administrator chooses.
 /// Each test builds real source and target data stores in temporary files.
 /// </summary>
 public sealed class UserExportImportTests : IDisposable
@@ -23,7 +23,7 @@ public sealed class UserExportImportTests : IDisposable
     // ---------------------------------------------------------------------------------------------------------
 
     [Fact]
-    public void Export_HoldsTheAccountItsProfilesAndTheirState_AndNothingOfAnyoneElse()
+    public void Export_HoldsTheUserItsProfileAndItsState_AndNothingOfAnyoneElse()
     {
         var source = NewStore();
         var maya = source.AddUser("maya@example.com", ["Maya", "Maya (kids)"], administrator: false);
@@ -37,8 +37,7 @@ public sealed class UserExportImportTests : IDisposable
         var accounts = Table(export, "accounts");
         Assert.Equal(["maya@example.com"], accounts.Rows.Select(row => Text(accounts, row, "email")).ToList());
         var profiles = Table(export, "profiles");
-        Assert.Equal(["Maya", "Maya (kids)"], profiles.Rows.Select(row => Text(profiles, row, "display_name")).Order().ToList());
-        Assert.Equal(2, Table(export, "account_profile_grants").Rows.Count);
+        Assert.Equal(["Maya"], profiles.Rows.Select(row => Text(profiles, row, "display_name")).ToList());
         var states = Table(export, "user_states");
         Assert.Single(states.Rows);
         Assert.Single(Table(export, "account_credentials").Rows);
@@ -46,6 +45,7 @@ public sealed class UserExportImportTests : IDisposable
         var bytes = ArchiveText(export);
         Assert.DoesNotContain("other-person@example.com", bytes, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Secret Other Profile", bytes, StringComparison.Ordinal);
+        Assert.DoesNotContain("Maya (kids)", bytes, StringComparison.Ordinal);
         Assert.Equal("user", ContentsKind(export));
     }
 
@@ -89,8 +89,9 @@ public sealed class UserExportImportTests : IDisposable
         var export = Export(source, maya);
 
         var names = export.Tables.Select(table => table.Table).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        Assert.DoesNotContain("account_feature_grants", names);
-        Assert.DoesNotContain("account_library_grants", names);
+        Assert.DoesNotContain("profile_feature_grants", names);
+        Assert.DoesNotContain("profile_library_grants", names);
+        Assert.DoesNotContain("profile_admin_protections", names);
         Assert.DoesNotContain("auth_sessions", names);
         Assert.DoesNotContain("account_invitations", names);
         Assert.DoesNotContain("client_devices", names);
@@ -102,24 +103,23 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     [Fact]
-    public void Export_LeavesOutTheOtherPeopleInTheHousehold_AndThePrimaryAccountLink()
+    public void Export_LeavesOutTheOtherPeopleInTheHousehold_AndNeverCarriesTheDefaultHouseholdMark()
     {
         var source = NewStore();
         var household = source.AddHousehold("The Khans");
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false, household: household);
-        var lead = source.AddUser("lead@example.com", ["Lead"], administrator: false, household: household);
-        source.Execute($"UPDATE households SET primary_account_id = {Blob(lead.Account)} WHERE id = {Blob(household)}");
-        source.Execute($"UPDATE accounts SET grants_inherit_from_account_id = {Blob(lead.Account)} WHERE id = {Blob(maya.Account)}");
+        source.AddUser("lead@example.com", ["Lead"], administrator: false, household: household);
+        source.Execute($"UPDATE households SET is_default = 1 WHERE id = {Blob(household)}");
 
         var export = Export(source, maya);
 
         var households = Table(export, "households");
         var row = Assert.Single(households.Rows);
         Assert.Equal("The Khans", Text(households, row, "name"));
-        Assert.IsType<BackupValue.NullValue>(Value(households, row, "primary_account_id"));
-        var accounts = Table(export, "accounts");
-        Assert.IsType<BackupValue.NullValue>(Value(accounts, Assert.Single(accounts.Rows), "grants_inherit_from_account_id"));
+        Assert.Equal(0L, Assert.IsType<BackupValue.Integer>(Value(households, row, "is_default")).Value);
+        Assert.Equal(["Maya"], Table(export, "profiles").Rows.Select(profile => Text(Table(export, "profiles"), profile, "display_name")).ToList());
         Assert.DoesNotContain("lead@example.com", ArchiveText(export), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Lead", ArchiveText(export), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public sealed class UserExportImportTests : IDisposable
     // ---------------------------------------------------------------------------------------------------------
 
     [Fact]
-    public void RoundTrip_TheUserSignsInWithTheSameHash_TheTwoStepSecretSurvives_AndTheyAreNotAnAdministrator()
+    public void RoundTrip_TheUserSignsInWithTheSameHash_TheTwoStepSecretSurvives_AndTheirProfileIsNotAnAdministrator()
     {
         var source = NewStore();
         var target = NewStore();
@@ -163,15 +163,13 @@ public sealed class UserExportImportTests : IDisposable
         Assert.Equal(source.Text("SELECT secret_hash FROM account_credentials"), target.Text("SELECT secret_hash FROM account_credentials"));
         Assert.Equal("MAYA@EXAMPLE.COM", target.Text("SELECT normalized_email FROM accounts"));
         Assert.Equal("sealed:readable:SECRET-MARKER", target.Text("SELECT secret_protected FROM account_two_step"));
-        Assert.Equal(1, source.Scalar("SELECT is_administrator FROM accounts"));
-        Assert.Equal(0, target.Scalar("SELECT is_administrator FROM accounts"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_feature_grants"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_library_grants"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE admin_enabled = 1"));
-        Assert.Equal(2, target.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE is_enabled = 1"));
-        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE is_default = 1"));
+        Assert.Equal(1, source.Scalar("SELECT is_server_admin FROM profiles WHERE display_name = 'Maya'"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_server_admin = 1 OR is_household_admin = 1"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_feature_grants"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_library_grants"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE role = 'Administrator' AND display_name LIKE 'Maya%'"));
-        Assert.Equal(2, target.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM accounts WHERE profile_id = {Blob(maya.Profiles[0])}"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM auth_sessions"));
     }
 
@@ -181,7 +179,6 @@ public sealed class UserExportImportTests : IDisposable
         var source = NewStore();
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: true);
         source.Execute($"UPDATE profiles SET is_server_admin = 1, is_household_admin = 1 WHERE id = {Blob(maya.Profiles[0])}");
-        source.Execute($"UPDATE accounts SET profile_id = {Blob(maya.Profiles[0])} WHERE id = {Blob(maya.Account)}");
 
         var export = Export(source, maya);
 
@@ -199,7 +196,6 @@ public sealed class UserExportImportTests : IDisposable
         var source = NewStore();
         var target = NewStore();
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
-        source.Execute($"UPDATE accounts SET profile_id = {Blob(maya.Profiles[0])} WHERE id = {Blob(maya.Account)}");
         var export = Export(source, maya);
         var profiles = Table(export, "profiles");
         var serverIndex = profiles.Columns.ToList().FindIndex(column => string.Equals(column, "is_server_admin", StringComparison.OrdinalIgnoreCase));
@@ -228,7 +224,7 @@ public sealed class UserExportImportTests : IDisposable
     public async Task RoundTrip_AfterTheUserIsDeleted_TheSameFileImportsAgainWithNothingLeftToClash()
     {
         var store = NewStore();
-        var maya = store.AddUser("maya@example.com", ["Maya", "Maya (kids)"], administrator: false);
+        var maya = store.AddUser("maya@example.com", ["Maya"], administrator: false);
         var movie = store.AddMovie("Dune", "tt1160419", "aaaa1111");
         store.AddUserState(maya.Profiles[0], movie.Asset, 42.5);
         store.Execute($"INSERT INTO user_taste_profiles (user_id, profile_json) VALUES ({Blob(maya.Profiles[0])}, '{{}}')");
@@ -251,7 +247,7 @@ public sealed class UserExportImportTests : IDisposable
 
         Assert.Equal(maya.Account, result.AccountId);
         Assert.Equal(1, store.Scalar("SELECT COUNT(*) FROM accounts"));
-        Assert.Equal(2, store.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
+        Assert.Equal(1, store.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
     }
 
     [Fact]
@@ -299,36 +295,36 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     [Fact]
-    public void Import_JoinsAHouseholdThatExists_WithoutChangingItsPrimaryAccount_OrMakingThemItsAdministrator()
+    public void Import_JoinsAHouseholdThatExists_WithoutMakingThemItsAdministrator()
     {
         var source = NewStore();
         var target = NewStore();
         var household = source.AddHousehold("The Khans");
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false, household: household, householdAdmin: true);
-        var lead = target.AddUser("lead@example.com", ["Lead"], administrator: false);
-        target.AddHousehold("The Khans", household, primary: lead.Account);
+        target.AddHousehold("The Khans", household);
+        target.AddUser("lead@example.com", ["Lead"], administrator: false, household: household, householdAdmin: true);
 
         ImportInto(target, Export(source, maya));
 
-        Assert.Equal(Blob(household), "X'" + target.Text("SELECT hex(household_id) FROM accounts WHERE email = 'maya@example.com'") + "'");
-        Assert.Equal(0, target.Scalar("SELECT household_admin FROM accounts WHERE email = 'maya@example.com'"));
-        Assert.Equal(Blob(lead.Account), "X'" + target.Text("SELECT hex(primary_account_id) FROM households") + "'");
+        Assert.Equal(Blob(household), "X'" + target.Text("SELECT hex(household_id) FROM profiles WHERE display_name = 'Maya'") + "'");
+        Assert.Equal(0, target.Scalar("SELECT is_household_admin FROM profiles WHERE display_name = 'Maya'"));
+        Assert.Equal(1, target.Scalar("SELECT is_household_admin FROM profiles WHERE display_name = 'Lead'"));
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM households"));
     }
 
     [Fact]
-    public void Import_CreatesTheHouseholdWithThePersonAsPrimary_AndNeverMakesThemAHouseholdAdministrator()
+    public void Import_CreatesTheHousehold_ButNeverAsTheDefaultOne_AndNeverMakesThemAHouseholdAdministrator()
     {
         var source = NewStore();
         var target = NewStore();
         var household = source.AddHousehold("The Khans");
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false, household: household, householdAdmin: true);
+        source.Execute($"UPDATE households SET is_default = 1 WHERE id = {Blob(household)}");
 
         ImportInto(target, Export(source, maya));
 
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM households WHERE name = 'The Khans'"));
-        Assert.Equal(Blob(maya.Account), "X'" + target.Text("SELECT hex(primary_account_id) FROM households") + "'");
-        Assert.Equal(0, target.Scalar("SELECT household_admin FROM accounts"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM households WHERE is_default = 1"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_household_admin = 1"));
         Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(household)}"));
     }
@@ -352,16 +348,17 @@ public sealed class UserExportImportTests : IDisposable
     public void Import_IsRefused_WhenTheAccountOrAProfileIsAlreadyHere_AndNothingIsWritten()
     {
         var source = NewStore();
-        var maya = source.AddUser("maya@example.com", ["Maya", "Maya (kids)"], administrator: false);
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
         var export = Export(source, maya);
 
         var sameAccount = NewStore();
-        sameAccount.Execute($"INSERT INTO accounts (id, email, normalized_email, created_at, updated_at) VALUES ({Blob(maya.Account)}, 'renamed@example.com', 'RENAMED@EXAMPLE.COM', '{Stamp}', '{Stamp}')");
+        sameAccount.Execute($"INSERT INTO profiles (id, display_name, created_at) VALUES (randomblob(16), 'Renamed', '{Stamp}')");
+        sameAccount.Execute($"INSERT INTO accounts (id, email, normalized_email, created_at, updated_at, profile_id) VALUES ({Blob(maya.Account)}, 'renamed@example.com', 'RENAMED@EXAMPLE.COM', '{Stamp}', '{Stamp}', (SELECT id FROM profiles WHERE display_name = 'Renamed'))");
         Assert.Equal(UserImportRefusal.AlreadyHere, Assert.Throws<UserImportRefusedException>(() => ImportInto(sameAccount, export)).Refusal);
         Assert.Equal(0, sameAccount.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
 
         var sameProfile = NewStore();
-        sameProfile.Execute($"INSERT INTO profiles (id, display_name, created_at) VALUES ({Blob(maya.Profiles[1])}, 'Taken', '{Stamp}')");
+        sameProfile.Execute($"INSERT INTO profiles (id, display_name, created_at) VALUES ({Blob(maya.Profiles[0])}, 'Taken', '{Stamp}')");
         Assert.Equal(UserImportRefusal.AlreadyHere, Assert.Throws<UserImportRefusedException>(() => ImportInto(sameProfile, export)).Refusal);
         Assert.Equal(0, sameProfile.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
         Assert.Equal(0, sameProfile.Scalar("SELECT COUNT(*) FROM accounts"));
@@ -471,6 +468,7 @@ public sealed class UserExportImportTests : IDisposable
         var selected = source.AddPlaylist(maya.Profiles[0], "For the kids", movie);
         source.Execute($"UPDATE collections SET is_featured = 1, audience = 'Everyone' WHERE id = {Blob(everyone)}");
         source.Execute($"UPDATE collections SET is_featured = 1, audience = 'SelectedProfiles' WHERE id = {Blob(selected)}");
+        source.Execute($"INSERT INTO collection_profile_audience (collection_id, profile_id) VALUES ({Blob(selected)}, {Blob(maya.Profiles[0])})");
         source.Execute($"INSERT INTO collection_profile_audience (collection_id, profile_id) VALUES ({Blob(selected)}, {Blob(maya.Profiles[1])})");
 
         ImportInto(target, Export(source, maya));
@@ -478,21 +476,22 @@ public sealed class UserExportImportTests : IDisposable
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM collections WHERE is_featured <> 0"));
         Assert.Equal("Private", target.Text("SELECT audience FROM collections WHERE display_name = 'For everyone'"));
         Assert.Equal("SelectedProfiles", target.Text("SELECT audience FROM collections WHERE display_name = 'For the kids'"));
-        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM collection_profile_audience WHERE profile_id = {Blob(maya.Profiles[1])}"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM collection_profile_audience WHERE profile_id = {Blob(maya.Profiles[0])}"));
+        Assert.Equal(0, target.Scalar($"SELECT COUNT(*) FROM collection_profile_audience WHERE profile_id = {Blob(maya.Profiles[1])}"));
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM collection_profile_audience"));
     }
 
     [Fact]
-    public void Preview_ListsEachProfilesRoleAndContentLimitAsTheFileStatesThem()
+    public void Preview_ListsTheProfilesRoleAndContentLimitAsTheFileStatesThem()
     {
         var source = NewStore();
-        var maya = source.AddUser("maya@example.com", ["Maya", "Maya (kids)"], administrator: false);
-        source.Execute($"UPDATE profiles SET role = 'RestrictedProfile', content_limit = 'PG', content_limit_allow_unrated = 1 WHERE id = {Blob(maya.Profiles[1])}");
+        var maya = source.AddUser("maya@example.com", ["Maya (kids)"], administrator: false);
+        source.Execute($"UPDATE profiles SET role = 'RestrictedProfile', content_limit = 'PG', content_limit_allow_unrated = 1 WHERE id = {Blob(maya.Profiles[0])}");
 
         var summary = UserExportReader.Read(Export(source, maya));
 
-        Assert.Equal(new UserExportProfile("Maya", "StandardUser", null, false), summary.Profiles[0]);
-        Assert.Equal(new UserExportProfile("Maya (kids)", "RestrictedProfile", "PG", true), summary.Profiles[1]);
+        Assert.Equal(new UserExportProfile("Maya (kids)", "RestrictedProfile", "PG", true), Assert.Single(summary.Profiles));
+        Assert.Equal(maya.Profiles[0], Assert.Single(summary.ProfileIds));
     }
 
     [Fact]
@@ -618,10 +617,10 @@ public sealed class UserExportImportTests : IDisposable
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
         var export = Export(source, maya);
         var grants = new BackupExportTable(
-            "account_feature_grants",
+            "profile_feature_grants",
             BackupDataKind.Configuration,
-            ["account_id", "feature_id", "granted_at"],
-            [[BackupValue.FromBlob(GuidSql.ToBlob(maya.Account)), BackupValue.FromText("read"), BackupValue.FromText(Stamp)]]);
+            ["profile_id", "feature_id", "granted_at"],
+            [[BackupValue.FromBlob(GuidSql.ToBlob(maya.Profiles[0])), BackupValue.FromText("read"), BackupValue.FromText(Stamp)]]);
         using var stream = Zip(export with { Tables = [.. export.Tables, grants] });
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
@@ -714,7 +713,7 @@ public sealed class UserExportImportTests : IDisposable
     private static string Counts(Store store) =>
         string.Join(
             ",",
-            new[] { "accounts", "profiles", "households", "account_profile_grants", "backup_restores", "waiting_personal_state", "account_external_logins" }
+            new[] { "accounts", "profiles", "households", "profile_credentials", "backup_restores", "waiting_personal_state", "account_external_logins" }
                 .Select(table => store.Scalar($"SELECT COUNT(*) FROM {table}")));
 
     public void Dispose()
@@ -751,34 +750,63 @@ public sealed class UserExportImportTests : IDisposable
 
         public DatabaseConnection Database { get; }
 
-        public Guid AddHousehold(string name, Guid? id = null, Guid? primary = null)
+        public Guid AddHousehold(string name, Guid? id = null)
         {
             var household = id ?? Guid.NewGuid();
             Run(
-                "INSERT INTO households (id, name, created_at, primary_account_id) VALUES (@id, @name, @now, @primary)",
-                new { id = GuidSql.ToBlob(household), name, now = Stamp, primary = primary is { } p ? GuidSql.ToBlob(p) : null });
+                "INSERT INTO households (id, name, created_at) VALUES (@id, @name, @now)",
+                new { id = GuidSql.ToBlob(household), name, now = Stamp });
             return household;
         }
 
-        /// <summary>An account with its sign-in, two-step, notices, access rights and a session, and its profiles with their settings.</summary>
+        /// <summary>
+        /// A user with its sign-in, two-step, notices and a session, and the profile it opens (the first name) with its settings. Any further
+        /// names are other people of the same household: they exist, but the user does not open them and an export never holds them.
+        /// </summary>
         public User AddUser(string email, string[] profileNames, bool administrator, Guid? household = null, bool householdAdmin = false, string? twoStepSecret = null, string? outsideSubject = null)
         {
             var account = Guid.NewGuid();
             var accountBlob = GuidSql.ToBlob(account);
+            var profiles = new List<Guid>();
+            for (var i = 0; i < profileNames.Length; i++)
+            {
+                var profile = Guid.NewGuid();
+                var profileBlob = GuidSql.ToBlob(profile);
+                profiles.Add(profile);
+                Run(
+                    "INSERT INTO profiles (id, display_name, role, created_at, household_id, is_server_admin, is_household_admin) VALUES (@id, @name, 'StandardUser', @now, @household, @admin, @householdAdmin)",
+                    new
+                    {
+                        id = profileBlob,
+                        name = profileNames[i],
+                        now = Stamp,
+                        household = household is { } h2 ? GuidSql.ToBlob(h2) : null,
+                        admin = i == 0 && administrator ? 1 : 0,
+                        householdAdmin = i == 0 && householdAdmin ? 1 : 0,
+                    });
+                Run(
+                    """
+                    INSERT INTO profile_credentials (id, profile_id, credential_kind, secret_hash, hash_scheme, hash_version, security_stamp, created_at, updated_at)
+                    VALUES (@id, @profile, 'ProfilePin', @hash, 'pbkdf2', 1, 'stamp', @now, @now)
+                    """,
+                    new { id = GuidSql.ToBlob(Guid.NewGuid()), profile = profileBlob, hash = "PIN-" + Guid.NewGuid().ToString("N"), now = Stamp });
+                Run("INSERT INTO profile_grid_preferences (profile_id, grid_key, sort, updated_at) VALUES (@profile, 'watch', 'title', @now)", new { profile = profileBlob, now = Stamp });
+                Run("INSERT INTO user_playback_settings (profile_id, settings_json, updated_at) VALUES (@profile, '{\"volume\":7}', @now)", new { profile = profileBlob, now = Stamp });
+                Run("INSERT INTO profile_nsfw_settings (profile_id, access_mode, updated_at) VALUES (@profile, 'pin', @now)", new { profile = profileBlob, now = Stamp });
+            }
+
             Run(
                 """
-                INSERT INTO accounts (id, email, normalized_email, is_administrator, created_at, updated_at, household_id, household_admin, this_computer_only)
-                VALUES (@account, @email, @normalized, @admin, @now, @now, @household, @householdAdmin, 1)
+                INSERT INTO accounts (id, email, normalized_email, created_at, updated_at, this_computer_only, profile_id)
+                VALUES (@account, @email, @normalized, @now, @now, 1, @profile)
                 """,
                 new
                 {
                     account = accountBlob,
                     email,
                     normalized = email.ToUpperInvariant(),
-                    admin = administrator ? 1 : 0,
                     now = Stamp,
-                    household = household is { } h ? GuidSql.ToBlob(h) : null,
-                    householdAdmin = householdAdmin ? 1 : 0,
+                    profile = GuidSql.ToBlob(profiles[0]),
                 });
             Run(
                 """
@@ -787,8 +815,8 @@ public sealed class UserExportImportTests : IDisposable
                 """,
                 new { id = GuidSql.ToBlob(Guid.NewGuid()), account = accountBlob, hash = "HASH-" + Guid.NewGuid().ToString("N"), now = Stamp });
             Run("INSERT INTO account_notice_dismissals (account_id, notice_key, dismissed_at) VALUES (@account, 'secure-account', @now)", new { account = accountBlob, now = Stamp });
-            Run("INSERT INTO account_feature_grants (account_id, feature_id, granted_at) VALUES (@account, 'read', @now)", new { account = accountBlob, now = Stamp });
-            Run("INSERT INTO account_library_grants (account_id, library_id, granted_at) VALUES (@account, @library, @now)", new { account = accountBlob, library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
+            Run("INSERT INTO profile_feature_grants (profile_id, feature_id, granted_at) VALUES (@profile, 'read', @now)", new { profile = GuidSql.ToBlob(profiles[0]), now = Stamp });
+            Run("INSERT INTO profile_library_grants (profile_id, library_id, granted_at) VALUES (@profile, @library, @now)", new { profile = GuidSql.ToBlob(profiles[0]), library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
             if (twoStepSecret is not null)
             {
                 Run("INSERT INTO account_two_step (account_id, secret_protected, created_at) VALUES (@account, @secret, @now)", new { account = accountBlob, secret = twoStepSecret, now = Stamp });
@@ -799,29 +827,6 @@ public sealed class UserExportImportTests : IDisposable
                 Run(
                     "INSERT INTO account_external_logins (id, account_id, provider, issuer, subject, linked_at) VALUES (@id, @account, 'oidc', 'https://issuer.example', @subject, @now)",
                     new { id = GuidSql.ToBlob(Guid.NewGuid()), account = accountBlob, subject = outsideSubject, now = Stamp });
-            }
-
-            var profiles = new List<Guid>();
-            for (var i = 0; i < profileNames.Length; i++)
-            {
-                var profile = Guid.NewGuid();
-                var profileBlob = GuidSql.ToBlob(profile);
-                profiles.Add(profile);
-                Run(
-                    "INSERT INTO profiles (id, display_name, role, created_at, household_id) VALUES (@id, @name, 'StandardUser', @now, @household)",
-                    new { id = profileBlob, name = profileNames[i], now = Stamp, household = household is { } h2 ? GuidSql.ToBlob(h2) : null });
-                Run(
-                    "INSERT INTO account_profile_grants (account_id, profile_id, is_default, is_enabled, admin_enabled, granted_at) VALUES (@account, @profile, @isDefault, 1, @admin, @now)",
-                    new { account = accountBlob, profile = profileBlob, isDefault = i == 0 ? 1 : 0, admin = administrator ? 1 : 0, now = Stamp });
-                Run(
-                    """
-                    INSERT INTO profile_credentials (id, profile_id, credential_kind, secret_hash, hash_scheme, hash_version, security_stamp, created_at, updated_at)
-                    VALUES (@id, @profile, 'ProfilePin', @hash, 'pbkdf2', 1, 'stamp', @now, @now)
-                    """,
-                    new { id = GuidSql.ToBlob(Guid.NewGuid()), profile = profileBlob, hash = "PIN-" + Guid.NewGuid().ToString("N"), now = Stamp });
-                Run("INSERT INTO profile_grid_preferences (profile_id, grid_key, sort, updated_at) VALUES (@profile, 'watch', 'title', @now)", new { profile = profileBlob, now = Stamp });
-                Run("INSERT INTO user_playback_settings (profile_id, settings_json, updated_at) VALUES (@profile, '{\"volume\":7}', @now)", new { profile = profileBlob, now = Stamp });
-                Run("INSERT INTO profile_nsfw_settings (profile_id, access_mode, updated_at) VALUES (@profile, 'pin', @now)", new { profile = profileBlob, now = Stamp });
             }
 
             Run(

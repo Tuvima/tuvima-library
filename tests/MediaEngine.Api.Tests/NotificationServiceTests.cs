@@ -335,27 +335,18 @@ public sealed class NotificationServiceTests : IDisposable
                 Email = email,
                 NormalizedEmail = email?.ToUpperInvariant(),
                 IsEnabled = enabled,
-                IsAdministrator = administrator,
-                // Every sign-in lives in the Library's own household (a server administrator must).
-                HouseholdId = administrator ? _household : null,
                 CreatedAt = Start,
                 UpdatedAt = Start,
             },
-            new AccountProfileGrant
-            {
-                AccountId = accountId,
-                ProfileId = profile.Id,
-                IsDefault = true,
-                IsEnabled = true,
-                AdminEnabled = administrator,
-                GrantedAt = Start,
-            },
+            new TestGrant(accountId, profile.Id, IsDefault: true, AdminEnabled: administrator),
             new HashSet<AccountFeatureId>(),
             new HashSet<Guid>(),
-            newProfile: profile);
+            newProfile: profile,
+            // Every server administrator lives in the Library's own household.
+            householdId: administrator ? _household : null);
         if (administrator)
         {
-            _household ??= (await _accounts.GetByIdAsync(accountId))!.HouseholdId;
+            _household ??= await _accounts.GetHouseholdIdAsync(_db, accountId);
         }
     }
 

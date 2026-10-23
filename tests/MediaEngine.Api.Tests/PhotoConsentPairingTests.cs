@@ -76,21 +76,11 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
                 Email = "owner@example.com",
                 NormalizedEmail = "OWNER@EXAMPLE.COM",
                 IsEnabled = true,
-                IsAdministrator = true,
                 AuthorizationVersion = 1,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new AccountProfileGrant
-            {
-                AccountId = Account.SeedAccountId,
-                ProfileId = Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AdminEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = DateTimeOffset.UtcNow,
-            },
+            new TestGrant(Account.SeedAccountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: true),
             new HashSet<AccountFeatureId>(),
             new HashSet<Guid>());
         _authorization = new ClientAuthorizationService(

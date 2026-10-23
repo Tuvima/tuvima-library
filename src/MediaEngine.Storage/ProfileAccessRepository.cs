@@ -45,33 +45,43 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 return false;
             }
 
-            // The Vault opens only through Vault mode, never through a library grant (owner decision 2026-10-22).
-            var vaultIds = conn.Query<string>("SELECT library_id FROM vault_libraries;", transaction: tx)
-                .Select(text => Guid.TryParse(text, out var parsed) ? parsed : Guid.Empty)
-                .ToHashSet();
-            if (libraries.Any(vaultIds.Contains))
-            {
-                throw new ArgumentException("The Vault can't be given to a profile as a library. It opens only through Vault mode.");
-            }
-
-            var at = Iso(changedAt);
-            conn.Execute("DELETE FROM profile_feature_grants WHERE profile_id=@profileId;", new { profileId }, tx);
-            conn.Execute("DELETE FROM profile_library_grants WHERE profile_id=@profileId;", new { profileId }, tx);
-            foreach (var feature in features)
-            {
-                conn.Execute("INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,@feature,@at);",
-                    new { profileId, feature = feature.Value, at }, tx);
-            }
-
-            foreach (var libraryId in libraries)
-            {
-                conn.Execute("INSERT INTO profile_library_grants(profile_id,library_id,granted_at) VALUES(@profileId,@libraryId,@at);",
-                    new { profileId, libraryId, at }, tx);
-            }
-
+            WriteAccessRows(conn, tx, profileId, features, libraries, changedAt);
             BumpAuthorizationVersion(conn, tx, profileId);
             return true;
         }, ct);
+    }
+
+    /// <summary>
+    /// Replaces a profile's Read/Watch/Listen/View and library rows on the caller's connection and transaction (the caller raises the
+    /// authorization version when the profile already existed). The Vault opens only through Vault mode, never through a library
+    /// grant (owner decision 2026-10-22).
+    /// </summary>
+    internal static void WriteAccessRows(
+        IDbConnection conn, IDbTransaction tx, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
+        DateTimeOffset changedAt)
+    {
+        var vaultIds = conn.Query<string>("SELECT library_id FROM vault_libraries;", transaction: tx)
+            .Select(text => Guid.TryParse(text, out var parsed) ? parsed : Guid.Empty)
+            .ToHashSet();
+        if (libraries.Any(vaultIds.Contains))
+        {
+            throw new ArgumentException("The Vault can't be given to a profile as a library. It opens only through Vault mode.");
+        }
+
+        var at = Iso(changedAt);
+        conn.Execute("DELETE FROM profile_feature_grants WHERE profile_id=@profileId;", new { profileId }, tx);
+        conn.Execute("DELETE FROM profile_library_grants WHERE profile_id=@profileId;", new { profileId }, tx);
+        foreach (var feature in features)
+        {
+            conn.Execute("INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,@feature,@at);",
+                new { profileId, feature = feature.Value, at }, tx);
+        }
+
+        foreach (var libraryId in libraries)
+        {
+            conn.Execute("INSERT INTO profile_library_grants(profile_id,library_id,granted_at) VALUES(@profileId,@libraryId,@at);",
+                new { profileId, libraryId, at }, tx);
+        }
     }
 
     public Task<ProfileAdminFlags?> GetAdminFlagsAsync(Guid profileId, CancellationToken ct = default)

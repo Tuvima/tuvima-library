@@ -11,9 +11,8 @@ using Microsoft.AspNetCore.Identity;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// The server must always keep one administrator who can sign in: switching one off, taking administrator away, removing
-/// their administrator access or deleting them (or the person they administer as) is refused when nobody else could still
-/// sign in as an administrator, and allowed once somebody else can.
+/// The server must always keep one administrator who can sign in: taking administrator away or deleting them (or the person
+/// they administer as) is refused when nobody else could still sign in as an administrator, and allowed once somebody else can.
 /// </summary>
 public sealed class LastAdministratorGuardTests : IAsyncDisposable
 {
@@ -25,6 +24,7 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
     private readonly DatabaseConnection _database;
     private readonly ConfigurationDirectoryLoader _configuration;
     private readonly AccountRepository _accounts;
+    private readonly ProfileAccessRepository _access;
     private readonly AccountAccessMutationService _mutations;
     private readonly RequestAuthority _actor = new(PrincipalKind.Human, true,
         AccountId: Guid.NewGuid(),
@@ -55,53 +55,41 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
             new AccountExternalLoginService(new AccountExternalLoginRepository(_database), _accounts),
             null!, new AuthenticationProviderConfigurationService(_configuration), _configuration, TimeProvider.System);
         _slowCheck = new SlowAfterCheck(usable);
-        _mutations = new AccountAccessMutationService(
+        _access = new ProfileAccessRepository(_database);
+        _mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
             _accounts,
-                        new ProfileAccessRepository(_database), identities, profiles, _configuration,
+            _access, identities, profiles, _configuration,
             new AllowAdministratorDecisions(), new AllowEvaluator(),
             new NoOpInvalidation(), new NoOpAudit(),
-            identity, new NoProfilePhotos(), TimeProvider.System, _slowCheck, new AuthenticationPolicyMutationGate());
+            identity, new NoProfilePhotos(), TimeProvider.System, _slowCheck, new AuthenticationPolicyMutationGate()),
+            _accounts, _access, identity);
     }
 
-    // ---- Disabling and demoting ----
-
-    [Fact]
-    public async Task DisablingTheOnlyAdministrator_IsRefused_AndTheAccountStaysOn()
-    {
-        var only = await CreateAdministratorAsync();
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _mutations.UpdateAsync(_actor, only.Id, new UpdateAccountAccessCommand(only.Email, false, true)));
-
-        Assert.Equal(Refusal, refused.Message);
-        Assert.True((await _accounts.GetByIdAsync(only.Id))!.IsEnabled);
-    }
+    // ---- Demoting ----
 
     [Fact]
     public async Task TakingAdministratorAwayFromTheOnlyAdministrator_IsRefused_AndTheyStayAnAdministrator()
     {
         var only = await CreateAdministratorAsync();
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _mutations.UpdateAsync(_actor, only.Id, new UpdateAccountAccessCommand(only.Email, true, false)));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => DemoteAsync(only));
 
         Assert.Equal(Refusal, refused.Message);
-        Assert.True((await _accounts.GetByIdAsync(only.Id))!.IsAdministrator);
+        Assert.True((await _access.GetAdminFlagsAsync(only.ProfileId))!.IsServerAdministrator);
     }
 
     [Fact]
-    public async Task AnAdministratorCanBeDisabledOrDemoted_OnceAnotherCanSignIn_ButNotTheLastOneLeft()
+    public async Task AnAdministratorCanBeDemoted_OnceAnotherCanSignIn_ButNotTheLastOneLeft()
     {
         var first = await CreateAdministratorAsync();
         var second = await CreateAdministratorAsync();
         // The Library's own household keeps a household administrator too (D7), so the second one looks after it as well.
-        await new ProfileAccessRepository(_database).SetHouseholdAdministratorAsync(second.ProfileId!.Value, true, DateTimeOffset.UtcNow);
+        await _access.SetHouseholdAdministratorAsync(second.ProfileId, true, DateTimeOffset.UtcNow);
 
-        await _mutations.UpdateAsync(_actor, first.Id, new UpdateAccountAccessCommand(first.Email, false, true));
-        Assert.False((await _accounts.GetByIdAsync(first.Id))!.IsEnabled);
+        await DemoteAsync(first);
+        Assert.False((await _access.GetAdminFlagsAsync(first.ProfileId))!.IsServerAdministrator);
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _mutations.UpdateAsync(_actor, second.Id, new UpdateAccountAccessCommand(second.Email, true, false)));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => DemoteAsync(second));
         Assert.Equal(Refusal, refused.Message);
     }
 
@@ -110,10 +98,11 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
     {
         var only = await CreateAdministratorAsync();
 
-        // Same account, still enabled and still an administrator: nothing is lost, so nothing is refused here.
-        await _mutations.UpdateAsync(_actor, only.Id, new UpdateAccountAccessCommand(only.Email, true, true));
+        // Same user, still enabled and still an administrator: nothing is lost, so nothing is refused here.
+        await _mutations.ChangeEmailAsync(_actor, only.Id, "renamed@example.com");
 
-        Assert.True((await _accounts.GetByIdAsync(only.Id))!.IsAdministrator);
+        Assert.True((await _access.GetAdminFlagsAsync(only.ProfileId))!.IsServerAdministrator);
+        Assert.Equal("renamed@example.com", (await _accounts.GetByIdAsync(only.Id))!.Email);
     }
 
     [Fact]
@@ -127,8 +116,7 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
         core.Auth.ExternalSignInEnabled = false;
         _configuration.SaveCore(core);
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _mutations.UpdateAsync(_actor, first.Id, new UpdateAccountAccessCommand(first.Email, false, true)));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => DemoteAsync(first));
 
         Assert.Equal(Refusal, refused.Message);
     }
@@ -170,104 +158,15 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
         Assert.Null(await _accounts.GetByIdAsync(member.Id));
     }
 
-    // ---- Administrator access on a grant ----
-
-    [Fact]
-    public async Task SwitchingOffAdministratorAccessOnTheOnlyAdministratorsGrant_IsRefused_AndAllowedOnceAnotherCanSignIn()
-    {
-        var first = await CreateAdministratorAsync();
-        var grant = await OwnGrantAsync(first);
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _mutations.UpsertGrantAsync(_actor, WithoutAdministrator(grant)));
-        Assert.Equal(Refusal, refused.Message);
-        Assert.True((await _accounts.GetGrantAsync(first.Id, grant.ProfileId))!.AdminEnabled);
-        Assert.True((await _accounts.GetByIdAsync(first.Id))!.IsAdministrator);
-
-        await CreateAdministratorAsync();
-        await _mutations.UpsertGrantAsync(_actor, WithoutAdministrator(grant));
-
-        // The role is the profile's: switching it off on the grant takes the administrator role off the profile.
-        Assert.False((await _accounts.GetGrantAsync(first.Id, grant.ProfileId))!.AdminEnabled);
-        Assert.False((await _accounts.GetByIdAsync(first.Id))!.IsAdministrator);
-    }
-
-    [Fact]
-    public async Task DisablingTheOnlyAdministratorsGrant_IsRefused()
-    {
-        var first = await CreateAdministratorAsync();
-        var grant = await OwnGrantAsync(first);
-        // The administrator opens a second person so that its first grant could be switched off on its own.
-        await _mutations.CreateProfileAsync(_actor, new CreateManagedProfileCommand(first.Id, "Other", "#445566", false));
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _mutations.UpsertGrantAsync(_actor, new AccountProfileGrant
-            {
-                AccountId = first.Id,
-                ProfileId = grant.ProfileId,
-                IsDefault = false,
-                IsEnabled = false,
-                AdminEnabled = true,
-                AuthorizationVersion = grant.AuthorizationVersion,
-            }));
-
-        Assert.Equal(Refusal, refused.Message);
-    }
-
-    [Fact]
-    public async Task AdministratorAccessOnAPersonTheSignInOnlyOpens_IsRefused_BecauseTheRoleBelongsToTheProfileASignInOpens()
-    {
-        var first = await CreateAdministratorAsync();
-        var other = await _mutations.CreateProfileAsync(_actor, new CreateManagedProfileCommand(first.Id, "Other", "#445566", false));
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _mutations.UpsertGrantAsync(_actor, new AccountProfileGrant
-            {
-                AccountId = first.Id,
-                ProfileId = other.Id,
-                IsEnabled = true,
-                AdminEnabled = true,
-                AuthorizationVersion = 1,
-            }));
-
-        Assert.Equal("Administrator access belongs to the profile a sign-in opens.", refused.Message);
-        Assert.False((await new ProfileRepository(_database).GetByIdAsync(other.Id))!.IsServerAdministrator);
-    }
-
-    [Fact]
-    public async Task RemovingTheOnlyAdministratorsAdministratorGrant_IsRefused_AndAllowedOnceAnotherCanSignIn()
-    {
-        var first = await CreateAdministratorAsync();
-        var second = await CreateAdministratorAsync();
-        var firstAdminProfile = (await OwnGrantAsync(first)).ProfileId;
-        // Give the first administrator a second, ordinary person so removing the administrator grant is otherwise possible.
-        await _mutations.CreateProfileAsync(_actor, new CreateManagedProfileCommand(first.Id, "Other", "#445566", false));
-        // The second administrator is no longer one, so the first is the last.
-        await _mutations.UpdateAsync(_actor, second.Id, new UpdateAccountAccessCommand(second.Email, true, false));
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _mutations.RevokeGrantAsync(_actor, first.Id, firstAdminProfile));
-        Assert.Equal(Refusal, refused.Message);
-        Assert.True((await _accounts.GetByIdAsync(first.Id))!.IsAdministrator);
-
-        // Handing administrator back to the second makes the removal allowed.
-        await _mutations.UpdateAsync(_actor, second.Id, new UpdateAccountAccessCommand(second.Email, true, true));
-        await _mutations.RevokeGrantAsync(_actor, first.Id, firstAdminProfile);
-
-        // Taking the administrator's own profile grant away takes the role off the profile too.
-        Assert.False((await _accounts.GetByIdAsync(first.Id))!.IsAdministrator);
-        Assert.True((await _accounts.GetByIdAsync(second.Id))!.IsAdministrator);
-    }
-
     // ---- Deleting the person an administrator administers as ----
 
     [Fact]
     public async Task DeletingThePersonTheOnlyAdministratorAdministersAs_IsRefused()
     {
         var first = await CreateAdministratorAsync();
-        var adminProfile = (await OwnGrantAsync(first)).ProfileId;
-        // The administrator also opens a second person, so deleting the first is not stopped by the "only profile" rule.
-        await _mutations.CreateProfileAsync(_actor, new CreateManagedProfileCommand(first.Id, "Other", "#778899", false));
+        var adminProfile = first.ProfileId;
+        // The household also has a second person, so deleting the first is not stopped by the "only profile" rule.
+        await AddPersonAsync(first, "Other");
 
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _mutations.DeleteProfileAsync(_actor, adminProfile));
@@ -280,8 +179,8 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
     {
         var first = await CreateAdministratorAsync();
         await CreateAdministratorAsync();
-        var adminProfile = (await OwnGrantAsync(first)).ProfileId;
-        await _mutations.CreateProfileAsync(_actor, new CreateManagedProfileCommand(first.Id, "Other", "#778899", false));
+        var adminProfile = first.ProfileId;
+        await AddPersonAsync(first, "Other");
 
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _mutations.DeleteProfileAsync(_actor, adminProfile));
@@ -302,13 +201,13 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
         _slowCheck.Delay = TimeSpan.FromMilliseconds(300);
 
         var attempts = await Task.WhenAll(
-            TryAsync(() => _mutations.UpdateAsync(_actor, first.Id, new UpdateAccountAccessCommand(first.Email, true, false))),
-            TryAsync(() => _mutations.UpdateAsync(_actor, second.Id, new UpdateAccountAccessCommand(second.Email, true, false))));
+            TryAsync(() => DemoteAsync(first)),
+            TryAsync(() => DemoteAsync(second)));
 
         Assert.Equal(1, attempts.Count(error => error is null));
         var refused = Assert.Single(attempts, error => error is not null);
         Assert.Equal(Refusal, refused!.Message);
-        var remaining = (await _accounts.GetAllAsync()).Count(account => account.IsAdministrator);
+        var remaining = (await _accounts.GetEnabledServerAdministratorsAsync()).Count;
         Assert.Equal(1, remaining);
     }
 
@@ -327,19 +226,17 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
 
     // ---- Helpers ----
 
-    /// <summary>The profile a sign-in opens (its default entry in the household view of what it may act as).</summary>
-    private async Task<AccountProfileGrant> OwnGrantAsync(Account account) =>
-        (await _accounts.GetGrantsAsync(account.Id)).Single(grant => grant.IsDefault);
+    /// <summary>Takes the server administrator role off the profile the user opens (its household administrator role stays as it is).</summary>
+    private async Task DemoteAsync(Account user) =>
+        await _mutations.SetProfileRolesAsync(_actor, user.ProfileId,
+            (await _access.GetAdminFlagsAsync(user.ProfileId))!.IsHouseholdAdministrator, isServerAdministrator: false);
 
-    private static AccountProfileGrant WithoutAdministrator(AccountProfileGrant grant) => new()
+    /// <summary>Adds an ordinary person to the household of the user's profile.</summary>
+    private async Task AddPersonAsync(Account user, string name)
     {
-        AccountId = grant.AccountId,
-        ProfileId = grant.ProfileId,
-        IsDefault = grant.IsDefault,
-        IsEnabled = grant.IsEnabled,
-        AdminEnabled = false,
-        AuthorizationVersion = grant.AuthorizationVersion,
-    };
+        var household = (await new HouseholdRepository(_database).GetForAccountAsync(user.Id))!.Id;
+        await _mutations.AddHouseholdPersonAsync(_actor, new AddHouseholdPersonCommand(household, name, "#445566", false, null));
+    }
 
     /// <summary>An enabled administrator with a password, so under the default policy they can sign in.</summary>
     private async Task<Account> CreateAdministratorAsync()

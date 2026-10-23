@@ -427,11 +427,11 @@ public static class ProfileEndpoints
     }
 
     /// <summary>
-    /// The people a caller's account may open: its granted profiles, and for anyone but a server administrator only those
-    /// in the account's own household (the same rule as switching person).
+    /// The people a caller's user may open: the profiles of the user's own household (<paramref name="household"/> is that list from
+    /// the data store, the same rule as switching person).
     /// </summary>
-    public static IReadOnlyList<Profile> ProfilesForCaller(Account? account, IEnumerable<Profile> profiles, IReadOnlySet<Guid> granted) =>
-        [.. profiles.Where(profile => granted.Contains(profile.Id) && account is not null && account.MaySwitchInto(profile.HouseholdId))];
+    public static IReadOnlyList<Profile> ProfilesForCaller(Account? account, IEnumerable<Profile> profiles, IReadOnlySet<Guid> household) =>
+        [.. profiles.Where(profile => account is not null && household.Contains(profile.Id))];
 
     private static SeriesMissingItemPreferenceDto ToSeriesMissingItemPreferenceDto(
         Guid profileId,

@@ -96,19 +96,18 @@ public sealed class DashboardAccessMutationTests
     }
 
     [Fact]
-    public async Task AccountGrantProtection_AcceptsTheActualNoContentSuccessContract()
+    public async Task ProfileAdminProtection_AcceptsTheActualNoContentSuccessContract()
     {
-        var accountId = Guid.NewGuid();
         var profileId = Guid.NewGuid();
         var handler = new RecordingNoContentHandler();
         var client = new DashboardIdentityClient(new TestClientFactory(handler));
 
-        var protection = await client.SetGrantProtectionResultAsync(accountId, profileId, new SetGrantAdminProtectionRequest(true, "FixedDuration", 30));
+        var protection = await client.SetProfileAdminProtectionResultAsync(profileId, new SetProfileAdminProtectionRequest(true, "FixedDuration", 30));
 
         Assert.True(protection.Succeeded);
         Assert.All(handler.Requests, request => Assert.Equal("application/json", request.ContentType));
         Assert.Equal([
-            $"/access/accounts/{accountId:D}/grants/{profileId:D}/admin-protection",
+            $"/access/profiles/{profileId:D}/admin-protection",
         ], handler.Paths);
     }
 

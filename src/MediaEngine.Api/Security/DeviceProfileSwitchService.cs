@@ -75,14 +75,13 @@ public sealed class DeviceProfileSwitchService(
             return new(null, DeviceProfileSwitchOutcome.RateLimited, retryAfter);
         }
 
-        var account = await accounts.GetByIdAsync(device.AccountId, ct).ConfigureAwait(false);
         var grantedIds = await accounts.GetProfileIdsAsync(device.AccountId, ct).ConfigureAwait(false);
         var withPin = await identity.GetProfileIdsWithPinAsync(grantedIds, ct).ConfigureAwait(false);
         var list = new List<DeviceProfileDto>(grantedIds.Count);
         foreach (var profileId in grantedIds)
         {
             var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
-            if (profile is null || account is null || !account.MaySwitchInto(profile.HouseholdId))
+            if (profile is null)
             {
                 continue;
             }
@@ -132,9 +131,9 @@ public sealed class DeviceProfileSwitchService(
 
         // Belt and braces: everyone, a server administrator included, switches only inside their own household. A person
         // outside it answers exactly like one the account cannot use.
-        var account = await accounts.GetByIdAsync(device.AccountId, ct).ConfigureAwait(false);
+        var access = await accounts.GetActiveProfileAccessAsync(device.AccountId, targetProfileId, ct).ConfigureAwait(false);
         var target = await profiles.GetByIdAsync(targetProfileId, ct).ConfigureAwait(false);
-        if (account is null || target is null || !account.MaySwitchInto(target.HouseholdId))
+        if (access is null || target is null)
         {
             return new(DeviceProfileSwitchOutcome.ProfileNotAllowed, Description: "This account cannot use that profile.");
         }

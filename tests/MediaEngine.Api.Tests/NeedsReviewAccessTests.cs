@@ -90,7 +90,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     {
         var routes = await MapReviewRoutesAsync();
         var householdAdmin = await CreateAccountAsync(administrator: false);
-        await _accounts.SetHouseholdAdminAsync(householdAdmin, true, _clock.GetUtcNow());
+        await _accounts.SetHouseholdAdminAsync(_database, householdAdmin, true, _clock.GetUtcNow());
 
         // Prove the principal really is a household administrator, so the refusal below is not vacuous.
         var authority = await Resolver().ResolveAsync(ContextFor(householdAdmin));
@@ -114,7 +114,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     {
         var routes = await MapReviewRoutesAsync();
         var serverAdmin = await CreateAccountAsync(administrator: true);
-        var kidsProfile = await AddKidsProfileAsync(serverAdmin, adminEnabled: true);
+        var kidsProfile = await AddKidsProfileAsync(serverAdmin);
 
         var authority = await Resolver().ResolveAsync(ContextFor(serverAdmin, kidsProfile));
         Assert.True(authority.ActiveProfileIsRestricted);
@@ -158,9 +158,9 @@ public sealed class NeedsReviewAccessTests : IDisposable
             ApplicationType.UserClient, ApplicationPermissionIds.ReviewRead, ApplicationPermissionIds.ReviewResolve);
         var serverAdmin = await CreateAccountAsync(administrator: true);
         var householdAdmin = await CreateAccountAsync(administrator: false);
-        await _accounts.SetHouseholdAdminAsync(householdAdmin, true, _clock.GetUtcNow());
+        await _accounts.SetHouseholdAdminAsync(_database, householdAdmin, true, _clock.GetUtcNow());
         var person = await CreateAccountAsync(administrator: false);
-        var kidsProfile = await AddKidsProfileAsync(serverAdmin, adminEnabled: true);
+        var kidsProfile = await AddKidsProfileAsync(serverAdmin);
 
         await AssertAllRoutesAsync(routes, DelegatedContext(app, serverAdmin), allowed: true, "app for a server administrator");
         await AssertAllRoutesAsync(routes, DelegatedContext(app, householdAdmin), allowed: false, "app for a household administrator");
@@ -209,7 +209,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     public async Task DashboardAuthority_GivesNothingForNeedsReviewToAHouseholdAdministrator()
     {
         var householdAdmin = await CreateAccountAsync(administrator: false);
-        await _accounts.SetHouseholdAdminAsync(householdAdmin, true, _clock.GetUtcNow());
+        await _accounts.SetHouseholdAdminAsync(_database, householdAdmin, true, _clock.GetUtcNow());
 
         var projected = await Projector().ProjectAsync(householdAdmin, SignInProfile(householdAdmin), Guid.NewGuid());
 
@@ -224,7 +224,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     public async Task DashboardAuthority_GivesNothingForNeedsReviewToAKidsProfile_WhateverItsAccountIs(bool accountIsServerAdministrator)
     {
         var account = await CreateAccountAsync(administrator: accountIsServerAdministrator);
-        var kidsProfile = await AddKidsProfileAsync(account, adminEnabled: accountIsServerAdministrator);
+        var kidsProfile = await AddKidsProfileAsync(account);
 
         var projected = await Projector().ProjectAsync(account, kidsProfile, Guid.NewGuid());
 
@@ -263,7 +263,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
         new ProfileAccessRepository(_database),
         new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock));
 
-    private async Task<Guid> AddKidsProfileAsync(Guid accountId, bool adminEnabled)
+    private async Task<Guid> AddKidsProfileAsync(Guid accountId)
     {
         var kidsProfile = Guid.NewGuid();
         await ProfileTestData.InsertAsync(_database, new Profile
@@ -273,16 +273,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
             AvatarColor = "#123456",
             Role = ProfileRole.RestrictedProfile,
             CreatedAt = _clock.GetUtcNow(),
-        }, (await _accounts.GetByIdAsync(accountId))!.HouseholdId);
-        await _accounts.UpsertGrantAsync(new AccountProfileGrant
-        {
-            AccountId = accountId,
-            ProfileId = kidsProfile,
-            IsEnabled = true,
-            AdminEnabled = adminEnabled,
-            AuthorizationVersion = 1,
-            GrantedAt = _clock.GetUtcNow(),
-        });
+        }, await _accounts.GetHouseholdIdAsync(_database, accountId));
         return kidsProfile;
     }
 
@@ -337,21 +328,11 @@ public sealed class NeedsReviewAccessTests : IDisposable
                 Email = $"{id:N}@example.com",
                 NormalizedEmail = $"{id:N}@EXAMPLE.COM",
                 IsEnabled = true,
-                IsAdministrator = administrator,
                 AuthorizationVersion = 1,
                 CreatedAt = _clock.GetUtcNow(),
                 UpdatedAt = _clock.GetUtcNow(),
             },
-            new AccountProfileGrant
-            {
-                AccountId = id,
-                ProfileId = profile.Id,
-                IsDefault = true,
-                IsEnabled = true,
-                AdminEnabled = administrator,
-                AuthorizationVersion = 1,
-                GrantedAt = _clock.GetUtcNow(),
-            },
+            new TestGrant(id, profile.Id, IsDefault: true, AdminEnabled: administrator),
             AccountFeatureId.All.ToHashSet(),
             new HashSet<Guid>(),
             newProfile: profile);
@@ -368,7 +349,6 @@ public sealed class NeedsReviewAccessTests : IDisposable
             Name = "Review test app",
             ApplicationType = type,
             IsEnabled = true,
-            IsAdministrator = false,
             AuthorizationVersion = 1,
             CreatedAt = _clock.GetUtcNow(),
             UpdatedAt = _clock.GetUtcNow(),

@@ -143,13 +143,20 @@ public sealed class OwnSessionSignOutEndpointTests : IDisposable
 
     private async Task<Account> InsertMemberAsync(string email)
     {
+        var person = new MediaEngine.Domain.Aggregates.Profile
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = email,
+            CreatedAt = _clock.GetUtcNow(),
+        };
+        await ProfileTestData.InsertAsync(_database, person);
         var member = new Account
         {
+            ProfileId = person.Id,
             Id = Guid.NewGuid(),
             Email = email,
             NormalizedEmail = email.ToUpperInvariant(),
             IsEnabled = true,
-            IsAdministrator = false,
             CreatedAt = _clock.GetUtcNow(),
             UpdatedAt = _clock.GetUtcNow(),
         };

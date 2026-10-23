@@ -42,9 +42,9 @@ public sealed class ThisComputerAccountTests : IDisposable
         Assert.True(await _service.IsAdministratorConfiguredAsync());
         var account = Assert.Single(await _accounts.GetAllAsync());
         Assert.True(account.IsThisComputerOnly);
-        Assert.True(account.IsAdministrator);
+        Assert.True((await new ProfileRepository(_database).GetByIdAsync(account.ProfileId))!.IsServerAdministrator);
         Assert.Equal("owner@example.com", account.Email);
-        Assert.NotNull(account.HouseholdId);
+        Assert.NotNull((await new HouseholdRepository(_database).GetForAccountAsync(account.Id))?.Id);
         Assert.Null(await _identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password));
         Assert.Empty(issued.RecoveryCodes);
         Assert.Equal(ClientIngress.ThisComputer, issued.Session.IssuedIngress);

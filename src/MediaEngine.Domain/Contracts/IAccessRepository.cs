@@ -7,11 +7,10 @@ public interface IAccessRepository
 {
     /// <summary>
     /// What a user may act as: the profile it signs in as, and every other profile of its household (users, profiles and
-    /// households spec: a user switches inside its own household and never into another). One entry per profile, always enabled;
-    /// <c>IsDefault</c> marks the profile the user signs in as, <c>AdminEnabled</c> the profiles that hold the server administrator
-    /// role, and <c>AuthorizationVersion</c> is the profile's. Empty when the user does not exist.
+    /// households spec: a user switches inside its own household and never into another). One entry per profile; the user's own
+    /// profile first. Empty when the user does not exist.
     /// </summary>
-    Task<IReadOnlyList<AccountProfileGrant>> GetGrantsAsync(Guid accountId, CancellationToken ct = default);
+    Task<IReadOnlyList<HouseholdProfileAccess>> GetHouseholdProfilesAsync(Guid accountId, CancellationToken ct = default);
 
     /// <summary>
     /// The profile a user is acting as, with its roles and version, or <see langword="null"/> when that profile does not exist or is
@@ -37,19 +36,15 @@ public interface IAccessRepository
 public interface IAccountAccessMutationRepository
 {
     /// <summary>
-    /// Creates a user attached to the profile named by <paramref name="initialGrant"/> (or to <paramref name="newProfile"/>, created
-    /// in the same step). The profile takes the roles and access described by the arguments, unless
-    /// <paramref name="preserveProfileAccess"/> is set: attaching a sign-in to a person who already exists never changes what that
-    /// person may do (their roles, features and libraries stay exactly as they are). A brand-new profile always takes the arguments.
-    /// <paramref name="newHouseholdName"/> makes a brand-new household for the new profile in the same step (so a failure leaves no
-    /// empty household behind); its first profile looks after it. Joining a household that already exists never promotes anyone.
+    /// Creates a user (<paramref name="user"/>, whose <see cref="Account.ProfileId"/> names the profile it opens) in one transaction,
+    /// with its invitation when one is given. The profile is either one that exists and has no user yet, or the brand-new
+    /// <see cref="NewUserPlacement.NewProfile"/> made in the same step. A brand-new profile (and, on a first start, the existing
+    /// profile named by <see cref="NewUserPlacement.SetUpProfile"/>) takes the roles and access described by the placement;
+    /// attaching a user to a person who already exists never changes what that person may do (only an administrator role left over
+    /// from an earlier sign-in is cleared). A new household is made in the same step, so a failure leaves no empty household behind;
+    /// its first profile looks after it. Joining a household that already exists never promotes anyone.
     /// </summary>
-    Task CreateAccountAsync(Account account, AccountProfileGrant initialGrant,
-        IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
-        CancellationToken ct = default,
-        MediaEngine.Domain.Aggregates.Profile? newProfile = null,
-        bool preserveProfileAccess = false,
-        string? newHouseholdName = null);
+    Task CreateUserAsync(Account user, NewUserPlacement placement, AccountInvitation? invitation = null, CancellationToken ct = default);
     Task UpdateAccountAsync(Account account, CancellationToken ct = default);
     Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default);
     /// <summary>
@@ -69,32 +64,15 @@ public interface IAccountAccessMutationRepository
     /// </summary>
     Task<UserRemovalOutcome> DeleteUserAsync(
         Guid userId, IReadOnlyCollection<Guid>? confirmedProfileIds = null, CancellationToken ct = default);
-    Task CreateInvitedAccountAsync(
-        Account account,
-        IReadOnlyList<AccountProfileGrant> grants,
-        AccountInvitation invitation,
-        CancellationToken ct = default,
-        MediaEngine.Domain.Aggregates.Profile? newProfile = null,
-        bool preserveProfileAccess = false,
-        string? newHouseholdName = null);
     /// <summary>
-    /// Creates a person for an existing sign-in. <paramref name="accessFromProfileId"/> is the profile of whoever is creating them: the
-    /// new person starts with that profile's Read/Watch/Listen/View access and libraries (View off and no libraries when it is in
-    /// another household). <see langword="null"/> gives every feature and no library. Never an administrator role.
-    /// </summary>
-    Task CreateManagedProfileAsync(
-        MediaEngine.Domain.Aggregates.Profile profile,
-        AccountProfileGrant targetGrant,
-        CancellationToken ct = default,
-        Guid? accessFromProfileId = null);
-    /// <summary>
-    /// Adds a person to a household, opened by the given sign-ins (none of them as default). Refused when the household is full.
-    /// <paramref name="accessFromProfileId"/> works as in <see cref="CreateManagedProfileAsync"/>.
+    /// Adds a person (a profile without a user) to a household. Refused when the household is full.
+    /// <paramref name="accessFromProfileId"/> is the profile of whoever is adding them: the new person starts with that profile's
+    /// Read/Watch/Listen/View access and libraries (View off and no libraries when it is in another household).
+    /// <see langword="null"/> gives every feature and no library. Never an administrator role.
     /// </summary>
     Task CreateHouseholdPersonAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         Guid householdId,
-        IReadOnlyList<AccountProfileGrant> grants,
         CancellationToken ct = default,
         Guid? accessFromProfileId = null);
     Task UpdateManagedProfileAsync(
@@ -108,15 +86,6 @@ public interface IAccountAccessMutationRepository
     /// last server administrator that can sign in.
     /// </summary>
     Task<ProfileRemovalOutcome> DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default);
-    Task UpsertGrantAsync(AccountProfileGrant grant, CancellationToken ct = default);
-    Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
-    Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default);
-    /// <summary>
-    /// Makes an account the administrator of its household (or takes that away). Making one also names it the
-    /// household's primary account when the household has none. Raises the account's authorization version.
-    /// </summary>
-    Task<bool> SetHouseholdAdminAsync(Guid accountId, bool isHouseholdAdmin, DateTimeOffset changedAt, CancellationToken ct = default);
-
     /// <summary>True when "Ask for my PIN on admin pages" is switched on for this profile.</summary>
     Task<bool> HasEnabledAdminProtectionAsync(Guid profileId, CancellationToken ct = default);
     /// <summary>Ends the administrator unlock of a session (on sign-out, profile switch or when the session is revoked).</summary>
@@ -143,32 +112,29 @@ public interface IApplicationRepository
     Task TouchCredentialUsageAsync(Guid applicationId, Guid credentialId, DateTimeOffset usedAt, CancellationToken ct = default);
 }
 
-public sealed record CreateAccountAccessCommand(
-    string? Email,
-    bool IsAdministrator,
-    Guid? ProfileId,
-    NewAccountProfileCommand? NewProfile,
-    IReadOnlySet<AccountFeatureId> Features,
-    IReadOnlySet<Guid> Libraries,
-    string? TemporaryPassword = null);
-
-public sealed record NewAccountProfileCommand(string DisplayName, string? AvatarColor);
-
-public sealed record UpdateAccountAccessCommand(
-    string? Email,
-    bool IsEnabled,
-    bool IsAdministrator);
-
-public sealed record GrantAdminProtectionCommand(
+/// <summary>The wanted state of "Ask for my PIN on admin pages" for one profile.</summary>
+public sealed record ProfileAdminProtectionCommand(
     bool Enabled,
     AdminUnlockMode UnlockMode,
     int? UnlockMinutes);
 
-public sealed record IssueAccountInvitationCommand(
-    string Email,
-    IReadOnlyList<Guid> ProfileIds,
-    Guid? DefaultProfileId,
-    string? NewHouseholdPersonName = null);
+/// <summary>
+/// Where a new user's profile comes from and what it starts with. <see cref="NewProfile"/> is a brand-new profile made in the same
+/// step; it goes into <see cref="HouseholdId"/> (an existing household) or into a new household named
+/// <see cref="NewHouseholdName"/> whose first profile looks after it. With neither, a new household with the default name is made
+/// (first start only). <see cref="SetUpProfile"/> applies the same set-up to the existing profile a user opens (the first start,
+/// where the Owner profile becomes the first server administrator's). A profile that is set up takes <see cref="IsServerAdministrator"/>,
+/// the household administrator role when its household was just made for it, and <see cref="Features"/> and <see cref="Libraries"/>
+/// (the Vault is refused as a library). Any other existing profile keeps exactly what it has.
+/// </summary>
+public sealed record NewUserPlacement(
+    MediaEngine.Domain.Aggregates.Profile? NewProfile = null,
+    Guid? HouseholdId = null,
+    string? NewHouseholdName = null,
+    bool SetUpProfile = false,
+    bool IsServerAdministrator = false,
+    IReadOnlySet<AccountFeatureId>? Features = null,
+    IReadOnlySet<Guid>? Libraries = null);
 
 /// <summary>An invitation just made. <paramref name="Code"/> is shown as <c>XXXXX-XXXXX</c> and is never available again.</summary>
 public sealed record IssuedAccountInvitation(
@@ -176,11 +142,6 @@ public sealed record IssuedAccountInvitation(
     string Code,
     DateTimeOffset ExpiresAt);
 
-public sealed record CreateManagedProfileCommand(
-    Guid AccountId,
-    string DisplayName,
-    string? AvatarColor,
-    bool IsDefault);
 public sealed record UpdateManagedProfileCommand(
     string DisplayName,
     string? AvatarColor,
@@ -198,22 +159,6 @@ public sealed record AddHouseholdPersonCommand(
     string? AvatarIcon = null,
     string? ContentLimit = null,
     bool ContentLimitAllowUnrated = false);
-
-/// <summary>
-/// Gives a person in a household their own email sign-in. With <paramref name="TemporaryPassword"/> the
-/// administrator chooses the first password; with <paramref name="Invite"/> the person gets an invitation to choose their own
-/// instead. An own sign-in always has a password, so one of the two is required. <paramref name="MustChangePassword"/> decides
-/// whether the starting password is temporary (changed at first sign-in) or an ordinary one.
-/// </summary>
-public sealed record GiveOwnSignInCommand(
-    Guid ProfileId,
-    string Email,
-    string? TemporaryPassword,
-    bool MustChangePassword = true,
-    bool Invite = false);
-
-/// <summary>The sign-in just made, and its invitation when one was chosen.</summary>
-public sealed record GivenOwnSignIn(Account Account, IssuedAccountInvitation? Invitation);
 
 /// <summary>How a new user first signs in: an invitation (link and QR code) to choose their own password, or a starting password.</summary>
 public enum NewUserSignInMethod
@@ -257,8 +202,6 @@ public sealed record UserDeletionPreview(UserRemovalPlan Plan, string? RefusedRe
 
 public interface IAccountAccessMutationService
 {
-    Task<Account> CreateAsync(RequestAuthority actor, CreateAccountAccessCommand command, CancellationToken ct = default);
-    Task<Account> UpdateAsync(RequestAuthority actor, Guid accountId, UpdateAccountAccessCommand command, CancellationToken ct = default);
     /// <summary>
     /// Gives an existing account a new password. By default it is temporary and the person must choose their own at next
     /// sign-in; with <paramref name="mustChangePassword"/> off it is an ordinary password.
@@ -306,14 +249,6 @@ public interface IAccountAccessMutationService
     /// administrator role.
     /// </summary>
     Task SetProfileRolesAsync(RequestAuthority actor, Guid profileId, bool isHouseholdAdministrator, bool isServerAdministrator, CancellationToken ct = default);
-    Task<IssuedAccountInvitation> IssueInvitationAsync(
-        RequestAuthority actor,
-        IssueAccountInvitationCommand command,
-        CancellationToken ct = default);
-    Task<MediaEngine.Domain.Aggregates.Profile> CreateProfileAsync(
-        RequestAuthority actor,
-        CreateManagedProfileCommand command,
-        CancellationToken ct = default);
     Task<MediaEngine.Domain.Aggregates.Profile> UpdateProfileAsync(
         RequestAuthority actor,
         Guid profileId,
@@ -336,17 +271,17 @@ public interface IAccountAccessMutationService
     /// <summary>Adds a person to a household. The household's main sign-ins can open them; the person has no sign-in of their own yet.</summary>
     Task<MediaEngine.Domain.Aggregates.Profile> AddHouseholdPersonAsync(
         RequestAuthority actor, AddHouseholdPersonCommand command, CancellationToken ct = default);
-    /// <summary>Gives a person their own sign-in. It opens only that person, is never an administrator, and follows the household's library access.</summary>
-    Task<GivenOwnSignIn> GiveOwnSignInAsync(
-        RequestAuthority actor, GiveOwnSignInCommand command, CancellationToken ct = default);
-    /// <summary>Removes a person's own sign-in. The person and everything they own stay in the household.</summary>
-    Task RemoveOwnSignInAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
-    Task ReplaceAccessAsync(RequestAuthority actor, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, CancellationToken ct = default);
-    Task UpsertGrantAsync(RequestAuthority actor, AccountProfileGrant grant, CancellationToken ct = default);
-    Task RevokeGrantAsync(RequestAuthority actor, Guid accountId, Guid profileId, CancellationToken ct = default);
-    Task SetAdminProtectionAsync(RequestAuthority actor, Guid accountId, Guid profileId, GrantAdminProtectionCommand command, CancellationToken ct = default);
-    /// <summary>Makes a main sign-in the administrator of its household, or takes that away. Only a server administrator may.</summary>
-    Task SetHouseholdAdminAsync(RequestAuthority actor, Guid accountId, bool isHouseholdAdmin, CancellationToken ct = default);
+    /// <summary>
+    /// Switches "Ask for my PIN on admin pages" on or off for a profile that holds an administrator role (its own PIN is the one asked
+    /// for). A person changes it on their own profile; a server administrator on any; a household administrator never on another
+    /// administrator's profile.
+    /// </summary>
+    Task SetProfileAdminProtectionAsync(RequestAuthority actor, Guid profileId, ProfileAdminProtectionCommand command, CancellationToken ct = default);
+    /// <summary>
+    /// The admin PIN question of a profile (switched off, with the default unlock choice, when never set). Readable by the person
+    /// themselves and by a server administrator; refused for anyone else, a household administrator included.
+    /// </summary>
+    Task<ProfileAdminProtection> GetProfileAdminProtectionAsync(RequestAuthority actor, Guid profileId, CancellationToken ct = default);
     /// <summary>Sets or clears a person's PIN. A household administrator may only do this for their own household.</summary>
     Task SetProfilePinAsync(RequestAuthority actor, Guid profileId, string? pin, CancellationToken ct = default);
 }

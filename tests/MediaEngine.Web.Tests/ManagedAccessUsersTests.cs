@@ -669,8 +669,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
             {
                 return PasswordStatus != HttpStatusCode.OK
                     ? Problem(PasswordStatus, PasswordDetail)
-                    : Json(new AccountAccessResponse(UserId, Email, true, false, 1, [], [], [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null,
-                        MustChangePassword: true, TemporaryPasswordExpiresAt: DateTimeOffset.UtcNow.AddDays(7)));
+                    : Json(new UserTemporaryPasswordResponse(User(), DateTimeOffset.UtcNow.AddDays(7)));
             }
 
             if (request.Method == HttpMethod.Get && path == $"/access/users/{UserId:D}/deletion-preview")

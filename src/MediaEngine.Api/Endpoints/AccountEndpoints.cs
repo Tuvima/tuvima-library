@@ -144,9 +144,9 @@ public static class AccountEndpoints
             var authority = await RequireSelfAsync(http, resolver, decisions, ct);
             var account = await accounts.GetByIdAsync(authority.AccountId!.Value, ct)
                 ?? throw new UnauthorizedAccessException();
-            var grants = await MapGrants(account.Id, accounts, profiles, profileAccess, ct);
-            var defaultId = grants.FirstOrDefault(grant => grant.IsDefault && grant.IsEnabled)?.ProfileId
-                ?? authority.ActiveProfileId!.Value;
+            var grants = await HouseholdProfileProjection.MapAsync(account.Id, accounts, profiles, profileAccess, ct);
+            // A user signs in as the profile it opens.
+            var defaultId = account.ProfileId;
 
             var policy = providerConfiguration.LoadWithSecrets();
             var network = configuration.LoadNetwork();
@@ -315,76 +315,17 @@ public static class AccountEndpoints
           .Produces(StatusCodes.Status204NoContent);
     }
 
+    /// <summary>
+    /// Actions on a user (sign-in) that the Users and Sign-in list calls by user id: a starting password, and turning two-step codes off.
+    /// Making, finding, changing the email of and deleting users are under <c>/access/users</c>; roles and access are the profile's.
+    /// </summary>
     private static void MapManagedAccounts(RouteGroupBuilder access)
     {
         var group = access.MapGroup("/accounts");
-        group.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountRepository accounts, IIdentityRepository identities,
-            IProfileRepository profiles, IProfileAccessRepository profileAccess, IConfigurationLoader configuration, CancellationToken ct) =>
-        {
-            var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
-            var values = new List<AccountAccessResponse>();
-            foreach (var account in await accounts.GetAllAsync(ct))
-            {
-                if (household is { } own && account.HouseholdId != own)
-                {
-                    continue;
-                }
-
-                values.Add(await MapAccount(account, accounts, identities, profiles, profileAccess, configuration, ct));
-            }
-
-            return Results.Ok(values);
-        }).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersRead)
-          .Produces<IReadOnlyList<AccountAccessResponse>>();
-
-        group.MapGet("/{accountId:guid}", async (Guid accountId, HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles, IProfileAccessRepository profileAccess,
-            IConfigurationLoader configuration, CancellationToken ct) =>
-        {
-            var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
-            var account = await accounts.GetByIdAsync(accountId, ct);
-            if (household is { } own && account is not null && account.HouseholdId != own)
-            {
-                // Same answer as a missing account, so another household's sign-ins can't be discovered.
-                account = null;
-            }
-
-            return account is null ? ApiErrors.NotFound("Account not found.")
-                : Results.Ok(await MapAccount(account, accounts, identities, profiles, profileAccess, configuration, ct));
-        }).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersRead)
-          .Produces<AccountAccessResponse>();
-
-        group.MapPost("/", async (CreateManagedAccountRequest request, HttpContext http,
-            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles, IProfileAccessRepository profileAccess,
-            IConfigurationLoader configuration,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            var command = new CreateAccountAccessCommand(request.Email,
-                request.IsAdministrator, request.ProfileId,
-                request.NewProfile is null ? null : new NewAccountProfileCommand(
-                    request.NewProfile.DisplayName, request.NewProfile.AvatarColor),
-                FeaturesForNewAccount(request.FeatureIds, request.NewProfile is not null),
-                request.LibraryIds.ToHashSet(),
-                request.TemporaryPassword);
-            var account = await mutations.CreateAsync(await resolver.ResolveAsync(http, ct), command, ct);
-            return Results.Created($"/access/accounts/{account.Id:D}",
-                await MapAccount(account, accounts, identities, profiles, profileAccess, configuration, ct));
-        })).RequireSecuredAccount()
-           .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .Produces<AccountAccessResponse>(StatusCodes.Status201Created);
-
         group.MapPost("/{accountId:guid}/temporary-password", async (Guid accountId, SetTemporaryPasswordRequest request,
             HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles, IProfileAccessRepository profileAccess,
-            IConfigurationLoader configuration,
+            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles,
+            [FromServices] IHouseholdRepository households,
             [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
@@ -397,40 +338,19 @@ public static class AccountEndpoints
                 request.TemporaryPassword, request.MustChangePassword, ct);
             var account = await accounts.GetByIdAsync(accountId, ct)
                 ?? throw new KeyNotFoundException("Account not found.");
-            return Results.Ok(await MapAccount(account, accounts, identities, profiles, profileAccess, configuration, ct));
+            return Results.Ok(new UserTemporaryPasswordResponse(
+                await MapUser(account, identities, profiles, households, ct), account.TemporaryPasswordExpiresAt));
         })).RequireSecuredAccount()
            .RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("SetAccountTemporaryPassword")
-           .Produces<AccountAccessResponse>();
-
-        // The email a person signs in with. Not self-service: a server administrator, or the household administrator of the
-        // account's household, changes it, and it is audited.
-        group.MapPut("/{accountId:guid}/email", async (Guid accountId, ChangeAccountEmailRequest request,
-            HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles, IProfileAccessRepository profileAccess,
-            IConfigurationLoader configuration,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            var account = await mutations.ChangeEmailAsync(await resolver.ResolveAsync(http, ct), accountId,
-                request.Email, ct);
-            return Results.Ok(await MapAccount(account, accounts, identities, profiles, profileAccess, configuration, ct));
-        })).RequireSecuredAccount()
-           .RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("ChangeAccountEmail")
-           .Produces<AccountAccessResponse>();
+           .Produces<UserTemporaryPasswordResponse>();
 
         // Someone lost their phone and their recovery codes: an administrator turns their two-step codes off so they can
         // sign in with their password and set them up again. It is audited and needs a recent sign-in.
         group.MapPost("/{accountId:guid}/two-step/reset", async (Guid accountId,
             HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles, IProfileAccessRepository profileAccess,
-            IConfigurationLoader configuration,
+            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles,
+            [FromServices] IHouseholdRepository households,
             [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
@@ -442,209 +362,11 @@ public static class AccountEndpoints
             await mutations.ResetTwoStepAsync(await resolver.ResolveAsync(http, ct), accountId, ct);
             var account = await accounts.GetByIdAsync(accountId, ct)
                 ?? throw new KeyNotFoundException("Account not found.");
-            return Results.Ok(await MapAccount(account, accounts, identities, profiles, profileAccess, configuration, ct));
+            return Results.Ok(await MapUser(account, identities, profiles, households, ct));
         })).RequireSecuredAccount()
            .RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("ResetAccountTwoStep")
-           .Produces<AccountAccessResponse>();
-
-        group.MapPut("/{accountId:guid}", async (Guid accountId, UpdateManagedAccountRequest request,
-            HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles, IProfileAccessRepository profileAccess,
-            IConfigurationLoader configuration,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            var value = await mutations.UpdateAsync(await resolver.ResolveAsync(http, ct), accountId,
-                new UpdateAccountAccessCommand(request.Email,
-                    request.IsEnabled, request.IsAdministrator), ct);
-            return Results.Ok(await MapAccount(value, accounts, identities, profiles, profileAccess, configuration, ct));
-        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .Produces<AccountAccessResponse>();
-
-        // The profiles Delete user would take with this user (only when it takes a household), so the confirmation can name them.
-        // Changes nothing. The same answer as GET /access/users/{id}/deletion-preview, in the older shape.
-        group.MapGet("/{accountId:guid}/deletion-preview", async (Guid accountId, HttpContext http,
-            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-            Results.Ok(new AccountDeletionPreviewResponse(
-                (await mutations.PreviewDeleteUserAsync(await resolver.ResolveAsync(http, ct), accountId, ct))
-                .Plan.HouseholdProfiles.Select(profile => new AccountDeletionProfileDto(profile.Id, profile.DisplayName)).ToList()))))
-            .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-            .WithName("PreviewAccountDeletion")
-            .Produces<AccountDeletionPreviewResponse>();
-
-        // Deletes a user's sign-in (D5): only a server administrator (or a trusted application) may, and the profile and everything
-        // in it stay. The last sign-in that can look after a household that is not the default one takes the household and its
-        // profiles (D6). ?photos=move (the default, also for a missing or unknown value) keeps the removed profiles' personal
-        // photos in the Shared Library; ?photos=delete removes them. ?profiles=<id>,<id> is the list the person
-        // confirmed (from the deletion preview; present but empty means none): if the profiles that would go differ, the
-        // Engine refuses with 409 "Something changed since you looked..." and deletes nothing. A delete that would remove a household and
-        // sends no list is refused the same way.
-        group.MapDelete("/{accountId:guid}", async (Guid accountId, [FromQuery] string? photos, [FromQuery] string? profiles,
-            HttpContext http,
-            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            var disposition = string.Equals(photos?.Trim(), "delete", StringComparison.OrdinalIgnoreCase)
-                ? ProfilePhotoDisposition.Delete
-                : ProfilePhotoDisposition.MoveToShared;
-            await mutations.DeleteUserAsync(
-                await resolver.ResolveAsync(http, ct), accountId, disposition, ParseConfirmedProfiles(profiles), ct);
-            return Results.NoContent();
-        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("DeleteAccount")
-           .Produces(StatusCodes.Status204NoContent);
-
-        // Only a server administrator decides who looks after a household.
-        group.MapPut("/{accountId:guid}/household-admin", async (Guid accountId, SetHouseholdAdminRequest request,
-            HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles, IProfileAccessRepository profileAccess,
-            IConfigurationLoader configuration,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            await mutations.SetHouseholdAdminAsync(await resolver.ResolveAsync(http, ct), accountId,
-                request.HouseholdAdmin, ct);
-            var account = await accounts.GetByIdAsync(accountId, ct)
-                ?? throw new KeyNotFoundException("Account not found.");
-            return Results.Ok(await MapAccount(account, accounts, identities, profiles, profileAccess, configuration, ct));
-        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("SetAccountHouseholdAdmin")
-           .Produces<AccountAccessResponse>();
-
-        group.MapDelete("/{accountId:guid}/own-sign-in", async (Guid accountId, HttpContext http,
-            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            await mutations.RemoveOwnSignInAsync(await resolver.ResolveAsync(http, ct), accountId, ct);
-            return Results.NoContent();
-        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("RemoveOwnSignIn").Produces(StatusCodes.Status204NoContent);
-
-        group.MapPut("/{accountId:guid}/access", async (Guid accountId,
-            ReplaceAccountAccessRequest request, HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountAccessMutationService mutations, [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            await mutations.ReplaceAccessAsync(await resolver.ResolveAsync(http, ct), accountId,
-                request.FeatureIds.Select(id => new AccountFeatureId(id)).ToHashSet(),
-                request.LibraryIds.ToHashSet(), ct);
-            return Results.NoContent();
-        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("ReplaceAccountAccess").Produces(StatusCodes.Status204NoContent);
-
-        group.MapPut("/{accountId:guid}/grants/{profileId:guid}", async (Guid accountId,
-            Guid profileId, SetAccountProfileGrantAccessRequest request, HttpContext http,
-            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            await mutations.UpsertGrantAsync(await resolver.ResolveAsync(http, ct), new AccountProfileGrant
-            {
-                AccountId = accountId,
-                ProfileId = profileId,
-                IsDefault = request.IsDefault,
-                IsEnabled = true,
-                AdminEnabled = request.AdminEnabled,
-                AuthorizationVersion = 1,
-            }, ct);
-            return Results.NoContent();
-        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("SetAccountProfileGrant").Produces(StatusCodes.Status204NoContent);
-
-        group.MapDelete("/{accountId:guid}/grants/{profileId:guid}", async (Guid accountId,
-            Guid profileId, HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountAccessMutationService mutations, [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            await mutations.RevokeGrantAsync(await resolver.ResolveAsync(http, ct), accountId, profileId, ct);
-            return Results.NoContent();
-        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("RevokeAccountProfileGrant").Produces(StatusCodes.Status204NoContent);
-
-        group.MapPut("/{accountId:guid}/grants/{profileId:guid}/admin-protection", async (
-            Guid accountId, Guid profileId, SetGrantAdminProtectionRequest request, HttpContext http,
-            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            if (!Enum.TryParse<AdminUnlockMode>(request.UnlockMode, true, out var mode) || !Enum.IsDefined(mode))
-            {
-                return ApiErrors.BadRequest("Unknown unlock mode.");
-            }
-
-            await mutations.SetAdminProtectionAsync(await resolver.ResolveAsync(http, ct), accountId,
-                profileId, new GrantAdminProtectionCommand(
-                    request.Enabled, mode, request.UnlockMinutes), ct);
-            return Results.NoContent();
-        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("SetAccountProfileAdminProtection").Produces(StatusCodes.Status204NoContent);
-
-        access.MapPost("/invitations", async (CreateAccountInvitationRequest request, HttpContext http,
-            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            IConfigurationLoader configuration,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            var issued = await mutations.IssueInvitationAsync(await resolver.ResolveAsync(http, ct),
-                new IssueAccountInvitationCommand(request.Email, request.ProfileIds,
-                    request.DefaultProfileId, request.NewHouseholdPersonName), ct);
-            return Results.Ok(new AccountInvitationResponse(
-                issued.AccountId, issued.Code, issued.ExpiresAt,
-                PublicAddress.IsValid(configuration.LoadNetwork().Remote.PublicHostname)
-                    ? configuration.LoadNetwork().Remote.PublicHostname!.Trim().TrimEnd('/')
-                    : null));
-        })).RequireSecuredAccount()
-           .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .Produces<AccountInvitationResponse>();
+           .Produces<UserSummaryResponse>();
     }
 
     /// <summary>
@@ -815,33 +537,18 @@ public static class AccountEndpoints
             CancellationToken ct) =>
         {
             var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
-            var ownSignIns = await OwnSignInsByProfileAsync(accounts, ct);
-            var usersByProfile = (await accounts.GetAllAsync(ct))
-                .Where(user => user.ProfileId is not null)
-                .ToDictionary(user => user.ProfileId!.Value);
+            var usersByProfile = (await accounts.GetAllAsync(ct)).ToDictionary(user => user.ProfileId);
             var values = new List<ManagedProfileResponse>();
             foreach (var profile in (await repository.GetAllAsync(ct))
                 .Where(profile => household is null || profile.HouseholdId == household))
             {
-                values.Add(await MapProfileDetailAsync(profile, ownSignIns.GetValueOrDefault(profile.Id),
-                    usersByProfile.GetValueOrDefault(profile.Id), profileAccess, ct));
+                values.Add(await MapProfileDetailAsync(profile, usersByProfile.GetValueOrDefault(profile.Id), profileAccess, ct));
             }
 
             return Results.Ok(values);
         })
             .RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersRead)
             .Produces<IReadOnlyList<ManagedProfileResponse>>();
-
-        profiles.MapPost("/", async (CreateManagedProfileRequest request, HttpContext http,
-            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            var profile = await mutations.CreateProfileAsync(await resolver.ResolveAsync(http, ct),
-                new CreateManagedProfileCommand(request.AccountId, request.DisplayName,
-                    request.AvatarColor, request.IsDefault), ct);
-            return Results.Created($"/access/profiles/{profile.Id:D}", MapProfile(profile));
-        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .Produces<ManagedProfileResponse>(StatusCodes.Status201Created);
 
         // Households: a server administrator lists, adds, renames and removes them; a household administrator only
         // lists their own. Removing is refused (409) while any person or sign-in belongs to the household.
@@ -951,36 +658,9 @@ public static class AccountEndpoints
            .WithName("SetProfileRoles")
            .Produces(StatusCodes.Status204NoContent);
 
-        profiles.MapPost("/{profileId:guid}/own-sign-in", async (Guid profileId,
-            GiveOwnSignInRequest request, HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountAccessMutationService mutations, IConfigurationLoader configuration,
-            [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            var given = await mutations.GiveOwnSignInAsync(await resolver.ResolveAsync(http, ct),
-                new GiveOwnSignInCommand(profileId, request.Email, request.TemporaryPassword,
-                    request.MustChangePassword, request.Invite), ct);
-            var invitation = given.Invitation is null
-                ? null
-                : new AccountInvitationResponse(given.Invitation.AccountId, given.Invitation.Code,
-                    given.Invitation.ExpiresAt,
-                    PublicAddress.IsValid(configuration.LoadNetwork().Remote.PublicHostname)
-                        ? configuration.LoadNetwork().Remote.PublicHostname!.Trim().TrimEnd('/')
-                        : null);
-            return Results.Ok(new GiveOwnSignInResponse(given.Account.Id, given.Account.Email, invitation,
-                given.Account.TemporaryPasswordExpiresAt));
-        })).RequireSecuredAccount()
-           .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("GiveOwnSignIn").Produces<GiveOwnSignInResponse>();
-
         profiles.MapPut("/{profileId:guid}", async (Guid profileId,
             UpdateManagedProfileRequest request, HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountAccessMutationService mutations, IAccountRepository accounts,
+            IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
@@ -992,10 +672,44 @@ public static class AccountEndpoints
             var profile = await mutations.UpdateProfileAsync(await resolver.ResolveAsync(http, ct),
                 profileId, new UpdateManagedProfileCommand(request.DisplayName, request.AvatarColor, request.AvatarIcon,
                     request.ContentLimit, request.ContentLimitAllowUnrated), ct);
-            return Results.Ok(MapProfile(profile,
-                (await OwnSignInsByProfileAsync(accounts, ct)).GetValueOrDefault(profile.Id)));
+            return Results.Ok(MapProfile(profile));
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<ManagedProfileResponse>();
+
+        // "Ask for my PIN on admin pages" belongs to the profile. A person reads and changes it on their own profile, a server
+        // administrator on any; a household administrator never on another administrator's profile.
+        profiles.MapGet("/{profileId:guid}/admin-protection", async (Guid profileId, HttpContext http,
+            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            var protection = await mutations.GetProfileAdminProtectionAsync(await resolver.ResolveAsync(http, ct), profileId, ct);
+            return Results.Ok(MapAdminProtection(protection));
+        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersRead)
+           .WithName("GetProfileAdminProtection")
+           .Produces<ProfileAdminProtectionResponse>();
+
+        profiles.MapPut("/{profileId:guid}/admin-protection", async (Guid profileId,
+            SetProfileAdminProtectionRequest request, HttpContext http, IRequestAuthorityResolver resolver,
+            IAccountAccessMutationService mutations,
+            [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            if (!Enum.TryParse<AdminUnlockMode>(request.UnlockMode, true, out var mode) || !Enum.IsDefined(mode))
+            {
+                return ApiErrors.BadRequest("Unknown unlock mode.");
+            }
+
+            await mutations.SetProfileAdminProtectionAsync(await resolver.ResolveAsync(http, ct), profileId,
+                new ProfileAdminProtectionCommand(request.Enabled, mode, request.UnlockMinutes), ct);
+            return Results.NoContent();
+        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("SetProfileAdminProtection")
+           .Produces(StatusCodes.Status204NoContent);
 
         // ?photos=move (the default) keeps the person's personal photos in the household's Shared Library; ?photos=delete removes them.
         profiles.MapDelete("/{profileId:guid}", async (Guid profileId, [FromQuery] string? photos, HttpContext http,
@@ -1052,17 +766,6 @@ public static class AccountEndpoints
            .WithName("RemoveManagedProfileAvatar")
            .Produces<ProfileResponseDto>();
     }
-
-    /// <summary>
-    /// A person invited into a brand-new household is outside everyone else's household, so View starts off (D16).
-    /// An administrator switches it on afterwards, per person, once they know the person.
-    /// </summary>
-    internal static HashSet<AccountFeatureId> FeaturesForNewAccount(IEnumerable<string> requested, bool startsNewHousehold) =>
-        requested
-            .Where(id => !startsNewHousehold
-                || !string.Equals(id, AccountFeatureId.View.Value, StringComparison.OrdinalIgnoreCase))
-            .Select(id => new AccountFeatureId(id))
-            .ToHashSet();
 
     /// <summary>
     /// The household a household administrator is limited to, or <see langword="null"/> for a server administrator or a
@@ -1129,94 +832,27 @@ public static class AccountEndpoints
         return authority;
     }
 
-    private static async Task<AccountAccessResponse> MapAccount(Account account,
-        IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles, IProfileAccessRepository profileAccess,
-        IConfigurationLoader configuration, CancellationToken ct)
-    {
-        var libraryNames = configuration.LoadLibraries().Libraries
-            .Where(library => library.Kind == LibraryKinds.Catalogued && Guid.TryParse(library.Id, out _))
-            .ToDictionary(library => Guid.Parse(library.Id), library => library.Name);
-        var sessions = await identities.GetSessionsAsync(account.Id, ct);
-        var lastActiveAt = sessions.Count == 0 ? (DateTimeOffset?)null : sessions.Max(session => session.LastSeenAt);
-        return new AccountAccessResponse(account.Id, account.Email,
-            account.IsEnabled, account.IsAdministrator, account.AuthorizationVersion,
-            // A user's access is its own profile's (the profile holds it); a user with no profile has none.
-            (account.ProfileId is { } own ? await profileAccess.GetFeatureGrantsAsync(own, ct) : new HashSet<AccountFeatureId>())
-                .Select(feature => new AccountFeatureGrantDto(feature.Value, true)).ToList(),
-            (account.ProfileId is { } ownLibraries ? await profileAccess.GetLibraryGrantsAsync(ownLibraries, ct) : new HashSet<Guid>())
-                .Select(id => new AccountLibraryGrantDto(
-                    id, libraryNames.GetValueOrDefault(id, "Unavailable library"), true)).ToList(),
-            await MapGrants(account.Id, accounts, profiles, profileAccess, ct), account.CreatedAt, account.UpdatedAt,
-            lastActiveAt, account.HouseholdId, account.MustChangePassword, account.TemporaryPasswordExpiresAt,
-            await identities.GetAccountTwoStepAsync(account.Id, ct) is { IsEnabled: true },
-            account.GrantsInheritFromAccountId, account.HouseholdAdmin);
-    }
-
-    private static async Task<IReadOnlyList<AccountProfileGrantDto>> MapGrants(Guid accountId,
-        IAccountRepository accounts, IProfileRepository profiles, IProfileAccessRepository profileAccess, CancellationToken ct)
-    {
-        var result = new List<AccountProfileGrantDto>();
-        foreach (var grant in await accounts.GetGrantsAsync(accountId, ct))
-        {
-            var profile = await profiles.GetByIdAsync(grant.ProfileId, ct);
-            if (profile is null)
-            {
-                continue;
-            }
-
-            var protection = await profileAccess.GetAdminProtectionAsync(grant.ProfileId, ct);
-            result.Add(new AccountProfileGrantDto(accountId, grant.ProfileId, profile.DisplayName,
-                profile.AvatarImagePath, grant.IsDefault, grant.IsEnabled, grant.AdminEnabled,
-                new GrantAdminProtectionDto(protection?.IsEnabled == true,
-                    protection?.UnlockMode ?? AdminUnlockMode.FixedDuration.ToString(),
-                    protection?.UnlockMinutes, protection?.ProtectionVersion ?? 0),
-                grant.AuthorizationVersion, grant.GrantedAt,
-                profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile));
-        }
-        return result;
-    }
+    private static ProfileAdminProtectionResponse MapAdminProtection(ProfileAdminProtection protection) =>
+        new(protection.IsEnabled, protection.UnlockMode, protection.UnlockMinutes, protection.ProtectionVersion);
 
     private static ManagedProfileResponse MapProfile(
-        MediaEngine.Domain.Aggregates.Profile profile, ManagedProfileSignInDto? ownSignIn = null) =>
+        MediaEngine.Domain.Aggregates.Profile profile) =>
         new(profile.Id, profile.DisplayName, profile.AvatarColor, profile.AvatarImagePath,
             profile.CreatedAt, profile.HouseholdId,
             profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
-            profile.AvatarIcon, profile.ContentLimit, profile.ContentLimitAllowUnrated, ownSignIn,
+            profile.AvatarIcon, profile.ContentLimit, profile.ContentLimitAllowUnrated,
             profile.IsServerAdministrator, profile.IsHouseholdAdministrator);
 
     /// <summary>A profile with its roles, what it may use and the user it opens, for the lists that manage profiles.</summary>
     private static async Task<ManagedProfileResponse> MapProfileDetailAsync(
-        MediaEngine.Domain.Aggregates.Profile profile, ManagedProfileSignInDto? ownSignIn, Account? user,
+        MediaEngine.Domain.Aggregates.Profile profile, Account? user,
         IProfileAccessRepository profileAccess, CancellationToken ct) =>
-        MapProfile(profile, ownSignIn) with
+        MapProfile(profile) with
         {
             FeatureIds = (await profileAccess.GetFeatureGrantsAsync(profile.Id, ct)).Select(feature => feature.Value).Order().ToList(),
             LibraryIds = (await profileAccess.GetLibraryGrantsAsync(profile.Id, ct)).Order().ToList(),
             User = user is null ? null : new ManagedProfileUserDto(user.Id, user.Email),
         };
-
-    /// <summary>
-    /// The own sign-ins of a household's people, keyed by the person they open. An own sign-in is a non-administrator account
-    /// that follows a main sign-in's access and opens exactly one person.
-    /// </summary>
-    private static async Task<Dictionary<Guid, ManagedProfileSignInDto>> OwnSignInsByProfileAsync(
-        IAccountRepository accounts, CancellationToken ct)
-    {
-        var result = new Dictionary<Guid, ManagedProfileSignInDto>();
-        foreach (var account in await accounts.GetAllAsync(ct))
-        {
-            // A person's own sign-in opens exactly the profile it is attached to.
-            if (account.GrantsInheritFromAccountId is null || account.IsAdministrator || account.ProfileId is not { } opened)
-            {
-                continue;
-            }
-
-            result[opened] = new ManagedProfileSignInDto(
-                account.Id, account.Email, account.MustChangePassword, account.IsEnabled);
-        }
-
-        return result;
-    }
 
     private static ValueTask WriteAuditAsync(IAuthorizationAuditWriter audit, TimeProvider clock,
         RequestAuthority authority, string eventType, Guid loginId, CancellationToken ct) =>

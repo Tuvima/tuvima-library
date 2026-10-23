@@ -43,3 +43,15 @@ public sealed record ActiveProfileAccess(
     bool IsHouseholdAdministrator,
     bool HasEnabledUser,
     long AuthorizationVersion);
+
+/// <summary>
+/// One profile a user may act as: its own profile and the rest of its household, with each profile's server administrator role and
+/// authorization version. <see cref="IsOwn"/> marks the profile the user signs in as. The profile holds all of this (users,
+/// profiles and households spec); nothing here is stored per user.
+/// </summary>
+public sealed record HouseholdProfileAccess(
+    Guid ProfileId,
+    bool IsOwn,
+    bool IsServerAdministrator,
+    long AuthorizationVersion,
+    DateTimeOffset CreatedAt);
