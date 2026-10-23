@@ -283,6 +283,14 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
         // already holds the replacement keeps it once), saves, reactions, plays, listening history, bookmarks, queue places and personal tags.
         WorkPersonalStateMerge.Carry(connection, transaction, workId, replacementWorkId);
 
+        // The saves and reactions carried over were made on a movie; on the episode they are TV items, so they still resolve.
+        connection.Execute(
+            """
+            UPDATE OR IGNORE profile_saved_items SET entity_kind = 'TvShow' WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            UPDATE OR IGNORE profile_reactions SET entity_kind = 'TvShow' WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            """,
+            new { replacementWorkId }, transaction);
+
         foreach (var statement in new[]
                  {
                      "DELETE FROM entity_assets WHERE entity_id = @workId;",

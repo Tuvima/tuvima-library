@@ -373,6 +373,18 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database, IC
                 }
             }
 
+            // A work that has just lost its last edition is removed by the empty-work sweep; what people did with it (saves, reactions,
+            // plays, listening history, bookmarks, personal tags) goes to the work its file moved to first.
+            foreach (var emptied in validated.Select(item => item.Row).GroupBy(row => row.ExpectedSourceWorkId))
+            {
+                var sourceWorkId = emptied.Key;
+                if (connection.ExecuteScalar<int>(
+                        "SELECT EXISTS (SELECT 1 FROM editions WHERE work_id = @sourceWorkId);", new { sourceWorkId }, transaction) == 0)
+                {
+                    WorkPersonalStateMerge.Carry(connection, transaction, sourceWorkId, emptied.First().TargetWorkId);
+                }
+            }
+
             // Re-pairing a combined file's host moves the whole file, so the extra episodes it
             // covered stop being covered (they would otherwise point at the wrong show or season).
             // Dropped in this same transaction, then every touched episode is recomputed.

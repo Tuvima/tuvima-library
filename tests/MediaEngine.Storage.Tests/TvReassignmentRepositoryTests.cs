@@ -130,6 +130,9 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
         var episode = result.EpisodeWorkId;
         Assert.Equal(episode, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id = @person;", new { person }));
         Assert.Equal(episode, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_reactions WHERE profile_id = @person;", new { person }));
+        // They were made on a movie; on the episode they are TV items.
+        Assert.Equal("TvShow", conn.ExecuteScalar<string>("SELECT entity_kind FROM profile_saved_items WHERE profile_id = @person;", new { person }));
+        Assert.Equal("TvShow", conn.ExecuteScalar<string>("SELECT entity_kind FROM profile_reactions WHERE profile_id = @person;", new { person }));
         Assert.Equal("""["rewatch"]""", conn.ExecuteScalar<string>("SELECT local_tags_json FROM profile_work_preferences WHERE work_id = @episode;", new { episode }));
         Assert.Equal(40, conn.ExecuteScalar<int>("SELECT progress_pct FROM user_states WHERE user_id = @person AND asset_id = @assetId;", new { person, assetId }));
     }

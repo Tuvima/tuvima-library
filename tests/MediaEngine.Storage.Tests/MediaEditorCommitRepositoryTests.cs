@@ -377,6 +377,59 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
             "SELECT writeback_status FROM media_assets WHERE id = @asset;", new { asset = siblingAsset }));
     }
 
+    private void SeedPersonalStateOnSource()
+    {
+        var person = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, position_seconds, created_at)
+            VALUES (@bookmark, @person, @source, @asset, 30, '2026-10-01T00:00:00Z');
+            INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at)
+            VALUES (@person, @source, '["mine"]', 1, '2026-10-01T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at)
+            VALUES (@person, 'TvShow', @source, 'Love', '2026-10-01T00:00:00Z');
+            """, new { person, source = _source, asset = _asset, bookmark = Guid.NewGuid() });
+    }
+
+    [Fact]
+    public async Task MovingTheLastEditionOutOfAWork_CarriesBookmarksPreferencesAndReactionsToTheTargetBeforeTheSourceIsSwept()
+    {
+        SeedPersonalStateOnSource();
+
+        var result = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodePlanAsync([Move()]);
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, result.Outcome);
+        using var verify = _database.CreateConnection();
+        Assert.Equal(_target, verify.QuerySingle<Guid>("SELECT work_id FROM audiobook_bookmarks;"));
+        Assert.Equal(_target, verify.QuerySingle<Guid>("SELECT work_id FROM profile_work_preferences;"));
+        Assert.Equal(_target, verify.QuerySingle<Guid>("SELECT entity_id FROM profile_reactions;"));
+    }
+
+    [Fact]
+    public async Task MovingOneEditionOutOfAWorkThatKeepsAnother_LeavesItsPersonalStateWhereItWas()
+    {
+        var siblingEdition = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO editions(id, work_id) VALUES(@edition, @work);",
+                new { edition = siblingEdition, work = _source });
+            connection.Execute("""
+                INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
+                VALUES(@asset, @edition, @hash, 'C:/fixture/unselected.mkv');
+                """, new { asset = Guid.NewGuid(), edition = siblingEdition, hash = Guid.NewGuid().ToString("N") });
+        }
+
+        SeedPersonalStateOnSource();
+
+        var result = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodePlanAsync([Move()]);
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, result.Outcome);
+        using var verify = _database.CreateConnection();
+        Assert.Equal(_source, verify.QuerySingle<Guid>("SELECT work_id FROM audiobook_bookmarks;"));
+        Assert.Equal(_source, verify.QuerySingle<Guid>("SELECT work_id FROM profile_work_preferences;"));
+        Assert.Equal(_source, verify.QuerySingle<Guid>("SELECT entity_id FROM profile_reactions;"));
+    }
+
     [Fact]
     public async Task BatchCanMoveOneEditionWhileUnselectedSiblingEditionKeepsSourceWork()
     {
