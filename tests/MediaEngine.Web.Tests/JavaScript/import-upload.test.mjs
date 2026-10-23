@@ -1,0 +1,204 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+const { uploadFile, savePending, findPending, removePending, cancelUpload } = await import(new URL('../../../src/MediaEngine.Web/wwwroot/js/import-upload.js', import.meta.url).href);
+
+// A stand-in file: only its name, size and slice are used.
+function fakeFile(name, size) {
+    return { name, size, slice: (start, end) => ({ start, end, size: end - start }) };
+}
+
+const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+
+// A stand-in for the Dashboard relay and the Engine behind it: it keeps the pieces it holds and records every call.
+function fakeRelay({ pieceBytes = 10, refuseStart = null, failures = [] } = {}) {
+    const state = { received: new Set(), calls: [], puts: [], upload: null, starts: 0 };
+    const fetchFn = async (url, init = {}) => {
+        const method = init.method ?? 'GET';
+        state.calls.push(`${method} ${url}`);
+        if (method === 'POST' && url === '/import-uploads/') {
+            state.starts++;
+            if (refuseStart) return json(refuseStart.status, refuseStart.body);
+            const body = JSON.parse(init.body);
+            state.upload = { id: 'u1', total: body.total_bytes, body };
+            return json(200, { upload_id: 'u1', piece_bytes: pieceBytes, piece_count: Math.ceil(body.total_bytes / pieceBytes), total_bytes: body.total_bytes });
+        }
+
+        if (method === 'GET') {
+            return json(200, { upload_id: 'u1', state: 'open', file_name: state.upload?.body.file_name ?? 'a.mkv', total_bytes: state.upload?.total ?? 0, piece_bytes: pieceBytes, piece_count: Math.ceil((state.upload?.total ?? 0) / pieceBytes), received_pieces: [...state.received].sort((a, b) => a - b) });
+        }
+
+        const piece = /\/pieces\/(\d+)$/.exec(url);
+        if (method === 'PUT' && piece) {
+            const index = Number(piece[1]);
+            state.puts.push(index);
+            const failure = failures.find(item => item.index === index && !item.done);
+            if (failure) {
+                failure.done = true;
+                // The piece arrived but the answer was lost, or it never arrived.
+                if (failure.arrives) state.received.add(index);
+                throw new TypeError('network down');
+            }
+
+            state.received.add(index);
+            return json(200, {});
+        }
+
+        if (method === 'POST' && url.endsWith('/complete')) {
+            return json(200, { upload_id: 'u1', file_name: state.upload.body.file_name, renamed: false, destination_path: '/import/Movies/a.mkv' });
+        }
+
+        throw new Error(`unexpected ${method} ${url}`);
+    };
+
+    return { state, fetchFn };
+}
+
+const quiet = { sleep: async () => {} };
+const warnings = [];
+console.warn = (...args) => warnings.push(args.map(String).join(' '));
+
+test('a file is started, sent in pieces by index and completed', async () => {
+    const relay = fakeRelay();
+    const progress = [];
+
+    const outcome = await uploadFile(fakeFile('a.mkv', 25), { ...quiet, fetchFn: relay.fetchFn, token: 'T', kindKey: 'movies', onProgress: (sent, total) => progress.push([sent, total]) });
+
+    assert.equal(outcome.state, 'completed');
+    assert.equal(outcome.fileName, 'a.mkv');
+    assert.deepEqual([...relay.state.puts].sort(), [0, 1, 2]);
+    assert.deepEqual(relay.state.upload.body, { kind_key: 'movies', file_name: 'a.mkv', total_bytes: 25 });
+    assert.deepEqual(progress.at(-1), [25, 25]);
+});
+
+test('every call carries the antiforgery token and only the start names the kind', async () => {
+    const seen = [];
+    const relay = fakeRelay();
+    const fetchFn = (url, init) => { seen.push(init.headers?.RequestVerificationToken); return relay.fetchFn(url, init); };
+
+    await uploadFile(fakeFile('a.mkv', 10), { ...quiet, fetchFn, token: 'T', kindKey: 'movies', libraryId: 'lib-1' });
+
+    assert.ok(seen.length > 3);
+    assert.ok(seen.every(token => token === 'T'));
+    assert.equal(relay.state.upload.body.library_id, 'lib-1');
+});
+
+test('pieces go two at a time', async () => {
+    const relay = fakeRelay();
+    let running = 0;
+    let peak = 0;
+    const fetchFn = async (url, init) => {
+        if (init.method === 'PUT') {
+            running++;
+            peak = Math.max(peak, running);
+            await new Promise(resolve => setTimeout(resolve, 5));
+            running--;
+        }
+
+        return relay.fetchFn(url, init);
+    };
+
+    await uploadFile(fakeFile('a.mkv', 60), { ...quiet, fetchFn, kindKey: 'movies' });
+
+    assert.equal(peak, 2);
+});
+
+test('a refused start sends nothing and says why', async () => {
+    const relay = fakeRelay({ refuseStart: { status: 409, body: { code: 'no_import_folder', detail: 'Set an Import folder first.' } } });
+
+    const outcome = await uploadFile(fakeFile('a.mkv', 25), { ...quiet, fetchFn: relay.fetchFn, kindKey: 'movies' });
+
+    assert.deepEqual(outcome, { state: 'refused', code: 'no_import_folder', message: 'Set an Import folder first.', status: 409 });
+    assert.deepEqual(relay.state.puts, []);
+    assert.equal(relay.state.calls.length, 1);
+});
+
+test('a dropped connection resumes from the missing pieces and never resends a piece the Engine holds', async () => {
+    // Piece 1 reaches the Engine but the answer is lost; piece 2 never reaches it.
+    const relay = fakeRelay({ failures: [{ index: 1, arrives: true }, { index: 2, arrives: false }] });
+
+    const outcome = await uploadFile(fakeFile('a.mkv', 40), { ...quiet, fetchFn: relay.fetchFn, kindKey: 'movies', concurrency: 1 });
+
+    assert.equal(outcome.state, 'completed');
+    const counts = relay.state.puts.reduce((map, index) => map.set(index, (map.get(index) ?? 0) + 1), new Map());
+    assert.equal(counts.get(0), 1);
+    assert.equal(counts.get(1), 1, 'piece 1 arrived, so it is not sent again');
+    assert.equal(counts.get(2), 2, 'piece 2 never arrived, so it is sent again');
+    assert.equal(counts.get(3), 1);
+    assert.ok(relay.state.calls.some(call => call.startsWith('GET ')), 'the Engine was asked what it holds');
+});
+
+test('an upload that keeps failing gives up with a message and stays resumable', async () => {
+    const relay = fakeRelay();
+    const fetchFn = async (url, init) => { if (init.method === 'PUT') throw new TypeError('offline'); return relay.fetchFn(url, init); };
+
+    const outcome = await uploadFile(fakeFile('a.mkv', 20), { ...quiet, fetchFn, kindKey: 'movies', retries: 2 });
+
+    assert.equal(outcome.state, 'failed');
+    assert.equal(outcome.uploadId, 'u1');
+    assert.match(outcome.message, /Choose the file again/);
+});
+
+test('a remembered upload is resumed: only the missing pieces are sent and no new upload is started', async () => {
+    const relay = fakeRelay();
+    relay.state.upload = { id: 'u1', total: 30, body: { file_name: 'a.mkv', total_bytes: 30 } };
+    relay.state.received.add(0).add(1);
+
+    const outcome = await uploadFile(fakeFile('a.mkv', 30), { ...quiet, fetchFn: relay.fetchFn, kindKey: 'movies', resumeUploadId: 'u1' });
+
+    assert.equal(outcome.state, 'completed');
+    assert.equal(relay.state.starts, 0);
+    assert.deepEqual(relay.state.puts, [2]);
+});
+
+test('a remembered upload the Engine no longer has starts again from the beginning', async () => {
+    const relay = fakeRelay();
+    const fetchFn = (url, init) => (init.method === 'GET' && !relay.state.upload ? Promise.resolve(json(404, { code: 'upload_not_found' })) : relay.fetchFn(url, init));
+
+    const outcome = await uploadFile(fakeFile('a.mkv', 20), { ...quiet, fetchFn, kindKey: 'movies', resumeUploadId: 'gone' });
+
+    assert.equal(outcome.state, 'completed');
+    assert.equal(relay.state.starts, 1);
+    assert.deepEqual([...relay.state.puts].sort(), [0, 1]);
+});
+
+test('cancelling stops the upload without a failure', async () => {
+    const relay = fakeRelay();
+    const controller = new AbortController();
+    const fetchFn = async (url, init) => {
+        if (init.method === 'PUT') controller.abort();
+        return relay.fetchFn(url, init);
+    };
+
+    const outcome = await uploadFile(fakeFile('a.mkv', 50), { ...quiet, fetchFn, kindKey: 'movies', signal: controller.signal, concurrency: 1 });
+
+    assert.equal(outcome.state, 'cancelled');
+});
+
+test('cancelling an upload asks the relay to delete it', async () => {
+    const calls = [];
+
+    const ok = await cancelUpload('u1', { token: 'T', fetchFn: async (url, init) => { calls.push([init.method, url, init.headers.RequestVerificationToken]); return { ok: true, status: 200 }; } });
+
+    assert.equal(ok, true);
+    assert.deepEqual(calls, [['DELETE', '/import-uploads/u1', 'T']]);
+});
+
+test('unfinished uploads are remembered by name and size, and a storage that fails is logged, not fatal', () => {
+    const data = new Map();
+    const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+
+    savePending(storage, { uploadId: 'u1', name: 'a.mkv', size: 30, kindKey: 'movies', libraryId: null });
+    savePending(storage, { uploadId: 'u2', name: 'b.mkv', size: 40, kindKey: 'movies', libraryId: null });
+
+    assert.equal(findPending(storage, 'a.mkv', 30).uploadId, 'u1');
+    assert.equal(findPending(storage, 'a.mkv', 31), null);
+    removePending(storage, 'u1');
+    assert.equal(findPending(storage, 'a.mkv', 30), null);
+
+    warnings.length = 0;
+    const broken = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
+    assert.equal(findPending(broken, 'a.mkv', 30), null);
+    savePending(broken, { uploadId: 'u3', name: 'c', size: 1 });
+    assert.ok(warnings.length >= 2);
+});

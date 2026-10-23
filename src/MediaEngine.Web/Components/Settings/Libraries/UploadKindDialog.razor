@@ -1,0 +1,83 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Ui
+
+@* One dialog for all the files that need a decision (Library setup D44): "These look like videos, not music", or "Which kind of videos
+   are these?" on a group page. Each group of files has the usual kind cards (icon tile, colour or grey, Metadata icons, the (i)), and for
+   a plain kind the named libraries plus New custom library (D51). Nothing is sent until the person presses the button. *@
+<AppDialogShell Title="@Title" Size="Large" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="upload-dialog">
+            @for (var index = 0; index < Sections.Count; index++)
+            {
+                var section = Sections[index];
+                var headingId = $"upload-dialog-{index}";
+                <section class="upload-dialog__section" aria-labelledby="@headingId" data-class="@section.Class.ToString().ToLowerInvariant()">
+                    <h3 class="add-wizard__question" id="@headingId">@section.Heading</h3>
+                    <p class="add-wizard__lead">@Summary(section)</p>
+                    <LibraryKindCards Kinds="@section.Kinds"
+                                      Label="@($"Kinds for {UploadFileRules.Noun(section.Class)}")"
+                                      SelectedKey="@section.SelectedKey"
+                                      ShowMetadata="true"
+                                      Catalogue="@Catalogue"
+                                      OnChoose="@(EventCallback.Factory.Create<LibraryTypeOption>(this, kind => Choose(section, kind)))" />
+                    @if (KindOf(section) is { AllowsMultiple: true } plain)
+                    {
+                        var held = Held(plain);
+                        <LibraryChoiceOptions Libraries="@held"
+                                              FallbackName="@plain.Label"
+                                              CanAddLibrary="@(held.Count < plain.MaxLibraries)"
+                                              LimitText="@($"{plain.MaxLibraries} is the most {plain.PluralLabel} libraries you can keep.")"
+                                              Choice="@section.LibraryChoice"
+                                              ChoiceChanged="@((string? value) => section.LibraryChoice = value)"
+                                              AskForName="false"
+                                              HeadingId="@($"{headingId}-library")" />
+                        @if (section.WantsNewLibrary)
+                        {
+                            <p class="add-wizard__lead" data-new-library-note>A new library needs a folder first. Add it, then drop these files again.</p>
+                        }
+                    }
+                </section>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar Align="AppHorizontalAlignment.End">
+            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+            <AppButton Label="@(Sections.Any(section => section.WantsNewLibrary) ? "Set up the library" : "Add files")"
+                       ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Primary"
+                       Disabled="@(!Sections.All(section => section.SelectedKey is not null))"
+                       OnClick="@(() => Dialog.Close(AppDialogResult.Ok(Sections)))" />
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<UploadSection> Sections { get; set; } = [];
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    /// <summary>The provider catalogue the Metadata icons are drawn from; null while it is not known.</summary>
+    [Parameter] public IReadOnlyList<ProviderCatalogueDto>? Catalogue { get; set; }
+
+    private string Title => Sections.Count == 1 ? Sections[0].Heading : "Which kind are these?";
+
+    private static string Summary(UploadSection section) =>
+        section.Rows.Count == 1
+            ? section.Rows[0].Name
+            : $"{section.Rows.Count} files: {string.Join(", ", section.Rows.Take(3).Select(row => row.Name))}{(section.Rows.Count > 3 ? ", and more" : string.Empty)}";
+
+    private LibraryTypeOption? KindOf(UploadSection section) => section.Kinds.FirstOrDefault(kind => kind.Key == section.SelectedKey);
+
+    private IReadOnlyList<LibraryFolderDto> Held(LibraryTypeOption kind) => LibraryRollup.LibrariesOf(Configuration, kind);
+
+    // Choosing a kind that holds several libraries opens on its first library (or a new one when it has none yet).
+    private void Choose(UploadSection section, LibraryTypeOption kind)
+    {
+        if (section.SelectedKey == kind.Key) return;
+        section.SelectedKey = kind.Key;
+        section.LibraryChoice = kind.AllowsMultiple
+            ? Held(kind).FirstOrDefault()?.Id ?? LibraryChoiceOptions.NewChoice
+            : null;
+    }
+}

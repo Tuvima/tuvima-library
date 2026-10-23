@@ -1,0 +1,537 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.DependencyInjection
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IAppDialogService Dialogs
+@inject IAppToastService Toasts
+@inject DeviceContextService Device
+@inject IServiceProvider Services
+@inject IEngineApiClient Api
+@inject ILogger<LibraryUploadZone> Logger
+
+@* Adding files to the Import folder by dropping them on a library page or choosing them with Add files (Library setup D44). The files
+   are sent from the browser in pieces (wwwroot/js/import-upload.js, through the Dashboard's /import-uploads relay); this component
+   decides which kind each file is for, asks when it cannot tell, and shows one row per file with its bar and Cancel. It wraps the page's
+   list; a touch screen or a pointer that cannot hover gets the Add files button only, and first-run setup, the Vault, View and phones
+   get nothing. *@
+@if (!Enabled)
+{
+    @ChildContent
+}
+else
+{
+    <CascadingValue Value="this" IsFixed="true">
+        @* The drop target is whatever holds this component (the page's list or card); this hidden marker tells the browser which one. It adds
+           no wrapper, so the page's own layout and last-child rules are untouched. *@
+        <span hidden @ref="_zone" data-upload-anchor data-drop="@(_dropEnabled ? "true" : "false")"></span>
+        @if (_rows.Count > 0)
+        {
+            <ul class="upload-list" aria-label="Files being added">
+                @foreach (var row in _rows)
+                {
+                    <li class="upload-row" data-state="@StateName(row)" data-file="@row.Name">
+                        <span class="upload-row__name" title="@row.Name">@row.Name</span>
+                        <span class="upload-row__actions">
+                            @if (row.State is UploadRowState.Starting or UploadRowState.Uploading)
+                            {
+                                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Cancel adding {row.Name}")" OnClick="@(() => CancelAsync(row))" />
+                            }
+                            else
+                            {
+                                @if (row.State == UploadRowState.Failed && row.CanRetry)
+                                {
+                                    <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Try adding {row.Name} again")" OnClick="@(() => RetryAsync(row))" />
+                                }
+                                <AppButton Label="Dismiss" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Dismiss {row.Name}")" OnClick="@(() => DismissAsync(row))" />
+                            }
+                        </span>
+                        <div class="upload-row__detail">
+                            @switch (row.State)
+                            {
+                                case UploadRowState.Starting:
+                                    <span>@(row.Resumed ? "Carrying on where it stopped..." : "Starting...")</span>
+                                    break;
+                                case UploadRowState.Uploading:
+                                    <AppProgressBar Value="@row.Percent" Label="@($"Adding {row.Name}")" />
+                                    <span>@(DisplayFormat.FormatFileSize(row.Sent) ?? "0 B") of @(DisplayFormat.FormatFileSize(row.Size) ?? "0 B")</span>
+                                    break;
+                                case UploadRowState.Done:
+                                    <span>Added to the Import folder. It will be filed on the next run.@(row.Renamed && row.FinalName is not null ? $" Saved as {row.FinalName}." : string.Empty)</span>
+                                    break;
+                                default:
+                                    <span>@row.Message</span>
+                                    @if (row.LinkHref is not null)
+                                    {
+                                        <a href="@row.LinkHref">@row.LinkText</a>
+                                    }
+                                    break;
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (_dropEnabled)
+        {
+            @* A real button, so the drop area has a visible focus ring and the keyboard reaches it: Enter opens the same file chooser as Add files. *@
+            <AppNativeButton Type="button" Class="upload-zone__hint" OnClick="@(_ => ChooseFilesAsync())">Drop files here or choose Add files.</AppNativeButton>
+        }
+
+        <div class="sr-only" aria-live="polite" data-upload-live>@_liveText</div>
+
+        @ChildContent
+    </CascadingValue>
+}
+
+@code {
+    private static readonly string[] AreasThatTakeFiles = ["watch", "listen", "read"];
+    private const string Module = "./js/import-upload.js";
+    private const string ViewAddress = "/view";
+
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    /// <summary>The group page this wraps (Watch, Listen, Read), or null on a type page.</summary>
+    [Parameter] public LibraryGroup? Group { get; set; }
+    /// <summary>The kind this type page shows, or null on a group page.</summary>
+    [Parameter] public LibraryTypeOption? Type { get; set; }
+    /// <summary>Phones are read-only for libraries, so they get no uploads either.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>First-run setup never offers uploads.</summary>
+    [Parameter] public bool Embedded { get; set; }
+    /// <summary>Raised after the Add folder wizard (opened to set up a new library) added a folder, so the page can refresh.</summary>
+    [Parameter] public EventCallback FolderAdded { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private readonly List<UploadRow> _rows = [];
+    private ElementReference _zone;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<LibraryUploadZone>? _self;
+    private bool _attached;
+    private bool _dropEnabled;
+    private bool _disposed;
+    private string _liveText = string.Empty;
+    private IReadOnlyList<ProviderCatalogueDto>? _catalogue;
+
+    private string? PageArea => Type?.Area ?? Group?.Key;
+
+    /// <summary>True when this page takes files: a Watch, Listen or Read page, on a screen that edits libraries, outside first-run setup.</summary>
+    public bool Enabled =>
+        !Embedded && !ReadOnly
+        && PageArea is { } area && AreasThatTakeFiles.Contains(area, StringComparer.OrdinalIgnoreCase)
+        && (Type is null || Kinds.Find(Type.Key) is not null);
+
+    private static string StateName(UploadRow row) => row.State.ToString().ToLowerInvariant();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || !Enabled) return;
+        if (!_attached && _zone.Context is not null)
+        {
+            _attached = true;
+            _dropEnabled = Device.HasFinePointer && Device.CanHover;
+            try
+            {
+                _module = await JS.InvokeAsync<IJSObjectReference>("import", Module);
+                _self = DotNetObjectReference.Create(this);
+                await _module.InvokeVoidAsync("attach", _zone, _self, _dropEnabled);
+            }
+            catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+            {
+                Logger.LogWarning(ex, "The page could not set up adding files; Add files is unavailable");
+                _attached = false;
+                return;
+            }
+
+            if (_dropEnabled) StateHasChanged();
+        }
+    }
+
+    /// <summary>Opens the browser's file chooser (the Add files button).</summary>
+    public async Task ChooseFilesAsync()
+    {
+        if (!Enabled) return;
+        if (_module is null)
+        {
+            Toasts.Add("Adding files is not ready yet. Try again in a moment.", AppSeverity.Info);
+            return;
+        }
+
+        try
+        {
+            _self ??= DotNetObjectReference.Create(this);
+            await _module.InvokeVoidAsync("choose", _self);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException)
+        {
+            Logger.LogWarning(ex, "The browser's file chooser could not be opened");
+            Toasts.Add("The file chooser could not be opened.", AppSeverity.Warning);
+        }
+    }
+
+    /// <summary>Called by the browser with the files dropped or chosen (folders dropped are counted and left out).</summary>
+    [JSInvokable]
+    public async Task OnFilesChosen(UploadFileItem[] items, int foldersSkipped)
+    {
+        if (_disposed) return;
+        await InvokeAsync(async () =>
+        {
+            if (foldersSkipped > 0)
+            {
+                _rows.Add(Notice($"folder-{Guid.NewGuid():N}", foldersSkipped == 1 ? "A folder" : $"{foldersSkipped} folders",
+                    "Folders can't be dropped here. Drop the files themselves, or use Add folder to point Library at a folder."));
+            }
+
+            var undecided = new List<UploadRow>();
+            foreach (var item in items)
+            {
+                var row = new UploadRow { Id = item.Id, Name = item.Name, Size = item.Size, Class = UploadFileRules.Classify(item.Name, item.Type) };
+                if (row.Class == UploadFileClass.Image)
+                {
+                    await ForgetAsync(item.Id);
+                    row.State = UploadRowState.Notice;
+                    row.Message = "Photos belong in View, which has its own upload.";
+                    row.LinkHref = ViewAddress;
+                    row.LinkText = "Open View";
+                    _rows.Add(row);
+                    continue;
+                }
+
+                if (UploadFileRules.FittingKinds(Kinds, row.Class).Count == 0)
+                {
+                    await ForgetAsync(item.Id);
+                    row.State = UploadRowState.Notice;
+                    row.Message = "Library can't file this kind of file. Videos, audio, books and comics can be added this way.";
+                    _rows.Add(row);
+                    continue;
+                }
+
+                // A file this browser was already partway through carries on as the kind it was started for.
+                if (item.ResumeKind is { } resumeKind && Kinds.Find(resumeKind) is { } remembered
+                    && UploadFileRules.FittingKinds(Kinds, row.Class).Any(kind => kind.Key == remembered.Key))
+                {
+                    row.Resumed = true;
+                    _rows.Add(row);
+                    await BeginAsync(row, remembered.Key, item.ResumeLibrary);
+                    continue;
+                }
+
+                undecided.Add(row);
+            }
+
+            await DecideAndSendAsync(undecided);
+            Announce(_rows.LastOrDefault() is { } last ? $"{last.Name}: {StateText(last)}" : string.Empty);
+            StateHasChanged();
+        });
+    }
+
+    // Files that fit the page's own kind go straight there; the rest are asked about together, in one dialog.
+    private async Task DecideAndSendAsync(List<UploadRow> undecided)
+    {
+        if (undecided.Count == 0) return;
+
+        var sections = new List<UploadSection>();
+        var direct = new List<(UploadRow Row, LibraryTypeOption Kind, string? LibraryId)>();
+        foreach (var byClass in undecided.GroupBy(row => row.Class))
+        {
+            var fitting = UploadFileRules.FittingKinds(Kinds, byClass.Key);
+            var fits = UploadFileRules.Fits(Kinds, byClass.Key, PageArea!, Type?.Key);
+            if (Type is not null && fits)
+            {
+                // The page's own kind. A plain kind with several libraries asks which one; with one it simply goes there.
+                var held = LibraryRollup.LibrariesOf(Configuration, Type);
+                if (Type.AllowsMultiple && held.Count > 1)
+                {
+                    sections.Add(Section(byClass.Key, $"Which {UploadFileRules.InSentence(Type.PluralLabel)} library?", [Type], [.. byClass], Type));
+                }
+                else
+                {
+                    direct.AddRange(byClass.Select(row => (row, Type, Type.AllowsMultiple ? held.FirstOrDefault()?.Id : null)));
+                }
+
+                continue;
+            }
+
+            var heading = fits
+                ? $"Which kind of {UploadFileRules.Noun(byClass.Key)} are these?"
+                : $"These look like {UploadFileRules.Noun(byClass.Key)}, not {PageNoun()}";
+            sections.Add(Section(byClass.Key, heading, fitting, [.. byClass], UploadFileRules.MostLikely(byClass.Key, fitting)));
+        }
+
+        foreach (var (row, kind, libraryId) in direct)
+        {
+            _rows.Add(row);
+            await BeginAsync(row, kind.Key, libraryId);
+        }
+
+        if (sections.Count == 0) return;
+
+        _catalogue ??= await ReadCatalogueAsync();
+        var parameters = new AppDialogParameters<UploadKindDialog>
+        {
+            { component => component.Sections, (IReadOnlyList<UploadSection>)sections },
+            { component => component.Configuration, Configuration },
+            { component => component.Catalogue, _catalogue },
+        };
+        var dialog = await Dialogs.ShowAsync<UploadKindDialog>(string.Empty, parameters, DialogOptions);
+        var result = await dialog.Result;
+        if (result is not { Canceled: false })
+        {
+            // Nothing was chosen, so nothing is sent and the files are let go.
+            foreach (var row in sections.SelectMany(section => section.Rows)) await ForgetAsync(row.Id);
+            return;
+        }
+
+        foreach (var section in sections)
+        {
+            if (section.WantsNewLibrary)
+            {
+                foreach (var row in section.Rows) await ForgetAsync(row.Id);
+                Toasts.Add("A new library needs a folder first. Add one, then drop these files again.", AppSeverity.Info);
+                await OpenAddFolderAsync(section.SelectedKey);
+                continue;
+            }
+
+            foreach (var row in section.Rows)
+            {
+                _rows.Add(row);
+                await BeginAsync(row, section.SelectedKey!, section.LibraryChoice);
+            }
+        }
+    }
+
+    private UploadSection Section(UploadFileClass fileClass, string heading, IReadOnlyList<LibraryTypeOption> kinds, IReadOnlyList<UploadRow> rows, LibraryTypeOption? preselect)
+    {
+        var section = new UploadSection { Class = fileClass, Heading = heading, Kinds = kinds, Rows = rows, SelectedKey = preselect?.Key };
+        if (preselect is { AllowsMultiple: true })
+        {
+            section.LibraryChoice = LibraryRollup.LibrariesOf(Configuration, preselect).FirstOrDefault()?.Id ?? LibraryChoiceOptions.NewChoice;
+        }
+
+        return section;
+    }
+
+    private string PageNoun() => Type is not null
+        ? UploadFileRules.InSentence(Type.PluralLabel)
+        : UploadFileRules.AreaNoun(PageArea);
+
+    private async Task<IReadOnlyList<ProviderCatalogueDto>?> ReadCatalogueAsync()
+    {
+        try
+        {
+            return await Api.GetProviderCatalogueAsync();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            Logger.LogWarning(ex, "The provider catalogue could not be read for the file-drop dialog; providers show by name");
+            return null;
+        }
+    }
+
+    private async Task OpenAddFolderAsync(string? kindKey)
+    {
+        var parameters = new AppDialogParameters<AddFolderWizard>
+        {
+            { component => component.StartTypeKey, kindKey },
+            { component => component.Configuration, Configuration },
+            { component => component.Kinds, Kinds },
+            { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAdded.InvokeAsync()) },
+        };
+        await Dialogs.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+    }
+
+    private static AppDialogOptions DialogOptions { get; } = new()
+    {
+        MaxWidth = AppMaxWidth.Medium,
+        FullWidth = true,
+        CloseButton = false,
+        NoHeader = true,
+        CloseOnEscapeKey = true,
+        Sheet = AppDialogSheetMode.PhoneAndTablet,
+    };
+
+    private Task BeginAsync(UploadRow row, string kindKey, string? libraryId)
+    {
+        row.KindKey = kindKey;
+        row.LibraryId = string.IsNullOrWhiteSpace(libraryId) || libraryId == LibraryChoiceOptions.NewChoice ? null : libraryId;
+        row.State = UploadRowState.Starting;
+        row.Message = null;
+        if (_module is null)
+        {
+            row.State = UploadRowState.Failed;
+            row.Message = "Adding files is not ready yet. Reload the page and try again.";
+            return Task.CompletedTask;
+        }
+
+        _self ??= DotNetObjectReference.Create(this);
+        // The call returns when the upload ends, so it is not awaited here: the rows show it as it goes.
+        _ = RunAsync(row);
+        return Task.CompletedTask;
+    }
+
+    private async Task RunAsync(UploadRow row)
+    {
+        try
+        {
+            await _module!.InvokeVoidAsync("begin", row.Id, row.KindKey, row.LibraryId, Token(), _self);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or ObjectDisposedException)
+        {
+            Logger.LogWarning(ex, "Sending {File} stopped because the browser call failed", row.Name);
+            await InvokeAsync(() =>
+            {
+                if (row.State is UploadRowState.Starting or UploadRowState.Uploading)
+                {
+                    row.State = UploadRowState.Failed;
+                    row.Message = "The upload stopped. Choose the file again to carry on.";
+                    StateHasChanged();
+                }
+            });
+        }
+    }
+
+    // The page's antiforgery token travels in the RequestVerificationToken header of every call that changes something.
+    private string? Token() => Services.GetService<AntiforgeryStateProvider>()?.GetAntiforgeryToken()?.Value;
+
+    [JSInvokable]
+    public Task OnUploadProgress(string id, long sent, long total) => InvokeAsync(() =>
+    {
+        if (_disposed || _rows.FirstOrDefault(row => row.Id == id) is not { } row) return;
+        row.State = UploadRowState.Uploading;
+        row.Sent = sent;
+        var step = total > 0 ? Math.Min(100, (int)(sent * 100 / total)) / 25 : 0;
+        if (step > row.AnnouncedStep)
+        {
+            row.AnnouncedStep = step;
+            Announce($"{row.Name}: {step * 25} percent");
+        }
+
+        StateHasChanged();
+    });
+
+    [JSInvokable]
+    public Task OnUploadFinished(string id, UploadOutcome outcome) => InvokeAsync(() =>
+    {
+        if (_disposed || _rows.FirstOrDefault(row => row.Id == id) is not { } row) return;
+        ApplyOutcome(row, outcome);
+        Announce($"{row.Name}: {StateText(row)}");
+        StateHasChanged();
+    });
+
+    /// <summary>Shows how a file's upload ended. Public so the page can be tested without a browser.</summary>
+    public void ApplyOutcome(UploadRow row, UploadOutcome outcome)
+    {
+        switch (outcome.State)
+        {
+            case "completed":
+                row.State = UploadRowState.Done;
+                row.Sent = row.Size;
+                row.FinalName = outcome.FileName;
+                row.Renamed = outcome.Renamed;
+                Toasts.Add($"{outcome.FileName ?? row.Name} was added to the Import folder.", AppSeverity.Success);
+                break;
+            case "refused":
+                var kindAddress = row.KindKey is { } key && Kinds.GroupFor(key) is { } group ? LibraryGroupCatalog.TypeAddress(group, key) : null;
+                var (text, href, linkText) = UploadRefusalMessages.Describe(outcome.Code, outcome.Message, kindAddress);
+                row.State = UploadRowState.Refused;
+                row.Message = text;
+                row.LinkHref = href;
+                row.LinkText = linkText;
+                break;
+            case "cancelled":
+                _rows.Remove(row);
+                break;
+            default:
+                row.State = UploadRowState.Failed;
+                row.Message = string.IsNullOrWhiteSpace(outcome.Message) ? UploadRefusalMessages.Fallback : outcome.Message;
+                row.CanRetry = !outcome.Closed;
+                break;
+        }
+    }
+
+    private async Task CancelAsync(UploadRow row)
+    {
+        _rows.Remove(row);
+        Announce($"{row.Name}: cancelled");
+        if (_module is null) return;
+        try
+        {
+            await _module.InvokeVoidAsync("cancel", row.Id, Token());
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException)
+        {
+            Logger.LogWarning(ex, "Cancelling {File} could not reach the browser's upload", row.Name);
+        }
+    }
+
+    private async Task RetryAsync(UploadRow row)
+    {
+        row.CanRetry = false;
+        row.Resumed = true;
+        await BeginAsync(row, row.KindKey!, row.LibraryId);
+    }
+
+    private async Task DismissAsync(UploadRow row)
+    {
+        _rows.Remove(row);
+        await ForgetAsync(row.Id);
+    }
+
+    private async Task ForgetAsync(string id)
+    {
+        if (_module is null) return;
+        try
+        {
+            await _module.InvokeVoidAsync("forget", id);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException)
+        {
+            Logger.LogWarning(ex, "A file the browser held could not be let go");
+        }
+    }
+
+    private static UploadRow Notice(string id, string name, string message) =>
+        new() { Id = id, Name = name, State = UploadRowState.Notice, Message = message };
+
+    private static string StateText(UploadRow row) => row.State switch
+    {
+        UploadRowState.Done => "added to the Import folder",
+        UploadRowState.Refused or UploadRowState.Failed or UploadRowState.Notice => row.Message ?? "not added",
+        UploadRowState.Uploading => $"{row.Percent} percent",
+        _ => "starting",
+    };
+
+    // Screen readers hear a change, not every tick: the live region only changes on a state change or each quarter of a file.
+    private void Announce(string text) => _liveText = text;
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_module is not null)
+        {
+            try
+            {
+                // Leaving the page stops sending but deletes nothing: the Engine keeps the pieces and this browser remembers the upload.
+                foreach (var row in _rows.Where(row => row.State is UploadRowState.Starting or UploadRowState.Uploading))
+                {
+                    await _module.InvokeVoidAsync("suspend", row.Id);
+                }
+
+                await _module.InvokeVoidAsync("detach", _zone);
+                await _module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+            {
+                Logger.LogDebug(ex, "The browser was already gone when adding files was torn down");
+            }
+        }
+
+        _self?.Dispose();
+    }
+}

@@ -111,6 +111,10 @@ If the file is no longer on disk, **Add back** removes the row and nothing is sc
 
 The **Import folder** is the seventh entry in the Libraries list. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
 
+### Add files by dropping them
+
+On a Watch, Listen or Read page, or on a type's own page, you can drop files from your computer onto the list, or choose **Add files** beside **Add folder** (touch screens and pointers that cannot hover get the button only). The files are sent to the server in pieces and land in the Import folder under that type, where Library files them on its next run. If a file does not fit the page (a film dropped on Music), one dialog asks which kind it is for, with the usual kind cards; a kind with several libraries also asks which library. A file name already in use gets a number added, never an overwrite. Each file shows a progress bar with **Cancel**, which deletes the partly sent file; if the connection drops, the upload carries on from the missing pieces, and after a reload choosing the same file again resumes it. A refusal says why in one sentence and links to the fix, for example **Set an Import folder first**. Adding files to the Vault by dropping is not available yet, and photos go through View's own upload. Only administrators can add files this way, and an administrator can turn it off with `allow_drag_and_drop`.
+
 ## Set up View storage
 
 Use **Settings > Libraries** to choose the single managed View root. Use **Settings > Users** for each enabled profile's Personal Space sources and devices.

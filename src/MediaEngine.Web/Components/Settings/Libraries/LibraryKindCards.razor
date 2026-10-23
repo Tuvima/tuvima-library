@@ -1,0 +1,41 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+
+@* The kind cards: an icon tile (coloured when the kind looks details up, grey when it files as it is), the kind's name and an (i)
+   with what belongs in it. Add folder (step 1) and the file-drop dialog both draw their kinds from here. *@
+<div class="add-wizard__kinds" role="group" aria-label="@Label">
+    @foreach (var kind in Kinds)
+    {
+        <div class="add-wizard__kind">
+            <AppNativeButton Type="button"
+                             Class="@($"add-wizard__kind-option{(kind.Key == SelectedKey ? " is-selected" : string.Empty)}")"
+                             data-type="@kind.Key"
+                             OnClick="@(_ => OnChoose.InvokeAsync(kind))">
+                <span class="@LibraryKindLook.TileClass(kind)" data-lookup="@(LibraryKindLook.LooksUp(kind) ? "true" : "false")"><AppMaterialIcon Icon="@kind.Icon" /></span>
+                <strong>@kind.Label</strong>
+            </AppNativeButton>
+            @if (ShowMetadata)
+            {
+                <LibraryMetadataCell Type="@kind" Catalogue="@Catalogue" />
+            }
+            <AppTooltip Text="@kind.Tooltip" Placement="AppPlacement.Top">
+                <span class="add-wizard__info" role="img" tabindex="0" aria-label="@($"About {kind.Label}: {kind.Tooltip}")" data-info-for="@kind.Key"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
+            </AppTooltip>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The kinds to offer, in the order to draw them.</summary>
+    [Parameter, EditorRequired] public IEnumerable<LibraryTypeOption> Kinds { get; set; } = [];
+    /// <summary>The accessible name of the group of cards.</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    /// <summary>The key of the kind chosen so far, or null.</summary>
+    [Parameter] public string? SelectedKey { get; set; }
+    /// <summary>Draws each kind's Metadata icons (the providers it looks details up from) beside its card, as the group pages do.</summary>
+    [Parameter] public bool ShowMetadata { get; set; }
+    /// <summary>The provider catalogue the Metadata icons are drawn from; null while it is not known.</summary>
+    [Parameter] public IReadOnlyList<ProviderCatalogueDto>? Catalogue { get; set; }
+    /// <summary>Raised with the kind whose card was pressed.</summary>
+    [Parameter] public EventCallback<LibraryTypeOption> OnChoose { get; set; }
+}
