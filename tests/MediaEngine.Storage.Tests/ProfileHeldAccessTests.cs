@@ -560,7 +560,8 @@ public sealed class ProfileHeldAccessTests : IDisposable
     {
         var (_, person, account) = await CreateMemberAsync();
 
-        var outcome = await _accounts.DeleteUserAsync(account.Id);
+        var confirmed = (await _accounts.PlanUserRemovalAsync(account.Id)).HouseholdProfiles.Select(profile => profile.Id).ToArray();
+        var outcome = await _accounts.DeleteUserAsync(account.Id, confirmed);
 
         Assert.Equal(person.Id, Assert.Single(outcome.DeletedProfileIds));
         Assert.Null(await _accounts.GetByIdAsync(account.Id));

@@ -152,13 +152,10 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 throw new InvalidOperationException("A household administrator needs a sign-in. Attach one to this profile first.");
             }
 
-            // A household always keeps one household administrator profile (D7): the last one cannot be turned off.
-            if (!isHouseholdAdministrator && conn.ExecuteScalar<int>("""
-                    SELECT EXISTS(SELECT 1 FROM profiles WHERE id=@profileId AND household_id IS NOT NULL)
-                       AND NOT EXISTS(SELECT 1 FROM profiles other
-                                      WHERE other.id<>@profileId AND other.is_household_admin=1
-                                        AND other.household_id=(SELECT household_id FROM profiles WHERE id=@profileId));
-                    """, new { profileId }, tx) == 1)
+            // A household always keeps one household administrator profile with an enabled user (D7): the last one cannot be turned off.
+            if (!isHouseholdAdministrator && conn.ExecuteScalar<int>(
+                    $"SELECT EXISTS(SELECT 1 FROM profiles WHERE id=@profileId AND household_id IS NOT NULL) AND NOT {AnotherHouseholdAdministratorSql};",
+                    new { profileId }, tx) == 1)
             {
                 throw new InvalidOperationException(UserRemovalMessages.LastHouseholdAdministrator);
             }
@@ -167,6 +164,26 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 new { profileId, value = isHouseholdAdministrator ? 1 : 0 }, tx);
             return true;
         }, ct);
+
+    public Task<bool> HasAnotherHouseholdAdministratorAsync(Guid profileId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        return Task.FromResult(conn.ExecuteScalar<int>($"SELECT {AnotherHouseholdAdministratorSql};", new { profileId }) == 1);
+    }
+
+    /// <summary>
+    /// "Another household administrator who counts": a different profile in the same household that is a household administrator
+    /// and has an enabled user (D7, D15). A household administrator profile whose user is disabled looks after nobody, so it does not
+    /// count. One meaning, shared by every last-household-administrator check (turning a role off, deleting a profile, disabling a
+    /// user, the household removal plan). Needs <c>@profileId</c>.
+    /// </summary>
+    internal const string AnotherHouseholdAdministratorSql = """
+        EXISTS(SELECT 1 FROM profiles other
+               WHERE other.id<>@profileId AND other.is_household_admin=1
+                 AND other.household_id=(SELECT household_id FROM profiles WHERE id=@profileId)
+                 AND EXISTS(SELECT 1 FROM accounts ou WHERE ou.profile_id=other.id AND ou.is_enabled=1))
+        """;
 
     /// <summary>
     /// True when a server administrator profile other than <paramref name="profileId"/> has an enabled user that can sign in (a

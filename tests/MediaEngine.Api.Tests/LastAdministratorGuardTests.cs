@@ -94,6 +94,8 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
     {
         var first = await CreateAdministratorAsync();
         var second = await CreateAdministratorAsync();
+        // The Library's own household keeps a household administrator too (D7), so the second one looks after it as well.
+        await new ProfileAccessRepository(_database).SetHouseholdAdministratorAsync(second.ProfileId!.Value, true, DateTimeOffset.UtcNow);
 
         await _mutations.UpdateAsync(_actor, first.Id, new UpdateAccountAccessCommand(first.Email, false, true));
         Assert.False((await _accounts.GetByIdAsync(first.Id))!.IsEnabled);
@@ -161,7 +163,9 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
             Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
             Libraries: new HashSet<Guid>(), TemporaryPassword: Password));
         // The member starts a household of their own and is its last administrator: deleting them removes that household too.
-        await _mutations.DeleteUserAsync(_actor, member.Id);
+        var preview = await _mutations.PreviewDeleteUserAsync(_actor, member.Id);
+        await _mutations.DeleteUserAsync(_actor, member.Id,
+            confirmedProfileIds: preview.Plan.HouseholdProfiles.Select(profile => profile.Id).ToArray());
 
         Assert.Null(await _accounts.GetByIdAsync(member.Id));
     }

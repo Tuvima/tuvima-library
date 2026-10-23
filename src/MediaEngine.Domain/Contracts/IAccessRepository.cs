@@ -41,12 +41,15 @@ public interface IAccountAccessMutationRepository
     /// in the same step). The profile takes the roles and access described by the arguments, unless
     /// <paramref name="preserveProfileAccess"/> is set: attaching a sign-in to a person who already exists never changes what that
     /// person may do (their roles, features and libraries stay exactly as they are). A brand-new profile always takes the arguments.
+    /// <paramref name="newHouseholdName"/> makes a brand-new household for the new profile in the same step (so a failure leaves no
+    /// empty household behind); its first profile looks after it. Joining a household that already exists never promotes anyone.
     /// </summary>
     Task CreateAccountAsync(Account account, AccountProfileGrant initialGrant,
         IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
         CancellationToken ct = default,
         MediaEngine.Domain.Aggregates.Profile? newProfile = null,
-        bool preserveProfileAccess = false);
+        bool preserveProfileAccess = false,
+        string? newHouseholdName = null);
     Task UpdateAccountAsync(Account account, CancellationToken ct = default);
     Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default);
     /// <summary>
@@ -72,7 +75,8 @@ public interface IAccountAccessMutationRepository
         AccountInvitation invitation,
         CancellationToken ct = default,
         MediaEngine.Domain.Aggregates.Profile? newProfile = null,
-        bool preserveProfileAccess = false);
+        bool preserveProfileAccess = false,
+        string? newHouseholdName = null);
     /// <summary>
     /// Creates a person for an existing sign-in. <paramref name="accessFromProfileId"/> is the profile of whoever is creating them: the
     /// new person starts with that profile's Read/Watch/Listen/View access and libraries (View off and no libraries when it is in
@@ -271,6 +275,8 @@ public interface IAccountAccessMutationService
     /// password or passkey (D10).
     /// </summary>
     Task<CreatedUser> CreateUserAsync(RequestAuthority actor, CreateUserCommand command, CancellationToken ct = default);
+    /// <summary>Lists every user (sign-in), only for an unlocked server administrator or an application trusted with identity.users.read.</summary>
+    Task<IReadOnlyList<Account>> ListUsersAsync(RequestAuthority actor, CancellationToken ct = default);
     /// <summary>
     /// Deletes a user (D5, D6), only for a server administrator (or a trusted application). Normally only the sign-in goes and the
     /// profile with everything in it stays. The last enabled user attached to a household-administrator profile of a non-default
@@ -278,7 +284,8 @@ public interface IAccountAccessMutationService
     /// actor's own user, a server administrator that would be the last one who can sign in, or the default household. A caller that
     /// confirmed a list of profiles (<paramref name="confirmedProfileIds"/>, empty for a sign-in-only delete) has it checked against
     /// what would go, before anything moves and again inside the delete: if they differ, nothing changes and
-    /// <see cref="AccountRemovalChangedException"/> is thrown. <see langword="null"/> skips the check.
+    /// <see cref="AccountRemovalChangedException"/> is thrown. <see langword="null"/> skips the check only for a sign-in-only
+    /// delete: a delete that would remove a household always needs the confirmed list.
     /// </summary>
     Task DeleteUserAsync(
         RequestAuthority actor,

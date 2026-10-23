@@ -309,7 +309,9 @@ public sealed class HouseholdPeopleTests
         await mutations.RemoveOwnSignInAsync(actor, given.Id);
         // The household's only owner cannot give up the role (a household keeps one); deleting their sign-in removes the household.
         await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.SetHouseholdAdminAsync(actor, owner.Id, false));
-        await mutations.DeleteUserAsync(actor, owner.Id);
+        var preview = await mutations.PreviewDeleteUserAsync(actor, owner.Id);
+        await mutations.DeleteUserAsync(actor, owner.Id,
+            confirmedProfileIds: preview.Plan.HouseholdProfiles.Select(profile => profile.Id).ToArray());
         Assert.Null(await accounts.GetByIdAsync(owner.Id));
         Assert.Null(await households.GetByIdAsync(household.Id));
     }

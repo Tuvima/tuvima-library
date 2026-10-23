@@ -275,7 +275,8 @@ public sealed class HouseholdAdministratorTests
         var spare = await world.AddPersonAsync(world.A);
         await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.CreateAsync(world.ServerAdmin,
             new CreateAccountAccessCommand("other.elsewhere@example.com", IsAdministrator: true, ProfileId: spare.Id, NewProfile: null,
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>())));
+                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(),
+                TemporaryPassword: TemporaryPassword)));
         Assert.False((await access.GetAdminFlagsAsync(spare.Id))!.IsServerAdministrator);
 
         // The Library's own household takes one.
@@ -284,7 +285,8 @@ public sealed class HouseholdAdministratorTests
             new AddHouseholdPersonCommand(home.Id, "Partner", null, false, null));
         var created = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
             "partner@example.com", IsAdministrator: true, ProfileId: partner.Id, NewProfile: null,
-            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>()));
+            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(),
+            TemporaryPassword: TemporaryPassword));
         Assert.True((await access.GetAdminFlagsAsync(partner.Id))!.IsServerAdministrator);
         Assert.True((await world.Accounts.GetByIdAsync(created.Id))!.IsAdministrator);
     }
@@ -475,7 +477,8 @@ public sealed class HouseholdAdministratorTests
 
         await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
             "partner@example.com", IsAdministrator: true, ProfileId: partner.Id, NewProfile: null,
-            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>()));
+            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(),
+            TemporaryPassword: TemporaryPassword));
         var partnerFlags = (await access.GetAdminFlagsAsync(partner.Id))!;
         Assert.True(partnerFlags.IsServerAdministrator);
         Assert.False(partnerFlags.IsHouseholdAdministrator);

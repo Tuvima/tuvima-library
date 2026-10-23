@@ -47,6 +47,12 @@ public interface IProfileAccessRepository
     /// </summary>
     Task<bool> SetHouseholdAdministratorAsync(Guid profileId, bool isHouseholdAdministrator, DateTimeOffset changedAt, CancellationToken ct = default);
 
+    /// <summary>
+    /// True when another profile in the same household is a household administrator with an enabled user. The one meaning of "a
+    /// household administrator who counts" (D7): a household administrator profile whose user is disabled does not count.
+    /// </summary>
+    Task<bool> HasAnotherHouseholdAdministratorAsync(Guid profileId, CancellationToken ct = default);
+
     Task<ProfileAdminProtection?> GetAdminProtectionAsync(Guid profileId, CancellationToken ct = default);
 
     /// <summary>

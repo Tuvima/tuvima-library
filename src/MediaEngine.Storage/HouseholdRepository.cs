@@ -187,15 +187,23 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             return HouseholdDeleteOutcome.IsDefaultHousehold;
         }
 
-        // A safety check, so it counts a sign-in under either record (its own profile's household or the column still written).
+        // A safety check. A sign-in belongs to its profile's household; the account column answers only for a sign-in with no profile.
         if (conn.ExecuteScalar<int>("""
-            SELECT (SELECT COUNT(*) FROM accounts WHERE household_id = @householdId
-                      OR profile_id IN (SELECT id FROM profiles WHERE household_id = @householdId))
+            SELECT (SELECT COUNT(*) FROM accounts
+                    WHERE profile_id IN (SELECT id FROM profiles WHERE household_id = @householdId)
+                       OR (profile_id IS NULL AND household_id = @householdId))
                  + (SELECT COUNT(*) FROM profiles WHERE household_id = @householdId);
             """, new { householdId }, tx) > 0)
         {
             return HouseholdDeleteOutcome.NotEmpty;
         }
+
+        // A sign-in of another household whose old column still names this one is pointed at its profile's household, so the column
+        // does not hold the removed household.
+        conn.Execute("""
+            UPDATE accounts SET household_id = (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id)
+            WHERE household_id = @householdId AND profile_id IS NOT NULL;
+            """, new { householdId }, tx);
 
         // The household's Shared Library in View keeps the household while it holds shared photos. An empty one is
         // only a shell, so it goes with the household in this same step.

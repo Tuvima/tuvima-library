@@ -97,7 +97,8 @@ public sealed class UserDeletionTests
         await using var world = await World.CreateAsync(secondOwner: false);
         var profiles = new[] { await DefaultProfileAsync(world, world.Alex), world.SamProfile.Id, world.Mary.Id, world.KimProfile.Id };
 
-        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id);
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id,
+            confirmedProfileIds: await ConfirmedAsync(world, world.Alex.Id));
 
         Assert.Null(await world.Households.GetByIdAsync(world.Household.Id));
         foreach (var profile in profiles)
@@ -125,7 +126,8 @@ public sealed class UserDeletionTests
     {
         await using var world = await World.CreateAsync(secondOwner: false);
 
-        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.Delete);
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.Delete,
+            await ConfirmedAsync(world, world.Alex.Id));
 
         Assert.Equal(4, world.Photos.Prepared.Count);
         Assert.All(world.Photos.Prepared, prepared => Assert.Equal(ProfilePhotoDisposition.Delete, prepared.Photos));
@@ -226,7 +228,8 @@ public sealed class UserDeletionTests
         Assert.Empty(world.Photos.Prepared);
         Assert.NotNull(await world.Households.GetByIdAsync(world.Household.Id));
 
-        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.Delete);
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.Delete,
+            await ConfirmedAsync(world, world.Alex.Id));
         Assert.Null(await world.Households.GetByIdAsync(world.Household.Id));
     }
 
@@ -238,7 +241,9 @@ public sealed class UserDeletionTests
         // Shared photos appear after the checks and the photo step, so only the data store's own check stops the delete.
         world.Photos.OnPrepare = () => world.AddSharedPhotoAsync(world.Household.Id).GetAwaiter().GetResult();
 
-        var failed = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id));
+        var confirmed = await ConfirmedAsync(world, world.Alex.Id);
+        var failed = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteUserAsync(
+            world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.MoveToShared, confirmed));
 
         Assert.Equal("This household still has shared photos in View. Remove them first.", failed.Message);
         Assert.Equal(4, world.Photos.Prepared.Count);
@@ -577,6 +582,11 @@ public sealed class UserDeletionTests
 
         Assert.Equal([LogLevel.Warning], logger.Levels);
     }
+
+    /// <summary>The list of profiles the preview shows for a user: what a person confirms before a household goes.</summary>
+    private static async Task<Guid[]> ConfirmedAsync(World world, Guid userId) =>
+        (await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, userId))
+            .Plan.HouseholdProfiles.Select(profile => profile.Id).ToArray();
 
     private static async Task<Guid> DefaultProfileAsync(World world, Account account) =>
         (await world.Accounts.GetDefaultProfileIdAsync(account.Id))!.Value;

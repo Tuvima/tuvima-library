@@ -361,7 +361,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             var plan = PlanUserRemoval(connection, transaction, userId);
             var profileIds = plan.RemovesHousehold ? plan.HouseholdProfiles.Select(profile => profile.Id).ToArray() : [];
             // What goes must be exactly what the caller was shown and confirmed; otherwise nothing is deleted.
-            if (confirmedProfileIds is not null && !confirmedProfileIds.ToHashSet().SetEquals(profileIds))
+            // A household removal always needs that list: without one nothing is deleted.
+            if (confirmedProfileIds is null ? plan.RemovesHousehold : !confirmedProfileIds.ToHashSet().SetEquals(profileIds))
             {
                 throw new AccountRemovalChangedException();
             }
@@ -380,10 +381,11 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             }
 
             var householdId = plan.HouseholdId!.Value;
+            // A user belongs to the household of its profile; the old column answers only for a user with no profile.
             var userIds = connection.Query<Guid>("""
                 SELECT a.id FROM accounts a
                 WHERE a.profile_id IN (SELECT id FROM profiles WHERE household_id=@householdId)
-                   OR a.household_id=@householdId
+                   OR (a.profile_id IS NULL AND a.household_id=@householdId)
                 ORDER BY a.created_at, a.id;
                 """, new { householdId }, transaction).ToList();
             foreach (var id in userIds)
@@ -497,7 +499,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
     public Task CreateAccountAsync(Account account, AccountProfileGrant initialGrant,
         IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
-        CancellationToken ct = default, Profile? newProfile = null, bool preserveProfileAccess = false) =>
+        CancellationToken ct = default, Profile? newProfile = null, bool preserveProfileAccess = false,
+        string? newHouseholdName = null) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -511,8 +514,25 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             // The account's household: the one it names, else the one its existing profile is in, else a new one.
             var existingName = newProfile?.DisplayName ?? connection.QueryFirstOrDefault<string>(
                 "SELECT display_name FROM profiles WHERE id=@ProfileId;", initialGrant, transaction);
-            account.HouseholdId = ResolveAccountHousehold(
-                connection, transaction, account, newProfile is null ? initialGrant.ProfileId : null, existingName ?? account.Email);
+            var startedHousehold = false;
+            if (newHouseholdName is not null)
+            {
+                // The household is made here, in the same transaction as the user and its profile.
+                if (account.HouseholdId is not null || newProfile is null)
+                {
+                    throw new InvalidOperationException("A new household is made only for a new profile that names no household.");
+                }
+
+                account.HouseholdId = CreateNamedHousehold(connection, transaction, newHouseholdName, account.CreatedAt);
+                startedHousehold = true;
+            }
+            else
+            {
+                account.HouseholdId = ResolveAccountHousehold(
+                    connection, transaction, account, newProfile is null ? initialGrant.ProfileId : null,
+                    existingName ?? account.Email, out startedHousehold);
+            }
+
             if (newProfile is not null)
             {
                 RequireRoom(connection, transaction, account.HouseholdId.Value);
@@ -547,7 +567,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             InsertAccount(connection, transaction, account);
             InsertGrant(connection, transaction, initialGrant);
             ReplaceAccess(connection, transaction, account.Id, features, libraries, account.UpdatedAt);
-            EnsureHouseholdPrimary(connection, transaction, account.Id);
+            EnsureHouseholdPrimary(connection, transaction, account.Id,
+                mayLookAfter: startedHousehold && (newProfile is not null || !preserveProfileAccess));
             // A brand-new profile (or one the caller asked to set up, like the administrator's first start) takes the roles and access
             // this sign-in was created with. A person who already exists keeps exactly what they have.
             if (newProfile is not null || !preserveProfileAccess)
@@ -566,7 +587,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         AccountInvitation invitation,
         CancellationToken ct = default,
         Profile? newProfile = null,
-        bool preserveProfileAccess = false) =>
+        bool preserveProfileAccess = false,
+        string? newHouseholdName = null) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -605,9 +627,31 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 throw new KeyNotFoundException("Household not found.");
             }
 
-            account.HouseholdId ??= profileHouseholds.Count == 1
-                ? profileHouseholds[0]
-                : CreateOrAdoptHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account);
+            var startedHousehold = false;
+            if (newHouseholdName is not null)
+            {
+                // The household is made here, in the same transaction as the user and its profile.
+                if (account.HouseholdId is not null || newProfile is null)
+                {
+                    throw new InvalidOperationException("A new household is made only for a new profile that names no household.");
+                }
+
+                account.HouseholdId = CreateNamedHousehold(connection, transaction, newHouseholdName, account.CreatedAt);
+                startedHousehold = true;
+            }
+            else if (account.HouseholdId is null)
+            {
+                if (profileHouseholds.Count == 1)
+                {
+                    account.HouseholdId = profileHouseholds[0];
+                }
+                else
+                {
+                    account.HouseholdId = CreateOrAdoptHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account);
+                    startedHousehold = true;
+                }
+            }
+
             if (newProfile is not null)
             {
                 // A household holds up to eight people (D14), however the new person arrives.
@@ -636,7 +680,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 ExpiresAt = Iso(invitation.ExpiresAt),
             }, transaction);
             // Someone invited from outside starts a household of their own and looks after it.
-            EnsureHouseholdPrimary(connection, transaction, account.Id);
+            EnsureHouseholdPrimary(connection, transaction, account.Id,
+                mayLookAfter: startedHousehold && (newProfile is not null || !preserveProfileAccess));
             if (newProfile is not null || !preserveProfileAccess)
             {
                 SeedProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
@@ -823,12 +868,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
         var household = connection.QuerySingleOrDefault<(string Name, bool IsDefault)>(
             "SELECT name AS Name, is_default AS IsDefault FROM households WHERE id=@householdId;", new { householdId }, transaction);
-        // Another enabled user on a household-administrator profile of the same household means someone can still look after it.
-        var someoneElseLooksAfter = connection.ExecuteScalar<int>("""
-            SELECT COUNT(*) FROM accounts a
-            JOIN profiles p ON p.id=a.profile_id
-            WHERE p.household_id=@householdId AND p.is_household_admin=1 AND a.is_enabled=1 AND a.id<>@userId;
-            """, new { householdId, userId }, transaction) > 0;
+        // Another household-administrator profile of the same household with an enabled user means someone can still look after it
+        // (the same meaning as every other last-household-administrator check).
+        var someoneElseLooksAfter = connection.ExecuteScalar<int>(
+            $"SELECT {ProfileAccessRepository.AnotherHouseholdAdministratorSql};", new { profileId = profile.Id }, transaction) == 1;
         var removesHousehold = !household.IsDefault && profile.IsHouseholdAdministrator && !someoneElseLooksAfter;
         IReadOnlyList<Profile> householdProfiles = removesHousehold
             ? connection.Query<OwnProfileRow>("""
@@ -887,13 +930,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new KeyNotFoundException("Profile not found.");
         }
 
-        // A household always keeps at least one household administrator profile (D7): the last one cannot be deleted.
-        if (connection.ExecuteScalar<int>("""
-                SELECT EXISTS(SELECT 1 FROM profiles WHERE id=@profileId AND is_household_admin=1 AND household_id IS NOT NULL)
-                   AND NOT EXISTS(SELECT 1 FROM profiles other
-                                  WHERE other.id<>@profileId AND other.is_household_admin=1
-                                    AND other.household_id=(SELECT household_id FROM profiles WHERE id=@profileId));
-                """, new { profileId }, transaction) == 1)
+        // A household always keeps at least one household administrator profile with an enabled user (D7): the last one cannot be deleted.
+        if (connection.ExecuteScalar<int>(
+                $"SELECT EXISTS(SELECT 1 FROM profiles WHERE id=@profileId AND is_household_admin=1 AND household_id IS NOT NULL) AND NOT {ProfileAccessRepository.AnotherHouseholdAdministratorSql};",
+                new { profileId }, transaction) == 1)
         {
             throw new InvalidOperationException(UserRemovalMessages.LastHouseholdAdministrator);
         }
@@ -1129,6 +1169,15 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
     private const string CrossHouseholdMessage = "A sign-in can only open people from its own household.";
 
+    /// <summary>A household with exactly the name the administrator chose (trimmed and checked as every household name is).</summary>
+    private static Guid CreateNamedHousehold(System.Data.IDbConnection c, System.Data.IDbTransaction tx, string name, DateTimeOffset at)
+    {
+        var household = new Household(Guid.NewGuid(), name, at);
+        c.Execute("INSERT INTO households(id,name,created_at) VALUES(@Id,@Name,@at);",
+            new { household.Id, household.Name, at = Iso(at) }, tx);
+        return household.Id;
+    }
+
     private static Guid CreateHousehold(System.Data.IDbConnection c, System.Data.IDbTransaction tx, string? name, DateTimeOffset at)
     {
         var id = Guid.NewGuid();
@@ -1139,9 +1188,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
     /// <summary>
     /// The first main sign-in a household gets (never a person's own sign-in, which follows another) becomes its
-    /// primary account and its household administrator. Later sign-ins leave that alone.
+    /// primary account. It also becomes the household's administrator only when <paramref name="mayLookAfter"/> (the household was
+    /// made for this very sign-in: a new household's first person looks after it, because a household needs one). Joining a
+    /// household that already exists never promotes anyone; administrator roles are given only through the roles actions.
     /// </summary>
-    private static void EnsureHouseholdPrimary(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId)
+    private static void EnsureHouseholdPrimary(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, bool mayLookAfter)
     {
         var householdId = HouseholdOfAccount(c, tx, accountId);
         if (householdId is null)
@@ -1154,7 +1206,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             WHERE id=@householdId AND primary_account_id IS NULL
               AND EXISTS (SELECT 1 FROM accounts WHERE id=@accountId AND grants_inherit_from_account_id IS NULL);
             """, new { accountId, householdId = householdId.Value }, tx);
-        if (named > 0)
+        if (named > 0 && mayLookAfter)
         {
             // A brand-new account has no open sessions to re-check, so its authorization version stays as created.
             c.Execute("UPDATE accounts SET household_admin=1 WHERE id=@accountId;",
@@ -1334,8 +1386,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     /// (<paramref name="profileId"/>), else a new household named after <paramref name="name"/>.
     /// </summary>
     private static Guid ResolveAccountHousehold(
-        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account, Guid? profileId, string? name)
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account, Guid? profileId, string? name,
+        out bool started)
     {
+        started = false;
         if (account.HouseholdId is { } named)
         {
             if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id=@named;", new { named }, tx) == 0)
@@ -1347,6 +1401,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
 
         var fromProfile = profileId is { } p ? HouseholdOfProfile(c, tx, p) : null;
+        started = fromProfile is null;
         return fromProfile ?? CreateOrAdoptHousehold(c, tx, name, account);
     }
 

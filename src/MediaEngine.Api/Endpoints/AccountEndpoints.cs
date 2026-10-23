@@ -484,7 +484,8 @@ public static class AccountEndpoints
         // profiles (D6). ?photos=move (the default, also for a missing or unknown value) keeps the removed profiles' personal
         // photos in the Shared Library; ?photos=delete removes them. ?profiles=<id>,<id> is the list the person
         // confirmed (from the deletion preview; present but empty means none): if the profiles that would go differ, the
-        // Engine refuses with 409 "Something changed since you looked..." and deletes nothing. Without it nothing is compared.
+        // Engine refuses with 409 "Something changed since you looked..." and deletes nothing. A delete that would remove a household and
+        // sends no list is refused the same way.
         group.MapDelete("/{accountId:guid}", async (Guid accountId, [FromQuery] string? photos, [FromQuery] string? profiles,
             HttpContext http,
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
@@ -653,17 +654,19 @@ public static class AccountEndpoints
     private static void MapManagedUsers(RouteGroupBuilder access)
     {
         var group = access.MapGroup("/users");
-        group.MapGet("/", async (IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles,
-            [FromServices] IHouseholdRepository households, CancellationToken ct) =>
+        group.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            IIdentityRepository identities, IProfileRepository profiles,
+            [FromServices] IHouseholdRepository households, CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            // The route gate is repeated inside the service, which lists nothing for anyone else.
             var values = new List<UserSummaryResponse>();
-            foreach (var user in await accounts.GetAllAsync(ct))
+            foreach (var user in await mutations.ListUsersAsync(await resolver.ResolveAsync(http, ct), ct))
             {
                 values.Add(await MapUser(user, identities, profiles, households, ct));
             }
 
             return Results.Ok(values);
-        }).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersRead)
+        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersRead)
           .WithName("ListUsers")
           .Produces<IReadOnlyList<UserSummaryResponse>>();
 
@@ -740,11 +743,18 @@ public static class AccountEndpoints
         // Deletes the sign-in only (D5); the profile and everything in it stay. The last sign-in that can look after a household that is
         // not the default one takes the household and every profile in it (D6). ?photos=move (the default) keeps the removed profiles'
         // photos in the Shared Library; ?photos=delete removes them. ?profiles=<id>,<id> is the list shown by the preview (empty for a
-        // sign-in-only delete): if what would go differs, the Engine refuses with 409 and deletes nothing. Without it nothing is compared.
+        // sign-in-only delete): if what would go differs, the Engine refuses with 409 and deletes nothing.
+        // A delete that would remove a household and sends no list is refused the same way.
         group.MapDelete("/{userId:guid}", async (Guid userId, [FromQuery] string? photos, [FromQuery] string? profiles,
             HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            // The recent sign-in check comes first, so a stale session learns nothing from how the request is read.
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var disposition = photos?.Trim().ToLowerInvariant() switch
             {
                 null or "" or "move" => ProfilePhotoDisposition.MoveToShared,
@@ -752,11 +762,6 @@ public static class AccountEndpoints
                 _ => throw new ArgumentException("photos must be 'move' or 'delete'."),
             };
             var confirmed = ParseConfirmedProfiles(profiles);
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
             await mutations.DeleteUserAsync(await resolver.ResolveAsync(http, ct), userId, disposition, confirmed, ct);
             return Results.NoContent();
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
@@ -916,6 +921,11 @@ public static class AccountEndpoints
                 return stale;
             }
 
+            if (request.FeatureIds is null || request.LibraryIds is null)
+            {
+                throw new ArgumentException("Send both feature_ids and library_ids (either can be an empty list).");
+            }
+
             await mutations.ReplaceProfileAccessAsync(await resolver.ResolveAsync(http, ct), profileId,
                 request.FeatureIds.Select(id => new AccountFeatureId(id)).ToHashSet(),
                 request.LibraryIds.ToHashSet(), ct);
@@ -992,17 +1002,17 @@ public static class AccountEndpoints
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var disposition = photos?.Trim().ToLowerInvariant() switch
             {
                 null or "" or "move" => ProfilePhotoDisposition.MoveToShared,
                 "delete" => ProfilePhotoDisposition.Delete,
                 _ => throw new ArgumentException("photos must be 'move' or 'delete'."),
             };
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
             await mutations.DeleteProfileAsync(await resolver.ResolveAsync(http, ct), profileId, disposition, ct);
             return Results.NoContent();
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)

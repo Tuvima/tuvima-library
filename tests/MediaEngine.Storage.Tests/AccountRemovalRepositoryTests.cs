@@ -161,7 +161,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         var pat = await AddMainSignInAsync("pat@example.com", "Pat");
         var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(pat.HouseholdId!.Value);
 
-        await _accounts.DeleteUserAsync(pat.Id);
+        await _accounts.DeleteUserAsync(pat.Id, await ConfirmedAsync(pat.Id));
 
         Assert.Equal(0, Scalar("SELECT COUNT(*) FROM view_shared_library WHERE library_id=@library", new { library = shared.LibraryId }));
         Assert.Equal(0, Scalar("SELECT COUNT(*) FROM households WHERE id=@household", new { household = pat.HouseholdId }));
@@ -180,7 +180,8 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
             """, new { id = Guid.NewGuid(), library = shared.LibraryId, now = _now.ToString("O") });
 
         var plan = await _accounts.PlanUserRemovalAsync(pat.Id);
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteUserAsync(pat.Id));
+        var confirmed = await ConfirmedAsync(pat.Id);
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteUserAsync(pat.Id, confirmed));
 
         Assert.True(plan.HouseholdHoldsSharedItems);
         Assert.Equal(UserRemovalMessages.HouseholdHoldsSharedItems, refused.Message);
@@ -554,6 +555,10 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     private void AddPassword(Guid accountId) => Execute(
         "INSERT INTO account_credentials(id,account_id,credential_kind,secret_hash,hash_scheme,hash_version,security_stamp,created_at,updated_at) VALUES(@id,@accountId,'Password','h','pbkdf2',1,'s',@now,@now)",
         new { id = Guid.NewGuid(), accountId, now = _now.ToString("O") });
+
+    /// <summary>The profiles a household removal would take, as the confirmation lists them.</summary>
+    private async Task<Guid[]> ConfirmedAsync(Guid userId) =>
+        (await _accounts.PlanUserRemovalAsync(userId)).HouseholdProfiles.Select(profile => profile.Id).ToArray();
 
     private async Task<Guid> DefaultProfileAsync(Account account) => (await _accounts.GetDefaultProfileIdAsync(account.Id))!.Value;
 

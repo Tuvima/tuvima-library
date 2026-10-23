@@ -153,7 +153,7 @@ public sealed class AccountEndpointContractTests
     private static IReadOnlyList<string> Methods(RouteEndpoint endpoint) =>
         endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? [];
 
-    private static void AddEndpointServices(IServiceCollection services)
+    internal static void AddEndpointServices(IServiceCollection services)
     {
         services.AddAuthorization();
         services.AddScoped<IRequestAuthorityResolver>(_ => null!);
