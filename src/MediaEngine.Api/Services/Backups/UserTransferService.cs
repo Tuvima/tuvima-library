@@ -52,6 +52,9 @@ public sealed class UserTransferService(
     /// <summary>What an administrator is told when the kept file is gone (it waits for an hour).</summary>
     public const string ExpiredMessage = "This file is no longer kept. Choose it again.";
 
+    /// <summary>What a second request for the same kept file is told while the first is still importing it.</summary>
+    public const string AlreadyImportingMessage = "This file is already being imported.";
+
     /// <summary>What an administrator is told when the import request has no choices in it.</summary>
     public const string ChoicesMissingMessage = "Choose where to put them first.";
 
@@ -69,6 +72,9 @@ public sealed class UserTransferService(
         UserImportRefusal.SecureAdministratorsFirst => AddHouseholdBlockedMessage + " Nothing was imported.",
         UserImportRefusal.InvalidChoice => "One of the choices doesn't match this file. Nothing was imported.",
         UserImportRefusal.EmailMissing => "Every sign-in that is imported needs an email. Nothing was imported.",
+        UserImportRefusal.EmailInvalid => "One of the emails isn't a valid address. Give them a different email, or no sign-in. Nothing was imported.",
+        UserImportRefusal.AdministratorNeedsPassword =>
+            "The person chosen to look after a new household needs a password or passkey to sign in with, and this one has neither. Choose someone else. Nothing was imported.",
         _ => "This user is already in this Library. Nothing was imported.",
     };
 
@@ -169,23 +175,51 @@ public sealed class UserTransferService(
     public async Task<UserImportResultDto> ImportAsync(RequestAuthority actor, Guid operationId, UserImportRequestDto request, CancellationToken ct)
     {
         var administrator = await RequireAdministratorAsync(actor, ct).ConfigureAwait(false);
-        var kept = staging.Find(operationId, administrator) ?? throw new KeyNotFoundException(ExpiredMessage);
-        var choices = ToChoices(request ?? throw new ArgumentException(ChoicesMissingMessage));
 
-        // Read again from the kept file, so what is imported is what is on disk now and has passed every check.
-        var checkedFile = RestoreArchiveValidator.ValidateUserExport(kept.Path);
+        // One import per kept file: whoever holds the claim imports it; a second request for it is turned away.
+        var kept = staging.Claim(operationId, administrator, out var alreadyImporting);
+        if (alreadyImporting)
+        {
+            throw new UserTransferRefusedException(AlreadyImportingMessage);
+        }
+
+        if (kept is null)
+        {
+            throw new KeyNotFoundException(ExpiredMessage);
+        }
+
+        UserImportChoices choices;
         UserImportResult result;
+        var imported = false;
         try
         {
-            result = import.Import(checkedFile.Export, kept.OriginalName, checkedFile.CreatedAt, codec, clock.GetUtcNow(), choices, ct);
+            choices = ToChoices(request ?? throw new ArgumentException(ChoicesMissingMessage));
+
+            // Read again from the kept file, so what is imported is what is on disk now and has passed every check.
+            var checkedFile = RestoreArchiveValidator.ValidateUserExport(kept.Path);
+            try
+            {
+                result = import.Import(checkedFile.Export, kept.OriginalName, checkedFile.CreatedAt, codec, clock.GetUtcNow(), choices, ct);
+                imported = true;
+            }
+            catch (UserImportRefusedException ex)
+            {
+                // The file stays kept, so the administrator can change a choice (another email, another household) and try again.
+                throw new UserTransferRefusedException(SentenceFor(ex.Refusal, ex.Email), ex);
+            }
         }
-        catch (UserImportRefusedException ex)
+        finally
         {
-            // The file stays kept, so the administrator can change a choice (another email, another household) and try again.
-            throw new UserTransferRefusedException(SentenceFor(ex.Refusal, ex.Email), ex);
+            if (imported)
+            {
+                staging.Discard(operationId);
+            }
+            else
+            {
+                staging.Release(operationId);
+            }
         }
 
-        staging.Discard(operationId);
         await audit.WriteAsync(
             new AuthorizationAuditEvent(
                 "account.imported",

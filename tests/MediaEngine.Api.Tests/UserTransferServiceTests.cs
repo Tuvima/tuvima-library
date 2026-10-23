@@ -396,6 +396,58 @@ public sealed class UserTransferServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Import_OfTheSameKeptFileTwiceAtOnce_ImportsItOnce_AndTurnsTheSecondAwayWithAConflictSentence()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+        using var codec = new HoldingCodec(fresh.Codec);
+        var service = fresh.Service(administrator: admin.Account, importCodec: codec);
+        var preview = await InspectAsync(service, admin.Account, download.Content);
+        var request = Into(fresh);
+
+        // The first import is held inside the data store write while the second request for the same file arrives.
+        var first = Task.Run(() => service.ImportAsync(Human(admin.Account), preview.OperationId, request, CancellationToken.None));
+        Assert.True(codec.Entered.Wait(TimeSpan.FromSeconds(60)), "The first import never reached the data store.");
+
+        var second = await Assert.ThrowsAsync<UserTransferRefusedException>(
+            () => service.ImportAsync(Human(admin.Account), preview.OperationId, request, CancellationToken.None));
+        Assert.Equal("This file is already being imported.", second.Message);
+
+        codec.Proceed.Set();
+        var result = await first;
+        Assert.Single(result.Profiles);
+        Assert.Equal(1, fresh.Scalar("SELECT COUNT(*) FROM accounts WHERE email = 'maya@example.com'"));
+        Assert.Equal(1, fresh.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name = 'Maya'"));
+        Assert.Empty(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, request, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Import_ThatIsRefused_GivesTheKeptFileBack_SoAnotherChoiceCanBeTriedAndThenWorks()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+        var service = fresh.Service(administrator: admin.Account);
+        var preview = await InspectAsync(service, admin.Account, download.Content);
+        fresh.AddUser("maya@example.com", ["Quick"]);
+        var signIn = Assert.Single(preview.SignIns);
+
+        await Assert.ThrowsAsync<UserTransferRefusedException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, Into(fresh), CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.ImportAsync(
+            Human(admin.Account), preview.OperationId, Into(fresh) with { Emails = new Dictionary<Guid, string> { [signIn.Id] = "nope" } }, CancellationToken.None));
+        var result = await service.ImportAsync(
+            Human(admin.Account), preview.OperationId, Into(fresh) with { Emails = new Dictionary<Guid, string> { [signIn.Id] = "maya.new@example.com" } }, CancellationToken.None);
+
+        Assert.Equal("maya.new@example.com", Assert.Single(result.Profiles).SignInEmail);
+    }
+
+    [Fact]
     public async Task Import_ByAnotherAdministrator_IsNotFound_BecauseTheKeptFileBelongsToWhoUploadedIt()
     {
         var old = Computer.New(this, "old");
@@ -793,6 +845,31 @@ public sealed class UserTransferServiceTests : IDisposable
 
     private sealed record Person(Guid Account, Guid Profile);
 
+    /// <summary>A codec that holds the first import where it writes (it is called inside the data store write) until the test lets it go.</summary>
+    private sealed class HoldingCodec(IBackupPortableValueCodec inner) : IBackupPortableValueCodec, IDisposable
+    {
+        public ManualResetEventSlim Entered { get; } = new(false);
+
+        public ManualResetEventSlim Proceed { get; } = new(false);
+
+        public string? Export(string table, string column, string protectedValue, IReadOnlyDictionary<string, BackupValue> row) =>
+            inner.Export(table, column, protectedValue, row);
+
+        public string Import(string table, string column, string portableValue, IReadOnlyDictionary<string, BackupValue> row)
+        {
+            Entered.Set();
+            Proceed.Wait(TimeSpan.FromSeconds(60));
+            return inner.Import(table, column, portableValue, row);
+        }
+
+        public void Dispose()
+        {
+            Proceed.Set();
+            Entered.Dispose();
+            Proceed.Dispose();
+        }
+    }
+
     private sealed class Decisions(Guid? administrator, Guid? householdAdministrator = null) : IAccountAccessDecisionService
     {
         public ValueTask<AuthorizationDecision> EvaluateHouseholdAdministratorAsync(RequestAuthority authority, bool requireSurfaceUnlock, CancellationToken cancellationToken = default) =>
@@ -845,10 +922,14 @@ public sealed class UserTransferServiceTests : IDisposable
 
         public DatabaseBackupService BackupService() => BackupTestKit.Service(Database, Config, _backups, Codec);
 
-        public UserTransferService Service(Guid? administrator = null, ManagedSessionServiceTests.RecordingAudit? audit = null, Guid? householdAdministrator = null) => new(
+        public UserTransferService Service(
+            Guid? administrator = null,
+            ManagedSessionServiceTests.RecordingAudit? audit = null,
+            Guid? householdAdministrator = null,
+            IBackupPortableValueCodec? importCodec = null) => new(
             new PersonalStateBackupRepository(Database, Codec),
             new UserImportRepository(Database),
-            Codec,
+            importCodec ?? Codec,
             Staging(),
             new AccountRepository(Database),
             new HouseholdRepository(Database),

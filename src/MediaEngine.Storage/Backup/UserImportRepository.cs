@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net.Mail;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
@@ -43,6 +44,12 @@ public enum UserImportRefusal
 
     /// <summary>A sign-in would be imported with no email.</summary>
     EmailMissing,
+
+    /// <summary>The email a sign-in would have (in the file, or typed for it) is not a valid address.</summary>
+    EmailInvalid,
+
+    /// <summary>The person chosen to look after a new household has neither a password nor a passkey in the file, so nobody could sign in as them.</summary>
+    AdministratorNeedsPassword,
 }
 
 /// <summary>Raised when an import is refused; nothing was written.</summary>
@@ -148,7 +155,7 @@ public sealed class UserImportRepository
         var signIns = summary.SignIns
             .Select(signIn => new UserImportSignInStatus(
                 signIn.Id,
-                Exists(connection, null, "accounts", "normalized_email", NormalizedEmail(signIn.Email)),
+                TryCanonicalEmail(signIn.Email, out _, out var normalizedEmail) && Exists(connection, null, "accounts", "normalized_email", normalizedEmail),
                 SignInProblem(connection, null, signIn)))
             .ToList();
 
@@ -244,7 +251,7 @@ public sealed class UserImportRepository
 
         // Ids that already exist here get new ones (a household exported from this very Library, for example): nothing is overwritten.
         var renamed = RenamedIds(connection, transaction, export);
-        var prepared = Prepare(export, summary, plan, choices, renamed);
+        var prepared = Prepare(export, summary, plan, choices, renamed, now);
         var result = BackupRestoreRepository.ImportCore(connection, transaction, prepared, fileName, fileCreatedAt, codec, now, Guid.NewGuid(), ct, plainInsert: true);
 
         // Nothing is removed quietly: a row left pointing at something that does not exist means the file was not whole.
@@ -347,6 +354,12 @@ public sealed class UserImportRepository
                 throw new UserImportRefusedException(UserImportRefusal.AdministratorChoiceNeeded);
             }
 
+            // Nobody can sign in as them without a password or passkey, and a household needs someone who can (D10, D15).
+            if (!summary.SignIns.First(signIn => signIn.Id == chosenSignIn).CanSignInAnywhere)
+            {
+                throw new UserImportRefusedException(UserImportRefusal.AdministratorNeedsPassword);
+            }
+
             administrator = chosen.Id;
         }
 
@@ -354,13 +367,18 @@ public sealed class UserImportRepository
         var usedNow = new HashSet<string>(StringComparer.Ordinal);
         foreach (var signIn in summary.SignIns.Where(signIn => !without.Contains(signIn.Id)))
         {
-            var email = (overrides.TryGetValue(signIn.Id, out var chosenEmail) ? chosenEmail : signIn.Email)?.Trim();
-            if (string.IsNullOrEmpty(email))
+            var typed = (overrides.TryGetValue(signIn.Id, out var chosenEmail) ? chosenEmail : signIn.Email)?.Trim();
+            if (string.IsNullOrEmpty(typed))
             {
                 throw new UserImportRefusedException(UserImportRefusal.EmailMissing);
             }
 
-            var normalized = NormalizedEmail(email);
+            // The email is read exactly as sign-in reads one, so a spelling the file or the administrator used cannot slip past the clash check.
+            if (!TryCanonicalEmail(typed, out var email, out var normalized))
+            {
+                throw new UserImportRefusedException(UserImportRefusal.EmailInvalid);
+            }
+
             if (!usedNow.Add(normalized) || Exists(connection, transaction, "accounts", "normalized_email", normalized))
             {
                 throw new UserImportRefusedException(UserImportRefusal.EmailInUse, email);
@@ -441,6 +459,32 @@ public sealed class UserImportRepository
     /// <summary>The form sign-in looks an email up by (upper case, as the unique index holds it).</summary>
     internal static string NormalizedEmail(string email) => email.Trim().ToUpperInvariant();
 
+    /// <summary>
+    /// An email as sign-in reads it: the address a <see cref="MailAddress"/> makes of it, and that address in the form the unique index holds.
+    /// False when it is not a valid address.
+    /// </summary>
+    private static bool TryCanonicalEmail(string raw, out string address, out string normalized)
+    {
+        address = string.Empty;
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        try
+        {
+            address = new MailAddress(raw.Trim()).Address;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+
+        normalized = NormalizedEmail(address);
+        return true;
+    }
+
     // ---------------------------------------------------------------------------------------------------------
     // New ids
     // ---------------------------------------------------------------------------------------------------------
@@ -519,7 +563,8 @@ public sealed class UserImportRepository
         UserExportSummary summary,
         ImportPlan plan,
         UserImportChoices choices,
-        IReadOnlyDictionary<Guid, Guid> renamed)
+        IReadOnlyDictionary<Guid, Guid> renamed,
+        DateTimeOffset now)
     {
         var household = BackupValue.FromBlob(GuidSql.ToBlob(plan.HouseholdId));
         var collectionIds = summary.CollectionIds.ToHashSet();
@@ -530,18 +575,29 @@ public sealed class UserImportRepository
             switch (table.Table.ToLowerInvariant())
             {
                 case "accounts":
-                    tables.Add(Edit(table, ["email", "normalized_email"], (row, column) =>
-                    {
-                        var id = UserExportReader.GuidOf(row[column("id")]);
-                        if (id is not { } signIn || !plan.KeptEmails.TryGetValue(signIn, out var email))
+                    // A sign-in arriving by file never becomes the "this computer only" sign-in (which opens without a password), is as new as
+                    // the import (so it is never the oldest one), and needs no forced password change: the person signs in with the password
+                    // from their file, or an administrator sets a temporary one afterwards.
+                    tables.Add(Edit(
+                        table,
+                        ["email", "normalized_email", "this_computer_only", "must_change_password", "temporary_password_expires_at", "created_at", "updated_at"],
+                        (row, column) =>
                         {
-                            return false;
-                        }
+                            var id = UserExportReader.GuidOf(row[column("id")]);
+                            if (id is not { } signIn || !plan.KeptEmails.TryGetValue(signIn, out var email))
+                            {
+                                return false;
+                            }
 
-                        row[column("email")] = BackupValue.FromText(email);
-                        row[column("normalized_email")] = BackupValue.FromText(NormalizedEmail(email));
-                        return true;
-                    }));
+                            row[column("email")] = BackupValue.FromText(email);
+                            row[column("normalized_email")] = BackupValue.FromText(NormalizedEmail(email));
+                            row[column("this_computer_only")] = BackupValue.FromInteger(0);
+                            row[column("must_change_password")] = BackupValue.FromInteger(0);
+                            row[column("temporary_password_expires_at")] = BackupValue.Null;
+                            row[column("created_at")] = BackupValue.FromText(now.ToString("O", CultureInfo.InvariantCulture));
+                            row[column("updated_at")] = BackupValue.FromText(now.ToString("O", CultureInfo.InvariantCulture));
+                            return true;
+                        }));
                     break;
                 case "account_credentials":
                 case "account_two_step":

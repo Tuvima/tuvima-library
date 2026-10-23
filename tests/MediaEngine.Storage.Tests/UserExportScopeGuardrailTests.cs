@@ -137,6 +137,38 @@ public sealed class UserExportScopeGuardrailTests
     }
 
     [Fact]
+    public void NoTableInAUserExport_HasATextOrNumberPrimaryKeyOfItsOwn_SoNewBlobIdsCoverEveryIdAnImportMustReplace()
+    {
+        // An import gives a new id to every row whose own id already exists here (UserImportRepository.RenamedIds reads BLOB ids). A table
+        // with a single TEXT or INTEGER primary key would need its own replacement rule, so such a table must not join the user export unseen.
+        WithFreshStore(connection =>
+        {
+            var problems = new List<string>();
+            foreach (var entry in UserExportScope.Tables)
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = "SELECT name, upper(type) FROM pragma_table_info($table) WHERE pk > 0;";
+                command.Parameters.AddWithValue("$table", entry.Table);
+                var keys = new List<(string Name, string Type)>();
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        keys.Add((reader.GetString(0), reader.GetString(1)));
+                    }
+                }
+
+                if (keys.Count == 1 && keys[0].Type != "BLOB")
+                {
+                    problems.Add($"'{entry.Table}' has a single {keys[0].Type} primary key '{keys[0].Name}', which an import would not give a new id.");
+                }
+            }
+
+            Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
+        });
+    }
+
+    [Fact]
     public void TheUserExportFilter_MatchesNothingWhenTheAccountHasNoProfiles()
     {
         WithFreshStore(connection =>

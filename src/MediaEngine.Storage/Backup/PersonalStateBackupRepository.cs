@@ -238,7 +238,10 @@ public sealed class PersonalStateBackupRepository
             }
         }
 
-        var accountIds = ReadAccountIds(connection, transaction, profiles);
+
+        // A household file leaves out a sign-in that has no email (the this-computer administrator before it is secured): its profile and
+        // personal state still go, but nothing that opens it, so the file can always be imported. A one-profile file is refused earlier.
+        var accountIds = ReadAccountIds(connection, transaction, profiles, onlyWithEmail: scope.IsHousehold);
         var book = new TitleBook(new TitleRecognitionReader(connection, transaction, isWithheld));
         var tables = new List<BackupExportTable>();
         var dropped = 0;
@@ -319,15 +322,17 @@ public sealed class PersonalStateBackupRepository
         return ids;
     }
 
-    /// <summary>The users (sign-ins) that open the given profiles: at most one each.</summary>
-    private static List<Guid> ReadAccountIds(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyCollection<Guid> profiles)
+    /// <summary>The users (sign-ins) that open the given profiles: at most one each; optionally only those that have an email.</summary>
+    private static List<Guid> ReadAccountIds(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyCollection<Guid> profiles, bool onlyWithEmail = false)
     {
         var ids = new List<Guid>();
         foreach (var profile in profiles)
         {
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = "SELECT id FROM accounts WHERE profile_id = $profile";
+            command.CommandText = onlyWithEmail
+                ? "SELECT id FROM accounts WHERE profile_id = $profile AND email IS NOT NULL AND TRIM(email) <> ''"
+                : "SELECT id FROM accounts WHERE profile_id = $profile";
             command.Parameters.AddWithValue("$profile", GuidSql.ToBlob(profile));
             using var reader = command.ExecuteReader();
             while (reader.Read())

@@ -954,6 +954,133 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     // ---------------------------------------------------------------------------------------------------------
+    // Review fixes: no password-less sign-in by file, email-less sign-ins in a household file, email spelling
+    // ---------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Import_OfACraftedFileThatMarksASignInThisComputerOnlyAndOld_NeverBecomesTheThisComputerSignIn()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        var owner = target.AddUser("owner@example.com", ["Owner"], administrator: true);
+        var home = target.AddHousehold("Home");
+        var export = Export(source, maya);
+        export = WithValue(export, "accounts", "this_computer_only", BackupValue.FromInteger(1));
+        export = WithValue(export, "accounts", "created_at", BackupValue.FromText("2000-01-01T00:00:00.0000000+00:00"));
+        export = WithValue(export, "accounts", "must_change_password", BackupValue.FromInteger(1));
+        export = WithValue(export, "accounts", "temporary_password_expires_at", BackupValue.FromText("2099-01-01T00:00:00.0000000+00:00"));
+
+        ImportWith(target, export, Into(home));
+
+        var accounts = await new AccountRepository(target.Database).GetAllAsync();
+        var thisComputer = accounts.Where(account => account.IsEnabled && account.IsThisComputerOnly).OrderBy(account => account.CreatedAt).First();
+        Assert.Equal(owner.Account, thisComputer.Id);
+        var imported = accounts.Single(account => account.Id == maya.Account);
+        Assert.False(imported.IsThisComputerOnly);
+        Assert.False(imported.MustChangePassword);
+        Assert.Null(imported.TemporaryPasswordExpiresAt);
+        Assert.Equal(ImportedAt, imported.CreatedAt);
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM accounts WHERE this_computer_only = 1"));
+    }
+
+    [Fact]
+    public void ANewHouseholdsAdministrator_MustHaveAPasswordOrPasskeyInTheFile_AndNothingIsWrittenOtherwise()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        var mom = source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans);
+        source.AddUser("kid@example.com", ["Kid"], administrator: false, household: khans);
+        source.Execute($"DELETE FROM account_credentials WHERE account_id = {Blob(mom.Account)}");
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans));
+        var before = Counts(target);
+
+        var refused = Assert.Throws<UserImportRefusedException>(() => ImportWith(target, export, new UserImportChoices(null, "New", mom.Profiles[0])));
+
+        Assert.Equal(UserImportRefusal.AdministratorNeedsPassword, refused.Refusal);
+        Assert.Equal(before, Counts(target));
+        // The same person is fine as an ordinary member of a household that already exists.
+        ImportWith(target, export, Into(target.AddHousehold("Home")));
+        Assert.Equal(2, target.Scalar("SELECT COUNT(*) FROM accounts"));
+    }
+
+    [Fact]
+    public void AHouseholdExport_LeavesOutASignInWithNoEmail_ButKeepsItsProfileAndState_AndTheFileImports()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        var mom = source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans, householdAdmin: true);
+        var owner = source.AddUser("owner@example.com", ["Owner"], administrator: false, household: khans);
+        source.Execute($"UPDATE accounts SET email = NULL, normalized_email = NULL WHERE id = {Blob(owner.Account)}");
+        var movie = source.AddMovie("Dune", "tt1160419", "aaaa1111");
+        source.AddUserState(owner.Profiles[0], movie.Asset, 12.5);
+
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans));
+
+        Assert.Equal(mom.Account, UserExportReader.GuidOf(Value(Table(export, "accounts"), Assert.Single(Table(export, "accounts").Rows), "id")));
+        Assert.Equal(2, Table(export, "profiles").Rows.Count);
+        Assert.Single(Table(export, "account_credentials").Rows);
+        var summary = UserExportReader.Read(export);
+        Assert.Null(summary.Profiles.Single(profile => profile.Name == "Owner").SignInId);
+
+        var result = ImportWith(target, export, new UserImportChoices(null, "Imported Khans", mom.Profiles[0]));
+
+        Assert.Equal(2, result.Profiles.Count);
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM accounts"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(owner.Profiles[0])}"));
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM waiting_personal_state"));
+    }
+
+    [Fact]
+    public void Import_ReadsAnEmailAsSignInDoes_SoAnAddressWrittenWithANameOrOtherCasingStillClashes()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        var home = target.AddHousehold("Home");
+        target.AddUser("maya@example.com", ["Someone else"], administrator: false, household: home);
+        var export = WithValue(Export(source, maya), "accounts", "email", BackupValue.FromText("  Maya <MAYA@Example.com> "));
+        var before = Counts(target);
+
+        var refused = Assert.Throws<UserImportRefusedException>(() => ImportWith(target, export, Into(home)));
+
+        Assert.Equal(UserImportRefusal.EmailInUse, refused.Refusal);
+        Assert.Equal("MAYA@Example.com", refused.Email);
+        Assert.Equal(before, Counts(target));
+
+        var other = NewStore();
+        var otherHome = other.AddHousehold("Home");
+        ImportWith(other, export, Into(otherHome));
+        Assert.Equal("MAYA@Example.com", other.Text($"SELECT email FROM accounts WHERE id = {Blob(maya.Account)}"));
+        Assert.Equal("MAYA@EXAMPLE.COM", other.Text($"SELECT normalized_email FROM accounts WHERE id = {Blob(maya.Account)}"));
+    }
+
+    [Fact]
+    public void Import_RefusesAMalformedEmail_FromTheFileOrTyped_WithAPlainReason_AndWritesNothing()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        var home = target.AddHousehold("Home");
+        var export = Export(source, maya);
+        var before = Counts(target);
+
+        var typed = Assert.Throws<UserImportRefusedException>(() =>
+            ImportWith(target, export, Into(home) with { Emails = new Dictionary<Guid, string> { [maya.Account] = "not an email" } }));
+        var inFile = Assert.Throws<UserImportRefusedException>(() =>
+            ImportWith(target, WithValue(export, "accounts", "email", BackupValue.FromText("maya at example")), Into(home)));
+
+        Assert.Equal(UserImportRefusal.EmailInvalid, typed.Refusal);
+        Assert.Equal(UserImportRefusal.EmailInvalid, inFile.Refusal);
+        Assert.Equal(before, Counts(target));
+        // Leaving that person without a sign-in is still possible.
+        ImportWith(target, WithValue(export, "accounts", "email", BackupValue.FromText("maya at example")), Into(home) with { WithoutSignIn = [maya.Account] });
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM accounts"));
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------------------------------------
 

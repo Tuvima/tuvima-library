@@ -34,6 +34,7 @@ public sealed record UserExportProfile(
 /// <param name="ExternalLogins">The outside sign-in links.</param>
 /// <param name="HasTwoStep">True when the file holds a two-step row for it.</param>
 /// <param name="TwoStepSecretIsPortable">True when there is no two-step secret, or it was made readable for any computer.</param>
+/// <param name="HasPassword">True when the file holds a password for it.</param>
 public sealed record UserExportSignIn(
     Guid Id,
     string Email,
@@ -41,7 +42,12 @@ public sealed record UserExportSignIn(
     IReadOnlyList<byte[]> PasskeyIds,
     IReadOnlyList<UserExportExternalLogin> ExternalLogins,
     bool HasTwoStep,
-    bool TwoStepSecretIsPortable);
+    bool TwoStepSecretIsPortable,
+    bool HasPassword)
+{
+    /// <summary>True when the person could sign in without the computer's trust: a password or a passkey travels with it.</summary>
+    public bool CanSignInAnywhere => HasPassword || PasskeyIds.Count > 0;
+}
 
 /// <summary>
 /// What a user file says about itself, read from its data (never from its manifest, which a person could have edited). Built only by
@@ -238,6 +244,9 @@ public static class UserExportReader
                 twoStepPortable = mine.All(row => Value(twoStep, row, "secret_protected") is BackupValue.Portable);
             }
 
+            var hasPassword = tables.TryGetValue("account_credentials", out var credentialTable)
+                && credentialTable.Rows.Any(row => GuidOf(Value(credentialTable, row, "account_id")) == id);
+
             var passkeys = new List<byte[]>();
             if (tables.TryGetValue("account_passkeys", out var passkeyTable))
             {
@@ -259,7 +268,7 @@ public static class UserExportReader
                 }
             }
 
-            signIns.Add(new UserExportSignIn(id, email, opened, passkeys, logins, hasTwoStep, twoStepPortable));
+            signIns.Add(new UserExportSignIn(id, email, opened, passkeys, logins, hasTwoStep, twoStepPortable, hasPassword));
         }
 
         var collections = new List<Guid>();
