@@ -122,8 +122,8 @@ public sealed class PlaybackTelemetryReadService(
         }
 
         var features = await accounts.GetFeatureGrantsAsync(accountId, ct).ConfigureAwait(false);
-        var libraries = await accounts.GetLibraryGrantsAsync(accountId, ct).ConfigureAwait(false);
-        return new(true, false, accountId, profileId, false, libraries, features);
+        var hidden = await accounts.GetHiddenLibrariesAsync(accountId, ct).ConfigureAwait(false);
+        return new(true, false, accountId, profileId, false, hidden, features);
     }
 
     private static PlaybackTelemetryPageDto Map(PlaybackTelemetryPage page) =>

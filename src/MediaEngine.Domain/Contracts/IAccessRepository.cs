@@ -8,9 +8,15 @@ public interface IAccessRepository
     Task<AccountProfileGrant?> GetGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task<IReadOnlyList<AccountProfileGrant>> GetGrantsAsync(Guid accountId, CancellationToken ct = default);
     Task<IReadOnlySet<AccountFeatureId>> GetFeatureGrantsAsync(Guid accountId, CancellationToken ct = default);
-    Task<IReadOnlySet<Guid>> GetLibraryGrantsAsync(Guid accountId, CancellationToken ct = default);
+    /// <summary>
+    /// The libraries an administrator hid from this account (simpler access D2): the account's own rows plus those of the account it
+    /// inherits its access from (D4). Never names a Vault library. Everything else in the account's areas is visible; ask
+    /// <c>LibraryVisibilityRule</c> rather than reading this directly.
+    /// </summary>
+    Task<IReadOnlySet<Guid>> GetHiddenLibrariesAsync(Guid accountId, CancellationToken ct = default);
     Task<bool> HasFeatureGrantAsync(Guid accountId, AccountFeatureId feature, CancellationToken ct = default);
-    Task<bool> HasLibraryGrantAsync(Guid accountId, Guid libraryId, CancellationToken ct = default);
+    /// <summary>True when the library is in <see cref="GetHiddenLibrariesAsync"/> for this account.</summary>
+    Task<bool> IsLibraryHiddenAsync(Guid accountId, Guid libraryId, CancellationToken ct = default);
     Task<GrantAdminProtection?> GetAdminProtectionAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task<GrantAdminUnlock?> GetAdminUnlockAsync(Guid sessionId, Guid accountId, Guid profileId, DateTimeOffset now, CancellationToken ct = default);
     Task WriteAuthorizationAuditAsync(AuthorizationAuditEvent auditEvent, CancellationToken ct = default);
@@ -31,9 +37,10 @@ public interface IAccessRepository
 public interface IAccountAccessMutationRepository
 {
     Task CreateAccountAsync(Account account, AccountProfileGrant initialGrant,
-        IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
+        IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries,
         CancellationToken ct = default,
-        MediaEngine.Domain.Aggregates.Profile? newProfile = null);
+        MediaEngine.Domain.Aggregates.Profile? newProfile = null,
+        Guid? createdByAccountId = null);
     Task UpdateAccountAsync(Account account, CancellationToken ct = default);
     Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default);
     Task CreateInvitedAccountAsync(
@@ -60,7 +67,11 @@ public interface IAccountAccessMutationRepository
     Task DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default);
     Task UpsertGrantAsync(AccountProfileGrant grant, CancellationToken ct = default);
     Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
-    Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default);
+    /// <summary>
+    /// Replaces the account's features and its own hidden libraries. Refuses a Vault library id. <paramref name="changedByAccountId"/> is the
+    /// administrator who saved it, kept on each hidden row.
+    /// </summary>
+    Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, DateTimeOffset changedAt, CancellationToken ct = default, Guid? changedByAccountId = null);
     Task SetAdminProtectionAsync(GrantAdminProtection protection, CancellationToken ct = default);
     /// <summary>
     /// Makes an account the administrator of its household (or takes that away). Making one also names it the
@@ -100,7 +111,7 @@ public sealed record CreateAccountAccessCommand(
     Guid? ProfileId,
     NewAccountProfileCommand? NewProfile,
     IReadOnlySet<AccountFeatureId> Features,
-    IReadOnlySet<Guid> Libraries,
+    IReadOnlySet<Guid> HiddenLibraries,
     string? TemporaryPassword = null);
 
 public sealed record NewAccountProfileCommand(string DisplayName, string? AvatarColor);
@@ -212,7 +223,7 @@ public interface IAccountAccessMutationService
         RequestAuthority actor, GiveOwnSignInCommand command, CancellationToken ct = default);
     /// <summary>Removes a person's own sign-in. The person and everything they own stay in the household.</summary>
     Task RemoveOwnSignInAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
-    Task ReplaceAccessAsync(RequestAuthority actor, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, CancellationToken ct = default);
+    Task ReplaceAccessAsync(RequestAuthority actor, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, CancellationToken ct = default);
     Task UpsertGrantAsync(RequestAuthority actor, AccountProfileGrant grant, CancellationToken ct = default);
     Task RevokeGrantAsync(RequestAuthority actor, Guid accountId, Guid profileId, CancellationToken ct = default);
     Task SetAdminProtectionAsync(RequestAuthority actor, Guid accountId, Guid profileId, GrantAdminProtectionCommand command, CancellationToken ct = default);

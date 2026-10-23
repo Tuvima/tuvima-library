@@ -503,7 +503,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
 
     private AccountAccessDecisionService CreateDecisions() =>
         new(_accounts, new GrantAdminUnlockService(
-            _accounts, new StubProfilePins(), _clock));
+            _accounts, new StubProfilePins(), _clock), new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)));
 
     private async Task<MediaEngine.Domain.Entities.Application> CreateApplicationAsync(
         ApplicationType type,

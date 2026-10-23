@@ -231,7 +231,7 @@ public sealed class UserTransferServiceTests : IDisposable
         Assert.Null(old.Protector.Unprotect(fresh.Text("SELECT secret_protected FROM account_two_step WHERE account_id = " + Blob(maya.Account))));
         Assert.Equal(0, fresh.Scalar("SELECT is_administrator FROM accounts WHERE email = 'maya@example.com'"));
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_feature_grants WHERE account_id = " + Blob(maya.Account)));
-        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_library_grants WHERE account_id = " + Blob(maya.Account)));
+        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_library_hidden WHERE account_id = " + Blob(maya.Account)));
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE admin_enabled = 1 AND account_id = " + Blob(maya.Account)));
         Assert.Equal(2, fresh.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE account_id = " + Blob(maya.Account)));
         Assert.Empty(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
@@ -712,7 +712,7 @@ public sealed class UserTransferServiceTests : IDisposable
                 new { account = accountBlob, secret = Protector.Protect(TwoStepSecret), now = Stamp });
             connection.Execute("INSERT INTO account_feature_grants (account_id, feature_id, granted_at) VALUES (@account, 'read', @now)", new { account = accountBlob, now = Stamp });
             connection.Execute(
-                "INSERT INTO account_library_grants (account_id, library_id, granted_at) VALUES (@account, @library, @now)",
+                "INSERT INTO account_library_hidden (account_id, library_id, created_at) VALUES (@account, @library, @now)",
                 new { account = accountBlob, library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
             Guid first = Guid.Empty;
             for (var i = 0; i < profileNames.Length; i++)

@@ -47,7 +47,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultImages_EveryRoute_IsMapped_ByName()
     {
-        await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
 
         Assert.All(VaultImageRouteNames, name => Assert.True(routes.ContainsKey(name), name));
@@ -76,7 +76,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData("RestoreVaultImage")]
     public async Task VaultImages_ALockedSession_GetsNotFound_PrivatelyAndUncacheably_ForEveryRoute(string routeName)
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
 
         var result = await InvokeImageAsync(routes[routeName], shape.Account, NewVaultSession(shape.Account), body: "{\"text\":\"secret\"}");
@@ -88,7 +88,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultImages_AnAccountWithoutTheWatchFeature_GetsNotFound_EvenWhenUnlocked()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false, features: new HashSet<AccountFeatureId> { AccountFeatureId.Read });
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false, features: new HashSet<AccountFeatureId> { AccountFeatureId.Read });
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
@@ -102,7 +102,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultImages_AnUnlockedSession_ListsPrivately_AndAnUnknownImageIsTheSameNotFoundAsALockedOne()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
@@ -131,7 +131,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData("RestoreVaultImage")]
     public async Task VaultImages_FindingDeletingAndTheBin_AreForAnAdministrator_ANonAdministratorGetsNotFound(string routeName)
     {
-        var person = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var person = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var personSession = NewVaultSession(person.Account);
         await UnlockVaultAsync(personSession);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
@@ -146,7 +146,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultImages_AnAdministratorInPerson_CanScan_AndTheAnswerIsCountsOnly()
     {
-        var admin = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var admin = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(admin.Account);
         await UnlockVaultAsync(session);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
@@ -163,7 +163,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultImages_Search_NeedsTwoCharacters_AndTheWordsComeFromTheBodyNotTheAddress()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());

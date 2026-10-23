@@ -172,7 +172,7 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
         private AccountAccessResponse Account(Guid id, string email, Guid profileId, bool householdAdmin = false, Guid? inheritsFrom = null) =>
             new(id, email, true, false, 1,
                 [new("read", true), new("watch", true)],
-                [new(HouseholdLibrary.Id, HouseholdLibrary.DisplayName, true)],
+                [],
                 [new AccountProfileGrantDto(id, profileId, "Profile", null, true, true, false,
                     new GrantAdminProtectionDto(false, "FixedDuration", 30, 1), 1, DateTimeOffset.UtcNow)],
                 DateTimeOffset.UtcNow.AddMonths(-1) + TimeSpan.FromMinutes(id == AdminAccountId ? 0 : 5), DateTimeOffset.UtcNow, null,

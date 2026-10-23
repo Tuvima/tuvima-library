@@ -425,7 +425,7 @@ public sealed class ParentFirstArtworkRouteTests
         public ValueTask<AuthorizationDecision> EvaluateLibraryAsync(RequestAuthority authority,
             Guid libraryId, CancellationToken ct = default)
             => ValueTask.FromResult(_allowed.Contains(libraryId) ? AuthorizationDecision.Allow()
-                : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant));
+                : AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible));
         public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(RequestAuthority authority,
             bool requireSurfaceUnlock, CancellationToken ct = default)
             => ValueTask.FromResult(AuthorizationDecision.Allow());

@@ -241,7 +241,7 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
         await _accounts.ReplaceAccountAccessAsync(
             _accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { _ordinaryLibrary },
+            new HashSet<Guid>(),
             now);
         await _identities.InsertSessionAsync(new AuthSession
         {

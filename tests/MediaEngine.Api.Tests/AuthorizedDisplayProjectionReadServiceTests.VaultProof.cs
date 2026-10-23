@@ -15,7 +15,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultProof_ABookmarkOnTheVaultFileOfAMixedWork_IsAbsentFromEveryListWhileLocked_AndReturnsOnceUnlocked()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var mixedWork = shape.Normal.WorkId;
         var ordinaryAsset = shape.Normal.AssetId;
         var vaultAsset = Guid.NewGuid();

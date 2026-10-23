@@ -10,8 +10,8 @@ namespace MediaEngine.Api.Services.Display;
 /// <summary>
 /// Which file formats each Work is owned in, for the "View all" format filter: EPUB, PDF and comic files for reading,
 /// 4K, HD and SD for watching. One query covers the whole library and is cached briefly. The answer is raw (not scoped to
-/// a viewer) and is keyed by Work and library, because a Work can be owned in several libraries and a viewer may only be
-/// granted some of them: callers keep only the (Work, library) pairs in libraries the viewer may see, never a Work as a whole.
+/// a viewer) and is keyed by Work and library, because a Work can be owned in several libraries and a viewer may not see
+/// some of them (an administrator can hide a library from one person): callers keep only the (Work, library) pairs in libraries the viewer may see, never a Work as a whole.
 /// </summary>
 public sealed class DisplayFormatReader
 {

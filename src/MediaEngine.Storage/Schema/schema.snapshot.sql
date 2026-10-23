@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0044 import_uploads).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0045 simpler_access_hidden_libraries).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -48,10 +48,11 @@ CREATE TABLE account_invitations (
     consumed_at TEXT
 );
 
-CREATE TABLE account_library_grants (
-    account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    library_id BLOB NOT NULL,
-    granted_at TEXT NOT NULL,
+CREATE TABLE account_library_hidden (
+    account_id            BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    library_id            BLOB NOT NULL,
+    created_at            TEXT NOT NULL,
+    created_by_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL,
     PRIMARY KEY (account_id, library_id)
 );
 

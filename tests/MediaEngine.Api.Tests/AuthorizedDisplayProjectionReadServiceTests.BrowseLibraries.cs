@@ -90,10 +90,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task BrowseLibraries_AProfileGrantedOnlyLectures_GetsOnlyLectures()
+    public async Task BrowseLibraries_AProfileWithEveryOtherLibraryHidden_GetsOnlyLectures()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { LecturesLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { MoviesLibrary, ShowsLibrary, MusicLibrary, BooksLibrary });
 
         var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
 
@@ -101,10 +101,38 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task BrowseLibraries_AVaultLibraryIsNeverListed_EvenForAnAdministratorHoldingAGrantOnIt()
+    public async Task BrowseLibraries_ANewLibraryIsListedForAProfileWithItsArea_WithNoRowWrittenForIt()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { HiddenVaultLibrary, LecturesLibrary }, administrator: true);
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid>());
+
+        var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
+
+        Assert.Equal([MoviesLibrary, ShowsLibrary, LecturesLibrary, MusicLibrary, BooksLibrary], libraries.Select(library => library.Id).ToArray());
+        using var connection = _database.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM account_library_hidden;"));
+    }
+
+    [Fact]
+    public async Task BrowseLibraries_ALibraryHiddenFromOneProfile_IsStillListedForAnotherWithTheSameAreas()
+    {
+        var sam = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        await CreateHumanAsync(sam, EveryFeature, new HashSet<Guid> { LecturesLibrary });
+        await CreateHumanAsync(other, EveryFeature, new HashSet<Guid>());
+
+        var forSam = await CreateBrowseLibraryList(sam).ListAsync(default);
+        var forOther = await CreateBrowseLibraryList(other).ListAsync(default);
+
+        Assert.DoesNotContain(forSam, library => library.Id == LecturesLibrary);
+        Assert.Contains(forOther, library => library.Id == LecturesLibrary);
+    }
+
+    [Fact]
+    public async Task BrowseLibraries_AVaultLibraryIsNeverListed_EvenForAnAdministratorWithAStaleRowOnIt()
+    {
+        var account = Guid.NewGuid();
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { HiddenVaultLibrary }, administrator: true);
 
         var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
 
@@ -119,12 +147,12 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await CreateHumanAsync(
             account,
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch, AccountFeatureId.Read },
-            new HashSet<Guid> { MoviesLibrary, MusicLibrary, BooksLibrary });
+            new HashSet<Guid>());
 
         var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
 
         Assert.DoesNotContain(libraries, library => library.Area == "listen");
-        Assert.Equal([MoviesLibrary, BooksLibrary], libraries.Select(library => library.Id).ToArray());
+        Assert.Equal([MoviesLibrary, ShowsLibrary, LecturesLibrary, BooksLibrary], libraries.Select(library => library.Id).ToArray());
     }
 
     [Theory]
@@ -133,7 +161,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     public async Task BrowseLibraries_ALimitedProfile_GetsVideosLibrariesOnlyWhenTheyAreOkForLimitedProfiles(string limit)
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { LecturesLibrary, MoviesLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { ShowsLibrary, MusicLibrary, BooksLibrary });
         SetContentLimit(limit);
 
         var withoutTheSetting = await CreateBrowseLibraryList(account).ListAsync(default);
@@ -147,7 +175,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     public async Task BrowseLibraries_AnUnlimitedProfile_GetsVideosLibrariesWhateverTheLimitedProfileSetting()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { LecturesLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { MoviesLibrary, ShowsLibrary, MusicLibrary, BooksLibrary });
 
         var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
 
@@ -158,7 +186,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     public async Task BrowseLibraries_ViewLibrariesAreNotListed()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { PhotosLibrary, MoviesLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { ShowsLibrary, LecturesLibrary, MusicLibrary, BooksLibrary });
 
         var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
 
@@ -166,10 +194,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task BrowseLibraries_AProfileWithNoGrantsGetsNothing()
+    public async Task BrowseLibraries_AProfileWithoutAnyArea_GetsNothing_EvenWithNothingHidden()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid>());
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId>(), new HashSet<Guid>());
 
         Assert.Empty(await CreateBrowseLibraryList(account).ListAsync(default));
     }
@@ -193,10 +221,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Browse_TheLibraryFilter_ForALibraryTheProfileHasNoGrantOn_IsEmptyLikeAnEmptyLibrary()
+    public async Task Browse_TheLibraryFilter_ForALibraryHiddenFromTheProfile_IsEmptyLikeAnEmptyLibrary()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { LecturesLibrary });
         await InsertOwnedWorkWithIdAsync(MoviesLibrary, "A film", "Movie");
         await InsertOwnedWorkWithIdAsync(LecturesLibrary, "A lecture", "Movie");
         var composer = BrowseComposer(account);
@@ -232,7 +260,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     public async Task Browse_TheUnmatchedFilter_ForAProfileThatIsNotAnAdministrator_FiltersItsOwnGrantedRows()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { LecturesLibrary });
         var open = await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Open", "Movie");
         await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Matched", "Movie");
         await MarkUnmatchedAsync(open.AssetId, MoviesLibrary, keep: false);
@@ -250,7 +278,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     public async Task Browse_TheUnmatchedFilter_NeverWidensAccess_ToAnUnmatchedFileInALibraryTheProfileCannotSee()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { LecturesLibrary });
         var hidden = await InsertOwnedWorkWithIdAsync(LecturesLibrary, "Hidden", "Movie");
         var vault = await InsertOwnedWorkWithIdAsync(HiddenVaultLibrary, "Secret", "Movie");
         await MarkUnmatchedAsync(hidden.AssetId, LecturesLibrary, keep: false);
@@ -324,7 +352,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     public async Task Browse_TheLibraryAndUnmatchedFilters_NeverUseAFileTheProfileMayNotSee()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { LecturesLibrary });
         var work = await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Seen in Movies", "Movie");
         var hiddenFile = Guid.NewGuid();
         await InsertAssetForWorkAsync(work.WorkId, hiddenFile, LecturesLibrary, "Hidden copy", createWork: false);
@@ -414,7 +442,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal([inLectures.WorkId], (await NarrowedWorkIdsAsync(admin, LecturesLibrary, false)).ToArray());
 
         var limited = Guid.NewGuid();
-        await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid> { LecturesLibrary });
         // The limited profile still sees its own library's work, with the library given and with none, so an empty answer cannot pass for "narrowed".
         Assert.Equal([inMovies.WorkId], (await NarrowedWorkIdsAsync(limited, MoviesLibrary, false)).ToArray());
         Assert.Equal([inMovies.WorkId], (await NarrowedWorkIdsAsync(limited, null, false)).ToArray());
@@ -422,12 +450,12 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task GroupNarrowing_TheUnmatchedFilter_ReturnsNothingForAProfileWithoutTheLibrarysGrant_EvenWhenTheLibraryHasUnmatchedFiles()
+    public async Task GroupNarrowing_TheUnmatchedFilter_ReturnsNothingForALibraryHiddenFromTheProfile_EvenWhenTheLibraryHasUnmatchedFiles()
     {
         var admin = Guid.NewGuid();
         await CreateHumanAsync(admin, EveryFeature, new HashSet<Guid>(), administrator: true);
         var limited = Guid.NewGuid();
-        await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid> { LecturesLibrary });
         var matched = await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Matched film", "Movie");
         var lecture = await InsertOwnedWorkWithIdAsync(LecturesLibrary, "Unmatched lecture", "Movie");
         await MarkUnmatchedAsync(lecture.AssetId, LecturesLibrary, keep: false);

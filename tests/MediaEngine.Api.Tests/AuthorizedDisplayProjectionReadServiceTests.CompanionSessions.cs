@@ -35,7 +35,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var account = Guid.NewGuid();
         var library = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
         var first = await InsertOwnedWorkWithIdAsync(library, "Film one", "Movie");
         var second = await InsertOwnedWorkWithIdAsync(library, "Film two", "Movie");
         return (account, first, second);
@@ -233,7 +233,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var (account, _, _) = await SeedCompanionLibraryAsync();
         var kit = BuildCompanion(account);
-        var foreign = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Elsewhere", "Movie");
+        var foreignLibrary = Guid.NewGuid();
+        await HideLibraryFromAsync(account, foreignLibrary);
+        var foreign = await InsertOwnedWorkWithIdAsync(foreignLibrary, "Elsewhere", "Movie");
 
         await Assert.ThrowsAsync<PlayerResourceDeniedException>(() => kit.Companion.SetManualAsync(
             new CompanionManualPositionRequestDto { ProfileId = kit.Profile, CompanionDeviceId = "phone", WorkId = foreign.WorkId }));
@@ -275,7 +277,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var (account, first, _) = await SeedCompanionLibraryAsync();
         var kit = BuildCompanion(account);
-        var foreign = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Elsewhere", "Movie");
+        var foreignLibrary = Guid.NewGuid();
+        await HideLibraryFromAsync(account, foreignLibrary);
+        var foreign = await InsertOwnedWorkWithIdAsync(foreignLibrary, "Elsewhere", "Movie");
         kit.Clock.Set(DateTimeOffset.UtcNow);
         await kit.DeviceStates.UpsertAsync(new PlayerDeviceStateRecord
         {
@@ -329,7 +333,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var (account, first, _) = await SeedCompanionLibraryAsync();
         var kit = BuildCompanion(account);
-        var foreign = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Elsewhere", "Movie");
+        var foreignLibrary = Guid.NewGuid();
+        await HideLibraryFromAsync(account, foreignLibrary);
+        var foreign = await InsertOwnedWorkWithIdAsync(foreignLibrary, "Elsewhere", "Movie");
         await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "device-a", first.AssetId, 100));
         var sessions = new PlayerSessionRepository(_database);
         var sessionBefore = (await sessions.GetStateAsync(kit.Profile, TimeSpan.FromMinutes(5)))!;

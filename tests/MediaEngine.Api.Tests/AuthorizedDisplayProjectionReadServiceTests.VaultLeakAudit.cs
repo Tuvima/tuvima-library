@@ -26,7 +26,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultAudit_WorkDetail_AnswersAVaultWorkLikeAnUnknownId()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var service = new WorkDetailReadService(_database);
 
         Assert.Null(await service.GetAsync(shape.Secret.WorkId));
@@ -37,7 +37,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultAudit_EditorSuggestions_NeverOfferAVaultGenreOrTag()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         using (var connection = _database.CreateConnection())
         {
             connection.Execute(
@@ -110,7 +110,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultAudit_ALockedCallerWithAMalformedQuery_GetsTheSameNotFoundAsAnyOtherVaultRequest()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var routes = await MapRoutesAsync(builder => builder.MapVaultBrowseEndpoints());
         var session = NewVaultSession(shape.Account);
         var nextCalled = false;
@@ -142,7 +142,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData("GetVaultArtwork")]
     public async Task VaultAudit_ALockedAdministratorWithAMalformedBodyOrQuery_GetsNotFoundBeforeAnythingIsBound(string routeName)
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
         var nextCalled = false;
         var middleware = new VaultGateMiddleware(_ => { nextCalled = true; return Task.CompletedTask; });
@@ -182,7 +182,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultAudit_AnUnlockedCaller_PassesTheGateMiddlewareOnce()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var routes = await MapRoutesAsync(builder => builder.MapVaultBrowseEndpoints());
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);

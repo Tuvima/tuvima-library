@@ -21,11 +21,15 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         return new DisplayComposerService(authorized, cards, new DisplayShelfBuilder(cards));
     }
 
-    private async Task<(DefaultHttpContext Context, Guid Library)> SignInForLookupsAsync(params AccountFeatureId[] features)
+    private Task<(DefaultHttpContext Context, Guid Library)> SignInForLookupsAsync(params AccountFeatureId[] features) =>
+        SignInForLookupsAsync(new HashSet<Guid>(), features);
+
+    // The libraries in <paramref name="hiddenLibraries"/> are hidden from the person; every other library is visible through the areas.
+    private async Task<(DefaultHttpContext Context, Guid Library)> SignInForLookupsAsync(IReadOnlySet<Guid> hiddenLibraries, params AccountFeatureId[] features)
     {
         var account = Guid.NewGuid();
         var library = Guid.NewGuid();
-        await CreateHumanAsync(account, features.ToHashSet(), new HashSet<Guid> { library });
+        await CreateHumanAsync(account, features.ToHashSet(), hiddenLibraries);
         return (HumanContext(account, ProfileForLookups), library);
     }
 
@@ -144,11 +148,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task ItemLookup_AppliesLaneAndLibraryGrantsAcrossMixedLanes()
+    public async Task ItemLookup_AppliesLaneAndHiddenLibrariesAcrossMixedLanes()
     {
-        // Watch and Read are granted, Listen is not, and only one of two libraries is.
-        var (context, library) = await SignInForLookupsAsync(AccountFeatureId.Watch, AccountFeatureId.Read);
+        // Watch and Read are granted, Listen is not, and one of the two libraries is hidden from the person.
         var otherLibrary = Guid.NewGuid();
+        var (context, library) = await SignInForLookupsAsync(new HashSet<Guid> { otherLibrary }, AccountFeatureId.Watch, AccountFeatureId.Read);
         var film = await InsertOwnedWorkWithIdAsync(library, "Arrival", "Movie");
         var book = await InsertOwnedWorkWithIdAsync(library, "Dune", "Book");
         var song = await InsertOwnedWorkWithIdAsync(library, "Roads", "Music");
@@ -158,7 +162,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             [film.WorkId, book.WorkId, song.WorkId, filmElsewhere.WorkId], ProfileForLookups);
 
         Assert.Equal(["Arrival", "Dune"], Titles(page));
-        // The same grants leave the same items on the lane pages.
+        // The same areas and hidden libraries leave the same items on the lane pages.
         var watch = await CreateItemsComposer(context).BuildBrowseAsync("watch", null, "all", null, 0, 48, profileId: ProfileForLookups);
         var read = await CreateItemsComposer(context).BuildBrowseAsync("read", null, "all", null, 0, 48, profileId: ProfileForLookups);
         var listen = await CreateItemsComposer(context).BuildBrowseAsync("listen", null, "all", null, 0, 48, profileId: ProfileForLookups);

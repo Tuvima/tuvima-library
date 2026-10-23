@@ -32,7 +32,7 @@
             }
             else
             {
-                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="Libraries"
+                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="Libraries" LibrariesUnavailable="LibrariesUnavailable"
                                               FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
             }
 
@@ -40,7 +40,7 @@
                 <span class="sign-in-sheet__spacer"></span>
                 <AppButton Label="Cancel" Disabled="@Saving" OnClick="CloseAsync" />
                 <AppButton Label="@(Saving ? "Saving…" : "Save")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Disabled="@(Saving || Loading)" OnClick="SaveAsync" />
+                           Disabled="@(Saving || Loading || Account is null)" OnClick="SaveAsync" />
             </div>
         </div>
     </div>
@@ -60,8 +60,11 @@
     [Parameter] public bool Saving { get; set; }
     [Parameter] public string? Error { get; set; }
 
-    /// <summary>Only the Libraries the Engine says this administrator may hand out.</summary>
+    /// <summary>Every Library an administrator can hide from the person (the Engine marks the ones the household's main sign-in already hides).</summary>
     [Parameter] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
+
+    /// <summary>True when the Engine's library list could not be read: libraries are then left exactly as they are.</summary>
+    [Parameter] public bool LibrariesUnavailable { get; set; }
 
     /// <summary>The person's current lanes and Libraries, used each time the sheet opens or finishes loading.</summary>
     [Parameter] public AccountAccessResponse? Account { get; set; }
@@ -85,10 +88,12 @@
     {
         _featureIds.Clear();
         _libraryIds.Clear();
+        // A ticked library is one that is not hidden from the person: every library starts ticked.
+        _libraryIds.UnionWith(Libraries.Select(library => library.Id));
         if (Account is { } account)
         {
             _featureIds.UnionWith(account.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature));
-            _libraryIds.UnionWith(account.LibraryGrants.Where(grant => grant.Allowed).Select(grant => grant.LibraryId));
+            _libraryIds.ExceptWith(account.HiddenLibraryIds);
         }
     }
 
@@ -116,8 +121,23 @@
         }
     }
 
-    private Task SaveAsync() =>
-        OnSave.InvokeAsync(new ReplaceAccountAccessRequest(_featureIds.Order().ToArray(), _libraryIds.Order().ToArray()));
+    // Start from what is hidden now, hide the unticked libraries and show the ticked ones, and never touch an id the list didn't show.
+    private Task SaveAsync()
+    {
+        var hidden = (Account?.HiddenLibraryIds ?? []).ToHashSet();
+        if (!LibrariesUnavailable)
+        {
+            foreach (var library in Libraries)
+            {
+                if (_libraryIds.Contains(library.Id))
+                    hidden.Remove(library.Id);
+                else
+                    hidden.Add(library.Id);
+            }
+        }
+
+        return OnSave.InvokeAsync(new ReplaceAccountAccessRequest(_featureIds.Order().ToArray(), hidden.Order().ToArray()));
+    }
 
     private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
 

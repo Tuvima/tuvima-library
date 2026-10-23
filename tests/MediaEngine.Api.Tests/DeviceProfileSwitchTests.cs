@@ -86,14 +86,6 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var createdHome = await mutations.CreateAsync(serverAdmin, NewAccount("home@example.com", administrator: false, "Mary"));
         var createdOther = await mutations.CreateAsync(serverAdmin, NewAccount("other@example.com", administrator: false, "Bea"));
         _homeOwner = (await _accounts.GetByIdAsync(createdHome.Id))!;
-        using (var connection = _database.CreateConnection())
-        {
-            // The test library is not a catalogued one, so it is granted directly.
-            connection.Execute(
-                "INSERT INTO account_library_grants (account_id, library_id, granted_at) VALUES (@account, @library, @now);",
-                new { account = _homeOwner.Id, library = _library, now = DateTimeOffset.UtcNow.ToString("O") });
-        }
-
         var otherOwner = (await _accounts.GetByIdAsync(createdOther.Id))!;
         var homeHousehold = (await new HouseholdRepository(_database).GetForAccountAsync(_homeOwner.Id))!;
         _mary = (await profiles.GetByIdAsync((await _accounts.GetDefaultProfileIdAsync(_homeOwner.Id))!.Value))!;
@@ -819,7 +811,8 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var downloadAccessor = new HttpContextAccessor();
         var downloadDecisions = new AccountAccessDecisionService(
             _accounts,
-            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System));
+            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System),
+            new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)));
         var downloadApplications = new ApplicationRepository(_database);
         var downloadEvaluator = new AuthorizationEvaluator(
             downloadDecisions, downloadApplications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts), downloadAccessor);
@@ -1006,7 +999,8 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var accessor = new HttpContextAccessor { HttpContext = context };
         var decisions = new AccountAccessDecisionService(
             _accounts,
-            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System));
+            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System),
+            new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)));
         var applications = new ApplicationRepository(_database);
         return new CatalogueResourceAuthorizationService(
             _database,
@@ -1093,7 +1087,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         email, IsAdministrator: administrator, ProfileId: null,
         NewProfile: new NewAccountProfileCommand(personName, "#112233"),
         Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-        Libraries: new HashSet<Guid>(),
+        HiddenLibraries: new HashSet<Guid>(),
         TemporaryPassword: null);
 
     private static RequestAuthority Authority(

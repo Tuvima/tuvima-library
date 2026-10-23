@@ -558,6 +558,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Access
   DisplayName: System.String | nullability=not-null | accessors=get,init
   Category: System.String | nullability=nullable | accessors=get,init
   Area: System.String | nullability=not-null | accessors=get,init
+  HiddenByPrimary: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountAccessResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -566,7 +567,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   IsAdministrator: System.Boolean | nullability=not-null | accessors=get,init
   AuthorizationVersion: System.Int64 | nullability=not-null | accessors=get,init
   FeatureGrants: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountFeatureGrantDto> | nullability=not-null | accessors=get,init
-  LibraryGrants: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountLibraryGrantDto> | nullability=not-null | accessors=get,init
+  HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
   ProfileGrants: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountProfileGrantDto> | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
@@ -606,11 +607,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   Code: System.String | nullability=not-null | accessors=get,init
   ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   PublicAddress: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountLibraryGrantDto
-  LibraryId: System.Guid | nullability=not-null | accessors=get,init
-  DisplayName: System.String | nullability=not-null | accessors=get,init
-  Allowed: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountNoticeKeys
 
@@ -952,7 +948,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Create
   ProfileId: System.Guid? | nullability=nullable | accessors=get,init
   NewProfile: MediaEngine.Contracts.Authentication.NewAccountProfileRequest | nullability=nullable | accessors=get,init
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
-  LibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
   TemporaryPassword: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CreateManagedProfileRequest
@@ -1217,7 +1213,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Rename
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ReplaceAccountAccessRequest
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
-  LibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ResetPasswordTokenRequest
   Token: System.String | nullability=not-null | accessors=get,init

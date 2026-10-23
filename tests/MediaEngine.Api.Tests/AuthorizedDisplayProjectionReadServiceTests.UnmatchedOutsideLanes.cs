@@ -35,8 +35,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     private async Task<UnmatchedFilmWorld> SeedUnmatchedFilmWorldAsync(bool administrator, bool kept)
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(
-            account, EveryFeature, administrator ? new HashSet<Guid>() : new HashSet<Guid> { MoviesLibrary }, administrator);
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid>(), administrator);
         var identified = await InsertOwnedWorkWithIdAsync(MoviesLibrary, IdentifiedFilm, "Movie");
         var unmatched = await InsertOwnedWorkWithIdAsync(MoviesLibrary, UnmatchedFilm, "Movie");
         await MarkUnmatchedAsync(unmatched.AssetId, MoviesLibrary, kept);
@@ -233,6 +232,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     public async Task AnUnmatchedFilmInALibraryTheProfileCannotSee_IsNeverInItsUnmatchedFilter_OrItsSearch()
     {
         var world = await SeedUnmatchedFilmWorldAsync(administrator: false, kept: false);
+        await HideLibraryFromAsync(world.Account, LecturesLibrary);
         var hidden = await InsertOwnedWorkWithIdAsync(LecturesLibrary, "Hidden lecture", "Movie");
         await MarkUnmatchedAsync(hidden.AssetId, LecturesLibrary, keep: false);
 
@@ -366,10 +366,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Search_NeverReturnsAnUnmatchedFilm_ToAProfileWithoutAccessToItsLibrary()
+    public async Task Search_NeverReturnsAnUnmatchedFilm_ToAProfileThatHasItsLibraryHidden()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { ShowsLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { MoviesLibrary });
         var film = await InsertOwnedWorkWithIdAsync(MoviesLibrary, UnmatchedFilm, "Movie");
         await MarkUnmatchedAsync(film.AssetId, MoviesLibrary, keep: false);
 
@@ -586,10 +586,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task AProfileWithoutAccessToTheLibrary_CannotSaveOrLikeItsUnmatchedFilm()
+    public async Task AProfileThatHasTheLibraryHidden_CannotSaveOrLikeItsUnmatchedFilm()
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { ShowsLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { MoviesLibrary });
         var film = await InsertOwnedWorkWithIdAsync(MoviesLibrary, UnmatchedFilm, "Movie");
         await MarkUnmatchedAsync(film.AssetId, MoviesLibrary, keep: false);
         var context = HumanContext(account, ProfileForLookups);
@@ -608,7 +608,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     private async Task<(Guid Show, DefaultHttpContext Context, Guid FirstAsset, Guid SecondAsset, Guid ThirdAsset)> SeedThreeEpisodeShowAsync(int unmatchedEpisode)
     {
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { ShowsLibrary });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid>());
         var show = Guid.NewGuid();
         var assets = new List<Guid>();
         using (var connection = _database.CreateConnection())
@@ -681,11 +681,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task UpNext_StillAppliesTheProfilesLibraryAccess()
+    public async Task UpNext_StillAppliesTheLibrariesHiddenFromTheProfile()
     {
         var world = await SeedThreeEpisodeShowAsync(unmatchedEpisode: 2);
         var stranger = Guid.NewGuid();
-        await CreateHumanAsync(stranger, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        await CreateHumanAsync(stranger, EveryFeature, new HashSet<Guid> { ShowsLibrary });
 
         var result = await CallAsync(
             app => app.MapDetailEndpoints(),
@@ -729,7 +729,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             Authorities(),
             _accounts,
             new AuthorizationEvaluator(
-                new AccountAccessDecisionService(_accounts, new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System)),
+                new AccountAccessDecisionService(_accounts, new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System), new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database))),
                 _applications,
                 new PermissionRegistry(),
                 new AuthorizationAuditWriter(_accounts),
