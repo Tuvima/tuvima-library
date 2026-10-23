@@ -578,13 +578,11 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Single(cut.FindAll(".media-section-shell"));
             Assert.Single(cut.FindAll(".media-section-shell__rail"));
             Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
-            // Recently Added is no longer a menu row: the Needs Review count shows on Library and Ingestion itself.
+            // Recently Added is no longer a menu row: Library and Ingestion is shaded amber, with no count bubble.
             var libraryAndIngestion = cut.FindAll(".media-section-shell__tree-link")
                 .First(item => item.TextContent.Contains("Library and Ingestion", StringComparison.Ordinal));
             var reviewNotification = libraryAndIngestion.QuerySelector(".media-section-shell__rail-meta--notification");
-            Assert.NotNull(reviewNotification);
-            Assert.Equal("3", reviewNotification!.TextContent.Trim());
-            Assert.Equal("3 items need review", reviewNotification.GetAttribute("aria-label"));
+            Assert.Null(reviewNotification);
             // System opens on the resources summary; the old library overview now lives under Library and Ingestion.
             Assert.Single(cut.FindAll("[data-settings-system-summary]"));
             Assert.DoesNotContain("System exceptions", cut.Markup);

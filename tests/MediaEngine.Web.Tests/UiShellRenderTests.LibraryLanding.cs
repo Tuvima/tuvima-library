@@ -95,7 +95,7 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void LibraryAndIngestionRow_CarriesTheNeedsReviewCount()
+    public void LibraryAndIngestionRow_HasNoNeedsReviewCountBubble()
     {
         UseLandingApi();
 
@@ -106,8 +106,7 @@ public sealed partial class UiShellRenderTests
             var row = cut.FindAll(".media-section-shell__tree-link")
                 .First(link => link.TextContent.Contains("Library and Ingestion", StringComparison.Ordinal));
             var badge = row.QuerySelector(".media-section-shell__rail-meta--notification");
-            Assert.NotNull(badge);
-            Assert.Equal("3 items need review", badge!.GetAttribute("aria-label"));
+            Assert.Null(badge);
         });
     }
 
