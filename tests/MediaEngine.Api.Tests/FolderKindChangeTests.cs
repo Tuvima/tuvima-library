@@ -680,7 +680,9 @@ public sealed class FolderKindChangeTests : IDisposable
         Assert.Contains("already is Movies", (await Refused(folder.Id, new() { KindKey = "movies" })).Message, StringComparison.Ordinal);
         Assert.Contains("does not exist", (await Refused(folder.Id, new() { KindKey = "no_such_kind" })).Message, StringComparison.Ordinal);
         Assert.Contains("Choose what", (await Refused(folder.Id, new() { KindKey = " " })).Message, StringComparison.Ordinal);
-        Assert.Contains("Create it first", (await Refused(musicFolder.Id, new() { KindKey = "audiobooks" })).Message, StringComparison.Ordinal);
+        // A kind with no library yet can be previewed (as a new library) but not started: the library is created first.
+        Assert.Contains("Create it first", (await Assert.ThrowsAsync<FolderJobException>(() =>
+            _w.Service.StartAsync(musicFolder.Id, new() { KindKey = "audiobooks" }, default))).Message, StringComparison.Ordinal);
         var vault = await Refused(vaultFolder.Id, new() { KindKey = "other_videos" });
         Assert.True(vault.NotFound);
         Assert.Equal("This folder is not part of your libraries.", vault.Message);
@@ -743,7 +745,7 @@ public sealed class FolderKindChangeTests : IDisposable
 
         var sam = await _w.CreateAccountAsync("sam@example.test", "Sam", hidden: [Guid.Parse(_w.VideosLibrary)]);
 
-        var preview = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_videos" }, default);
+        var preview = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_videos", LibraryId = _w.VideosLibrary }, default);
 
         Assert.Equal(3, preview.FileCount);
         Assert.Equal(3, preview.FilesToRefile);
@@ -771,16 +773,46 @@ public sealed class FolderKindChangeTests : IDisposable
     }
 
     [Fact]
+    public async Task A_preview_with_no_library_is_about_a_new_library_of_the_kind_and_creates_nothing_and_nobody_loses_sight()
+    {
+        var folder = _w.AddFolder(_w.MusicLibrary, "Songs", managed: true);
+        _w.AddFile(folder, "one.mp3", MediaType.Music, "One");
+        _w.AddFile(folder, "two.mp3", MediaType.Music, "Two");
+        var librariesBefore = _w.Config.LoadLibraries().Libraries.Count;
+        // Nobody could lose sight of anything, so the visibility question is not even asked.
+        _w.Visibility.Failure = new IOException("The visibility check must not run for a library that does not exist.");
+
+        // Audiobooks has no library yet; Other audio holds several named libraries, so no existing one can be meant.
+        var audiobooks = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "audiobooks" }, default);
+        var named = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_audio" }, default);
+
+        Assert.Equal((2, 2, false, true, true), (audiobooks.FileCount, audiobooks.FilesToRefile, audiobooks.DropsDetails, audiobooks.StartsFirstCheck, audiobooks.OtherAppsWarning));
+        Assert.Equal((2, 2, true, false), (named.FileCount, named.FilesToRefile, named.DropsDetails, named.StartsFirstCheck));
+        Assert.All([audiobooks, named], preview =>
+        {
+            Assert.True(preview.VisibilityLossChecked);
+            Assert.Empty(preview.VisibilityLoss);
+            Assert.Equal(string.Empty, preview.ToLibraryId);
+        });
+        Assert.Equal(librariesBefore, _w.Config.LoadLibraries().Libraries.Count);
+        Assert.Empty(await _w.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 50));
+
+        // Starting still needs a real library.
+        var start = await Assert.ThrowsAsync<FolderJobException>(() => _w.Service.StartAsync(folder.Id, new() { KindKey = "audiobooks" }, default));
+        Assert.Contains("Create it first", start.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_visibility_answer_that_is_refused_or_fails_is_passed_on_as_not_checked_never_as_an_empty_list()
     {
         var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: false);
         _w.AddFile(folder, "film.mkv", MediaType.Movies, "A film");
 
         _w.Visibility.Next = VisibilityAfterMoveResult.Refused("Files can't be moved into the Vault from here.");
-        var refused = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_videos" }, default);
+        var refused = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_videos", LibraryId = _w.VideosLibrary }, default);
         _w.Visibility.Next = null;
         _w.Visibility.Failure = new IOException("The data store is locked.");
-        var failed = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_videos" }, default);
+        var failed = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_videos", LibraryId = _w.VideosLibrary }, default);
 
         Assert.False(refused.VisibilityLossChecked);
         Assert.Equal("Files can't be moved into the Vault from here.", refused.VisibilityMessage);

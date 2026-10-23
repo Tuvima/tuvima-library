@@ -307,7 +307,8 @@ public sealed class FolderJobLogDto
 /// Asks to change what a folder is (Library setup D40(c)): the kind it should become and the library of that kind it goes into. The folder is
 /// named by the route. A kind that holds one library needs no <see cref="LibraryId"/> (the kind's own library is used); a kind that allows
 /// several named libraries needs the id of an existing library of that kind. A new library is created first, through the normal library
-/// action, and its id is passed here.
+/// action, and its id is passed here. Only the preview may leave <c>library_id</c> out: it then describes a new library of the kind that
+/// does not exist yet (the answer's <c>to_library_id</c> is empty and nobody loses sight of anything), and creates nothing.
 /// </summary>
 public sealed class FolderKindChangeRequest
 {

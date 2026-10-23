@@ -61,7 +61,8 @@ public sealed class FolderKindChangeService
     /// <summary>What the change would do, worked out without changing anything.</summary>
     public async Task<FolderKindChangePreviewResponse> PreviewAsync(string sourceIdText, FolderKindChangeRequest request, CancellationToken ct)
     {
-        var context = await ResolveAsync(sourceIdText, request, ct).ConfigureAwait(false);
+        // The preview may name no library: a library of the kind that does not exist yet, which the Dashboard creates only if the person goes on.
+        var context = await ResolveAsync(sourceIdText, request, forPreview: true, ct).ConfigureAwait(false);
         await RefuseWhileBusyAsync(context.SourceId, ct).ConfigureAwait(false);
 
         var response = new FolderKindChangePreviewResponse
@@ -78,6 +79,14 @@ public sealed class FolderKindChangeService
             StartsFirstCheck = context.StartsFirstCheck,
             OtherAppsWarning = context.Source.IsManaged,
         };
+
+        // A library that does not exist yet is hidden from nobody (Simpler access D2: every library in a person's areas is visible unless
+        // unticked for them), and the kind is in the same area as the folder's, so nobody loses sight of anything.
+        if (context.NewLibrary)
+        {
+            response.VisibilityLossChecked = true;
+            return response;
+        }
 
         // Who would stop seeing these files in the new library (Simpler access D13). A question that could not be answered is never an empty list.
         try
@@ -112,7 +121,7 @@ public sealed class FolderKindChangeService
         await LibraryMutationEndpoints.WriteGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var context = await ResolveAsync(sourceIdText, request, ct).ConfigureAwait(false);
+            var context = await ResolveAsync(sourceIdText, request, forPreview: false, ct).ConfigureAwait(false);
             await RefuseWhileBusyAsync(context.SourceId, ct).ConfigureAwait(false);
 
             var operationId = Guid.NewGuid();
@@ -166,7 +175,7 @@ public sealed class FolderKindChangeService
         }
     }
 
-    private async Task<ChangeContext> ResolveAsync(string sourceIdText, FolderKindChangeRequest request, CancellationToken ct)
+    private async Task<ChangeContext> ResolveAsync(string sourceIdText, FolderKindChangeRequest request, bool forPreview, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (!Guid.TryParse(sourceIdText, out var sourceId) || sourceId == Guid.Empty)
@@ -217,7 +226,7 @@ public sealed class FolderKindChangeService
             throw new FolderJobException("This kind of folder cannot be changed from here.");
         }
 
-        var toLibrary = ChooseLibrary(libraries, vaultIds, toKind, request.LibraryId);
+        var (toLibrary, newLibrary) = ChooseLibrary(libraries, vaultIds, toKind, request.LibraryId, forPreview);
 
         // An earlier change of this folder that was stopped (cancelled, or finished with files not changed) leaves files still in the old
         // library or marked failed. Starting the same kind again finishes them. Changing back to the kind the folder was is allowed too: the
@@ -268,12 +277,15 @@ public sealed class FolderKindChangeService
             StartsFirstCheck: FolderFirstCheckService.NeedsFirstCheck(toLibrary, kinds, vaultIds),
             FileMayMove: source.IsManaged && source.IsWritable,
             Files: files,
-            RepairsOperationId: repairs?.OperationId);
+            RepairsOperationId: repairs?.OperationId,
+            NewLibrary: newLibrary);
     }
 
     // The library the folder goes into: the kind's own, or (for a kind that holds several named libraries) the one named by id.
-    private static LibraryFolderConfig ChooseLibrary(
-        LibrariesConfiguration libraries, IReadOnlySet<string> vaultIds, LibraryKindDefinition kind, string? libraryId)
+    // A preview with no library id may be about a library that does not exist yet (the kind has none, or holds several named ones, so no
+    // existing one can be meant); it gets a stand-in with the kind's own settings, which is never saved.
+    private static (LibraryFolderConfig Library, bool IsNew) ChooseLibrary(
+        LibrariesConfiguration libraries, IReadOnlySet<string> vaultIds, LibraryKindDefinition kind, string? libraryId, bool forPreview)
     {
         var ofKind = libraries.Libraries
             .Where(library => library.Kind == LibraryKinds.Catalogued
@@ -282,16 +294,31 @@ public sealed class FolderKindChangeService
             .ToList();
         if (!string.IsNullOrWhiteSpace(libraryId))
         {
-            return ofKind.FirstOrDefault(library => string.Equals(library.Id, libraryId, StringComparison.OrdinalIgnoreCase))
+            return (ofKind.FirstOrDefault(library => string.Equals(library.Id, libraryId, StringComparison.OrdinalIgnoreCase))
                 ?? throw new FolderJobException(
                     libraries.Libraries.Any(library => string.Equals(library.Id, libraryId, StringComparison.OrdinalIgnoreCase) && !IsVault(library, vaultIds))
                         ? $"That library is not a {kind.Label} library."
-                        : "That library does not exist.");
+                        : "That library does not exist."), false);
+        }
+
+        if (forPreview && (ofKind.Count == 0 || kind.AllowsMultiple))
+        {
+            return (new LibraryFolderConfig
+            {
+                Id = string.Empty,
+                Name = kind.Label,
+                Category = kind.Label,
+                Kind = LibraryKinds.Catalogued,
+                KindKey = kind.Key,
+                Area = kind.Area,
+                MetadataPolicy = LibraryMetadataPolicies.Enriched,
+                MediaTypes = [kind.Format ?? string.Empty],
+            }, true);
         }
 
         if (ofKind.Count == 1)
         {
-            return ofKind[0];
+            return (ofKind[0], false);
         }
 
         throw new FolderJobException(ofKind.Count == 0
@@ -354,7 +381,8 @@ public sealed class FolderKindChangeService
         bool StartsFirstCheck,
         bool FileMayMove,
         IReadOnlyList<MediaAssetFileRef> Files,
-        Guid? RepairsOperationId);
+        Guid? RepairsOperationId,
+        bool NewLibrary);
 
     private sealed record StoppedChange(LibraryFolderConfig From, Guid OperationId, IReadOnlyList<string> Refused);
 }
