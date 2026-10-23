@@ -167,7 +167,7 @@ public sealed class HouseholdAdministratorTests
         await world.Mutations.RemoveOwnSignInAsync(world.ServerAdmin, world.A.OwnSignIn.Id);
         // The household keeps an owner: the second adult is made one before the first goes.
         await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, invitation.AccountId, true);
-        await world.Mutations.DeleteAsync(world.ServerAdmin, world.A.Owner.Id);
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.A.Owner.Id);
 
         var household = (await world.Households.GetByIdAsync(world.A.Household.Id))!;
         Assert.Equal(invitation.AccountId, household.PrimaryAccountId);
@@ -328,7 +328,7 @@ public sealed class HouseholdAdministratorTests
     public async Task TheDefaultHousehold_IsTheServerAdministratorsOwn_AndCannotBeRemoved_WhileOthersCanBeWhenEmpty()
     {
         await using var world = await World.CreateAsync();
-        var households = new HouseholdManagementService(world.Households, world.Decisions, new AllowEvaluator(), new NoOpAudit(), TimeProvider.System);
+        var households = new HouseholdManagementService(world.Households, world.Accounts, world.Decisions, new AllowEvaluator(), new NoOpAudit(), TimeProvider.System);
         var serverHousehold = (await world.Households.GetForAccountAsync(world.ServerAdminAccount.Id))!;
         Assert.True(serverHousehold.IsDefault);
         Assert.False(world.A.Household.IsDefault);
@@ -604,8 +604,7 @@ public sealed class HouseholdAdministratorTests
             world.Mutations.SetProfilePinAsync(world.AdminOfA, world.A.Spare.Id, "4321"));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.UpdateProfileAsync(
             world.AdminOfA, world.A.Spare.Id, new UpdateManagedProfileCommand("Renamed", null)));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            world.Mutations.DeleteProfileAsync(world.AdminOfA, world.A.Spare.Id));
+        // Deleting a fellow household administrator's profile is allowed (D7); UserDeletionTests covers it.
 
         // Everyone else in the household is still theirs to look after.
         await world.Mutations.SetProfilePinAsync(world.AdminOfA, world.A.Person.Id, "4321");
@@ -650,7 +649,8 @@ public sealed class HouseholdAdministratorTests
         await world.Mutations.RequireCanChangeProfileAsync(world.AdminOfA, world.A.Person.Id);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             world.Mutations.RequireCanChangeProfileAsync(world.AdminOfA, world.B.Person.Id));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+        // Another household's person looks missing, so it cannot be probed.
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             world.Mutations.DeleteProfileAsync(world.AdminOfA, world.B.Person.Id, ProfilePhotoDisposition.Delete));
 
         Assert.Empty(world.Photos.Prepared);
@@ -762,6 +762,7 @@ public sealed class HouseholdAdministratorTests
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
                 Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+            await identities.GiveAsync(world.ServerAdminAccount.Id);
             var serverProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value;
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile);
 
@@ -802,6 +803,11 @@ public sealed class HouseholdAdministratorTests
                 try
                 {
                     await Mutations.DeleteProfileAsync(actor, disposable.Id);
+                }
+                catch (KeyNotFoundException)
+                {
+                    // Another household's person looks missing to a household administrator: not theirs to remove.
+                    throw new UnauthorizedAccessException("Another household's person.");
                 }
                 finally
                 {

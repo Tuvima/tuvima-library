@@ -156,48 +156,68 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         db.ExecuteWriteAsync((conn, tx, token) =>
         {
             token.ThrowIfCancellationRequested();
-            if (conn.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id = @householdId;", new { householdId }, tx) == 0)
-            {
-                return HouseholdDeleteOutcome.NotFound;
-            }
-
-            // The Library's own household (the server administrator's original one) is never removed.
-            if (conn.ExecuteScalar<int>("SELECT is_default FROM households WHERE id = @householdId;", new { householdId }, tx) == 1)
-            {
-                return HouseholdDeleteOutcome.IsDefaultHousehold;
-            }
-
-            // A safety check, so it counts a sign-in under either record (its own profile's household or the column still written).
-            if (conn.ExecuteScalar<int>("""
-                SELECT (SELECT COUNT(*) FROM accounts WHERE household_id = @householdId
-                          OR profile_id IN (SELECT id FROM profiles WHERE household_id = @householdId))
-                     + (SELECT COUNT(*) FROM profiles WHERE household_id = @householdId);
-                """, new { householdId }, tx) > 0)
-            {
-                return HouseholdDeleteOutcome.NotEmpty;
-            }
-
-            // The household's Shared Library in View keeps the household while it holds shared photos. An empty one is
-            // only a shell, so it goes with the household in this same step.
-            var sharedLibraryId = conn.ExecuteScalar<Guid?>(
-                "SELECT library_id FROM view_shared_library WHERE household_id = @householdId;", new { householdId }, tx);
-            if (sharedLibraryId is { } libraryId)
-            {
-                if (conn.ExecuteScalar<int>(
-                        "SELECT EXISTS (SELECT 1 FROM local_items WHERE scope_kind = 'shared' AND library_id = @libraryId);",
-                        new { libraryId }, tx) == 1)
-                {
-                    return HouseholdDeleteOutcome.HoldsSharedItems;
-                }
-
-                conn.Execute("DELETE FROM view_sources WHERE scope_kind = 'shared' AND library_id = @libraryId;", new { libraryId }, tx);
-                conn.Execute("DELETE FROM view_shared_library WHERE household_id = @householdId;", new { householdId }, tx);
-            }
-
-            return conn.Execute("DELETE FROM households WHERE id = @householdId;", new { householdId }, tx) > 0
-                ? HouseholdDeleteOutcome.Deleted
-                : HouseholdDeleteOutcome.NotFound;
+            return DeleteEmptyHousehold(conn, tx, householdId);
         }, ct);
+
+    /// <summary>True when the household's Shared Library in View holds shared photos (which keep the household from being removed).</summary>
+    internal static bool HoldsSharedItems(System.Data.IDbConnection conn, System.Data.IDbTransaction tx, Guid householdId)
+    {
+        var sharedLibraryId = conn.ExecuteScalar<Guid?>(
+            "SELECT library_id FROM view_shared_library WHERE household_id = @householdId;", new { householdId }, tx);
+        return sharedLibraryId is { } libraryId && conn.ExecuteScalar<int>(
+            "SELECT EXISTS (SELECT 1 FROM local_items WHERE scope_kind = 'shared' AND library_id = @libraryId);",
+            new { libraryId }, tx) == 1;
+    }
+
+    /// <summary>
+    /// The one removal rule for a household, on the caller's connection and transaction: never the default household, nothing may
+    /// belong to it, and its Shared Library must hold no shared photos (an empty one goes with it). Used by
+    /// <see cref="DeleteWhenEmptyAsync"/> and by the removal of a household with its last administrator's user.
+    /// </summary>
+    internal static HouseholdDeleteOutcome DeleteEmptyHousehold(System.Data.IDbConnection conn, System.Data.IDbTransaction tx, Guid householdId)
+    {
+        if (conn.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id = @householdId;", new { householdId }, tx) == 0)
+        {
+            return HouseholdDeleteOutcome.NotFound;
+        }
+
+        // The Library's own household (the server administrator's original one) is never removed.
+        if (conn.ExecuteScalar<int>("SELECT is_default FROM households WHERE id = @householdId;", new { householdId }, tx) == 1)
+        {
+            return HouseholdDeleteOutcome.IsDefaultHousehold;
+        }
+
+        // A safety check, so it counts a sign-in under either record (its own profile's household or the column still written).
+        if (conn.ExecuteScalar<int>("""
+            SELECT (SELECT COUNT(*) FROM accounts WHERE household_id = @householdId
+                      OR profile_id IN (SELECT id FROM profiles WHERE household_id = @householdId))
+                 + (SELECT COUNT(*) FROM profiles WHERE household_id = @householdId);
+            """, new { householdId }, tx) > 0)
+        {
+            return HouseholdDeleteOutcome.NotEmpty;
+        }
+
+        // The household's Shared Library in View keeps the household while it holds shared photos. An empty one is
+        // only a shell, so it goes with the household in this same step.
+        var sharedLibraryId = conn.ExecuteScalar<Guid?>(
+            "SELECT library_id FROM view_shared_library WHERE household_id = @householdId;", new { householdId }, tx);
+        if (sharedLibraryId is { } libraryId)
+        {
+            if (conn.ExecuteScalar<int>(
+                    "SELECT EXISTS (SELECT 1 FROM local_items WHERE scope_kind = 'shared' AND library_id = @libraryId);",
+                    new { libraryId }, tx) == 1)
+            {
+                return HouseholdDeleteOutcome.HoldsSharedItems;
+            }
+
+            conn.Execute("DELETE FROM view_sources WHERE scope_kind = 'shared' AND library_id = @libraryId;", new { libraryId }, tx);
+            conn.Execute("DELETE FROM view_shared_library WHERE household_id = @householdId;", new { householdId }, tx);
+        }
+
+        return conn.Execute("DELETE FROM households WHERE id = @householdId;", new { householdId }, tx) > 0
+            ? HouseholdDeleteOutcome.Deleted
+            : HouseholdDeleteOutcome.NotFound;
+    }
 
     private const string SummarySelect = """
         SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId, h.is_default AS IsDefault,

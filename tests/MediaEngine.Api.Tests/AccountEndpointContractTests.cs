@@ -47,6 +47,49 @@ public sealed class AccountEndpointContractTests
     }
 
     [Fact]
+    public async Task TheUsersRoutes_AreForAServerAdministratorOrATrustedApplication_NeverAHouseholdAdministrator()
+    {
+        var builder = WebApplication.CreateBuilder();
+        AddEndpointServices(builder.Services);
+        await using var app = builder.Build();
+        app.MapAccountEndpoints();
+
+        var endpoints = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .ToArray();
+        var users = new (string Route, string Method, ApplicationPermissionId Permission)[]
+        {
+            ("/access/users/", "GET", ApplicationPermissionIds.IdentityUsersRead),
+            ("/access/users/", "POST", ApplicationPermissionIds.IdentityUsersWrite),
+            ("/access/users/{userId:guid}/email", "PUT", ApplicationPermissionIds.IdentityUsersWrite),
+            ("/access/users/{userId:guid}/deletion-preview", "GET", ApplicationPermissionIds.IdentityUsersWrite),
+            ("/access/users/{userId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite),
+            // The older routes that reach the same actions keep the same rule.
+            ("/access/accounts/{accountId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite),
+            ("/access/accounts/{accountId:guid}/deletion-preview", "GET", ApplicationPermissionIds.IdentityUsersWrite),
+        };
+        foreach (var (route, method, permission) in users)
+        {
+            AssertPolicy(endpoints, route, method, permission);
+            Assert.False(RequirementOf(endpoints, route, method).AllowHouseholdAdministrator, $"{method} {route}");
+        }
+
+        // Profiles are managed by a household administrator for their own household too (the service limits them to it).
+        var profiles = new (string Route, string Method)[]
+        {
+            ("/access/profiles/{profileId:guid}/access", "PUT"),
+            ("/access/profiles/{profileId:guid}/roles", "PUT"),
+            ("/access/profiles/{profileId:guid}", "DELETE"),
+        };
+        foreach (var (route, method) in profiles)
+        {
+            AssertPolicy(endpoints, route, method, ApplicationPermissionIds.IdentityUsersWrite);
+            Assert.True(RequirementOf(endpoints, route, method).AllowHouseholdAdministrator, $"{method} {route}");
+        }
+    }
+
+    [Fact]
     public async Task ExternalLoginBinding_HasNoCallerSuppliedPostRoute()
     {
         var builder = WebApplication.CreateBuilder();
@@ -85,6 +128,15 @@ public sealed class AccountEndpointContractTests
             Assert.Contains(endpoint.Metadata.OfType<AuthorityRequirementMetadata>(),
                 metadata => metadata.Requirement == "human_self_service");
         }
+    }
+
+    private static AdministratorOrApplicationRequirement RequirementOf(RouteEndpoint[] endpoints, string route, string method)
+    {
+        var endpoint = Assert.Single(endpoints, candidate =>
+            candidate.RoutePattern.RawText == route && Methods(candidate).Contains(method));
+        var policy = Assert.IsType<AuthorizationPolicy>(
+            endpoint.Metadata.Single(metadata => metadata is AuthorizationPolicy));
+        return Assert.Single(policy.Requirements.OfType<AdministratorOrApplicationRequirement>());
     }
 
     private static void AssertPolicy(RouteEndpoint[] endpoints, string route, string method,

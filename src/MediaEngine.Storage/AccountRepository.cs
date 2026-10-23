@@ -137,6 +137,35 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return Task.FromResult<IReadOnlyList<Guid>>(ids);
     }
 
+    public Task<bool> AreServerAdministratorsSecuredAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        // A server administrator profile is unsecured when it has no user, or its user has no email, or no password and no passkey.
+        var unsecured = conn.ExecuteScalar<int>($"""
+            SELECT COUNT(*) FROM profiles p
+            WHERE p.is_server_admin=1
+              AND NOT EXISTS (SELECT 1 FROM accounts a WHERE a.profile_id=p.id AND {SecuredUserSql});
+            """);
+        return Task.FromResult(unsecured == 0);
+    }
+
+    public Task<bool> IsUserSecuredAsync(Guid userId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        return Task.FromResult(conn.ExecuteScalar<int>(
+            $"SELECT COUNT(*) FROM accounts a WHERE a.id=@userId AND {SecuredUserSql};", new { userId }) > 0);
+    }
+
+    /// <summary>"The user <c>a</c> has an email and a password or passkey", for use in a query over <c>accounts a</c>.</summary>
+    private const string SecuredUserSql = """
+        a.email IS NOT NULL AND TRIM(a.email)<>''
+        AND a.normalized_email IS NOT NULL AND TRIM(a.normalized_email)<>''
+        AND (EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
+             OR EXISTS(SELECT 1 FROM account_passkeys k WHERE k.account_id=a.id))
+        """;
+
     public Task<Guid?> GetDefaultProfileIdAsync(Guid accountId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -316,49 +345,68 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             DeleteAccountRows(connection, transaction, accountId);
         }, ct);
 
-    public Task<AccountRemovalPlan> PlanAccountRemovalAsync(Guid accountId, CancellationToken ct = default) =>
+    public Task<UserRemovalPlan> PlanUserRemovalAsync(Guid userId, CancellationToken ct = default) =>
         db.ExecuteReadAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            return new AccountRemovalPlan(PlanAccountRemoval(connection, transaction, accountId));
+            return PlanUserRemoval(connection, transaction, userId);
         }, ct);
 
-    public Task<AccountRemovalOutcome> DeleteAccountWithOwnProfilesAsync(
-        Guid accountId, IReadOnlyCollection<Guid>? confirmedProfileIds = null, CancellationToken ct = default) =>
+    public Task<UserRemovalOutcome> DeleteUserAsync(
+        Guid userId, IReadOnlyCollection<Guid>? confirmedProfileIds = null, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            // Worked out inside the transaction that deletes, so the profiles that go are exactly the ones just checked.
-            var profiles = PlanAccountRemoval(connection, transaction, accountId);
-            var profileIds = profiles.Select(profile => profile.Id).ToArray();
+            // Worked out inside the transaction that deletes, so what goes is exactly what was just checked.
+            var plan = PlanUserRemoval(connection, transaction, userId);
+            var profileIds = plan.RemovesHousehold ? plan.HouseholdProfiles.Select(profile => profile.Id).ToArray() : [];
             // What goes must be exactly what the caller was shown and confirmed; otherwise nothing is deleted.
             if (confirmedProfileIds is not null && !confirmedProfileIds.ToHashSet().SetEquals(profileIds))
             {
                 throw new AccountRemovalChangedException();
             }
 
-            var affected = profileIds.Length == 0
-                ? []
-                : connection.Query<Guid>(
-                    "SELECT DISTINCT account_id FROM account_profile_grants WHERE profile_id IN @ids AND account_id<>@accountId;",
-                    new { ids = profileIds.Select(GuidSql.ToBlob).ToArray(), accountId }, transaction).ToList();
-            DeleteAccountRows(connection, transaction, accountId);
+            if (!plan.RemovesHousehold)
+            {
+                // D5: only the sign-in goes. The profile and everything in it stay (it loses any administrator role inside).
+                DeleteAccountRows(connection, transaction, userId);
+                return new UserRemovalOutcome(null, [], [userId]);
+            }
+
+            // D6: the household goes with every profile in it, unless its Shared Library still holds shared photos.
+            if (plan.HouseholdHoldsSharedItems)
+            {
+                throw new InvalidOperationException(UserRemovalMessages.HouseholdHoldsSharedItems);
+            }
+
+            var householdId = plan.HouseholdId!.Value;
+            var userIds = connection.Query<Guid>("""
+                SELECT a.id FROM accounts a
+                WHERE a.profile_id IN (SELECT id FROM profiles WHERE household_id=@householdId)
+                   OR a.household_id=@householdId
+                ORDER BY a.created_at, a.id;
+                """, new { householdId }, transaction).ToList();
+            foreach (var id in userIds)
+            {
+                DeleteAccountRows(connection, transaction, id);
+            }
+
             foreach (var profileId in profileIds)
             {
                 RequireNotFinalAdministratorProfile(connection, transaction, profileId);
                 DeleteProfileRows(connection, transaction, profileId);
             }
 
-            // A sign-in that used one of these profiles as its default moves to its next enabled profile.
-            foreach (var other in affected)
+            var removed = HouseholdRepository.DeleteEmptyHousehold(connection, transaction, householdId);
+            if (removed != HouseholdDeleteOutcome.Deleted)
             {
-                EnsureEnabledDefault(connection, transaction, other);
-                connection.Execute("""
-                    UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now WHERE id=@other;
-                    """, new { other, now = Iso(DateTimeOffset.UtcNow) }, transaction);
+                // Everything above is undone with the transaction.
+                throw new InvalidOperationException(removed == HouseholdDeleteOutcome.HoldsSharedItems
+                    ? UserRemovalMessages.HouseholdHoldsSharedItems
+                    : UserRemovalMessages.HouseholdCouldNotBeRemoved);
             }
 
-            return new AccountRemovalOutcome(profileIds, affected);
+            return new UserRemovalOutcome(householdId, profileIds, userIds);
         }, ct);
 
     /// <summary>The account row's own work: the last-administrator backstop, handing its followers on, and removing it.</summary>
@@ -522,7 +570,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            if (grants.Count is 0 or > 8 || grants.Count(grant => grant.IsDefault && grant.IsEnabled) != 1 ||
+            if (grants.Count is 0 || grants.Count > Household.MaximumProfiles || grants.Count(grant => grant.IsDefault && grant.IsEnabled) != 1 ||
                 grants.Any(grant => grant.AccountId != account.Id || !grant.IsEnabled || grant.AdminEnabled))
             {
                 throw new InvalidOperationException("Invitation grants must contain one enabled default and at most eight profiles.");
@@ -551,11 +599,19 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 throw new InvalidOperationException(CrossHouseholdMessage);
             }
 
+            if (account.HouseholdId is { } named && connection.ExecuteScalar<int>(
+                    "SELECT COUNT(*) FROM households WHERE id=@named;", new { named }, transaction) == 0)
+            {
+                throw new KeyNotFoundException("Household not found.");
+            }
+
             account.HouseholdId ??= profileHouseholds.Count == 1
                 ? profileHouseholds[0]
                 : CreateOrAdoptHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account);
             if (newProfile is not null)
             {
+                // A household holds up to eight people (D14), however the new person arrives.
+                RequireRoom(connection, transaction, account.HouseholdId.Value);
                 InsertProfileRow(connection, transaction, newProfile, account.HouseholdId.Value);
             }
 
@@ -603,14 +659,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new InvalidOperationException("The target profile grant is invalid.");
         }
 
+        // The limit is the household's (eight profiles, D14, checked below), not a count of the sign-in's own grants.
         var grantCount = connection.ExecuteScalar<int>(
             "SELECT COUNT(*) FROM account_profile_grants WHERE account_id=@AccountId;",
             targetGrant, transaction);
-        if (grantCount >= 8)
-        {
-            throw new InvalidOperationException(Household.FullMessage);
-        }
-
         if (!targetGrant.IsDefault && grantCount == 0)
         {
             throw new InvalidOperationException("The first profile grant must be the default.");
@@ -696,12 +748,23 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             return 0;
         }, ct);
 
-    public Task DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default) =>
+    public Task<ProfileRemovalOutcome> DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             RequireProfileRemovable(connection, transaction, profileId);
+            // D7: a sign-in without a profile cannot exist, so the profile's user goes with it. The user is deleted through the same
+            // steps as any other user delete (its hand-overs and the last-administrator backstop), then the profile and everything
+            // personal in it.
+            var userId = connection.QueryFirstOrDefault<Guid?>(
+                "SELECT id FROM accounts WHERE profile_id=@profileId;", new { profileId }, transaction);
+            if (userId is { } id)
+            {
+                DeleteAccountRows(connection, transaction, id);
+            }
+
             DeleteProfileRows(connection, transaction, profileId);
+            return new ProfileRemovalOutcome(userId);
         }, ct);
 
     /// <summary>
@@ -736,125 +799,68 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     }
 
     /// <summary>
-    /// The profiles that go with a sign-in. This is the one rule for "a user's own profiles" (Shy, 2026-10-22), worked out from
-    /// grants alone because nothing records who created a profile:
-    /// <list type="bullet">
-    /// <item>A sign-in owns the profile it signs in as: its enabled default grant. That holds whether or not other sign-ins can
-    /// also open the profile (a household's main sign-ins hold a non-default grant on its people, and a second adult may be
-    /// invited into a profile another sign-in also signs in as). It holds for a person's own sign-in too
-    /// (<c>grants_inherit_from_account_id</c> set), whose default grant is the one person it opens, so deleting that sign-in
-    /// through Delete user deletes the person.</item>
-    /// <item>A sign-in also owns every profile that only it holds a grant on (enabled or not): profiles created for that account
-    /// (<c>CreateManagedProfileAsync</c>, the old default after a new default was chosen). Anyone else holding a grant on it,
-    /// even a disabled one, makes it shared, and it stays.</item>
-    /// <item>A profile must be in the sign-in's household (or have none) to count. Nothing else is ever a sign-in's own. People made
-    /// for the household with no sign-in of their own (<c>CreateHouseholdPersonAsync</c>: granted to every main sign-in, default
-    /// for none) are held by every main sign-in, so with two or more main sign-ins they stay with the household. In a household
-    /// with a single main sign-in the data cannot tell such a person from a profile created for that account: both are held
-    /// only by it, so both go with it (the confirmation names every profile that will go, and the last owner of a household
-    /// cannot be deleted, so this only happens once someone else owns the household).</item>
-    /// </list>
-    /// Throws when the delete would strand someone: a sign-in that signs in as the Owner profile (never deleted) must pick another
-    /// first (an Owner profile it merely holds stays and is not part of what goes), and no other sign-in, disabled ones included,
-    /// may be left able to open only profiles that are going.
+    /// What deleting a user does (D5, D6). Only the sign-in goes, unless it is the last enabled user attached to a
+    /// household-administrator profile of a household that is not the default one: then the household goes with every profile in it.
+    /// Reads the household's profiles and whether its Shared Library holds shared photos, so the caller can refuse before it moves
+    /// anything. Throws when the user does not exist.
     /// </summary>
-    private static IReadOnlyList<Profile> PlanAccountRemoval(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
+    private static UserRemovalPlan PlanUserRemoval(SqliteConnection connection, SqliteTransaction transaction, Guid userId)
     {
-        var account = connection.QuerySingleOrDefault<AccountRow>(
-            Select + " WHERE id=@accountId;", new { accountId }, transaction)
-            ?? throw new KeyNotFoundException("Account not found.");
-        var profileIds = OwnProfileIds(connection, transaction, account);
-        if (profileIds.Contains(Profile.SeedProfileId))
+        var user = connection.QuerySingleOrDefault<AccountRow>(Select + " WHERE id=@userId;", new { userId }, transaction)
+            ?? throw new KeyNotFoundException("User not found.");
+        var profile = user.ProfileId is { } profileId
+            ? connection.QuerySingleOrDefault<PlanProfileRow>("""
+                SELECT id AS Id, display_name AS DisplayName, household_id AS HouseholdId,
+                       is_server_admin AS IsServerAdministrator, is_household_admin AS IsHouseholdAdministrator
+                FROM profiles WHERE id=@profileId;
+                """, new { profileId }, transaction)
+            : null;
+        if (profile?.HouseholdId is not { } householdId)
         {
-            // The Owner profile is never deleted. A sign-in that signs in as it must pick another profile first; one that merely
-            // holds it (no other sign-in does) leaves it standing, and it is not part of what goes.
-            var signInProfile = connection.Query<GrantRow>(
-                    GrantSelect + " WHERE account_id=@Id AND is_enabled=1 AND is_default=1;", new { account.Id }, transaction)
-                .FirstOrDefault()?.ProfileId;
-            if (signInProfile == Profile.SeedProfileId)
-            {
-                throw new InvalidOperationException(
-                    "This sign-in signs in as the Owner profile, which is never deleted. Choose a different profile for it first.");
-            }
-
-            profileIds.Remove(Profile.SeedProfileId);
+            return new UserRemovalPlan(user.Id, user.Email, profile?.Id, profile?.DisplayName, null, null, false,
+                profile?.IsServerAdministrator ?? false, profile?.IsHouseholdAdministrator ?? false, false, [], false);
         }
 
-        if (profileIds.Count == 0)
-        {
-            return [];
-        }
-
-        var blobs = profileIds.Select(GuidSql.ToBlob).ToArray();
-        var stranded = connection.QueryFirstOrDefault<StrandedRow>("""
-            SELECT a.id AS AccountId, a.email AS Email,
-                   (SELECT p.display_name FROM account_profile_grants own JOIN profiles p ON p.id=own.profile_id
-                    WHERE own.account_id=a.id AND own.is_enabled=1
-                    ORDER BY own.is_default DESC, own.granted_at LIMIT 1) AS PersonName
-            FROM accounts a
-            WHERE a.id<>@accountId
-              AND EXISTS (SELECT 1 FROM account_profile_grants g
-                          WHERE g.account_id=a.id AND g.is_enabled=1 AND g.profile_id IN @blobs)
-              AND NOT EXISTS (SELECT 1 FROM account_profile_grants rest
-                              WHERE rest.account_id=a.id AND rest.is_enabled=1 AND rest.profile_id NOT IN @blobs)
-            ORDER BY a.created_at, a.id LIMIT 1;
-            """, new { accountId, blobs }, transaction);
-        if (stranded is not null)
-        {
-            // The sign-in is named by its email (its identity); the person's name only when it has no email.
-            var name = !string.IsNullOrWhiteSpace(stranded.Email) ? stranded.Email
-                : !string.IsNullOrWhiteSpace(stranded.PersonName) ? stranded.PersonName
-                : "Someone";
-            throw new InvalidOperationException($"{name} can only open this profile. Give {name} another profile first.");
-        }
-
-        return connection.Query<OwnProfileRow>("""
-            SELECT id AS Id, display_name AS DisplayName, avatar_color AS AvatarColor, avatar_image_path AS AvatarImagePath,
-                   avatar_icon AS AvatarIcon, household_id AS HouseholdId, role AS Role, created_at AS CreatedAt
-            FROM profiles WHERE id IN @blobs ORDER BY created_at, id;
-            """, new { blobs }, transaction)
-            .Select(row => new Profile
-            {
-                Id = row.Id,
-                DisplayName = row.DisplayName,
-                AvatarColor = row.AvatarColor,
-                AvatarImagePath = row.AvatarImagePath,
-                AvatarIcon = row.AvatarIcon,
-                HouseholdId = row.HouseholdId,
-                Role = Enum.Parse<ProfileRole>(row.Role),
-                CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
-            }).ToList();
+        var household = connection.QuerySingleOrDefault<(string Name, bool IsDefault)>(
+            "SELECT name AS Name, is_default AS IsDefault FROM households WHERE id=@householdId;", new { householdId }, transaction);
+        // Another enabled user on a household-administrator profile of the same household means someone can still look after it.
+        var someoneElseLooksAfter = connection.ExecuteScalar<int>("""
+            SELECT COUNT(*) FROM accounts a
+            JOIN profiles p ON p.id=a.profile_id
+            WHERE p.household_id=@householdId AND p.is_household_admin=1 AND a.is_enabled=1 AND a.id<>@userId;
+            """, new { householdId, userId }, transaction) > 0;
+        var removesHousehold = !household.IsDefault && profile.IsHouseholdAdministrator && !someoneElseLooksAfter;
+        IReadOnlyList<Profile> householdProfiles = removesHousehold
+            ? connection.Query<OwnProfileRow>("""
+                    SELECT id AS Id, display_name AS DisplayName, avatar_color AS AvatarColor, avatar_image_path AS AvatarImagePath,
+                           avatar_icon AS AvatarIcon, household_id AS HouseholdId, role AS Role, created_at AS CreatedAt
+                    FROM profiles WHERE household_id=@householdId ORDER BY created_at, id;
+                    """, new { householdId }, transaction)
+                .Select(row => new Profile
+                {
+                    Id = row.Id,
+                    DisplayName = row.DisplayName,
+                    AvatarColor = row.AvatarColor,
+                    AvatarImagePath = row.AvatarImagePath,
+                    AvatarIcon = row.AvatarIcon,
+                    HouseholdId = row.HouseholdId,
+                    Role = Enum.Parse<ProfileRole>(row.Role),
+                    CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
+                }).ToList()
+            : [];
+        return new UserRemovalPlan(user.Id, user.Email, profile.Id, profile.DisplayName, householdId, household.Name, household.IsDefault,
+            profile.IsServerAdministrator, profile.IsHouseholdAdministrator, removesHousehold, householdProfiles,
+            removesHousehold && HouseholdRepository.HoldsSharedItems(connection, transaction, householdId));
     }
 
-    /// <summary>The ids of the profiles that are this sign-in's own (see <see cref="PlanAccountRemoval"/> for the rule).</summary>
-    private static List<Guid> OwnProfileIds(SqliteConnection connection, SqliteTransaction transaction, AccountRow account)
+    private sealed class PlanProfileRow
     {
-        var candidates = new List<Guid>();
-        if (connection.Query<GrantRow>(
-                GrantSelect + " WHERE account_id=@Id AND is_enabled=1 AND is_default=1;", new { account.Id }, transaction)
-            .FirstOrDefault() is { } signInGrant)
-        {
-            candidates.Add(signInGrant.ProfileId);
-        }
-
-        candidates.AddRange(connection.Query<Guid>("""
-            SELECT g.profile_id FROM account_profile_grants g
-            WHERE g.account_id=@Id
-              AND NOT EXISTS (SELECT 1 FROM account_profile_grants other
-                              WHERE other.profile_id=g.profile_id AND other.account_id<>@Id)
-            ORDER BY g.granted_at, g.profile_id;
-            """, new { account.Id }, transaction));
-        return candidates
-            .Distinct()
-            .Where(profileId =>
-            {
-                var profileHousehold = HouseholdOfProfile(connection, transaction, profileId);
-                return profileHousehold is null || account.HouseholdId is null || profileHousehold == account.HouseholdId;
-            })
-            .ToList();
+        public Guid Id { get; set; }
+        public string DisplayName { get; set; } = "";
+        public Guid? HouseholdId { get; set; }
+        public bool IsServerAdministrator { get; set; }
+        public bool IsHouseholdAdministrator { get; set; }
     }
-
-    private sealed class StrandedRow { public Guid AccountId { get; set; } public string? Email { get; set; } public string? PersonName { get; set; } }
 
     private sealed class OwnProfileRow
     {
@@ -881,28 +887,27 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new KeyNotFoundException("Profile not found.");
         }
 
-        RequireNoLinkedSignIn(connection, transaction, profileId);
+        // A household always keeps at least one household administrator profile (D7): the last one cannot be deleted.
         if (connection.ExecuteScalar<int>("""
-                SELECT COUNT(*) FROM accounts a
-                JOIN account_profile_grants target ON target.account_id=a.id
-                WHERE target.profile_id=@profileId AND target.is_enabled=1 AND a.is_enabled=1
-                  AND (SELECT COUNT(*) FROM account_profile_grants other
-                       WHERE other.account_id=a.id AND other.is_enabled=1)=1;
-                """, new { profileId }, transaction) > 0)
+                SELECT EXISTS(SELECT 1 FROM profiles WHERE id=@profileId AND is_household_admin=1 AND household_id IS NOT NULL)
+                   AND NOT EXISTS(SELECT 1 FROM profiles other
+                                  WHERE other.id<>@profileId AND other.is_household_admin=1
+                                    AND other.household_id=(SELECT household_id FROM profiles WHERE id=@profileId));
+                """, new { profileId }, transaction) == 1)
         {
-            throw new InvalidOperationException("Remove or move this person's sign-in before deleting them. A sign-in that opens only this profile must be removed, or moved to another profile, first.");
+            throw new InvalidOperationException(UserRemovalMessages.LastHouseholdAdministrator);
         }
 
         RequireNotFinalAdministratorProfile(connection, transaction, profileId);
     }
 
-    /// <summary>What a person is told when they try to delete a profile that still has its own sign-in.</summary>
+    /// <summary>What a person is told when a delete reaches a profile that still has a sign-in (a path that did not remove it first).</summary>
     internal const string ProfileHasSignInMessage = "This person has their own sign-in. Delete the sign-in first.";
 
     /// <summary>
-    /// A profile with a sign-in attached cannot be deleted by itself: removing the profile row would also remove the sign-in
-    /// (the data store cascades) without the hand-overs <c>DeleteAccountRows</c> does (the household's primary sign-in, the
-    /// people whose access follows it). The sign-in is deleted first, which then takes its own profiles with it.
+    /// A profile row is never removed while a sign-in is attached: removing it would also remove the sign-in (the data store
+    /// cascades) without the hand-overs <c>DeleteAccountRows</c> does (the household's primary sign-in, the people whose access
+    /// follows it). Every delete path removes the user first; this is the backstop for one that does not.
     /// </summary>
     private static void RequireNoLinkedSignIn(System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, Guid profileId)
     {
@@ -926,17 +931,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            var count = connection.ExecuteScalar<int>(
-                "SELECT COUNT(*) FROM account_profile_grants WHERE account_id=@AccountId;",
-                grant, transaction);
-            var prior = connection.QuerySingleOrDefault<GrantRow>(
-                GrantSelect + " WHERE account_id=@AccountId AND profile_id=@ProfileId;",
-                grant, transaction);
-            if (prior is null && count >= 8)
-            {
-                throw new InvalidOperationException(Household.FullMessage);
-            }
-
+            // The limit is the household's (eight profiles, D14), enforced when a profile joins a household.
             if (grant.IsDefault && !grant.IsEnabled)
             {
                 throw new InvalidOperationException("The default profile grant must be enabled.");

@@ -164,66 +164,55 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task DeletingAProfile_ThatHasItsOwnSignIn_TellsTheAdministratorToDeleteTheSignInFirst()
+    public async Task DeletingAProfile_ThatHasItsOwnSignIn_DeletesTheSignInToo()
     {
+        var owner = NewAdministrator("owner@example.com");
+        var ownerProfile = NewProfile(Guid.NewGuid(), "Owner");
+        await _accounts.CreateAccountAsync(
+            owner, Grant(owner.Id, ownerProfile.Id, isDefault: true, administrator: true),
+            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: ownerProfile);
         var personId = Guid.NewGuid();
         InsertProfile(NewProfile(personId, "Mary"));
         var signIn = NewAdministrator("mary@example.com");
         signIn.IsAdministrator = false;
+        signIn.HouseholdId = (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id;
         await _accounts.CreateAccountAsync(
             signIn,
             Grant(signIn.Id, personId, isDefault: true),
             new HashSet<AccountFeatureId>(),
-            new HashSet<Guid>());
+            new HashSet<Guid>(),
+            preserveProfileAccess: true);
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteManagedProfileAsync(personId));
+        var outcome = await _accounts.DeleteManagedProfileAsync(personId);
 
-        Assert.Equal("This person has their own sign-in. Delete the sign-in first.", refused.Message);
-        Assert.NotNull(await _profiles.GetByIdAsync(personId));
-        Assert.NotNull(await _accounts.GetByIdAsync(signIn.Id));
+        Assert.Equal(signIn.Id, outcome.DeletedUserId);
+        Assert.Null(await _profiles.GetByIdAsync(personId));
+        Assert.Null(await _accounts.GetByIdAsync(signIn.Id));
     }
 
     [Fact]
-    public async Task DeletingAProfile_ThatAlsoHasAnotherSignInLinkedToIt_IsRefused_AndValidationSaysTheSame()
+    public async Task DeletingAProfile_WhoseUserIsAServerAdministratorThatCannotBeSpared_IsRefusedAndKeepsBoth()
     {
-        // The sign-in has other people to open as well, so the older "only opens this person" rule would not stop the delete.
-        var personId = Guid.NewGuid();
-        var otherId = Guid.NewGuid();
-        InsertProfile(NewProfile(personId, "Mary"));
-        InsertProfile(NewProfile(otherId, "Mary's brother"));
-        var signIn = NewAdministrator("mary@example.com");
-        signIn.IsAdministrator = false;
+        var owner = NewAdministrator("owner@example.com");
+        var ownerProfile = NewProfile(Guid.NewGuid(), "Owner");
         await _accounts.CreateAccountAsync(
-            signIn,
-            Grant(signIn.Id, personId, isDefault: true),
-            new HashSet<AccountFeatureId>(),
-            new HashSet<Guid>());
-        await _accounts.UpsertGrantAsync(Grant(signIn.Id, otherId));
+            owner, Grant(owner.Id, ownerProfile.Id, isDefault: true, administrator: true),
+            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: ownerProfile);
+        await new IdentityRepository(_database).UpsertAccountCredentialAsync(new AccountCredential
+        {
+            Id = Guid.NewGuid(),
+            AccountId = owner.Id,
+            SecretHash = "work-factored-hash",
+            SecurityStamp = "owner-security-stamp",
+            CreatedAt = _now,
+            UpdatedAt = _now,
+        });
 
-        var validation = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.ValidateManagedProfileRemovalAsync(personId));
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteManagedProfileAsync(personId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.ValidateManagedProfileRemovalAsync(ownerProfile.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteManagedProfileAsync(ownerProfile.Id));
 
-        Assert.Equal("This person has their own sign-in. Delete the sign-in first.", validation.Message);
-        Assert.Equal(validation.Message, refused.Message);
-        Assert.NotNull(await _profiles.GetByIdAsync(personId));
-        Assert.NotNull(await _accounts.GetByIdAsync(signIn.Id));
-        Assert.Equal(personId, (await _accounts.GetByIdAsync(signIn.Id))!.ProfileId);
-    }
-
-    [Fact]
-    public async Task DeletingAProfile_ThatASignInWithNoLinkedProfileOpensOnly_StillTellsTheAdministratorToRemoveOrMoveTheSignInFirst()
-    {
-        var personId = Guid.NewGuid();
-        InsertProfile(NewProfile(personId, "Mary"));
-        var signIn = NewAdministrator("mary@example.com");
-        signIn.IsAdministrator = false;
-        await _accounts.InsertAsync(signIn);
-        await _accounts.GrantProfileAsync(Grant(signIn.Id, personId, isDefault: true));
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteManagedProfileAsync(personId));
-
-        Assert.Contains("Remove or move this person's sign-in", refused.Message, StringComparison.Ordinal);
-        Assert.NotNull(await _profiles.GetByIdAsync(personId));
+        Assert.NotNull(await _profiles.GetByIdAsync(ownerProfile.Id));
+        Assert.NotNull(await _accounts.GetByIdAsync(owner.Id));
     }
 
     [Fact]

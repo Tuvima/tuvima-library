@@ -59,6 +59,7 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
 
         var bootstrap = Authority(Guid.NewGuid(), Guid.NewGuid(), serverAdmin: true);
         var serverAccount = await mutations.CreateAsync(bootstrap, NewAccount("server@example.com", administrator: true, "Server"));
+        await identities.GiveAsync(serverAccount.Id);
         _serverAdmin = Authority(serverAccount.Id, (await accounts.GetDefaultProfileIdAsync(serverAccount.Id))!.Value, serverAdmin: true);
 
         var createdHome = await mutations.CreateAsync(_serverAdmin, NewAccount("home@example.com", administrator: false, "Mary"));

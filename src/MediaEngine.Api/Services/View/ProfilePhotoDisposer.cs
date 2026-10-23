@@ -31,6 +31,9 @@ public interface IProfilePhotoDisposer
 
     /// <summary>Runs after the person is removed: deletes the files they no longer have anything pointing at, and their profile picture.</summary>
     Task CompleteAsync(ProfilePhotoPlan plan, CancellationToken ct = default);
+
+    /// <summary>True when the person has personal photos that "move to the Shared Library" would have to move.</summary>
+    Task<bool> HasPersonalPhotosAsync(Guid profileId, CancellationToken ct = default);
 }
 
 public sealed class ProfilePhotoDisposer(
@@ -68,6 +71,9 @@ public sealed class ProfilePhotoDisposer(
             .ToList();
         return new ProfilePhotoPlan(remaining, profile.AvatarImagePath, profile.Id, moved);
     }
+
+    public async Task<bool> HasPersonalPhotosAsync(Guid profileId, CancellationToken ct = default) =>
+        (await media.GetPersonalItemIdsAsync(profileId, ct).ConfigureAwait(false)).Count > 0;
 
     public async Task CompleteAsync(ProfilePhotoPlan plan, CancellationToken ct = default)
     {

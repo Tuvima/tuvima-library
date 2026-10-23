@@ -234,8 +234,14 @@ public sealed class UserExportImportTests : IDisposable
         store.Execute($"INSERT INTO user_taste_profiles (user_id, profile_json) VALUES ({Blob(maya.Profiles[0])}, '{{}}')");
         var export = Export(store, maya);
 
-        // Delete user takes the sign-in and its own profiles, with the rows no foreign key would have cleared.
-        await new AccountRepository(store.Database).DeleteAccountWithOwnProfilesAsync(maya.Account);
+        // Remove the sign-in, then the people with the rows no foreign key would have cleared.
+        var accounts = new AccountRepository(store.Database);
+        await accounts.DeleteAccountAsync(maya.Account);
+        foreach (var profile in maya.Profiles)
+        {
+            await accounts.DeleteManagedProfileAsync(profile);
+        }
+
         Assert.Equal(0, store.Scalar("SELECT COUNT(*) FROM accounts"));
         Assert.Equal(0, store.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
         Assert.Equal(0, store.Scalar("SELECT COUNT(*) FROM user_states"));

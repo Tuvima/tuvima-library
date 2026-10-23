@@ -3,6 +3,7 @@ using System.Text;
 using Dapper;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.TestSupport;
@@ -208,6 +209,12 @@ public sealed class ProfileHeldAccessTests : IDisposable
         var (_, person, _) = await CreateMemberAsync();
         var admin = await FindServerAdministratorAsync();
         var noUser = await AddHouseholdPersonAsync(admin, "Nobody");
+        // A second household administrator, so the first can be turned off (a household always keeps one).
+        var second = NewAccount("second@example.com", administrator: false, householdId: person.HouseholdId);
+        var secondPerson = NewProfile("Second");
+        await _accounts.CreateAccountAsync(second, Grant(second.Id, secondPerson.Id, isDefault: true),
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: secondPerson);
+        await _access.SetHouseholdAdministratorAsync(secondPerson.Id, true, _now);
         await _access.SetHouseholdAdministratorAsync(person.Id, false, _now);
         var before = (await _access.GetAdminFlagsAsync(person.Id))!.AuthorizationVersion;
 
@@ -224,6 +231,18 @@ public sealed class ProfileHeldAccessTests : IDisposable
         Assert.True(demoted.AuthorizationVersion > promoted.AuthorizationVersion);
         Assert.Contains("needs a sign-in", refused.Message, StringComparison.Ordinal);
         Assert.False((await _access.GetAdminFlagsAsync(noUser.Id))!.IsHouseholdAdministrator);
+    }
+
+    [Fact]
+    public async Task TheLastHouseholdAdministratorRole_CannotBeTurnedOff()
+    {
+        var (_, person, _) = await CreateMemberAsync();
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _access.SetHouseholdAdministratorAsync(person.Id, false, _now.AddMinutes(1)));
+
+        Assert.Equal(UserRemovalMessages.LastHouseholdAdministrator, refused.Message);
+        Assert.True((await _access.GetAdminFlagsAsync(person.Id))!.IsHouseholdAdministrator);
     }
 
     [Fact]
@@ -537,11 +556,11 @@ public sealed class ProfileHeldAccessTests : IDisposable
     // ── Deleting a person with a sign-in ───────────────────────────────────────
 
     [Fact]
-    public async Task DeletingAPersonWhoseSignInIsDeletedFirst_StillWorks_AndTakesTheProfileWithIt()
+    public async Task DeletingTheLastHouseholdAdministratorsUser_TakesTheHouseholdAndTheProfileWithIt_AndTheirAccessRows()
     {
         var (_, person, account) = await CreateMemberAsync();
 
-        var outcome = await _accounts.DeleteAccountWithOwnProfilesAsync(account.Id);
+        var outcome = await _accounts.DeleteUserAsync(account.Id);
 
         Assert.Equal(person.Id, Assert.Single(outcome.DeletedProfileIds));
         Assert.Null(await _accounts.GetByIdAsync(account.Id));

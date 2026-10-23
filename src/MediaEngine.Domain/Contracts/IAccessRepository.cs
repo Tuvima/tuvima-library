@@ -50,20 +50,22 @@ public interface IAccountAccessMutationRepository
     Task UpdateAccountAsync(Account account, CancellationToken ct = default);
     Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default);
     /// <summary>
-    /// Works out which profiles go with this sign-in when it is deleted (<see cref="AccountRemovalPlan"/>) and refuses a delete
-    /// that would strand someone: the Owner profile can never go, and no other sign-in may be left able to open only a
-    /// profile that is going. Changes nothing.
+    /// Works out what deleting this user does (<see cref="UserRemovalPlan"/>): normally only the sign-in goes; the last enabled user
+    /// attached to a household-administrator profile of a household that is not the default one takes the household and every
+    /// profile in it. Changes nothing.
     /// </summary>
-    Task<AccountRemovalPlan> PlanAccountRemovalAsync(Guid accountId, CancellationToken ct = default);
+    Task<UserRemovalPlan> PlanUserRemovalAsync(Guid userId, CancellationToken ct = default);
     /// <summary>
-    /// Deletes the sign-in and its own profiles in one transaction, with the same refusals as
-    /// <see cref="PlanAccountRemovalAsync"/> and the last-administrator backstop. A sign-in that used a deleted profile as its
-    /// default is moved to its next enabled profile. Everything personal the profiles left behind goes with them. When
-    /// <paramref name="confirmedProfileIds"/> is given, the profiles worked out inside the transaction must be exactly those, or
-    /// nothing is deleted and <see cref="AccountRemovalChangedException"/> is thrown; <see langword="null"/> skips the check.
+    /// Deletes the user in one transaction. A sign-in-only delete leaves the profile and everything in it (the profile loses its
+    /// administrator roles, because an administrator without a sign-in cannot exist) and keeps the last-administrator backstop. A
+    /// household removal (see <see cref="PlanUserRemovalAsync"/>) deletes every user of the household, then every profile with
+    /// everything personal it left behind, then the household and its empty Shared Library; if the household's Shared Library holds
+    /// shared photos nothing is deleted. When <paramref name="confirmedProfileIds"/> is given, the profiles the household removal
+    /// would take (none for a sign-in-only delete), worked out inside the transaction, must be exactly those, or nothing is deleted
+    /// and <see cref="AccountRemovalChangedException"/> is thrown; <see langword="null"/> skips the check.
     /// </summary>
-    Task<AccountRemovalOutcome> DeleteAccountWithOwnProfilesAsync(
-        Guid accountId, IReadOnlyCollection<Guid>? confirmedProfileIds = null, CancellationToken ct = default);
+    Task<UserRemovalOutcome> DeleteUserAsync(
+        Guid userId, IReadOnlyCollection<Guid>? confirmedProfileIds = null, CancellationToken ct = default);
     Task CreateInvitedAccountAsync(
         Account account,
         IReadOnlyList<AccountProfileGrant> grants,
@@ -96,7 +98,12 @@ public interface IAccountAccessMutationRepository
         CancellationToken ct = default);
     /// <summary>Throws the same errors as <see cref="DeleteManagedProfileAsync"/> would, without removing anything.</summary>
     Task ValidateManagedProfileRemovalAsync(Guid profileId, CancellationToken ct = default);
-    Task DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default);
+    /// <summary>
+    /// Deletes a profile and everything personal in it, and the profile's user when it has one (a sign-in without a profile cannot
+    /// exist), in one transaction. Refused for the Owner profile, the last household-administrator profile of its household and the
+    /// last server administrator that can sign in.
+    /// </summary>
+    Task<ProfileRemovalOutcome> DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default);
     Task UpsertGrantAsync(AccountProfileGrant grant, CancellationToken ct = default);
     Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default);
@@ -204,6 +211,46 @@ public sealed record GiveOwnSignInCommand(
 /// <summary>The sign-in just made, and its invitation when one was chosen.</summary>
 public sealed record GivenOwnSignIn(Account Account, IssuedAccountInvitation? Invitation);
 
+/// <summary>How a new user first signs in: an invitation (link and QR code) to choose their own password, or a starting password.</summary>
+public enum NewUserSignInMethod
+{
+    Invitation,
+    TemporaryPassword,
+}
+
+/// <summary>
+/// A new profile made together with its user. The profile goes into <paramref name="HouseholdId"/> or into a new household called
+/// <paramref name="NewHouseholdName"/> (exactly one of the two); a new household's first profile looks after it. A Kids profile
+/// (<paramref name="IsKids"/>) has the Kids content limit and cannot look after a household.
+/// </summary>
+public sealed record NewUserProfileCommand(
+    string DisplayName,
+    string? AvatarColor,
+    Guid? HouseholdId,
+    string? NewHouseholdName,
+    bool IsKids = false);
+
+/// <summary>
+/// Attaches a new user (a sign-in) to an existing profile that has none (<paramref name="ProfileId"/>) or to a new profile
+/// (<paramref name="NewProfile"/>); exactly one of the two. Roles and access are not set here.
+/// </summary>
+public sealed record CreateUserCommand(
+    string? Email,
+    Guid? ProfileId,
+    NewUserProfileCommand? NewProfile,
+    NewUserSignInMethod Method,
+    string? TemporaryPassword = null);
+
+/// <summary>The user just made, the profile it opens and its invitation when that was the chosen sign-in method.</summary>
+public sealed record CreatedUser(Account User, MediaEngine.Domain.Aggregates.Profile Profile, IssuedAccountInvitation? Invitation);
+
+/// <summary>
+/// What deleting a user would do, for the confirmation. <paramref name="RefusedReason"/> is one plain sentence when the delete
+/// would be refused (null when it is allowed); <paramref name="HouseholdHasPersonalPhotos"/> says a household removal would meet
+/// personal photos in its profiles.
+/// </summary>
+public sealed record UserDeletionPreview(UserRemovalPlan Plan, string? RefusedReason, bool HouseholdHasPersonalPhotos);
+
 public interface IAccountAccessMutationService
 {
     Task<Account> CreateAsync(RequestAuthority actor, CreateAccountAccessCommand command, CancellationToken ct = default);
@@ -218,26 +265,40 @@ public interface IAccountAccessMutationService
     /// <summary>Turns two-step codes off for someone who lost their authenticator app and recovery codes. Audited.</summary>
     Task ResetTwoStepAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     /// <summary>
-    /// Deletes a user: their sign-in and their own profiles (see <see cref="AccountRemovalPlan"/>), with <paramref name="photos"/>
-    /// applied to every profile that goes. A server administrator may delete anyone but the last server administrator and a
-    /// household's last owner; a household owner may delete another user in their own household (another owner included) but
-    /// never a server administrator, themselves, anyone outside the household, or the household's last owner. A caller that
-    /// confirmed a list of profiles (<paramref name="confirmedProfileIds"/>) has it checked against the profiles that would go,
-    /// before anything moves and again inside the delete: if they differ, nothing changes and
-    /// <see cref="AccountRemovalChangedException"/> is thrown. <see langword="null"/> (applications, older clients) skips the check.
+    /// Makes a new user (a sign-in), only for a server administrator (or an application trusted with identity.users.write). It
+    /// opens an existing profile that has no sign-in yet, or a new profile made with it (a new profile is an ordinary member, Kids
+    /// only when asked). Starting a household for the new profile is refused until every server administrator has an email and a
+    /// password or passkey (D10).
     /// </summary>
-    Task DeleteAsync(
+    Task<CreatedUser> CreateUserAsync(RequestAuthority actor, CreateUserCommand command, CancellationToken ct = default);
+    /// <summary>
+    /// Deletes a user (D5, D6), only for a server administrator (or a trusted application). Normally only the sign-in goes and the
+    /// profile with everything in it stays. The last enabled user attached to a household-administrator profile of a non-default
+    /// household takes the household and every profile in it, with <paramref name="photos"/> applied to each profile. Never the
+    /// actor's own user, a server administrator that would be the last one who can sign in, or the default household. A caller that
+    /// confirmed a list of profiles (<paramref name="confirmedProfileIds"/>, empty for a sign-in-only delete) has it checked against
+    /// what would go, before anything moves and again inside the delete: if they differ, nothing changes and
+    /// <see cref="AccountRemovalChangedException"/> is thrown. <see langword="null"/> skips the check.
+    /// </summary>
+    Task DeleteUserAsync(
         RequestAuthority actor,
-        Guid accountId,
+        Guid userId,
         ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
         IReadOnlyCollection<Guid>? confirmedProfileIds = null,
         CancellationToken ct = default);
+    /// <summary>What <see cref="DeleteUserAsync"/> would do, and whether it would be refused, for the confirmation. Changes nothing.</summary>
+    Task<UserDeletionPreview> PreviewDeleteUserAsync(RequestAuthority actor, Guid userId, CancellationToken ct = default);
     /// <summary>
-    /// The profiles <see cref="DeleteAsync"/> would delete with this user, for the confirmation. Changes nothing. Open to
-    /// whoever may delete the user; another household's user looks missing to a household owner.
+    /// Replaces the Read/Watch/Listen/View and library access of a profile. A server administrator may set anything; a household
+    /// administrator only within their own household, only what their own profile holds, and never on a server administrator's profile.
     /// </summary>
-    Task<IReadOnlyList<MediaEngine.Domain.Aggregates.Profile>> PreviewDeleteAsync(
-        RequestAuthority actor, Guid accountId, CancellationToken ct = default);
+    Task ReplaceProfileAccessAsync(RequestAuthority actor, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, CancellationToken ct = default);
+    /// <summary>
+    /// Sets the household administrator and server administrator roles of a profile (D15, D17). A household administrator may change
+    /// the household administrator role of profiles in their own household; only a server administrator changes the server
+    /// administrator role.
+    /// </summary>
+    Task SetProfileRolesAsync(RequestAuthority actor, Guid profileId, bool isHouseholdAdministrator, bool isServerAdministrator, CancellationToken ct = default);
     Task<IssuedAccountInvitation> IssueInvitationAsync(
         RequestAuthority actor,
         IssueAccountInvitationCommand command,
@@ -252,8 +313,11 @@ public interface IAccountAccessMutationService
         UpdateManagedProfileCommand command,
         CancellationToken ct = default);
     /// <summary>
-    /// Removes a person. Their habits (likes, My List, progress, bookmarks, taste) always go; <paramref name="photos"/> decides
-    /// what happens to their personal photos. Library files are never touched.
+    /// Removes a person and their user too, if they have one (D7, D8). Their habits (likes, My List, progress, bookmarks, taste) always
+    /// go; <paramref name="photos"/> decides what happens to their personal photos. Library files are never touched. A household
+    /// administrator removes people of their own household; never the last household-administrator profile of a household, a server
+    /// administrator's profile (unless the actor is a server administrator and another one can still sign in), or the profile the actor
+    /// is using.
     /// </summary>
     Task DeleteProfileAsync(
         RequestAuthority actor,

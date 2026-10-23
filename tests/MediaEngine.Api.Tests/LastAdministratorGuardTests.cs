@@ -138,18 +138,16 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
     {
         var first = await CreateAdministratorAsync();
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _mutations.DeleteAsync(_actor, first.Id));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _mutations.DeleteUserAsync(_actor, first.Id));
         Assert.Equal(Refusal, refused.Message);
         Assert.NotNull(await _accounts.GetByIdAsync(first.Id));
 
         var second = await CreateAdministratorAsync();
-        // Each administrator here starts a household of their own and is its owner; a household's last owner has its own rule
-        // (HouseholdOwnerDeletionTests), so the first one stops being an owner before they are deleted.
-        await _mutations.SetHouseholdAdminAsync(_actor, first.Id, false);
-        await _mutations.DeleteAsync(_actor, first.Id);
+        // Deleting a user removes only the sign-in; the second administrator can still sign in, so the first may go.
+        await _mutations.DeleteUserAsync(_actor, first.Id);
 
         Assert.Null(await _accounts.GetByIdAsync(first.Id));
-        var last = await Assert.ThrowsAsync<InvalidOperationException>(() => _mutations.DeleteAsync(_actor, second.Id));
+        var last = await Assert.ThrowsAsync<InvalidOperationException>(() => _mutations.DeleteUserAsync(_actor, second.Id));
         Assert.Equal(Refusal, last.Message);
     }
 
@@ -162,10 +160,8 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
             NewProfile: new NewAccountProfileCommand("Member", "#112233"),
             Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
             Libraries: new HashSet<Guid>(), TemporaryPassword: Password));
-        // The member starts a household of their own and is its owner; keeping a household's last owner is a separate rule.
-        await _mutations.SetHouseholdAdminAsync(_actor, member.Id, false);
-
-        await _mutations.DeleteAsync(_actor, member.Id);
+        // The member starts a household of their own and is its last administrator: deleting them removes that household too.
+        await _mutations.DeleteUserAsync(_actor, member.Id);
 
         Assert.Null(await _accounts.GetByIdAsync(member.Id));
     }
@@ -276,7 +272,7 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task DeletingThePersonAnAdministratorSignsInAs_IsRefusedUntilTheirSignInIsDeleted()
+    public async Task DeletingTheOnlyHouseholdAdministratorsProfile_IsRefused_AndKeepsTheirSignIn()
     {
         var first = await CreateAdministratorAsync();
         await CreateAdministratorAsync();
@@ -286,7 +282,7 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _mutations.DeleteProfileAsync(_actor, adminProfile));
 
-        Assert.Equal("This person has their own sign-in. Delete the sign-in first.", refused.Message);
+        Assert.Equal(MediaEngine.Domain.Contracts.UserRemovalMessages.LastHouseholdAdministrator, refused.Message);
         Assert.NotNull(await _accounts.GetByIdAsync(first.Id));
         Assert.True(await _accounts.HasProfileAccessAsync(first.Id, adminProfile));
     }

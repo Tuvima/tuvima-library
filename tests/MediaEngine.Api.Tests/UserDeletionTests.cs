@@ -13,57 +13,30 @@ using Microsoft.Extensions.Logging;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// Deleting a user (their sign-in and their own profiles): who may do it, the last-owner rule, what happens to their photos, and
-/// what is recorded. Real temporary data store; the photo handling is a hand-written spy.
+/// Deleting a user removes only the sign-in (the profile and everything in it stay), except the last household administrator's user
+/// of a non-default household, which takes the household and every profile in it. Deleting a profile takes its user too and
+/// everything personal. Who may do either, what happens to photos, and what is recorded. Real temporary data store; the photo
+/// handling is a hand-written spy.
 /// </summary>
 public sealed class UserDeletionTests
 {
+    // ---- Deleting a user removes only the sign-in (D5) ----
+
     [Fact]
-    public async Task DeletingAUser_DeletesTheirOwnProfiles_AndKeepsHouseholdPeopleWithoutASignIn()
+    public async Task DeletingAUser_RemovesOnlyTheSignIn_AndTheirProfileAndEverythingInItStay()
     {
         await using var world = await World.CreateAsync();
 
-        await world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id);
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Kim.Id);
 
-        Assert.Null(await world.Accounts.GetByIdAsync(world.Sam.Id));
-        Assert.Null(await world.Profiles.GetByIdAsync(world.SamProfile.Id));
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(world.KimProfile.Id));
         Assert.NotNull(await world.Profiles.GetByIdAsync(world.Mary.Id));
-        Assert.True(await world.Accounts.HasProfileAccessAsync(world.Alex.Id, world.Mary.Id));
-        Assert.NotNull(await world.Profiles.GetByIdAsync(await DefaultProfileAsync(world, world.Alex)));
-    }
-
-    [Fact]
-    public async Task DeletingAUsersOwnSignIn_ThroughDeleteUser_DeletesThePerson_WhileRemovingTheSignInKeepsThem()
-    {
-        await using var world = await World.CreateAsync();
-        var carl = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
-            new AddHouseholdPersonCommand(world.Household.Id, "Carl", null, false, null));
-        var carlSignIn = (await world.Mutations.GiveOwnSignInAsync(world.ServerAdmin,
-            new GiveOwnSignInCommand(world.Mary.Id, "mary@example.com", "a long temporary password"))).Account;
-        var dee = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
-            new AddHouseholdPersonCommand(world.Household.Id, "Dee", null, false, null));
-        var deeSignIn = (await world.Mutations.GiveOwnSignInAsync(world.ServerAdmin,
-            new GiveOwnSignInCommand(dee.Id, "dee@example.com", "a long temporary password"))).Account;
-
-        await world.Mutations.RemoveOwnSignInAsync(world.ServerAdmin, deeSignIn.Id);
-        Assert.NotNull(await world.Profiles.GetByIdAsync(dee.Id));
-
-        await world.Mutations.DeleteAsync(world.ServerAdmin, carlSignIn.Id);
-        Assert.Null(await world.Profiles.GetByIdAsync(world.Mary.Id));
-        Assert.NotNull(await world.Profiles.GetByIdAsync(carl.Id));
-    }
-
-    [Fact]
-    public async Task Photos_MoveToTheSharedLibraryByDefault_AndAreDeletedWhenAsked()
-    {
-        await using var world = await World.CreateAsync();
-        await world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id);
-        Assert.Equal([(world.SamProfile.Id, ProfilePhotoDisposition.MoveToShared)], world.Photos.Prepared);
-
-        world.Photos.Prepared.Clear();
-        await world.Mutations.DeleteAsync(world.ServerAdmin, world.Kim.Id, ProfilePhotoDisposition.Delete);
-        var prepared = Assert.Single(world.Photos.Prepared);
-        Assert.Equal((world.KimProfile.Id, ProfilePhotoDisposition.Delete), prepared);
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Alex.Id));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Sam.Id));
+        // Another person of the household can still open the profile that lost its sign-in.
+        Assert.True(await world.Accounts.HasProfileAccessAsync(world.Alex.Id, world.KimProfile.Id));
+        Assert.Empty(world.Photos.Prepared);
     }
 
     [Fact]
@@ -71,60 +44,384 @@ public sealed class UserDeletionTests
     {
         await using var world = await World.CreateAsync();
 
-        await world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id);
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Kim.Id);
 
         var deleted = Assert.Single(world.Audit.Events, e => e.EventType == "account.deleted");
-        Assert.Equal("1", deleted.Changes["profiles_deleted"]);
-        Assert.DoesNotContain(deleted.Changes.Values, value => value is not null && value.Contains("Sam", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(world.Sam.Id.ToString("D"), deleted.SubjectId);
+        Assert.Equal("0", deleted.Changes["profiles_deleted"]);
+        Assert.Equal("false", deleted.Changes["household_removed"]);
+        Assert.DoesNotContain(deleted.Changes.Values, value => value is not null && value.Contains("Kim", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(world.Kim.Id.ToString("D"), deleted.SubjectId);
     }
 
     [Fact]
-    public async Task ThePreviewNamesTheProfilesThatWouldGo_ChangesNothing_AndHidesOtherHouseholds()
+    public async Task DeletingAHouseholdAdministratorsUser_WhoIsNotTheLast_LeavesTheProfileAnOrdinaryMember()
     {
         await using var world = await World.CreateAsync();
 
-        var preview = await world.Mutations.PreviewDeleteAsync(world.AlexAuthority, world.Sam.Id);
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Sam.Id);
 
-        Assert.Equal(["Sam"], preview.Select(profile => profile.DisplayName).ToArray());
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Sam.Id));
-        Assert.NotNull(await world.Profiles.GetByIdAsync(world.SamProfile.Id));
+        var kept = (await world.Profiles.GetByIdAsync(world.SamProfile.Id))!;
+        Assert.False(kept.IsHouseholdAdministrator);
+        Assert.True((await world.Profiles.GetByIdAsync(await DefaultProfileAsync(world, world.Alex)))!.IsHouseholdAdministrator);
+        Assert.NotNull(await world.Households.GetByIdAsync(world.Household.Id));
         Assert.Empty(world.Photos.Prepared);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.PreviewDeleteAsync(world.AlexAuthority, world.Bea.Id));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.PreviewDeleteAsync(world.KimAuthority, world.Sam.Id));
     }
 
-    // ---- What is deleted is what was confirmed ----
-
     [Fact]
-    public async Task DeletingAUser_WithAConfirmedListThatNoLongerMatches_IsRefusedBeforeAnythingMoves_AndChangesNothing()
+    public async Task OnlyAServerAdministrator_CanDeleteUsers_NotAHouseholdAdministratorOrAMember()
     {
         await using var world = await World.CreateAsync();
-        var confirmed = (await world.Mutations.PreviewDeleteAsync(world.ServerAdmin, world.Sam.Id)).Select(profile => profile.Id).ToArray();
-        // Someone gives Sam another profile of their own after the list was shown.
-        var kids = await world.Mutations.CreateProfileAsync(world.ServerAdmin,
-            new CreateManagedProfileCommand(world.Sam.Id, "Sam (Kids)", null, false));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.DeleteUserAsync(world.AlexAuthority, world.Kim.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.DeleteUserAsync(world.KimAuthority, world.Sam.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.PreviewDeleteUserAsync(world.AlexAuthority, world.Kim.Id));
+
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Kim.Id));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Sam.Id));
+    }
+
+    [Fact]
+    public async Task DeletingAUserThatDoesNotExist_SaysSo()
+    {
+        await using var world = await World.CreateAsync();
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.DeleteUserAsync(world.ServerAdmin, Guid.NewGuid()));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, Guid.NewGuid()));
+    }
+
+    // ---- The last household administrator's user takes the household (D6) ----
+
+    [Fact]
+    public async Task DeletingTheLastHouseholdAdministratorsUser_RemovesTheHouseholdWithEveryProfileInIt_AndMovesPhotosByDefault()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+        var profiles = new[] { await DefaultProfileAsync(world, world.Alex), world.SamProfile.Id, world.Mary.Id, world.KimProfile.Id };
+
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id);
+
+        Assert.Null(await world.Households.GetByIdAsync(world.Household.Id));
+        foreach (var profile in profiles)
+        {
+            Assert.Null(await world.Profiles.GetByIdAsync(profile));
+        }
+
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Alex.Id));
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Sam.Id));
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
+        Assert.Equal(profiles.Order().ToArray(), world.Photos.Prepared.Select(prepared => prepared.ProfileId).Order().ToArray());
+        Assert.All(world.Photos.Prepared, prepared => Assert.Equal(ProfilePhotoDisposition.MoveToShared, prepared.Photos));
+        // The Library's own household and the other household are untouched.
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Bea.Id));
+        Assert.NotNull(await world.Households.GetByIdAsync(world.Bea.HouseholdId!.Value));
+        var deleted = Assert.Single(world.Audit.Events, e => e.EventType == "account.deleted");
+        Assert.Equal("4", deleted.Changes["profiles_deleted"]);
+        Assert.Equal("true", deleted.Changes["household_removed"]);
+        Assert.Single(world.Audit.Events, e => e.EventType == "household.deleted" && e.SubjectId == world.Household.Id.ToString("D"));
+    }
+
+    [Fact]
+    public async Task WhenAHouseholdIsRemoved_ThePhotoChoiceDeleteIsAppliedToEveryProfile()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.Delete);
+
+        Assert.Equal(4, world.Photos.Prepared.Count);
+        Assert.All(world.Photos.Prepared, prepared => Assert.Equal(ProfilePhotoDisposition.Delete, prepared.Photos));
+    }
+
+    [Fact]
+    public async Task ThePreview_NamesTheProfilesTheHouseholdRemovalWouldTake_AndChangesNothing()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+
+        var removal = await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id);
+        var signInOnly = await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Kim.Id);
+
+        Assert.True(removal.Plan.RemovesHousehold);
+        Assert.Equal(world.Household.Name, removal.Plan.HouseholdName);
+        Assert.Equal(["Alex", "Kim", "Mary", "Sam"], removal.Plan.HouseholdProfiles.Select(profile => profile.DisplayName).Order().ToArray());
+        Assert.Null(removal.RefusedReason);
+        Assert.False(signInOnly.Plan.RemovesHousehold);
+        Assert.Empty(signInOnly.Plan.HouseholdProfiles);
+        Assert.Equal("Kim", signInOnly.Plan.ProfileName);
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Alex.Id));
+        Assert.NotNull(await world.Households.GetByIdAsync(world.Household.Id));
+        Assert.Empty(world.Photos.Prepared);
+    }
+
+    [Fact]
+    public async Task ADeleteConfirmedAgainstAStaleList_IsRefusedBeforeAnythingMoves_AndChangesNothing()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+        var confirmed = (await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id))
+            .Plan.HouseholdProfiles.Select(profile => profile.Id).ToArray();
+        // Someone adds a person to the household after the list was shown.
+        var zed = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
+            new AddHouseholdPersonCommand(world.Household.Id, "Zed", null, false, null));
 
         var refused = await Assert.ThrowsAsync<AccountRemovalChangedException>(
-            () => world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id, ProfilePhotoDisposition.MoveToShared, confirmed));
+            () => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.MoveToShared, confirmed));
         var empty = await Assert.ThrowsAsync<AccountRemovalChangedException>(
-            () => world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id, ProfilePhotoDisposition.MoveToShared, []));
+            () => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.MoveToShared, []));
 
         Assert.Equal("Something changed since you looked. Check the list and try again.", refused.Message);
         Assert.Equal(refused.Message, empty.Message);
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Sam.Id));
-        Assert.NotNull(await world.Profiles.GetByIdAsync(world.SamProfile.Id));
-        Assert.NotNull(await world.Profiles.GetByIdAsync(kids.Id));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Alex.Id));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(zed.Id));
         Assert.Empty(world.Photos.Prepared);
         Assert.DoesNotContain(world.Audit.Events, e => e.EventType == "account.deleted");
 
         // The list as shown now, in any order, goes through; a caller that sends no list is not compared.
-        var current = (await world.Mutations.PreviewDeleteAsync(world.ServerAdmin, world.Sam.Id)).Select(profile => profile.Id).Reverse().ToArray();
-        await world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id, ProfilePhotoDisposition.MoveToShared, current);
-        Assert.Null(await world.Accounts.GetByIdAsync(world.Sam.Id));
-        Assert.Null(await world.Profiles.GetByIdAsync(kids.Id));
-        await world.Mutations.DeleteAsync(world.ServerAdmin, world.Kim.Id);
+        var current = (await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id))
+            .Plan.HouseholdProfiles.Select(profile => profile.Id).Reverse().ToArray();
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.MoveToShared, current);
+        Assert.Null(await world.Households.GetByIdAsync(world.Household.Id));
+        Assert.Null(await world.Profiles.GetByIdAsync(zed.Id));
+    }
+
+    [Fact]
+    public async Task ASignInOnlyDelete_ConfirmedWithAProfileList_IsRefused_AndAnEmptyListGoesThrough()
+    {
+        await using var world = await World.CreateAsync();
+
+        await Assert.ThrowsAsync<AccountRemovalChangedException>(() => world.Mutations.DeleteUserAsync(
+            world.ServerAdmin, world.Kim.Id, ProfilePhotoDisposition.MoveToShared, [world.KimProfile.Id]));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Kim.Id));
+
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Kim.Id, ProfilePhotoDisposition.MoveToShared, []);
         Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(world.KimProfile.Id));
+    }
+
+    [Fact]
+    public async Task AHouseholdWhoseSharedLibraryStillHoldsPhotos_IsNotRemoved_AndNoPhotoMoves()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+        await world.AddSharedPhotoAsync(world.Household.Id);
+
+        var preview = await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id);
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id));
+
+        Assert.Equal("This household still has shared photos in View. Remove them first.", preview.RefusedReason);
+        Assert.Equal(preview.RefusedReason, refused.Message);
+        Assert.Empty(world.Photos.Prepared);
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Alex.Id));
+        Assert.NotNull(await world.Households.GetByIdAsync(world.Household.Id));
+    }
+
+    [Fact]
+    public async Task PersonalPhotos_CannotMoveIntoTheSharedLibraryOfTheHouseholdBeingRemoved_ButCanBeDeleted()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+        world.Photos.ProfilesWithPhotos.Add(world.Mary.Id);
+
+        var preview = await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id);
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id));
+
+        Assert.True(preview.HouseholdHasPersonalPhotos);
+        Assert.Null(preview.RefusedReason);
+        Assert.Equal(AccountAccessMutationService.PhotosCannotMoveIntoRemovedHouseholdMessage, refused.Message);
+        Assert.Empty(world.Photos.Prepared);
+        Assert.NotNull(await world.Households.GetByIdAsync(world.Household.Id));
+
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.Delete);
+        Assert.Null(await world.Households.GetByIdAsync(world.Household.Id));
+    }
+
+    [Fact]
+    public async Task WhenTheDeleteFailsAfterPhotosMoved_AnErrorNamesEachProfileId_AndNeverAName()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+        world.Photos.ReportsPhotosMoved = true;
+        // Shared photos appear after the checks and the photo step, so only the data store's own check stops the delete.
+        world.Photos.OnPrepare = () => world.AddSharedPhotoAsync(world.Household.Id).GetAwaiter().GetResult();
+
+        var failed = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id));
+
+        Assert.Equal("This household still has shared photos in View. Remove them first.", failed.Message);
+        Assert.Equal(4, world.Photos.Prepared.Count);
+        Assert.Equal(4, world.Log.Messages.Count);
+        Assert.All(world.Log.Levels, level => Assert.Equal(LogLevel.Error, level));
+        foreach (var prepared in world.Photos.Prepared)
+        {
+            Assert.Single(world.Log.Messages, message => message.Contains(prepared.ProfileId.ToString("D"), StringComparison.Ordinal));
+        }
+
+        Assert.All(world.Log.Messages, message =>
+        {
+            Assert.Contains("Shared", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("Alex", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("Kim", message, StringComparison.Ordinal);
+        });
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Alex.Id));
+        Assert.NotNull(await world.Households.GetByIdAsync(world.Household.Id));
+    }
+
+    // ---- Never ----
+
+    [Fact]
+    public async Task ADefaultHousehold_IsNeverRemoved_EvenWhenItsLastHouseholdAdministratorsUserIsDeleted()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+        await world.Access.SetDefaultHouseholdAsync(world.Household.Id);
+
+        var preview = await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id);
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id);
+
+        Assert.False(preview.Plan.RemovesHousehold);
+        Assert.NotNull(await world.Households.GetByIdAsync(world.Household.Id));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(await DefaultProfileAsync(world, world.Sam)));
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Alex.Id));
+        Assert.Empty(world.Photos.Prepared);
+    }
+
+    [Fact]
+    public async Task ADeleteOfTheActorsOwnSignIn_IsRefused()
+    {
+        await using var world = await World.CreateAsync();
+
+        var preview = await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.ServerAdminAccount.Id);
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.ServerAdminAccount.Id));
+
+        Assert.Equal("You can't delete the sign-in you are using.", refused.Message);
+        Assert.Equal(refused.Message, preview.RefusedReason);
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id));
+    }
+
+    [Fact]
+    public async Task TheLastServerAdministratorsUser_CannotBeDeleted_ByAnyone()
+    {
+        await using var world = await World.CreateAsync();
+        var otherAdministrator = World.ServerAuthority(Guid.NewGuid(), Guid.NewGuid());
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => world.Mutations.DeleteUserAsync(otherAdministrator, world.ServerAdminAccount.Id));
+
+        Assert.Contains("final effective administrator", refused.Message, StringComparison.Ordinal);
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id));
+        Assert.True((await world.Profiles.GetByIdAsync((await DefaultProfileAsync(world, world.ServerAdminAccount))))!.IsServerAdministrator);
+    }
+
+    // ---- Deleting a profile takes its user too and everything personal (D7, D8) ----
+
+    [Fact]
+    public async Task AHouseholdAdministrator_CanDeleteAPersonWithNoSignIn_AndNoOtherProfileChanges()
+    {
+        await using var world = await World.CreateAsync();
+
+        await world.Mutations.DeleteProfileAsync(world.AlexAuthority, world.Mary.Id);
+
+        Assert.Null(await world.Profiles.GetByIdAsync(world.Mary.Id));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(world.KimProfile.Id));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Kim.Id));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Alex.Id));
+        Assert.Equal([(world.Mary.Id, ProfilePhotoDisposition.MoveToShared)], world.Photos.Prepared);
+    }
+
+    [Fact]
+    public async Task DeletingAProfile_AlsoDeletesItsUser_AndSaysSoInTheAuditEntry()
+    {
+        await using var world = await World.CreateAsync();
+
+        await world.Mutations.DeleteProfileAsync(world.AlexAuthority, world.KimProfile.Id, ProfilePhotoDisposition.Delete);
+
+        Assert.Null(await world.Profiles.GetByIdAsync(world.KimProfile.Id));
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
+        Assert.Equal([(world.KimProfile.Id, ProfilePhotoDisposition.Delete)], world.Photos.Prepared);
+        var deleted = Assert.Single(world.Audit.Events, e => e.EventType == "profile.deleted");
+        Assert.Equal("true", deleted.Changes["sign_in_removed"]);
+        Assert.Equal(world.KimProfile.Id.ToString("D"), deleted.SubjectId);
+    }
+
+    [Fact]
+    public async Task HouseholdAdministrators_CanDeleteEachOthersProfiles_ButAHouseholdKeepsAtLeastOne()
+    {
+        await using var world = await World.CreateAsync();
+
+        await world.Mutations.DeleteProfileAsync(world.AlexAuthority, world.SamProfile.Id);
+
+        Assert.Null(await world.Profiles.GetByIdAsync(world.SamProfile.Id));
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Sam.Id));
+        // Alex is now the household's only administrator: the server administrator cannot delete Alex's profile either.
+        var alexProfile = await DefaultProfileAsync(world, world.Alex);
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteProfileAsync(world.ServerAdmin, alexProfile));
+        Assert.Equal("A household needs at least one household administrator. Make another profile a household administrator first.", refused.Message);
+        Assert.NotNull(await world.Profiles.GetByIdAsync(alexProfile));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Alex.Id));
+    }
+
+    [Fact]
+    public async Task ThePersonDeleting_NeverDeletesTheProfileTheyAreUsing_OrTheOneTheirSignInOpens()
+    {
+        await using var world = await World.CreateAsync();
+        var serverProfile = await DefaultProfileAsync(world, world.ServerAdminAccount);
+        var alexProfile = await DefaultProfileAsync(world, world.Alex);
+
+        var server = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteProfileAsync(world.ServerAdmin, serverProfile));
+        var owner = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteProfileAsync(world.AlexAuthority, alexProfile));
+        // Acting as someone else's profile does not make the sign-in's own profile deletable.
+        var actingAsKim = world.AlexAuthority with { ActiveProfileId = world.KimProfile.Id };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteProfileAsync(actingAsKim, alexProfile));
+
+        Assert.Equal("You can't delete the profile you are using. Switch to another profile first.", server.Message);
+        Assert.Equal(server.Message, owner.Message);
+        Assert.NotNull(await world.Profiles.GetByIdAsync(serverProfile));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(alexProfile));
+    }
+
+    [Fact]
+    public async Task AHouseholdAdministrator_CannotDeleteAServerAdministratorsProfile_EvenInTheirOwnHousehold()
+    {
+        await using var world = await World.CreateAsync();
+        // A server administrator profile lives in the Library's own (default) household, so Alex's household is the one in question.
+        await world.Access.SetDefaultHouseholdAsync(world.Household.Id);
+        await world.GivePasswordAsync(world.Kim.Id);
+        await world.Mutations.SetProfileRolesAsync(world.ServerAdmin, world.KimProfile.Id, false, true);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.DeleteProfileAsync(world.AlexAuthority, world.KimProfile.Id));
+
+        Assert.NotNull(await world.Profiles.GetByIdAsync(world.KimProfile.Id));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Kim.Id));
+    }
+
+    [Fact]
+    public async Task AnotherHouseholdsProfile_LooksMissingToAHouseholdAdministrator_AndAMemberCannotDeleteAnyone()
+    {
+        await using var world = await World.CreateAsync();
+        var beaProfile = await DefaultProfileAsync(world, world.Bea);
+
+        var outside = await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.DeleteProfileAsync(world.AlexAuthority, beaProfile));
+        var missing = await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.DeleteProfileAsync(world.AlexAuthority, Guid.NewGuid()));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.DeleteProfileAsync(world.KimAuthority, world.Mary.Id));
+
+        Assert.Equal(missing.Message, outside.Message);
+        Assert.NotNull(await world.Profiles.GetByIdAsync(beaProfile));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(world.Mary.Id));
+    }
+
+    [Fact]
+    public async Task AServerAdministrator_CanDeleteAProfileInAnyHousehold()
+    {
+        await using var world = await World.CreateAsync();
+
+        await world.Mutations.DeleteProfileAsync(world.ServerAdmin, world.KimProfile.Id);
+
+        Assert.Null(await world.Profiles.GetByIdAsync(world.KimProfile.Id));
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
+    }
+
+    [Fact]
+    public async Task ADeleteThatIsRefused_MovesNoPhotos()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+        var alexProfile = await DefaultProfileAsync(world, world.Alex);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteProfileAsync(world.ServerAdmin, alexProfile));
+
+        Assert.Empty(world.Photos.Prepared);
     }
 
     [Fact]
@@ -139,174 +436,27 @@ public sealed class UserDeletionTests
         var person = world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
             new AddHouseholdPersonCommand(world.Household.Id, "Zed", null, false, null));
         var removal = world.Mutations.RemoveOwnSignInAsync(world.ServerAdmin, Guid.NewGuid());
+        var deletion = world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Kim.Id);
+        var profileDeletion = world.Mutations.DeleteProfileAsync(world.ServerAdmin, world.Mary.Id);
+        var access = world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id, new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+        var roles = world.Mutations.SetProfileRolesAsync(world.ServerAdmin, world.KimProfile.Id, false, false);
+        var creation = world.Mutations.CreateUserAsync(world.ServerAdmin, new CreateUserCommand(
+            "late@example.com", null, new NewUserProfileCommand("Late", null, world.Household.Id, null),
+            NewUserSignInMethod.Invitation));
         await Task.Delay(150);
 
         // All of them are queued behind the held gate, so a delete's plan and the delete itself see the same grants.
-        Assert.False(profile.IsCompleted);
-        Assert.False(person.IsCompleted);
-        Assert.False(removal.IsCompleted);
+        Assert.All(new Task[] { profile, person, removal, deletion, profileDeletion, access, roles, creation }, task => Assert.False(task.IsCompleted));
 
         held.Dispose();
         await profile;
         await person;
         await Assert.ThrowsAsync<KeyNotFoundException>(() => removal);
-    }
-
-    // ---- Photos move only once nothing can refuse ----
-
-    [Fact]
-    public async Task WhenAnotherSignInWouldBeLeftWithNothingToOpen_NoPhotosAreMoved_AndNothingIsDeleted()
-    {
-        await using var world = await World.CreateAsync();
-        // Pia can open only Sam's profile (a user has a profile of its own, which Pia gave up in favour of Sam's).
-        var piaProfile = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
-            new AddHouseholdPersonCommand(world.Sam.HouseholdId!.Value, "Pia", null, false, null));
-        var pia = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
-            "pia@example.com", IsAdministrator: false, ProfileId: piaProfile.Id, NewProfile: null,
-            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(), TemporaryPassword: null));
-        await world.Mutations.UpsertGrantAsync(world.ServerAdmin, new AccountProfileGrant
-        {
-            AccountId = pia.Id,
-            ProfileId = world.SamProfile.Id,
-            IsDefault = true,
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-        });
-        await world.Mutations.RevokeGrantAsync(world.ServerAdmin, pia.Id, piaProfile.Id);
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id));
-        var profileRefused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => world.Mutations.DeleteProfileAsync(world.ServerAdmin, world.SamProfile.Id));
-
-        Assert.Contains("pia@example.com can only open this profile", refused.Message, StringComparison.Ordinal);
-        Assert.NotNull(profileRefused);
-        Assert.Empty(world.Photos.Prepared);
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Sam.Id));
-        Assert.NotNull(await world.Accounts.GetByIdAsync(pia.Id));
-        Assert.NotNull(await world.Profiles.GetByIdAsync(world.SamProfile.Id));
-    }
-
-    [Fact]
-    public async Task WhenTheDeleteFailsAfterPhotosMoved_AnErrorNamesTheProfileId_AndNeverAName()
-    {
-        await using var world = await World.CreateAsync();
-        world.Photos.ReportsPhotosMoved = true;
-        // The usable-administrator check is a spy here, so only the data store's own backstop stops this delete, after photos moved.
-        var serverProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value;
-
-        await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, world.ServerAdminAccount.Id, false);
-
-        var failed = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteAsync(world.ServerAdmin, world.ServerAdminAccount.Id));
-        Assert.Contains("final effective administrator", failed.Message, StringComparison.Ordinal);
-
-        Assert.Equal([serverProfile], world.Photos.Prepared.Select(prepared => prepared.ProfileId).ToArray());
-        var message = Assert.Single(world.Log.Messages);
-        Assert.Equal([LogLevel.Error], world.Log.Levels);
-        Assert.Contains(serverProfile.ToString("D"), message, StringComparison.Ordinal);
-        Assert.Contains("Shared", message, StringComparison.Ordinal);
-        Assert.DoesNotContain("Server", message, StringComparison.Ordinal);
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id));
-    }
-
-    // ---- The last owner ----
-
-    [Fact]
-    public async Task TheLastOwnerOfAHousehold_CannotBeDeleted_EvenByAServerAdministrator()
-    {
-        await using var world = await World.CreateAsync(secondOwner: false);
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteAsync(world.ServerAdmin, world.Alex.Id));
-
-        Assert.Equal("Alex is the last owner of this household. Make someone else an owner first.", refused.Message);
-        Assert.NotNull(await world.Profiles.GetByIdAsync(await DefaultProfileAsync(world, world.Alex)));
-    }
-
-    [Fact]
-    public async Task WithTwoOwners_EachCanDeleteTheOther_ButNeverTheOneLeft()
-    {
-        await using (var first = await World.CreateAsync())
-        {
-            await first.Mutations.DeleteAsync(first.AlexAuthority, first.Alex2.Id);
-            Assert.Null(await first.Accounts.GetByIdAsync(first.Alex2.Id));
-            await Assert.ThrowsAsync<InvalidOperationException>(() => first.Mutations.DeleteAsync(first.ServerAdmin, first.Alex.Id));
-        }
-
-        await using var second = await World.CreateAsync();
-        await second.Mutations.DeleteAsync(second.Alex2Authority, second.Alex.Id);
-        Assert.Null(await second.Accounts.GetByIdAsync(second.Alex.Id));
-        Assert.NotNull(await second.Accounts.GetByIdAsync(second.Alex2.Id));
-        var last = await Assert.ThrowsAsync<InvalidOperationException>(() => second.Mutations.DeleteAsync(second.ServerAdmin, second.Alex2.Id));
-        Assert.Contains("last owner", last.Message, StringComparison.Ordinal);
-    }
-
-    // ---- Who may delete whom ----
-
-    [Fact]
-    public async Task AHouseholdOwner_CanDeleteAMemberOfTheirHousehold_ButNotThemselvesOrSomeoneElsesHousehold()
-    {
-        await using var world = await World.CreateAsync();
-
-        // The server administrator lives in another household, so to an owner they look like any other missing sign-in.
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.DeleteAsync(world.AlexAuthority, world.ServerAdminAccount.Id));
-        var outside = await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.DeleteAsync(world.AlexAuthority, world.Bea.Id));
-        var missing = await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.DeleteAsync(world.AlexAuthority, Guid.NewGuid()));
-        Assert.Equal(missing.Message, outside.Message);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteAsync(world.AlexAuthority, world.Alex.Id));
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Bea.Id));
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id));
-
-        await world.Mutations.DeleteAsync(world.AlexAuthority, world.Kim.Id);
-        Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
-        Assert.Null(await world.Profiles.GetByIdAsync(world.KimProfile.Id));
-    }
-
-    [Fact]
-    public async Task AHouseholdOwner_CannotDeleteAServerAdministratorEvenInTheirOwnHousehold()
-    {
-        await using var world = await World.CreateAsync();
-        // A server administrator profile lives in the Library's own (default) household, so Alex's household is the one in question.
-        await world.Access.SetDefaultHouseholdAsync(world.Kim.HouseholdId!.Value);
-        await world.Mutations.UpdateAsync(world.ServerAdmin, world.Kim.Id, new UpdateAccountAccessCommand(world.Kim.Email!, true, true));
-
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.DeleteAsync(world.AlexAuthority, world.Kim.Id));
-
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Kim.Id));
-        Assert.NotNull(await world.Profiles.GetByIdAsync(world.KimProfile.Id));
-    }
-
-    [Fact]
-    public async Task APlainMember_CannotDeleteAnyone_AndAnotherHouseholdsOwnerCannotReachThisHousehold()
-    {
-        await using var world = await World.CreateAsync();
-
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.DeleteAsync(world.KimAuthority, world.Sam.Id));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.DeleteAsync(world.KimAuthority, world.Kim.Id));
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.DeleteAsync(world.BeaAuthority, world.Kim.Id));
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Kim.Id));
-        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Sam.Id));
-    }
-
-    [Fact]
-    public async Task DeletingAUser_NeverTakesTheProfileAnotherOwnerSignsInAs_EvenWhenThatOwnerCanOpenTheDeletedOne()
-    {
-        await using var world = await World.CreateAsync();
-        // Alex2 (another owner) also signs in as Kim's profile; Alex deleting Kim must not take Alex2's person away.
-        await world.Accounts.UpsertGrantAsync(new AccountProfileGrant
-        {
-            AccountId = world.Alex2.Id,
-            ProfileId = world.KimProfile.Id,
-            IsDefault = false,
-            IsEnabled = true,
-            AdminEnabled = false,
-            AuthorizationVersion = 1,
-            GrantedAt = DateTimeOffset.UtcNow,
-        });
-
-        // Alex2 only holds a plain grant, so Kim goes; the profile Alex2 signs in as is never Kim's to take.
-        await world.Mutations.DeleteAsync(world.AlexAuthority, world.Kim.Id);
-
-        Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
-        Assert.NotNull(await world.Profiles.GetByIdAsync(await DefaultProfileAsync(world, world.Alex2)));
+        await deletion;
+        await profileDeletion;
+        await access;
+        await roles;
+        await creation;
     }
 
     // ---- Profile pictures ----
@@ -446,7 +596,7 @@ public sealed class UserDeletionTests
         }
     }
 
-    private class CapturingLogger : ILogger
+    internal class CapturingLogger : ILogger
     {
         public List<LogLevel> Levels { get; } = [];
         public List<string> Messages { get; } = [];
@@ -462,9 +612,9 @@ public sealed class UserDeletionTests
         }
     }
 
-    private sealed class CapturingLogger<T> : CapturingLogger, ILogger<T>;
+    internal sealed class CapturingLogger<T> : CapturingLogger, ILogger<T>;
 
-    private sealed class World : IAsyncDisposable
+    internal sealed class World : IAsyncDisposable
     {
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-user-deletion-{Guid.NewGuid():N}.db");
         private readonly string _configPath = Path.Combine(Path.GetTempPath(), $"tuvima-user-deletion-{Guid.NewGuid():N}");
@@ -479,6 +629,9 @@ public sealed class UserDeletionTests
         public CapturingAudit Audit { get; } = new();
         public CapturingLogger<AccountAccessMutationService> Log { get; } = new();
         public Household Household { get; private set; } = null!;
+        public HouseholdRepository Households { get; private set; } = null!;
+        public HouseholdManagementService Management { get; private set; } = null!;
+        public IdentityRepository Identities { get; private set; } = null!;
 
         public RequestAuthority ServerAdmin { get; private set; } = null!;
         public Account ServerAdminAccount { get; private set; } = null!;
@@ -505,6 +658,10 @@ public sealed class UserDeletionTests
         public Account Bea { get; private set; } = null!;
         public RequestAuthority BeaAuthority { get; private set; } = null!;
 
+        /// <summary>
+        /// A world with a server administrator ("Server", in the Library's own household) who has an email and a password, and a
+        /// Library that already has several households (Alex's with Sam, Mary and Kim; Bea's).
+        /// </summary>
         public static async Task<World> CreateAsync(bool secondOwner = true, AuthenticationPolicyMutationGate? gate = null)
         {
             var world = new World();
@@ -514,6 +671,8 @@ public sealed class UserDeletionTests
             world.Accounts = new AccountRepository(world._database);
             world.Access = new ProfileAccessRepository(world._database);
             var identities = new IdentityRepository(world._database);
+            world.Identities = identities;
+            world.Households = new HouseholdRepository(world._database);
             world.Profiles = new ProfileRepository(world._database);
             var identity = new FirstPartyIdentityService(
                 identities, world.Accounts, world.Profiles,
@@ -523,8 +682,11 @@ public sealed class UserDeletionTests
                 world.Accounts,
                         new ProfileAccessRepository(world._database), identities, world.Profiles, world._configuration,
                 new RealDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit,
-                identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), gate ?? new AuthenticationPolicyMutationGate(), world.Log);
-            var households = new HouseholdRepository(world._database);
+                identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), gate ?? new AuthenticationPolicyMutationGate(), world.Log,
+                world.Households);
+            var households = world.Households;
+            world.Management = new HouseholdManagementService(
+                world.Households, world.Accounts, new RealDecisions(), new AllowEvaluator(), world.Audit, TimeProvider.System);
 
             var bootstrap = ServerAuthority(Guid.NewGuid(), Guid.NewGuid());
             world.ServerAdminAccount = await world.Mutations.CreateAsync(bootstrap, new CreateAccountAccessCommand(
@@ -532,6 +694,7 @@ public sealed class UserDeletionTests
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(), TemporaryPassword: null));
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value);
+            await world.SecureServerAdministratorAsync();
 
             world.Alex = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
                 "alex@example.com", IsAdministrator: false, ProfileId: null,
@@ -574,6 +737,46 @@ public sealed class UserDeletionTests
             return world;
         }
 
+        /// <summary>Gives the server administrator a password, as a Library does before it adds a second household (D10).</summary>
+        public Task SecureServerAdministratorAsync() => GivePasswordAsync(ServerAdminAccount.Id);
+
+        /// <summary>Takes the server administrator's password away again, as on a first start that skipped it.</summary>
+        public void StripServerAdministratorPassword()
+        {
+            using var connection = _database.CreateConnection();
+            Dapper.SqlMapper.Execute(connection, "DELETE FROM account_credentials WHERE account_id = @account;",
+                new { account = ServerAdminAccount.Id });
+        }
+
+        /// <summary>Runs a statement against the world's data store.</summary>
+        public void Run(string sql, object? parameters = null)
+        {
+            using var connection = _database.CreateConnection();
+            Dapper.SqlMapper.Execute(connection, sql, parameters);
+        }
+
+        /// <summary>Gives a user a password (the hash is a stand-in; nothing here signs in).</summary>
+        public Task GivePasswordAsync(Guid accountId) => Identities.UpsertAccountCredentialAsync(new AccountCredential
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            SecretHash = "work-factored-hash",
+            SecurityStamp = "security-stamp",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+
+        /// <summary>Puts one shared photo in the household's Shared Library in View.</summary>
+        public async Task AddSharedPhotoAsync(Guid householdId)
+        {
+            var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(householdId);
+            using var connection = _database.CreateConnection();
+            Dapper.SqlMapper.Execute(connection, """
+                INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+                VALUES (@id, 'shared', @library, 'image', 'beach.jpg', 'image/jpeg', @now, @now);
+                """, new { id = Guid.NewGuid(), library = shared.LibraryId, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
         private async Task<RequestAuthority> OwnerAuthorityAsync(Account account, bool isOwner) =>
             new(PrincipalKind.Human, true,
                 AccountId: account.Id,
@@ -584,7 +787,7 @@ public sealed class UserDeletionTests
                 ActiveProfileHouseholdId: account.HouseholdId,
                 ActiveProfileIsHouseholdAdministrator: isOwner);
 
-        private static RequestAuthority ServerAuthority(Guid accountId, Guid profileId) =>
+        internal static RequestAuthority ServerAuthority(Guid accountId, Guid profileId) =>
             new(PrincipalKind.Human, true,
                 AccountId: accountId,
                 ActiveProfileId: profileId,
@@ -615,7 +818,7 @@ public sealed class UserDeletionTests
         }
     }
 
-    private sealed class CapturingAudit : IAuthorizationAuditWriter
+    internal sealed class CapturingAudit : IAuthorizationAuditWriter
     {
         public List<AuthorizationAuditEvent> Events { get; } = [];
 

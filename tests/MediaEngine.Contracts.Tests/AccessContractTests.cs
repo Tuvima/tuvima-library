@@ -177,4 +177,110 @@ public sealed class AccessContractTests
         Assert.Contains("\"email\":\"owner@example.com\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("local_only", json, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void UserSummary_KeepsItsWireNames_AndNeverCarriesASecret()
+    {
+        var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var profile = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var household = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+        var json = JsonSerializer.Serialize(new UserSummaryResponse(
+            id, "mom@home.test", profile, "Mom", household, "Household 1", true, false, true, false));
+
+        Assert.Equal(
+            "{\"id\":\"11111111-1111-1111-1111-111111111111\",\"email\":\"mom@home.test\"," +
+            "\"profile_id\":\"22222222-2222-2222-2222-222222222222\",\"profile_name\":\"Mom\"," +
+            "\"household_id\":\"33333333-3333-3333-3333-333333333333\",\"household_name\":\"Household 1\"," +
+            "\"has_password\":true,\"has_two_step\":false,\"is_enabled\":true,\"this_computer_only\":false}",
+            json);
+        Assert.DoesNotContain("password\":\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CreateUserRequest_ReadsTheNewProfileChoices_AndKidsIsOffByDefault()
+    {
+        var request = JsonSerializer.Deserialize<CreateUserRequest>(
+            "{\"email\":\"pat@home.test\",\"method\":\"invitation\",\"new_profile\":{\"name\":\"Pat\",\"new_household_name\":\"Household 2\"}}")!;
+
+        Assert.Equal("invitation", request.Method);
+        Assert.Null(request.ProfileId);
+        Assert.Null(request.TemporaryPassword);
+        Assert.Equal("Pat", request.NewProfile!.Name);
+        Assert.Equal("Household 2", request.NewProfile.NewHouseholdName);
+        Assert.Null(request.NewProfile.HouseholdId);
+        Assert.False(request.NewProfile.IsKids);
+    }
+
+    [Fact]
+    public void CreateUserResponse_CarriesTheUserAndItsInvitation_UnderStableWireNames()
+    {
+        var user = new UserSummaryResponse(Guid.Empty, "pat@home.test", null, null, null, null, false, false, true, false);
+
+        var json = JsonSerializer.Serialize(new CreateUserResponse(
+            user, new AccountInvitationResponse(Guid.Empty, "ABCDE-FGHIJ", DateTimeOffset.UnixEpoch), null));
+
+        Assert.Contains("\"user\":{", json, StringComparison.Ordinal);
+        Assert.Contains("\"invitation\":{\"account_id\":", json, StringComparison.Ordinal);
+        Assert.Contains("\"temporary_password_expires_at\":null", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheUserDeletionPreview_NamesTheHouseholdProfilesAndAnyRefusal_UnderStableWireNames()
+    {
+        var user = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var pat = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+        var json = JsonSerializer.Serialize(new UserDeletionPreviewResponse(
+            user, "pat@home.test", "Pat", true, "Household 2", [new AccountDeletionProfileDto(pat, "Pat")], null, true));
+
+        Assert.Equal(
+            "{\"user_id\":\"11111111-1111-1111-1111-111111111111\",\"email\":\"pat@home.test\",\"profile_name\":\"Pat\"," +
+            "\"removes_household\":true,\"household_name\":\"Household 2\"," +
+            "\"household_profiles\":[{\"id\":\"22222222-2222-2222-2222-222222222222\",\"display_name\":\"Pat\"}]," +
+            "\"refused_reason\":null,\"has_personal_photos\":true}",
+            json);
+        Assert.Equal("Pat", JsonSerializer.Deserialize<UserDeletionPreviewResponse>(json)!.HouseholdProfiles.Single().DisplayName);
+    }
+
+    [Fact]
+    public void TheProfileList_AddsRolesAccessAndUserWithoutChangingItsOlderMembers()
+    {
+        var older = JsonSerializer.Deserialize<ManagedProfileResponse>(
+            "{\"id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"Sam\",\"avatar_color\":\"#7C4DFF\",\"avatar_path\":null,\"created_at\":\"2026-01-01T00:00:00+00:00\"}")!;
+        Assert.False(older.IsServerAdmin);
+        Assert.False(older.IsHouseholdAdmin);
+        Assert.Null(older.FeatureIds);
+        Assert.Null(older.LibraryIds);
+        Assert.Null(older.User);
+
+        var userId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var library = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var json = JsonSerializer.Serialize(older with
+        {
+            IsServerAdmin = true,
+            IsHouseholdAdmin = true,
+            FeatureIds = ["read", "watch"],
+            LibraryIds = [library],
+            User = new ManagedProfileUserDto(userId, "sam@home.test"),
+        });
+
+        Assert.Contains("\"is_server_admin\":true,\"is_household_admin\":true,\"feature_ids\":[\"read\",\"watch\"]," +
+            "\"library_ids\":[\"33333333-3333-3333-3333-333333333333\"]," +
+            "\"user\":{\"id\":\"22222222-2222-2222-2222-222222222222\",\"email\":\"sam@home.test\"}", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProfileAccessAndRoleRequests_KeepTheirWireNames()
+    {
+        var library = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+        Assert.Equal(
+            "{\"feature_ids\":[\"read\"],\"library_ids\":[\"33333333-3333-3333-3333-333333333333\"]}",
+            JsonSerializer.Serialize(new ReplaceProfileAccessRequest(["read"], [library])));
+        Assert.Equal(
+            "{\"is_household_admin\":true,\"is_server_admin\":false}",
+            JsonSerializer.Serialize(new SetProfileRolesRequest(true, false)));
+        Assert.True(JsonSerializer.Deserialize<SetProfileRolesRequest>("{\"is_household_admin\":true,\"is_server_admin\":false}")!.IsHouseholdAdmin);
+    }
 }

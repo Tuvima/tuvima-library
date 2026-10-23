@@ -10,8 +10,9 @@ using Microsoft.Data.Sqlite;
 namespace MediaEngine.Storage.Tests;
 
 /// <summary>
-/// Deleting a user takes their own profiles and everything personal those profiles left behind; household people with no
-/// sign-in of their own stay; deleting a profile leaves nothing personal behind either.
+/// Deleting a user removes only the sign-in (the profile and everything in it stay), except the last household administrator's
+/// user of a non-default household, which takes the household and every profile in it; deleting a profile takes its user and
+/// leaves nothing personal behind; a second household needs every server administrator secured first.
 /// </summary>
 public sealed class AccountRemovalRepositoryTests : IDisposable
 {
@@ -19,6 +20,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     private readonly DatabaseConnection _database;
     private readonly AccountRepository _accounts;
     private readonly ProfileRepository _profiles;
+    private readonly ProfileAccessRepository _profileAccess;
     private readonly DateTimeOffset _now = new(2026, 10, 22, 9, 0, 0, TimeSpan.Zero);
     private int _counter;
 
@@ -31,238 +33,345 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         _database.RunStartupChecks();
         _accounts = new AccountRepository(_database);
         _profiles = new ProfileRepository(_database);
+        _profileAccess = new ProfileAccessRepository(_database);
     }
 
-    // ---- Which profiles go with a user ----
+    // ---- Deleting a user removes only the sign-in (D5) ----
 
     [Fact]
-    public async Task DeletingAUser_DeletesTheProfileTheySignInAs_EvenWhenAnotherSignInCanAlsoOpenIt()
+    public async Task DeletingAUser_RemovesOnlyTheSignIn_AndTheirProfileKeepsEverythingPersonal()
     {
         var owner = await AddMainSignInAsync("alex@example.com", "Alex");
         var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
         var samProfile = await DefaultProfileAsync(sam);
-        await _accounts.UpsertGrantAsync(Grant(owner.Id, samProfile));
+        var left = Behind(samProfile, AddAsset());
 
-        var outcome = await _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id);
+        var outcome = await _accounts.DeleteUserAsync(sam.Id);
 
-        Assert.Equal([samProfile], outcome.DeletedProfileIds);
+        Assert.Equal([sam.Id], outcome.DeletedUserIds);
+        Assert.Empty(outcome.DeletedProfileIds);
+        Assert.Null(outcome.RemovedHouseholdId);
         Assert.Null(await _accounts.GetByIdAsync(sam.Id));
-        Assert.Null(await _profiles.GetByIdAsync(samProfile));
-        Assert.False(await _accounts.HasProfileAccessAsync(owner.Id, samProfile));
-        Assert.Equal([owner.Id], outcome.AffectedAccountIds);
-        Assert.NotNull(await _profiles.GetByIdAsync(await DefaultProfileAsync(owner)));
-    }
-
-    [Fact]
-    public async Task DeletingAUser_AlsoDeletesProfilesOnlyTheyCanOpen_ButNotOnesAnotherSignInCanOpen()
-    {
-        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
-        var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
-        var kids = NewProfile("Sam (Kids)");
-        await _accounts.CreateManagedProfileAsync(kids, Grant(sam.Id, kids.Id));
-        var shared = NewProfile("Games night");
-        await _accounts.CreateManagedProfileAsync(shared, Grant(sam.Id, shared.Id));
-        await _accounts.UpsertGrantAsync(Grant(owner.Id, shared.Id));
-
-        var plan = await _accounts.PlanAccountRemovalAsync(sam.Id);
-        await _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id);
-
-        Assert.Equal(["Sam", "Sam (Kids)"], plan.OwnProfiles.Select(profile => profile.DisplayName).Order().ToArray());
-        Assert.Null(await _profiles.GetByIdAsync(kids.Id));
-        Assert.NotNull(await _profiles.GetByIdAsync(shared.Id));
-        Assert.True(await _accounts.HasProfileAccessAsync(owner.Id, shared.Id));
-    }
-
-    [Fact]
-    public async Task DeletingAUser_KeepsHouseholdPeopleWithoutASignIn_WhileAnotherMainSignInCanOpenThem()
-    {
-        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
-        var partner = await AddMainSignInAsync("pat@example.com", "Pat", owner.HouseholdId);
-        var mary = NewProfile("Mary");
-        await _accounts.CreateHouseholdPersonAsync(mary, owner.HouseholdId!.Value,
-            [Grant(owner.Id, mary.Id), Grant(partner.Id, mary.Id)]);
-
-        var outcome = await _accounts.DeleteAccountWithOwnProfilesAsync(partner.Id);
-
-        Assert.DoesNotContain(mary.Id, outcome.DeletedProfileIds);
-        Assert.NotNull(await _profiles.GetByIdAsync(mary.Id));
-        Assert.True(await _accounts.HasProfileAccessAsync(owner.Id, mary.Id));
-        Assert.False(await _accounts.HasProfileAccessAsync(partner.Id, mary.Id));
-    }
-
-    [Fact]
-    public async Task DeletingAPersonsOwnSignIn_ThroughDeleteUser_DeletesThePerson_ButRemovingItKeepsThem()
-    {
-        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
-        var mary = NewProfile("Mary");
-        await _accounts.CreateHouseholdPersonAsync(mary, owner.HouseholdId!.Value, [Grant(owner.Id, mary.Id)]);
-        var own = await AddOwnSignInAsync("mary@example.com", mary.Id, owner);
-        var carl = NewProfile("Carl");
-        await _accounts.CreateHouseholdPersonAsync(carl, owner.HouseholdId.Value, [Grant(owner.Id, carl.Id)]);
-        var carlOwn = await AddOwnSignInAsync("carl@example.com", carl.Id, owner);
-
-        // The sign-in alone goes (what "Remove own sign-in" does): the person stays.
-        await _accounts.DeleteAccountAsync(carlOwn.Id);
-        Assert.NotNull(await _profiles.GetByIdAsync(carl.Id));
-
-        // Through Delete user the person and their profile go with the sign-in.
-        var outcome = await _accounts.DeleteAccountWithOwnProfilesAsync(own.Id);
-
-        Assert.Equal([mary.Id], outcome.DeletedProfileIds);
-        Assert.Null(await _profiles.GetByIdAsync(mary.Id));
-        Assert.Null(await _accounts.GetByIdAsync(own.Id));
+        Assert.NotNull(await _profiles.GetByIdAsync(samProfile));
+        Assert.Equal(PersonalRowCount, PersonalRowsFor(samProfile, left));
         Assert.NotNull(await _accounts.GetByIdAsync(owner.Id));
     }
 
     [Fact]
-    public async Task DeletingAUser_IsRefused_WhenAnotherSignInCouldOnlyOpenAProfileThatWouldGo_NamingThem()
+    public async Task AProfileWhoseUserWasDeleted_CanGetANewSignInAttachedLater()
     {
         var owner = await AddMainSignInAsync("alex@example.com", "Alex");
         var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
         var samProfile = await DefaultProfileAsync(sam);
-        var mia = await AddMainSignInAsync("mia@example.com", "Mia", owner.HouseholdId);
-        var miaProfile = await DefaultProfileAsync(mia);
-        // Mia is left able to open only Sam's profile, which is also her default.
-        await _accounts.UpsertGrantAsync(Grant(mia.Id, samProfile, isDefault: true));
-        Execute("DELETE FROM account_profile_grants WHERE account_id=@mia AND profile_id=@profile",
-            new { mia = mia.Id, profile = miaProfile });
+        await _accounts.DeleteUserAsync(sam.Id);
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id));
-        var planRefused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.PlanAccountRemovalAsync(sam.Id));
+        var again = NewAccount("sam@new.example.com");
+        again.HouseholdId = owner.HouseholdId;
+        await _accounts.CreateAccountAsync(again, Grant(again.Id, samProfile, isDefault: true),
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), preserveProfileAccess: true);
 
-        Assert.Equal("mia@example.com can only open this profile. Give mia@example.com another profile first.", refused.Message);
-        Assert.Equal(refused.Message, planRefused.Message);
+        Assert.Equal(samProfile, (await _accounts.GetByIdAsync(again.Id))!.ProfileId);
+    }
+
+    [Fact]
+    public async Task DeletingAHouseholdAdministratorsUser_WhoIsNotTheLast_LeavesTheirProfileAnOrdinaryMember()
+    {
+        var alex = await AddMainSignInAsync("alex@example.com", "Alex");
+        var pat = await AddMainSignInAsync("pat@example.com", "Pat", alex.HouseholdId);
+        var alexProfile = await DefaultProfileAsync(alex);
+        await _profileAccess.SetHouseholdAdministratorAsync(await DefaultProfileAsync(pat), true, _now);
+        Assert.True((await _profiles.GetByIdAsync(alexProfile))!.IsHouseholdAdministrator);
+
+        var plan = await _accounts.PlanUserRemovalAsync(alex.Id);
+        var outcome = await _accounts.DeleteUserAsync(alex.Id);
+
+        Assert.False(plan.RemovesHousehold);
+        Assert.Null(outcome.RemovedHouseholdId);
+        var kept = (await _profiles.GetByIdAsync(alexProfile))!;
+        Assert.False(kept.IsHouseholdAdministrator);
+        Assert.True((await _profiles.GetByIdAsync(await DefaultProfileAsync(pat)))!.IsHouseholdAdministrator);
+    }
+
+    [Fact]
+    public async Task DeletingTheLastHouseholdAdministratorsUserOfTheDefaultHousehold_NeverRemovesTheHousehold()
+    {
+        var admin = await AddServerAdministratorAsync("shy@example.com", "Shy");
+        var mom = await AddMainSignInAsync("mom@example.com", "Mom", admin.HouseholdId);
+        await _profileAccess.SetHouseholdAdministratorAsync(await DefaultProfileAsync(mom), true, _now);
+        await _profileAccess.SetHouseholdAdministratorAsync(await DefaultProfileAsync(admin), false, _now);
+
+        var momProfile = await DefaultProfileAsync(mom);
+
+        var plan = await _accounts.PlanUserRemovalAsync(mom.Id);
+        var outcome = await _accounts.DeleteUserAsync(mom.Id);
+
+        Assert.True(plan.HouseholdIsDefault);
+        Assert.True(plan.ProfileIsHouseholdAdministrator);
+        Assert.False(plan.RemovesHousehold);
+        Assert.Null(outcome.RemovedHouseholdId);
+        Assert.NotNull(await _profiles.GetByIdAsync(momProfile));
+        Assert.Equal(2, Scalar("SELECT COUNT(*) FROM profiles WHERE household_id=@household", new { household = admin.HouseholdId }));
+    }
+
+    // ---- The last household administrator's user takes the household (D6) ----
+
+    [Fact]
+    public async Task DeletingTheLastHouseholdAdministratorsUser_OfANonDefaultHousehold_RemovesTheHouseholdAndEveryProfileInIt()
+    {
+        var admin = await AddServerAdministratorAsync("shy@example.com", "Shy");
+        var pat = await AddMainSignInAsync("pat@example.com", "Pat");
+        var sam = await AddMainSignInAsync("sam@example.com", "Sam", pat.HouseholdId);
+        var mary = NewProfile("Mary");
+        await _accounts.CreateHouseholdPersonAsync(mary, pat.HouseholdId!.Value, [Grant(pat.Id, mary.Id)]);
+        var patProfile = await DefaultProfileAsync(pat);
+        var samProfile = await DefaultProfileAsync(sam);
+        var asset = AddAsset();
+        var gone = new[] { Behind(patProfile, asset), Behind(samProfile, asset), Behind(mary.Id, asset) };
+        var adminProfile = await DefaultProfileAsync(admin);
+        var kept = Behind(adminProfile, asset);
+
+        var plan = await _accounts.PlanUserRemovalAsync(pat.Id);
+        var outcome = await _accounts.DeleteUserAsync(pat.Id, plan.HouseholdProfiles.Select(profile => profile.Id).ToArray());
+
+        Assert.True(plan.RemovesHousehold);
+        Assert.False(plan.HouseholdIsDefault);
+        Assert.Equal(["Mary", "Pat", "Sam"], plan.HouseholdProfiles.Select(profile => profile.DisplayName).Order().ToArray());
+        Assert.Equal(pat.HouseholdId, outcome.RemovedHouseholdId);
+        Assert.Equal(3, outcome.DeletedProfileIds.Count);
+        Assert.Equal(2, outcome.DeletedUserIds.Count);
+        Assert.Null(await _accounts.GetByIdAsync(pat.Id));
+        Assert.Null(await _accounts.GetByIdAsync(sam.Id));
+        foreach (var id in new[] { patProfile, samProfile, mary.Id })
+        {
+            Assert.Null(await _profiles.GetByIdAsync(id));
+        }
+
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM households WHERE id=@household", new { household = pat.HouseholdId }));
+        Assert.Equal(0, PersonalRowsFor(patProfile, gone[0]) + PersonalRowsFor(samProfile, gone[1]) + PersonalRowsFor(mary.Id, gone[2]));
+        // The Library's own household is untouched.
+        Assert.NotNull(await _accounts.GetByIdAsync(admin.Id));
+        Assert.Equal(PersonalRowCount, PersonalRowsFor(adminProfile, kept));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM households WHERE id=@household", new { household = admin.HouseholdId }));
+    }
+
+    [Fact]
+    public async Task ARemovedHouseholdsEmptySharedLibraryGoesWithIt()
+    {
+        await AddServerAdministratorAsync("shy@example.com", "Shy");
+        var pat = await AddMainSignInAsync("pat@example.com", "Pat");
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(pat.HouseholdId!.Value);
+
+        await _accounts.DeleteUserAsync(pat.Id);
+
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM view_shared_library WHERE library_id=@library", new { library = shared.LibraryId }));
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM households WHERE id=@household", new { household = pat.HouseholdId }));
+    }
+
+    [Fact]
+    public async Task ARemovedHouseholdThatStillHoldsSharedPhotos_IsRefusedAndNothingIsDeleted()
+    {
+        await AddServerAdministratorAsync("shy@example.com", "Shy");
+        var pat = await AddMainSignInAsync("pat@example.com", "Pat");
+        var patProfile = await DefaultProfileAsync(pat);
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(pat.HouseholdId!.Value);
+        Execute("""
+            INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+            VALUES (@id, 'shared', @library, 'image', 'beach.jpg', 'image/jpeg', @now, @now);
+            """, new { id = Guid.NewGuid(), library = shared.LibraryId, now = _now.ToString("O") });
+
+        var plan = await _accounts.PlanUserRemovalAsync(pat.Id);
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteUserAsync(pat.Id));
+
+        Assert.True(plan.HouseholdHoldsSharedItems);
+        Assert.Equal(UserRemovalMessages.HouseholdHoldsSharedItems, refused.Message);
+        Assert.NotNull(await _accounts.GetByIdAsync(pat.Id));
+        Assert.NotNull(await _profiles.GetByIdAsync(patProfile));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM households WHERE id=@household", new { household = pat.HouseholdId }));
+    }
+
+    [Fact]
+    public async Task DeletingAUser_IsRefusedAndChangesNothing_WhenWhatWouldGoDiffersFromTheConfirmedList()
+    {
+        await AddServerAdministratorAsync("shy@example.com", "Shy");
+        var pat = await AddMainSignInAsync("pat@example.com", "Pat");
+        var sam = await AddMainSignInAsync("sam@example.com", "Sam", pat.HouseholdId);
+        var patProfile = await DefaultProfileAsync(pat);
+        var samProfile = await DefaultProfileAsync(sam);
+
+        // Confirmed without Sam (added after the list was shown), with someone who is not in the household, and as "nothing".
+        var missing = await Assert.ThrowsAsync<AccountRemovalChangedException>(() => _accounts.DeleteUserAsync(pat.Id, [patProfile]));
+        var extra = await Assert.ThrowsAsync<AccountRemovalChangedException>(
+            () => _accounts.DeleteUserAsync(pat.Id, [patProfile, samProfile, Guid.NewGuid()]));
+        var none = await Assert.ThrowsAsync<AccountRemovalChangedException>(() => _accounts.DeleteUserAsync(pat.Id, []));
+
+        Assert.Equal("Something changed since you looked. Check the list and try again.", missing.Message);
+        Assert.Equal(missing.Message, extra.Message);
+        Assert.Equal(missing.Message, none.Message);
+        Assert.NotNull(await _accounts.GetByIdAsync(pat.Id));
+        Assert.NotNull(await _profiles.GetByIdAsync(patProfile));
+        Assert.NotNull(await _profiles.GetByIdAsync(samProfile));
+
+        // The exact list, in any order, deletes the household.
+        var outcome = await _accounts.DeleteUserAsync(pat.Id, [samProfile, patProfile]);
+
+        Assert.Equal(2, outcome.DeletedProfileIds.Count);
+        Assert.Null(await _profiles.GetByIdAsync(samProfile));
+    }
+
+    [Fact]
+    public async Task DeletingAUserWhoseDeleteOnlyRemovesTheSignIn_ConfirmedWithAProfileList_IsRefused()
+    {
+        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
+        var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
+        var samProfile = await DefaultProfileAsync(sam);
+
+        await Assert.ThrowsAsync<AccountRemovalChangedException>(() => _accounts.DeleteUserAsync(sam.Id, [samProfile]));
         Assert.NotNull(await _accounts.GetByIdAsync(sam.Id));
+
+        // Sam's profile is not part of a sign-in-only delete, so the confirmed list is empty.
+        await _accounts.DeleteUserAsync(sam.Id, []);
+        Assert.Null(await _accounts.GetByIdAsync(sam.Id));
         Assert.NotNull(await _profiles.GetByIdAsync(samProfile));
     }
 
-    [Fact]
-    public async Task DeletingAUser_RepairsTheDefaultOfAnotherSignInThatSharedADeletedProfile()
-    {
-        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
-        var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
-        var samProfile = await DefaultProfileAsync(sam);
-        var ownerProfile = await DefaultProfileAsync(owner);
-        // Alex also signs in as Sam (default), and keeps his own profile as a second one.
-        await _accounts.UpsertGrantAsync(Grant(owner.Id, samProfile, isDefault: true));
-
-        await _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id);
-
-        var grants = await _accounts.GetGrantsAsync(owner.Id);
-        var remaining = Assert.Single(grants);
-        Assert.Equal(ownerProfile, remaining.ProfileId);
-        Assert.True(remaining.IsDefault);
-        Assert.True(remaining.IsEnabled);
-    }
+    // ---- Never ----
 
     [Fact]
-    public async Task DeletingAUser_IsRefused_WhenTheirProfileIsTheOwnerProfile()
+    public async Task DeletingTheUserOfTheOwnerProfile_KeepsTheOwnerProfile_AndItLosesTheAdministratorRole()
     {
         var admin = NewAccount("admin@example.com", administrator: true);
         await _accounts.CreateAccountAsync(admin, Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
         var other = await AddMainSignInAsync("other@example.com", "Other", admin.HouseholdId);
-        Execute("INSERT INTO account_credentials(id,account_id,credential_kind,secret_hash,hash_scheme,hash_version,security_stamp,created_at,updated_at) VALUES(@id,@admin,'Password','h','pbkdf2',1,'s',@now,@now)",
-            new { id = Guid.NewGuid(), admin = other.Id, now = _now.ToString("O") });
-        Execute("UPDATE accounts SET is_administrator=1 WHERE id=@other", new { other = other.Id });
-        Execute("UPDATE account_profile_grants SET admin_enabled=1 WHERE account_id=@other", new { other = other.Id });
-        Execute("INSERT INTO account_credentials(id,account_id,credential_kind,secret_hash,hash_scheme,hash_version,security_stamp,created_at,updated_at) VALUES(@id,@admin,'Password','h','pbkdf2',1,'s',@now,@now)",
-            new { id = Guid.NewGuid(), admin = admin.Id, now = _now.ToString("O") });
+        AddPassword(admin.Id);
+        AddPassword(other.Id);
+        await _profileAccess.SetServerAdministratorAsync(await DefaultProfileAsync(other), true, _now);
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteAccountWithOwnProfilesAsync(admin.Id));
+        await _accounts.DeleteUserAsync(admin.Id);
 
-        Assert.Contains("Owner profile", refused.Message, StringComparison.Ordinal);
-        Assert.NotNull(await _profiles.GetByIdAsync(Profile.SeedProfileId));
-        Assert.NotNull(await _accounts.GetByIdAsync(admin.Id));
+        Assert.Null(await _accounts.GetByIdAsync(admin.Id));
+        var owner = (await _profiles.GetByIdAsync(Profile.SeedProfileId))!;
+        Assert.False(owner.IsServerAdministrator);
     }
 
     [Fact]
-    public async Task DeletingAUser_IsRefused_WhenADisabledSignInCouldOnlyOpenAProfileThatWouldGo()
-    {
-        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
-        var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
-        var samProfile = await DefaultProfileAsync(sam);
-        var mia = await AddMainSignInAsync("mia@example.com", "Mia", owner.HouseholdId);
-        var miaProfile = await DefaultProfileAsync(mia);
-        await _accounts.UpsertGrantAsync(Grant(mia.Id, samProfile, isDefault: true));
-        Execute("DELETE FROM account_profile_grants WHERE account_id=@mia AND profile_id=@profile",
-            new { mia = mia.Id, profile = miaProfile });
-        // Switched off for now, but still a sign-in that must not be left with no profile when it is switched back on.
-        Execute("UPDATE accounts SET is_enabled=0 WHERE id=@mia", new { mia = mia.Id });
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id));
-
-        Assert.Equal("mia@example.com can only open this profile. Give mia@example.com another profile first.", refused.Message);
-        Assert.NotNull(await _accounts.GetByIdAsync(sam.Id));
-        Assert.NotNull(await _profiles.GetByIdAsync(samProfile));
-    }
-
-    [Fact]
-    public async Task DeletingAUser_WhoMerelyHoldsTheOwnerProfile_LeavesItStandingAndTheDeleteGoesAhead()
-    {
-        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
-        var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
-        var samProfile = await DefaultProfileAsync(sam);
-        // Sam holds the Owner profile too, but does not sign in as it, and nobody else holds it.
-        await _accounts.UpsertGrantAsync(Grant(sam.Id, Profile.SeedProfileId));
-
-        var plan = await _accounts.PlanAccountRemovalAsync(sam.Id);
-        var outcome = await _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id);
-
-        Assert.Equal([samProfile], plan.OwnProfiles.Select(profile => profile.Id).ToArray());
-        Assert.Equal([samProfile], outcome.DeletedProfileIds);
-        Assert.Null(await _accounts.GetByIdAsync(sam.Id));
-        Assert.Null(await _profiles.GetByIdAsync(samProfile));
-        Assert.NotNull(await _profiles.GetByIdAsync(Profile.SeedProfileId));
-    }
-
-    [Fact]
-    public async Task DeletingAUser_IsRefusedAndChangesNothing_WhenTheProfilesThatWouldGoDifferFromTheConfirmedList()
-    {
-        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
-        var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
-        var samProfile = await DefaultProfileAsync(sam);
-        var kids = NewProfile("Sam (Kids)");
-        await _accounts.CreateManagedProfileAsync(kids, Grant(sam.Id, kids.Id));
-
-        // Confirmed before Sam (Kids) was added: it is not on the list.
-        var missing = await Assert.ThrowsAsync<AccountRemovalChangedException>(
-            () => _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id, [samProfile]));
-        // Confirmed a profile that is no longer Sam's own.
-        var extra = await Assert.ThrowsAsync<AccountRemovalChangedException>(
-            () => _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id, [samProfile, kids.Id, Guid.NewGuid()]));
-        var none = await Assert.ThrowsAsync<AccountRemovalChangedException>(
-            () => _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id, []));
-
-        Assert.Equal("Something changed since you looked. Check the list and try again.", missing.Message);
-        Assert.Equal(missing.Message, extra.Message);
-        Assert.Equal(missing.Message, none.Message);
-        Assert.NotNull(await _accounts.GetByIdAsync(sam.Id));
-        Assert.NotNull(await _profiles.GetByIdAsync(samProfile));
-        Assert.NotNull(await _profiles.GetByIdAsync(kids.Id));
-
-        // The exact list, in any order, deletes.
-        var outcome = await _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id, [kids.Id, samProfile]);
-
-        Assert.Equal(2, outcome.DeletedProfileIds.Count);
-        Assert.Null(await _accounts.GetByIdAsync(sam.Id));
-        Assert.Null(await _profiles.GetByIdAsync(kids.Id));
-    }
-
-    [Fact]
-    public async Task DeletingAUser_WhoIsTheLastAdministrator_StillStopsAtTheDataStoresBackstop()
+    public async Task DeletingTheLastServerAdministratorsUser_StopsAtTheDataStoresBackstop()
     {
         var admin = NewAccount("admin@example.com", administrator: true);
         var profile = NewProfile("Admin");
         await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
-        Execute("INSERT INTO account_credentials(id,account_id,credential_kind,secret_hash,hash_scheme,hash_version,security_stamp,created_at,updated_at) VALUES(@id,@admin,'Password','h','pbkdf2',1,'s',@now,@now)",
-            new { id = Guid.NewGuid(), admin = admin.Id, now = _now.ToString("O") });
+        AddPassword(admin.Id);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteAccountWithOwnProfilesAsync(admin.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteUserAsync(admin.Id));
 
         Assert.NotNull(await _profiles.GetByIdAsync(profile.Id));
         Assert.NotNull(await _accounts.GetByIdAsync(admin.Id));
+    }
+
+    [Fact]
+    public async Task DeletingAUserThatDoesNotExist_SaysSo()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _accounts.DeleteUserAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _accounts.PlanUserRemovalAsync(Guid.NewGuid()));
+    }
+
+    // ---- Deleting a profile takes its user too (D7) ----
+
+    [Fact]
+    public async Task DeletingAProfile_AlsoDeletesItsUser_AndEverythingPersonal()
+    {
+        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
+        var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
+        var samProfile = await DefaultProfileAsync(sam);
+        var asset = AddAsset();
+        var left = Behind(samProfile, asset);
+        var keep = Behind(await DefaultProfileAsync(owner), asset);
+
+        var outcome = await _accounts.DeleteManagedProfileAsync(samProfile);
+
+        Assert.Equal(sam.Id, outcome.DeletedUserId);
+        Assert.Null(await _accounts.GetByIdAsync(sam.Id));
+        Assert.Null(await _profiles.GetByIdAsync(samProfile));
+        Assert.Equal(0, PersonalRowsFor(samProfile, left));
+        Assert.Equal(PersonalRowCount, PersonalRowsFor(await DefaultProfileAsync(owner), keep));
+    }
+
+    [Fact]
+    public async Task DeletingAProfileWithoutAUser_ReportsNoUserRemoved()
+    {
+        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
+        var mary = NewProfile("Mary");
+        await _accounts.CreateHouseholdPersonAsync(mary, owner.HouseholdId!.Value, [Grant(owner.Id, mary.Id)]);
+
+        var outcome = await _accounts.DeleteManagedProfileAsync(mary.Id);
+
+        Assert.Null(outcome.DeletedUserId);
+        Assert.Null(await _profiles.GetByIdAsync(mary.Id));
+    }
+
+    [Fact]
+    public async Task TheLastHouseholdAdministratorProfile_CannotBeDeleted_AndAnotherOneCan()
+    {
+        var alex = await AddMainSignInAsync("alex@example.com", "Alex");
+        var pat = await AddMainSignInAsync("pat@example.com", "Pat", alex.HouseholdId);
+        var alexProfile = await DefaultProfileAsync(alex);
+        var patProfile = await DefaultProfileAsync(pat);
+
+        var validation = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.ValidateManagedProfileRemovalAsync(alexProfile));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteManagedProfileAsync(alexProfile));
+        Assert.Equal(UserRemovalMessages.LastHouseholdAdministrator, refused.Message);
+        Assert.Equal(refused.Message, validation.Message);
+        Assert.NotNull(await _profiles.GetByIdAsync(alexProfile));
+        Assert.NotNull(await _accounts.GetByIdAsync(alex.Id));
+
+        // With a second household administrator, either one may go (they delete each other's profiles).
+        await _profileAccess.SetHouseholdAdministratorAsync(patProfile, true, _now);
+        await _accounts.DeleteManagedProfileAsync(alexProfile);
+        Assert.Null(await _profiles.GetByIdAsync(alexProfile));
+        Assert.Null(await _accounts.GetByIdAsync(alex.Id));
+        Assert.NotNull(await _profiles.GetByIdAsync(patProfile));
+    }
+
+    // ---- Passwords before a second household (D10) ----
+
+    [Fact]
+    public async Task ServerAdministratorsAreSecured_OnlyOnceEachHasAnEmailAndAPasswordOrPasskey()
+    {
+        Assert.True(await _accounts.AreServerAdministratorsSecuredAsync());
+
+        var admin = NewAccount("admin@example.com", administrator: true);
+        var profile = NewProfile("Admin");
+        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true),
+            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
+        Assert.False(await _accounts.AreServerAdministratorsSecuredAsync());
+        Assert.False(await _accounts.IsUserSecuredAsync(admin.Id));
+
+        AddPassword(admin.Id);
+        Assert.True(await _accounts.AreServerAdministratorsSecuredAsync());
+        Assert.True(await _accounts.IsUserSecuredAsync(admin.Id));
+
+        // A second server administrator without a password makes the Library unsecured again.
+        var second = await AddMainSignInAsync("second@example.com", "Second", admin.HouseholdId);
+        await _profileAccess.SetServerAdministratorAsync(await DefaultProfileAsync(second), true, _now);
+        Assert.False(await _accounts.AreServerAdministratorsSecuredAsync());
+        AddPassword(second.Id);
+        Assert.True(await _accounts.AreServerAdministratorsSecuredAsync());
+    }
+
+    [Fact]
+    public async Task AServerAdministratorWithoutAnEmail_IsNotSecured_EvenWithAPassword()
+    {
+        var admin = NewAccount("admin@example.com", administrator: true);
+        admin.Email = null;
+        admin.NormalizedEmail = null;
+        var profile = NewProfile("Admin");
+        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true),
+            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
+        AddPassword(admin.Id);
+
+        Assert.False(await _accounts.AreServerAdministratorsSecuredAsync());
+        Assert.False(await _accounts.IsUserSecuredAsync(admin.Id));
     }
 
     // ---- Nothing personal is left behind ----
@@ -320,22 +429,6 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
 
         Assert.Equal(1, Scalar("SELECT COUNT(*) FROM encode_jobs"));
         Assert.Equal(1, Scalar("SELECT COUNT(*) FROM offline_variants"));
-    }
-
-    [Fact]
-    public async Task DeletingAUser_RemovesEverythingPersonalTheirProfilesLeftBehind_InOneStep()
-    {
-        var owner = await AddMainSignInAsync("alex@example.com", "Alex");
-        var sam = await AddMainSignInAsync("sam@example.com", "Sam", owner.HouseholdId);
-        var samProfile = await DefaultProfileAsync(sam);
-        var asset = AddAsset();
-        var left = Behind(samProfile, asset);
-        var keep = Behind(await DefaultProfileAsync(owner), asset);
-
-        await _accounts.DeleteAccountWithOwnProfilesAsync(sam.Id);
-
-        Assert.Equal(0, PersonalRowsFor(samProfile, left));
-        Assert.Equal(PersonalRowCount, PersonalRowsFor(await DefaultProfileAsync(owner), keep));
     }
 
     [Fact]
@@ -447,16 +540,20 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         return (await _accounts.GetByIdAsync(account.Id))!;
     }
 
-    /// <summary>A person's own sign-in: it follows <paramref name="main"/> and opens exactly that person.</summary>
-    private async Task<Account> AddOwnSignInAsync(string email, Guid profileId, Account main)
+    /// <summary>A server administrator with a password: its own profile in the Library's own (default) household.</summary>
+    private async Task<Account> AddServerAdministratorAsync(string email, string profileName)
     {
-        var account = NewAccount(email);
-        account.HouseholdId = main.HouseholdId;
-        account.GrantsInheritFromAccountId = main.Id;
-        await _accounts.CreateAccountAsync(account, Grant(account.Id, profileId, isDefault: true),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+        var account = NewAccount(email, administrator: true);
+        var profile = NewProfile(profileName);
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, profile.Id, isDefault: true, administrator: true),
+            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
+        AddPassword(account.Id);
         return (await _accounts.GetByIdAsync(account.Id))!;
     }
+
+    private void AddPassword(Guid accountId) => Execute(
+        "INSERT INTO account_credentials(id,account_id,credential_kind,secret_hash,hash_scheme,hash_version,security_stamp,created_at,updated_at) VALUES(@id,@accountId,'Password','h','pbkdf2',1,'s',@now,@now)",
+        new { id = Guid.NewGuid(), accountId, now = _now.ToString("O") });
 
     private async Task<Guid> DefaultProfileAsync(Account account) => (await _accounts.GetDefaultProfileIdAsync(account.Id))!.Value;
 

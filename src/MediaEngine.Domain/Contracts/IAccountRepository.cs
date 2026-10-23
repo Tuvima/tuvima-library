@@ -22,6 +22,13 @@ public interface IAccountRepository : IAccessRepository, IAccountAccessMutationR
     Task<IReadOnlyList<Guid>> GetProfileIdsAsync(Guid accountId, CancellationToken ct = default);
     /// <summary>The profile the user signs in as (the one it is attached to), or <see langword="null"/> when it has none.</summary>
     Task<Guid?> GetDefaultProfileIdAsync(Guid accountId, CancellationToken ct = default);
+    /// <summary>
+    /// True when every server administrator profile has a user with an email and a password or passkey (users, profiles and households
+    /// D10). Judged on all of them, enabled or not. A Library with no server administrator yet answers true.
+    /// </summary>
+    Task<bool> AreServerAdministratorsSecuredAsync(CancellationToken ct = default);
+    /// <summary>True when the user has an email and a password or passkey (the sign-in a server administrator needs, D10, D17).</summary>
+    Task<bool> IsUserSecuredAsync(Guid userId, CancellationToken ct = default);
     Task InsertInvitationAsync(AccountInvitation invitation, CancellationToken ct = default);
     Task<AccountInvitation?> GetActiveInvitationAsync(string tokenHash, DateTimeOffset now, CancellationToken ct = default);
     Task<bool> ConsumeInvitationAsync(Guid invitationId, DateTimeOffset consumedAt, CancellationToken ct = default);

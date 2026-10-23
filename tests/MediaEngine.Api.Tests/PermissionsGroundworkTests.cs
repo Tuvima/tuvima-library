@@ -729,7 +729,7 @@ public sealed class PermissionsGroundworkTests
                 new NoOpInvalidation(), new NoOpAudit(), world.Identity,
                 new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
             world.Management = new HouseholdManagementService(
-                world.Households, world.Decisions, new AllowEvaluator(), audit, world.Clock);
+                world.Households, world.Accounts, world.Decisions, new AllowEvaluator(), audit, world.Clock);
             world.Scope = new PersonalScopeAuthorizer(
                 world.Decisions, profiles, world.Households, world.Accounts, audit, world.Clock);
             var clientAuthorization = new ClientAuthorizationRepository(world._database);
@@ -745,6 +745,7 @@ public sealed class PermissionsGroundworkTests
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
                 Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+            await identities.GiveAsync(world.ServerAdminAccount.Id);
             var serverProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value;
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile);
             world.LockedServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile, world._lockedSession);
@@ -787,6 +788,11 @@ public sealed class PermissionsGroundworkTests
                 try
                 {
                     await Mutations.DeleteProfileAsync(actor, disposable.Id);
+                }
+                catch (KeyNotFoundException)
+                {
+                    // Another household's person looks missing to a household administrator: not theirs to remove.
+                    throw new UnauthorizedAccessException("Another household's person.");
                 }
                 finally
                 {

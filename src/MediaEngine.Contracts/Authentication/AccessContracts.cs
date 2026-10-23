@@ -61,7 +61,12 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
     [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
     [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false,
-    [property: JsonPropertyName("own_sign_in")] ManagedProfileSignInDto? OwnSignIn = null);
+    [property: JsonPropertyName("own_sign_in")] ManagedProfileSignInDto? OwnSignIn = null,
+    [property: JsonPropertyName("is_server_admin")] bool IsServerAdmin = false,
+    [property: JsonPropertyName("is_household_admin")] bool IsHouseholdAdmin = false,
+    [property: JsonPropertyName("feature_ids")] IReadOnlyList<string>? FeatureIds = null,
+    [property: JsonPropertyName("library_ids")] IReadOnlyList<Guid>? LibraryIds = null,
+    [property: JsonPropertyName("user")] ManagedProfileUserDto? User = null);
 
 /// <summary>A person's own sign-in as the profile page shows it. Never carries a password or a code.</summary>
 public sealed record ManagedProfileSignInDto(

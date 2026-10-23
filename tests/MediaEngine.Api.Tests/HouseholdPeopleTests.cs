@@ -262,7 +262,7 @@ public sealed class HouseholdPeopleTests
         // Spouse is made an owner too, so the household keeps one when the first owner goes.
         await mutations.SetHouseholdAdminAsync(actor, spouse.Id, true);
 
-        await mutations.DeleteAsync(fixture.Actor, owner.Id);
+        await mutations.DeleteUserAsync(fixture.Actor, owner.Id);
 
         var follower = (await accounts.GetByIdAsync(given.Account.Id))!;
         Assert.Equal(spouse.Id, follower.GrantsInheritFromAccountId);
@@ -301,18 +301,17 @@ public sealed class HouseholdPeopleTests
             AuthorizationVersion = 1,
         }));
 
-        // The only main sign-in cannot be deleted or disabled while Mary's follows it.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.DeleteAsync(actor, owner.Id));
+        // The only main sign-in cannot be switched off while Mary's follows it.
         await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(actor, owner.Id,
             new UpdateAccountAccessCommand("owner@example.com", false, false)));
         Assert.NotNull(await accounts.GetByIdAsync(owner.Id));
 
         await mutations.RemoveOwnSignInAsync(actor, given.Id);
-        // The household's only owner stays until someone else is an owner; a server administrator can take the role away first.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.DeleteAsync(actor, owner.Id));
-        await mutations.SetHouseholdAdminAsync(actor, owner.Id, false);
-        await mutations.DeleteAsync(actor, owner.Id);
+        // The household's only owner cannot give up the role (a household keeps one); deleting their sign-in removes the household.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.SetHouseholdAdminAsync(actor, owner.Id, false));
+        await mutations.DeleteUserAsync(actor, owner.Id);
         Assert.Null(await accounts.GetByIdAsync(owner.Id));
+        Assert.Null(await households.GetByIdAsync(household.Id));
     }
 
     [Theory]

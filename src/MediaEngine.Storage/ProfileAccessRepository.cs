@@ -152,6 +152,17 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 throw new InvalidOperationException("A household administrator needs a sign-in. Attach one to this profile first.");
             }
 
+            // A household always keeps one household administrator profile (D7): the last one cannot be turned off.
+            if (!isHouseholdAdministrator && conn.ExecuteScalar<int>("""
+                    SELECT EXISTS(SELECT 1 FROM profiles WHERE id=@profileId AND household_id IS NOT NULL)
+                       AND NOT EXISTS(SELECT 1 FROM profiles other
+                                      WHERE other.id<>@profileId AND other.is_household_admin=1
+                                        AND other.household_id=(SELECT household_id FROM profiles WHERE id=@profileId));
+                    """, new { profileId }, tx) == 1)
+            {
+                throw new InvalidOperationException(UserRemovalMessages.LastHouseholdAdministrator);
+            }
+
             conn.Execute("UPDATE profiles SET is_household_admin=@value, authorization_version=authorization_version+1 WHERE id=@profileId;",
                 new { profileId, value = isHouseholdAdministrator ? 1 : 0 }, tx);
             return true;

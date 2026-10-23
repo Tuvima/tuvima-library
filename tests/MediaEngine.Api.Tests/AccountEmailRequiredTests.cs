@@ -261,6 +261,15 @@ public sealed class AccountEmailRequiredTests
                         NewProfile: new NewAccountProfileCommand("Child", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
                     var childProfileId = Assert.Single(await accounts.GetGrantsAsync(child.Id)).ProfileId;
+                    // A new profile is an ordinary member; this one is then made a Kids profile.
+                    Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,
+                        (await profiles.GetByIdAsync(childProfileId))!.Role);
+                    using (var connection = database.CreateConnection())
+                    {
+                        Dapper.SqlMapper.Execute(connection, "UPDATE profiles SET role='RestrictedProfile' WHERE id=@childProfileId;",
+                            new { childProfileId });
+                    }
+
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
                         (await profiles.GetByIdAsync(childProfileId))!.Role);
 

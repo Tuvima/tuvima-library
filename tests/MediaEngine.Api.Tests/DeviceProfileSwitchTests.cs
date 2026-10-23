@@ -81,6 +81,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
 
         var bootstrap = Authority(Guid.NewGuid(), Guid.NewGuid(), serverAdmin: true);
         var serverAccount = await mutations.CreateAsync(bootstrap, NewAccount("server@example.com", administrator: true, "Server"));
+        await identities.GiveAsync(serverAccount.Id);
         var serverAdmin = Authority(serverAccount.Id, (await _accounts.GetDefaultProfileIdAsync(serverAccount.Id))!.Value, serverAdmin: true);
 
         var createdHome = await mutations.CreateAsync(serverAdmin, NewAccount("home@example.com", administrator: false, "Mary"));
