@@ -649,8 +649,6 @@ public sealed class ViewLibraryServiceTests
                 Presentation = LibraryPresentations.MixedGallery,
                 MetadataPolicy = LibraryMetadataPolicies.LocalOnly,
                 MediaTypes = ["Images", "ShortVideos", "Documents", "AudioNotes"],
-                OwnerProfileId = ownerProfileId.ToString("D"),
-                Visibility = LibraryVisibility.Private,
                 AcceptedIntakeModes = [LibraryIntakeModes.BrowserUpload],
                 OrganizationPolicy = new LibraryOrganizationPolicyConfig
                 {
@@ -684,7 +682,6 @@ public sealed class ViewLibraryServiceTests
             Presentation = LibraryPresentations.Catalogue,
             MetadataPolicy = LibraryMetadataPolicies.Enriched,
             MediaTypes = ["Books"],
-            Visibility = LibraryVisibility.Household,
             Sources =
             [
                 new LibrarySourceConfig

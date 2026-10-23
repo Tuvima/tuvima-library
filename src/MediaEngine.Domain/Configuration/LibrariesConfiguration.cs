@@ -104,9 +104,6 @@ public sealed class PersonalLibraryPolicyConfig
     [JsonPropertyName("allow_existing_folder_attachment")]
     public bool AllowExistingFolderAttachment { get; set; } = true;
 
-    [JsonPropertyName("default_visibility")]
-    public string DefaultVisibility { get; set; } = LibraryVisibility.Private;
-
     /// <summary>Most characters of embedded text stored per document; the rest is truncated.</summary>
     [JsonPropertyName("document_text_max_characters")]
     public int DocumentTextMaxCharacters { get; set; } = 1_000_000;
@@ -177,15 +174,6 @@ public sealed class LibraryFolderConfig
     /// </summary>
     [JsonPropertyName("primary_destination_source_id")]
     public string? PrimaryDestinationSourceId { get; set; }
-
-    [JsonPropertyName("owner_profile_id")]
-    public string? OwnerProfileId { get; set; }
-
-    [JsonPropertyName("visibility")]
-    public string Visibility { get; set; } = LibraryVisibility.Household;
-
-    [JsonPropertyName("authorized_profile_ids")]
-    public List<string> AuthorizedProfileIds { get; set; } = [];
 
     [JsonPropertyName("accepted_intake_modes")]
     public List<string> AcceptedIntakeModes { get; set; } = [];

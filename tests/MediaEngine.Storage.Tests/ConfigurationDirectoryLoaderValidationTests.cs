@@ -132,7 +132,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             {
                 AllowMobileBackup = false,
                 AllowConnectedDeviceImport = false,
-                DefaultVisibility = LibraryVisibility.Shared,
             },
             Libraries =
             [
@@ -165,7 +164,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                         },
                     ],
                     PrimaryDestinationSourceId = "44444444-aaaa-4444-8444-444444444444",
-                    Visibility = LibraryVisibility.Household,
                     AcceptedIntakeModes = [LibraryIntakeModes.DragAndDrop, LibraryIntakeModes.BrowserUpload],
                     OrganizationPolicy = new()
                     {
@@ -192,20 +190,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         Assert.False(roundTrip.Sources[1].AllowsFileMutation);
         Assert.False(loader.LoadLibraries().PersonalLibraryPolicy.AllowMobileBackup);
         Assert.False(loader.LoadLibraries().PersonalLibraryPolicy.AllowConnectedDeviceImport);
-        Assert.Equal(LibraryVisibility.Shared, loader.LoadLibraries().PersonalLibraryPolicy.DefaultVisibility);
-    }
-
-    [Fact]
-    public void SaveLibraries_RejectsUnsupportedPersonalLibraryDefaultVisibility()
-    {
-        using var temp = TempConfig.Create();
-        var loader = new ConfigurationDirectoryLoader(temp.Path);
-        var config = CreateValidCataloguedLibrary();
-        config.PersonalLibraryPolicy.DefaultVisibility = "organization_wide";
-
-        var ex = Assert.Throws<ConfigValidationException>(() => loader.SaveLibraries(config));
-
-        Assert.Contains("personal_library_policy.default_visibility", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -278,7 +262,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                     Area = LibraryAreas.View,
                     Presentation = LibraryPresentations.Video,
                     MetadataPolicy = "provider_guessing",
-                    OwnerProfileId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
                     Sources =
                     [
                         new LibrarySourceConfig
@@ -915,7 +898,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                     },
                 ],
                 PrimaryDestinationSourceId = "aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa",
-                Visibility = LibraryVisibility.Household,
                 AcceptedIntakeModes = [LibraryIntakeModes.IncomingFolder],
                 OrganizationPolicy = new()
                 {
@@ -947,8 +929,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             },
         ],
             PrimaryDestinationSourceId = sourceId,
-            OwnerProfileId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-            Visibility = LibraryVisibility.Private,
             AcceptedIntakeModes = [LibraryIntakeModes.BrowserUpload],
             OrganizationPolicy = new() { Mode = LibraryOrganizationModes.CaptureYearMonth },
         };

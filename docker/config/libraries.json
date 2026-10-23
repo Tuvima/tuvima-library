@@ -18,8 +18,7 @@
     "allow_drag_and_drop": true,
     "allow_connected_device_import": true,
     "allow_managed_storage": true,
-    "allow_existing_folder_attachment": true,
-    "default_visibility": "private"
+    "allow_existing_folder_attachment": true
   },
   "libraries": [
     {
@@ -46,8 +45,6 @@
         }
       ],
       "primary_destination_source_id": "11111111-aaaa-4111-8111-111111111111",
-      "visibility": "household",
-      "authorized_profile_ids": [],
       "accepted_intake_modes": [
         "incoming_folder",
         "drag_and_drop",
@@ -82,8 +79,6 @@
         }
       ],
       "primary_destination_source_id": "22222222-aaaa-4222-8222-222222222222",
-      "visibility": "household",
-      "authorized_profile_ids": [],
       "accepted_intake_modes": [
         "incoming_folder",
         "drag_and_drop",
@@ -118,8 +113,6 @@
         }
       ],
       "primary_destination_source_id": "33333333-aaaa-4333-8333-333333333333",
-      "visibility": "household",
-      "authorized_profile_ids": [],
       "accepted_intake_modes": [
         "incoming_folder",
         "drag_and_drop",
@@ -154,8 +147,6 @@
         }
       ],
       "primary_destination_source_id": "44444444-aaaa-4444-8444-444444444444",
-      "visibility": "household",
-      "authorized_profile_ids": [],
       "accepted_intake_modes": [
         "incoming_folder",
         "drag_and_drop",
@@ -190,8 +181,6 @@
         }
       ],
       "primary_destination_source_id": "55555555-aaaa-4555-8555-555555555555",
-      "visibility": "household",
-      "authorized_profile_ids": [],
       "accepted_intake_modes": [
         "incoming_folder",
         "drag_and_drop",
@@ -226,8 +215,6 @@
         }
       ],
       "primary_destination_source_id": "66666666-aaaa-4666-8666-666666666666",
-      "visibility": "household",
-      "authorized_profile_ids": [],
       "accepted_intake_modes": [
         "incoming_folder",
         "drag_and_drop",

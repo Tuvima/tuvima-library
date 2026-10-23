@@ -224,7 +224,7 @@ Defines the clean schema 7 library model used by **Settings > Libraries**. The r
 |---|---|---|
 | `schema_version` | string | Must be `7.0`. Older files (including `6.0`) are refused with a plain message and are not converted; move the file aside to start from a fresh default and add folders again. |
 | `storage_locations` | array | Explicit server/container roots administrators may browse. Each entry has a stable `id`, friendly `label`, absolute `path`, and `allow_write` policy. |
-| `personal_library_policy` | object | Administrator defaults and capability switches for the internal personal-library bridge, managed/existing storage, browser upload, reserved future intake producers, and default visibility. |
+| `personal_library_policy` | object | Administrator defaults and capability switches for the internal personal-library bridge, managed/existing storage, browser upload, reserved future intake producers. |
 | `personal_library_policy.document_text_max_characters` | integer | Most characters of embedded text stored per View document (default 1000000); longer text is cut and flagged as truncated. |
 | `personal_library_policy.document_text_max_pdf_pages` | integer | Most PDF pages whose text layer is read (default 2000). |
 | `personal_library_policy.document_text_read_timeout_seconds` | integer | Longest one document may take to read before it is abandoned (default 60). |
@@ -241,9 +241,6 @@ Defines the clean schema 7 library model used by **Settings > Libraries**. The r
 | `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. How many catalogued libraries may hold the same media type is decided by their kinds, not by the media type: a kind that looks details up holds one library, a plain kind holds up to its `max_libraries`, and kinds that share a format (for example a plugin's Podcasts and Music, both `Music`) each have their own libraries. The Engine rejects a change that breaks a kind's limit (see `config/library_kinds.json`). |
 | `sources` | object[] | Stable source objects; see below. Array order has no meaning. |
 | `primary_destination_source_id` | GUID string? | The one folder new media is filed into: a managed source of this library, or `null` when there is none. A read-only folder is never a destination. On save the first managed folder added becomes the destination; if it is removed or switched to read-only, the earliest-added remaining managed folder takes over, and with none left it is `null`. If the destination is unavailable, files wait in Import; there is no fallback to another folder. |
-| `owner_profile_id` | GUID string? | Owning profile for personal access decisions. |
-| `visibility` | string | `private` or `shared` for current product presentation. Shared View contribution is separately controlled by profile View policy. |
-| `authorized_profile_ids` | GUID string[] | Explicit members of a shared library. |
 | `accepted_intake_modes` | string[] | Accepted producer vocabulary. Incoming folder and browser upload have current paths; drag-and-drop, mobile backup, connected-device import, and direct API producers are reserved until a real client is implemented. |
 | `organization_policy` | object | `mode`, optional `custom_template`, and `write_tags` (default `true`): write tags into this type's media files, only in managed folders, only for formats that can carry tags, and only for fields allowed by `writeback-fields.json`. |
 
