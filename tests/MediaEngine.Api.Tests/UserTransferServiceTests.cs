@@ -254,7 +254,7 @@ public sealed class UserTransferServiceTests : IDisposable
         // The imported person is no administrator of any kind and holds no access; the user opens exactly the imported profile.
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM profiles WHERE is_server_admin = 1 OR is_household_admin = 1"));
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM profile_feature_grants g JOIN accounts a ON a.profile_id = g.profile_id WHERE a.email = 'maya@example.com'"));
-        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM profile_library_grants g JOIN accounts a ON a.profile_id = g.profile_id WHERE a.email = 'maya@example.com'"));
+        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM profile_library_hidden g JOIN accounts a ON a.profile_id = g.profile_id WHERE a.email = 'maya@example.com'"));
         Assert.Equal(1, fresh.Scalar("SELECT COUNT(*) FROM accounts a JOIN profiles p ON p.id = a.profile_id WHERE a.email = 'maya@example.com' AND p.display_name = 'Maya'"));
         Assert.Empty(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
 
@@ -544,7 +544,7 @@ public sealed class UserTransferServiceTests : IDisposable
             fresh.Text("SELECT c.secret_hash FROM account_credentials c JOIN accounts a ON a.id = c.account_id WHERE a.email = 'maya@new-home.example'"));
         Assert.Equal(1, fresh.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(profile.Id)} AND household_id = {Blob(home)} AND is_server_admin = 0 AND is_household_admin = 0"));
         Assert.Equal(0, fresh.Scalar($"SELECT COUNT(*) FROM profile_feature_grants WHERE profile_id = {Blob(profile.Id)}"));
-        Assert.Equal(0, fresh.Scalar($"SELECT COUNT(*) FROM profile_library_grants WHERE profile_id = {Blob(profile.Id)}"));
+        Assert.Equal(0, fresh.Scalar($"SELECT COUNT(*) FROM profile_library_hidden WHERE profile_id = {Blob(profile.Id)}"));
     }
 
     [Fact]
@@ -563,7 +563,7 @@ public sealed class UserTransferServiceTests : IDisposable
 
         var profile = Assert.Single(result.Profiles);
         Assert.Equal(1, fresh.Scalar($"SELECT COUNT(*) FROM profile_feature_grants WHERE profile_id = {Blob(profile.Id)} AND feature_id = 'read'"));
-        Assert.Equal(0, fresh.Scalar($"SELECT COUNT(*) FROM profile_library_grants WHERE profile_id = {Blob(profile.Id)}"));
+        Assert.Equal(0, fresh.Scalar($"SELECT COUNT(*) FROM profile_library_hidden WHERE profile_id = {Blob(profile.Id)}"));
     }
 
     [Fact]
@@ -1030,7 +1030,7 @@ public sealed class UserTransferServiceTests : IDisposable
                 new { account = accountBlob, secret = Protector.Protect(TwoStepSecret), now = Stamp });
             connection.Execute("INSERT INTO profile_feature_grants (profile_id, feature_id, granted_at) VALUES (@profile, 'read', @now)", new { profile = GuidSql.ToBlob(first), now = Stamp });
             connection.Execute(
-                "INSERT INTO profile_library_grants (profile_id, library_id, granted_at) VALUES (@profile, @library, @now)",
+                "INSERT INTO profile_library_hidden (profile_id, library_id, created_at) VALUES (@profile, @library, @now)",
                 new { profile = GuidSql.ToBlob(first), library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
             return new Person(account, first);
         }

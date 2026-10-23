@@ -1,7 +1,7 @@
 -- tuvima:foreign-keys-off
 -- Users, profiles and households (wave UPH1d: contract). Roles and access now live only on the profile, so the sign-in-held copies
--- are removed: the three account grant tables (profiles, Read/Watch/Listen/View, libraries), the per-grant admin PIN tables (replaced
--- by profile_admin_protections and profile_admin_unlocks in step 0041), and the sign-in columns is_administrator, household_admin,
+-- are removed: the account grant tables (profiles, Read/Watch/Listen/View, and the libraries hidden from an account, step 0045), the per-grant admin PIN tables (replaced
+-- by profile_admin_protections and profile_admin_unlocks and the hidden libraries by profile_library_hidden in step 0046), and the sign-in columns is_administrator, household_admin,
 -- household_id and grants_inherit_from_account_id, and the household's primary_account_id. A sign-in cannot exist without its profile
 -- (spec D2, D7), so accounts.profile_id is now required and at most one sign-in opens a profile. The household of a user is its
 -- profile's household.
@@ -14,7 +14,7 @@ UPDATE storage_metadata SET value = 'guid-blob-v13-profile-held-contract' WHERE 
 
 DROP TABLE grant_admin_unlocks;
 DROP TABLE grant_admin_protections;
-DROP TABLE account_library_grants;
+DROP TABLE account_library_hidden;
 DROP TABLE account_feature_grants;
 DROP TABLE account_profile_grants;
 

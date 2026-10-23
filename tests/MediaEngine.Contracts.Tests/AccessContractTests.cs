@@ -264,7 +264,7 @@ public sealed class AccessContractTests
         Assert.False(older.IsServerAdmin);
         Assert.False(older.IsHouseholdAdmin);
         Assert.Null(older.FeatureIds);
-        Assert.Null(older.LibraryIds);
+        Assert.Null(older.HiddenLibraryIds);
         Assert.Null(older.User);
 
         var userId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -274,12 +274,12 @@ public sealed class AccessContractTests
             IsServerAdmin = true,
             IsHouseholdAdmin = true,
             FeatureIds = ["read", "watch"],
-            LibraryIds = [library],
+            HiddenLibraryIds = [library],
             User = new ManagedProfileUserDto(userId, "sam@home.test"),
         });
 
         Assert.Contains("\"is_server_admin\":true,\"is_household_admin\":true,\"feature_ids\":[\"read\",\"watch\"]," +
-            "\"library_ids\":[\"33333333-3333-3333-3333-333333333333\"]," +
+            "\"hidden_library_ids\":[\"33333333-3333-3333-3333-333333333333\"]," +
             "\"user\":{\"id\":\"22222222-2222-2222-2222-222222222222\",\"email\":\"sam@home.test\"}", json, StringComparison.Ordinal);
     }
 
@@ -289,11 +289,64 @@ public sealed class AccessContractTests
         var library = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
         Assert.Equal(
-            "{\"feature_ids\":[\"read\"],\"library_ids\":[\"33333333-3333-3333-3333-333333333333\"]}",
+            "{\"feature_ids\":[\"read\"],\"hidden_library_ids\":[\"33333333-3333-3333-3333-333333333333\"]}",
             JsonSerializer.Serialize(new ReplaceProfileAccessRequest(["read"], [library])));
         Assert.Equal(
             "{\"is_household_admin\":true,\"is_server_admin\":false}",
             JsonSerializer.Serialize(new SetProfileRolesRequest(true, false)));
         Assert.True(JsonSerializer.Deserialize<SetProfileRolesRequest>("{\"is_household_admin\":true,\"is_server_admin\":false}")!.IsHouseholdAdmin);
+    }
+
+    [Fact]
+    public void LibraryAccessIsTheListOfHiddenLibraries_NotAListOfGrantedOnes()
+    {
+        var hidden = Guid.NewGuid();
+        var json = JsonSerializer.Serialize(new ReplaceProfileAccessRequest(["watch"], [hidden]));
+
+        Assert.Equal($"{{\"feature_ids\":[\"watch\"],\"hidden_library_ids\":[\"{hidden}\"]}}", json);
+        Assert.DoesNotContain("\"library_ids\":", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("library_grants", JsonSerializer.Serialize(new ManagedProfileResponse(
+            Guid.NewGuid(), "Sam", "#7C4DFF", null, DateTimeOffset.UtcNow, HiddenLibraryIds: [hidden])), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheLibraryPickerNamesEachLibrarysAreaAndWhetherItIsHiddenFromTheAdministratorUsingTheScreen()
+    {
+        var id = Guid.NewGuid();
+        var json = JsonSerializer.Serialize(new AccessLibraryOptionDto(id, "Lectures", "videos", "watch", HiddenFromYou: true));
+
+        Assert.Contains("\"area\":\"watch\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"hidden_from_you\":true", json, StringComparison.Ordinal);
+        Assert.False(JsonSerializer.Deserialize<AccessLibraryOptionDto>(
+            $"{{\"id\":\"{id}\",\"display_name\":\"Books\",\"category\":null,\"area\":\"read\"}}")!.HiddenFromYou);
+    }
+
+    [Fact]
+    public void TheVisibilityAfterMoveRequest_NamesTheTargetAndEitherAFolderOrAList_InSnakeCase()
+    {
+        var target = Guid.NewGuid();
+        var asset = Guid.NewGuid();
+
+        var list = JsonSerializer.Serialize(new VisibilityAfterMoveRequest(target, AssetIds: [asset]));
+        var folder = JsonSerializer.Deserialize<VisibilityAfterMoveRequest>(
+            $"{{\"target_library_id\":\"{target}\",\"folder_path\":\"/media/kids\",\"library_id\":\"{target}\"}}")!;
+
+        Assert.Contains($"\"target_library_id\":\"{target}\"", list, StringComparison.Ordinal);
+        Assert.Contains($"\"asset_ids\":[\"{asset}\"]", list, StringComparison.Ordinal);
+        Assert.Equal(("/media/kids", target), (folder.FolderPath, folder.LibraryId));
+        Assert.Null(folder.SourceId);
+        Assert.Null(folder.AssetIds);
+    }
+
+    [Fact]
+    public void TheVisibilityAfterMoveResponse_ListsEachPersonWithTheirFileCount_InSnakeCase()
+    {
+        var profile = Guid.NewGuid();
+
+        var json = JsonSerializer.Serialize(new VisibilityAfterMoveResponse([new VisibilityLossDto(profile, "Sam", 40)]));
+        var roundTrip = JsonSerializer.Deserialize<VisibilityAfterMoveResponse>(json)!;
+
+        Assert.Equal($"{{\"people\":[{{\"profile_id\":\"{profile}\",\"display_name\":\"Sam\",\"file_count\":40}}]}}", json);
+        Assert.Equal(("Sam", 40), (roundTrip.People[0].DisplayName, roundTrip.People[0].FileCount));
     }
 }

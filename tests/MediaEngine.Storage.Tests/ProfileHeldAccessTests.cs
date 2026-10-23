@@ -80,7 +80,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
 
         Assert.Equal(mary.Id, (await _accounts.GetByIdAsync(account.Id))!.ProfileId);
         Assert.Equal(new[] { "listen" }, (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
-        Assert.Empty(await _access.GetLibraryGrantsAsync(mary.Id));
+        Assert.Empty(await _access.GetHiddenLibrariesAsync(mary.Id));
         var flags = (await _access.GetAdminFlagsAsync(mary.Id))!;
         Assert.False(flags.IsServerAdministrator);
         Assert.False(flags.IsHouseholdAdministrator);
@@ -382,7 +382,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
         await _accounts.CreateHouseholdPersonAsync(mary, householdId, accessFromProfileId: mainPerson.Id);
 
         Assert.Equal(new[] { "read", "view" }, (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
-        Assert.Equal(new[] { library }, (await _access.GetLibraryGrantsAsync(mary.Id)).ToArray());
+        Assert.Equal(new[] { library }, (await _access.GetHiddenLibrariesAsync(mary.Id)).ToArray());
         var flags = (await _access.GetAdminFlagsAsync(mary.Id))!;
         Assert.False(flags.IsServerAdministrator);
         Assert.False(flags.IsHouseholdAdministrator);
@@ -404,7 +404,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
         await _accounts.CreateHouseholdPersonAsync(friend, guestHousehold, accessFromProfileId: Profile.SeedProfileId);
 
         Assert.Equal(new[] { "listen", "read", "watch" }, (await _access.GetFeatureGrantsAsync(friend.Id)).Select(feature => feature.Value).Order());
-        Assert.Empty(await _access.GetLibraryGrantsAsync(friend.Id));
+        Assert.Empty(await _access.GetHiddenLibrariesAsync(friend.Id));
         Assert.False((await _access.GetAdminFlagsAsync(friend.Id))!.IsServerAdministrator);
         Assert.Equal(Profile.SeedProfileId, (await _accounts.GetByIdAsync(admin.Id))!.ProfileId);
     }
@@ -420,7 +420,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
 
         Assert.Equal(AccountFeatureId.All.Select(feature => feature.Value).Order(),
             (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
-        Assert.Empty(await _access.GetLibraryGrantsAsync(mary.Id));
+        Assert.Empty(await _access.GetHiddenLibrariesAsync(mary.Id));
         Assert.False((await _access.GetAdminFlagsAsync(mary.Id))!.IsHouseholdAdministrator);
     }
 

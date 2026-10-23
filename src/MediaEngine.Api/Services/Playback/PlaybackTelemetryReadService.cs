@@ -123,8 +123,8 @@ public sealed class PlaybackTelemetryReadService(
 
         // Read access follows the profile being acted as.
         var features = await profileAccess.GetFeatureGrantsAsync(profileId, ct).ConfigureAwait(false);
-        var libraries = await profileAccess.GetLibraryGrantsAsync(profileId, ct).ConfigureAwait(false);
-        return new(true, false, accountId, profileId, false, libraries, features);
+        var hidden = await profileAccess.GetHiddenLibrariesAsync(profileId, ct).ConfigureAwait(false);
+        return new(true, false, accountId, profileId, false, hidden, features);
     }
 
     private static PlaybackTelemetryPageDto Map(PlaybackTelemetryPage page) =>

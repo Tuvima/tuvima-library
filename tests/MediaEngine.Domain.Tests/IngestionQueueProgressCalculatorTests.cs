@@ -214,7 +214,7 @@ public sealed class IngestionQueueProgressCalculatorTests
         var withOne = IngestionQueueProgressCalculator.Calculate(sim.Rows(), null, Base.AddSeconds(2)).Snapshot;
         Assert.Equal(14, withOne.FilesFound);
         Assert.Equal(13, withOne.FilesDone);
-        Assert.Equal(new IngestionQueueOutcomes(Added: 5, NeedsReview: 3 + 2, Failed: 2 + 1, Skipped: 0), withOne.Outcomes);
+        Assert.Equal(new IngestionQueueOutcomes(Added: 5, NeedsReview: 2, Failed: 2 + 1, Skipped: 0, Unmatched: 3), withOne.Outcomes);
         Assert.Equal(IngestionQueueRunState.Working, withOne.State);
     }
 

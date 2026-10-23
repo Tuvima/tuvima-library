@@ -82,13 +82,16 @@ public static class SettingsEndpoints
     // Fallback display names when a provider config file has no display_name field.
     // In practice all provider configs have display_name set explicitly; this map
     // is kept as a safety net and is derived from the same data in the config files.
-    /// <summary>Write now. With write-back off nothing is written, so asking for a run is refused with a plain message.</summary>
+    /// <summary>
+    /// Write now. With write-back off no tags are written, so asking for a run is refused with a plain message, unless a file is
+    /// waiting to be filed: filing does not depend on the tag-writing switch, so the run files it and writes nothing.
+    /// </summary>
     internal static async Task<IResult> StartFileWriteRunAsync(
         FileWriteScheduler scheduler, IConfigurationLoader configLoader, CancellationToken ct,
         IReadOnlySet<string>? hiddenLibraryIds = null)
     {
         var settings = configLoader.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback") ?? new WriteBackConfiguration();
-        if (!settings.Enabled)
+        if (!settings.Enabled && !await scheduler.HasFilingWaitingAsync(ct))
         {
             return ApiErrors.Conflict("Write-back is turned off, so nothing can be written now. Turn it on first.");
         }
@@ -373,11 +376,40 @@ public static class SettingsEndpoints
         .RequireEffectiveAdministrator();
 
         // ── GET/PUT /settings/libraries ───────────────────────────────────────
-        grp.MapGet("/libraries", async (IConfigurationLoader configLoader, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
+        grp.MapGet("/libraries", async (
+            HttpContext http,
+            IConfigurationLoader configLoader,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries,
+            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Security.IRequestAuthorityResolver authorities,
+            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Unmatched.UnmatchedCountService unmatchedCounts,
+            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Libraries.FolderFirstCheckService firstChecks,
+            CancellationToken ct) =>
         {
             // Vault libraries are in no Libraries list (Videos spec D45).
-            return Results.Ok(SettingsContractMapper.ToContract(
-                MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(configLoader.LoadLibraries(), await vaultLibraries.GetIdsAsync(ct)), configLoader));
+            var result = SettingsContractMapper.ToContract(
+                MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(configLoader.LoadLibraries(), await vaultLibraries.GetIdsAsync(ct)), configLoader);
+
+            // Each library's Unmatched count (kept-as-is files excluded) is read only for a caller whose scope covers the library; anyone
+            // else gets none (Library setup spec D34, security rule: scope before counts).
+            var scope = MediaEngine.Api.Services.Unmatched.UnmatchedScope.For(await authorities.ResolveAsync(http, ct));
+            var counts = await unmatchedCounts.CountsAsync(scope, ct);
+            foreach (var library in result.Libraries)
+            {
+                library.UnmatchedCount = counts.GetValueOrDefault(library.Id);
+            }
+
+            // A folder's first check (Library setup spec D35) is shown to an administrator only, like the Unmatched count above.
+            if (scope.AllLibraries)
+            {
+                var running = (await firstChecks.ListAsync(ct)).ToDictionary(item => item.Check.SourceId, StringComparer.OrdinalIgnoreCase);
+                foreach (var source in result.Libraries.SelectMany(library => library.Sources))
+                {
+                    source.FirstCheck = MediaEngine.Api.Services.Libraries.FolderFirstCheckService.ToSourceDto(
+                        running.GetValueOrDefault(source.Id));
+                }
+            }
+
+            return Results.Ok(result);
         })
         .WithName("GetLibraries")
         .WithSummary("Returns schema 7 catalogued libraries, the single View root, and approved storage.")
@@ -394,7 +426,7 @@ public static class SettingsEndpoints
         .Produces<IReadOnlyList<MediaEngine.Contracts.Settings.LibraryKindDto>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
 
-        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, [FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService libraryKinds, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
+        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, [FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService libraryKinds, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Libraries.FolderFirstCheckService firstChecks, CancellationToken ct) =>
         {
             await LibraryMutationEndpoints.WriteGate.WaitAsync(ct);
             try
@@ -430,7 +462,7 @@ public static class SettingsEndpoints
                     return ApiErrors.BadRequest(sourceError);
                 }
 
-                configLoader.SaveLibraries(config);
+                await firstChecks.SaveLibrariesWithFirstChecksAsync(configLoader.SaveLibraries, configLoader.LoadLibraries(), config, vaultIds, ct);
                 await folderJobs.StopJobsForUnmanagedFoldersAsync(config, ct);
                 await importFolder.ApplyAsync(ct);
                 foreach (var profile in await profiles.GetAllAsync(ct))

@@ -180,9 +180,10 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
         using var connection = _database.CreateConnection();
         connection.Execute("""
             INSERT INTO media_file_write_intents
-                (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step)
+                (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step, move_origin)
             VALUES (@id, 'media_asset', @asset, 1, 'move:seed', @trigger, @status, 0,
-                    '2026-10-20T00:00:00.0000000+00:00', '2026-10-20T00:00:00.0000000+00:00', @moveStep);
+                    '2026-10-20T00:00:00.0000000+00:00', '2026-10-20T00:00:00.0000000+00:00', @moveStep,
+                    CASE WHEN @moveStep IS NULL THEN NULL ELSE 'person' END);
             """, new { id = Guid.NewGuid(), asset = _asset, trigger, status, moveStep });
     }
 
@@ -374,6 +375,155 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
             """, new { asset = siblingAsset }));
         Assert.Null(verify.QuerySingle<string?>(
             "SELECT writeback_status FROM media_assets WHERE id = @asset;", new { asset = siblingAsset }));
+    }
+
+    private void SeedPersonalStateOnSource()
+    {
+        var person = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, position_seconds, created_at)
+            VALUES (@bookmark, @person, @source, @asset, 30, '2026-10-01T00:00:00Z');
+            INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at)
+            VALUES (@person, @source, '["mine"]', 1, '2026-10-01T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at)
+            VALUES (@person, 'TvShow', @source, 'Love', '2026-10-01T00:00:00Z');
+            """, new { person, source = _source, asset = _asset, bookmark = Guid.NewGuid() });
+    }
+
+    [Fact]
+    public async Task MovingTheLastEditionOutOfAWork_CarriesBookmarksPreferencesAndReactionsToTheTargetBeforeTheSourceIsSwept()
+    {
+        SeedPersonalStateOnSource();
+
+        var result = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodePlanAsync([Move()]);
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, result.Outcome);
+        using var verify = _database.CreateConnection();
+        Assert.Equal(_target, verify.QuerySingle<Guid>("SELECT work_id FROM audiobook_bookmarks;"));
+        Assert.Equal(_target, verify.QuerySingle<Guid>("SELECT work_id FROM profile_work_preferences;"));
+        Assert.Equal(_target, verify.QuerySingle<Guid>("SELECT entity_id FROM profile_reactions;"));
+    }
+
+    // A second and a third file on the source work, each its own edition, and a second target episode to send one of them to.
+    private (VerifiedTvEpisodeMove ToTarget, VerifiedTvEpisodeMove AlsoToTarget, VerifiedTvEpisodeMove ToOther, Guid Other) SeedThreeEditions()
+    {
+        var other = Guid.NewGuid();
+        var (edition2, asset2, edition3, asset3) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works(id, media_type, work_kind, parent_work_id) VALUES(@other, 'TV', 'child', @season);
+                INSERT INTO canonical_values(entity_id, key, value, last_scored_at) VALUES(@other, @key, 'other-r1', @now);
+                INSERT INTO bridge_ids(id, entity_id, id_type, id_value) VALUES(@bridge, @other, @bridgeKey, 'episode-3');
+                INSERT INTO editions(id, work_id) VALUES(@edition2, @source), (@edition3, @source);
+                INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
+                VALUES(@asset2, @edition2, @hash2, 'C:/fixture/two.mkv', @library), (@asset3, @edition3, @hash3, 'C:/fixture/three.mkv', @library);
+                """, new
+            {
+                other,
+                season = _season,
+                key = MetadataFieldConstants.IdentityRevision,
+                now = DateTimeOffset.UtcNow.ToString("O"),
+                bridge = Guid.NewGuid(),
+                bridgeKey = BridgeIdKeys.TvdbEpisodeId,
+                edition2,
+                edition3,
+                asset2,
+                asset3,
+                source = _source,
+                hash2 = Guid.NewGuid().ToString("N"),
+                hash3 = Guid.NewGuid().ToString("N"),
+                library = _library.ToString("D"),
+            });
+        }
+
+        var first = Move();
+        return (first,
+            first with { AssetId = asset2, ExpectedEditionId = edition2 },
+            first with { AssetId = asset3, ExpectedEditionId = edition3, TargetWorkId = other, TargetTvdbEpisodeId = "episode-3", ExpectedTargetIdentityRevision = "other-r1" },
+            other);
+    }
+
+    [Fact]
+    public async Task EditionsLeavingForSeveralWorks_CarryTheSourcesPersonalStateToTheOneThatReceivesTheMost()
+    {
+        SeedPersonalStateOnSource();
+        var (toTarget, alsoToTarget, toOther, _) = SeedThreeEditions();
+
+        var result = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodePlanAsync([toOther, toTarget, alsoToTarget]);
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, result.Outcome);
+        using var verify = _database.CreateConnection();
+        Assert.Equal(_target, verify.QuerySingle<Guid>("SELECT work_id FROM audiobook_bookmarks;"));
+        Assert.Equal(_target, verify.QuerySingle<Guid>("SELECT entity_id FROM profile_reactions;"));
+    }
+
+    [Fact]
+    public async Task EditionsLeavingForTwoWorksInEqualNumbers_CarryTheStateToTheFirstInTheOrderThePlanIsApplied()
+    {
+        SeedPersonalStateOnSource();
+        var (toTarget, _, toOther, other) = SeedThreeEditions();
+        using (var connection = _database.CreateConnection())
+        {
+            // Leave exactly two editions to move: the first to the target and the third to the other work.
+            connection.Execute("DELETE FROM media_assets WHERE file_path_root = 'C:/fixture/two.mkv'; DELETE FROM editions WHERE id NOT IN (SELECT edition_id FROM media_assets);");
+        }
+
+        var result = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodePlanAsync([toOther, toTarget]);
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, result.Outcome);
+        using var verify = _database.CreateConnection();
+        // The plan is applied in file-id order, so "the first" is the target of the lower file id, however the caller listed them.
+        var first = toOther.AssetId.CompareTo(toTarget.AssetId) < 0 ? other : _target;
+        Assert.Equal(first, verify.QuerySingle<Guid>("SELECT work_id FROM audiobook_bookmarks;"));
+    }
+
+    [Fact]
+    public async Task ACarryLeavesNoSaveOrReactionBehindOnTheWorkThatGoes_WhenTheTargetAlreadyHasItsOwn()
+    {
+        SeedPersonalStateOnSource();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'TvShow', @target, 'Like', '2026-10-05T00:00:00Z');
+                INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'TvShow', @source, '2026-10-01T00:00:00Z'), (@person, 'TvShow', @target, '2026-10-02T00:00:00Z');
+                """, new { person = MediaEngine.Domain.Aggregates.Profile.SeedProfileId, source = _source, target = _target });
+        }
+
+        var result = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodePlanAsync([Move()]);
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, result.Outcome);
+        using var verify = _database.CreateConnection();
+        Assert.Equal(0, verify.QuerySingle<int>("SELECT COUNT(*) FROM profile_reactions WHERE entity_id = @source;", new { source = _source }));
+        Assert.Equal(0, verify.QuerySingle<int>("SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @source;", new { source = _source }));
+        Assert.Equal(1, verify.QuerySingle<int>("SELECT COUNT(*) FROM profile_reactions;"));
+        Assert.Equal(1, verify.QuerySingle<int>("SELECT COUNT(*) FROM profile_saved_items;"));
+    }
+
+    [Fact]
+    public async Task MovingOneEditionOutOfAWorkThatKeepsAnother_LeavesItsPersonalStateWhereItWas()
+    {
+        var siblingEdition = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO editions(id, work_id) VALUES(@edition, @work);",
+                new { edition = siblingEdition, work = _source });
+            connection.Execute("""
+                INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
+                VALUES(@asset, @edition, @hash, 'C:/fixture/unselected.mkv');
+                """, new { asset = Guid.NewGuid(), edition = siblingEdition, hash = Guid.NewGuid().ToString("N") });
+        }
+
+        SeedPersonalStateOnSource();
+
+        var result = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodePlanAsync([Move()]);
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, result.Outcome);
+        using var verify = _database.CreateConnection();
+        Assert.Equal(_source, verify.QuerySingle<Guid>("SELECT work_id FROM audiobook_bookmarks;"));
+        Assert.Equal(_source, verify.QuerySingle<Guid>("SELECT work_id FROM profile_work_preferences;"));
+        Assert.Equal(_source, verify.QuerySingle<Guid>("SELECT entity_id FROM profile_reactions;"));
     }
 
     [Fact]

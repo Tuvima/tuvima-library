@@ -751,7 +751,7 @@ public sealed class CollectionItemRootsTests : IDisposable
             },
             new TestGrant(_account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen },
-            new HashSet<Guid> { _library }).GetAwaiter().GetResult();
+            new HashSet<Guid>()).GetAwaiter().GetResult();
     }
 
     private void SetContentLimit(string? limit)
@@ -920,7 +920,7 @@ public sealed class CollectionItemRootsTests : IDisposable
             RequestAuthority authority, Guid requestedLibraryId, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(requestedLibraryId == libraryId
                 ? AuthorizationDecision.Allow()
-                : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant));
+                : AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible));
 
         public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(
             RequestAuthority authority, bool requireSurfaceUnlock, CancellationToken cancellationToken = default) =>

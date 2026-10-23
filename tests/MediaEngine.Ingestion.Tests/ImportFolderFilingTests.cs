@@ -1,7 +1,9 @@
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Ingestion.Tests.Helpers;
@@ -44,6 +46,72 @@ public sealed class ImportFolderFilingTests : IDisposable
         // The folder a download program made is cleaned up, but the per-type folder itself is never removed.
         Assert.False(Directory.Exists(Path.GetDirectoryName(source)!) && Directory.GetFiles(Path.GetDirectoryName(source)!).Length > 0);
         Assert.True(Directory.Exists(Path.Combine(_h.ImportDir, "Movies")));
+    }
+
+    [Fact]
+    public async Task A_file_in_the_Import_folder_waits_for_the_run_and_is_filed_by_it()
+    {
+        var queue = new RecordingFilingQueue();
+        using var harness = new ImportFolderHarness(filingQueue: queue);
+        var source = harness.WriteImportFile(Path.Combine("Movies", "Dune.2021.1080p.mkv"), "dune bytes");
+        var assetId = await harness.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
+
+        // Identified: the file is only recorded as waiting to be filed. It stays in the Import folder, exactly as it was.
+        await harness.Organizer.TryAutoOrganizeAsync(assetId);
+
+        Assert.Equal([(assetId, false)], queue.Requests);
+        Assert.True(File.Exists(source));
+        Assert.Equal(source, (await harness.Assets.FindByIdAsync(assetId))!.FilePathRoot);
+        Assert.Empty(harness.FilesUnder(harness.MoviesDir));
+
+        // The run files it.
+        var outcome = await harness.Organizer.FileOnScheduleAsync(assetId, new NoSteps());
+
+        var expected = Path.Combine(harness.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        Assert.Equal(AssetRefileOutcomeKind.Moved, outcome.Kind);
+        Assert.True(File.Exists(expected));
+        Assert.False(File.Exists(source));
+        Assert.Equal(expected, (await harness.Assets.FindByIdAsync(assetId))!.FilePathRoot);
+        Assert.Single(queue.Requests);
+    }
+
+    [Fact]
+    public async Task A_file_waiting_to_be_filed_out_of_the_Import_folder_is_left_where_it_is_when_its_destination_is_not_ready_at_the_run()
+    {
+        var queue = new RecordingFilingQueue();
+        using var harness = new ImportFolderHarness(filingQueue: queue);
+        var source = harness.WriteImportFile(Path.Combine("Movies", "Dune.mkv"), "dune");
+        var assetId = await harness.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
+        await harness.Organizer.TryAutoOrganizeAsync(assetId);
+        Directory.Delete(harness.MoviesDir);
+
+        var outcome = await harness.Organizer.FileOnScheduleAsync(assetId, new NoSteps());
+
+        Assert.Equal(AssetRefileOutcomeKind.Kept, outcome.Kind);
+        Assert.True(File.Exists(source));
+        Assert.Equal(source, (await harness.Assets.FindByIdAsync(assetId))!.FilePathRoot);
+    }
+
+    private sealed class RecordingFilingQueue : IFilingQueue
+    {
+        public List<(Guid AssetId, bool Held)> Requests { get; } = [];
+
+        public Task<bool> RequestFilingAsync(Guid assetId, bool held, CancellationToken ct = default)
+        {
+            Requests.Add((assetId, held));
+            return Task.FromResult(true);
+        }
+    }
+
+    private sealed class NoSteps : IRefileStepRecorder
+    {
+        public Task PlannedAsync(string sourcePath, string targetPath, CancellationToken ct) => Task.CompletedTask;
+
+        public Task NotMovedAsync(CancellationToken ct) => Task.CompletedTask;
+
+        public Task MovedAsync(string actualPath, CancellationToken ct) => Task.CompletedTask;
+
+        public Task CheckedAsync(CancellationToken ct) => Task.CompletedTask;
     }
 
     [Fact]

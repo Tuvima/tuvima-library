@@ -571,8 +571,9 @@ public sealed class DatabaseStartupSafetyTests
             ("account_two_step", "account_id"),
             ("account_notice_dismissals", "account_id"),
             ("profile_feature_grants", "profile_id"),
-            ("profile_library_grants", "profile_id"),
-            ("profile_library_grants", "library_id"),
+            ("profile_library_hidden", "profile_id"),
+            ("profile_library_hidden", "library_id"),
+            ("profile_library_hidden", "created_by_profile_id"),
             ("profile_admin_protections", "profile_id"),
             ("profile_admin_unlocks", "session_id"),
             ("profile_admin_unlocks", "profile_id"),
@@ -730,6 +731,11 @@ public sealed class DatabaseStartupSafetyTests
             ("waiting_personal_state", "id"),
             ("waiting_personal_state", "restore_id"),
             ("waiting_personal_state", "profile_id"),
+            ("folder_first_check_files", "asset_id"),
+            ("unmatched_assets", "asset_id"),
+            ("import_uploads", "id"),
+            ("import_uploads", "created_by"),
+            ("import_upload_pieces", "upload_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)

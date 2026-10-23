@@ -33,6 +33,7 @@ public static class DetailEndpoints
             HttpContext httpContext,
             DetailComposerService composer,
             ContributorReadiness readiness,
+            DetailUnmatchedStateService unmatchedState,
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
@@ -79,6 +80,8 @@ public static class DetailEndpoints
             if (detail is not null)
             {
                 await readiness.ApplyAsync(detail, ct);
+                // Single-item pages only (authorizedAssetIds is set for them): an administrator sees the item's Unmatched state and actions.
+                await unmatchedState.ApplyAsync(detail, authorizedAssetIds, actionAuthorization, ct);
             }
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("DetailPerformance")
                 .LogInformation("Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, total {TotalMs:F0} ms",
@@ -109,7 +112,7 @@ public static class DetailEndpoints
                 return ApiErrors.BadRequest("The 'after' episode file is required.");
             }
 
-            var next = NextEpisodesPlanner.Plan(id, afterAssetId, NextEpisodesPlanner.ClampCount(count), await display.LoadWorksAsync(ct));
+            var next = NextEpisodesPlanner.Plan(id, afterAssetId, NextEpisodesPlanner.ClampCount(count), await display.LoadWorksIncludingUnmatchedAsync(ct));
             return next is null
                 ? ApiErrors.NotFound($"No episodes found after '{afterAssetId}' in show '{id}'.")
                 : Results.Ok(next);

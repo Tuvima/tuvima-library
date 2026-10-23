@@ -153,6 +153,7 @@ public sealed class EngineCompositionValidationTests
         services.AddScoped<ApplicationAdministrationService>();
         services.AddScoped<IntegrationHealthService>();
         services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
+        services.AddSingleton<LibraryVisibilityRule>();
         services.AddScoped<IAccountAccessDecisionService, AccountAccessDecisionService>();
         services.AddScoped<ISelfServiceAuthorizationService>(provider =>
             (AccountAccessDecisionService)provider.GetRequiredService<IAccountAccessDecisionService>());
@@ -333,6 +334,8 @@ public sealed class EngineCompositionValidationTests
             typeof(IDisplayProjectionReadService),
             typeof(ContributorShelfReadService),
             typeof(DisplayComposerService),
+            // The browse tab list reads the request's library grants through the request-scoped projection.
+            typeof(BrowseLibraryListService),
             // Recent reads reapply the request's profile authority and Mine View scope.
             typeof(RecentCatalogueReadService),
             typeof(DisplayRecentComposerService),

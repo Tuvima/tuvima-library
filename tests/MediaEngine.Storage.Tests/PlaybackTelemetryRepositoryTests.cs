@@ -83,7 +83,7 @@ public sealed class PlaybackTelemetryRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadsFilterAccountProfileLibraryAndFeatureBeforePagingAndAggregation()
+    public async Task ReadsFilterAccountProfileHiddenLibraryAndFeatureBeforePagingAndAggregation()
     {
         var first = Seed("Movies");
         var otherLibrary = Seed("Movies", first.AccountId, first.ProfileId);
@@ -95,7 +95,7 @@ public sealed class PlaybackTelemetryRepositoryTests : IDisposable
         await _repository.ObserveAsync(Observation(listen, Guid.NewGuid(), _start.AddMinutes(3), 0));
 
         var scope = new PlaybackTelemetryReadScope(true, false, first.AccountId, first.ProfileId,
-            false, new HashSet<Guid> { first.LibraryId }, new HashSet<AccountFeatureId> { AccountFeatureId.Watch });
+            false, new HashSet<Guid> { otherLibrary.LibraryId }, new HashSet<AccountFeatureId> { AccountFeatureId.Watch });
         var page = await _repository.GetActiveAsync(scope, 1, null);
         var only = Assert.Single(page.Items);
         Assert.Equal(first.AssetId, only.AssetId);

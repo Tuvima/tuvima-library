@@ -7,6 +7,11 @@
     {
         var held = OfferedFeatureIds is null || OfferedFeatureIds.Contains(feature.Id);
         <AppSwitchRow Value="@FeatureIds.Contains(feature.Id)" ValueChanged="@((bool value) => FeatureChanged.InvokeAsync((feature.Id, value)))" Label="@feature.Label" Description="@feature.Description" Disabled="@(!held)" />
+        @if (FeatureIds.Contains(feature.Id) && !LibrariesUnavailable)
+        {
+            <AreaLibraryList Area="@feature.Id" Libraries="Libraries" HiddenIds="HiddenIds" PersonName="@PersonName"
+                             ReadOnly="ReadOnly" Busy="LibrariesBusy" OnHiddenChanged="OnHiddenChanged" />
+        }
     }
     @if (OfferedFeatureIds is not null && Features.Any(feature => !OfferedFeatureIds.Contains(feature.Id)))
     {
@@ -16,22 +21,10 @@
     {
         <small>View starts off for people outside your household. Switch it on from their row once you know them.</small>
     }
-</section>
-<section class="access-user-permissions">
-    <AppText Typo="AppTypo.subtitle1">Catalogued libraries</AppText>
-    @if (Libraries.Count == 0 && ReadOnlyLibraryCount == 0) { <small>No catalogued libraries are configured.</small> }
-    else
+    @if (LibrariesUnavailable && FeatureIds.Count > 0)
     {
-        <div class="access-user-permissions__libraries">
-            @foreach (var library in Libraries)
-            {
-                <AppCheckbox Value="@LibraryIds.Contains(library.Id)" ValueChanged="@((bool value) => LibraryChanged.InvokeAsync((library.Id, value)))" Label="@library.DisplayName" />
-            }
-        </div>
-        @if (ReadOnlyLibraryCount > 0)
-        {
-            <small data-testid="access-libraries-set-by-server-administrator">@ReadOnlyLibraryCount @(ReadOnlyLibraryCount == 1 ? "more library" : "more libraries"): set by the server administrator</small>
-        }
+        @* The area switches above still work; no library is changed while the list can't be read. *@
+        <AppErrorState Compact="true" Title="Libraries not loaded" Message="The libraries could not be loaded, so which ones are hidden can't be changed right now. Libraries already hidden stay hidden; a new person starts with every library visible. Try again." Retry="RetryLibraries" />
     }
 </section>
 
@@ -48,13 +41,30 @@
     [Parameter] public bool ViewStartsOff { get; set; }
     /// <summary>When set, only these lanes are offered (a household administrator hands out only what their own profile holds); null offers all.</summary>
     [Parameter] public IReadOnlySet<string>? OfferedFeatureIds { get; set; }
-    /// <summary>How many of the person's libraries the administrator does not hold; shown read-only and never sent as changes.</summary>
-    [Parameter] public int ReadOnlyLibraryCount { get; set; }
     [Parameter, EditorRequired] public IReadOnlySet<string> FeatureIds { get; set; } = new HashSet<string>();
-    [Parameter, EditorRequired] public IReadOnlySet<Guid> LibraryIds { get; set; } = new HashSet<Guid>();
     [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
+
+    /// <summary>The libraries hidden from the person right now; each area's list ticks everything else.</summary>
+    [Parameter, EditorRequired] public IReadOnlySet<Guid> HiddenIds { get; set; } = new HashSet<Guid>();
+
+    /// <summary>True when the Engine's library list could not be read. The libraries are then left exactly as they are.</summary>
+    [Parameter] public bool LibrariesUnavailable { get; set; }
     [Parameter] public EventCallback<(string Id, bool Value)> FeatureChanged { get; set; }
-    [Parameter] public EventCallback<(Guid Id, bool Value)> LibraryChanged { get; set; }
+
+    /// <summary>One tick on an area's Libraries list: the library and whether it is now hidden; answers true when it took effect.</summary>
+    [Parameter] public Func<Guid, bool, Task<bool>>? OnHiddenChanged { get; set; }
+
+    /// <summary>Asks the page to read the Engine's library list again.</summary>
+    [Parameter] public EventCallback RetryLibraries { get; set; }
+
+    /// <summary>Who the ticks belong to ("Hidden from Sam").</summary>
+    [Parameter] public string PersonName { get; set; } = string.Empty;
+
+    /// <summary>True on a phone: ticks are shown but disabled.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>True while a save is running.</summary>
+    [Parameter] public bool LibrariesBusy { get; set; }
 
     internal sealed record FeatureOption(string Id, string Label, string Description);
 }

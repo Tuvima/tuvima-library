@@ -73,7 +73,7 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
         Assert.Equal(["read", "watch"], FeaturesOf(check, people.Mom));
         Assert.Equal(["read"], FeaturesOf(check, people.Kid1));
         Assert.Equal(["watch"], FeaturesOf(check, people.Pat));
-        Assert.Equal(1, check.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_library_grants WHERE profile_id = @id", new { id = GuidSql.ToBlob(people.Mom) }));
+        Assert.Equal(1, check.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_library_hidden WHERE profile_id = @id", new { id = GuidSql.ToBlob(people.Mom) }));
         Assert.Equal("PG", check.ExecuteScalar<string>("SELECT content_limit FROM profiles WHERE id = @id", new { id = GuidSql.ToBlob(people.Kid1) }));
         Assert.Equal(1, check.ExecuteScalar<int>("SELECT is_default FROM households WHERE id = @id", new { id = GuidSql.ToBlob(people.Household1) }));
         Assert.Equal(0, check.ExecuteScalar<int>("SELECT is_default FROM households WHERE id = @id", new { id = GuidSql.ToBlob(people.Household2) }));
@@ -243,7 +243,7 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
             Grant(c, Kid1, "read");
             Grant(c, Pat, "watch");
             c.Execute(
-                "INSERT INTO profile_library_grants(profile_id,library_id,granted_at) VALUES(@id,@library,@now)",
+                "INSERT INTO profile_library_hidden(profile_id,library_id,created_at) VALUES(@id,@library,@now)",
                 new { id = GuidSql.ToBlob(Mom), library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
             c.Execute(
                 "INSERT INTO profile_admin_protections(profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at) VALUES(@id,1,'FixedDuration',30,1,@now)",

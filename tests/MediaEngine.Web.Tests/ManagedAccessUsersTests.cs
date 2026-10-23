@@ -7,6 +7,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     public ManagedAccessUsersTests()
     {
         Services.AddNativeUiServices();
+        Services.AddLocalization();
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddSingleton<IHttpClientFactory>(new ClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();

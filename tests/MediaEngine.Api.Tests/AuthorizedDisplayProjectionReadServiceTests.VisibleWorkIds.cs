@@ -24,11 +24,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task VisibleWorkIds_AreTheWorkIdsOfTheFullReadForAProfileLimitedByLibrary()
+    public async Task VisibleWorkIds_AreTheWorkIdsOfTheFullReadForAProfileWithALibraryHidden()
     {
         var shape = await SeedVisibleWorkShapeAsync();
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { shape.LibraryA });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { shape.LibraryB });
 
         var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
 
@@ -42,7 +42,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var shape = await SeedVisibleWorkShapeAsync();
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { shape.LibraryA, shape.LibraryB });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
 
         var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
 
@@ -59,7 +59,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var shape = await SeedVisibleWorkShapeAsync();
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { shape.LibraryA, shape.LibraryB });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid>());
         SetContentLimit(limit, allowUnrated);
 
         var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
@@ -87,7 +87,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var shape = await SeedVisibleWorkShapeAsync();
         var account = Guid.NewGuid();
-        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { shape.LibraryA });
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { shape.LibraryB });
         var raw = new ReaderBackedProjection(new DisplayWorkProjectionReader(_database), new DisplayVisibleWorkReader(_database));
         var service = CreateService(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId), raw);
 

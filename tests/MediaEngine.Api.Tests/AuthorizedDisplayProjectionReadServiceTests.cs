@@ -75,7 +75,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     public async Task RequestedNullOrDifferentProfileFailsClosedForJourneyAndStates()
     {
         var account = Guid.NewGuid(); var library = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
         var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
         var service = CreateService(HumanContext(account, profile), new StubRawProjection([], [Journey(library, "Book", profile)]));
         Assert.Empty(await service.LoadJourneyAsync(null, null, default));
@@ -104,7 +104,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     public async Task RecentLoadsOnlyLeadingShowsYetMatchesFullProjection()
     {
         var account = Guid.NewGuid(); var library = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen }, new HashSet<Guid>());
         var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
         var stamp = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         string At(int day) => stamp.AddDays(day).ToString("yyyy-MM-dd HH:mm:ss");
@@ -175,7 +175,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     public async Task RecentWindowsALargeShowYetKeepsCardIdenticalWithViewingProgress()
     {
         var account = Guid.NewGuid(); var library = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
         var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
         var show = Guid.NewGuid();
         var assets = new List<Guid>();
@@ -232,7 +232,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var otherLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid> { otherLibrary });
         var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
         var service = CreateService(context, new StubRawProjection(
             [
@@ -256,14 +256,14 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     }
 
     [Fact]
-    public async Task RechecksLiveGrantsAfterProjectionCacheHit()
+    public async Task RechecksLiveHiddenLibrariesAfterProjectionCacheHit()
     {
         var accountId = Guid.NewGuid();
         var allowedLibrary = Guid.NewGuid();
         var newlyAllowedLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid> { newlyAllowedLibrary });
         await InsertOwnedWorkAsync(allowedLibrary, "Allowed book");
         await InsertOwnedWorkAsync(newlyAllowedLibrary, "Other book");
         var raw = new CachedReaderProjection(new DisplayWorkProjectionReader(_database));
@@ -276,10 +276,13 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         await new ProfileAccessRepository(_database).ReplaceAccessAsync(
             MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { newlyAllowedLibrary },
+            new HashSet<Guid> { allowedLibrary },
             DateTimeOffset.UtcNow);
 
-        var second = Assert.Single(await service.LoadWorksAsync(CancellationToken.None));
+        // The next request builds its own service, so the hidden libraries are read again, live.
+        var nextRequest = CreateService(HumanContext(
+            accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId), raw);
+        var second = Assert.Single(await nextRequest.LoadWorksAsync(CancellationToken.None));
         Assert.Equal("Other book", second.Title);
         Assert.Equal(2, raw.WorkReadCount);
         Assert.Equal(1, raw.RepositoryReadCount);
@@ -314,7 +317,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var allowedLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid> { deniedLibrary });
         var workId = Guid.NewGuid();
         var deniedAsset = Guid.Parse("00000000-0000-4000-8000-000000000101");
         var allowedAsset = Guid.Parse("ffffffff-ffff-4fff-8fff-fffffffff102");
@@ -354,7 +357,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     public async Task BookFormatsPreferAuthorizedEpubOverAzw3EvenAfterExternalFormatProgress()
     {
         var accountId = Guid.NewGuid(); var allowedLibrary = Guid.NewGuid(); var deniedLibrary = Guid.NewGuid();
-        await CreateHumanAsync(accountId, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { allowedLibrary });
+        await CreateHumanAsync(accountId, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { deniedLibrary });
         var workId = Guid.NewGuid(); var epub = Guid.NewGuid(); var azw = Guid.NewGuid(); var denied = Guid.NewGuid();
         await InsertAssetForWorkAsync(workId, azw, allowedLibrary, "Book", createWork: true);
         await InsertAssetForWorkAsync(workId, epub, allowedLibrary, "Book", createWork: false);
@@ -393,7 +396,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var library = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { library });
+            new HashSet<Guid>());
         SetContentLimit(limit, allowUnrated);
         var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
         DisplayWorkRow Rated(string? rating) { var row = Work(library, "Movie"); row.ContentRating = rating; return row; }
@@ -416,7 +419,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var library = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-            new HashSet<Guid> { library });
+            new HashSet<Guid>());
         var family = await InsertOwnedWorkWithIdAsync(library, "Family film", "Movie");
         var adult = await InsertOwnedWorkWithIdAsync(library, "Adult film", "Movie");
         var show = await InsertOwnedWorkWithIdAsync(library, "Grown-up show", "TV");
@@ -461,7 +464,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var library = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { library });
+            new HashSet<Guid>());
         var mixed = await InsertOwnedWorkWithIdAsync(library, "Mixed ratings", "Movie");
         using (var connection = _database.CreateConnection())
         {
@@ -487,7 +490,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var library = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { library });
+            new HashSet<Guid>());
         var adult = await InsertOwnedWorkWithIdAsync(library, "Adult film", "Movie");
         using (var connection = _database.CreateConnection())
         {
@@ -514,7 +517,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var deniedLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid> { deniedLibrary });
         var allowedBook = await InsertOwnedWorkAsync(allowedLibrary, "Allowed book");
         var deniedBook = await InsertOwnedWorkAsync(deniedLibrary, "Denied book");
         var deniedMovie = await InsertOwnedWorkAsync(allowedLibrary, "Denied movie", "Movie");
@@ -539,7 +542,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var deniedLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid> { deniedLibrary });
         var allowed = await InsertOwnedWorkWithIdAsync(allowedLibrary, "Allowed book");
         var denied = await InsertOwnedWorkWithIdAsync(deniedLibrary, "Denied book");
         var allowedVariant = await InsertArtworkAsync(allowed.WorkId, "Work");
@@ -579,7 +582,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var allowedLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid>());
         await InsertOwnedWorkAsync(allowedLibrary, "Allowed book", "Book");
         await InsertOwnedWorkAsync(allowedLibrary, "Feature-denied movie", "Movies");
 
@@ -625,7 +628,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var allowedLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid>());
         var episode = await InsertOwnedWorkWithIdAsync(allowedLibrary, "Owned episode", "TV");
         var showId = Guid.NewGuid();
         var seasonId = Guid.NewGuid();
@@ -663,7 +666,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var deniedLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid> { deniedLibrary });
         var allowed = await InsertOwnedWorkWithIdAsync(allowedLibrary, "Allowed book");
         var denied = await InsertOwnedWorkWithIdAsync(deniedLibrary, "Denied book");
         var visiblePerson = Guid.NewGuid();
@@ -705,7 +708,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var deniedLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid> { deniedLibrary });
         var allowed = await InsertOwnedWorkWithIdAsync(allowedLibrary, "Allowed character work");
         var denied = await InsertOwnedWorkWithIdAsync(deniedLibrary, "Denied character work");
         var actorId = Guid.NewGuid();
@@ -770,7 +773,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var allowedLibrary = Guid.NewGuid();
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary });
+            new HashSet<Guid> { deniedLibrary });
         var work = await InsertOwnedWorkWithIdAsync(deniedLibrary, "Denied edition", "Books");
         var allowedEditionId = Guid.NewGuid();
         var allowedAssetId = Guid.NewGuid();
@@ -1303,9 +1306,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     {
         var account = Guid.NewGuid();
         var library = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
         var allowed = Work(library, "Book");
-        var denied = Work(Guid.NewGuid(), "Book");
+        var deniedLibrary = Guid.NewGuid();
+        await HideLibraryFromAsync(account, deniedLibrary);
+        var denied = Work(deniedLibrary, "Book");
         await InsertAssetForWorkAsync(allowed.WorkId, allowed.AssetId, library, "Allowed", createWork: true);
         await InsertAssetForWorkAsync(denied.WorkId, denied.AssetId, Guid.Parse(denied.LibraryId!), "Denied", createWork: true);
         var context = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
@@ -1382,7 +1387,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     public async Task FreshRecentCatalogueUsesSavedPartialStateAndAlbumHasNoCompletionBar()
     {
         var account = Guid.NewGuid(); var library = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Listen }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Listen }, new HashSet<Guid>());
         var book = await InsertOwnedWorkWithIdAsync(library, "Recent book", "Book");
         var music = await InsertOwnedWorkWithIdAsync(library, "Track", "Music");
         var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
@@ -1404,7 +1409,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     public async Task RecentUsesLatestAuthorizedLibraryAdditionAndIgnoresNewerDeniedVariant()
     {
         var account = Guid.NewGuid(); var firstLibrary = Guid.NewGuid(); var secondLibrary = Guid.NewGuid(); var deniedLibrary = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { firstLibrary, secondLibrary });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { deniedLibrary });
         var shared = await InsertOwnedWorkWithIdAsync(firstLibrary, "Shared work");
         var before = await InsertOwnedWorkWithIdAsync(firstLibrary, "Before"); var after = await InsertOwnedWorkWithIdAsync(firstLibrary, "After");
         using var connection = _database.CreateConnection();
@@ -1519,7 +1524,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     {
         var account = Guid.NewGuid();
         var library = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
         var combined = await InsertOwnedWorkWithIdAsync(library, "Pilot", "TV");
         var covered = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
@@ -1546,7 +1551,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var account = Guid.NewGuid();
         var library = Guid.NewGuid();
         var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
         var combined = await InsertOwnedWorkWithIdAsync(library, "Pilot", "TV");
         var next = await InsertOwnedWorkWithIdAsync(library, "Third", "TV");
         var covered = Guid.NewGuid();
@@ -1623,7 +1628,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var account = Guid.NewGuid();
         var library = Guid.NewGuid();
         var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
         var single = await InsertOwnedWorkWithIdAsync(library, "Movie night", "TV");
         var context = HumanContext(account, profile);
         using var services = new ServiceCollection()
@@ -1646,14 +1651,15 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
 
     private AuthorizedDisplayProjectionReadService CreateService(
         DefaultHttpContext context,
-        IRawDisplayProjectionReadService raw)
+        IRawDisplayProjectionReadService raw,
+        IConfigurationLoader? configuration = null)
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var unlocks = new GrantAdminUnlockService(
             new ProfileAccessRepository(_database),
             new StubProfilePins(),
             TimeProvider.System);
-        var decisions = new AccountAccessDecisionService(new ProfileAccessRepository(_database), unlocks);
+        var decisions = new AccountAccessDecisionService(new ProfileAccessRepository(_database), unlocks, new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var evaluator = new AuthorizationEvaluator(
             decisions,
             _applications,
@@ -1666,7 +1672,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new RequestAuthorityResolver(_accounts, _applications),
             new ProfileAccessRepository(_database),
             evaluator,
-            _database);
+            _database,
+            configuration);
     }
 
     private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context)
@@ -1677,7 +1684,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new GrantAdminUnlockService(
                 new ProfileAccessRepository(_database),
                 new StubProfilePins(),
-                TimeProvider.System));
+                TimeProvider.System),
+            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         return new CatalogueResourceAuthorizationService(
             _database,
             new RequestAuthorityResolver(_accounts, _applications),
@@ -1693,7 +1701,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     private Task CreateHumanAsync(
         Guid accountId,
         IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries,
+        IReadOnlySet<Guid> hiddenLibraries,
         bool administrator = false,
         MediaEngine.Domain.Aggregates.Profile? ownProfile = null) =>
         _accounts.CreateAccountAsync(
@@ -1709,8 +1717,18 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             },
             new TestGrant(accountId, ownProfile?.Id ?? MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator),
             features,
-            libraries,
+            hiddenLibraries,
             newProfile: ownProfile);
+
+    /// <summary>An administrator hides one more library from the person's profile, as the person's page does (the others stay as they are).</summary>
+    private async Task HideLibraryFromAsync(Guid accountId, Guid libraryId)
+    {
+        var profileId = (await _accounts.GetByIdAsync(accountId))!.ProfileId;
+        var access = new ProfileAccessRepository(_database);
+        var hidden = (await access.GetHiddenLibrariesAsync(profileId)).ToHashSet();
+        hidden.Add(libraryId);
+        await access.ReplaceAccessAsync(profileId, await access.GetFeatureGrantsAsync(profileId), hidden, DateTimeOffset.UtcNow);
+    }
 
     private static DefaultHttpContext HumanContext(Guid accountId, Guid profileId) =>
         new()

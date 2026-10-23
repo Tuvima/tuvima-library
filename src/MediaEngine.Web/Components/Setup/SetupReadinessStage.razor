@@ -49,7 +49,8 @@
                 <p><b>Next step:</b> @NextStep(tool)</p>
             </AppAlert>
         }
-        @* Optional tools never stop setup, so they are quiet info boxes (no warning colour), each with a way to get it now. *@
+        @* Optional tools never stop setup, so they are quiet info boxes (no warning colour). Local AI is not part of setup: its
+           models are large and are chosen after setup, in Settings. *@
         @foreach (var tool in OptionalTools)
         {
             <AppAlert Tone="AppUiTone.Info" Class="setup-tool-info" data-tool-id="@tool.Id">
@@ -58,6 +59,10 @@
                 @if (tool.State == ToolRequirementStates.Downloading)
                 {
                     <p>@(tool.DownloadPercent is { } percent ? $"Downloading ({percent}%). Library finishes this in the background." : "Downloading. Library finishes this in the background.")</p>
+                }
+                else if (tool.State == ToolRequirementStates.InstallerReady)
+                {
+                    <p>Downloaded. After setup, open Settings, Tools and requirements and choose Run installer.</p>
                 }
                 else
                 {
@@ -111,18 +116,16 @@
         ? "None. Library finishes this in the background."
         : "Open your library, then go to Settings, Tools and requirements to install it.";
 
-    // Optional tools and the Local AI models are only offered; none of them blocks setup.
+    // Optional tools are only offered; none of them blocks setup. Local AI models are left out on purpose.
     private IReadOnlyList<ToolRequirementDto> OptionalTools => Tools?.Tools
         .Where(tool => tool.State != ToolRequirementStates.Ready
-            && (tool.Kind == "ai_model" || tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Optional))
+            && tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Optional)
         .ToList() ?? [];
 
-    private static string OptionalHeadline(ToolRequirementDto tool) => tool.Kind == "ai_model" ? $"Local AI: {tool.Name}" : tool.Name;
+    private static string OptionalHeadline(ToolRequirementDto tool) => tool.Name;
 
     private static string OptionalNote(ToolRequirementDto tool) =>
-        tool.Id == ToolRequirementIds.Tesseract ? TesseractNote
-        : tool.Kind == "ai_model" ? "Optional. Runs only on this computer and never sends your media anywhere. If the model file is already in the models folder, it is used instead of downloading it again."
-        : tool.Effect;
+        tool.Id == ToolRequirementIds.Tesseract ? TesseractNote : tool.Effect;
 
     private static bool ShowRow(SetupCapabilityDto item) => item.Key != "readiness" && (item.Key != "preflight" || item.Status == "blocked");
     private static string CapabilityLabel(string key) => key switch { "server" => "Server", "preflight" => "Server check", "administrator" => "Your Account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };

@@ -89,9 +89,9 @@ public sealed class UserExportImportTests : IDisposable
         var export = Export(source, maya);
 
         var names = export.Tables.Select(table => table.Table).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        // Read/Watch/Listen/View travel (an import applies them only when asked); library access and administrator settings never do.
+        // Read/Watch/Listen/View travel (an import applies them only when asked); hidden libraries and administrator settings never do.
         Assert.Contains("profile_feature_grants", names);
-        Assert.DoesNotContain("profile_library_grants", names);
+        Assert.DoesNotContain("profile_library_hidden", names);
         Assert.DoesNotContain("profile_admin_protections", names);
         Assert.DoesNotContain("auth_sessions", names);
         Assert.DoesNotContain("account_invitations", names);
@@ -168,7 +168,7 @@ public sealed class UserExportImportTests : IDisposable
         Assert.Equal(1, source.Scalar("SELECT is_server_admin FROM profiles WHERE display_name = 'Maya'"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_server_admin = 1 OR is_household_admin = 1"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_feature_grants"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_library_grants"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_library_hidden"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE role = 'Administrator' AND display_name LIKE 'Maya%'"));
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
         Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM accounts WHERE profile_id = {Blob(maya.Profiles[0])}"));
@@ -634,7 +634,7 @@ public sealed class UserExportImportTests : IDisposable
         Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(kid.Profiles[0])} AND is_household_admin = 0 AND role = 'RestrictedProfile' AND content_limit = 'PG'"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_server_admin = 1"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_feature_grants"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_library_grants"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_library_hidden"));
         Assert.Equal(2, target.Scalar("SELECT COUNT(*) FROM accounts"));
         Assert.Equal(source.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(kid.Account)),
             target.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(kid.Account)));
@@ -679,7 +679,7 @@ public sealed class UserExportImportTests : IDisposable
         var kept = NewStore();
         ImportInto(kept, export, choices => choices with { KeepAccess = true });
         Assert.Equal(["listen", "read"], kept.Texts("SELECT feature_id FROM profile_feature_grants ORDER BY feature_id"));
-        Assert.Equal(0, kept.Scalar("SELECT COUNT(*) FROM profile_library_grants"));
+        Assert.Equal(0, kept.Scalar("SELECT COUNT(*) FROM profile_library_hidden"));
     }
 
     [Fact]
@@ -943,7 +943,7 @@ public sealed class UserExportImportTests : IDisposable
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
         var export = Export(source, maya);
         var grants = new BackupExportTable(
-            "profile_library_grants",
+            "profile_library_hidden",
             BackupDataKind.Configuration,
             ["profile_id", "library_id", "granted_at"],
             [[BackupValue.FromBlob(GuidSql.ToBlob(maya.Profiles[0])), BackupValue.FromBlob(GuidSql.ToBlob(Guid.NewGuid())), BackupValue.FromText(Stamp)]]);
@@ -1306,7 +1306,7 @@ public sealed class UserExportImportTests : IDisposable
                 new { id = GuidSql.ToBlob(Guid.NewGuid()), account = accountBlob, hash = "HASH-" + Guid.NewGuid().ToString("N"), now = Stamp });
             Run("INSERT INTO account_notice_dismissals (account_id, notice_key, dismissed_at) VALUES (@account, 'secure-account', @now)", new { account = accountBlob, now = Stamp });
             Run("INSERT INTO profile_feature_grants (profile_id, feature_id, granted_at) VALUES (@profile, 'read', @now)", new { profile = GuidSql.ToBlob(profiles[0]), now = Stamp });
-            Run("INSERT INTO profile_library_grants (profile_id, library_id, granted_at) VALUES (@profile, @library, @now)", new { profile = GuidSql.ToBlob(profiles[0]), library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
+            Run("INSERT INTO profile_library_hidden (profile_id, library_id, created_at) VALUES (@profile, @library, @now)", new { profile = GuidSql.ToBlob(profiles[0]), library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
             if (twoStepSecret is not null)
             {
                 Run("INSERT INTO account_two_step (account_id, secret_protected, created_at) VALUES (@account, @secret, @now)", new { account = accountBlob, secret = twoStepSecret, now = Stamp });

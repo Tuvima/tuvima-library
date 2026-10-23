@@ -468,14 +468,14 @@ public sealed class PlaybackTelemetryRepository(
         parameters.Add("accountId", scope.AccountId);
         parameters.Add("profileId", scope.ProfileId);
         parameters.Add("allLibraries", scope.AllLibraries);
-        parameters.Add("libraryHex", scope.LibraryIds.Select(id => Convert.ToHexString(GuidSql.ToBlob(id))).ToArray());
+        parameters.Add("hiddenHex", scope.HiddenLibraryIds.Select(id => Convert.ToHexString(GuidSql.ToBlob(id))).ToArray());
         parameters.Add("features", scope.Features.Select(feature => feature.Value).ToArray());
         parameters.Add("from", from.HasValue ? Iso(from.Value) : null);
         parameters.Add("to", to.HasValue ? Iso(to.Value) : null);
         return new("""
             (@allAccounts=1 OR account_id=@accountId)
             AND (@profileId IS NULL OR profile_id=@profileId)
-            AND (@allLibraries=1 OR HEX(library_id) IN @libraryHex)
+            AND (@allLibraries=1 OR HEX(library_id) NOT IN @hiddenHex)
             AND HEX(library_id) NOT IN (SELECT UPPER(REPLACE(library_id, '-', '')) FROM vault_libraries)
             AND feature_id IN @features
             AND (@from IS NULL OR started_at>=@from)
@@ -484,7 +484,7 @@ public sealed class PlaybackTelemetryRepository(
     }
 
     private static bool CanRead(PlaybackTelemetryReadScope scope) =>
-        scope.IsAllowed && scope.Features.Count > 0 && (scope.AllLibraries || scope.LibraryIds.Count > 0) &&
+        scope.IsAllowed && scope.Features.Count > 0 &&
         (scope.AllAccounts || scope.AccountId.HasValue);
 
     private static void Validate(PlaybackTelemetryObservation value)

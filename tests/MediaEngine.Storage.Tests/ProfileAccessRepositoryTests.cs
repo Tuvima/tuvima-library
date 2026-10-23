@@ -43,7 +43,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
         Assert.Contains("authorization_version", Columns(connection, "profiles"));
         Assert.Contains("profile_id", Columns(connection, "accounts"));
         Assert.Contains("is_default", Columns(connection, "households"));
-        foreach (var table in new[] { "profile_feature_grants", "profile_library_grants", "profile_admin_protections", "profile_admin_unlocks" })
+        foreach (var table in new[] { "profile_feature_grants", "profile_library_hidden", "profile_admin_protections", "profile_admin_unlocks" })
         {
             Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=@table;", new { table }));
         }
@@ -63,11 +63,11 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
         Assert.True(await _access.ReplaceAccessAsync(profileId, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid> { libraryA, libraryB }, _now));
         Assert.Equal(2, (await _access.GetAdminFlagsAsync(profileId))!.AuthorizationVersion);
         Assert.Equal([AccountFeatureId.Read, AccountFeatureId.Watch], (await _access.GetFeatureGrantsAsync(profileId)).OrderBy(feature => feature.Value));
-        Assert.Equal(new[] { libraryA, libraryB }.Order(), (await _access.GetLibraryGrantsAsync(profileId)).Order());
+        Assert.Equal(new[] { libraryA, libraryB }.Order(), (await _access.GetHiddenLibrariesAsync(profileId)).Order());
 
         Assert.True(await _access.ReplaceAccessAsync(profileId, new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>(), _now));
         Assert.Equal([AccountFeatureId.Listen], await _access.GetFeatureGrantsAsync(profileId));
-        Assert.Empty(await _access.GetLibraryGrantsAsync(profileId));
+        Assert.Empty(await _access.GetHiddenLibrariesAsync(profileId));
 
         Assert.True(await _access.SetAdminFlagsAsync(profileId, isServerAdministrator: true, isHouseholdAdministrator: true, _now));
         var after = (await _access.GetAdminFlagsAsync(profileId))!;
@@ -92,7 +92,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task TheVault_CanNeverBeGivenToAProfileAsALibrary()
+    public async Task TheVault_CanNeverBeHiddenFromOrShownToAProfileAsALibrary()
     {
         var profileId = InsertProfile();
         var vault = Guid.NewGuid();
@@ -104,7 +104,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             _access.ReplaceAccessAsync(profileId, new HashSet<AccountFeatureId>(), new HashSet<Guid> { vault }, _now));
-        Assert.Empty(await _access.GetLibraryGrantsAsync(profileId));
+        Assert.Empty(await _access.GetHiddenLibrariesAsync(profileId));
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
         Assert.Null(await _accounts.GetByIdAsync(userId));
         Assert.Null(await _access.FindUserIdOfProfileAsync(profileId));
         Assert.Empty(await _access.GetFeatureGrantsAsync(profileId));
-        Assert.Empty(await _access.GetLibraryGrantsAsync(profileId));
+        Assert.Empty(await _access.GetHiddenLibrariesAsync(profileId));
         Assert.Null(await _access.GetAdminProtectionAsync(profileId));
         Assert.Null(await _access.GetAdminUnlockAsync(sessionId, profileId, _now));
         Assert.NotNull(await _accounts.GetByIdAsync(sparedUser));
@@ -289,7 +289,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
         Assert.True(flags.IsServerAdministrator);
         Assert.True(flags.IsHouseholdAdministrator);
         Assert.Equal(AccountFeatureId.All.OrderBy(feature => feature.Value), (await _access.GetFeatureGrantsAsync(profile.Id)).OrderBy(feature => feature.Value));
-        Assert.Equal([library], await _access.GetLibraryGrantsAsync(profile.Id));
+        Assert.Equal([library], await _access.GetHiddenLibrariesAsync(profile.Id));
         Assert.Equal(account.Id, await _access.FindUserIdOfProfileAsync(profile.Id));
         Assert.Equal(profile.Id, (await _accounts.GetByIdAsync(account.Id))!.ProfileId);
         var householdId = (await new HouseholdRepository(_database).GetForAccountAsync(account.Id))!.Id;

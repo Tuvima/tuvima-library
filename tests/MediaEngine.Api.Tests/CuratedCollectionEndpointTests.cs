@@ -450,7 +450,7 @@ public sealed class CuratedCollectionEndpointTests : IDisposable
             RequestAuthority authority, Guid requestedLibraryId, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(requestedLibraryId == libraryId
                 ? AuthorizationDecision.Allow()
-                : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant));
+                : AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible));
 
         public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(
             RequestAuthority authority, bool requireSurfaceUnlock, CancellationToken cancellationToken = default) =>

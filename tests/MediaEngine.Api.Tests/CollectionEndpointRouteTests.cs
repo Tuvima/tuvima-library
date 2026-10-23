@@ -102,6 +102,22 @@ public sealed class CollectionEndpointRouteTests
     }
 
     [Fact]
+    public void TheGroupReadsNarrowByLibraryAndUnmatchedAfterAuthorizationLikeBrowseDoes()
+    {
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));
+
+        foreach (var route in new[] { "group.MapGet(\"/content-groups\"", "group.MapGet(\"/system-views\"" })
+        {
+            var start = source.IndexOf(route, StringComparison.Ordinal);
+            Assert.True(start >= 0, route);
+            var body = source[start..source.IndexOf(".WithName(", start, StringComparison.Ordinal)];
+            Assert.Contains("Guid? libraryId", body, StringComparison.Ordinal);
+            Assert.Contains("bool? unmatched", body, StringComparison.Ordinal);
+            Assert.Contains("BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct)", body, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void TvSystemViewsExposeRootWorkIdsForWatchShowDetails()
     {
         var collectionSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));

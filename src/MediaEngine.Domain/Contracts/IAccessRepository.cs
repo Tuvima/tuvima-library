@@ -67,8 +67,8 @@ public interface IAccountAccessMutationRepository
     /// <summary>
     /// Adds a person (a profile without a user) to a household. Refused when the household is full.
     /// <paramref name="accessFromProfileId"/> is the profile of whoever is adding them: the new person starts with that profile's
-    /// Read/Watch/Listen/View access and libraries (View off and no libraries when it is in another household).
-    /// <see langword="null"/> gives every feature and no library. Never an administrator role.
+    /// Read/Watch/Listen/View access and hidden libraries (View off and nothing hidden when it is in another household).
+    /// <see langword="null"/> gives every feature and nothing hidden. Never an administrator role.
     /// </summary>
     Task CreateHouseholdPersonAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
@@ -124,7 +124,7 @@ public sealed record ProfileAdminProtectionCommand(
 /// <see cref="NewHouseholdName"/> whose first profile looks after it. With neither, a new household with the default name is made
 /// (first start only). <see cref="SetUpProfile"/> applies the same set-up to the existing profile a user opens (the first start,
 /// where the Owner profile becomes the first server administrator's). A profile that is set up takes <see cref="IsServerAdministrator"/>,
-/// the household administrator role when its household was just made for it, and <see cref="Features"/> and <see cref="Libraries"/>
+/// the household administrator role when its household was just made for it, and <see cref="Features"/> and <see cref="HiddenLibraries"/>
 /// (the Vault is refused as a library). Any other existing profile keeps exactly what it has.
 /// </summary>
 public sealed record NewUserPlacement(
@@ -134,7 +134,7 @@ public sealed record NewUserPlacement(
     bool SetUpProfile = false,
     bool IsServerAdministrator = false,
     IReadOnlySet<AccountFeatureId>? Features = null,
-    IReadOnlySet<Guid>? Libraries = null);
+    IReadOnlySet<Guid>? HiddenLibraries = null);
 
 /// <summary>An invitation just made. <paramref name="Code"/> is shown as <c>XXXXX-XXXXX</c> and is never available again.</summary>
 public sealed record IssuedAccountInvitation(
@@ -239,10 +239,12 @@ public interface IAccountAccessMutationService
     /// <summary>What <see cref="DeleteUserAsync"/> would do, and whether it would be refused, for the confirmation. Changes nothing.</summary>
     Task<UserDeletionPreview> PreviewDeleteUserAsync(RequestAuthority actor, Guid userId, CancellationToken ct = default);
     /// <summary>
-    /// Replaces the Read/Watch/Listen/View and library access of a profile. A server administrator may set anything; a household
-    /// administrator only within their own household, only what their own profile holds, and never on a server administrator's profile.
+    /// Replaces the Read/Watch/Listen/View access and the hidden libraries of a profile (every library in its areas is visible unless
+    /// hidden, simpler access D2). A server administrator may set anything; a household administrator only within their own household,
+    /// only features their own profile holds, only libraries visible to their own profile (they cannot show what is hidden from
+    /// themselves, simpler access D4), and never on a server administrator's profile.
     /// </summary>
-    Task ReplaceProfileAccessAsync(RequestAuthority actor, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, CancellationToken ct = default);
+    Task ReplaceProfileAccessAsync(RequestAuthority actor, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, CancellationToken ct = default);
     /// <summary>
     /// Sets the household administrator and server administrator roles of a profile (D15, D17). A household administrator may change
     /// the household administrator role of profiles in their own household; only a server administrator changes the server

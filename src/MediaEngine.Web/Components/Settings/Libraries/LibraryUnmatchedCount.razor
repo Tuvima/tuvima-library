@@ -1,0 +1,15 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Formatting
+
+@* The small amber count of files a library could not match (Library setup D22, D34); nothing at all when there are none. *@
+@if (Count > 0)
+{
+    var text = LibraryKindLook.UnmatchedText(Count);
+    <AppTooltip Text="@text" Placement="AppPlacement.Top">
+        <span class="lib-unmatched" role="img" tabindex="0" aria-label="@text" data-unmatched="@Count">@DisplayFormat.FormatCount(Count)</span>
+    </AppTooltip>
+}
+
+@code {
+    [Parameter] public int Count { get; set; }
+}

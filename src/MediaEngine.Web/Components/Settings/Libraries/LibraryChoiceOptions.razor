@@ -1,0 +1,63 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+
+@* "Which library?" for a kind that holds several named libraries (D51): an existing library by name, or a new custom one. Add folder's
+   library step and the file-drop dialog both ask it from here. *@
+<h3 class="add-wizard__question" id="@HeadingId">Which library?</h3>
+<div class="add-wizard__options" role="radiogroup" aria-labelledby="@HeadingId">
+    @foreach (var library in Libraries)
+    {
+        @Option(library.Id, string.IsNullOrWhiteSpace(library.Name) ? FallbackName : library.Name)
+    }
+    @if (CanAddLibrary)
+    {
+        @Option(NewChoice, "New custom library")
+    }
+</div>
+@if (!CanAddLibrary && !string.IsNullOrWhiteSpace(LimitText))
+{
+    <p class="add-wizard__lead" data-library-limit>@LimitText</p>
+}
+@if (Choice == NewChoice && AskForName)
+{
+    <div class="add-wizard__options add-wizard__field">
+        <AppTextField Label="Library name" Value="@NewLibraryName" ValueChanged="@((string? value) => NewLibraryNameChanged.InvokeAsync(value ?? string.Empty))" />
+    </div>
+}
+
+@code {
+    /// <summary>The answer that means a new custom library; an existing library's answer is its id.</summary>
+    public const string NewChoice = "new";
+
+    [Parameter, EditorRequired] public IReadOnlyList<LibraryFolderDto> Libraries { get; set; } = [];
+    /// <summary>The name to show for a library that has none (the kind's own name).</summary>
+    [Parameter, EditorRequired] public string FallbackName { get; set; } = string.Empty;
+    /// <summary>False when the kind is at its limit of libraries, so "New custom library" is not offered.</summary>
+    [Parameter] public bool CanAddLibrary { get; set; } = true;
+    /// <summary>What to say when the limit is reached.</summary>
+    [Parameter] public string? LimitText { get; set; }
+    [Parameter] public string? Choice { get; set; }
+    [Parameter] public EventCallback<string?> ChoiceChanged { get; set; }
+    /// <summary>True when a new custom library is named right here (Add folder); false when the host handles it.</summary>
+    [Parameter] public bool AskForName { get; set; } = true;
+    [Parameter] public string NewLibraryName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> NewLibraryNameChanged { get; set; }
+    /// <summary>Makes the heading's id unique when two of these are on one screen.</summary>
+    [Parameter] public string HeadingId { get; set; } = "add-wizard-library";
+
+    // One radio card for a library the folder or file can join: an existing library by name, or a new custom one.
+    private RenderFragment Option(string choice, string title) => __builder =>
+    {
+        var selected = Choice == choice;
+        <div class="add-wizard__option">
+            <AppNativeButton Type="button"
+                             role="radio"
+                             Class="@(selected ? "add-wizard__choice is-selected" : "add-wizard__choice")"
+                             data-library="@choice"
+                             aria-checked="@(selected ? "true" : "false")"
+                             OnClick="@(_ => ChoiceChanged.InvokeAsync(choice))">
+                <strong>@title</strong>
+            </AppNativeButton>
+        </div>
+    };
+}

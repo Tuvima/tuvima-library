@@ -231,7 +231,7 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
             },
             new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator),
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { _ordinaryLibrary });
+            new HashSet<Guid>());
         await _identities.InsertSessionAsync(new AuthSession
         {
             Id = _sessionId,

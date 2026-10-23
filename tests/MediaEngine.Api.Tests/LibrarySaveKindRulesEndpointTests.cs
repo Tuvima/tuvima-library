@@ -43,6 +43,8 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     private readonly PluginCatalog _catalog;
     private readonly LibraryKindListService _kinds;
     private WebApplication? _app;
+    private bool _asAdministrator;
+    private readonly FirstCheckSpy _firstChecks = new();
 
     public LibrarySaveKindRulesEndpointTests()
     {
@@ -83,6 +85,72 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         {
             // A temp folder another process still holds is left for the OS to clean up.
         }
+    }
+
+    [Fact]
+    public async Task TheLibrariesList_GivesAnAdministratorEachLibrarysUnmatchedCount_AndAnyoneElseNone()
+    {
+        var baseline = _loader.LoadLibraries();
+        var movies = Standard("movies", "Movies", LibraryAreas.Watch, "Movies");
+        movies.Id = "dddddddd-0000-4000-8000-000000000001";
+        baseline.Libraries = [movies];
+        _loader.SaveLibraries(baseline);
+
+        _asAdministrator = true;
+        var asAdministrator = await ReadLibrariesAsync();
+        _asAdministrator = false;
+        var asSomeoneElse = await ReadLibrariesAsync();
+
+        Assert.Equal(4, Assert.Single(asAdministrator.Libraries).UnmatchedCount);
+        Assert.Equal(0, Assert.Single(asSomeoneElse.Libraries).UnmatchedCount);
+    }
+
+    [Fact]
+    public async Task TheLibrariesList_GivesAnAdministratorEachSourcesFirstCheck_AndAnyoneElseNone()
+    {
+        var movies = Standard("movies", "Movies", LibraryAreas.Watch, "Movies");
+        const string sourceA = "eeeeeeee-0000-4000-8000-00000000000a";
+        const string sourceB = "eeeeeeee-0000-4000-8000-00000000000b";
+        movies.Sources = [new LibrarySourceConfig { Id = sourceA, Path = Path.Combine(_libraryRoot, "Movies") }, new LibrarySourceConfig { Id = sourceB, Path = Path.Combine(_libraryRoot, "More") }];
+        var baseline = _loader.LoadLibraries();
+        baseline.Libraries = [movies];
+        _loader.SaveLibraries(baseline);
+        _firstChecks.Running.Add(new MediaEngine.Domain.Models.FolderFirstCheckSnapshot(
+            new MediaEngine.Domain.Models.FolderFirstCheck(
+                sourceA, movies.Id, movies.Sources[0].Path, MediaEngine.Domain.Models.FolderFirstCheckStates.Paused, 50, 30, DateTimeOffset.UtcNow, null),
+            300));
+
+        _asAdministrator = true;
+        var asAdministrator = Assert.Single((await ReadLibrariesAsync()).Libraries).Sources;
+        _asAdministrator = false;
+        var asSomeoneElse = Assert.Single((await ReadLibrariesAsync()).Libraries).Sources;
+
+        var paused = asAdministrator.Single(source => source.Id == sourceA).FirstCheck!;
+        Assert.Equal(("paused", 50, 30, 300), (paused.State, paused.Tried, paused.Unmatched, paused.TotalFiles));
+        Assert.Null(asAdministrator.Single(source => source.Id == sourceB).FirstCheck);
+        Assert.All(asSomeoneElse, source => Assert.Null(source.FirstCheck));
+    }
+
+    [Theory]
+    [InlineData(SettingsSave)]
+    [InlineData(SetupSave)]
+    [InlineData(Mutation)]
+    public async Task ANewFolderInALookupLibrary_GetsAFirstCheck_ThroughEveryDoor_AndAPlainKindDoesNot(string door)
+    {
+        var moviesFolder = Directory.CreateDirectory(Path.Combine(_libraryRoot, "Movies")).FullName;
+        var clipsFolder = Directory.CreateDirectory(Path.Combine(_libraryRoot, "Clips")).FullName;
+        var movies = Standard("movies", "Movies", LibraryAreas.Watch, "Movies");
+        const string moviesSource = "eeeeeeee-0000-4000-8000-0000000000c1";
+        const string clipsSource = "eeeeeeee-0000-4000-8000-0000000000c2";
+        movies.Sources = [new LibrarySourceConfig { Id = moviesSource, Path = moviesFolder }];
+        var clips = Other("Clips");
+        clips.Sources = [new LibrarySourceConfig { Id = clipsSource, Path = clipsFolder }];
+
+        var first = await SaveAsync(door, [], movies);
+        var second = await SaveAsync(door, [movies], clips);
+
+        Assert.Equal((200, 200), (first.Status, second.Status));
+        Assert.Equal([(movies.Id, moviesSource, moviesFolder)], _firstChecks.Started);
     }
 
     [Theory]
@@ -268,6 +336,13 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         };
     }
 
+    private async Task<LibrariesConfigurationDto> ReadLibrariesAsync()
+    {
+        var read = await SendAsync("GET", "/settings/libraries", new object());
+        Assert.Equal(200, read.Status);
+        return JsonSerializer.Deserialize<LibrariesConfigurationDto>(read.Text)!;
+    }
+
     private static UpdateLibrariesRequest ToUpdate(LibrariesConfigurationDto dto) => new()
     {
         SchemaVersion = dto.SchemaVersion,
@@ -332,8 +407,13 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         // Only used to check a custom file naming template, which these libraries do not have.
         builder.Services.AddSingleton(NothingThere.Create<IFileOrganizer>());
         builder.Services.AddSingleton(new SetupSessionService(null!, null!, TimeProvider.System));
-        builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthority());
+        builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthority(() => _asAdministrator));
+        builder.Services.AddSingleton(sp => new MediaEngine.Api.Services.Unmatched.UnmatchedCountService(
+            new UnmatchedCountsSpy(), sp.GetRequiredService<IVaultLibraryRepository>()));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AllowEverything());
+        builder.Services.AddSingleton(_firstChecks);
+        builder.Services.AddSingleton(sp => new FolderFirstCheckService(
+            sp.GetRequiredService<FirstCheckSpy>(), _loader, NullLogger<FolderFirstCheckService>.Instance));
         var app = builder.Build();
         app.MapSettingsEndpoints();
         app.MapSetupEndpoints();
@@ -356,9 +436,18 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         public bool CanHaveBody => true;
     }
 
-    private sealed class FixedAuthority : IRequestAuthorityResolver
+    private sealed class FixedAuthority(Func<bool> asAdministrator) : IRequestAuthorityResolver
     {
-        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) => ValueTask.FromResult(new RequestAuthority(
+        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) => ValueTask.FromResult(asAdministrator()
+            ? new RequestAuthority(
+                PrincipalKind.Human,
+                true,
+                AccountId: Guid.NewGuid(),
+                ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
+                AccountEnabled: true,
+                ActiveProfileInUserHousehold: true,
+                ActiveProfileIsServerAdministrator: true)
+            : new RequestAuthority(
             PrincipalKind.DelegatedUserClient,
             true,
             AccountId: Guid.NewGuid(),
@@ -371,6 +460,62 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
             AccountAuthorizationVersion: 1,
             ProfileAuthorizationVersion: 1,
             ApplicationAuthorizationVersion: 1));
+    }
+
+    /// <summary>Two libraries with Unmatched files, as the data store would count them.</summary>
+    /// <summary>Records the first checks a save starts and drops, and lists the ones the test says are running.</summary>
+    private sealed class FirstCheckSpy : IFolderFirstCheckRepository
+    {
+        public List<(string LibraryId, string SourceId, string Path)> Started { get; } = [];
+
+        public List<string> Dropped { get; } = [];
+
+        public List<MediaEngine.Domain.Models.FolderFirstCheckSnapshot> Running { get; } = [];
+
+        public Task<bool> StartAsync(string libraryId, string sourceId, string path, DateTimeOffset now, CancellationToken ct = default)
+        {
+            Started.Add((libraryId, sourceId, path));
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> DropAsync(string sourceId, CancellationToken ct = default)
+        {
+            Dropped.Add(sourceId);
+            return Task.FromResult(true);
+        }
+
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.FolderFirstCheckSnapshot>> ListOpenAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<MediaEngine.Domain.Models.FolderFirstCheckSnapshot>>(Running);
+
+        public Task<MediaEngine.Domain.Models.FolderFirstCheck?> GetAsync(string sourceId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.FolderFirstCheck>> ListCheckingAsync(CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<MediaEngine.Domain.Models.FolderFirstCheckProgress> GetProgressAsync(string sourceId, int firstFiles, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task RecordOutcomeAsync(Guid assetId, string outcome, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> PassAsync(string sourceId, int tried, int unmatched, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> PauseAsync(string sourceId, int tried, int unmatched, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> KeepGoingAsync(string sourceId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public bool IsHeld(string sourceId) => throw new NotSupportedException();
+    }
+
+    private sealed class UnmatchedCountsSpy : IUnmatchedAssetRepository
+    {
+        public Task<IReadOnlyDictionary<string, int>> CountByLibraryAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int> { ["dddddddd-0000-4000-8000-000000000001"] = 4, ["dddddddd-0000-4000-8000-000000000002"] = 9 });
+
+        public Task MarkUnmatchedAsync(Guid assetId, string libraryId, string reason, DateTimeOffset now, DateTimeOffset nextRetryAt, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedWorkLibrary>> ListWorkLibrariesAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedWorkFile>> ListOpenByWorksAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedAsset>> ListByAssetsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<MediaEngine.Domain.Models.UnmatchedAsset?> GetAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> KeepAsIsAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<int> KeepAllAsIsAsync(string libraryId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> LookUpAgainAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> MakeDueAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<int> MakeAllDueAsync(string? libraryId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedAsset>> ListDueAsync(DateTimeOffset now, int limit, string? libraryId = null, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task RecordTriedAsync(Guid assetId, DateTimeOffset now, DateTimeOffset nextRetryAt, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<MediaEngine.Domain.Models.UnmatchedAssetPage> ListByLibraryAsync(string libraryId, bool includeKept, int skip, int take, CancellationToken ct = default) => throw new NotSupportedException();
     }
 
     private sealed class AllowEverything : IAccountAccessDecisionService

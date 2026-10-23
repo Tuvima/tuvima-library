@@ -279,6 +279,10 @@
                     Saving="@_accessSaving"
                     Error="@_accessError"
                     Libraries="@_accessLibraries"
+                    LibrariesUnavailable="@_accessLibrariesUnavailable"
+                    ReadOnly="@DeviceContext.IsPhone"
+                    OnHiddenChanged="HiddenChangedAsync"
+                    OnRetryLibraries="RetryLibrariesAsync"
                     OfferedFeatureIds="@OfferedFeatureIds"
                     Person="@_managedPerson"
                     OnSave="SaveAccessAsync"
@@ -305,6 +309,7 @@
     private string? _editorError;
     private ManagedProfileResponse? _managedPerson;
     private List<AccessLibraryOptionDto> _accessLibraries = [];
+    private bool _accessLibrariesUnavailable;
     private bool _accessOpen;
     private bool _accessLoading;
     private bool _accessSaving;
@@ -381,11 +386,23 @@
 
             var lanes = ManagedAccessUserPermissions.Features
                 .Where(feature => person.FeatureIds?.Contains(feature.Id) == true)
-                .Select(feature => feature.Label)
                 .ToList();
-            var libraries = person.LibraryIds?.Count ?? 0;
-            var laneText = lanes.Count == 0 ? "No lanes" : string.Join(", ", lanes);
-            return $"{laneText} · {libraries} {(libraries == 1 ? "library" : "libraries")}";
+            var laneText = lanes.Count == 0 ? "No lanes" : string.Join(", ", lanes.Select(feature => feature.Label));
+            var hiddenIds = person.HiddenLibraryIds ?? [];
+            if (hiddenIds.Count == 0)
+            {
+                return $"{laneText} · all libraries";
+            }
+
+            var perLane = _accessLibrariesUnavailable
+                ? []
+                : lanes
+                    .Select(feature => (feature.Label, Count: _accessLibraries.Count(library =>
+                        string.Equals(library.Area, feature.Id, StringComparison.OrdinalIgnoreCase) && hiddenIds.Contains(library.Id))))
+                    .Where(entry => entry.Count > 0)
+                    .Select(entry => $"{entry.Label}: {entry.Count} hidden")
+                    .ToList();
+            return perLane.Count > 0 ? $"{laneText} · {string.Join(", ", perLane)}" : $"{laneText} · {hiddenIds.Count} hidden";
         }
     }
 
@@ -542,6 +559,11 @@
                 await NameChanged.InvokeAsync(_person.DisplayName);
                 await LoadSettingsAsync();
                 await LoadProtectionAsync();
+                if (ShowAccess && !_managedPerson!.IsServerAdmin)
+                {
+                    // The summary line names what is hidden per lane.
+                    await LoadLibrariesAsync();
+                }
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
@@ -652,8 +674,8 @@
         _accessOpen = true;
         try
         {
-            // The list is what this administrator may hand out, so a Library their own profile lacks is never offered.
-            _accessLibraries = await Identity.GetAccessLibrariesAsync();
+            // The list shows every Library; the ones hidden from this administrator's own profile can't be shown again by them.
+            await LoadLibrariesAsync();
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -663,6 +685,73 @@
         finally
         {
             _accessLoading = false;
+        }
+    }
+
+    // Reads the Engine's library picker. A failed read is "unavailable", never "empty": the libraries are then left as they are.
+    private async Task LoadLibrariesAsync()
+    {
+        var loaded = await Identity.GetAccessLibrariesAsync();
+        _accessLibrariesUnavailable = loaded is null;
+        _accessLibraries = loaded ?? [];
+    }
+
+    private async Task RetryLibrariesAsync()
+    {
+        try
+        {
+            await LoadLibrariesAsync();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the Libraries to choose from.");
+            _accessLibrariesUnavailable = true;
+        }
+    }
+
+    // One tick on a lane's Libraries list. It saves straight away: the lanes as they are saved now, and the hidden libraries with this
+    // one added or removed. The lanes still waiting for Save are not sent. Answers true when the Engine took it.
+    private async Task<bool> HiddenChangedAsync(Guid libraryId, bool hidden)
+    {
+        if (_accessSaving || !ShowAccess || DeviceContext.IsPhone || _accessLibrariesUnavailable || _managedPerson is not { } person)
+        {
+            return false;
+        }
+
+        var nextHidden = (person.HiddenLibraryIds ?? []).ToHashSet();
+        if (hidden)
+        {
+            nextHidden.Add(libraryId);
+        }
+        else
+        {
+            nextHidden.Remove(libraryId);
+        }
+
+        _accessSaving = true;
+        _accessError = null;
+        // Draw the busy state now, so the ticks read as disabled while this save is in flight.
+        StateHasChanged();
+        try
+        {
+            var lanes = (person.FeatureIds ?? []).Order().ToArray();
+            var result = await Confirmed.RunAsync(() => Identity.ReplaceProfileAccessResultAsync(
+                ProfileId, new ReplaceProfileAccessRequest(lanes, nextHidden.Order().ToArray())));
+            if (!result.Succeeded)
+            {
+                _accessError = AccessFailureMessage(result.Failure, result.Message);
+                return false;
+            }
+
+            await ReloadManagedAsync();
+            Toasts.Add(hidden ? $"Hidden from {PersonName}" : $"Shown to {PersonName}", AppSeverity.Success);
+            return true;
+        }
+        finally
+        {
+            _accessSaving = false;
+            // The tick was reported by the list, not by this page, so nothing else would draw the new saved state.
+            StateHasChanged();
         }
     }
 

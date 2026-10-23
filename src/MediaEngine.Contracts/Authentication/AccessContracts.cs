@@ -7,11 +7,17 @@ public sealed record AccountDeletionProfileDto(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("display_name")] string DisplayName);
 
+/// <summary>
+/// One library an administrator can hide from a person. <c>area</c> is <c>read</c>, <c>watch</c>, <c>listen</c> or <c>view</c>.
+/// <c>hidden_from_you</c> is true only in a household administrator's view, when the library is hidden from the administrator's own
+/// profile (they can hide it from others but never show it to anyone). A Vault library is never listed.
+/// </summary>
 public sealed record AccessLibraryOptionDto(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("display_name")] string DisplayName,
     [property: JsonPropertyName("category")] string? Category,
-    [property: JsonPropertyName("area")] string Area);
+    [property: JsonPropertyName("area")] string Area,
+    [property: JsonPropertyName("hidden_from_you")] bool HiddenFromYou = false);
 
 public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("id")] Guid Id,
@@ -27,7 +33,7 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("is_server_admin")] bool IsServerAdmin = false,
     [property: JsonPropertyName("is_household_admin")] bool IsHouseholdAdmin = false,
     [property: JsonPropertyName("feature_ids")] IReadOnlyList<string>? FeatureIds = null,
-    [property: JsonPropertyName("library_ids")] IReadOnlyList<Guid>? LibraryIds = null,
+    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid>? HiddenLibraryIds = null,
     [property: JsonPropertyName("user")] ManagedProfileUserDto? User = null);
 
 /// <summary>

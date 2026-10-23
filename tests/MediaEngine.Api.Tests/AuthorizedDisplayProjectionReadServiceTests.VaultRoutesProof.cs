@@ -57,7 +57,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultRoutes_TheMediaEditorFilter_AnswersAVaultItemExactlyLikeAMissingOne_ForEveryIdKind()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var context = VaultContext(shape.Account, NewVaultSession(shape.Account));
         var provider = new ServiceCollection().AddSingleton(CreateResourceService(context)).BuildServiceProvider();
         var filter = new CatalogueAnyEntityAccessFilter(ApplicationPermissionIds.MetadataRead, "entityId");
@@ -82,7 +82,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultRoutes_TheAccountGrantLibraryList_NeverOffersTheVault()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var all = EveryMappedRoute();
         var route = all.SingleOrDefault(endpoint =>
             endpoint.RoutePattern.RawText!.TrimEnd('/').EndsWith("/access/libraries", StringComparison.OrdinalIgnoreCase)
@@ -120,7 +120,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultRoutes_TheLibrarySettingsHelpers_LeaveTheVaultOutOfEveryList_AndKeepItOnSave()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var vaultId = shape.VaultLibrary.ToString("D");
         var stored = new LibrariesConfiguration
         {

@@ -43,7 +43,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData(false)]
     public async Task Bookmarks_OnlyAServerAdministratorCanShareOneWithEveryone(bool administrator)
     {
-        var shape = await SeedVaultAsync(administrator, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (player, scope) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
 
         Assert.Equal(administrator, await scope.IsServerAdministratorAsync(default));
@@ -68,7 +68,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Bookmarks_AGlobalBookmark_IsSeenByAStandardProfile_ButOnlyAnAdministratorCanDeleteIt()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (standard, _) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
         // Made earlier by an administrator (the profile here stands in for the maker).
         var shared = await new AudiobookBookmarkRepository(_database).CreateAsync(
@@ -83,7 +83,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Bookmarks_AnAdministrator_CanDeleteAGlobalBookmark()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (admin, _) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
         var shared = await admin.CreateAudiobookBookmarkAsync(null, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 300, global: true));
 
@@ -94,7 +94,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Bookmarks_OnAVaultVideo_AreNotFoundWhileLocked_AndReturnOnceUnlocked()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var (unlocked, _) = BookmarkPlayer(shape.Account, session);

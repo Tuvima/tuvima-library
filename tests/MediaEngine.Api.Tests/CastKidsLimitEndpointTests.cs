@@ -74,13 +74,7 @@ public sealed class CastKidsLimitEndpointTests : IAsyncLifetime
         var identities = new IdentityRepository(_database);
         var clients = new ClientAuthorizationRepository(_database);
         _paired = await PairedDevice.CreateAsync(_database, accounts, applications, DateTimeOffset.UtcNow);
-        using (var connection = _database.CreateConnection())
-        {
-            await connection.ExecuteAsync(
-                "INSERT INTO profile_library_grants (profile_id, library_id, granted_at) VALUES (@profileId, @libraryId, @at);",
-                new { profileId = Profile.SeedProfileId, libraryId = _libraryId, at = DateTimeOffset.UtcNow.ToString("O") });
-        }
-
+        // Nothing is hidden from the paired person, so the library is visible through the Watch area alone.
         _state = new PlaybackStateRepository(_database);
         _ratedRAsset = await SeedVideoAsync(RestrictedTitle, "R");
         _ratedGAsset = await SeedVideoAsync(FamilyTitle, "G");
@@ -123,6 +117,8 @@ public sealed class CastKidsLimitEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IPermissionRegistry, PermissionRegistry>();
         builder.Services.AddSingleton<IAuthorizationAuditWriter, DiscardingAuditWriter>();
         builder.Services.AddSingleton<IGrantAdminUnlockService, UnusedUnlockService>();
+        builder.Services.AddSingleton<IVaultLibraryRepository>(new VaultLibraryRepository(_database));
+        builder.Services.AddSingleton<LibraryVisibilityRule>();
         builder.Services.AddSingleton<IAccountAccessDecisionService, AccountAccessDecisionService>();
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AuthorizationEvaluator>();
         builder.Services.AddScoped<CatalogueResourceAuthorizationService>();

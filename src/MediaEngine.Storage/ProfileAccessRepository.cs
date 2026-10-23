@@ -23,20 +23,24 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
         return Task.FromResult<IReadOnlySet<AccountFeatureId>>(features);
     }
 
-    public Task<IReadOnlySet<Guid>> GetLibraryGrantsAsync(Guid profileId, CancellationToken ct = default)
+    public Task<IReadOnlySet<Guid>> GetHiddenLibrariesAsync(Guid profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
-        var libraries = conn.Query<Guid>("SELECT library_id FROM profile_library_grants WHERE profile_id=@profileId;", new { profileId })
+        var libraries = conn.Query<Guid>("SELECT library_id FROM profile_library_hidden WHERE profile_id=@profileId;", new { profileId })
             .ToFrozenSet();
         return Task.FromResult<IReadOnlySet<Guid>>(libraries);
     }
 
+    public async Task<bool> IsLibraryHiddenAsync(Guid profileId, Guid libraryId, CancellationToken ct = default) =>
+        (await GetHiddenLibrariesAsync(profileId, ct).ConfigureAwait(false)).Contains(libraryId);
+
     public Task<bool> ReplaceAccessAsync(
-        Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default)
+        Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, DateTimeOffset changedAt,
+        CancellationToken ct = default, Guid? changedByProfileId = null)
     {
         ArgumentNullException.ThrowIfNull(features);
-        ArgumentNullException.ThrowIfNull(libraries);
+        ArgumentNullException.ThrowIfNull(hiddenLibraries);
         return db.ExecuteWriteAsync((conn, tx, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -45,42 +49,43 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 return false;
             }
 
-            WriteAccessRows(conn, tx, profileId, features, libraries, changedAt);
+            WriteAccessRows(conn, tx, profileId, features, hiddenLibraries, changedAt, changedByProfileId);
             BumpAuthorizationVersion(conn, tx, profileId);
             return true;
         }, ct);
     }
 
     /// <summary>
-    /// Replaces a profile's Read/Watch/Listen/View and library rows on the caller's connection and transaction (the caller raises the
-    /// authorization version when the profile already existed). The Vault opens only through Vault mode, never through a library
-    /// grant (owner decision 2026-10-22).
+    /// Replaces a profile's Read/Watch/Listen/View and hidden-library rows on the caller's connection and transaction (the caller
+    /// raises the authorization version when the profile already existed). Every library in the profile's areas is visible unless
+    /// hidden here (simpler access D2). The Vault opens only through Vault mode, so it is never in the hidden list either
+    /// (owner decision 2026-10-22; simpler access D9).
     /// </summary>
     internal static void WriteAccessRows(
-        IDbConnection conn, IDbTransaction tx, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
-        DateTimeOffset changedAt)
+        IDbConnection conn, IDbTransaction tx, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries,
+        DateTimeOffset changedAt, Guid? changedByProfileId = null)
     {
         var vaultIds = conn.Query<string>("SELECT library_id FROM vault_libraries;", transaction: tx)
             .Select(text => Guid.TryParse(text, out var parsed) ? parsed : Guid.Empty)
             .ToHashSet();
-        if (libraries.Any(vaultIds.Contains))
+        if (hiddenLibraries.Any(vaultIds.Contains))
         {
-            throw new ArgumentException("The Vault can't be given to a profile as a library. It opens only through Vault mode.");
+            throw new ArgumentException("The Vault can't be hidden from or shown to a profile as a library. It opens only through Vault mode.");
         }
 
         var at = Iso(changedAt);
         conn.Execute("DELETE FROM profile_feature_grants WHERE profile_id=@profileId;", new { profileId }, tx);
-        conn.Execute("DELETE FROM profile_library_grants WHERE profile_id=@profileId;", new { profileId }, tx);
+        conn.Execute("DELETE FROM profile_library_hidden WHERE profile_id=@profileId;", new { profileId }, tx);
         foreach (var feature in features)
         {
             conn.Execute("INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,@feature,@at);",
                 new { profileId, feature = feature.Value, at }, tx);
         }
 
-        foreach (var libraryId in libraries)
+        foreach (var libraryId in hiddenLibraries)
         {
-            conn.Execute("INSERT INTO profile_library_grants(profile_id,library_id,granted_at) VALUES(@profileId,@libraryId,@at);",
-                new { profileId, libraryId, at }, tx);
+            conn.Execute("INSERT INTO profile_library_hidden(profile_id,library_id,created_at,created_by_profile_id) VALUES(@profileId,@libraryId,@at,@changedByProfileId);",
+                new { profileId, libraryId, at, changedByProfileId }, tx);
         }
     }
 

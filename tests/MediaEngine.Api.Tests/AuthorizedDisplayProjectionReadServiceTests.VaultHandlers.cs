@@ -51,7 +51,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultHandlers_TheOperationsList_NeverShowsAnOperationAboutAVaultFile_ByIdOrByPath()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var operations = new MediaOperationRepository(_database);
         var vaultById = await operations.EnsureAsync(OperationAbout(shape.Secret.AssetId, "/watch/by-id.mkv", "by-id"));
         var vaultByPath = await operations.EnsureAsync(OperationAbout(Guid.NewGuid(), $"{VaultOpsFolder}/by-path.mkv", "by-path"));
@@ -71,7 +71,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultHandlers_AVaultOperation_AnswersDetailRetryAndCancelExactlyLikeAMissingOne_AndNothingChanges()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var operations = new MediaOperationRepository(_database);
         var vaultById = await operations.EnsureAsync(OperationAbout(shape.Secret.AssetId, "/watch/by-id.mkv", "by-id-two"));
         var vaultByPath = await operations.EnsureAsync(OperationAbout(Guid.NewGuid(), $"{VaultOpsFolder}/by-path.mkv", "by-path-two"));
@@ -102,7 +102,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultHandlers_AnOrdinaryOperation_StillGetsDetailAndCancel()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var operations = new MediaOperationRepository(_database);
         var ordinary = await operations.EnsureAsync(OperationAbout(shape.Normal.AssetId, "/watch/ordinary.mkv", "ordinary-two"));
         var routes = await MapOperationRoutesAsync();
@@ -119,7 +119,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultHandlers_ThePluginJobList_UsesTheSameGate_AndDropsVaultOperations()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var gate = new VaultOperationGate(new VaultLibraryRepository(_database), new PrefixVaultPaths(VaultOpsFolder));
         var vault = OperationAbout(shape.Secret.AssetId, "/watch/a.mkv", "plugin-vault");
         var byPath = OperationAbout(null, $"{VaultOpsFolder}/b.mkv", "plugin-path");
@@ -136,7 +136,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultHandlers_TheCastAuthorizer_NeverAllowsAVaultFile_ToACastGrantOrALockedPerson()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         var locked = VaultContext(shape.Account, session);
         var authorizer = new CatalogueCastAssetAuthorizer(CreateResourceService(locked));

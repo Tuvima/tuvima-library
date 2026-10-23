@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0044 drop_device_profile_preferences).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0049 drop_device_profile_preferences).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1074,6 +1074,29 @@ CREATE TABLE file_write_runs (
     last_run_written INTEGER,
     last_run_failed INTEGER,
     last_run_kept INTEGER
+, last_run_filed INTEGER);
+
+CREATE TABLE folder_first_check_files (
+    seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id   TEXT NOT NULL REFERENCES folder_first_checks(source_id) ON DELETE CASCADE,
+    asset_id    BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    outcome     TEXT NOT NULL CHECK (outcome IN ('matched', 'unmatched', 'needs_review')),
+    recorded_at TEXT NOT NULL,
+    UNIQUE (source_id, asset_id)
+);
+
+CREATE TABLE folder_first_checks (
+    source_id            TEXT NOT NULL PRIMARY KEY,
+    library_id           TEXT NOT NULL,
+    path                 TEXT NOT NULL,
+    path_prefix          TEXT NOT NULL CHECK (length(path_prefix) >= 1),
+    path_prefix_folded   TEXT NOT NULL,
+    path_range_end_folded TEXT NOT NULL,
+    state                TEXT NOT NULL CHECK (state IN ('checking', 'passed', 'paused', 'kept_going')),
+    tried                INTEGER NOT NULL DEFAULT 0 CHECK (tried >= 0),
+    unmatched            INTEGER NOT NULL DEFAULT 0 CHECK (unmatched >= 0),
+    started_at           TEXT NOT NULL,
+    ended_at             TEXT
 );
 
 CREATE TABLE folder_organise_log (
@@ -1136,6 +1159,32 @@ CREATE TABLE image_cache_sources (
     content_hash  TEXT NOT NULL,
     first_seen_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     FOREIGN KEY(content_hash) REFERENCES image_cache(content_hash) ON DELETE CASCADE
+);
+
+CREATE TABLE import_upload_pieces (
+    upload_id   BLOB NOT NULL REFERENCES import_uploads(id) ON DELETE CASCADE,
+    piece_index INTEGER NOT NULL CHECK (piece_index >= 0),
+    received_at TEXT NOT NULL,               -- ISO 8601 UTC
+    PRIMARY KEY (upload_id, piece_index)
+) WITHOUT ROWID;
+
+CREATE TABLE import_uploads (
+    id                 BLOB NOT NULL PRIMARY KEY,
+    created_by         BLOB NOT NULL,        -- the administrator's profile id
+    kind_key           TEXT NOT NULL,        -- the library kind the file was dropped on (movies, music, ...)
+    library_id         TEXT,                 -- the library named for a kind that has several; null means the kind's own
+    type_label         TEXT NOT NULL,        -- the Import folder type the kind maps to (Movies, TV, Music, ...)
+    file_name          TEXT NOT NULL,        -- the cleaned name asked for; the saved name is chosen when the upload completes
+    total_bytes        INTEGER NOT NULL CHECK (total_bytes > 0),
+    piece_bytes        INTEGER NOT NULL CHECK (piece_bytes > 0),
+    piece_count        INTEGER NOT NULL CHECK (piece_count > 0),
+    working_path       TEXT NOT NULL,        -- the hidden working file, inside <Import folder>/.data/uploads
+    destination_folder TEXT NOT NULL,        -- the Import folder's sub-folder for the kind
+    state              TEXT NOT NULL DEFAULT 'open' CHECK (state IN ('open', 'completed', 'cancelled')),
+    final_path         TEXT,                 -- set when the upload completes
+    created_at         TEXT NOT NULL,        -- ISO 8601 UTC
+    last_piece_at      TEXT NOT NULL,        -- ISO 8601 UTC; starts as created_at, moves with every new piece
+    closed_at          TEXT                  -- ISO 8601 UTC; set when the upload completes or is cancelled
 );
 
 CREATE TABLE ingestion_log (
@@ -1420,7 +1469,7 @@ CREATE TABLE media_editor_preferred_artwork_commits (
     committed_at TEXT NOT NULL
 );
 
-CREATE TABLE media_file_write_intents (
+CREATE TABLE "media_file_write_intents" (
     id BLOB NOT NULL PRIMARY KEY,
     target_kind TEXT NOT NULL CHECK (target_kind IN ('media_asset', 'view_item')),
     asset_id BLOB REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -1436,7 +1485,8 @@ CREATE TABLE media_file_write_intents (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     completed_at TEXT,
-    move_step TEXT CHECK (move_step IS NULL OR move_step IN ('requested', 'planned', 'moved', 'checked')),
+    move_step TEXT CHECK (move_step IS NULL OR move_step IN ('waiting', 'held', 'requested', 'planned', 'moved', 'checked')),
+    move_origin TEXT CHECK (move_origin IS NULL OR move_origin IN ('person', 'filing')),
     move_source_path TEXT,
     move_target_path TEXT,
     move_source_hash TEXT,
@@ -1445,7 +1495,9 @@ CREATE TABLE media_file_write_intents (
     recovery_attempts INTEGER NOT NULL DEFAULT 0,
     claimed_run_id TEXT,
     CHECK ((target_kind = 'media_asset' AND asset_id IS NOT NULL AND local_item_id IS NULL)
-        OR (target_kind = 'view_item' AND local_item_id IS NOT NULL AND asset_id IS NULL))
+        OR (target_kind = 'view_item' AND local_item_id IS NOT NULL AND asset_id IS NULL)),
+    CHECK ((move_step IS NULL) = (move_origin IS NULL)),
+    CHECK (move_step IS NULL OR move_step IN ('requested', 'planned', 'moved', 'checked') OR move_origin = 'filing')
 );
 
 CREATE TABLE media_inspection_holds (
@@ -2069,10 +2121,11 @@ CREATE TABLE profile_grid_preferences (
     PRIMARY KEY (profile_id, grid_key)
 );
 
-CREATE TABLE profile_library_grants (
-    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    library_id BLOB NOT NULL,
-    granted_at TEXT NOT NULL,
+CREATE TABLE profile_library_hidden (
+    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    library_id            BLOB NOT NULL,
+    created_at            TEXT NOT NULL,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     PRIMARY KEY (profile_id, library_id)
 );
 
@@ -2547,6 +2600,17 @@ CREATE TABLE ui_settings_cache (
     scope       TEXT NOT NULL PRIMARY KEY,
     settings    TEXT NOT NULL,
     cached_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE TABLE unmatched_assets (
+    asset_id BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+    library_id TEXT NOT NULL,
+    reason TEXT NOT NULL CHECK (reason IN ('no_match', 'no_youtube_id')),
+    first_unmatched_at TEXT NOT NULL,
+    last_tried_at TEXT NOT NULL,
+    next_retry_at TEXT,
+    kept_as_is INTEGER NOT NULL DEFAULT 0 CHECK (kept_as_is IN (0, 1)),
+    kept_at TEXT
 );
 
 CREATE TABLE user_playback_settings (
@@ -3255,6 +3319,8 @@ CREATE INDEX idx_identity_jobs_updated_at ON identity_jobs (updated_at);
 CREATE INDEX idx_image_cache_phash
     ON image_cache(phash) WHERE phash IS NOT NULL;
 
+CREATE INDEX idx_import_uploads_state_last_piece ON import_uploads (state, last_piece_at);
+
 CREATE INDEX idx_ingestion_log_media_asset ON ingestion_log(media_asset_id);
 
 CREATE INDEX idx_ingestion_log_status
@@ -3587,6 +3653,10 @@ CREATE INDEX ix_doc_item_details_type
 CREATE INDEX ix_doc_rules_owner_order
     ON doc_rules(owner_profile_id, personal_space_id, sort_order, id);
 
+CREATE INDEX ix_folder_first_checks_held ON folder_first_checks (state, library_id) WHERE state IN ('checking', 'paused');
+
+CREATE INDEX ix_folder_first_checks_library ON folder_first_checks (library_id);
+
 CREATE INDEX ix_local_file_sources_device
     ON local_file_sources(device_id, indexed_at DESC, id);
 
@@ -3654,6 +3724,8 @@ CREATE INDEX ix_local_items_space_timeline
     ON local_items(personal_space_id, archived_at, trashed_at,
                    COALESCE(captured_at, created_at) DESC, id DESC);
 
+CREATE INDEX ix_media_assets_path_folded ON media_assets (lower(replace(file_path_root, '\', '/')));
+
 CREATE INDEX ix_media_editor_commits_asset ON media_editor_commits(asset_id, committed_at);
 
 CREATE INDEX ix_media_file_write_intents_dispatch ON media_file_write_intents (status, lease_expires_at, updated_at);
@@ -3685,6 +3757,10 @@ CREATE INDEX ix_profiles_household ON profiles(household_id);
 CREATE INDEX ix_scheduled_task_runs_task_started ON scheduled_task_runs(task_key, started_at DESC);
 
 CREATE INDEX ix_tv_episode_credits_show ON tv_episode_credits(show_work_id, season, episode);
+
+CREATE INDEX ix_unmatched_assets_due ON unmatched_assets (next_retry_at) WHERE kept_as_is = 0;
+
+CREATE INDEX ix_unmatched_assets_library ON unmatched_assets (library_id, kept_as_is, first_unmatched_at);
 
 CREATE INDEX ix_vault_galleries_library   ON vault_galleries(library_id, sort_order, updated_at DESC, id);
 

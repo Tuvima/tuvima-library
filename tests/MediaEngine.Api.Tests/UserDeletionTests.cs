@@ -696,14 +696,14 @@ public sealed class UserDeletionTests
             world.ServerAdminAccount = await world.Mutations.CreateAsync(bootstrap, new CreateAccountAccessCommand(
                 "server@example.com", IsAdministrator: true, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value);
             await world.SecureServerAdministratorAsync();
 
             world.Alex = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
                 "alex@example.com", IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Alex", "#112233"),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             world.Household = (await households.GetForAccountAsync(world.Alex.Id))!;
             world.Alex = (await world.Accounts.GetByIdAsync(world.Alex.Id))!;
 
@@ -731,7 +731,7 @@ public sealed class UserDeletionTests
             world.Bea = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
                 "bea@example.com", IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Bea", "#445566"),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             world.Bea = (await world.Accounts.GetByIdAsync(world.Bea.Id))!;
 
             world.AlexAuthority = await world.OwnerAuthorityAsync(world.Alex, isOwner: true);

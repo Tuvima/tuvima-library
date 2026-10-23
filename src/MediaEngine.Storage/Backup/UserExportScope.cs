@@ -78,7 +78,7 @@ public static class UserExportScope
     /// </summary>
     public static IReadOnlyDictionary<string, string> NotInAUserExport { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["profile_library_grants"] = "Library ids differ between Libraries, so library access is never carried by a user file (users spec D9).",
+        ["profile_library_hidden"] = "Library ids differ between Libraries, so hidden libraries are never carried by a user file (users spec D9, simpler access D3).",
         ["profile_admin_protections"] = "Administrator settings are never carried by a user file (users spec D9).",
         ["client_devices"] = "Paired devices sign in again on the new Library.",
         ["applications"] = "Server settings: outside applications belong to the Library.",
@@ -118,6 +118,7 @@ public static class UserExportScope
         ["excluded_source_files"] = "Files kept out of this Library's own folders.",
         ["fictional_entity_user_overrides"] = "Typed catalogue corrections belong to the Library, not to one person.",
         ["narrative_root_user_overrides"] = "Typed catalogue corrections belong to the Library, not to one person.",
+        ["folder_first_checks"] = "The first check of a folder belongs to the Library's own folders, not to one person.",
         ["backup_restores"] = "The Library's own restore history.",
         ["waiting_personal_state"] = "Items still waiting on the old Library are not moved; a file could otherwise name any table to write into.",
         ["vault_libraries"] = "Server settings: which libraries are Vault libraries belongs to the Library.",

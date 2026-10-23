@@ -68,10 +68,10 @@ internal static class ListenBrowseConfiguration
     public static IReadOnlyList<MediaHubModeViewModel> LaneModes { get; } =
         MediaLaneConfigurationBuilder.BuildModes(Preset);
 
-    public static IReadOnlySet<string> LibraryRailTabIds { get; } =
+    /// <summary>Tabs that are not libraries and stay whatever the library list holds; they follow the library tabs.</summary>
+    public static IReadOnlySet<string> FixedTabIds { get; } =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "music",
-            "audiobooks",
+            "playlists",
         };
 }

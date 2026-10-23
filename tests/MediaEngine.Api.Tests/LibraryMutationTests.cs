@@ -23,6 +23,34 @@ public sealed class LibraryMutationTests
     }
 
     [Fact]
+    public void ALibraryEditIsNotAConflictJustBecauseTheUnmatchedCountMovedSinceTheScreenReadIt()
+    {
+        // The Unmatched count is read-only and changes on its own; the screen's copy carries the count it saw.
+        var current = new LibrariesConfigurationDto { Libraries = [new LibraryFolderDto { Id = "first", Name = "Movies" }] };
+
+        var error = LibraryMutationEndpoints.ApplyEdit(current, new LibraryMutationRequest
+        {
+            ExpectedLibrary = new LibraryFolderDto { Id = "first", Name = "Movies", UnmatchedCount = 12 },
+            Library = new LibraryFolderDto { Id = "first", Name = "Films", UnmatchedCount = 12 },
+        });
+
+        Assert.Null(error);
+        Assert.Equal("Films", current.Libraries[0].Name);
+        Assert.Equal(0, current.Libraries[0].UnmatchedCount);
+    }
+
+    [Fact]
+    public void ASavedLibraryListThatCarriesTheUnmatchedCountItWasReadWith_NeverStoresIt()
+    {
+        var stored = SettingsContractMapper.ToStorage(new UpdateLibrariesRequest
+        {
+            Libraries = [new LibraryFolderDto { Id = "first", Name = "Movies", UnmatchedCount = 12 }],
+        });
+
+        Assert.Null(Assert.Single(stored.Libraries).UnmappedProperties);
+    }
+
+    [Fact]
     public void StaleLibraryEditIsRejectedWithoutChangingCurrentState()
     {
         var existing = new LibraryFolderDto { Id = "first", Name = "Newer name" };

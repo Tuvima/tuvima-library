@@ -67,7 +67,7 @@ The two-step sign-in secret is stored sealed with this computer's Data Protectio
 
 A user file moves people to another Library (backup and restore spec D19, users spec D9 and D16). It is the same archive format with the same matcher and re-attach pass, but its scope is one profile with the sign-in that opens it (`BackupScope.ForAccount`) or a whole household (`BackupScope.ForHousehold`), not the whole Library. The profile holds the person (roles, access, limits, PIN, preferences and personal state); the user is only the sign-in attached to it.
 
-**Whole backups carry the people.** A full backup holds the users (`accounts`, with `profile_id`), `profiles` (roles, content limits), `households` (including `is_default`), `profile_feature_grants`, `profile_library_grants` and `profile_admin_protections` as configuration, so a restore into a fresh Library brings every user back opening their own profile with the same password, roles and access (`PeopleBackupRoundTripTests`). A backup or user file made with another data structure (a different `database_epoch` in its manifest, or none) is refused on every route with one sentence, "This backup is from an older version of the Library and can't be restored. Make a new backup with this version." (a file from a later version says it was made by a different version); a user file says "This file is from an older version of the Library and can't be imported. Export again with this version." (users spec D11).
+**Whole backups carry the people.** A full backup holds the users (`accounts`, with `profile_id`), `profiles` (roles, content limits), `households` (including `is_default`), `profile_feature_grants`, `profile_library_hidden` and `profile_admin_protections` as configuration, so a restore into a fresh Library brings every user back opening their own profile with the same password, roles and access (`PeopleBackupRoundTripTests`). A backup or user file made with another data structure (a different `database_epoch` in its manifest, or none) is refused on every route with one sentence, "This backup is from an older version of the Library and can't be restored. Make a new backup with this version." (a file from a later version says it was made by a different version); a user file says "This file is from an older version of the Library and can't be imported. Export again with this version." (users spec D11).
 
 **What a user file holds.** The map in `UserExportScope` is the single list of tables and the filter for each:
 
@@ -76,7 +76,7 @@ A user file moves people to another Library (backup and restore spec D19, users 
 - **Their own state**: every Personal state table, filtered by its owner column to those profiles (the owner is a BLOB id in most tables and lower-case text in the reader tables), and the items of their bookmark packs.
 - **What they built**: collections and playlists their profiles own (`owner_kind = 'Profile'`), with their items, placements and audience limited to those profiles.
 
-**What the file leaves out**, each with a reason in `UserExportScope.NotInAUserExport`: every other profile and sign-in, library access (library ids differ between Libraries), administrator settings, invitations, paired devices, sessions and recovery codes, server and Library settings, the catalogue, choices and corrections on catalogue rows, and typed catalogue corrections. View galleries are left out too: they hang off a View space and View items that belong to folders configured on one Library. A test fails when a Configuration or Personal state table is in neither list, so a new table forces a decision.
+**What the file leaves out**, each with a reason in `UserExportScope.NotInAUserExport`: every other profile and sign-in, hidden libraries (library ids differ between Libraries), administrator settings, invitations, paired devices, sessions and recovery codes, server and Library settings, the catalogue, choices and corrections on catalogue rows, and typed catalogue corrections. View galleries are left out too: they hang off a View space and View items that belong to folders configured on one Library. A test fails when a Configuration or Personal state table is in neither list, so a new table forces a decision.
 
 **The file.** `tuvima-user-<yyyyMMdd-HHmmss>.zip` for a person, `tuvima-household-<yyyyMMdd-HHmmss>.zip` for a household. Its `manifest.json` has `kind` `user` and `scope` `profile` or `household`, plus `profile_count`, `sign_in_count`, `two_step_left_out` and the export counts (no email and no name); `data/contents.json` says `user` or `household` and names the account or household id only. A user file is never a backup of the Library: `RestoreArchiveValidator` refuses kind `user` on every route into a restore with "This file is one user's data, not a backup of the Library. Use Import a user instead.", and the import refuses any other file with "This file isn't a user export.". A user file is read with its own limits (200 entries, 64 MB an entry, 256 MB in all), accepts only tables in the map, holds at most eight profiles, and every row must prove it belongs to one of the file's sign-ins or profiles (`UserRowCheck`), so a crafted file cannot write somebody else's rows. The manifest's `scope` is a claim: a file whose data holds another scope is refused.
 
@@ -89,7 +89,7 @@ A user file moves people to another Library (backup and restore spec D19, users 
 - **Where:** `target_household_id` (an existing household) or `new_household_name` (made by the import, never the default household), exactly one. All profiles arrive in that household (never `household_id` NULL). At most eight people fit (`Household.MaximumProfiles`); a new household is a second household only once every server administrator has an email and a password or passkey (D10, the same check as everywhere else), and needs `new_household_administrator_profile_id`: an imported profile that keeps its sign-in and is not a Kids profile (D15). An existing household gets no administrator from the import.
 - **Sign-ins:** each sign-in keeps its password hash, passkeys and outside sign-in links, and gets the file's email unless `emails` names another (a changed email is never a reason to refuse: the preview says which emails are used here and the administrator types another). `without_sign_in` lists sign-ins to leave out: their profile arrives with no user and nothing about how they signed in. An email used here, a passkey already registered here, an outside sign-in linked to someone here, or a two-step secret that was not made readable for any computer refuses the import (or that sign-in is left out), with nothing written.
 - **Roles are never carried.** `is_server_admin` and `is_household_admin` are forced to 0 whatever the file says, a profile role of Administrator becomes a standard user and Kids stays Kids, except the one profile chosen to look after a household the import creates. Vault access is switched off (`access_mode` `off`).
-- **Access:** Read, Watch, Listen and View arrive as the file had them only when `keep_access` is true (off by default, so they arrive with none); library access never arrives.
+- **Access:** Read, Watch, Listen and View arrive as the file had them only when `keep_access` is true (off by default, so they arrive with none); hidden libraries never arrive (library ids differ between Libraries), so everything in the person's areas is visible.
 - **New ids:** an id that already exists here (a household exported from this very Library, for example) is replaced by a new one everywhere it is written; nothing existing is overwritten. Rows are written with a plain INSERT, so any other clash fails the whole import.
 - Every column a rule excludes (a profile's `avatar_image_path`, a collection's cover, background, banner and logo artwork paths, and ids that point at someone else) is emptied whatever the file says, and the reader of every route refuses a file that fills one. A collection's parent is kept only when the parent is in the same file. Collections arrive private and not featured; an audience limited to selected profiles stays limited to the imported profiles.
 - The two-step secret is sealed again with this computer's key. A file with no two-step row imports normally, with two-step off.
@@ -155,12 +155,11 @@ See "What a backup file holds" above. The restore screens come in the next step.
 | `account_passkeys` | Passkey public keys, needed to sign in after a restore. | none | none | all rows |
 | `account_two_step` | Two-step sign-in data, needed to sign in after a restore; the secret is protected with this computer's Data Protection key, so the export writes it readable (portable column `secret_protected`), or keeps it as it is when it cannot be read. | none | none | all rows |
 | `account_feature_grants` | Which features an account may use. | none | none | all rows |
-| `account_library_grants` | Which libraries an account may use. | none | none | all rows |
 | `account_profile_grants` | Which profiles an account may use. | none | none | all rows |
 | `account_notice_dismissals` | Notices an account has dismissed, so they do not return. | none | none | all rows |
 | `grant_admin_protections` | Optional extra lock (PIN hash and lock settings) on an administrator grant. | none | none | all rows |
 | `profile_feature_grants` | Which features a profile may use. | none | none | all rows |
-| `profile_library_grants` | Which libraries a profile may use. | none | none | all rows |
+| `profile_library_hidden` | Which libraries an administrator hid from a profile. | none | none | all rows |
 | `profile_admin_protections` | Optional extra lock (lock settings) on a profile's administrator rights. | none | none | all rows |
 | `households` | Households that group accounts and profiles. | none | none | all rows |
 | `profiles` | People using the Library, with their display, content limit and navigation settings. | none | `avatar_image_path` | all rows |
@@ -213,6 +212,7 @@ See "What a backup file holds" above. The restore screens come in the next step.
 | `collection_view_sources` | The gallery or rule feeding a person-built collection. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
 | `fictional_entity_user_overrides` | A person's name and description corrections for a fictional thing, found again by its Wikidata id. | `entity_id` (fictional thing) | none | all rows |
 | `narrative_root_user_overrides` | A person's name and description corrections for a universe (already keyed by its Wikidata id). | none | none | all rows |
+| `folder_first_checks` | The first check of each newly added folder: a pause waiting for an administrator's choice, and which folders have already passed, so a restore neither releases a paused folder nor starts the check again. | none | none | all rows |
 | `backup_restores` | Which backups were restored and when, with counts of what was put back and what is still waiting. | none | none | all rows |
 | `waiting_personal_state` | State from a restored backup that is still waiting for its title, kept with the time it started waiting, so a backup taken before it attaches does not lose it or restart its waiting period. | none | none | all rows |
 
@@ -264,6 +264,7 @@ The rows a rescan rebuilds are not kept; the tables below say where a person's o
 | `entity_relationship_qualifiers` | Details of those relationships. |
 | `entity_capability_states` | What enrichment has done for each title. |
 | `identity_jobs` | Identification and enrichment jobs. |
+| `unmatched_assets` | Files the Engine could not match, with when each is tried again and whether it was kept as it is. |
 | `retail_match_candidates` | Retail match candidates for an identification job. |
 | `wikidata_bridge_candidates` | Wikidata candidates for an identification job. |
 | `deferred_enrichment_queue` | Titles waiting for enrichment. |
@@ -316,7 +317,7 @@ The rows a rescan rebuilds are not kept; the tables below say where a person's o
 | `qid_labels` | Cached Wikidata labels. |
 | `search_index` | Search index over titles. |
 
-## Transient tables (65)
+## Transient tables (67)
 
 None of these are kept.
 
@@ -343,6 +344,7 @@ None of these are kept.
 | `media_operations` | Media operation queue. |
 | `media_operation_events` | Media operation log. |
 | `media_file_write_intents` | Pending file write-back jobs. |
+| `folder_first_check_files` | The files counted in a folder's first check. |
 | `file_write_runs` | When the file write-back schedule last ran. |
 | `encode_jobs` | Encode job queue. |
 | `alignment_jobs` | Book and audiobook alignment job queue. |
@@ -353,6 +355,8 @@ None of these are kept.
 | `playback_telemetry_sessions` | Playback telemetry. |
 | `audiobook_listen_active_segments` | Audiobook listening in progress. |
 | `music_play_active_segments` | Music playing in progress. |
+| `import_uploads` | Resumable uploads into the Import folder in progress, with the hidden working file each is written into. |
+| `import_upload_pieces` | Which pieces of each upload into the Import folder have arrived. |
 | `player_sessions` | Live player sessions. |
 | `player_queue_items` | Live player queues. |
 | `companion_sessions` | Companion screen sessions. |

@@ -1145,13 +1145,17 @@ public static class CollectionEndpoints
 
         // GET /collections/content-groups — structural collections that have child works (albums, TV series, book series, movie series).
         group.MapGet("/content-groups", async (
+            Guid? libraryId,
+            bool? unmatched,
             ICollectionRepository collectionRepo,
             ICollectionBrowseReadService browseReadService,
             IDisplayProjectionReadService display,
+            IUnmatchedAssetRepository unmatchedAssets,
             CancellationToken ct) =>
         {
             var collections = await collectionRepo.GetContentGroupsAsync(ct);
-            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
+            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing).
+            var visibleWorkIds = await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct);
             var primaryAssetIds = await browseReadService.GetPrimaryAssetIdsAsync(
                 collections.SelectMany(collection => collection.Works)
                     .Where(work => visibleWorkIds.Contains(work.Id))
@@ -1329,11 +1333,15 @@ public static class CollectionEndpoints
         group.MapGet("/system-views", async (
             string? mediaType,
             string? groupField,
+            Guid? libraryId,
+            bool? unmatched,
             ICollectionBrowseReadService browseReadService,
             IDisplayProjectionReadService display,
+            IUnmatchedAssetRepository unmatchedAssets,
             CancellationToken ct) =>
         {
-            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
+            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing).
+            var visibleWorkIds = await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct);
             var result = await browseReadService.GetSystemViewGroupsAsync(
                 mediaType, groupField, ct, visibleWorkIds);
             var normalizedGroups = NormalizeSystemViewGroups(result, mediaType, groupField);

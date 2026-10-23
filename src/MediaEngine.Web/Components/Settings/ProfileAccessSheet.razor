@@ -5,7 +5,8 @@
 @inject DeviceContextService DeviceContext
 @* The "Libraries and lanes" sheet on a person's profile page: which Libraries and which of Read / Watch / Listen / View this
    profile may use. It only gathers the choices and reports them; the page that opens it talks to the Engine, which refuses
-   anything the administrator's own profile does not hold, and the reason it gives is shown here. *@
+   anything the administrator's own profile does not hold, and the reason it gives is shown here. The lanes are saved with Save;
+   the ticks on each lane's Libraries list save straight away through the page, so Save only carries the lanes. *@
 @if (Open && !DeviceContext.IsPhone)
 {
     <div class="settings-sheet-backdrop" @onclick="CloseAsync">
@@ -33,15 +34,16 @@
             }
             else
             {
-                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="Libraries" OfferedFeatureIds="OfferedFeatureIds" ReadOnlyLibraryCount="_readOnlyLibraryCount"
-                                              FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+                <ManagedAccessUserPermissions FeatureIds="_featureIds" HiddenIds="_hiddenIds" Libraries="Libraries" LibrariesUnavailable="LibrariesUnavailable"
+                                              OfferedFeatureIds="OfferedFeatureIds" PersonName="@PersonName" ReadOnly="ReadOnly" LibrariesBusy="Saving"
+                                              FeatureChanged="ToggleFeature" OnHiddenChanged="OnHiddenChanged" RetryLibraries="OnRetryLibraries" />
             }
 
             <div class="sign-in-sheet__actions">
                 <span class="sign-in-sheet__spacer"></span>
                 <AppButton Label="Cancel" Disabled="@Saving" OnClick="CloseAsync" />
                 <AppButton Label="@(Saving ? "Saving…" : "Save")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Disabled="@(Saving || Loading)" OnClick="SaveAsync" />
+                           Disabled="@(Saving || Loading || Person is null)" OnClick="SaveAsync" />
             </div>
         </div>
     </div>
@@ -49,8 +51,7 @@
 
 @code {
     private readonly HashSet<string> _featureIds = [];
-    private readonly HashSet<Guid> _libraryIds = [];
-    private int _readOnlyLibraryCount;
+    private IReadOnlySet<Guid> _hiddenIds = new HashSet<Guid>();
     private ElementReference _root;
     private bool _wasOpen;
     private bool _wasLoading;
@@ -62,11 +63,23 @@
     [Parameter] public bool Saving { get; set; }
     [Parameter] public string? Error { get; set; }
 
-    /// <summary>Only the Libraries the Engine says this administrator may hand out.</summary>
+    /// <summary>Every Library an administrator can hide from the person (the Engine marks the ones hidden from the administrator using this screen).</summary>
     [Parameter] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
 
     /// <summary>Only the lanes this administrator may hand out (their own profile's); null offers all of them.</summary>
     [Parameter] public IReadOnlySet<string>? OfferedFeatureIds { get; set; }
+
+    /// <summary>True when the Engine's library list could not be read: libraries are then left exactly as they are.</summary>
+    [Parameter] public bool LibrariesUnavailable { get; set; }
+
+    /// <summary>True on a phone: the Libraries ticks are shown but cannot be changed.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>One tick on a lane's Libraries list: the library and whether it is now hidden. The page saves it and answers true when it took effect.</summary>
+    [Parameter] public Func<Guid, bool, Task<bool>>? OnHiddenChanged { get; set; }
+
+    /// <summary>Asks the page to read the Engine's library list again.</summary>
+    [Parameter] public EventCallback OnRetryLibraries { get; set; }
 
     /// <summary>The profile's current lanes and Libraries, used each time the sheet opens or finishes loading.</summary>
     [Parameter] public ManagedProfileResponse? Person { get; set; }
@@ -76,6 +89,9 @@
 
     protected override void OnParametersSet()
     {
+        // The ticks always show what the Engine has saved for the person; the page hands over the new person after each tick.
+        _hiddenIds = (Person?.HiddenLibraryIds ?? []).ToHashSet();
+
         // Take the person's current access when the sheet opens, and again once it has finished loading.
         if (Open && (!_wasOpen || (_wasLoading && !Loading)))
         {
@@ -89,24 +105,10 @@
     private void Seed()
     {
         _featureIds.Clear();
-        _libraryIds.Clear();
-        _readOnlyLibraryCount = 0;
         if (Person is { } person)
         {
-            // Only what this administrator holds can change. The rest is shown read-only and never sent: the Engine keeps it as it is.
-            // The server administrator (nothing narrowed) replaces the whole set as before.
+            // Only the lanes this administrator holds can change; the Engine keeps the rest as it is.
             _featureIds.UnionWith(person.FeatureIds ?? []);
-            var libraryIds = person.LibraryIds ?? [];
-            if (OfferedFeatureIds is null)
-            {
-                _libraryIds.UnionWith(libraryIds);
-            }
-            else
-            {
-                var offered = Libraries.Select(library => library.Id).ToHashSet();
-                _libraryIds.UnionWith(libraryIds.Where(offered.Contains));
-                _readOnlyLibraryCount = libraryIds.Count(id => !offered.Contains(id));
-            }
         }
     }
 
@@ -122,23 +124,12 @@
         }
     }
 
-    private void ToggleLibrary((Guid Id, bool Value) change)
-    {
-        if (change.Value)
-        {
-            _libraryIds.Add(change.Id);
-        }
-        else
-        {
-            _libraryIds.Remove(change.Id);
-        }
-    }
-
-    // Access is changed on a computer or tablet; a phone neither shows this sheet nor saves from it.
+    // Access is changed on a computer or tablet; a phone neither shows this sheet nor saves from it. The lanes are saved here; the
+    // hidden libraries are whatever the Engine already has, because the ticks save themselves.
     private Task SaveAsync() => DeviceContext.IsPhone ? Task.CompletedTask :
         OnSave.InvokeAsync(new ReplaceProfileAccessRequest(
             _featureIds.Where(feature => OfferedFeatureIds is null || OfferedFeatureIds.Contains(feature)).Order().ToArray(),
-            _libraryIds.Order().ToArray()));
+            _hiddenIds.Order().ToArray()));
 
     private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
 

@@ -501,29 +501,43 @@ public static class AccountEndpoints
         access.MapGet("/libraries", async (HttpContext http, IRequestAuthorityResolver resolver,
             IProfileAccessRepository profileAccess, IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
-            // The Vault is in no library list, not even the one an administrator picks grants from (Videos spec D45).
+            // The Vault is in no library list, not even the one an administrator picks the libraries to hide from (Videos spec D45).
             var vaultIds = await vaultLibraries.GetIdsAsync(ct);
-            // A household administrator can only hand out what the household already has.
+            // A household administrator sees every library, with the ones hidden from their own profile marked: they can't be changed.
             var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
-            IReadOnlySet<Guid>? allowed = null;
+            IReadOnlySet<Guid>? hiddenFromActor = null;
             if (household is not null)
             {
-                // A household administrator hands out what the profile they are acting as already holds.
                 var actor = await resolver.ResolveAsync(http, ct);
-                allowed = actor.ActiveProfileId is { } actingProfile
-                    ? await profileAccess.GetLibraryGrantsAsync(actingProfile, ct)
+                hiddenFromActor = actor.ActiveProfileId is { } actingProfile
+                    ? await profileAccess.GetHiddenLibrariesAsync(actingProfile, ct)
                     : new HashSet<Guid>();
             }
 
             var values = configuration.LoadLibraries().Libraries
                 .Where(library => library.Kind == LibraryKinds.Catalogued && !vaultIds.Contains(library.Id) &&
-                    Guid.TryParse(library.Id, out var id) && (allowed is null || allowed.Contains(id)))
+                    Guid.TryParse(library.Id, out _))
                 .Select(library => new AccessLibraryOptionDto(Guid.Parse(library.Id),
-                    library.Name, library.Category, library.Area))
+                    library.Name, library.Category, library.Area,
+                    hiddenFromActor?.Contains(Guid.Parse(library.Id)) == true))
                 .ToList();
             return Results.Ok(values);
         }).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersRead)
           .Produces<IReadOnlyList<AccessLibraryOptionDto>>();
+
+        // Who would stop seeing these files if they moved into a library (simpler access D13). Administrators only: it names other people.
+        access.MapPost("/visibility-after-move", async (VisibilityAfterMoveRequest request,
+            [FromServices] IVisibilityAfterMoveReadService service, CancellationToken ct) =>
+        {
+            var result = await service.GetAsync(request, ct);
+            return result.People is { } people
+                ? Results.Ok(new VisibilityAfterMoveResponse(people))
+                : ApiErrors.BadRequest(result.Refusal ?? "That can't be checked.");
+        }).RequireEffectiveAdministrator()
+          .WithName("GetVisibilityAfterMove")
+          .WithSummary("Which people (profiles) can see the given files (a folder or up to 5,000 file ids) now but would not once they are in the target library. Counts files; never lists administrators.")
+          .Produces<VisibilityAfterMoveResponse>()
+          .ProducesProblem(StatusCodes.Status400BadRequest);
 
         var profiles = access.MapGroup("/profiles");
         profiles.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver,
@@ -622,14 +636,14 @@ public static class AccountEndpoints
                 return stale;
             }
 
-            if (request.FeatureIds is null || request.LibraryIds is null)
+            if (request.FeatureIds is null || request.HiddenLibraryIds is null)
             {
-                throw new ArgumentException("Send both feature_ids and library_ids (either can be an empty list).");
+                throw new ArgumentException("Send both feature_ids and hidden_library_ids (either can be an empty list).");
             }
 
             await mutations.ReplaceProfileAccessAsync(await resolver.ResolveAsync(http, ct), profileId,
                 request.FeatureIds.Select(id => new AccountFeatureId(id)).ToHashSet(),
-                request.LibraryIds.ToHashSet(), ct);
+                request.HiddenLibraryIds.ToHashSet(), ct);
             return Results.NoContent();
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("ReplaceProfileAccess")
@@ -844,7 +858,7 @@ public static class AccountEndpoints
         MapProfile(profile) with
         {
             FeatureIds = (await profileAccess.GetFeatureGrantsAsync(profile.Id, ct)).Select(feature => feature.Value).Order().ToList(),
-            LibraryIds = (await profileAccess.GetLibraryGrantsAsync(profile.Id, ct)).Order().ToList(),
+            HiddenLibraryIds = (await profileAccess.GetHiddenLibrariesAsync(profile.Id, ct)).Order().ToList(),
             User = user is null ? null : new ManagedProfileUserDto(user.Id, user.Email),
         };
 

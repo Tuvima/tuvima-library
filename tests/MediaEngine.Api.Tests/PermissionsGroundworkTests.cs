@@ -722,7 +722,7 @@ public sealed class PermissionsGroundworkTests
                 "server@example.com", IsAdministrator: true, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             await identities.GiveAsync(world.ServerAdminAccount.Id);
             var serverProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value;
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile);
@@ -801,7 +801,7 @@ public sealed class PermissionsGroundworkTests
             var serverInA = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
                 "server.in.a@example.com", IsAdministrator: false, ProfileId: A.Spare.Id, NewProfile: null,
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             using (var connection = _database.CreateConnection())
             {
                 connection.Execute("UPDATE profiles SET is_server_admin = 1 WHERE id = @profile;", new { profile = A.Spare.Id });
@@ -810,7 +810,7 @@ public sealed class PermissionsGroundworkTests
             var otherAdmin = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
                 "other.admin.in.a@example.com", IsAdministrator: false, ProfileId: A.Kid.Id, NewProfile: null,
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             // A Kids profile can't look after a household, so the person becomes a standard one before being promoted.
             using (var connection = _database.CreateConnection())
             {
@@ -867,7 +867,7 @@ public sealed class PermissionsGroundworkTests
                 email, IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand(personName, "#112233"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             var household = (await Households.GetForAccountAsync(owner.Id))!;
             var person = await Mutations.AddHouseholdPersonAsync(ServerAdmin,
                 new AddHouseholdPersonCommand(household.Id, $"{personName}'s friend", null, false, null));

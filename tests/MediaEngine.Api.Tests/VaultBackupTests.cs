@@ -97,7 +97,7 @@ public sealed class VaultBackupTests : IDisposable
         // Settings, PIN hashes and grants are kept.
         Assert.Contains("vault_libraries", Tables());
         Assert.Contains("profile_nsfw_settings", Tables());
-        Assert.Contains("profile_library_grants", Tables());
+        Assert.Contains("profile_library_hidden", Tables());
         var credentials = export.Tables.Single(table => table.Table == "profile_credentials");
         var hashIndex = credentials.Columns.ToList().IndexOf("secret_hash");
         Assert.Contains(credentials.Rows, row => row[hashIndex] is BackupValue.Text { Value: "hash-only-value" });
@@ -367,7 +367,7 @@ public sealed class VaultBackupTests : IDisposable
         connection.Execute(
             """
             INSERT INTO profiles(id, display_name, created_at) VALUES(@account,'Library holder',@now);
-            INSERT INTO profile_library_grants(profile_id, library_id, granted_at) VALUES(@account,@library,@now);
+            INSERT INTO profile_library_hidden(profile_id, library_id, created_at) VALUES(@account,@library,@now);
             INSERT INTO audiobook_bookmarks(id, profile_id, work_id, asset_id, position_seconds, duration_seconds, label, is_global, created_at)
                 VALUES(@b1,@admin,@ordinaryWork,@ordinary,10,7200,'ordinary bookmark',0,@now);
             INSERT INTO audiobook_bookmarks(id, profile_id, work_id, asset_id, position_seconds, duration_seconds, label, is_global, created_at)

@@ -191,6 +191,15 @@ public sealed class LibraryFolderDto
 
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
+
+    /// <summary>
+    /// Read-only: how many files in this library the Engine could not match (Library setup spec D34), kept-as-is files excluded. Filled
+    /// on the list read for an administrator and ignored when the list is saved. Zero (and then left out of the JSON) when none, and for
+    /// anyone who may not see it.
+    /// </summary>
+    [JsonPropertyName("unmatched_count")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int UnmatchedCount { get; set; }
 }
 
 public sealed class LibrarySourceDto
@@ -246,6 +255,15 @@ public sealed class LibrarySourceDto
 
     [JsonPropertyName("profile_id")]
     public string? ProfileId { get; set; }
+
+    /// <summary>
+    /// Read-only: the first check of this folder while it is checking or paused (Library setup spec D35), with its tried and Unmatched counts
+    /// and the folder's total. Filled on the list read for an administrator and ignored when the list is saved; left out when there is none,
+    /// for a Vault folder, and for anyone who may not see it.
+    /// </summary>
+    [JsonPropertyName("first_check")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MediaEngine.Contracts.Library.FolderFirstCheckDto? FirstCheck { get; set; }
 }
 
 public sealed class LibraryOrganizationPolicyDto

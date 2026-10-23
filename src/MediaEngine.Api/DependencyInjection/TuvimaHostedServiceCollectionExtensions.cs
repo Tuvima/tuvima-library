@@ -78,6 +78,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<ArtworkRenditionRepairStartupService>();
         services.AddHostedService<ArtworkRenditionBackgroundService>();
         services.AddHostedService<RejectedFileCleanupService>();
+        services.AddHostedService<ImportUploadSweepHostedService>();
         services.AddSingleton<ViewSourceIndexingOptions>();
         services.AddSingleton<IViewSourceWatcherFactory, FileSystemViewSourceWatcherFactory>();
         services.AddSingleton<ViewSourceIndexingHostedService>();
@@ -87,6 +88,14 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<ArtworkWritebackService>();
         services.AddHostedService<ArtworkWritebackWorker>();
         services.AddHostedService<MissingUniverseSweepService>();
+        services.AddSingleton<MediaEngine.Api.Services.Libraries.HeldSubtitleExporter>();
+        services.AddSingleton<MediaEngine.Api.Services.Libraries.FolderFirstCheckService>();
+        services.AddHostedService<MediaEngine.Api.Services.Libraries.FolderFirstCheckHostedService>();
+        services.AddSingleton<MediaEngine.Api.Services.Unmatched.UnmatchedRetryWake>();
+        services.AddSingleton<MediaEngine.Api.Services.Unmatched.UnmatchedAssetService>();
+        services.AddSingleton<MediaEngine.Api.Services.Unmatched.UnmatchedCountService>();
+        services.AddSingleton<MediaEngine.Api.Services.Unmatched.ItemLookupStateService>();
+        services.AddHostedService<MediaEngine.Api.Services.Unmatched.UnmatchedRetryHostedService>();
         services.AddSingleton<SubtitleIndexer>();
         services.AddHostedService<SubtitleIndexHostedService>();
 

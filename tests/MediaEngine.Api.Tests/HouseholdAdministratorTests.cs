@@ -2,6 +2,7 @@ using Dapper;
 using MediaEngine.Api.Security;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -106,6 +107,79 @@ public sealed class HouseholdAdministratorTests
         // The server administrator is not held to that ceiling.
         await mutations.ReplaceProfileAccessAsync(world.ServerAdmin, secondAdult.Profile.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid>());
+    }
+
+    [Fact]
+    public async Task HouseholdAdministrator_CanNotShowAgainALibraryHiddenFromTheirOwnProfile_ButCanHideMore()
+    {
+        await using var world = await World.CreateAsync();
+        var libraries = world.ConfigureCataloguedLibraries(2);
+        var hiddenFromAdmin = libraries[0];
+        var other = libraries[1];
+        var access = new ProfileAccessRepository(world.Database);
+        var read = new HashSet<AccountFeatureId> { AccountFeatureId.Read };
+
+        // The server administrator hid a library from the household administrator's own profile.
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.AdminOfA.ActiveProfileId!.Value, read, new HashSet<Guid> { hiddenFromAdmin });
+        var secondAdult = await world.AddUserAsync(world.A, "second.adult@example.com");
+        var person = secondAdult.Profile.Id;
+
+        // It is hidden from the second adult too. The household administrator saves a list that hides nothing: it stays hidden.
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, person, read, new HashSet<Guid> { hiddenFromAdmin });
+        await world.Mutations.ReplaceProfileAccessAsync(world.AdminOfA, person, read, new HashSet<Guid>());
+        Assert.Equal([hiddenFromAdmin], (await access.GetHiddenLibrariesAsync(person)).ToArray());
+        Assert.True(await access.IsLibraryHiddenAsync(person, hiddenFromAdmin));
+
+        // They can hide more, and show again a library that is visible to their own profile.
+        await world.Mutations.ReplaceProfileAccessAsync(world.AdminOfA, person, read, new HashSet<Guid> { other });
+        Assert.Equal(new[] { hiddenFromAdmin, other }.Order(), (await access.GetHiddenLibrariesAsync(person)).Order());
+        await world.Mutations.ReplaceProfileAccessAsync(world.AdminOfA, person, read, new HashSet<Guid>());
+        Assert.Equal([hiddenFromAdmin], (await access.GetHiddenLibrariesAsync(person)).ToArray());
+
+        // A library hidden from their own profile that is still visible to the person can be hidden from them, not the other way round.
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, person, read, new HashSet<Guid>());
+        await world.Mutations.ReplaceProfileAccessAsync(world.AdminOfA, person, read, new HashSet<Guid> { hiddenFromAdmin });
+        Assert.Equal([hiddenFromAdmin], (await access.GetHiddenLibrariesAsync(person)).ToArray());
+
+        // The server administrator is not held to that rule, and another household's person is untouched.
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, person, read, new HashSet<Guid>());
+        Assert.Empty(await access.GetHiddenLibrariesAsync(person));
+        Assert.Empty(await access.GetHiddenLibrariesAsync(world.B.Person.Id));
+    }
+
+    [Fact]
+    public async Task AHiddenLibraryThatLeftTheConfiguration_DoesNotBlockASave_ButANewUnknownOneIsStillRefused()
+    {
+        await using var world = await World.CreateAsync();
+        world.ConfigureCataloguedLibraries(1);
+        var gone = Guid.NewGuid();
+        var person = world.A.Person.Id;
+        var access = new ProfileAccessRepository(world.Database);
+        var read = new HashSet<AccountFeatureId> { AccountFeatureId.Read };
+        await access.ReplaceAccessAsync(person, read, new HashSet<Guid> { gone }, DateTimeOffset.UtcNow);
+
+        // Saving the list the page loaded (which still names the stale id) works, and the stale row goes.
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, person, read, new HashSet<Guid> { gone });
+        Assert.Empty(await access.GetHiddenLibrariesAsync(person));
+
+        // An id nobody stored for this profile, that is not configured, is refused.
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, person, read, new HashSet<Guid> { Guid.NewGuid() }));
+    }
+
+    [Fact]
+    public async Task WithNoLibrariesConfiguredAtAll_StoredHiddenLibrariesAreKept_SoTheyStayHiddenWhenTheFileComesBack()
+    {
+        await using var world = await World.CreateAsync();
+        var hidden = Guid.NewGuid();
+        var person = world.A.Person.Id;
+        var access = new ProfileAccessRepository(world.Database);
+        var read = new HashSet<AccountFeatureId> { AccountFeatureId.Read };
+        await access.ReplaceAccessAsync(person, read, new HashSet<Guid> { hidden }, DateTimeOffset.UtcNow);
+
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, person, read, new HashSet<Guid> { hidden });
+
+        Assert.Equal([hidden], await access.GetHiddenLibrariesAsync(person));
     }
 
     [Fact]
@@ -270,7 +344,7 @@ public sealed class HouseholdAdministratorTests
         // A server administrator from another household: the same features, never View, and no libraries.
         var byServer = await mutations.AddHouseholdPersonAsync(world.ServerAdmin, new AddHouseholdPersonCommand(world.A.Id, "By server", null, false, null));
         Assert.Equal(new[] { "read", "watch" }, (await access.GetFeatureGrantsAsync(byServer.Id)).Select(feature => feature.Value).Order());
-        Assert.Empty(await access.GetLibraryGrantsAsync(byServer.Id));
+        Assert.Empty(await access.GetHiddenLibrariesAsync(byServer.Id));
 
         foreach (var added in new[] { byAdmin, byApp, byServer })
         {
@@ -421,7 +495,7 @@ public sealed class HouseholdAdministratorTests
 
         await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
             "partner@example.com", IsAdministrator: true, ProfileId: partner.Id, NewProfile: null,
-            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(),
+            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, HiddenLibraries: new HashSet<Guid>(),
             TemporaryPassword: TemporaryPassword));
         var partnerFlags = (await access.GetAdminFlagsAsync(partner.Id))!;
         Assert.True(partnerFlags.IsServerAdministrator);
@@ -453,7 +527,7 @@ public sealed class HouseholdAdministratorTests
         var main = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
             "kids.main@example.com", IsAdministrator: false, ProfileId: null,
             NewProfile: new NewAccountProfileCommand("Little One", "#445566"),
-            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>()));
+            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, HiddenLibraries: new HashSet<Guid>()));
         var kidsProfile = main.ProfileId;
         using (var connection = world.Database.CreateConnection())
         {
@@ -622,6 +696,28 @@ public sealed class HouseholdAdministratorTests
         public NoProfilePhotos Photos { get; } = new();
         public DatabaseConnection Database => _database;
 
+        /// <summary>Writes a libraries file with catalogued libraries (all in the Read area), so a save has a configuration to check hidden ids against.</summary>
+        public IReadOnlyList<Guid> ConfigureCataloguedLibraries(int count)
+        {
+            var ids = Enumerable.Range(0, count).Select(_ => Guid.NewGuid()).ToArray();
+            _configuration.SaveLibraries(new LibrariesConfiguration
+            {
+                StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Library data", Path = _configPath, AllowWrite = true }],
+                ViewStorage = new ViewStorageConfig { StorageLocationId = "media", RelativeRoot = "View" },
+                Libraries = ids.Select((id, index) => new LibraryFolderConfig
+                {
+                    Id = id.ToString("D"),
+                    Name = $"Books {index}",
+                    Category = "Books",
+                    Kind = LibraryKinds.Catalogued,
+                    KindKey = "books",
+                    MediaTypes = ["Books"],
+                    Area = LibraryAreas.Read,
+                }).ToList(),
+            });
+            return ids;
+        }
+
         public static async Task<World> CreateAsync(bool sharedLibraryFirst = false)
         {
             var world = new World();
@@ -667,7 +763,7 @@ public sealed class HouseholdAdministratorTests
                 "server@example.com", IsAdministrator: true, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: TemporaryPassword));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: TemporaryPassword));
             await identities.GiveAsync(world.ServerAdminAccount.Id);
             var serverProfile = world.ServerAdminAccount.ProfileId;
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile);
@@ -754,7 +850,7 @@ public sealed class HouseholdAdministratorTests
                 email, IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand(personName, "#112233"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             var household = (await Households.GetForAccountAsync(owner.Id))!;
             var person = await Mutations.AddHouseholdPersonAsync(ServerAdmin,
                 new AddHouseholdPersonCommand(household.Id, $"{personName}'s friend", null, false, null));

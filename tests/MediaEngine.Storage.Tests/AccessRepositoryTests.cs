@@ -357,7 +357,7 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AVaultLibrary_CanNeverBeGrantedToAProfilesAccessRows_AndTheProfileIsUnchangedWhenItIsTried()
+    public async Task AVaultLibrary_CanNeverBeHiddenFromAProfile_AndNothingIsChangedWhenItIsTried()
     {
         var account = new Account
         {
@@ -389,7 +389,96 @@ public sealed class AccessRepositoryTests : IDisposable
             new HashSet<Guid> { ordinary, vault },
             _now.AddMinutes(1)));
 
-        Assert.Equal(new HashSet<Guid> { ordinary }, (await _profileAccess.GetLibraryGrantsAsync(Profile.SeedProfileId)).ToHashSet());
+        Assert.Equal(new HashSet<Guid> { ordinary }, (await _profileAccess.GetHiddenLibrariesAsync(Profile.SeedProfileId)).ToHashSet());
+    }
+
+    [Fact]
+    public async Task ANewProfile_HasNoHiddenLibraries_SoANewLibraryNeedsNoRow()
+    {
+        var profile = await CreateProfileAsync("Fresh", new HashSet<Guid>());
+
+        Assert.Empty(await _profileAccess.GetHiddenLibrariesAsync(profile.Id));
+        Assert.False(await _profileAccess.IsLibraryHiddenAsync(profile.Id, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task AHiddenLibrary_IsHiddenFromThatProfileOnly()
+    {
+        var hidden = Guid.NewGuid();
+        var sam = await CreateProfileAsync("Sam", new HashSet<Guid> { hidden });
+        var other = await CreateProfileAsync("Other", new HashSet<Guid>());
+
+        Assert.True(await _profileAccess.IsLibraryHiddenAsync(sam.Id, hidden));
+        Assert.False(await _profileAccess.IsLibraryHiddenAsync(other.Id, hidden));
+        Assert.False(await _profileAccess.IsLibraryHiddenAsync(sam.Id, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task ReplacingAccess_ReplacesTheHiddenLibraries_AndRecordsWhoSavedThem()
+    {
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        var administrator = await CreateProfileAsync("Admin", new HashSet<Guid>());
+        var sam = await CreateProfileAsync("Sam2", new HashSet<Guid> { first });
+
+        await _profileAccess.ReplaceAccessAsync(
+            sam.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { second },
+            _now.AddMinutes(1), changedByProfileId: administrator.Id);
+
+        Assert.Equal(new HashSet<Guid> { second }, (await _profileAccess.GetHiddenLibrariesAsync(sam.Id)).ToHashSet());
+        using var connection = _database.CreateConnection();
+        Assert.Equal(administrator.Id, connection.ExecuteScalar<Guid>(
+            "SELECT created_by_profile_id FROM profile_library_hidden WHERE profile_id=@id;", new { id = sam.Id }));
+    }
+
+    [Fact]
+    public async Task AHiddenLibrary_IsNotInheritedFromAnyOtherProfile()
+    {
+        var hiddenForFirst = Guid.NewGuid();
+        var first = await CreateProfileAsync("First", new HashSet<Guid> { hiddenForFirst });
+        var second = await CreateProfileAsync("Second", new HashSet<Guid>());
+
+        Assert.Empty(await _profileAccess.GetHiddenLibrariesAsync(second.Id));
+        Assert.Equal(new HashSet<Guid> { hiddenForFirst }, (await _profileAccess.GetHiddenLibrariesAsync(first.Id)).ToHashSet());
+    }
+
+    [Fact]
+    public async Task DeletingAProfile_RemovesItsHiddenLibraries_AndKeepsWhoSavedThemOnTheOthers()
+    {
+        var administrator = await CreateProfileAsync("Admin2", new HashSet<Guid>());
+        var sam = await CreateProfileAsync("Sam3", new HashSet<Guid>());
+        await _profileAccess.ReplaceAccessAsync(
+            sam.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { Guid.NewGuid() },
+            _now.AddMinutes(1), changedByProfileId: administrator.Id);
+
+        await _accounts.DeleteManagedProfileAsync(administrator.Id);
+
+        using var connection = _database.CreateConnection();
+        Assert.Null(connection.ExecuteScalar<Guid?>("SELECT created_by_profile_id FROM profile_library_hidden WHERE profile_id=@id;", new { id = sam.Id }));
+        await _accounts.DeleteManagedProfileAsync(sam.Id);
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_library_hidden WHERE profile_id=@id;", new { id = sam.Id }));
+    }
+
+    private Guid? _householdOfSeedProfile;
+
+    private async Task<Profile> CreateProfileAsync(string name, IReadOnlySet<Guid> hidden)
+    {
+        if (_householdOfSeedProfile is null)
+        {
+            var owner = NewAdministrator("household-owner@example.test");
+            await _accounts.CreateAccountAsync(
+                owner,
+                Grant(owner.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
+                AccountFeatureId.All.ToHashSet(),
+                new HashSet<Guid>());
+            _householdOfSeedProfile = (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id;
+        }
+
+        var householdId = _householdOfSeedProfile.Value;
+        var profile = NewProfile(Guid.NewGuid(), name);
+        await _accounts.CreateHouseholdPersonAsync(profile, householdId);
+        await _profileAccess.ReplaceAccessAsync(profile.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, hidden, _now);
+        return profile;
     }
 
     [Fact]

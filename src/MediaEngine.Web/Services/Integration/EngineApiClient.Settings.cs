@@ -451,6 +451,32 @@ public sealed partial class EngineApiClient
     public Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default) =>
         PostAsync<LibraryMutationRequest, LibrariesConfigurationDto>("POST /settings/libraries/mutations", "/settings/libraries/mutations", request, ct: ct);
 
+    public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
+            "POST /library/unmatched/libraries/{libraryId}/retry", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}/retry", null, ct: ct);
+
+    public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> KeepAllUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
+            "POST /library/unmatched/libraries/{libraryId}/keep", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}/keep", null, ct: ct);
+
+    public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedItemAsync(Guid assetId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
+            "POST /library/unmatched/items/{assetId}/retry", $"/library/unmatched/items/{assetId:D}/retry", null, ct: ct);
+
+    public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> KeepUnmatchedItemAsync(Guid assetId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
+            "POST /library/unmatched/items/{assetId}/keep", $"/library/unmatched/items/{assetId:D}/keep", null, ct: ct);
+
+    public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> LookUpUnmatchedItemAgainAsync(Guid assetId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
+            "POST /library/unmatched/items/{assetId}/look-up-again", $"/library/unmatched/items/{assetId:D}/look-up-again", null, ct: ct);
+
+    public Task<MediaEngine.Contracts.Library.FolderFirstChecksDto?> GetFirstChecksAsync(CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Library.FolderFirstChecksDto>("GET /library/first-checks", "/library/first-checks", ct: ct);
+
+    public Task<bool> KeepGoingAsync(string sourceId, CancellationToken ct = default) =>
+        PostAsync<object?>("POST /library/first-checks/{sourceId}/keep-going", $"/library/first-checks/{Uri.EscapeDataString(sourceId)}/keep-going", null, ct: ct);
+
     public async Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default) =>
         await GetAsync<List<LibraryKindDto>>("GET /settings/library-kinds", "/settings/library-kinds", ct: ct);
 

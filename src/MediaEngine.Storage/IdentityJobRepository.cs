@@ -3,6 +3,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Jobs;
+using MediaEngine.Domain.Models;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Storage;
@@ -14,8 +15,15 @@ namespace MediaEngine.Storage;
 public sealed class IdentityJobRepository : IIdentityJobRepository
 {
     private readonly IDatabaseConnection _db;
+    private readonly FolderFirstCheckSignal? _firstCheckSignal;
 
-    public IdentityJobRepository(IDatabaseConnection db) => _db = db;
+    /// <param name="db">The data store.</param>
+    /// <param name="firstCheckSignal">Woken when a file's outcome is counted for a folder that is being checked (Library setup spec D35).</param>
+    public IdentityJobRepository(IDatabaseConnection db, FolderFirstCheckSignal? firstCheckSignal = null)
+    {
+        _db = db;
+        _firstCheckSignal = firstCheckSignal;
+    }
 
     public Task CreateAsync(IdentityJob job, CancellationToken ct = default)
     {
@@ -103,6 +111,24 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         """;
 
     /// <summary>
+    /// A job is not leased while its file is in a folder whose first check has paused it (Library setup spec D35): most of the folder's
+    /// first files did not match, and nothing more of it is identified until an administrator chooses. A folder that is only being
+    /// checked is identified as normal. When no folder is paused the subquery finds no row in the small index and costs nothing.
+    /// </summary>
+    private static readonly string PausedFolderSql = $"""
+        EXISTS (
+            SELECT 1
+            FROM   folder_first_checks paused_check
+            WHERE  paused_check.state = 'paused'
+              AND  EXISTS (
+                       SELECT 1
+                       FROM   media_assets paused_asset
+                       WHERE  paused_asset.id = identity_jobs.entity_id
+                         AND  COALESCE(NULLIF(paused_asset.library_id, ''), paused_check.library_id) = paused_check.library_id
+                         AND  {FolderPathSql.InFolder("paused_asset.file_path_root", "paused_check")}))
+        """;
+
+    /// <summary>
     /// A recording's job is not leased while some of its part files have not been registered yet (fewer part
     /// assets than the folder's part count), so the lead part has carried the job before identification starts.
     /// A part that never arrives (unreadable, removed) holds the recording back only until
@@ -136,6 +162,8 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             innerCt.ThrowIfCancellationRequested();
+            // A person choosing the match ends the file's Unmatched state.
+            conn.Execute("DELETE FROM unmatched_assets WHERE asset_id = @EntityId;", new { job.EntityId }, tx);
             var activeJobId = conn.QueryFirstOrDefault<Guid?>("""
                 SELECT id
                 FROM identity_jobs
@@ -266,6 +294,7 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                   AND  (lease_owner IS NULL OR lease_expires_at < @now)
                   AND  (next_retry_at IS NULL OR next_retry_at <= @now)
                   AND  NOT ({IncompleteAudiobookRecordingSql})
+                  AND  NOT ({PausedFolderSql})
                 ORDER BY created_at ASC
                 LIMIT  @batchSize
             )
@@ -340,8 +369,48 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                 attemptIncrement = preserveLease ? 1 : 0,
                 now = DateTimeOffset.UtcNow.ToString("O"),
             });
+
+        // A file whose retail lookup has an outcome counts toward the first check of the folder it is in (a folder added just now).
+        var firstCheckOutcome = newState switch
+        {
+            IdentityJobState.RetailMatched => FolderFirstCheckOutcomes.Matched,
+            IdentityJobState.RetailMatchedNeedsReview => FolderFirstCheckOutcomes.NeedsReview,
+            IdentityJobState.RetailNoMatch => FolderFirstCheckOutcomes.Unmatched,
+            _ => null,
+        };
+        if (firstCheckOutcome is not null && RecordFirstCheckOutcome(conn, jobId, firstCheckOutcome))
+        {
+            _firstCheckSignal?.Signal();
+        }
+
+        // A job that moves past the retail lookup without ending in no-match found its file a match (or sent it to a person to confirm),
+        // so the file is no longer Unmatched. Queued and RetailSearching are a retry in progress, and Failed is not a match.
+        if (newState is not (IdentityJobState.Queued or IdentityJobState.RetailSearching or IdentityJobState.RetailNoMatch or IdentityJobState.Failed))
+        {
+            ClearUnmatchedForJob(conn, jobId);
+        }
+
         return Task.CompletedTask;
     }
+
+    /// <summary>Counts the job's file (the job's entity is the asset, or the work whose files it covers) in the first check of its folder.</summary>
+    private static bool RecordFirstCheckOutcome(Microsoft.Data.Sqlite.SqliteConnection conn, Guid jobId, string outcome)
+    {
+        var entityId = conn.ExecuteScalar<Guid?>("SELECT entity_id FROM identity_jobs WHERE id = @jobId;", new { jobId });
+        return entityId is { } id && FolderFirstCheckRepository.RecordOutcome(conn, id, outcome);
+    }
+
+    /// <summary>Removes the Unmatched mark of the job's file (the job's entity is the asset, or the work whose files it covers).</summary>
+    private static void ClearUnmatchedForJob(Microsoft.Data.Sqlite.SqliteConnection conn, Guid jobId) =>
+        conn.Execute("""
+            DELETE FROM unmatched_assets
+            WHERE asset_id = (SELECT entity_id FROM identity_jobs WHERE id = @jobId)
+               OR asset_id IN (SELECT ma.id
+                               FROM   media_assets ma
+                               JOIN   editions e ON e.id = ma.edition_id
+                               WHERE  e.work_id = (SELECT entity_id FROM identity_jobs WHERE id = @jobId));
+            """,
+            new { jobId });
 
     public Task ScheduleRetryAsync(Guid jobId, IdentityJobState retryState, DateTimeOffset nextRetryAt, string error, CancellationToken ct = default)
         => ScheduleRetryForOutcomeAsync(

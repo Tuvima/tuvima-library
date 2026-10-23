@@ -45,6 +45,8 @@ public static class DisplayEndpoints
             bool? includeCatalog,
             string? vibes,
             string? themes,
+            Guid? libraryId,
+            bool? unmatched,
             ClaimsPrincipal user,
             DisplayComposerService display,
             CancellationToken ct) =>
@@ -66,11 +68,20 @@ public static class DisplayEndpoints
                 year,
                 sort,
                 vibes,
-                themes));
+                themes,
+                libraryId,
+                unmatched == true));
         })
             .WithName("GetDisplayBrowse")
-            .WithSummary("Returns cross-platform display cards for a media lane or browse query.")
+            .WithSummary("Returns cross-platform display cards for a media lane or browse query; libraryId narrows it to one library, unmatched=true to files the Engine could not match.")
             .Produces<DisplayPageDto>(StatusCodes.Status200OK)
+            .RequireClientScope(ClientApiScopes.LibraryRead);
+
+        group.MapGet("/browse/libraries", async (BrowseLibraryListService libraries, CancellationToken ct) =>
+            Results.Ok(await libraries.ListAsync(ct)))
+            .WithName("GetDisplayBrowseLibraries")
+            .WithSummary("Returns the libraries the signed-in profile may browse (one browse tab each), never the Vault or View.")
+            .Produces<IReadOnlyList<BrowseLibraryDto>>(StatusCodes.Status200OK)
             .RequireClientScope(ClientApiScopes.LibraryRead);
 
         group.MapGet("/continue", async (

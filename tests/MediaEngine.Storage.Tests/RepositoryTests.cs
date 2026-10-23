@@ -1237,6 +1237,49 @@ public sealed class RepositoryTests : IDisposable
         }
     }
 
+    // Two works for one title are combined; what a person did with the one that goes (saves, reactions, plays, listening history,
+    // bookmarks and personal tags) follows it to the survivor (Library setup spec D64).
+    [Theory]
+    [InlineData("Books", "Book")]
+    [InlineData("Audiobooks", "Audiobook")]
+    public async Task WorkIdentityReconciliation_CarriesEveryKindOfPersonalState_FromTheWorkThatGoesToTheSurvivor(string mediaType, string entityKind)
+    {
+        var first = Guid.NewGuid(); var second = Guid.NewGuid();
+        var a1 = Guid.NewGuid(); var a2 = Guid.NewGuid();
+        var e1 = Guid.NewGuid(); var e2 = Guid.NewGuid(); var profile = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        var args = new { first, second, a1, a2, e1, e2, profile, mediaType, entityKind, bookmark = Guid.NewGuid(), history = Guid.NewGuid() };
+        await conn.ExecuteAsync("""
+            INSERT INTO profiles(id,display_name,created_at) VALUES(@profile,'Reader','2026-01-01');
+            INSERT INTO works(id,media_type,work_kind,wikidata_qid) VALUES(@first,@mediaType,'standalone','Q85815891'),(@second,@mediaType,'standalone','Q85815891');
+            INSERT INTO editions(id,work_id) VALUES(@e1,@first),(@e2,@second);
+            INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,status)
+            VALUES(@a1,@e1,'one-test','/library/One.m4b','Normal'),(@a2,@e2,'two-test','/library/Two.m4b','Normal');
+            INSERT INTO canonical_values(entity_id,key,value,last_scored_at)
+            VALUES(@first,'title','Title','2026-01-01'),(@second,'title','Title','2026-01-01');
+            INSERT INTO profile_saved_items(profile_id,entity_kind,entity_id,saved_at) VALUES(@profile,@entityKind,@second,'2026-01-01');
+            INSERT INTO profile_reactions(profile_id,entity_kind,entity_id,reaction,updated_at) VALUES(@profile,@entityKind,@second,'Love','2026-01-01');
+            INSERT INTO profile_work_preferences(profile_id,work_id,local_tags_json,revision,updated_at) VALUES(@profile,@second,'["mine"]',1,'2026-01-01');
+            INSERT INTO music_play_stats(profile_id,work_id,play_count,last_played_at) VALUES(@profile,@second,4,'2026-01-01');
+            INSERT INTO audiobook_bookmarks(id,profile_id,work_id,asset_id,position_seconds,created_at) VALUES(@bookmark,@profile,@second,@a2,30,'2026-01-01');
+            INSERT INTO audiobook_listen_history(id,profile_id,work_id,asset_id,title,position_seconds,device_id,client,started_at,ended_at)
+            VALUES(@history,@profile,@second,@a2,'Heard',30,'d','web','2026-01-01T00:00:00Z','2026-01-01T00:10:00Z');
+            """, args);
+        var service = new WorkIdentityReconciliationService(_db);
+
+        Assert.Equal(1, await service.MergeDuplicateReadWorksByQidAsync());
+
+        var target = await conn.ExecuteScalarAsync<Guid>("SELECT work_id FROM editions WHERE id=@e1", args);
+        var gone = target == first ? second : first;
+        Assert.Equal(0, await conn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM works WHERE id=@gone", new { gone }));
+        Assert.Equal(target, await conn.ExecuteScalarAsync<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id=@profile", args));
+        Assert.Equal(target, await conn.ExecuteScalarAsync<Guid>("SELECT entity_id FROM profile_reactions WHERE profile_id=@profile", args));
+        Assert.Equal("""["mine"]""", await conn.ExecuteScalarAsync<string>("SELECT local_tags_json FROM profile_work_preferences WHERE work_id=@target", new { target }));
+        Assert.Equal(4, await conn.ExecuteScalarAsync<int>("SELECT play_count FROM music_play_stats WHERE work_id=@target", new { target }));
+        Assert.Equal(1, await conn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM audiobook_bookmarks WHERE work_id=@target", new { target }));
+        Assert.Equal(1, await conn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM audiobook_listen_history WHERE work_id=@target", new { target }));
+    }
+
     [Theory]
     [InlineData("Q85815891", null, "4a40febf-b65d-4ea7-810d-8317f0706a88", true)]
     [InlineData(null, null, "4a40febf-b65d-4ea7-810d-8317f0706a88", true)]

@@ -30,6 +30,8 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapAdminEndpoints();
         app.MapCollectionEndpoints();
         app.MapLibraryEndpoints();
+        app.MapUnmatchedEndpoints();
+        app.MapFolderFirstCheckEndpoints();
         app.MapStreamEndpoints();
         app.MapHlsStreamEndpoints();
         app.MapCastEndpoints();
@@ -44,6 +46,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapReadEndpoints();
         app.MapReaderEndpoints();
         app.MapIngestionEndpoints();
+        app.MapImportUploadEndpoints();
         app.MapEnrichmentRefreshEndpoints();
         app.MapOperationsEndpoints();
         app.MapCapabilityEndpoints();

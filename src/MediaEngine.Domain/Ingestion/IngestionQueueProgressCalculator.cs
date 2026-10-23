@@ -103,7 +103,7 @@ public static class IngestionQueueProgressCalculator
         var filesDone = 0;
         var filesRegistered = 0;
         var openActive = 0;
-        int added = 0, needsReview = 0, failed = 0, skipped = 0;
+        int added = 0, needsReview = 0, failed = 0, skipped = 0, unmatched = 0;
         var unsorted = 0;
         var typeCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         DateTimeOffset? lastActivity = null;
@@ -133,6 +133,7 @@ public static class IngestionQueueProgressCalculator
                 {
                     case IngestionFileOutcome.Added: added++; break;
                     case IngestionFileOutcome.NeedsReview: needsReview++; break;
+                    case IngestionFileOutcome.Unmatched: unmatched++; break;
                     case IngestionFileOutcome.Failed: failed++; break;
                     default: skipped++; break;
                 }
@@ -221,7 +222,7 @@ public static class IngestionQueueProgressCalculator
             FilesWaiting = held.Count,
             WaitingFor = waitingFor,
             FilesMoreFound = Math.Max(0, filesFound - (startedNewPeriod ? filesFound : state.FirstSnapshotFiles)),
-            Outcomes = new IngestionQueueOutcomes(added, needsReview, failed, skipped),
+            Outcomes = new IngestionQueueOutcomes(added, needsReview, failed, skipped, unmatched),
             Tally = OrderTally(typeCounts),
             FilesUnsorted = unsorted,
             StepsTotal = stepsTotal,

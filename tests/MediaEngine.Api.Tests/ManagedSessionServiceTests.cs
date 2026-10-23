@@ -295,7 +295,7 @@ public sealed class ManagedSessionServiceTests
         private async Task<Account> CreateMainAsync(string email, string person, bool isAdministrator) =>
             await _mutations.CreateAsync(_setupActor, new CreateAccountAccessCommand(
                 email, isAdministrator, ProfileId: null, NewProfile: new NewAccountProfileCommand(person, "#7C4DFF"),
-                Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
+                Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
 
         private RequestAuthority Authority(Account account, AuthSession session,
             bool administrator = false, bool householdAdministrator = false) => new(

@@ -16,6 +16,13 @@ public static class MediaFileWriteTriggers
     /// </summary>
     public const string LibraryMove = "library_move";
 
+    /// <summary>
+    /// Library filed the file on its own (a newly identified file in a Managed folder, or a file out of the Import folder). The move waits
+    /// for the next run and is done with the tags (Library setup D62). On a row that has no tags waiting this is the whole job: the row
+    /// is removed once the move is checked. It is not a tag-writing trigger, so the tag-writing switches do not apply to it.
+    /// </summary>
+    public const string Filing = "filing";
+
     /// <summary>Embedded artwork for a Music or Audiobooks file needs bringing up to date.</summary>
     public const string Artwork = "artwork";
 
@@ -30,4 +37,11 @@ public static class MediaFileWriteTriggers
     /// so the profile's name is written into the file when the format can hold it (batched write-back D7).
     /// </summary>
     public const string ViewAddedBy = "view_added_by";
+
+    /// <summary>
+    /// The triggers of a write a person asked for with an explicit edit of a field (Editing Mode: the editor, a manual override, the item's
+    /// own preferences or an applied canonical choice). Library writes nothing on its own into a file it could not match (Library setup
+    /// D64), but a person's own edit is written as normal.
+    /// </summary>
+    public static IReadOnlyList<string> PersonsEdits { get; } = [EditorCommit, "manual_override", "item_preferences", "item_canonical_apply"];
 }

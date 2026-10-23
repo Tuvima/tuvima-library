@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
@@ -134,9 +135,16 @@ public sealed class IntercomAudienceAuthorizer(
             }
 
             var provenance = await resources.ResolveAsync(id, ct).ConfigureAwait(false);
-            return provenance is not null &&
-                (await profileAccess.GetLibraryGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(provenance.LibraryId) &&
-                (await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(provenance.FeatureId);
+            if (provenance is null)
+            {
+                return false;
+            }
+
+            // The area first (cheap, and it decides whether hiding can matter), then the one library visibility rule.
+            var hasArea = (await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(provenance.FeatureId);
+            var isVault = (await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false)).Contains(provenance.LibraryId.ToString("D"));
+            var isHidden = hasArea && !isVault && await profileAccess.IsLibraryHiddenAsync(profile.ProfileId, provenance.LibraryId, ct).ConfigureAwait(false);
+            return LibraryVisibilityRule.MaySee(false, isVault, hasArea, isHidden);
         }
 
         if (!administrator)

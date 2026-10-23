@@ -10,7 +10,9 @@ namespace MediaEngine.Web.Components.Settings;
 /// <summary>One row on a group page, and one line of a group card: what a library type holds and how its folders are doing.</summary>
 /// <param name="Folders">Folder count; null only for a View kind while its folders are not known yet.</param>
 /// <param name="Titles">Titles the Engine counts for the type; null when the overview is not available or the type has no count.</param>
-public sealed record LibraryRowSummary(LibraryTypeOption Type, int? Folders, int? Titles, LibraryHealth? Health);
+/// <param name="Unmatched">Files in the row's library (or libraries) the Engine could not match; kept-as-is files are not counted.</param>
+/// <param name="SharesKindTitles">True for one of several named libraries of a kind: the Engine counts titles per media type, so the kind's count cannot be split between them.</param>
+public sealed record LibraryRowSummary(LibraryTypeOption Type, int? Folders, int? Titles, LibraryHealth? Health, int Unmatched = 0, bool SharesKindTitles = false, bool Paused = false);
 
 /// <summary>A group card: its rows plus their totals and the worst health among them.</summary>
 public sealed record LibraryGroupSummary(LibraryGroup Group, IReadOnlyList<LibraryRowSummary> Rows, int? Folders, int? Titles, LibraryHealth? Health);
@@ -25,6 +27,25 @@ public static class LibraryRollup
     public static LibraryFolderDto? PrimaryLibraryFor(LibrariesConfigurationDto? configuration, LibraryTypeOption type) => configuration?.Libraries
         .FirstOrDefault(library => IsCatalogued(library) && string.Equals(library.KindKey, type.Key, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Every library a kind holds: for a kind that allows several named libraries (the plain kinds) each one, in the saved order; for any
+    /// other kind its one library.
+    /// </summary>
+    public static IReadOnlyList<LibraryFolderDto> LibrariesOf(LibrariesConfigurationDto? configuration, LibraryTypeOption type)
+    {
+        if (configuration is null)
+        {
+            return [];
+        }
+
+        if (!type.AllowsMultiple)
+        {
+            return PrimaryLibraryFor(configuration, type) is { } only ? [only] : [];
+        }
+
+        return [.. configuration.Libraries.Where(library => IsCatalogued(library) && string.Equals(library.KindKey, type.Key, StringComparison.OrdinalIgnoreCase))];
+    }
+
     public static bool IsCatalogued(LibraryFolderDto library) => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
@@ -34,7 +55,7 @@ public static class LibraryRollup
     public static IReadOnlyList<LibraryTypeOption> OtherLibraries(LibraryKindCatalog kinds, LibrariesConfigurationDto? configuration) => configuration is null
         ? []
         : configuration.Libraries
-            .Where(library => IsCatalogued(library) && !kinds.Types.Any(type => ReferenceEquals(PrimaryLibraryFor(configuration, type), library)))
+            .Where(library => IsCatalogued(library) && !kinds.Types.Any(type => LibrariesOf(configuration, type).Any(held => ReferenceEquals(held, library))))
             .Select(library => new LibraryTypeOption(
                 OtherKey(library.Id),
                 string.IsNullOrWhiteSpace(library.Name) ? "Other library" : library.Name,
@@ -42,7 +63,8 @@ public static class LibraryRollup
                 library.Area,
                 [.. library.MediaTypes],
                 kinds.Find(library.KindKey)?.Icon ?? OtherIcon(library.Area),
-                library.Id))
+                library.Id,
+                LookupProviders: kinds.Find(library.KindKey)?.LookupProviders))
             .ToList();
 
     public static string OtherKey(string libraryId) => $"other-{libraryId}";
@@ -94,12 +116,22 @@ public static class LibraryRollup
 
         var library = LibraryFor(configuration, type);
         var sources = library?.Sources ?? [];
-        return new LibraryRowSummary(type, sources.Count, TitlesFor(type, overview), issues is null ? null : LibraryFolderHealth.Worst(sources, issues));
+        return new LibraryRowSummary(type, sources.Count, TitlesFor(type, overview), issues is null ? null : LibraryFolderHealth.Worst(sources, issues), UnmatchedFor(configuration, type), Paused: PausedFor(configuration, type));
     }
+
+    /// <summary>The Unmatched files of a row: its own library's count, or the sum over the libraries a bare kind holds.</summary>
+    public static int UnmatchedFor(LibrariesConfigurationDto configuration, LibraryTypeOption type) => type.LibraryId is not null
+        ? LibraryFor(configuration, type)?.UnmatchedCount ?? 0
+        : LibrariesOf(configuration, type).Sum(library => library.UnmatchedCount);
+
+    /// <summary>True when any folder of the row's library (or of the libraries a bare kind holds) has its first check paused (Library setup D35).</summary>
+    public static bool PausedFor(LibrariesConfigurationDto configuration, LibraryTypeOption type) =>
+        (type.LibraryId is not null ? [.. new[] { LibraryFor(configuration, type) }.OfType<LibraryFolderDto>()] : LibrariesOf(configuration, type))
+            .Any(library => library.Sources.Any(source => source.FirstCheck is { State: "paused" }));
 
     /// <summary>
     /// The rows of a group page: its types in order, then that area's other libraries. A kind that allows several named libraries
-    /// (Other videos and its kind) is shown under the name of its first library, so each library reads by the name its owner chose.
+    /// (Other videos and its kind) has one row per library, each under the name its owner chose; with none yet it keeps its own row.
     /// </summary>
     public static IReadOnlyList<LibraryRowSummary> RowsFor(
         LibraryKindCatalog kinds,
@@ -107,18 +139,29 @@ public static class LibraryRollup
         LibrariesConfigurationDto configuration,
         LibraryOverviewDto? overview,
         IReadOnlyDictionary<string, int>? viewFolders,
-        IReadOnlyDictionary<string, string>? issues) =>
-        [.. group.TypeKeys
-            .Select(kinds.Find)
-            .OfType<LibraryTypeOption>()
-            .Select(type => NamedAfterItsLibrary(type, configuration))
-            .Concat(OthersIn(kinds, configuration, group))
-            .Select(type => RowFor(type, configuration, overview, viewFolders, issues))];
+        IReadOnlyDictionary<string, string>? issues)
+    {
+        var rows = new List<LibraryRowSummary>();
+        foreach (var type in group.TypeKeys.Select(kinds.Find).OfType<LibraryTypeOption>())
+        {
+            var named = type.AllowsMultiple ? LibrariesOf(configuration, type) : [];
+            if (named.Count == 0)
+            {
+                rows.Add(RowFor(type, configuration, overview, viewFolders, issues));
+                continue;
+            }
 
-    private static LibraryTypeOption NamedAfterItsLibrary(LibraryTypeOption type, LibrariesConfigurationDto configuration) =>
-        type.AllowsMultiple && PrimaryLibraryFor(configuration, type) is { Name: { Length: > 0 } name } && !string.IsNullOrWhiteSpace(name)
-            ? type with { Label = name, PluralLabel = name }
-            : type;
+            foreach (var library in named)
+            {
+                var name = string.IsNullOrWhiteSpace(library.Name) ? type.Label : library.Name;
+                var row = RowFor(type with { Label = name, PluralLabel = name, LibraryId = library.Id }, configuration, overview, viewFolders, issues);
+                rows.Add(named.Count > 1 ? row with { Titles = null, SharesKindTitles = true } : row);
+            }
+        }
+
+        rows.AddRange(OthersIn(kinds, configuration, group).Select(type => RowFor(type, configuration, overview, viewFolders, issues)));
+        return rows;
+    }
 
     public static LibraryGroupSummary SummaryFor(
         LibraryKindCatalog kinds,
@@ -136,7 +179,9 @@ public static class LibraryRollup
 
         var rows = RowsFor(kinds, group, configuration, overview, viewFolders, issues);
         int? folders = rows.Any(row => row.Folders is null) ? null : rows.Sum(row => row.Folders!.Value);
-        int? titles = overview is null || rows.All(row => row.Titles is null) ? null : rows.Sum(row => row.Titles ?? 0);
+        // The libraries of one kind share its title count (the Engine counts per media type), so it is added once for them all.
+        var sharedTitles = rows.Where(row => row.SharesKindTitles).GroupBy(row => row.Type.Key).Sum(kind => TitlesFor(kind.First().Type, overview) ?? 0);
+        int? titles = overview is null || rows.All(row => row.Titles is null && !row.SharesKindTitles) ? null : rows.Sum(row => row.Titles ?? 0) + sharedTitles;
         var sources = rows.Where(row => !LibraryTypeCatalog.IsViewKind(row.Type))
             .SelectMany(row => LibraryFor(configuration, row.Type)?.Sources ?? []);
         // View's folders are never checked, so a group of only View has no health to show; others wait for the checks.

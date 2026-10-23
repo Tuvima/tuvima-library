@@ -832,7 +832,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             bump = bumpVersion ? 1 : 0,
         }, tx);
         ProfileAccessRepository.WriteAccessRows(c, tx, profileId, placement.Features ?? new HashSet<AccountFeatureId>(),
-            placement.Libraries ?? new HashSet<Guid>(), user.CreatedAt);
+            placement.HiddenLibraries ?? new HashSet<Guid>(), user.CreatedAt);
         if (placement.IsServerAdministrator)
         {
             ProfileAccessRepository.MarkDefaultHouseholdIfNone(c, tx, householdId);
@@ -853,16 +853,16 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             """, new { profileId }, tx);
 
     /// <summary>
-    /// A person added without a sign-in starts with the Read/Watch/Listen/View access and libraries of the profile of whoever
-    /// added them (<paramref name="sourceProfileId"/>); with no such profile they start with every feature and no library. Someone
-    /// outside the adder's household starts with View off and no library. A source profile that does not exist gives nothing. Never an
-    /// administrator role.
+    /// A person added without a sign-in starts with the Read/Watch/Listen/View access and hidden libraries of the profile of whoever
+    /// added them (<paramref name="sourceProfileId"/>); with no such profile they start with every feature and nothing hidden (every
+    /// library in their areas is visible, simpler access D2). Someone outside the adder's household starts with View off and nothing
+    /// hidden. A source profile that does not exist gives nothing. Never an administrator role.
     /// </summary>
     private static void GiveNewProfileAccess(
         System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId, Guid householdId, Guid? sourceProfileId, DateTimeOffset at)
     {
         List<string> features;
-        List<Guid> libraries = [];
+        List<Guid> hiddenLibraries = [];
         if (sourceProfileId is not { } source)
         {
             features = AccountFeatureId.All.Select(feature => feature.Value).ToList();
@@ -879,7 +879,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 .ToList();
             if (sameHousehold)
             {
-                libraries = c.Query<Guid>("SELECT library_id FROM profile_library_grants WHERE profile_id=@source;", new { source }, tx).ToList();
+                hiddenLibraries = c.Query<Guid>("SELECT library_id FROM profile_library_hidden WHERE profile_id=@source;", new { source }, tx).ToList();
             }
         }
 
@@ -889,10 +889,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 new { profileId, feature, at = Iso(at) }, tx);
         }
 
-        foreach (var libraryId in libraries)
+        foreach (var libraryId in hiddenLibraries)
         {
-            c.Execute("INSERT INTO profile_library_grants(profile_id,library_id,granted_at) VALUES(@profileId,@libraryId,@at);",
-                new { profileId, libraryId, at = Iso(at) }, tx);
+            c.Execute("INSERT INTO profile_library_hidden(profile_id,library_id,created_at,created_by_profile_id) VALUES(@profileId,@libraryId,@at,@source);",
+                new { profileId, libraryId, at = Iso(at), source = sourceProfileId }, tx);
         }
     }
 

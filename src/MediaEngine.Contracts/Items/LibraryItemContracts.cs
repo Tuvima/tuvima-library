@@ -64,6 +64,13 @@ public sealed class LibraryItemDetailDto
     [JsonPropertyName("artwork_source")] public string? ArtworkSource { get; init; }
     [JsonPropertyName("artwork_settled_at")] public DateTimeOffset? ArtworkSettledAt { get; init; }
     [JsonPropertyName("universe_summary")] public LibraryItemUniverseSummaryDto? UniverseSummary { get; init; }
+
+    /// <summary>
+    /// What identification has done for this item (Library setup spec D34): <c>matched</c>, <c>unmatched</c> (the Engine could not match it;
+    /// it stays in place and is looked up again later), <c>kept_as_is</c> (unmatched, and kept: no more lookups) or <c>not_looked_up</c> (its
+    /// library never looks anything up, such as a plain kind).
+    /// </summary>
+    [JsonPropertyName("lookup_state")] public string LookupState { get; init; } = "matched";
 }
 
 public sealed class PlaybackTechnicalSummaryDto

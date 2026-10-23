@@ -74,7 +74,7 @@
                     break;
                 case "media-locations":
                     <SetupMediaStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
-                                     LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Any(library => library.Sources.Count > 0) == true)" DeferMedia="DeferMediaAsync"
+                                     LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Any(library => library.Sources.Count > 0) == true)" DeferMedia="DeferMediaAsync" ContinueWithViewOnly="ContinueWithViewOnlyAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "providers" when !_languageConfirmed:
@@ -505,6 +505,7 @@
         await DecideStepAsync("providers", "passed", "Language and provider setup reviewed.");
     }
     private Task DeferMediaAsync() => DecideStepAsync("media-locations", "deferred", "Media folders can be added later in Settings · Libraries.");
+    private Task ContinueWithViewOnlyAsync() => DecideStepAsync("media-locations", "deferred", "View folders added. Watch, Listen and Read folders can be added later in Settings · Libraries.");
     private async Task DeferProviderResultAsync()
     {
         if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
@@ -542,12 +543,7 @@
     private async Task InstallOptionalToolAsync(ToolRequirementDto tool)
     {
         bool started;
-        try
-        {
-            started = tool.Kind == "ai_model"
-                ? (await ApiClient.StartAiModelDownloadAsync(tool.Id[ToolRequirementIds.AiModelPrefix.Length..])).Succeeded
-                : (await ApiClient.InstallToolAsync(tool.Id)).Success;
-        }
+        try { started = (await ApiClient.InstallToolAsync(tool.Id)).Success; }
         catch (Exception) { started = false; }
         if (started) Snackbar.Add($"Downloading {tool.Name}. Library finishes this in the background.", AppSeverity.Info);
         else Snackbar.Add($"The download of {tool.Name} could not start. You can try again from Settings, Tools and requirements.", AppSeverity.Warning);

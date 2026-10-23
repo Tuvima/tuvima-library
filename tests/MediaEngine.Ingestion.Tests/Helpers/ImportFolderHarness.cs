@@ -51,7 +51,8 @@ internal sealed class ImportFolderHarness : IDisposable
     public ImportFolderHarness(
         string duplicatePolicy = LibraryDuplicatePolicies.KeepOne,
         bool createMoviesFolder = true,
-        bool alwaysCopyAndVerify = false)
+        bool alwaysCopyAndVerify = false,
+        IFilingQueue? filingQueue = null)
     {
         Root = Path.Combine(Path.GetTempPath(), $"tuvima_import_{Guid.NewGuid():N}");
         ImportDir = Path.Combine(Root, "Import");
@@ -132,7 +133,8 @@ internal sealed class ImportFolderHarness : IDisposable
             importFolders: Importer,
             importMover: Mover,
             importJournal: Journal,
-            sidecars: new SidecarMover(new SystemOrganiseFileMover(), NullLogger<SidecarMover>.Instance));
+            sidecars: new SidecarMover(new SystemOrganiseFileMover(), NullLogger<SidecarMover>.Instance),
+            filingQueue: filingQueue);
         Filer = new ImportFolderFiler(
             Importer,
             Assets,

@@ -26,12 +26,13 @@ public static class LibraryItemEndpoints
         group.MapGet("/{entityId}/detail", async (
             Guid entityId,
             ILibraryItemRepository repo,
+            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Unmatched.ItemLookupStateService lookupStates,
             CancellationToken ct) =>
         {
             var detail = await repo.GetDetailAsync(entityId, ct);
             return detail is null
                 ? ApiErrors.NotFound($"Library item '{entityId}' not found.")
-                : Results.Ok(detail.ToContract());
+                : Results.Ok(detail.ToContract(await lookupStates.GetAsync(entityId, ct)));
         })
         .WithName("GetLibraryItemDetail")
         .WithSummary("Full detail for a single library item.")

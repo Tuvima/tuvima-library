@@ -7,6 +7,7 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
@@ -33,6 +34,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private bool _ownHasPin;
     private readonly Dictionary<Guid, ProfileAdminProtectionResponse> _protections = [];
     private readonly List<AccessLibraryOptionDto> _libraries = [];
+    private bool _librariesFail;
     private HttpStatusCode _accessSaveStatus = HttpStatusCode.NoContent;
     private string? _accessSaveDetail;
     private HttpStatusCode _rolesStatus = HttpStatusCode.NoContent;
@@ -41,12 +43,15 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private string? _profileDeleteDetail;
     private static readonly Guid LibraryA = Guid.Parse("00000000-0000-0000-0000-00000000000a");
     private static readonly Guid LibraryB = Guid.Parse("00000000-0000-0000-0000-00000000000b");
+    private static readonly Guid LibraryC = Guid.Parse("00000000-0000-0000-0000-00000000000c");
 
     public ProfileDetailPageTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddNativeUiServices();
+        Services.AddLocalization();
+        Services.AddLocalization();
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
@@ -532,23 +537,34 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Assert.Empty(member.FindAll("[data-profile-section='access']"));
     }
 
-    // ---- access (Read, Watch, Listen, View and libraries) on the profile
+    // ---- access (Read, Watch, Listen, View and hidden libraries) on the profile
+
+    private void TwoReadLibraries(params Guid[] hiddenFromTheViewer)
+    {
+        // Read has two libraries (so it gets a list), Watch has one (so it does not).
+        _libraries.AddRange([
+            new AccessLibraryOptionDto(LibraryA, "Books", null, "Read", hiddenFromTheViewer.Contains(LibraryA)),
+            new AccessLibraryOptionDto(LibraryB, "Comics", null, "Read", hiddenFromTheViewer.Contains(LibraryB)),
+            new AccessLibraryOptionDto(LibraryC, "Movies", null, "Watch"),
+        ]);
+    }
 
     [Fact]
-    public async Task AccessEditor_OffersTheEnginesLibraries_AndOnlyTheLanesTheHouseholdAdministratorHolds_AndSavesOrderedIds()
+    public async Task AccessEditor_OffersTheEnginesLibraries_AndOnlyTheLanesTheHouseholdAdministratorHolds_AndSavesTheLanes()
     {
         Setup(actions: ["household.manage"], navigation: ["read", "watch"]);
         _managed.AddRange([
             Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"),
-            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read"], libraries: [LibraryA])]);
-        _libraries.Add(new AccessLibraryOptionDto(LibraryA, "Books", null, "Read"));
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read"])]);
+        TwoReadLibraries();
 
         var cut = RenderFor(SamId);
-        cut.WaitForAssertion(() => Assert.Contains("Read · 1 library", Row(cut, "access").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("Read · all libraries", Row(cut, "access").TextContent));
         await cut.ClickAsync(page => Row(page, "access"));
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries")));
-        Assert.Equal(["Books"], cut.FindAll(".profile-access-sheet .access-user-permissions__libraries label").Select(label => label.TextContent.Trim()).ToList());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .area-library-list")));
+        Assert.Equal(["Books", "Comics"], cut.FindAll(".profile-access-sheet .area-library-list label").Select(label => label.TextContent.Trim()).ToList());
+        Assert.Empty(cut.FindAll(".profile-access-sheet [data-area-libraries='watch']"));
         var switches = cut.FindAll(".profile-access-sheet input[role='switch']");
         Assert.Equal(["Read", "Watch", "Listen", "View"], switches.Select(input => input.GetAttribute("aria-label")).ToList());
         Assert.Equal([false, false, true, true], switches.Select(input => input.HasAttribute("disabled")).ToList());
@@ -560,59 +576,163 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/profiles/{SamId:D}/access");
         using var body = System.Text.Json.JsonDocument.Parse(put.Body);
         Assert.Equal("read,watch", string.Join(",", body.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString())));
-        Assert.Equal(LibraryA.ToString("D"), string.Join(",", body.RootElement.GetProperty("library_ids").EnumerateArray().Select(item => item.GetString())));
+        // Nothing was unticked, so nothing is hidden (every library is visible unless an administrator unticks it).
+        Assert.Empty(body.RootElement.GetProperty("hidden_library_ids").EnumerateArray());
     }
 
     [Fact]
-    public async Task AccessEditor_ForAHouseholdAdministrator_ShowsWhatTheyDoNotHoldReadOnly_AndNeverSendsItAsAChange()
-    {
-        Setup(actions: ["household.manage"], navigation: ["read"]);
-        _managed.AddRange([
-            Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"),
-            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["view"], libraries: [LibraryA, LibraryB])]);
-        _libraries.Add(new AccessLibraryOptionDto(LibraryA, "Books", null, "Read"));
-
-        var cut = RenderFor(SamId);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
-        await cut.ClickAsync(page => Row(page, "access"));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries")));
-
-        var view = cut.FindAll(".profile-access-sheet input[role='switch']").Single(input => input.GetAttribute("aria-label") == "View");
-        Assert.True(view.HasAttribute("disabled"));
-        Assert.True(view.HasAttribute("checked") || view.GetAttribute("aria-checked") == "true");
-        Assert.Contains("Set by the server administrator", cut.Find("[data-testid='access-set-by-server-administrator']").TextContent);
-        Assert.Contains("1 more library", cut.Find("[data-testid='access-libraries-set-by-server-administrator']").TextContent);
-
-        await cut.InvokeAsync(() => cut.FindAll(".profile-access-sheet input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Read").Change(true));
-        await ClickSaveAsync(cut);
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".profile-access-sheet")));
-        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/profiles/{SamId:D}/access");
-        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
-        Assert.Equal("read", string.Join(",", body.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString())));
-        Assert.Equal(LibraryA.ToString("D"), string.Join(",", body.RootElement.GetProperty("library_ids").EnumerateArray().Select(item => item.GetString())));
-    }
-
-    [Fact]
-    public async Task AccessEditor_ForAServerAdministrator_SendsEveryLibraryThePersonHolds()
+    public async Task AccessEditor_UntickingALibrary_SavesStraightAway_AndSaysItWasHiddenFromThePerson()
     {
         Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
-        _managed.AddRange([
-            Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"),
-            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read"], libraries: [LibraryA, LibraryB])]);
-        _libraries.Add(new AccessLibraryOptionDto(LibraryA, "Books", null, "Read"));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"),
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read", "watch"])]);
+        TwoReadLibraries();
+        var cut = await OpenAccessSheetAsync();
+
+        await cut.InvokeAsync(() => LibraryTick(cut, LibraryA).Change(false));
+
+        // No Save click: the tick went to the Engine on its own, with the lanes as they were saved and the library added.
+        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal)));
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/profiles/{SamId:D}/access");
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal("read,watch", string.Join(",", body.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString())));
+        Assert.Equal(LibraryA.ToString("D"), string.Join(",", body.RootElement.GetProperty("hidden_library_ids").EnumerateArray().Select(item => item.GetString())));
+        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Hidden from Sam"));
+        // The sheet stays open for the other fields, and the library now shows unticked.
+        Assert.NotEmpty(cut.FindAll(".profile-access-sheet"));
+        cut.WaitForAssertion(() => Assert.False(LibraryTick(cut, LibraryA).HasAttribute("checked")));
+        Assert.Contains("Read: 1 hidden", Row(cut, "access").TextContent);
+    }
+
+    [Fact]
+    public async Task AccessEditor_TickingALibraryAgain_RemovesItFromTheHiddenSet()
+    {
+        Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"),
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read", "watch"], hidden: [LibraryA, LibraryB])]);
+        TwoReadLibraries();
+        var cut = await OpenAccessSheetAsync();
+        Assert.False(LibraryTick(cut, LibraryA).HasAttribute("checked"));
+
+        await cut.InvokeAsync(() => LibraryTick(cut, LibraryA).Change(true));
+
+        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal)));
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal));
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal(LibraryB.ToString("D"), string.Join(",", body.RootElement.GetProperty("hidden_library_ids").EnumerateArray().Select(item => item.GetString())));
+        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Shown to Sam"));
+    }
+
+    [Fact]
+    public async Task AccessEditor_ForAHouseholdAdministrator_ALibraryHiddenFromThem_IsGreyedWhenHiddenFromThePerson_AndCannotBeTicked()
+    {
+        Setup(actions: ["household.manage"], navigation: ["read", "watch"]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"),
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read"], hidden: [LibraryB])]);
+        TwoReadLibraries(hiddenFromTheViewer: LibraryB);
+        var cut = await OpenAccessSheetAsync();
+
+        var row = cut.Find($".profile-access-sheet [data-library-id='{LibraryB}']");
+        Assert.Contains("Hidden from you", row.TextContent);
+        Assert.Contains("area-library-list__item--held", row.ClassName);
+        var tick = LibraryTick(cut, LibraryB);
+        Assert.True(tick.HasAttribute("disabled"));
+        Assert.False(tick.HasAttribute("checked"));
+        // The library the administrator can see can still be ticked.
+        Assert.False(LibraryTick(cut, LibraryA).HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task AccessEditor_ForAHouseholdAdministrator_ALibraryHiddenFromThem_CanStillBeHiddenFromThePerson()
+    {
+        Setup(actions: ["household.manage"], navigation: ["read", "watch"]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"),
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read"])]);
+        TwoReadLibraries(hiddenFromTheViewer: LibraryB);
+        var cut = await OpenAccessSheetAsync();
+
+        Assert.False(LibraryTick(cut, LibraryB).HasAttribute("disabled"));
+        await cut.InvokeAsync(() => LibraryTick(cut, LibraryB).Change(false));
+
+        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task AccessEditor_AFailedLibraryList_NeverUnhidesLibraries_WhenALaneIsChanged()
+    {
+        var hiddenAlready = Guid.NewGuid();
+        Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"),
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read", "watch"], hidden: [hiddenAlready])]);
+        _librariesFail = true;
+        var cut = await OpenAccessSheetAsync(waitForLists: false);
+
+        cut.WaitForAssertion(() => Assert.Contains("libraries could not be loaded", cut.Markup));
+        Assert.NotEmpty(cut.FindAll(".profile-access-sheet .app-error-state"));
+        Assert.Empty(cut.FindAll(".profile-access-sheet .area-library-list input"));
+        await cut.InvokeAsync(() => cut.FindAll(".profile-access-sheet input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Listen").Change(true));
+        await ClickSaveAsync(cut);
+
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/profiles/{SamId:D}/access");
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal("listen,read,watch", string.Join(",", body.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString())));
+        Assert.Equal(hiddenAlready.ToString("D"), string.Join(",", body.RootElement.GetProperty("hidden_library_ids").EnumerateArray().Select(item => item.GetString())));
+    }
+
+    [Fact]
+    public async Task AccessEditor_AFailedLibraryList_CanBeRetried()
+    {
+        Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"),
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read", "watch"])]);
+        TwoReadLibraries();
+        _librariesFail = true;
+        var cut = await OpenAccessSheetAsync(waitForLists: false);
+        cut.WaitForAssertion(() => Assert.Contains("libraries could not be loaded", cut.Markup));
+
+        _librariesFail = false;
+        await cut.ClickAsync(page => page.Find(".profile-access-sheet .app-error-state button"));
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .area-library-list")));
+        Assert.Empty(cut.FindAll(".profile-access-sheet .app-error-state"));
+    }
+
+    [Fact]
+    public async Task AccessEditor_NoVaultLibraryIsEverShown_EvenIfOneWereListed()
+    {
+        Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"),
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read", "watch"])]);
+        TwoReadLibraries();
+        // The Engine's picker leaves the Vault out; the lists also only draw the four areas, so a stray one would still not appear.
+        _libraries.AddRange([
+            new AccessLibraryOptionDto(Guid.NewGuid(), "Secret one", "Videos", "vault"),
+            new AccessLibraryOptionDto(Guid.NewGuid(), "Secret two", "Videos", "vault"),
+        ]);
+        var cut = await OpenAccessSheetAsync();
+
+        Assert.DoesNotContain("Secret", cut.Find(".profile-access-sheet").TextContent);
+        Assert.DoesNotContain("Vault", cut.Find(".profile-access-sheet").TextContent);
+    }
+
+    [Fact]
+    public async Task AccessEditor_WhenTheEngineRefuses_StaysOpenWithTheEnginesSentence()
+    {
+        Setup(actions: ["household.manage"], navigation: ["read"]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false, signInEmail: "sam@home.test")]);
+        _accessSaveStatus = HttpStatusCode.Forbidden;
+        _accessSaveDetail = "You can only hand out the access your own profile has.";
+        TwoReadLibraries();
 
         var cut = RenderFor(SamId);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
         await cut.ClickAsync(page => Row(page, "access"));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries")));
-        Assert.Empty(cut.FindAll("[data-testid='access-set-by-server-administrator']"));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet input[role='switch']")));
+
         await ClickSaveAsync(cut);
 
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".profile-access-sheet")));
-        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/profiles/{SamId:D}/access");
-        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
-        Assert.Equal(2, body.RootElement.GetProperty("library_ids").GetArrayLength());
+        cut.WaitForAssertion(() => Assert.Contains("You can only hand out the access your own profile has.", cut.Find(".profile-access-sheet [role='alert']").TextContent));
+        Assert.NotEmpty(cut.FindAll(".profile-access-sheet"));
     }
 
     [Fact]
@@ -627,26 +747,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet input[role='switch']")));
         Assert.Equal(["Read", "Watch", "Listen", "View"], cut.FindAll(".profile-access-sheet input[role='switch']").Select(input => input.GetAttribute("aria-label")).ToList());
-    }
-
-    [Fact]
-    public async Task AccessEditor_WhenTheEngineRefuses_StaysOpenWithTheEnginesSentence()
-    {
-        Setup(actions: ["household.manage"], navigation: ["read"]);
-        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false, signInEmail: "sam@home.test")]);
-        _accessSaveStatus = HttpStatusCode.Forbidden;
-        _accessSaveDetail = "You can only hand out the access your own profile has.";
-        _libraries.Add(new AccessLibraryOptionDto(LibraryA, "Books", null, "Read"));
-
-        var cut = RenderFor(SamId);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
-        await cut.ClickAsync(page => Row(page, "access"));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries")));
-
-        await ClickSaveAsync(cut);
-
-        cut.WaitForAssertion(() => Assert.Contains("You can only hand out the access your own profile has.", cut.Find(".profile-access-sheet [role='alert']").TextContent));
-        Assert.NotEmpty(cut.FindAll(".profile-access-sheet"));
+        Assert.Empty(cut.FindAll("[data-testid='access-set-by-server-administrator']"));
     }
 
     // ---- phones read the profile; roles, access and Delete profile are changed on a computer or tablet
@@ -993,8 +1094,47 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private IEnumerable<RecordedRequest> ProtectionSaves() =>
         _requests.Where(request => request.Method == HttpMethod.Put && request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
 
+    // What the Engine would now report for the person after a successful save (the page reloads the list after it).
+    private void ApplyAccessSave(string path, string body)
+    {
+        if (_accessSaveStatus != HttpStatusCode.NoContent && _accessSaveStatus != HttpStatusCode.OK)
+        {
+            return;
+        }
+
+        var idText = path["/access/profiles/".Length..^"/access".Length];
+        var index = _managed.FindIndex(person => Guid.TryParse(idText, out var id) && person.Id == id);
+        if (index < 0)
+        {
+            return;
+        }
+
+        using var document = System.Text.Json.JsonDocument.Parse(body);
+        _managed[index] = _managed[index] with
+        {
+            FeatureIds = document.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString()!).ToList(),
+            HiddenLibraryIds = document.RootElement.GetProperty("hidden_library_ids").EnumerateArray().Select(item => item.GetGuid()).ToList(),
+        };
+    }
+
     private IRenderedComponent<ProfileDetailPage> RenderFor(Guid profileId) =>
         Render<ProfileDetailPage>(parameters => parameters.Add(page => page.ProfileId, profileId));
+
+    private async Task<IRenderedComponent<ProfileDetailPage>> OpenAccessSheetAsync(bool waitForLists = true)
+    {
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
+        await cut.ClickAsync(page => Row(page, "access"));
+        if (waitForLists)
+        {
+            cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .area-library-list")));
+        }
+
+        return cut;
+    }
+
+    private static AngleSharp.Dom.IElement LibraryTick(IRenderedComponent<ProfileDetailPage> cut, Guid libraryId) =>
+        cut.Find($".profile-access-sheet [data-library-id='{libraryId}'] input");
 
     private static AngleSharp.Dom.IElement AdminSwitch(IRenderedComponent<ProfileDetailPage> cut, string label) =>
         cut.FindAll("[data-profile-section='pin-protection'] input[role='switch']").Single(input => input.GetAttribute("aria-label") == label);
@@ -1038,10 +1178,10 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     private static ManagedProfileResponse Person(Guid id, string name, bool restricted, bool householdAdmin = false, bool serverAdmin = false,
-        string? signInEmail = null, Guid? userId = null, Guid? household = null, IReadOnlyList<string>? features = null, IReadOnlyList<Guid>? libraries = null) =>
+        string? signInEmail = null, Guid? userId = null, Guid? household = null, IReadOnlyList<string>? features = null, IReadOnlyList<Guid>? hidden = null) =>
         new(id, name, "#C9922E", null, DateTimeOffset.UtcNow.AddMinutes(id == OwnId ? -3 : 0), household ?? HouseholdId, restricted,
             ContentLimit: restricted ? "PG" : null, IsServerAdmin: serverAdmin, IsHouseholdAdmin: householdAdmin,
-            FeatureIds: features ?? [], LibraryIds: libraries ?? [],
+            FeatureIds: features ?? [], HiddenLibraryIds: hidden ?? [],
             User: signInEmail is null ? null : new ManagedProfileUserDto(userId ?? (id == OwnId ? OwnAccountId : SamAccountId), signInEmail));
 
     private sealed class ClientFactory(HttpMessageHandler handler) : IHttpClientFactory
@@ -1075,11 +1215,17 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
             if (path == "/access/libraries" && request.Method == HttpMethod.Get)
             {
+                if (owner._librariesFail)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                }
+
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._libraries) };
             }
 
             if (request.Method == HttpMethod.Put && path.EndsWith("/access", StringComparison.Ordinal))
             {
+                owner.ApplyAccessSave(path, body);
                 return new HttpResponseMessage(owner._accessSaveStatus)
                 {
                     Content = owner._accessSaveDetail is null ? null : JsonContent.Create(new { detail = owner._accessSaveDetail }),

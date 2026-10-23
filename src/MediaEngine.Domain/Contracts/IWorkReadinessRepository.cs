@@ -10,13 +10,14 @@ public sealed record WorkReadinessChange(
 
 /// <summary>
 /// The newest value seen in each table the readiness rule reads. Each value is the maximum of that table's
-/// own timestamp column, so the three are never compared with each other or with the wall clock (the tables
-/// store different text formats). A null value means "start from nothing".
+/// own timestamp column, so they are never compared with each other or with the wall clock (the tables
+/// store different text formats). A null value means "start from nothing". <paramref name="Unmatched"/> is the newest time a file was
+/// marked Unmatched or tried again: an Unmatched file is shown without waiting for the full sweep, even when it has no identity job.
 /// </summary>
-public sealed record WorkReadinessWatermark(string? Jobs, string? Reviews, string? Artwork)
+public sealed record WorkReadinessWatermark(string? Jobs, string? Reviews, string? Artwork, string? Unmatched = null)
 {
     /// <summary>The starting point: nothing seen yet.</summary>
-    public static WorkReadinessWatermark Empty { get; } = new(null, null, null);
+    public static WorkReadinessWatermark Empty { get; } = new(null, null, null, null);
 }
 
 /// <summary>

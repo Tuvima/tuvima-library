@@ -12,10 +12,13 @@ CREATE TABLE profile_feature_grants (
     PRIMARY KEY (profile_id, feature_id)
 );
 
-CREATE TABLE profile_library_grants (
-    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    library_id BLOB NOT NULL,
-    granted_at TEXT NOT NULL,
+-- Library access is one rule (simpler access D2, D11): every library in a profile's areas is visible unless an administrator hid it from
+-- that profile. One row per hidden library; a Vault library is never listed (the repository refuses it). A new library needs no row.
+CREATE TABLE profile_library_hidden (
+    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    library_id            BLOB NOT NULL,
+    created_at            TEXT NOT NULL,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     PRIMARY KEY (profile_id, library_id)
 );
 

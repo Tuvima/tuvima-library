@@ -113,8 +113,8 @@ public sealed class ArtworkWorkspaceRouteAccessTests
                 !(candidate.RoutePattern.RawText ?? "").StartsWith("/api/v1/display/artwork", StringComparison.Ordinal))
             .ToArray();
 
-        // Home, browse, continue, item lookup, recent, contributor shelves, search, shelves, grids and groups: a paired app is served (the profile limit is applied inside).
-        Assert.Equal(10, browse.Length);
+        // Home, browse, the browse tab list, continue, item lookup, recent, contributor shelves, search, shelves, grids and groups: a paired app is served (the profile limit is applied inside).
+        Assert.Equal(11, browse.Length);
         foreach (var route in browse)
         {
             Assert.Contains(route.Metadata.OfType<ClientScopeRequirementMetadata>(),
@@ -159,6 +159,7 @@ public sealed class ArtworkWorkspaceRouteAccessTests
         builder.Services.AddScoped<IAuthorizationHandler, AdministratorOrApplicationHandler>();
         // The actions in the group take these. They are never reached here, but route building must be able to infer them.
         builder.Services.AddSingleton<DisplayComposerService>(_ => null!);
+        builder.Services.AddSingleton<BrowseLibraryListService>(_ => null!);
         builder.Services.AddSingleton<DisplayRecentComposerService>(_ => null!);
         builder.Services.AddSingleton<ContributorShelfReadService>(_ => null!);
         builder.Services.AddSingleton<IUniversalSearchReadService>(_ => null!);

@@ -88,14 +88,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var createdHome = await mutations.CreateAsync(serverAdmin, NewAccount("home@example.com", administrator: false, "Mary"));
         var createdOther = await mutations.CreateAsync(serverAdmin, NewAccount("other@example.com", administrator: false, "Bea"));
         _homeOwner = (await _accounts.GetByIdAsync(createdHome.Id))!;
-        using (var connection = _database.CreateConnection())
-        {
-            // The test library is not a catalogued one, so it is granted directly.
-            connection.Execute(
-                "INSERT INTO profile_library_grants (profile_id, library_id, granted_at) SELECT profile_id, @library, @now FROM accounts WHERE id = @account;",
-                new { account = _homeOwner.Id, library = _library, now = DateTimeOffset.UtcNow.ToString("O") });
-        }
-
+        // Nothing is hidden from the signed-in person, so the library is visible through its area alone.
         var otherOwner = (await _accounts.GetByIdAsync(createdOther.Id))!;
         var homeHousehold = (await new HouseholdRepository(_database).GetForAccountAsync(_homeOwner.Id))!;
         _mary = (await profiles.GetByIdAsync((await _accounts.GetDefaultProfileIdAsync(_homeOwner.Id))!.Value))!;
@@ -109,8 +102,8 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         {
             // Each person holds their own access: Jim and Sam are given what Mary has.
             connection.Execute("""
-                INSERT OR IGNORE INTO profile_library_grants (profile_id, library_id, granted_at)
-                SELECT p.id, g.library_id, g.granted_at FROM profile_library_grants g, profiles p
+                INSERT OR IGNORE INTO profile_library_hidden (profile_id, library_id, created_at)
+                SELECT p.id, g.library_id, g.created_at FROM profile_library_hidden g, profiles p
                 WHERE g.profile_id = @mary AND p.id IN (@jim, @sam);
                 INSERT OR IGNORE INTO profile_feature_grants (profile_id, feature_id, granted_at)
                 SELECT p.id, g.feature_id, g.granted_at FROM profile_feature_grants g, profiles p
@@ -835,7 +828,8 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var downloadAccessor = new HttpContextAccessor();
         var downloadDecisions = new AccountAccessDecisionService(
             new ProfileAccessRepository(_database),
-            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System));
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
+            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var downloadApplications = new ApplicationRepository(_database);
         var downloadEvaluator = new AuthorizationEvaluator(
             downloadDecisions, downloadApplications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts), downloadAccessor);
@@ -1022,7 +1016,8 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var accessor = new HttpContextAccessor { HttpContext = context };
         var decisions = new AccountAccessDecisionService(
             new ProfileAccessRepository(_database),
-            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System));
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
+            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var applications = new ApplicationRepository(_database);
         return new CatalogueResourceAuthorizationService(
             _database,
@@ -1109,7 +1104,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         email, IsAdministrator: administrator, ProfileId: null,
         NewProfile: new NewAccountProfileCommand(personName, "#112233"),
         Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-        Libraries: new HashSet<Guid>(),
+        HiddenLibraries: new HashSet<Guid>(),
         TemporaryPassword: null);
 
     private static RequestAuthority Authority(

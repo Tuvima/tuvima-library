@@ -393,6 +393,10 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
 
             MergeDuplicateEntityAssets(conn, tx, sourceWorkId, targetWorkId, now, innerCt);
 
+            // What people did with the source title (saves, reactions, plays, listening history, bookmarks, queue places, personal tags and
+            // hand-picked collections) goes to the survivor before the source is deleted, for every media type; the same carry a library move uses.
+            WorkPersonalStateMerge.Carry(conn, tx, sourceWorkId, targetWorkId);
+
             conn.Execute("""
                 UPDATE works
                 SET wikidata_qid = COALESCE(NULLIF(TRIM(wikidata_qid), ''), @qid)
@@ -402,26 +406,9 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
                 SET work_id = @target
                 WHERE work_id = @source;
 
-                INSERT INTO profile_saved_items(profile_id, entity_kind, entity_id, saved_at, position)
-                SELECT profile_id, entity_kind, @target, saved_at, position FROM profile_saved_items
-                WHERE entity_id = @source AND entity_kind IN ('Book', 'Audiobook')
-                ON CONFLICT(profile_id, entity_kind, entity_id) DO NOTHING;
-                DELETE FROM profile_saved_items WHERE entity_id = @source AND entity_kind IN ('Book', 'Audiobook');
-
-                INSERT INTO profile_reactions(profile_id, entity_kind, entity_id, reaction, updated_at)
-                SELECT profile_id, entity_kind, @target, reaction, updated_at FROM profile_reactions
-                WHERE entity_id = @source AND entity_kind IN ('Book', 'Audiobook')
-                ON CONFLICT(profile_id, entity_kind, entity_id) DO UPDATE SET
-                    reaction = excluded.reaction, updated_at = excluded.updated_at
-                    WHERE excluded.updated_at > profile_reactions.updated_at;
-                DELETE FROM profile_reactions WHERE entity_id = @source AND entity_kind IN ('Book', 'Audiobook');
-
-                INSERT INTO profile_work_preferences(profile_id, work_id, local_tags_json, revision, updated_at)
-                SELECT profile_id, @target, local_tags_json, revision, updated_at FROM profile_work_preferences WHERE work_id = @source
-                ON CONFLICT(profile_id, work_id) DO UPDATE SET
-                    local_tags_json = excluded.local_tags_json, revision = MAX(profile_work_preferences.revision, excluded.revision) + 1,
-                    updated_at = excluded.updated_at WHERE excluded.updated_at > profile_work_preferences.updated_at;
-                DELETE FROM profile_work_preferences WHERE work_id = @source;
+                -- Anything the carry left on the source (the survivor already had its own row) goes with it.
+                DELETE FROM profile_saved_items WHERE entity_id = @source;
+                DELETE FROM profile_reactions WHERE entity_id = @source;
 
                 INSERT OR IGNORE INTO canonical_values
                     (entity_id, key, value, last_scored_at, is_conflicted,
@@ -461,10 +448,6 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
                 SET entity_id = @target
                 WHERE entity_type = 'Work'
                   AND entity_id = @source;
-
-                UPDATE collection_items
-                SET work_id = @target
-                WHERE work_id = @source;
 
                 UPDATE series_manifest_items
                 SET linked_work_id = @target

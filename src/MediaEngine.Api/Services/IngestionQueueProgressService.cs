@@ -126,6 +126,7 @@ public static class IngestionQueueProgressDtoMapper
             NeedsReview = snapshot.Outcomes.NeedsReview,
             Failed = snapshot.Outcomes.Failed,
             Skipped = snapshot.Outcomes.Skipped,
+            Unmatched = snapshot.Outcomes.Unmatched,
         },
         Tally = snapshot.Tally
             .Select(entry => new IngestionQueueTypeTallyDto { MediaType = entry.MediaType, Files = entry.Files })

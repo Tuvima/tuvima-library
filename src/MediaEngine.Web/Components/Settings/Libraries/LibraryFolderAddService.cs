@@ -19,8 +19,17 @@ public enum AddFolderHandling
 /// <summary>
 /// Everything needed to add one folder: the library type, the validated folder, how it is handled and whether new media should go
 /// to this folder (only an empty, managed folder asks). What the library may look up is decided by its kind, not asked here.
+/// A kind that allows several named libraries (the plain kinds) also says which one: <paramref name="LibraryId"/> is an existing library
+/// of the kind, <paramref name="NewLibraryName"/> makes a new library with that name; with neither, the kind's first library is used
+/// (or a new one named for the kind when it has none yet).
 /// </summary>
-public sealed record AddFolderPlan(string TypeKey, ServerFolderValidationResultDto Folder, AddFolderHandling Handling, bool MarkNewMediaHere);
+public sealed record AddFolderPlan(
+    string TypeKey,
+    ServerFolderValidationResultDto Folder,
+    AddFolderHandling Handling,
+    bool MarkNewMediaHere,
+    string? LibraryId = null,
+    string? NewLibraryName = null);
 
 /// <summary>Which Engine calls to use: the signed-in Settings ones, or the first-run setup ones (which carry the setup session).</summary>
 public sealed record FolderAddScope(bool Embedded, string? SetupSession)
@@ -33,7 +42,7 @@ public sealed record FolderAddScope(bool Embedded, string? SetupSession)
 /// <paramref name="Error"/> saying why); <paramref name="Notice"/> is a plain sentence to keep on screen, for example that the
 /// folder fell back to read-only.
 /// </summary>
-public sealed record AddFolderResult(LibrariesConfigurationDto? Configuration, LibrarySourceDto? Source, LibraryTypeOption? Type, bool Managed, string? Notice, string? Error)
+public sealed record AddFolderResult(LibrariesConfigurationDto? Configuration, LibrarySourceDto? Source, LibraryTypeOption? Type, bool Managed, string? Notice, string? Error, string? LibraryId = null)
 {
     public bool Saved => Configuration is not null;
 }
@@ -93,7 +102,21 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         }
 
         var baseline = Clone(current)!;
-        var library = Clone(LibraryRollup.LibraryFor(baseline, type)) ?? NewLibrary(type);
+        LibraryFolderDto? held;
+        if (type.AllowsMultiple && !string.IsNullOrWhiteSpace(plan.LibraryId))
+        {
+            held = LibraryRollup.LibrariesOf(baseline, type).FirstOrDefault(item => item.Id == plan.LibraryId);
+            if (held is null)
+            {
+                return new AddFolderResult(null, null, type, false, null, "That library no longer exists. Choose another one.");
+            }
+        }
+        else
+        {
+            held = !type.AllowsMultiple || string.IsNullOrWhiteSpace(plan.NewLibraryName) ? LibraryRollup.LibraryFor(baseline, type) : null;
+        }
+
+        var library = Clone(held) ?? NewLibrary(type, type.AllowsMultiple ? plan.NewLibraryName : null);
         ApplyKindLookup(library, type);
         // The Engine makes the first managed folder the library's destination when it saves.
         var source = new LibrarySourceDto
@@ -116,16 +139,16 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         var saved = await SaveLibraryAsync(scope, baseline, library);
         if (saved is null)
         {
-            return new AddFolderResult(null, source, type, managed, notice, apiClient.LastError ?? "That change could not be saved. Check the folder and try again.");
+            return new AddFolderResult(null, source, type, managed, notice, apiClient.LastError ?? "That change could not be saved. Check the folder and try again.", library.Id);
         }
 
         toasts.Add(mergeAfter ? "Folder added as read-only. Choose where its files should go." : "Folder added.", AppSeverity.Success);
-        var result = new AddFolderResult(saved, source, type, managed, notice, null);
+        var result = new AddFolderResult(saved, source, type, managed, notice, null, library.Id);
 
         // "Should new media go here?" answered Yes: when another folder of the type already holds the marker, move it.
         if (plan.MarkNewMediaHere && managed)
         {
-            var savedLibrary = LibraryRollup.LibraryFor(saved, type);
+            var savedLibrary = saved.Libraries.FirstOrDefault(item => item.Id == library.Id) ?? LibraryRollup.LibraryFor(saved, type);
             if (savedLibrary is not null && !string.Equals(savedLibrary.PrimaryDestinationSourceId, source.Id, StringComparison.Ordinal))
             {
                 var moved = await SaveLibraryAsync(scope, saved, WithDestination(savedLibrary, source.Id));
@@ -303,10 +326,11 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
 
     private static T? Clone<T>(T? value) where T : class => value is null ? null : JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value));
 
-    private static LibraryFolderDto NewLibrary(LibraryTypeOption option) => new()
+    // A new library is named for its kind, or by the person for a kind that holds several (Other videos: "Lectures").
+    private static LibraryFolderDto NewLibrary(LibraryTypeOption option, string? name = null) => new()
     {
         Id = Guid.NewGuid().ToString("D"),
-        Name = option.Label,
+        Name = string.IsNullOrWhiteSpace(name) ? option.Label : name.Trim(),
         Category = option.Label,
         Kind = "catalogued",
         KindKey = option.Key,

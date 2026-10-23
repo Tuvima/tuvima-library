@@ -129,7 +129,7 @@ public sealed class UsersProfilesHouseholdsActionTests
         Assert.False(profile.IsHouseholdAdministrator);
         Assert.False(profile.IsServerAdministrator);
         Assert.Equal(["listen", "read", "view", "watch"], (await world.Access.GetFeatureGrantsAsync(profile.Id)).Select(feature => feature.Value).Order().ToArray());
-        Assert.Empty(await world.Access.GetLibraryGrantsAsync(profile.Id));
+        Assert.Empty(await world.Access.GetHiddenLibrariesAsync(profile.Id));
         Assert.Equal(profile.Id, created.User.ProfileId);
     }
 
@@ -369,14 +369,14 @@ public sealed class UsersProfilesHouseholdsActionTests
             new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { held });
 
         Assert.Equal(["read", "view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
-        Assert.Equal(new HashSet<Guid> { held, notHeld }, (await world.Access.GetLibraryGrantsAsync(world.KimProfile.Id)).ToHashSet());
+        Assert.Equal(new HashSet<Guid> { held, notHeld }, (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToHashSet());
 
         // Alex can still take back what Alex holds; what Alex does not hold stays.
         await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
             new HashSet<AccountFeatureId>(), new HashSet<Guid>());
 
         Assert.Equal(["view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
-        Assert.Equal([notHeld], (await world.Access.GetLibraryGrantsAsync(world.KimProfile.Id)).ToArray());
+        Assert.Equal([notHeld], (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToArray());
     }
 
     [Fact]
@@ -398,7 +398,7 @@ public sealed class UsersProfilesHouseholdsActionTests
             new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid>());
 
         Assert.Equal(["view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
-        Assert.Empty(await world.Access.GetLibraryGrantsAsync(world.KimProfile.Id));
+        Assert.Empty(await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id));
     }
 
     private static (Guid First, Guid Second) AddCataloguedLibraries(World world)

@@ -276,7 +276,7 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
         email, IsAdministrator: administrator, ProfileId: null,
         NewProfile: new NewAccountProfileCommand(personName, "#112233"),
         Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-        Libraries: new HashSet<Guid>(), TemporaryPassword: null);
+        HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null);
 
     private static RequestAuthority Authority(
         Guid accountId, Guid profileId, bool serverAdmin = false, Guid? householdId = null, bool householdAdmin = false) =>

@@ -27,12 +27,12 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
     }
 
     [Fact]
-    public async Task DelegatedReadsCarryExactAccountProfileLibraryAndFeatureIntersectionToRepository()
+    public async Task DelegatedReadsCarryExactAccountProfileHiddenLibrariesAndFeaturesToRepository()
     {
         var accountId = Guid.NewGuid();
         var profileId = Guid.NewGuid();
-        var allowedLibrary = Guid.NewGuid();
-        SeedAccess(accountId, profileId, allowedLibrary);
+        var hiddenLibrary = Guid.NewGuid();
+        SeedAccess(accountId, profileId, hiddenLibrary);
         var authority = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, accountId, profileId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
             AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
@@ -45,7 +45,7 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
         Assert.Equal(accountId, scope.AccountId);
         Assert.Equal(profileId, scope.ProfileId);
         Assert.False(scope.AllLibraries);
-        Assert.Equal([allowedLibrary], scope.LibraryIds);
+        Assert.Equal([hiddenLibrary], scope.HiddenLibraryIds);
         Assert.Equal([AccountFeatureId.Watch], scope.Features);
     }
 
@@ -132,7 +132,7 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
             INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id)
             VALUES(@accountId,@email,@normalized,1,1,@now,@now,@profileId);
             INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,'watch',@now);
-            INSERT INTO profile_library_grants(profile_id,library_id,granted_at) VALUES(@profileId,@libraryId,@now);
+            INSERT INTO profile_library_hidden(profile_id,library_id,created_at) VALUES(@profileId,@libraryId,@now);
             """, new
         {
             accountId,

@@ -764,7 +764,7 @@ public sealed class AccountAccessMutationService(
         RequestAuthority actor,
         Guid profileId,
         IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries,
+        IReadOnlySet<Guid> hiddenLibraries,
         CancellationToken ct = default)
     {
         // Held so the access a household administrator may hand out is the one they hold at the moment it is saved.
@@ -776,7 +776,7 @@ public sealed class AccountAccessMutationService(
             throw new KeyNotFoundException("Profile not found.");
         }
 
-        ValidateLibraries(libraries);
+        hiddenLibraries = await ValidateLibrariesAsync(hiddenLibraries, profileId, ct).ConfigureAwait(false);
         if (householdOnly)
         {
             // A household administrator never changes a server administrator's access, and hands out nothing beyond their own.
@@ -785,11 +785,11 @@ public sealed class AccountAccessMutationService(
                 throw new UnauthorizedAccessException("Only a server administrator can change a server administrator's access.");
             }
 
-            (features, libraries) = await MergeHouseholdAccessAsync(actor, profileId, features, libraries, ct).ConfigureAwait(false);
+            (features, hiddenLibraries) = await MergeHouseholdAccessAsync(actor, profileId, features, hiddenLibraries, ct).ConfigureAwait(false);
         }
 
         // The profile's version goes up with the change, so its open sessions and paired apps check again.
-        if (!await profileAccess.ReplaceAccessAsync(profileId, features, libraries, clock.GetUtcNow(), ct).ConfigureAwait(false))
+        if (!await profileAccess.ReplaceAccessAsync(profileId, features, hiddenLibraries, clock.GetUtcNow(), ct, actor.ActiveProfileId).ConfigureAwait(false))
         {
             throw new KeyNotFoundException("Profile not found.");
         }
@@ -1148,42 +1148,51 @@ public sealed class AccountAccessMutationService(
     }
 
     /// <summary>
-    /// A household administrator changes only what they hold. Against the profile's current access, a request may add or remove a
-    /// feature or library only if the acting profile holds it; a grant the administrator does not hold is kept exactly as it is
-    /// (whether or not the request lists it), and the request cannot add one. Returns the access to save.
+    /// A household administrator changes only what they hold. A feature may be added or removed only if the acting profile holds it
+    /// (a feature they do not hold is kept exactly as it is, and the request cannot add one). A household administrator may hide more
+    /// libraries from the household's profiles but never shows a library that is hidden from their own profile (simpler access D4 for
+    /// profiles, confirmed by the product owner). The library half is <see cref="MergeHiddenLibraries"/>, the one place that rule
+    /// lives. Returns the access to save.
     /// </summary>
-    private async Task<(IReadOnlySet<AccountFeatureId> Features, IReadOnlySet<Guid> Libraries)> MergeHouseholdAccessAsync(
+    private async Task<(IReadOnlySet<AccountFeatureId> Features, IReadOnlySet<Guid> HiddenLibraries)> MergeHouseholdAccessAsync(
         RequestAuthority actor,
         Guid profileId,
         IReadOnlySet<AccountFeatureId> requestedFeatures,
-        IReadOnlySet<Guid> requestedLibraries,
+        IReadOnlySet<Guid> requestedHiddenLibraries,
         CancellationToken ct)
     {
         var source = actor.ActiveProfileId;
         var heldFeatures = source is { } featureSource
             ? (await profileAccess.GetFeatureGrantsAsync(featureSource, ct).ConfigureAwait(false)).ToHashSet()
             : [];
-        var heldLibraries = source is { } librarySource
-            ? (await profileAccess.GetLibraryGrantsAsync(librarySource, ct).ConfigureAwait(false)).ToHashSet()
+        var hiddenFromActor = source is { } librarySource
+            ? (await profileAccess.GetHiddenLibrariesAsync(librarySource, ct).ConfigureAwait(false)).ToHashSet()
             : [];
         var currentFeatures = (await profileAccess.GetFeatureGrantsAsync(profileId, ct).ConfigureAwait(false)).ToHashSet();
-        var currentLibraries = (await profileAccess.GetLibraryGrantsAsync(profileId, ct).ConfigureAwait(false)).ToHashSet();
+        var currentHidden = (await profileAccess.GetHiddenLibrariesAsync(profileId, ct).ConfigureAwait(false)).ToHashSet();
 
-        if (requestedFeatures.Any(feature => !currentFeatures.Contains(feature) && !heldFeatures.Contains(feature)) ||
-            requestedLibraries.Any(library => !currentLibraries.Contains(library) && !heldLibraries.Contains(library)))
+        if (requestedFeatures.Any(feature => !currentFeatures.Contains(feature) && !heldFeatures.Contains(feature)))
         {
             throw new UnauthorizedAccessException(
-                "A household administrator can only hand out the libraries and features the household already has.");
+                "A household administrator can only hand out the features the household already has.");
         }
 
         var features = requestedFeatures.Where(heldFeatures.Contains)
             .Concat(currentFeatures.Where(feature => !heldFeatures.Contains(feature)))
             .ToHashSet();
-        var libraries = requestedLibraries.Where(heldLibraries.Contains)
-            .Concat(currentLibraries.Where(library => !heldLibraries.Contains(library)))
-            .ToHashSet();
-        return (features, libraries);
+        return (features, MergeHiddenLibraries(requestedHiddenLibraries, currentHidden, hiddenFromActor));
     }
+
+    /// <summary>
+    /// The one rule for what a household administrator may do to a person's hidden libraries: anything they ask to hide is hidden, and a
+    /// library that is hidden from the administrator's own profile and is hidden from the person now stays hidden (they cannot show
+    /// what is hidden from themselves). A server administrator is not limited: this is applied only for a household administrator.
+    /// </summary>
+    internal static IReadOnlySet<Guid> MergeHiddenLibraries(
+        IReadOnlySet<Guid> requestedHidden, IReadOnlySet<Guid> currentHidden, IReadOnlySet<Guid> hiddenFromActor) =>
+        requestedHidden
+            .Concat(currentHidden.Where(hiddenFromActor.Contains))
+            .ToHashSet();
 
     /// <summary>
     /// A server administrator profile lives in the Library's own (default) household (users, profiles and households spec D17). With
@@ -1274,7 +1283,9 @@ public sealed class AccountAccessMutationService(
     /// <summary>A temporary password lasts seven days, independent of the invitation lifetime.</summary>
     private DateTimeOffset TemporaryPasswordExpiry() => clock.GetUtcNow().Add(TemporaryPasswordPolicy.Lifetime);
 
-    private void ValidateLibraries(IReadOnlySet<Guid> libraryIds)
+    // A hidden library must be a configured catalogued library. A library that is already stored as hidden for this profile but has since
+    // left the configuration is dropped quietly (so it can't block a save); a new unknown id from a client is still refused.
+    private async Task<IReadOnlySet<Guid>> ValidateLibrariesAsync(IReadOnlySet<Guid> libraryIds, Guid? profileId, CancellationToken ct)
     {
         var known = configuration.LoadLibraries().Libraries
             .Where(library => library.Kind == LibraryKinds.Catalogued)
@@ -1282,10 +1293,30 @@ public sealed class AccountAccessMutationService(
             .Where(id => id != Guid.Empty)
             .ToHashSet();
         var unknown = libraryIds.Where(id => !known.Contains(id)).ToArray();
-        if (unknown.Length > 0)
+        if (unknown.Length == 0)
         {
-            throw new ArgumentException($"Unknown catalogued library '{unknown[0]:D}'.");
+            return libraryIds;
         }
+
+        var stored = profileId is { } profile
+            ? await profileAccess.GetHiddenLibrariesAsync(profile, ct).ConfigureAwait(false)
+            : new HashSet<Guid>();
+        var refused = unknown.Where(id => !stored.Contains(id)).ToArray();
+        if (refused.Length > 0)
+        {
+            throw new ArgumentException($"Unknown catalogued library '{refused[0]:D}'.");
+        }
+
+        if (known.Count == 0)
+        {
+            // No catalogued library is configured at all (a missing or unreadable libraries file): keep what is stored rather than
+            // dropping every hidden row, so the libraries stay hidden if the file comes back.
+            logger?.LogWarning("No catalogued libraries are configured; kept {Count} stored hidden librar(ies) for profile {ProfileId} unchanged.", unknown.Length, profileId);
+            return libraryIds;
+        }
+
+        logger?.LogDebug("Dropped {Count} hidden librar(ies) that are no longer configured while saving access for profile {ProfileId}.", unknown.Length, profileId);
+        return libraryIds.Where(known.Contains).ToHashSet();
     }
 
     private async Task ChangedAsync(

@@ -63,6 +63,48 @@ public sealed class MaintenanceSettings
     [JsonPropertyName("missing_file_retention_days")]
     public int MissingFileRetentionDays { get; set; } = MissingFileRetentionLimits.DefaultDays;
 
+    /// <summary>
+    /// How many days a file the Engine could not match waits before it is looked up again (Library setup spec D34). A provider or plugin
+    /// being switched on or updated, and Retry now, look it up again sooner. Weekly by default.
+    /// </summary>
+    [JsonPropertyName("unmatched_retry_days")]
+    public int UnmatchedRetryDays { get; set; } = UnmatchedRetryLimits.DefaultDays;
+
+    /// <summary>
+    /// How big each piece of a resumable upload into the Import folder is, in bytes (Library setup spec D44). 64 MB by default: a dropped
+    /// connection costs at most one piece, and it still finishes inside the Dashboard's time limit on a slow link. The Engine's request
+    /// size limit for the piece action follows this value; every other action keeps the normal limit.
+    /// </summary>
+    [JsonPropertyName("upload_piece_bytes")]
+    public long UploadPieceBytes { get; set; } = ImportUploadLimits.DefaultPieceBytes;
+
+    /// <summary>
+    /// The size above which an upload into the Import folder warns first, in bytes (Library setup D44). 50 GB by default, the largest size
+    /// the upload spike proved. Above it a start call is refused until the person confirms (copying straight into the Import folder on the
+    /// server is more reliable); it is a warning, not a cap.
+    /// </summary>
+    [JsonPropertyName("large_upload_warning_bytes")]
+    public long LargeUploadWarningBytes { get; set; } = ImportUploadLimits.DefaultLargeUploadWarningBytes;
+
+    /// <summary>How many hours an upload may wait with no piece before it is abandoned and its hidden working file is deleted. 24 by default.</summary>
+    [JsonPropertyName("upload_abandon_hours")]
+    public int UploadAbandonHours { get; set; } = ImportUploadLimits.DefaultAbandonHours;
+
+    /// <summary>
+    /// How many files of a newly added folder must reach a final identification outcome (matched, unmatched or needs review) before
+    /// the first check decides whether the folder is the right kind and place (Library setup spec D35). A folder with fewer files is
+    /// decided once all of them have, and its ingestion has settled.
+    /// </summary>
+    [JsonPropertyName("first_check_files")]
+    public int FirstCheckFiles { get; set; } = FirstCheckLimits.DefaultFiles;
+
+    /// <summary>
+    /// The share of those files that may be Unmatched before the folder pauses (Library setup spec D35): more than this share pauses
+    /// it. Above 0 and below 1; 0.5 means more than half.
+    /// </summary>
+    [JsonPropertyName("first_check_unmatched_share")]
+    public double FirstCheckUnmatchedShare { get; set; } = FirstCheckLimits.DefaultUnmatchedShare;
+
     /// <summary>Auto re-tag sweep parameters.</summary>
     [JsonPropertyName("retag_sweep")]
     public RetagSweepSettings RetagSweep { get; set; } = new();
@@ -99,6 +141,74 @@ public static class MissingFileRetentionLimits
 
     /// <summary>The longest waiting period.</summary>
     public const int MaxDays = 3650;
+}
+
+/// <summary>The limits of <see cref="MaintenanceSettings.FirstCheckFiles"/> and <see cref="MaintenanceSettings.FirstCheckUnmatchedShare"/>.</summary>
+public static class FirstCheckLimits
+{
+    /// <summary>The files tried before a new folder is judged when nothing is configured.</summary>
+    public const int DefaultFiles = 50;
+
+    /// <summary>The fewest files a first check may be set to try.</summary>
+    public const int MinFiles = 1;
+
+    /// <summary>The share of Unmatched files above which a new folder pauses when nothing is configured: more than half.</summary>
+    public const double DefaultUnmatchedShare = 0.5;
+
+    /// <summary>True when <paramref name="share"/> is above 0 and below 1.</summary>
+    public static bool IsValidShare(double share) => share > 0 && share < 1;
+
+    /// <summary>True when <paramref name="unmatched"/> of <paramref name="tried"/> files is more than <paramref name="share"/> (a setting outside the limits uses the default).</summary>
+    public static bool ExceedsShare(int unmatched, int tried, double share) =>
+        tried > 0 && unmatched > (IsValidShare(share) ? share : DefaultUnmatchedShare) * tried;
+}
+
+/// <summary>The limits of <see cref="MaintenanceSettings.UnmatchedRetryDays"/>.</summary>
+public static class UnmatchedRetryLimits
+{
+    /// <summary>The days between lookups of an Unmatched file when nothing is configured: weekly.</summary>
+    public const int DefaultDays = 7;
+
+    /// <summary>The shortest wait.</summary>
+    public const int MinDays = 1;
+
+    /// <summary>The longest wait.</summary>
+    public const int MaxDays = 365;
+
+    /// <summary>When an Unmatched file is next looked up, <paramref name="configuredDays"/> (clamped to the limits) after <paramref name="now"/>.</summary>
+    public static DateTimeOffset NextRetryAt(DateTimeOffset now, int configuredDays) =>
+        now.AddDays(Math.Clamp(configuredDays, MinDays, MaxDays));
+}
+
+/// <summary>The limits of the resumable upload settings (<see cref="MaintenanceSettings.UploadPieceBytes"/>, <see cref="MaintenanceSettings.LargeUploadWarningBytes"/> and <see cref="MaintenanceSettings.UploadAbandonHours"/>).</summary>
+public static class ImportUploadLimits
+{
+    /// <summary>The piece size when nothing is configured: 64 MB.</summary>
+    public const long DefaultPieceBytes = 64L * 1024 * 1024;
+
+    /// <summary>The smallest piece size: 1 MB.</summary>
+    public const long MinPieceBytes = 1024L * 1024;
+
+    /// <summary>The largest piece size: 256 MB.</summary>
+    public const long MaxPieceBytes = 256L * 1024 * 1024;
+
+    /// <summary>The size above which an upload warns when nothing is configured: 50 GB.</summary>
+    public const long DefaultLargeUploadWarningBytes = 50L * 1024 * 1024 * 1024;
+
+    /// <summary>The smallest warning size that can be set: 1 MB.</summary>
+    public const long MinLargeUploadWarningBytes = 1024L * 1024;
+
+    /// <summary>The biggest warning size that can be set: 1 TB.</summary>
+    public const long MaxLargeUploadWarningBytes = 1024L * 1024 * 1024 * 1024;
+
+    /// <summary>The wait before an idle upload is abandoned when nothing is configured: 24 hours.</summary>
+    public const int DefaultAbandonHours = 24;
+
+    /// <summary>The shortest wait: 1 hour.</summary>
+    public const int MinAbandonHours = 1;
+
+    /// <summary>The longest wait: 30 days.</summary>
+    public const int MaxAbandonHours = 720;
 }
 
 public sealed class StorageMaintenanceSettings

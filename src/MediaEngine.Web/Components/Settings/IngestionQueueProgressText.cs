@@ -84,7 +84,7 @@ public static class IngestionQueueProgressText
     public static string? MoreFoundLine(IngestionQueueProgressDto snapshot) =>
         snapshot.FilesMoreFound > 0 ? $"{DisplayFormat.FormatCount(snapshot.FilesMoreFound)} more found" : null;
 
-    /// <summary>"312 of 508 done · 3 need review · 1 failed".</summary>
+    /// <summary>"312 of 508 done · 3 need review · 2 unmatched · 1 failed".</summary>
     public static string StatusLine(IngestionQueueProgressDto snapshot)
     {
         var parts = new List<string>
@@ -96,6 +96,11 @@ public static class IngestionQueueProgressText
             parts.Add(snapshot.Outcomes.NeedsReview == 1
                 ? "1 needs review"
                 : $"{DisplayFormat.FormatCount(snapshot.Outcomes.NeedsReview)} need review");
+        }
+
+        if (snapshot.Outcomes.Unmatched > 0)
+        {
+            parts.Add($"{DisplayFormat.FormatCount(snapshot.Outcomes.Unmatched)} unmatched");
         }
 
         if (snapshot.Outcomes.Failed > 0)

@@ -221,6 +221,19 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
         Assert.Equal(expected, IngestionQueueProgressText.StatusLine(snapshot));
     }
 
+    [Theory]
+    [InlineData(1, 0, "120 of 508 done · 1 unmatched")]
+    [InlineData(4, 0, "120 of 508 done · 4 unmatched")]
+    [InlineData(2, 1, "120 of 508 done · 2 unmatched · 1 failed")]
+    public void StatusLine_NamesFilesTheEngineCouldNotMatch_AsUnmatchedNotAsNeedingReview(int unmatched, int failed, string expected)
+    {
+        var snapshot = Working();
+        snapshot.FilesDone = 120;
+        snapshot.Outcomes = new IngestionQueueOutcomesDto { Unmatched = unmatched, Failed = failed };
+
+        Assert.Equal(expected, IngestionQueueProgressText.StatusLine(snapshot));
+    }
+
     [Fact]
     public void Working_BeforeAnyFileIsFound_SaysItIsLookingNeverFoundZeroFiles()
     {

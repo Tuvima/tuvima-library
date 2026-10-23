@@ -72,12 +72,13 @@ public sealed record ManagedProfileUserDto(
     [property: JsonPropertyName("email")] string? Email);
 
 /// <summary>
-/// Replaces what a profile may use: <c>feature_ids</c> (<c>read</c>, <c>watch</c>, <c>listen</c>, <c>view</c>) and <c>library_ids</c>.
-/// A household administrator may hand out only what their own profile holds.
+/// Replaces what a profile may use: <c>feature_ids</c> (<c>read</c>, <c>watch</c>, <c>listen</c>, <c>view</c>) and
+/// <c>hidden_library_ids</c>, the libraries hidden from the profile (every other library in its areas is visible). A household
+/// administrator may hand out only the features their own profile holds and change only libraries visible to their own profile.
 /// </summary>
 public sealed record ReplaceProfileAccessRequest(
     [property: JsonPropertyName("feature_ids")] IReadOnlyList<string> FeatureIds,
-    [property: JsonPropertyName("library_ids")] IReadOnlyList<Guid> LibraryIds);
+    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid> HiddenLibraryIds);
 
 /// <summary>
 /// Sets a profile's roles. Both values are the wanted state. A household administrator may change <c>is_household_admin</c>

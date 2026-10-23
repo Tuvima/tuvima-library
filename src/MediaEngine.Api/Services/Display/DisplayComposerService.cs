@@ -16,6 +16,7 @@ public sealed partial class DisplayComposerService
     private readonly ISeriesManifestRepository? _manifests;
     private readonly ICanonicalValueArrayRepository? _arrays;
     private readonly ICollectionRepository? _collections;
+    private readonly IUnmatchedAssetRepository? _unmatched;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
@@ -26,7 +27,8 @@ public sealed partial class DisplayComposerService
         DisplayGridPersonalReader? personal = null,
         ISeriesManifestRepository? manifests = null,
         ICanonicalValueArrayRepository? arrays = null,
-        ICollectionRepository? collections = null)
+        ICollectionRepository? collections = null,
+        IUnmatchedAssetRepository? unmatched = null)
     {
         _readService = readService;
         _cards = cards;
@@ -37,6 +39,7 @@ public sealed partial class DisplayComposerService
         _manifests = manifests;
         _arrays = arrays;
         _collections = collections;
+        _unmatched = unmatched;
     }
 
     // Projection rows remain per asset for resume/state calculations. Only presentation
@@ -163,10 +166,15 @@ public sealed partial class DisplayComposerService
         string? year = null,
         string? sort = null,
         string? vibes = null,
-        string? themes = null)
+        string? themes = null,
+        Guid? libraryId = null,
+        bool unmatchedOnly = false)
     {
         var normalizedLane = DisplayMediaRules.NormalizeLane(lane);
-        if (normalizedLane is not null &&
+        // A single library or the Unmatched filter always needs the rows, so the lane shortcuts below (prebuilt shelves) do not apply.
+        var narrowed = libraryId is not null || unmatchedOnly;
+        if (!narrowed &&
+            normalizedLane is not null &&
             string.IsNullOrWhiteSpace(mediaType) &&
             string.IsNullOrWhiteSpace(search) &&
             (string.IsNullOrWhiteSpace(grouping) || string.Equals(grouping, "all", StringComparison.OrdinalIgnoreCase)) &&
@@ -175,7 +183,8 @@ public sealed partial class DisplayComposerService
             return await BuildLaneAsync(normalizedLane, includeCatalog, profileId, ct);
         }
 
-        if (string.Equals(normalizedLane, "listen", StringComparison.OrdinalIgnoreCase) &&
+        if (!narrowed &&
+            string.Equals(normalizedLane, "listen", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(DisplayMediaRules.NormalizeMediaType(mediaType ?? string.Empty), "Music", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(grouping, "home", StringComparison.OrdinalIgnoreCase) &&
             string.IsNullOrWhiteSpace(search) &&
@@ -184,7 +193,8 @@ public sealed partial class DisplayComposerService
             return await BuildMusicHomeAsync(includeCatalog, profileId, ct);
         }
 
-        var worksTask = _readService.LoadWorksAsync(ct);
+        // The Unmatched filter is the one browse that lists Unmatched works (Library setup spec D64); every other browse leaves them out.
+        var worksTask = unmatchedOnly ? _readService.LoadWorksIncludingUnmatchedAsync(ct) : _readService.LoadWorksAsync(ct);
         var journeyTask = _readService.LoadJourneyAsync(profileId, null, ct);
         var favoriteWorkIdsTask = _readService.LoadFavoriteWorkIdsAsync(profileId, ct);
         await Task.WhenAll(worksTask, journeyTask, favoriteWorkIdsTask);
@@ -195,6 +205,16 @@ public sealed partial class DisplayComposerService
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
 
         var filtered = works.AsEnumerable();
+
+        // Both narrowings look only at (work, library) rows the read service has already authorized (grants, lane feature, content limits,
+        // Vault), so a library the profile cannot see is simply an empty result and nothing says whether it exists. The result stays one
+        // row per work: the works that qualify keep the row they always show.
+        if (narrowed)
+        {
+            var qualifying = await WorksInNarrowingAsync(libraryId, unmatchedOnly, ct);
+            filtered = filtered.Where(work => qualifying.Contains(work.WorkId));
+        }
+
         if (!string.IsNullOrWhiteSpace(mediaType))
         {
             filtered = filtered.Where(work => string.Equals(DisplayMediaRules.NormalizeMediaType(work.MediaType), DisplayMediaRules.NormalizeMediaType(mediaType), StringComparison.OrdinalIgnoreCase));
@@ -300,7 +320,8 @@ public sealed partial class DisplayComposerService
                 ? BuildMusicAlbumCards(filteredWorks) : _cards.BuildTvShowCards(filteredWorks, progressByWork);
             var ordered = aggregated.OrderBy(card => card.SortYear <= 0)
                 .ThenBy(card => sort == "oldest" ? card.SortYear : -card.SortYear).ThenBy(card => card.Id).ToList();
-            var page = ordered.Skip(Math.Max(0, offset)).Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200)).ToList();
+            var page = await MarkKeptAsync(
+                ordered.Skip(Math.Max(0, offset)).Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200)).ToList(), filteredWorks, libraryId, unmatchedOnly, ct);
             return new DisplayPageDto("browse-timeline", "Timeline", null, null, [], includeCatalog ? page : [])
             {
                 TotalCount = ordered.Count,
@@ -314,10 +335,8 @@ public sealed partial class DisplayComposerService
             && string.Equals(DisplayMediaRules.NormalizeMediaType(mediaType ?? string.Empty), "Videos", StringComparison.OrdinalIgnoreCase))
         {
             var videoCards = _cards.BuildVideoCards(filteredWorks, progressByWork);
-            var pagedVideoCards = videoCards
-                .Skip(Math.Max(0, offset))
-                .Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200))
-                .ToList();
+            var pagedVideoCards = await MarkKeptAsync(
+                videoCards.Skip(Math.Max(0, offset)).Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200)).ToList(), filteredWorks, libraryId, unmatchedOnly, ct);
             return new DisplayPageDto(
                 Key: "browse-watch-videos",
                 Title: "Videos",
@@ -336,10 +355,8 @@ public sealed partial class DisplayComposerService
             var showCards = _cards.BuildTvShowCards(filteredWorks, progressByWork);
             if (showCards.Count > 0)
             {
-                var pagedShowCards = showCards
-                    .Skip(Math.Max(0, offset))
-                    .Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200))
-                    .ToList();
+                var pagedShowCards = await MarkKeptAsync(
+                    showCards.Skip(Math.Max(0, offset)).Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200)).ToList(), filteredWorks, libraryId, unmatchedOnly, ct);
 
                 return new DisplayPageDto(
                     Key: "browse-watch-shows",
@@ -371,6 +388,7 @@ public sealed partial class DisplayComposerService
                 favoriteWorkIds))
             .Select(card => ApplyMusicStats(card, musicStats))
             .ToList();
+        cards = await MarkKeptAsync(cards, filteredWorks, libraryId, unmatchedOnly, ct);
 
         return new DisplayPageDto(
             Key: $"browse-{normalizedLane ?? "all"}-{grouping ?? "all"}",
@@ -385,6 +403,45 @@ public sealed partial class DisplayComposerService
             Timeline = isTimeline ? filteredWorks.Select((work, index) => new { Year = int.TryParse(work.Year, out var parsed) && parsed > 0 ? parsed : 0, Index = index })
                 .GroupBy(item => item.Year).Select(group => new DisplayTimelinePeriodDto(group.Key, group.Count(), group.Min(item => item.Index))).ToList() : null,
         };
+    }
+
+    // The works that qualify for the library and Unmatched narrowing; the rule lives in BrowseNarrowing so the group reads share it.
+    private Task<HashSet<Guid>> WorksInNarrowingAsync(Guid? libraryId, bool unmatchedOnly, CancellationToken ct) =>
+        BrowseNarrowing.WorksInAsync(_readService, _unmatched, libraryId, unmatchedOnly, ct);
+
+    // A card in the Unmatched filter whose Unmatched file is kept as it is carries the Kept flag (D65). A group card (a show) is Kept
+    // when every work in it is. Outside the filter nothing is marked and nothing is read.
+    private async Task<List<DisplayCardDto>> MarkKeptAsync(
+        List<DisplayCardDto> cards, IReadOnlyList<DisplayWorkRow> works, Guid? libraryId, bool unmatchedOnly, CancellationToken ct)
+    {
+        if (!unmatchedOnly || _unmatched is null || cards.Count == 0)
+        {
+            return cards;
+        }
+
+        var library = libraryId?.ToString("D").ToUpperInvariant();
+        var entries = await _unmatched.ListWorkLibrariesAsync(works.Select(work => work.WorkId).Distinct().ToList(), ct);
+        var keptWorks = entries
+            .Where(entry => library is null || entry.LibraryId == library)
+            .GroupBy(entry => entry.WorkId)
+            .Where(group => group.All(entry => entry.EveryUnmatchedFileKept))
+            .Select(group => group.Key)
+            .ToHashSet();
+        if (keptWorks.Count == 0)
+        {
+            return cards;
+        }
+
+        var worksByRoot = works.GroupBy(work => work.RootWorkId).ToDictionary(group => group.Key, group => group.Select(work => work.WorkId).ToList());
+        return cards.Select(card =>
+        {
+            var members = card.WorkId is { } workId
+                ? [workId]
+                : worksByRoot.GetValueOrDefault(card.Id) ?? [];
+            return members.Count > 0 && members.All(keptWorks.Contains)
+                ? card with { Flags = card.Flags with { KeptAsIs = true } }
+                : card;
+        }).ToList();
     }
 
     public async Task<DisplayPageDto> BuildContinueAsync(

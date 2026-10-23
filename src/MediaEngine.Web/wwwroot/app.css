@@ -982,6 +982,11 @@ code,
    -------------------------------------------------------------------------- */
 
 :root {
+    /* One colour per area (Library setup D39): the Libraries screens and Add folder tiles read these. */
+    --area-colour-watch: #a16dff;
+    --area-colour-listen: #e76fce;
+    --area-colour-read: #61a8ff;
+    --area-colour-view: #2dd4bf;
     --app-font-sans: var(--font-ui);
     --app-font-brand: var(--font-brand);
     --app-bg: var(--tl-bg-root);
@@ -4946,6 +4951,12 @@ input[type="reset"],
 .profile-editor__choice span { display: grid; gap: 2px; }
 .profile-editor__choice small { color: var(--tl-text-muted); font-size: .85rem; }
 
+/* The Libraries list under an area on a person's page (AreaLibraryList); global because it sits inside several access screens. */
+.area-library-list { display: grid; gap: 2px; margin: 0 0 8px 16px; }
+.area-library-list__title, .area-library-list__note { color: var(--tl-text-muted); font-size: .85rem; }
+.area-library-list__item--held { opacity: .6; }
+.area-library-list__item .app-checkbox { flex-wrap: wrap; font-size: .9rem; }
+
 /* Top-bar quick profile switch (TopNavProfileSwitcher); global because its buttons are shared components. */
 .profile-switcher {
     display: flex;
@@ -5464,15 +5475,50 @@ input[type="reset"],
 
 /* Add folder wizard: the group tiles, kind options and treatment choices are AppNativeButton roots, so their styles live here. */
 .add-wizard__tile { display: grid; align-content: center; justify-items: center; gap: 12px; min-height: 140px; padding: 16px 8px; font-size: 1.05rem; color: inherit; font: inherit; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
-.add-wizard__tile--watch { --add-wizard-colour: #a16dff; }
-.add-wizard__tile--listen { --add-wizard-colour: #e76fce; }
-.add-wizard__tile--read { --add-wizard-colour: #61a8ff; }
-.add-wizard__tile--view { --add-wizard-colour: #2dd4bf; }
+.add-wizard__tile--watch { --add-wizard-colour: var(--area-colour-watch); }
+.add-wizard__tile--listen { --add-wizard-colour: var(--area-colour-listen); }
+.add-wizard__tile--read { --add-wizard-colour: var(--area-colour-read); }
+.add-wizard__tile--view { --add-wizard-colour: var(--area-colour-view); }
 .add-wizard__tile--vault { --add-wizard-colour: var(--tl-status-danger); }
 .add-wizard__kind-option, .add-wizard__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
 .add-wizard__tile:hover, .add-wizard__tile:focus-visible, .add-wizard__tile.is-selected,
 .add-wizard__kind-option:hover, .add-wizard__kind-option:focus-visible, .add-wizard__kind-option.is-selected,
 .add-wizard__choice:hover, .add-wizard__choice:focus-visible, .add-wizard__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
+/* The kind cards and the "Which library?" choices are shared by Add folder and the file-drop dialog, so their layout lives here too. */
+.add-wizard__kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.add-wizard__kind, .add-wizard__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.add-wizard__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: 1.25rem; }
+.add-wizard__options { display: grid; gap: 10px; }
+.add-wizard__lead, .add-wizard__question { margin: 0; }
+.add-wizard__question { font-size: 1rem; }
+
+/* Adding files by dropping them or choosing them (Library setup D44): the drop zone over a page's list, and one row per file with its bar. */
+.upload-dragging { outline: 2px dashed var(--tl-accent-primary); outline-offset: -2px; background: var(--tl-accent-primary-soft); }
+.upload-zone__hint { display: block; justify-self: start; padding: 4px 0; color: var(--tl-text-muted); font: inherit; font-size: 0.85rem; text-align: left; background: none; border: 0; cursor: pointer; }
+.upload-zone__hint:hover { color: var(--tl-text-primary); }
+.upload-zone__hint:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; border-radius: 4px; }
+.upload-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.upload-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); }
+.upload-row__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.upload-row__detail { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; color: var(--tl-text-muted); font-size: 0.85rem; }
+.upload-row[data-state="done"] .upload-row__detail { color: var(--tl-status-success); }
+.upload-row[data-state="refused"] .upload-row__detail, .upload-row[data-state="failed"] .upload-row__detail { color: var(--tl-status-warning); }
+.upload-dialog { display: grid; gap: 16px; box-sizing: border-box; width: min(calc(100vw - 64px), 640px); max-width: 100%; }
+.upload-dialog__section { display: grid; gap: 10px; }
+
+/* Library kinds (Library setup D22, D39): one colour per area. A kind that looks details up fills its icon tile with its area's colour, a plain
+   kind has a quiet grey tile, so a kind a plugin adds needs no style of its own. The Metadata icons and the Unmatched count sit beside the tile. */
+.lib-area--watch { --lib-area-colour: var(--area-colour-watch); }
+.lib-area--listen { --lib-area-colour: var(--area-colour-listen); }
+.lib-area--read { --lib-area-colour: var(--area-colour-read); }
+.lib-area--view { --lib-area-colour: var(--area-colour-view); }
+.lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: 1.4rem; color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }
+.lib-kind-tile--lookup { color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
+.lib-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.lib-meta__icon { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+.lib-meta__icon--plain { min-width: var(--tl-control-height-compact); min-height: var(--tl-control-height-compact); color: var(--tl-text-muted); font-size: 1.25rem; }
+.lib-meta__icon:focus-visible, .lib-unmatched:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.lib-unmatched { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; padding: 0 6px; border: 1px solid var(--tl-status-warning-border); border-radius: 999px; color: var(--tl-status-warning); background: var(--tl-status-warning-soft); font-size: .75rem; font-weight: 700; }
 
 /* First-run "What do you have?" tick cards (SetupMediaStage): AppNativeButton roots. */
 .setup-have__card { display: grid; align-content: center; justify-items: center; gap: 6px; min-height: 124px; padding: 14px 8px; color: inherit; font: inherit; text-align: center; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }

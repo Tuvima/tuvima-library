@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using MediaEngine.Api.Realtime;
+using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Events;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
@@ -212,7 +213,9 @@ public sealed class ApplicationEventDispatcherTests : IDisposable
         var registry = new ApplicationEventRegistry(permissions);
         var authorizer = new ApplicationEventSubscriptionAuthorizer(
             new AllowAuthorizationEvaluator(), _accounts, new ProfileAccessRepository(_database), _applications, _clients, permissions, registry,
-            new ApplicationEventDeliveryAuthorizer(_applications, permissions, registry), TimeProvider.System);
+            new ApplicationEventDeliveryAuthorizer(_applications, permissions, registry), TimeProvider.System,
+            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)),
+            new ConfigurationDirectoryLoader(Path.Combine(Path.GetTempPath(), $"tuvima_application_event_dispatch_config_{Guid.NewGuid():N}")));
         _services = new ServiceCollection().AddSingleton(authorizer).BuildServiceProvider();
         return new ApplicationEventDispatcher(
             _hub, repository, _services.GetRequiredService<IServiceScopeFactory>(),

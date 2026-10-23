@@ -64,7 +64,7 @@ public sealed class AccountEmailRequiredTests
                             ProfileId: null,
                             NewProfile: new NewAccountProfileCommand("Nameless", "#7C4DFF"),
                             Features: new HashSet<AccountFeatureId>(),
-                            Libraries: new HashSet<Guid>())));
+                            HiddenLibraries: new HashSet<Guid>())));
                     }
 
                     var account = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
@@ -73,7 +73,7 @@ public sealed class AccountEmailRequiredTests
                         ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Household", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(),
-                        Libraries: new HashSet<Guid>()));
+                        HiddenLibraries: new HashSet<Guid>()));
                     var profileId = account.ProfileId;
                     var identity = new FirstPartyIdentityService(
                         identities,
@@ -176,7 +176,7 @@ public sealed class AccountEmailRequiredTests
                         ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Owner", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(),
-                        Libraries: new HashSet<Guid>()));
+                        HiddenLibraries: new HashSet<Guid>()));
                     var ownerHousehold = await households.GetForAccountAsync(owner.Id);
                     Assert.NotNull(ownerHousehold);
 
@@ -263,7 +263,7 @@ public sealed class AccountEmailRequiredTests
                     var child = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "child@example.com", IsAdministrator: false, ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Child", "#7C4DFF"),
-                        Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
+                        Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
                     var childProfileId = child.ProfileId;
                     // A new profile is an ordinary member; this one is then made a Kids profile.
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,
@@ -284,7 +284,7 @@ public sealed class AccountEmailRequiredTests
                     var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "admin@example.com", IsAdministrator: true, ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Parent", "#7C4DFF"),
-                        Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
+                        Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
                     Assert.True((await new ProfileAccessRepository(database).GetAdminFlagsAsync(admin.ProfileId))!.IsServerAdministrator);
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,
                         (await profiles.GetByIdAsync(admin.ProfileId))!.Role);

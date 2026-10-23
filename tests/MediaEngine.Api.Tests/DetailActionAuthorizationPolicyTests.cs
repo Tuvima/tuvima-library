@@ -87,6 +87,45 @@ public sealed class DetailActionAuthorizationPolicyTests
         Assert.False(result.Allows("delete-library-item"));
     }
 
+    [Theory]
+    [InlineData("unmatched-retry")]
+    [InlineData("unmatched-keep")]
+    [InlineData("unmatched-look-up-again")]
+    public async Task UnmatchedActionsNeedTheSameAdministratorCheckAsEditing(string key)
+    {
+        var administrator = await DetailActionAuthorizationPolicy.ResolveAsync(
+            HumanAuthority(), new AccountDecisions(AuthorizationDecision.Allow()), new AppEvaluator(false), default);
+        var ordinary = await DetailActionAuthorizationPolicy.ResolveAsync(
+            HumanAuthority(),
+            new AccountDecisions(AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired)),
+            new AppEvaluator(true),
+            default);
+
+        Assert.True(administrator.Allows(key));
+        Assert.False(ordinary.Allows(key));
+        Assert.False(default(DetailActionAuthorizationContext).Allows(key));
+    }
+
+    [Theory]
+    [InlineData("unmatched-retry")]
+    [InlineData("unmatched-keep")]
+    [InlineData("unmatched-look-up-again")]
+    public async Task UnmatchedActionsAreRefusedToAServiceApplicationWithMetadataWrite_AndToADelegatedClient(string key)
+    {
+        var service = await DetailActionAuthorizationPolicy.ResolveAsync(
+            new RequestAuthority(PrincipalKind.ServiceApplication, true, ApplicationId: Guid.NewGuid(), ApplicationEnabled: true),
+            new AccountDecisions(AuthorizationDecision.Allow()), new AppEvaluator(true), default);
+        var delegated = await DetailActionAuthorizationPolicy.ResolveAsync(
+            new RequestAuthority(
+                PrincipalKind.DelegatedUserClient, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
+                ApplicationId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true),
+            new AccountDecisions(AuthorizationDecision.Allow()), new AppEvaluator(true), default);
+
+        Assert.True(service.Allows("edit"));
+        Assert.False(service.Allows(key));
+        Assert.False(delegated.Allows(key));
+    }
+
     private static RequestAuthority HumanAuthority() => new(
         PrincipalKind.Human,
         true,
@@ -98,7 +137,7 @@ public sealed class DetailActionAuthorizationPolicyTests
     private sealed class AccountDecisions(AuthorizationDecision administrator) : IAccountAccessDecisionService
     {
         public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature, CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Deny(AuthorizationDenialReason.MissingFeatureGrant));
-        public ValueTask<AuthorizationDecision> EvaluateLibraryAsync(RequestAuthority authority, Guid libraryId, CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant));
+        public ValueTask<AuthorizationDecision> EvaluateLibraryAsync(RequestAuthority authority, Guid libraryId, CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible));
         public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(RequestAuthority authority, bool requireSurfaceUnlock, CancellationToken cancellationToken = default) => ValueTask.FromResult(administrator);
     }
 

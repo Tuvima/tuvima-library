@@ -236,6 +236,76 @@ The media files that stayed on disk when their title was deleted from the librar
 
 Index: `idx_excluded_source_files_library (library_id)`. Deleting a title also removes every row tied to its Work, editions and media assets (chosen values, metadata claims, jobs, Needs Review rows, artwork links and the artwork only it used, search entries, saved items and ratings, every profile's progress and bookmarks, and its own activity history). `personal_activity` is the one exception: it keeps its own snapshot of the title.
 
+
+### unmatched_assets
+
+The media files the Engine could not match (Library setup spec D34). A file with no retail match, or a file in a YouTube library with no YouTube ID, stays exactly where it is, plays and browses with its file name and tags, and is looked up again later (weekly by default, after a provider or plugin is switched on or updated, or on **Retry now**). One row per media asset; the row is removed when a lookup matches the file (the identity job leaves the no-match state, or a person picks the match) and when the file's asset is deleted. A file the Engine found a match for but is unsure about is not here: it is a Needs Review item.
+
+| Column | Type | Notes |
+|---|---|---|
+| `asset_id` | BLOB | Primary key; the media asset, which cascades on delete |
+| `library_id` | TEXT | The configured library the file sits in (the count and list are per library) |
+| `reason` | TEXT | `no_match` (a lookup found nothing) or `no_youtube_id` (a YouTube library file with no video ID in its name or `.info.json`; never looked up) |
+| `first_unmatched_at` | TEXT | When it first became Unmatched, ISO 8601 UTC. Kept across retries |
+| `last_tried_at` | TEXT | When a lookup last ran, ISO 8601 UTC |
+| `next_retry_at` | TEXT | When it is next due, ISO 8601 UTC; null for a kept item. A provider or plugin change and **Retry now** set it to now |
+| `kept_as_is` | INTEGER | 1 after **Keep as is**: no retries, and not in the Unmatched count or filter. **Look up again** sets it back to 0 and makes the item due |
+| `kept_at` | TEXT | When it was kept (nullable) |
+
+Indexes: `ix_unmatched_assets_library (library_id, kept_as_is, first_unmatched_at)` for the per-library count and list, and the partial `ix_unmatched_assets_due (next_retry_at) WHERE kept_as_is = 0` for the scan of due items.
+
+### folder_first_checks
+
+The first check of a newly added folder (Library setup spec D35, D61; added by upgrade step `0043_folder_first_checks`). A folder added to a library whose kind looks details up (plain kinds and Vault libraries never get one; a folder that existed before never does) is checked before the Engine changes anything in it: its first files are identified as normal, but nothing in it is renamed, moved or tagged. When more than the configured share of the first files are Unmatched (`first_check_files` and `first_check_unmatched_share` in `config/maintenance.json`) the folder is paused: its remaining identity jobs are not claimed and the filing rows held for it stay held until an administrator chooses Keep going or removes the folder. Otherwise the check passes and the held rows become `waiting`, to be filed in the next run with their tags. One row per folder (source).
+
+| Column | Type | Notes |
+|---|---|---|
+| `source_id` | TEXT | Primary key; the folder's stable ID in `libraries.json` |
+| `library_id` | TEXT | The library the folder belongs to |
+| `path` | TEXT | The folder as configured |
+| `path_prefix` | TEXT | The path with every separator as `/` and exactly one `/` at the end (a root such as `/` or `D:/` keeps its one separator, so a prefix is never empty). Outside Windows a file must also start with it exactly, as the rest of the Engine compares source paths |
+| `path_prefix_folded` / `path_range_end_folded` | TEXT | The prefix with ASCII letters lower-cased, and the first string after every string that starts with it (the closing `/` replaced by `0`). A file is in the folder when `lower(replace(its path, '\', '/'))` is at or above the first and below the second, a range that `ix_media_assets_path_folded` answers |
+| `state` | TEXT | `checking` (nothing in the folder is touched), `passed`, `paused` (claims stop, nothing is touched) or `kept_going` (an administrator chose Keep going) |
+| `tried` / `unmatched` | INTEGER | Files with a final outcome among the first files, and how many of them are Unmatched. Live while checking is shown from `folder_first_check_files`; these hold the counts the check ended or paused on |
+| `started_at` / `ended_at` | TEXT | UTC; `ended_at` is null while checking or paused |
+
+Indexes: the partial `ix_folder_first_checks_held (state, library_id) WHERE state IN ('checking', 'paused')`, asked by every identity-job claim and file-write claim, `ix_folder_first_checks_library (library_id)`, and `ix_media_assets_path_folded` on `media_assets (lower(replace(file_path_root, '\', '/')))` for the range lookup of a folder's files.
+
+### folder_first_check_files
+
+The files that reached a final identification outcome (matched, Unmatched or needs review) while their folder was being checked, in the order they did (`seq`). A file counts once; a later outcome for it replaces the earlier one. The rows go when the check passes or the administrator chooses Keep going, and with the check when the folder is removed.
+
+| Column | Type | Notes |
+|---|---|---|
+| `seq` | INTEGER | Primary key (autoincrement); the order the outcomes arrived |
+| `source_id` | TEXT | FK -> `folder_first_checks.source_id` (cascade) |
+| `asset_id` | BLOB | FK -> `media_assets.id` (cascade) |
+| `outcome` | TEXT | `matched`, `unmatched` (a YouTube file with no video ID counts) or `needs_review` |
+| `recorded_at` | TEXT | UTC |
+
+Unique on `(source_id, asset_id)`.
+
+### import_uploads and import_upload_pieces
+
+The resumable uploads of big files into the Import folder (Library setup spec D44), added by upgrade step 0044. One `import_uploads` row per upload an administrator started, so an upload resumes after a dropped connection or an Engine restart. The bytes are never in the data store: they are written into a hidden working file under the Import folder's `.data/uploads` folder (the file scanner skips `.data`), which becomes the real file by a rename into the kind's Import sub-folder when the upload completes. Both tables are transient for backup: an upload in progress is not worth restoring.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key; the upload id the Dashboard sends with every call |
+| `created_by` | BLOB | The administrator's profile id. Only that administrator can read, send to, complete or cancel the upload |
+| `kind_key` | TEXT | The library kind the file was dropped on (`movies`, `music`, `other_videos`, ...) |
+| `library_id` | TEXT | The library named for a kind that has several; null means the kind's own (nullable) |
+| `type_label` | TEXT | The Import folder type the kind maps to (`Movies`, `TV`, `Music`, ...) |
+| `file_name` | TEXT | The checked name asked for. The saved name is chosen when the upload completes and gets a number added if the name is taken |
+| `total_bytes`, `piece_bytes`, `piece_count` | INTEGER | The file's size, the size of every piece but the last (`upload_piece_bytes` when the upload started) and how many pieces there are |
+| `working_path` | TEXT | The hidden working file |
+| `destination_folder` | TEXT | The Import folder's sub-folder for the kind |
+| `state` | TEXT | `open`, `completed` or `cancelled` (an abandoned upload is cancelled by the sweep) |
+| `final_path` | TEXT | Where the file was saved; set on completion (nullable) |
+| `created_at`, `last_piece_at`, `closed_at` | TEXT | ISO 8601 UTC. `last_piece_at` moves with every new piece; an open upload idle for `upload_abandon_hours` is abandoned. A finished row is deleted a week after `closed_at` (`closed_at` is nullable) |
+
+`import_upload_pieces` has one row per piece received (`upload_id` cascading on delete, `piece_index` from 0, `received_at`), `WITHOUT ROWID` with the primary key `(upload_id, piece_index)`. A piece is recorded with an insert that ignores an existing row, so sending a piece again changes nothing. Index: `idx_import_uploads_state_last_piece (state, last_piece_at)` for the abandoned-upload sweep.
+
 ---
 
 ## View Personal Media
@@ -883,7 +953,7 @@ One row per person who signs in. A sign-in that works away from this computer ha
 | `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It signs in without a password and, since Tuvima is open from the start, can be used from any device that reaches the server until a password or passkey is added (see Security). Defaults to 0. |
 | `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0. |
 | `temporary_password_expires_at` | TEXT | When an administrator-set temporary password stops working; null when none is set. Sessions of an account whose temporary password has run out stop validating. |
-| `profile_id` | BLOB | NOT NULL. The profile this sign-in opens (a user is a sign-in attached to one profile and cannot exist without it; references `profiles`, deleting the profile deletes the sign-in). A unique index (`ux_accounts_profile`) allows exactly one sign-in per profile. Signing in always opens this profile, and the sign-in may switch to any other profile of the same household (never another household's). Its roles (server administrator, household administrator) and its Read/Watch/Listen/View and library access are the profile's, not the sign-in's (users, profiles and households spec, steps `0041_profile_held_access`, `0042_storage_epoch_profile_held_access` and `0043_drop_account_held_access`). |
+| `profile_id` | BLOB | NOT NULL. The profile this sign-in opens (a user is a sign-in attached to one profile and cannot exist without it; references `profiles`, deleting the profile deletes the sign-in). A unique index (`ux_accounts_profile`) allows exactly one sign-in per profile. Signing in always opens this profile, and the sign-in may switch to any other profile of the same household (never another household's). Its roles (server administrator, household administrator) and its Read/Watch/Listen/View and library access are the profile's, not the sign-in's (users, profiles and households spec, steps `0046_profile_held_access`, `0047_storage_epoch_profile_held_access` and `0048_drop_account_held_access`). |
 
 ### households
 
@@ -894,7 +964,7 @@ A household is the group of people (profiles) who live together and the sign-ins
 | `id` | BLOB | GUID, primary key |
 | `name` | TEXT | Display name, for example `Alex's household` |
 | `created_at` | TEXT | Timestamp |
-| `is_default` | INTEGER | 1 for the server administrator's original household. At most one household has it (unique partial index `ux_households_default`); setup marks the first administrator's household. It is never deleted. Added by step `0041_profile_held_access`. |
+| `is_default` | INTEGER | 1 for the server administrator's original household. At most one household has it (unique partial index `ux_households_default`); setup marks the first administrator's household. It is never deleted. Added by step `0046_profile_held_access`. |
 
 **Creation.** The baseline step creates `household_id` on `profiles`. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
 
@@ -921,7 +991,7 @@ User profiles for multi-user support.
 | `is_household_admin` | INTEGER | 1 when the profile looks after its own household. Defaults to 0. Setup sets it on the first administrator's profile. |
 | `authorization_version` | INTEGER | Above zero, starts at 1, bumped on every change to the profile's administrator roles, feature and library access or admin PIN question, so open sessions re-check. |
 
-These three columns (and the four `profile_*` access tables below) were added by upgrade step `0041_profile_held_access`: the profile holds the person's access and a user (`accounts`) is only a sign-in. Since step `0042_storage_epoch_profile_held_access` (storage epoch `guid-blob-v12-profile-held-access`) the Engine reads roles and access only from the profile being acted as, and writes them only there. Step `0043_drop_account_held_access` (storage epoch `guid-blob-v13-profile-held-contract`) then removed the earlier account-side model: the tables `account_profile_grants`, `account_feature_grants`, `account_library_grants`, `grant_admin_protections` and `grant_admin_unlocks`, and the columns `accounts.is_administrator`, `accounts.household_admin`, `accounts.household_id`, `accounts.grants_inherit_from_account_id` and `households.primary_account_id`. It rebuilt `accounts` so `profile_id` is NOT NULL. A user's household is its profile's household. A new sign-in's profile is set up once from how the sign-in was created, and a person who already exists is never changed by getting a sign-in. A user file never carries the administrator columns, and a user import forces them to 0 (the person who starts a household by being imported becomes its household administrator on the profile their sign-in opens).
+These three columns (and the four `profile_*` access tables below) were added by upgrade step `0046_profile_held_access`: the profile holds the person's access and a user (`accounts`) is only a sign-in. Since step `0047_storage_epoch_profile_held_access` (storage epoch `guid-blob-v12-profile-held-access`) the Engine reads roles and access only from the profile being acted as, and writes them only there. Step `0048_drop_account_held_access` (storage epoch `guid-blob-v13-profile-held-contract`) then removed the earlier account-side model: the tables `account_profile_grants`, `account_feature_grants`, `account_library_grants`, `grant_admin_protections` and `grant_admin_unlocks`, and the columns `accounts.is_administrator`, `accounts.household_admin`, `accounts.household_id`, `accounts.grants_inherit_from_account_id` and `households.primary_account_id`. It rebuilt `accounts` so `profile_id` is NOT NULL. A user's household is its profile's household. A new sign-in's profile is set up once from how the sign-in was created, and a person who already exists is never changed by getting a sign-in. A user file never carries the administrator columns, and a user import forces them to 0 (the person who starts a household by being imported becomes its household administrator on the profile their sign-in opens).
 
 The PIN is not stored on this row. It is the `profile_credentials` row described below.
 
@@ -989,7 +1059,7 @@ Invitation codes made by an administrator (**Users and Sign-in > Users**). `id`,
 
 ### profile_feature_grants
 
-The features a profile may use: `profile_id` (references `profiles`, deleting the profile removes the rows) and `feature_id` (`read`, `watch`, `listen` or `view`, primary key together) and `granted_at`. Added by step `0041_profile_held_access`.
+The features a profile may use: `profile_id` (references `profiles`, deleting the profile removes the rows) and `feature_id` (`read`, `watch`, `listen` or `view`, primary key together) and `granted_at`. Added by step `0046_profile_held_access`.
 
 ### profile_library_grants
 
@@ -1235,18 +1305,19 @@ The durable to-do list for every write into a file (added by upgrade step `0038_
 | `status` | TEXT | `pending`, `writing`, `verified`, `blocked`, `unsupported` or `failed` |
 | `attempts` / `lease_expires_at` / `last_error` | INTEGER / TEXT / TEXT | Claim attempts, when a claimed row may be claimed again (a stopped Engine's rows come back after this), and the last reason |
 | `created_at` / `updated_at` / `completed_at` | TEXT | UTC; `completed_at` is when the last write finished |
-| `move_step` | TEXT | A library move in progress: `requested`, `planned`, `moved` or `checked` (NULL when none). Moves run at once, not on the schedule, and a row with a move in progress is not written until the move is done. Each step is written before and after it happens (`planned` before the disk is touched, `moved` once the file is at its new place, `checked` once the stored path matches and the file was verified there); a second move asked for meanwhile keeps the first step and is planned again from the data store when the first is checked |
+| `move_step` | TEXT | A library move: `waiting` (Library's own filing, queued for the next run; the file has not moved and is not "in progress"), `held` (filing held until a newly added Managed folder passes its first check; never moved), or in progress: `requested`, `planned`, `moved` or `checked` (NULL when none). A person's move runs at once, a filing move is promoted to `requested` when a run starts, and a row with a move is not written until the move is done. Each step is written before and after it happens (`planned` before the disk is touched, `moved` once the file is at its new place, `checked` once the stored path matches and the file was verified there); a second move asked for meanwhile keeps the first step and is planned again from the data store when the first is checked |
+| `move_origin` | TEXT | Who asked for the move: `person` (done at once) or `filing` (Library's own, done in the next run; set aside untouched when the file is in use). Set exactly when `move_step` is (added by upgrade step `0042_filing_moves_wait_for_the_batch`). Trigger `filing` means no tags were asked for on the row, so it is removed once the move is checked |
 | `move_source_path` / `move_target_path` / `move_source_hash` | TEXT | What a move was about to do, so a stop part-way can be finished or undone from what is on disk. Cleared when the move is done. A move given up as failed keeps them for diagnosis, but no longer counts as a move in progress. The old and new place of every row with a move in progress is the waiting mark: the folder watcher, the rescan and the daily missing-file check leave those files alone |
 | `move_generation` | INTEGER | The generation of the row when the move was planned. Finishing the move after a stop completes with it, so a change that arrived since is seen and the move is planned again from the data store |
 | `recovery_attempts` | INTEGER | How many starts or passes found a part-way move that could not be settled (a drive that is offline does not count); the move is given up as failed at a cap |
-| `next_attempt_at` | TEXT | UTC; when a failed or unsettled move is tried again (a minute, five minutes, half an hour, two hours, then failed). NULL means now |
+| `next_attempt_at` | TEXT | UTC; when a failed or unsettled person's move is tried again (a minute, five minutes, half an hour, two hours, then failed). NULL means now |
 | `claimed_run_id` | TEXT | The write run that last claimed the row; a run never takes a row it already took, however many chunks it needs |
 
 **Indices:** unique partial indexes on `asset_id` and `local_item_id`, `ix_media_file_write_intents_dispatch` on `(status, lease_expires_at, updated_at)` and a partial index on `move_step`.
 
 ### file_write_runs
 
-One row (`id = 1`) that remembers the schedule: `anchor_at` (when the scheduler first started, so the first interval counts from there), `last_run_started_at`, `last_run_finished_at`, and how many files the last run wrote (`last_run_written`), failed (`last_run_failed`) and kept in Library only (`last_run_kept`).
+One row (`id = 1`) that remembers the schedule: `anchor_at` (when the scheduler first started, so the first interval counts from there), `last_run_started_at`, `last_run_finished_at`, and how many files the last run wrote (`last_run_written`), failed (`last_run_failed`) and kept in Library only (`last_run_kept`), and how many files it filed (moved) on their own (`last_run_filed`, added by upgrade step `0042_filing_moves_wait_for_the_batch`; counted apart from the tag writes).
 
 ### ingestion_log
 

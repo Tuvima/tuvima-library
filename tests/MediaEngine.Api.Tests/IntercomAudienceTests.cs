@@ -97,6 +97,29 @@ public sealed class IntercomAudienceTests : IDisposable
     }
 
     [Fact]
+    public async Task LiveAudience_NeverDeliversMediaOfALibraryHiddenFromTheProfile_AndDeliversItAgainOnceItIsShown()
+    {
+        await SeedHumanAsync();
+        var authorizer = new IntercomAudienceAuthorizer(
+            _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+        var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
+        var watch = new HashSet<AccountFeatureId> { AccountFeatureId.Watch };
+
+        // Nothing is hidden, so a library nobody listed is still delivered through the Watch area.
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
+
+        var profileAccess = new ProfileAccessRepository(_database);
+        await profileAccess.ReplaceAccessAsync(Profile.SeedProfileId, watch, new HashSet<Guid> { _libraryId }, DateTimeOffset.UtcNow);
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
+
+        await profileAccess.ReplaceAccessAsync(Profile.SeedProfileId, watch, new HashSet<Guid>(), DateTimeOffset.UtcNow);
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
+    }
+
+    [Fact]
     public async Task LiveAudience_KidsProfileOfAnAdministratorGetsNoAdministratorEvents()
     {
         await SeedHumanAsync();
@@ -244,7 +267,7 @@ public sealed class IntercomAudienceTests : IDisposable
             },
             new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { _libraryId });
+            new HashSet<Guid>());
         await _identities.InsertSessionAsync(new AuthSession
         {
             Id = _sessionId,

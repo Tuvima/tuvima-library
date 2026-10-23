@@ -35,6 +35,7 @@ public sealed class VaultRouteInventoryTests
         ("/read/resolve/", "The handler goes through the catalogue authorization service"),
         ("/review/", "Vault files never get review items; the review actions are covered by their own tests"),
         ("/library/excluded-files/", "The excluded-files service drops Vault rows (ExcludedFileService)"),
+        ("/library/unmatched/", "Administrator-only; every route answers not found for a library that is unknown or a Vault library, and for a file in one (UnmatchedEndpoints)"),
         ("/library/items/recycle-bin/", "The recycle-bin service is covered by its own tests"),
         ("/maintenance/retag-sweep/retry/", "Answers the same for any id"),
         ("/view/", "The View index is separate and never enters the Work and Edition graph"),

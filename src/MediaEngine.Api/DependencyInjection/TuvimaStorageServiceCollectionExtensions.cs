@@ -216,10 +216,21 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.TryAddSingleton<IIngestionQueueProgressRepository, IngestionQueueProgressRepository>();
         services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
         services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
+        services.AddSingleton<IImportUploadRepository, ImportUploadRepository>();
+        services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();
+        // The first check of a newly added folder (Library setup D35, D61). The hold is registered here, before the ingestion modules,
+        // so their "nothing is ever held" default does not apply.
+        services.AddSingleton<FolderFirstCheckSignal>();
+        services.AddSingleton<IFolderFirstCheckRepository, FolderFirstCheckRepository>();
+        // Files per library for a folder or a list of files: the one grouped read behind "who would lose sight" (simpler access D13).
+        services.AddSingleton<IMediaAssetLibraryCountRepository, MediaAssetLibraryCountRepository>();
+        services.AddSingleton<MediaEngine.Domain.Contracts.IFilingHold, FolderFirstCheckFilingHold>();
+        services.AddSingleton<MediaEngine.Ingestion.Services.UnmatchedFileMarker>();
         services.AddSingleton<MediaEditorCommitRepository>();
         services.AddSingleton<MediaFileWriteIntentRepository>();
         services.AddSingleton<ViewItemFileWriteRepository>();
         services.AddSingleton<MediaEngine.Domain.Contracts.IFileMoveInProgress>(sp => sp.GetRequiredService<MediaFileWriteIntentRepository>());
+        services.AddSingleton<MediaEngine.Domain.Contracts.IFilingQueue>(sp => sp.GetRequiredService<MediaFileWriteIntentRepository>());
         services.AddSingleton<MediaEngine.Domain.Contracts.IFileWriteQueue, MediaEngine.Api.Services.FileWrites.FileWriteQueue>();
         services.AddSingleton<MediaEngine.Api.Services.FileWrites.RestoredFileWriteQueuer>();
         services.AddSingleton<MusicPairingCommitRepository>();

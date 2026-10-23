@@ -128,7 +128,8 @@ internal static class AuthorityValidity
 
 public sealed class AccountAccessDecisionService(
     IProfileAccessRepository profileAccess,
-    IGrantAdminUnlockService unlocks) : IAccountAccessDecisionService, ISelfServiceAuthorizationService
+    IGrantAdminUnlockService unlocks,
+    LibraryVisibilityRule libraryVisibility) : IAccountAccessDecisionService, ISelfServiceAuthorizationService
 {
     public async ValueTask<AuthorizationDecision> EvaluateFeatureAsync(
         RequestAuthority authority,
@@ -152,6 +153,8 @@ public sealed class AccountAccessDecisionService(
             : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingFeatureGrant);
     }
 
+    // The library half of the visibility rule: not a Vault library and not hidden from this account. The caller checks the library's
+    // area (EvaluateFeatureAsync) first, as every caller does, because this method is not told what the library holds.
     public async ValueTask<AuthorizationDecision> EvaluateLibraryAsync(
         RequestAuthority authority,
         Guid libraryId,
@@ -168,9 +171,9 @@ public sealed class AccountAccessDecisionService(
             return AuthorizationDecision.Allow();
         }
 
-        return (await profileAccess.GetLibraryGrantsAsync(authority.ActiveProfileId!.Value, ct).ConfigureAwait(false)).Contains(libraryId)
+        return await libraryVisibility.MaySeeAsync(authority.ActiveProfileId!.Value, false, libraryId, true, ct).ConfigureAwait(false)
             ? AuthorizationDecision.Allow()
-            : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant);
+            : AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible);
     }
 
     public async ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(
@@ -287,11 +290,11 @@ public sealed class AuthorizationEvaluator(
             }
         }
 
-        if (requirement.RequiresLibraryGrant)
+        if (requirement.RequiresLibraryVisibility)
         {
             if (resource?.LibraryId is not { } libraryId)
             {
-                return AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant);
+                return AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible);
             }
 
             var decision = await accounts.EvaluateLibraryAsync(authority, libraryId, ct).ConfigureAwait(false);
@@ -387,7 +390,7 @@ public sealed class AuthorizationEvaluator(
         requirement.AccountFeature is null &&
         !requirement.RequiresHumanContext &&
         !requirement.RequiresAdministrator &&
-        !requirement.RequiresLibraryGrant;
+        !requirement.RequiresLibraryVisibility;
 }
 
 public sealed class GrantAdminUnlockService(

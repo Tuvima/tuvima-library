@@ -4,7 +4,7 @@ using MediaEngine.Domain.Entities;
 namespace MediaEngine.Domain.Contracts;
 
 /// <summary>
-/// What a profile may see and do: administrator roles, Read/Watch/Listen/View, library access, the admin PIN question and its
+/// What a profile may see and do: administrator roles, Read/Watch/Listen/View, hidden libraries, the admin PIN question and its
 /// unlocks, and which household is the default. A user (sign-in) is attached to one profile. Every change to a profile's access
 /// raises <c>profiles.authorization_version</c> so open screens and sessions re-check.
 /// </summary>
@@ -13,14 +13,21 @@ public interface IProfileAccessRepository
     /// <summary>The Read/Watch/Listen/View access the profile holds; empty when it has none or does not exist.</summary>
     Task<IReadOnlySet<AccountFeatureId>> GetFeatureGrantsAsync(Guid profileId, CancellationToken ct = default);
 
-    /// <summary>The libraries the profile may use; empty when it has none or does not exist.</summary>
-    Task<IReadOnlySet<Guid>> GetLibraryGrantsAsync(Guid profileId, CancellationToken ct = default);
+    /// <summary>
+    /// The libraries an administrator hid from this profile (simpler access D2): only the profile's own rows. Never names a Vault
+    /// library. Everything else in the profile's areas is visible; ask <c>LibraryVisibilityRule</c> rather than reading this directly.
+    /// </summary>
+    Task<IReadOnlySet<Guid>> GetHiddenLibrariesAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>True when the library is in <see cref="GetHiddenLibrariesAsync"/> for this profile.</summary>
+    Task<bool> IsLibraryHiddenAsync(Guid profileId, Guid libraryId, CancellationToken ct = default);
 
     /// <summary>
-    /// Replaces the profile's feature and library access in one step and raises its authorization version. Returns
-    /// <see langword="false"/> when the profile does not exist. The Vault can never be given as a library.
+    /// Replaces the profile's feature access and its hidden libraries in one step and raises its authorization version. Returns
+    /// <see langword="false"/> when the profile does not exist. The Vault can never be hidden or shown as a library.
+    /// <paramref name="changedByProfileId"/> is the administrator's profile that saved it, kept on each hidden row.
     /// </summary>
-    Task<bool> ReplaceAccessAsync(Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default);
+    Task<bool> ReplaceAccessAsync(Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, DateTimeOffset changedAt, CancellationToken ct = default, Guid? changedByProfileId = null);
 
     /// <summary>The profile's administrator roles, or <see langword="null"/> when the profile does not exist.</summary>
     Task<ProfileAdminFlags?> GetAdminFlagsAsync(Guid profileId, CancellationToken ct = default);

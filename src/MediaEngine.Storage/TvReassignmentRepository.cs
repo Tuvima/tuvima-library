@@ -152,7 +152,7 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
                 MarkWorkOwned(connection, transaction, workId);
             }
 
-            var removed = moved && RemoveWorkIfEmpty(connection, transaction, current.WorkId, resolved.WorkId);
+            var removed = moved && RemoveWorkIfEmpty(connection, transaction, current.WorkId, resolved.WorkId, showWorkId);
             var placement = new TvReassignment(
                 assetId, current.EditionId, current.WorkId, removed, showWorkId, seasonWorkId, resolved.WorkId,
                 coveredWorkIds);
@@ -259,11 +259,12 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
     /// <summary>
     /// Deletes a standalone Work that no longer holds any Edition, with the entity-keyed rows that
     /// described only that Work. Parent containers and Works that still hold an Edition are kept.
-    /// The Work's curated-collection memberships move to <paramref name="replacementWorkId"/> first, so a
-    /// collection that held the movie now holds the episode instead of being emptied and removed.
+    /// What people did with the Work (saves, reactions, plays, bookmarks, personal tags) and its curated-collection memberships move to
+    /// <paramref name="replacementWorkId"/> first, so nothing is lost and a collection that held the movie now holds the episode instead of
+    /// being emptied and removed.
     /// </summary>
     private static bool RemoveWorkIfEmpty(
-        SqliteConnection connection, SqliteTransaction transaction, Guid workId, Guid replacementWorkId)
+        SqliteConnection connection, SqliteTransaction transaction, Guid workId, Guid replacementWorkId, Guid showWorkId)
     {
         var removable = connection.ExecuteScalar<int>("""
             SELECT EXISTS (
@@ -278,16 +279,22 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
             return false;
         }
 
-        // Memberships follow the file to its new work. collection_items has no unique (collection, work) key,
-        // so rows in a collection that already holds the replacement are dropped first, then the rest re-point.
-        connection.Execute("""
-            DELETE FROM collection_items
-            WHERE work_id = @workId
-              AND collection_id IN (SELECT collection_id FROM collection_items WHERE work_id = @replacementWorkId);
-            """, new { workId, replacementWorkId }, transaction);
+        // Everything people did with the title follows the file to its new work: curated-collection memberships (a collection that
+        // already holds the replacement keeps it once), saves, reactions, plays, listening history, bookmarks, queue places and personal tags.
+        WorkPersonalStateMerge.Carry(connection, transaction, workId, replacementWorkId);
+
+        // The saves and reactions carried over were made on a movie; on TV the Dashboard reads them by the show, so they move to the show
+        // as TV items. A show the person already saved or reacted to keeps its own row and the duplicate is dropped.
         connection.Execute(
-            "UPDATE collection_items SET work_id = @replacementWorkId WHERE work_id = @workId;",
-            new { workId, replacementWorkId }, transaction);
+            """
+            UPDATE OR IGNORE profile_saved_items SET entity_kind = 'TvShow', entity_id = @showWorkId WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            DELETE FROM profile_saved_items WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            UPDATE OR IGNORE profile_reactions SET entity_kind = 'TvShow', entity_id = @showWorkId WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            DELETE FROM profile_reactions WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            DELETE FROM profile_saved_items WHERE entity_id = @workId;
+            DELETE FROM profile_reactions WHERE entity_id = @workId;
+            """,
+            new { workId, replacementWorkId, showWorkId }, transaction);
 
         foreach (var statement in new[]
                  {

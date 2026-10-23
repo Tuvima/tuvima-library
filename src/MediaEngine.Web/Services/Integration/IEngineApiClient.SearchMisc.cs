@@ -77,10 +77,12 @@ public partial interface IEngineApiClient
     Task<CollectionManagementCatalogViewModel?> GetCollectionSummaryAsync(Guid collectionId, Guid? profileId = null, CancellationToken ct = default);
 
     /// <summary>GET /collections/content-groups — structural collections (albums, TV series, book series, movie series) for grouped browse surfaces.</summary>
-    Task<List<ContentGroupViewModel>> GetContentGroupsAsync(CancellationToken ct = default);
+    /// <remarks><paramref name="libraryId"/> and <paramref name="unmatched"/> narrow the groups to one library's works and to its Unmatched files, after authorization (the browse tabs).</remarks>
+    Task<List<ContentGroupViewModel>> GetContentGroupsAsync(CancellationToken ct = default, Guid? libraryId = null, bool? unmatched = null);
 
     /// <summary>GET /collections/system-views?mediaType=&amp;groupField= — system-view collections resolved as grouped content groups where no routed collection detail exists.</summary>
-    Task<List<ContentGroupViewModel>> GetSystemViewGroupsAsync(string? mediaType = null, string? groupField = null, CancellationToken ct = default);
+    /// <remarks><paramref name="libraryId"/> and <paramref name="unmatched"/> narrow the groups to one library's works and to its Unmatched files, after authorization (the browse tabs).</remarks>
+    Task<List<ContentGroupViewModel>> GetSystemViewGroupsAsync(string? mediaType = null, string? groupField = null, CancellationToken ct = default, Guid? libraryId = null, bool? unmatched = null);
 
     /// <summary>GET /collections/{id}/items?limit= — curated items for a collection.</summary>
     Task<List<CollectionItemDto>> GetCollectionItemsAsync(Guid collectionId, int limit = 20, Guid? profileId = null, CancellationToken ct = default);

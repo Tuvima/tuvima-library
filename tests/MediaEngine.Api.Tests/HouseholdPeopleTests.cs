@@ -456,7 +456,7 @@ public sealed class HouseholdPeopleTests
         var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
             "admin@example.com", IsAdministrator: true, ProfileId: null,
             NewProfile: new NewAccountProfileCommand("Admin", "#7C4DFF"),
-            Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
+            Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
         var application = actor with { PrincipalKind = PrincipalKind.ServiceApplication, ActiveProfileIsServerAdministrator = false };
 
         // A trusted application with identity.users.write could otherwise move the address and then reset the password to it.
@@ -582,7 +582,7 @@ public sealed class HouseholdPeopleTests
                 ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Owner", "#7C4DFF"),
                 Features: features.ToHashSet(),
-                Libraries: new HashSet<Guid>()));
+                HiddenLibraries: new HashSet<Guid>()));
 
         public ValueTask DisposeAsync()
         {
