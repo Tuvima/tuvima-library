@@ -1,0 +1,98 @@
+@namespace MediaEngine.Web.Components.Settings
+@* Kept on the Settings namespace although it sits in Access/, like the Libraries/ components, so every Settings screen uses it without another using. *@
+@using MediaEngine.Contracts.Authentication
+@* The "Libraries" list under one area on a person's page: a tick per library in that area, all ticked unless an administrator has
+   hidden it from this person. It only shows the choice and reports each tick to the page, which saves it straight away; it draws
+   nothing for an area with one library or none. The Engine's picker never lists a Vault library, so none can appear here. *@
+@if (_libraries.Count > 1)
+{
+    <div class="area-library-list" role="group" aria-label="@($"{AreaLabel} libraries")" data-area-libraries="@AreaKey">
+        <small class="area-library-list__title">Libraries</small>
+        @if (FollowsPrimary)
+        {
+            <small class="area-library-list__note">Follows @PrimaryLabel's access.</small>
+        }
+        @foreach (var library in _libraries)
+        {
+            var heldByPrimary = library.HiddenByPrimary;
+            <div class="area-library-list__item@(heldByPrimary ? " area-library-list__item--held" : string.Empty)" @key="@($"{library.Id:N}-{_refresh}")" data-library-id="@library.Id">
+                <AppCheckbox Value="@(!heldByPrimary && !HiddenIds.Contains(library.Id))"
+                             ValueChanged="@((bool ticked) => ChangedAsync(library, ticked))"
+                             Disabled="@(heldByPrimary || FollowsPrimary || ReadOnly || Busy)"
+                             Label="@library.DisplayName">
+                    @if (heldByPrimary)
+                    {
+                        <small class="area-library-list__note">Hidden by @PrimaryLabel</small>
+                    }
+                </AppCheckbox>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<AccessLibraryOptionDto> _libraries = [];
+    private int _refresh;
+
+    /// <summary>The area: <c>read</c>, <c>watch</c>, <c>listen</c> or <c>view</c>.</summary>
+    [Parameter, EditorRequired] public string Area { get; set; } = string.Empty;
+
+    /// <summary>Every library the Engine's picker listed (any area); this list keeps the ones in its own area.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
+
+    /// <summary>The libraries hidden from the person right now (read only; the page owns it).</summary>
+    [Parameter, EditorRequired] public IReadOnlySet<Guid> HiddenIds { get; set; } = new HashSet<Guid>();
+
+    /// <summary>Who the ticks belong to, as the toast names them ("Hidden from Sam").</summary>
+    [Parameter] public string PersonName { get; set; } = string.Empty;
+
+    /// <summary>The household's main sign-in, named on libraries it hides and on a list that follows it.</summary>
+    [Parameter] public string? PrimaryName { get; set; }
+
+    /// <summary>True for a person who follows the main sign-in's access: the list is shown, never edited.</summary>
+    [Parameter] public bool FollowsPrimary { get; set; }
+
+    /// <summary>True on a phone: ticks are shown but cannot be changed.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>True while a save is running, so a second tick cannot start before the first lands.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>
+    /// Sends one tick: the library and whether it is now hidden. The page decides what to do with it (save it, or only remember
+    /// it for a person who does not exist yet) and answers true when it took effect, false when it did not.
+    /// </summary>
+    [Parameter] public Func<Guid, bool, Task<bool>>? OnHiddenChanged { get; set; }
+
+    private string AreaKey => Area.Trim().ToLowerInvariant();
+
+    private string AreaLabel => AreaKey switch
+    {
+        "read" => "Read",
+        "watch" => "Watch",
+        "listen" => "Listen",
+        "view" => "View",
+        _ => Area,
+    };
+
+    private string PrimaryLabel => string.IsNullOrWhiteSpace(PrimaryName) ? "the household's main sign-in" : PrimaryName;
+
+    protected override void OnParametersSet() =>
+        _libraries = Libraries.Where(library => string.Equals(library.Area, AreaKey, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private async Task ChangedAsync(AccessLibraryOptionDto library, bool ticked)
+    {
+        if (OnHiddenChanged is null || ReadOnly || FollowsPrimary || Busy || library.HiddenByPrimary)
+        {
+            _refresh++;
+            return;
+        }
+
+        var applied = await OnHiddenChanged(library.Id, !ticked);
+        if (!applied)
+        {
+            // The tick did not take effect: draw the box again from the saved state instead of leaving it as clicked.
+            _refresh++;
+        }
+    }
+}

@@ -4,7 +4,8 @@
 @using Microsoft.JSInterop
 @* The "Libraries and lanes" sheet on a person's profile page: which Libraries and which of Read / Watch / Listen / View this
    person's own sign-in may use. It only gathers the choices and reports them; the page that opens it talks to the Engine, which
-   refuses anything the household does not have, and the reason it gives is shown here. *@
+   refuses anything the household does not have, and the reason it gives is shown here. The lanes are saved with Save; the ticks on
+   each lane's Libraries list save straight away through the page, so Save only carries the lanes. *@
 @if (Open)
 {
     <div class="settings-sheet-backdrop" @onclick="CloseAsync">
@@ -32,8 +33,9 @@
             }
             else
             {
-                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="Libraries" LibrariesUnavailable="LibrariesUnavailable"
-                                              FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+                <ManagedAccessUserPermissions FeatureIds="_featureIds" HiddenIds="_hiddenIds" Libraries="Libraries" LibrariesUnavailable="LibrariesUnavailable"
+                                              PersonName="@PersonName" PrimaryName="@PrimaryName" ReadOnly="ReadOnly" LibrariesBusy="Saving"
+                                              FeatureChanged="ToggleFeature" OnHiddenChanged="OnHiddenChanged" RetryLibraries="OnRetryLibraries" />
             }
 
             <div class="sign-in-sheet__actions">
@@ -48,7 +50,7 @@
 
 @code {
     private readonly HashSet<string> _featureIds = [];
-    private readonly HashSet<Guid> _libraryIds = [];
+    private IReadOnlySet<Guid> _hiddenIds = new HashSet<Guid>();
     private ElementReference _root;
     private bool _wasOpen;
     private bool _wasLoading;
@@ -66,6 +68,18 @@
     /// <summary>True when the Engine's library list could not be read: libraries are then left exactly as they are.</summary>
     [Parameter] public bool LibrariesUnavailable { get; set; }
 
+    /// <summary>The household's main sign-in, named on libraries it hides ("Hidden by Alex").</summary>
+    [Parameter] public string? PrimaryName { get; set; }
+
+    /// <summary>True on a phone: the Libraries ticks are shown but cannot be changed.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>One tick on a lane's Libraries list: the library and whether it is now hidden. The page saves it and answers true when it took effect.</summary>
+    [Parameter] public Func<Guid, bool, Task<bool>>? OnHiddenChanged { get; set; }
+
+    /// <summary>Asks the page to read the Engine's library list again.</summary>
+    [Parameter] public EventCallback OnRetryLibraries { get; set; }
+
     /// <summary>The person's current lanes and Libraries, used each time the sheet opens or finishes loading.</summary>
     [Parameter] public AccountAccessResponse? Account { get; set; }
 
@@ -74,6 +88,9 @@
 
     protected override void OnParametersSet()
     {
+        // The ticks always show what the Engine has saved for the person; the page hands over the new account after each tick.
+        _hiddenIds = (Account?.HiddenLibraryIds ?? []).ToHashSet();
+
         // Take the person's current access when the sheet opens, and again once it has finished loading.
         if (Open && (!_wasOpen || (_wasLoading && !Loading)))
         {
@@ -87,13 +104,9 @@
     private void Seed()
     {
         _featureIds.Clear();
-        _libraryIds.Clear();
-        // A ticked library is one that is not hidden from the person: every library starts ticked.
-        _libraryIds.UnionWith(Libraries.Select(library => library.Id));
         if (Account is { } account)
         {
             _featureIds.UnionWith(account.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature));
-            _libraryIds.ExceptWith(account.HiddenLibraryIds);
         }
     }
 
@@ -109,35 +122,9 @@
         }
     }
 
-    private void ToggleLibrary((Guid Id, bool Value) change)
-    {
-        if (change.Value)
-        {
-            _libraryIds.Add(change.Id);
-        }
-        else
-        {
-            _libraryIds.Remove(change.Id);
-        }
-    }
-
-    // Start from what is hidden now, hide the unticked libraries and show the ticked ones, and never touch an id the list didn't show.
-    private Task SaveAsync()
-    {
-        var hidden = (Account?.HiddenLibraryIds ?? []).ToHashSet();
-        if (!LibrariesUnavailable)
-        {
-            foreach (var library in Libraries)
-            {
-                if (_libraryIds.Contains(library.Id))
-                    hidden.Remove(library.Id);
-                else
-                    hidden.Add(library.Id);
-            }
-        }
-
-        return OnSave.InvokeAsync(new ReplaceAccountAccessRequest(_featureIds.Order().ToArray(), hidden.Order().ToArray()));
-    }
+    // The lanes are saved here; the hidden libraries are whatever the Engine already has, because the ticks save themselves.
+    private Task SaveAsync() =>
+        OnSave.InvokeAsync(new ReplaceAccountAccessRequest(_featureIds.Order().ToArray(), _hiddenIds.Order().ToArray()));
 
     private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
 
