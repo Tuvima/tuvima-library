@@ -114,25 +114,21 @@ public sealed class FolderKindChangeRunner
         var fileMayMove = source.IsManaged && source.IsWritable;
         var mediaType = Enum.Parse<MediaType>(plan.TargetMediaType, ignoreCase: true);
 
-        // 2. The folder's files, minus those a stopped run already finished. A file logged as failed is not finished: it is tried again.
-        var failedBefore = plan.RepairsOperationId is { } repairing
-            ? await FailedPathsAsync(_ledger, repairing, ct).ConfigureAwait(false)
-            : [];
+        // 2. The folder's files, minus those this job already finished. A run takes up every file of the folder an earlier run, of this or any
+        // earlier change, left unfinished (failed, or cut short): a file is never left half changed because the run that finds it is of another kind.
+        var unfinished = await UnfinishedPathsAsync(_changes, _ledger, sourceId, ct).ConfigureAwait(false);
         var files = (await _assets.ListFilesUnderAsync(source.Path, ct).ConfigureAwait(false))
             .Where(file => string.IsNullOrWhiteSpace(file.LibraryId)
                 || string.Equals(file.LibraryId, plan.FromLibraryId, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(file.LibraryId, plan.ToLibraryId, StringComparison.OrdinalIgnoreCase))
+                || string.Equals(file.LibraryId, plan.ToLibraryId, StringComparison.OrdinalIgnoreCase)
+                || unfinished.Contains(file.FilePath))
             .ToList();
-        var failedHere = await FailedPathsAsync(_ledger, operationId, ct).ConfigureAwait(false);
         var finished = await _ledger.GetFinishedPathsAsync(operationId, ct).ConfigureAwait(false);
-        finished.ExceptWith(failedHere);
-        var unfinished = (await _ledger.ListUnfinishedAsync(operationId, ct).ConfigureAwait(false)).Select(entry => entry.OldPath).ToHashSet(StringComparer.Ordinal);
-        // The files this job owns: those not in the new library yet, those an earlier change of the folder could not change, those it already did,
-        // and those it was part way through when it stopped. A file already changed by an earlier, stopped change is not done a second time.
+        finished.ExceptWith(unfinished);
+        // The files this job owns: those not in the new library yet, those left unfinished, and those it already did. A file already changed by
+        // an earlier change is not done a second time.
         files = [.. files.Where(file => finished.Contains(file.FilePath)
             || unfinished.Contains(file.FilePath)
-            || failedBefore.Contains(file.FilePath)
-            || failedHere.Contains(file.FilePath)
             || !string.Equals(file.LibraryId, plan.ToLibraryId, StringComparison.OrdinalIgnoreCase))];
         var work = files.Where(file => !finished.Contains(file.FilePath)).ToList();
         var total = files.Count;
@@ -157,7 +153,7 @@ public sealed class FolderKindChangeRunner
             // When an earlier attempt was cut short, when it began is kept so its identity job is not queued a second time.
             var earlier = await _ledger.GetAsync(operationId, file.FilePath, ct).ConfigureAwait(false);
             var earlierAttemptAt = earlier is { Outcome: FolderOrganiseOutcomes.Moving } ? earlier.At : (DateTimeOffset?)null;
-            var resuming = earlier is { Outcome: FolderOrganiseOutcomes.Moving or FolderOrganiseOutcomes.Failed } || failedBefore.Contains(file.FilePath);
+            var resuming = unfinished.Contains(file.FilePath);
             await _ledger.UpsertAsync(
                 new FolderOrganiseLogEntry(operationId, sourceId, file.FilePath, file.FilePath, FolderOrganiseOutcomes.Moving, DateTimeOffset.UtcNow),
                 ct).ConfigureAwait(false);
@@ -308,7 +304,9 @@ public sealed class FolderKindChangeRunner
 
         var notes = new List<string>();
 
-        // Its place in the Work graph, made the way ingestion places a new file, when the media type differs.
+        // Its place in the Work graph, made the way ingestion places a new file, when the media type differs. A file already under a work of
+        // the media type is left where it is; a run that is finishing an earlier one also removes the places a stopped placement left empty.
+        var workId = placement.WorkId;
         if (!string.Equals(placement.WorkMediaType, mediaType.ToString(), StringComparison.OrdinalIgnoreCase))
         {
             var hints = (await _canonicals.GetByEntityAsync(file.AssetId, ct).ConfigureAwait(false))
@@ -317,16 +315,18 @@ public sealed class FolderKindChangeRunner
             _ownedFiles.Remove(replaced.OwnedFilesToRemove);
             if (replaced.Replaced)
             {
-                // The details a person set on the old title came along; the new title's values are worked out from them.
-                await _rescorer.RescoreAsync(replaced.WorkId, ct).ConfigureAwait(false);
+                workId = replaced.WorkId;
                 notes.Add($"placed as {mediaType}");
             }
         }
         else if (resuming)
         {
-            // An earlier attempt may have placed the file and stopped before the new title's values were worked out: they are worked out again.
-            await _rescorer.RescoreAsync(placement.WorkId, ct).ConfigureAwait(false);
+            await _changes.TidyEmptyPlacesAsync(ct).ConfigureAwait(false);
         }
+
+        // The title's values are always worked out from the claims it has: the details a person set on the old title came along, and a stop
+        // between the placement and here leaves nothing stale.
+        await _rescorer.RescoreAsync(workId, ct).ConfigureAwait(false);
 
         // Steps that do not need the file to be registered in the new library: a plain kind drops the details looked up for the file (D69),
         // and the YouTube kind reads it again (the lookup runs on the video ID, under the library its folder is now in).
@@ -403,9 +403,37 @@ public sealed class FolderKindChangeRunner
         return dropped.ClaimsDropped;
     }
 
-    /// <summary>The files whose latest line in the job's ledger says they could not be changed.</summary>
-    internal static async Task<HashSet<string>> FailedPathsAsync(IFolderOrganiseLogRepository ledger, Guid operationId, CancellationToken ct) =>
-        [.. (await EntriesWithOutcomeAsync(ledger, operationId, FolderOrganiseOutcomes.Failed, ct).ConfigureAwait(false)).Select(entry => entry.OldPath)];
+    /// <summary>
+    /// The files of the folder whose latest line, across every change planned for the folder, is not a finished one (changed, or refused because
+    /// of a person's own details): failed, or cut short while moving.
+    /// </summary>
+    internal static async Task<HashSet<string>> UnfinishedPathsAsync(
+        IFolderKindChangeRepository changes, IFolderOrganiseLogRepository ledger, Guid sourceId, CancellationToken ct)
+    {
+        const int Page = 1000;
+        var latest = new Dictionary<string, (DateTimeOffset At, string Outcome)>(StringComparer.Ordinal);
+        foreach (var operationId in await changes.ListPlanOperationIdsAsync(sourceId, ct).ConfigureAwait(false))
+        {
+            for (var offset = 0; ; offset += Page)
+            {
+                var entries = await ledger.ListAsync(operationId, offset, Page, ct).ConfigureAwait(false);
+                foreach (var entry in entries)
+                {
+                    if (!latest.TryGetValue(entry.OldPath, out var seen) || entry.At >= seen.At)
+                    {
+                        latest[entry.OldPath] = (entry.At, entry.Outcome);
+                    }
+                }
+
+                if (entries.Count < Page)
+                {
+                    break;
+                }
+            }
+        }
+
+        return [.. latest.Where(pair => pair.Value.Outcome is not (FolderOrganiseOutcomes.KindChanged or FolderOrganiseOutcomes.KindChangeRefused)).Select(pair => pair.Key)];
+    }
 
     /// <summary>The plain sentences of the files left as they were because they and the title they would join both hold a person's own details.</summary>
     internal static async Task<IReadOnlyList<string>> RefusedDetailsAsync(IFolderOrganiseLogRepository ledger, Guid operationId, CancellationToken ct) =>

@@ -302,8 +302,9 @@ folder jobs; the folder row shows the job's state). The folder row carries no ex
      collected, tagged, or gave their own artwork or details stays. When this is the last file of a title that holds artwork a person
      uploaded or chose, or details they typed, those follow it: the artwork link rows and records are re-pointed (the uploaded files stay
      where they are), the person's preferred picture takes its slot (the new title's looked-up preferred picture for it is let go) and
-     `display_overrides_json` is copied, before the old title is removed. If the title it joins already has its own such artwork or
-     details, or a picture would collide with one it already has (the same picture in the same place), the file is left exactly as it was
+     `display_overrides_json` is copied, before the old title is removed. A looked-up copy of the same picture in the same place on the
+     new title (the table allows one) gives way to the person's own, which is preferred if the copy was. If the title it joins already
+     has its own such artwork or details, the file is left exactly as it was
      and logged `kind_change_refused` with a sentence naming both titles ("\"A\" and \"B\" both have your own artwork or details. Remove
      them from one of the two in Editing Mode, then start the change again."). That is final for the job (a resume does not retry it); the
      job ends as failed with "Finished, but N files were not changed" and those sentences as its message (the folder row's job message), and
@@ -325,7 +326,11 @@ folder jobs; the folder row shows the job's state). The folder row carries no ex
      YouTube re-read), so a file that failed on those is still wholly what it was. The identity job and the filing request are written
      after it, never before (a worker that saw the file in the library it has left would close the lookup or hold the filing); the library,
      the job and the filing request live in three repositories and cannot share one transaction. A file that fails is logged `failed` and
-     the job carries on; it retries those files when it resumes (every step can be repeated). A job that ends with any
+     the job carries on. Every step can be repeated, and every run picks up every file of the folder whose latest ledger line, in this or
+     any earlier change of the folder, is not a finished one (failed, or cut short while moving): a resume, a repair (the same kind), a
+     change back and a new change after another all finish them first, whatever library the file is in. A file already under a work of the
+     media type is left where it is (the places a stopped placement left empty are removed), the looked-up details are dropped only if
+     any are left, the new title's values are always worked out again, and a queued identity job or filing request is never doubled. A job that ends with any
      failed file ends as failed ("Finished, but N files were not changed ..."), not as a success, and starting the same kind again
      (the repair) retries exactly the files logged as failed and those still in the old library. A different kind is refused until
      that is done.

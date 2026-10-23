@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -498,6 +499,92 @@ public sealed class FolderKindChangeTests : IDisposable
         Assert.Equal(_w.VideosLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = file.AssetId }));
     }
 
+    [Theory]
+    [InlineData("place")]
+    [InlineData("drop")]
+    [InlineData("rescore")]
+    [InlineData("library")]
+    [InlineData("jobs")]
+    public async Task A_run_stopped_after_any_step_is_finished_by_the_same_job_resuming_and_the_file_ends_fully_changed(string step)
+    {
+        var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: true);
+        var file = _w.AddFile(folder, "film.mkv", MediaType.Movies, "A film");
+        var status = await _w.Service.StartAsync(folder.Id, new() { KindKey = "other_videos" }, default);
+        var operationId = Guid.Parse(status.OperationId);
+        StopAfter(step);
+
+        await _w.RunWorkerUntilFinishedAsync(status.OperationId);
+        Assert.Equal("failed", (await _w.Jobs.GetAsync(operationId, default))!.State);
+        var resumed = await _w.Runner.RunAsync(operationId, Guid.Parse(folder.Id), new ScriptedHost(allowFiles: 10), default);
+
+        Assert.Equal((FolderOrganiseStop.Finished, 0), (resumed.Stop, resumed.Failed));
+        AssertFullyChanged(file, _w.VideosLibrary, "Videos");
+        Assert.Equal("kind_changed", (await _w.Ledger.GetAsync(operationId, file.Path))!.Outcome);
+        Assert.Equal(1, _w.Scalar<int>("SELECT COUNT(*) FROM media_file_write_intents;"));
+    }
+
+    [Theory]
+    [InlineData("place")]
+    [InlineData("drop")]
+    [InlineData("rescore")]
+    [InlineData("library")]
+    [InlineData("jobs")]
+    public async Task A_run_stopped_after_any_step_is_finished_by_changing_the_folder_back_whatever_library_the_file_is_in(string step)
+    {
+        var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: true);
+        var file = _w.AddFile(folder, "film.mkv", MediaType.Movies, "A film");
+        var status = await _w.Service.StartAsync(folder.Id, new() { KindKey = "other_videos" }, default);
+        StopAfter(step);
+        await _w.RunWorkerUntilFinishedAsync(status.OperationId);
+
+        var back = await _w.Service.StartAsync(folder.Id, new() { KindKey = "movies" }, default);
+        await _w.RunWorkerUntilFinishedAsync(back.OperationId);
+
+        Assert.Equal("completed", (await _w.Jobs.GetAsync(Guid.Parse(back.OperationId), default))!.State);
+        AssertFullyChanged(file, _w.MoviesLibrary, "Movies");
+        Assert.Single(_w.Config.LoadLibraries().Libraries.Single(library => library.Id == _w.MoviesLibrary).Sources, source => source.Id == folder.Id);
+    }
+
+    [Fact]
+    public async Task A_file_placed_under_a_TV_work_whose_rescore_then_stopped_ends_as_a_Movies_work_in_the_Movies_library_with_its_reaction_when_the_folder_is_changed_back()
+    {
+        var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: false);
+        var file = _w.AddFile(folder, "film.mkv", MediaType.Movies, "A film");
+        _w.Execute("INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @work, 'Love', '2026-10-01T00:00:00Z');",
+            new { person = Profile.SeedProfileId, work = file.WorkId });
+        _w.Rescoring.FailAfterRescore = 1;
+        var forward = await _w.Service.StartAsync(folder.Id, new() { KindKey = "tv" }, default);
+        await _w.RunWorkerUntilFinishedAsync(forward.OperationId);
+        // The file was placed under a TV work, and the job stopped on it: it is still in the Movies library.
+        Assert.Equal("TV", WorkTypeOf(file));
+        Assert.Equal(_w.MoviesLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = file.AssetId }));
+
+        var back = await _w.Service.StartAsync(folder.Id, new() { KindKey = "movies" }, default);
+        await _w.RunWorkerUntilFinishedAsync(back.OperationId);
+
+        Assert.Equal("Movies", WorkTypeOf(file));
+        Assert.Equal(_w.MoviesLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = file.AssetId }));
+        Assert.Equal(0, _w.Scalar<int>("SELECT COUNT(*) FROM works WHERE media_type = 'TV';"));
+        var work = _w.Scalar<Guid>("SELECT e.work_id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @id;", new { id = file.AssetId });
+        Assert.Equal((work, "Love"), _w.Rows<(Guid, string)>("SELECT entity_id, reaction FROM profile_reactions WHERE profile_id = @person;", new { person = Profile.SeedProfileId }).Single());
+    }
+
+    [Fact]
+    public async Task The_same_file_retried_after_its_identity_job_was_queued_still_has_only_one_identity_job()
+    {
+        var folder = _w.AddFolder(_w.VideosLibrary, "Films", managed: true);
+        var file = _w.AddFile(folder, "film.mkv", MediaType.Videos, "A film");
+        var status = await _w.Service.StartAsync(folder.Id, new() { KindKey = "movies" }, default);
+        var operationId = Guid.Parse(status.OperationId);
+        _w.Filing.FailAfterRequest = 1;
+
+        await _w.RunWorkerUntilFinishedAsync(status.OperationId);
+        await _w.Runner.RunAsync(operationId, Guid.Parse(folder.Id), new ScriptedHost(allowFiles: 10), default);
+
+        Assert.Equal(1, _w.Scalar<int>("SELECT COUNT(*) FROM identity_jobs WHERE entity_id = @id;", new { id = file.AssetId }));
+        Assert.Equal("kind_changed", (await _w.Ledger.GetAsync(operationId, file.Path))!.Outcome);
+    }
+
     [Fact]
     public async Task A_folder_whose_new_library_cannot_be_saved_keeps_its_first_check_and_is_not_marked_applied()
     {
@@ -739,6 +826,34 @@ public sealed class FolderKindChangeTests : IDisposable
 
     // ----- helpers -----------------------------------------------------------------------------------------------------------------
 
+    // Makes the next run stop right after one step: the placement, the drop of the looked-up details, the rescore, the library, or the jobs.
+    private void StopAfter(string step)
+    {
+        switch (step)
+        {
+            case "place": _w.FlakyChanges.FailAfterReplace = 1; break;
+            case "drop": _w.FlakyChanges.FailAfterDrop = 1; break;
+            case "rescore": _w.Rescoring.FailAfterRescore = 1; break;
+            case "library": _w.LibraryHook.FailAfterSetLibrary = 1; break;
+            case "jobs": _w.Filing.FailAfterRequest = 1; break;
+            default: throw new ArgumentOutOfRangeException(nameof(step));
+        }
+    }
+
+    private string WorkTypeOf(FileRef file) => _w.Scalar<string>(
+        "SELECT w.media_type FROM media_assets ma JOIN editions e ON e.id = ma.edition_id JOIN works w ON w.id = e.work_id WHERE ma.id = @id;", new { id = file.AssetId });
+
+    // The file is wholly what the kind says: in its library, under a work of the kind's media type, with its looked-up details gone (a plain
+    // kind) and its own title shown.
+    private void AssertFullyChanged(FileRef file, string libraryId, string mediaType)
+    {
+        Assert.Equal(libraryId, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = file.AssetId }));
+        Assert.Equal(mediaType, WorkTypeOf(file));
+        Assert.Equal(mediaType, _w.Scalar<string>("SELECT value FROM canonical_values WHERE entity_id = @id AND key = 'media_type';", new { id = file.AssetId }));
+        Assert.Equal(1, _w.Scalar<int>("SELECT COUNT(DISTINCT w.id) FROM works w WHERE w.media_type = @mediaType;", new { mediaType }));
+        Assert.Equal(0, _w.Scalar<int>("SELECT COUNT(*) FROM works WHERE media_type <> @mediaType;", new { mediaType }));
+    }
+
     private static StringContent Json(string body) => new(body, Encoding.UTF8, MediaTypeHeaderValue.Parse("application/json"));
 
     private async Task<TestApp> StartAppAsync()
@@ -824,10 +939,14 @@ public sealed class FolderKindChangeTests : IDisposable
     {
         public List<(Guid AssetId, bool Held)> Requests { get; } = [];
 
+        /// <summary>How many times to throw right after a filing request was recorded (a stop after the jobs were written).</summary>
+        public int FailAfterRequest { get; set; }
+
         public async Task<bool> RequestFilingAsync(Guid assetId, bool held, CancellationToken ct = default)
         {
             Requests.Add((assetId, held));
-            return await inner.RequestFilingAsync(assetId, held, ct);
+            var recorded = await inner.RequestFilingAsync(assetId, held, ct);
+            return FailAfterRequest-- > 0 ? throw new IOException("Stopped after the filing request.") : recorded;
         }
     }
 
@@ -866,6 +985,16 @@ public sealed class FolderKindChangeTests : IDisposable
 
         public int ReplaceCalls { get; private set; }
 
+        /// <summary>How many times to throw right after the placement was made (a stop between the placement and what follows).</summary>
+        public int FailAfterReplace { get; set; }
+
+        /// <summary>How many times to throw right after the looked-up details were dropped.</summary>
+        public int FailAfterDrop { get; set; }
+
+        public Task<IReadOnlyList<Guid>> ListPlanOperationIdsAsync(Guid sourceId, CancellationToken ct = default) => inner.ListPlanOperationIdsAsync(sourceId, ct);
+
+        public Task TidyEmptyPlacesAsync(CancellationToken ct = default) => inner.TidyEmptyPlacesAsync(ct);
+
         public Task SavePlanAsync(FolderKindChangePlan plan, CancellationToken ct = default) => inner.SavePlanAsync(plan, ct);
 
         public Task<FolderKindChangePlan?> GetPlanAsync(Guid operationId, CancellationToken ct = default) => inner.GetPlanAsync(operationId, ct);
@@ -876,13 +1005,80 @@ public sealed class FolderKindChangeTests : IDisposable
 
         public Task<AssetWorkPlacement?> GetPlacementAsync(Guid assetId, CancellationToken ct = default) => inner.GetPlacementAsync(assetId, ct);
 
-        public Task<AssetReplacement> ReplaceUnderMediaTypeAsync(
-            Guid assetId, MediaType mediaType, IReadOnlyDictionary<string, string> metadata, string? sourceFilePath, CancellationToken ct = default) =>
-            ++ReplaceCalls > 0 && ReplaceFailures-- > 0
-                ? throw new IOException("The data store is busy.")
-                : inner.ReplaceUnderMediaTypeAsync(assetId, mediaType, metadata, sourceFilePath, ct);
+        public async Task<AssetReplacement> ReplaceUnderMediaTypeAsync(
+            Guid assetId, MediaType mediaType, IReadOnlyDictionary<string, string> metadata, string? sourceFilePath, CancellationToken ct = default)
+        {
+            if (++ReplaceCalls > 0 && ReplaceFailures-- > 0)
+            {
+                throw new IOException("The data store is busy.");
+            }
 
-        public Task<DroppedProviderDetails> DropProviderDetailsAsync(Guid assetId, CancellationToken ct = default) => inner.DropProviderDetailsAsync(assetId, ct);
+            var replaced = await inner.ReplaceUnderMediaTypeAsync(assetId, mediaType, metadata, sourceFilePath, ct);
+            return FailAfterReplace-- > 0 && replaced.Replaced ? throw new IOException("Stopped after the placement.") : replaced;
+        }
+
+        public async Task<DroppedProviderDetails> DropProviderDetailsAsync(Guid assetId, CancellationToken ct = default)
+        {
+            var dropped = await inner.DropProviderDetailsAsync(assetId, ct);
+            return FailAfterDrop-- > 0 ? throw new IOException("Stopped after the details were dropped.") : dropped;
+        }
+    }
+
+    /// <summary>The rescoring step, which can be made to stop right after it ran.</summary>
+    private sealed class FlakyRescorer(IEntityRescorer inner) : IEntityRescorer
+    {
+        public int FailAfterRescore { get; set; }
+
+        public async Task RescoreAsync(Guid entityId, CancellationToken ct)
+        {
+            await inner.RescoreAsync(entityId, ct);
+            if (FailAfterRescore-- > 0)
+            {
+                throw new IOException("Stopped after the values were worked out.");
+            }
+        }
+    }
+
+    /// <summary>The asset records, where setting a file's library can be made to stop right after it was written.</summary>
+    public class FlakyAssetsProxy : DispatchProxy
+    {
+        private IMediaAssetRepository _inner = null!;
+        private LibraryHook _hook = null!;
+
+        public static IMediaAssetRepository Create(IMediaAssetRepository inner, LibraryHook hook)
+        {
+            var proxy = Create<IMediaAssetRepository, FlakyAssetsProxy>();
+            var assets = (FlakyAssetsProxy)(object)proxy;
+            assets._inner = inner;
+            assets._hook = hook;
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            try
+            {
+                var result = targetMethod!.Invoke(_inner, args);
+                return targetMethod.Name == nameof(IMediaAssetRepository.SetLibraryIdAsync) && _hook.FailAfterSetLibrary-- > 0
+                    ? ThrowAfter((Task)result!)
+                    : result;
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        private static async Task ThrowAfter(Task written)
+        {
+            await written;
+            throw new IOException("Stopped after the library was set.");
+        }
+    }
+
+    public sealed class LibraryHook
+    {
+        public int FailAfterSetLibrary { get; set; }
     }
 
     private sealed class FixedKinds(IReadOnlyList<LibraryKindDefinition> kinds) : ILibraryKindSource
@@ -992,6 +1188,8 @@ public sealed class FolderKindChangeTests : IDisposable
         public string Root { get; }
         public string MediaRoot { get; }
         public FlakyChangeRepository FlakyChanges { get; }
+        public FlakyRescorer Rescoring { get; private set; } = null!;
+        public LibraryHook LibraryHook { get; } = new();
         public DatabaseConnection Database { get; }
         public ConfigurationDirectoryLoader Config { get; }
         public IMediaOperationRepository Operations { get; }
@@ -1021,9 +1219,10 @@ public sealed class FolderKindChangeTests : IDisposable
             var rescorer = new ClaimRescorer(
                 new MetadataClaimRepository(Database), canonicals, new PriorityCascadeEngine(Config, NullLogger<PriorityCascadeEngine>.Instance), Config, [],
                 new CanonicalValueArrayRepository(Database), new SearchIndexRepository(Database), NullLogger<ClaimRescorer>.Instance);
+            Rescoring = new FlakyRescorer(rescorer);
             return new FolderKindChangeRunner(
-                configuration, _kinds, FlakyChanges, Ledger, _assets, canonicals, new IdentityJobRepository(Database), new UnmatchedAssetRepository(Database), Filing,
-                _firstCheckService, rescorer, Rereader, Activity, new MoveOwnedFileCleaner(new AssetPathService(MediaRoot), NullLogger<MoveOwnedFileCleaner>.Instance),
+                configuration, _kinds, FlakyChanges, Ledger, FlakyAssetsProxy.Create(_assets, LibraryHook), canonicals, new IdentityJobRepository(Database), new UnmatchedAssetRepository(Database), Filing,
+                _firstCheckService, Rescoring, Rereader, Activity, new MoveOwnedFileCleaner(new AssetPathService(MediaRoot), NullLogger<MoveOwnedFileCleaner>.Instance),
                 NullLogger<FolderKindChangeRunner>.Instance, timing: new FolderOrganiseTiming { ProgressInterval = TimeSpan.Zero });
         }
 

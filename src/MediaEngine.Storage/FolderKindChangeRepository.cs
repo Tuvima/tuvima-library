@@ -66,6 +66,18 @@ public sealed class FolderKindChangeRepository(
     public Task<FolderKindChangePlan?> GetPlanAsync(Guid operationId, CancellationToken ct = default) =>
         ReadPlan("WHERE operation_id = @operationId", new { operationId }, ct);
 
+    public Task<IReadOnlyList<Guid>> ListPlanOperationIdsAsync(Guid sourceId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        IReadOnlyList<Guid> ids = [.. connection.Query<Guid>(
+            "SELECT operation_id FROM folder_kind_changes WHERE source_id = @sourceId ORDER BY created_at;", new { sourceId })];
+        return Task.FromResult(ids);
+    }
+
+    public Task TidyEmptyPlacesAsync(CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, transaction, _) => WorkHierarchyMaintenanceService.CleanupEmptyParentsCore(connection, transaction), ct);
+
     public Task<FolderKindChangePlan?> GetLatestPlanAsync(Guid sourceId, CancellationToken ct = default) =>
         ReadPlan("WHERE source_id = @sourceId ORDER BY created_at DESC LIMIT 1", new { sourceId }, ct);
 
@@ -224,7 +236,7 @@ public sealed class FolderKindChangeRepository(
             CarryPersonalDetails(connection, transaction, oldWorkId, newWorkId);
             if (carriesOverrides)
             {
-                CarryOverrides(connection, transaction, oldWorkId, newWorkId, oldTitle);
+                CarryOverrides(connection, transaction, oldWorkId, newWorkId);
             }
 
             WorkPersonalStateMerge.Carry(connection, transaction, oldWorkId, newWorkId);
@@ -262,35 +274,36 @@ public sealed class FolderKindChangeRepository(
     }
 
     // The person's own artwork (the link rows and records; the uploaded files stay where they are) and the details they typed move to the new
-    // title, which has none of its own, before the old title is removed. A row that would clash with one the new title already has (the same
-    // picture in the same place) is a clash like any other: nothing is changed and the file is refused. The person's preferred picture takes the
-    // slot: the new title's looked-up preferred picture for it is let go, so one is preferred.
-    private static void CarryOverrides(SqliteConnection connection, SqliteTransaction transaction, Guid oldWorkId, Guid newWorkId, string oldTitle)
+    // title, which has none of its own, before the old title is removed. The new title may hold a looked-up copy of the same picture in the
+    // same place (the table allows one): the person's own picture takes its place, and is preferred if the copy was. The person's preferred
+    // picture takes its slot: the new title's looked-up preferred picture for it is let go, so one is preferred.
+    private static void CarryOverrides(SqliteConnection connection, SqliteTransaction transaction, Guid oldWorkId, Guid newWorkId)
     {
-        var clash = connection.ExecuteScalar<long>(
-            """
-            SELECT EXISTS (
-                SELECT 1 FROM entity_assets mine
-                JOIN entity_assets there ON there.entity_id = @newWorkId AND there.asset_type = mine.asset_type
-                    AND there.image_url IS NOT NULL AND length(trim(there.image_url)) > 0
-                    AND mine.image_url IS NOT NULL AND length(trim(mine.image_url)) > 0
-                    AND there.image_url = mine.image_url COLLATE NOCASE
-                WHERE mine.entity_id = @oldWorkId AND COALESCE(mine.is_user_override, 0) = 1)
-            OR EXISTS (
-                SELECT 1 FROM entity_artwork_links mine
-                JOIN entity_artwork_links there ON there.entity_id = @newWorkId AND there.entity_type = mine.entity_type
-                    AND there.artwork_asset_id = mine.artwork_asset_id AND there.role = mine.role AND there.context IS mine.context
-                WHERE mine.entity_id = @oldWorkId AND COALESCE(mine.is_user_override, 0) = 1);
-            """,
-            new { oldWorkId, newWorkId },
-            transaction) == 1;
-        if (clash)
-        {
-            throw new UserDetailsClashException(oldTitle, TitleOf(connection, transaction, newWorkId));
-        }
-
         connection.Execute(
             """
+            UPDATE entity_assets SET is_preferred = 1
+            WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1
+              AND EXISTS (SELECT 1 FROM entity_assets there
+                          WHERE there.entity_id = @newWorkId AND COALESCE(there.is_user_override, 0) = 0 AND there.is_preferred = 1
+                            AND there.asset_type = entity_assets.asset_type AND there.image_url IS NOT NULL AND length(trim(there.image_url)) > 0
+                            AND there.image_url = entity_assets.image_url COLLATE NOCASE);
+            DELETE FROM entity_assets
+            WHERE entity_id = @newWorkId AND COALESCE(is_user_override, 0) = 0 AND image_url IS NOT NULL AND length(trim(image_url)) > 0
+              AND EXISTS (SELECT 1 FROM entity_assets mine
+                          WHERE mine.entity_id = @oldWorkId AND COALESCE(mine.is_user_override, 0) = 1
+                            AND mine.asset_type = entity_assets.asset_type AND mine.image_url = entity_assets.image_url COLLATE NOCASE);
+            UPDATE entity_artwork_links SET is_preferred = 1
+            WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1
+              AND EXISTS (SELECT 1 FROM entity_artwork_links there
+                          WHERE there.entity_id = @newWorkId AND COALESCE(there.is_user_override, 0) = 0 AND there.is_preferred = 1
+                            AND there.entity_type = entity_artwork_links.entity_type AND there.artwork_asset_id = entity_artwork_links.artwork_asset_id
+                            AND there.role = entity_artwork_links.role AND there.context = entity_artwork_links.context);
+            DELETE FROM entity_artwork_links
+            WHERE entity_id = @newWorkId AND COALESCE(is_user_override, 0) = 0
+              AND EXISTS (SELECT 1 FROM entity_artwork_links mine
+                          WHERE mine.entity_id = @oldWorkId AND COALESCE(mine.is_user_override, 0) = 1
+                            AND mine.entity_type = entity_artwork_links.entity_type AND mine.artwork_asset_id = entity_artwork_links.artwork_asset_id
+                            AND mine.role = entity_artwork_links.role AND mine.context = entity_artwork_links.context);
             UPDATE entity_assets SET is_preferred = 0
             WHERE entity_id = @newWorkId AND COALESCE(is_user_override, 0) = 0
               AND asset_type IN (SELECT asset_type FROM entity_assets WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1 AND is_preferred = 1);

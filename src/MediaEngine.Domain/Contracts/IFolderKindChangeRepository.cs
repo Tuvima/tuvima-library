@@ -14,6 +14,12 @@ public interface IFolderKindChangeRepository
 
     Task<FolderKindChangePlan?> GetPlanAsync(Guid operationId, CancellationToken ct = default);
 
+    /// <summary>Every change job planned for the folder, oldest first: the ledgers to read to find files an earlier run left unfinished.</summary>
+    Task<IReadOnlyList<Guid>> ListPlanOperationIdsAsync(Guid sourceId, CancellationToken ct = default);
+
+    /// <summary>Removes the places (shows, seasons, albums, series) a stopped placement left empty, by the rule every move uses. Safe to repeat.</summary>
+    Task TidyEmptyPlacesAsync(CancellationToken ct = default);
+
     /// <summary>The most recent plan made for the folder, or null: how a change that was stopped half way is found again.</summary>
     Task<FolderKindChangePlan?> GetLatestPlanAsync(Guid sourceId, CancellationToken ct = default);
 

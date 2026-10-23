@@ -314,63 +314,79 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task A_persons_picture_that_would_collide_with_one_the_new_title_already_has_is_a_clash_and_stays_on_the_old_title()
+    public async Task A_persons_picture_that_is_also_on_the_new_title_as_a_looked_up_copy_takes_its_place_and_its_preference()
     {
-        var episodeHints = new Dictionary<string, string>
-        {
-            ["show_name"] = "Some Show",
-            [MetadataFieldConstants.SeasonNumber] = "1",
-            [MetadataFieldConstants.EpisodeNumber] = "1",
-        };
+        var episodeHints = EpisodeHints();
         var (_, episode) = await IngestAsync(MediaType.TV, new Dictionary<string, string>(episodeHints) { ["title"] = "Pilot" });
         var (assetId, movie) = await IngestAsync(MediaType.Movies);
         var mine = Guid.NewGuid();
+        var theirs = Guid.NewGuid();
         using (var seed = _db.CreateConnection())
         {
             seed.Execute("""
-                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override, image_url)
-                VALUES (@mine, @movie, 'Work', 'CoverArt', 'user_upload', 1, '/stream/same'),
-                       (@theirs, @episode, 'Work', 'CoverArt', 'tmdb', 0, '/STREAM/same');
-                """, new { mine, theirs = Guid.NewGuid(), movie, episode });
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override, is_preferred, image_url)
+                VALUES (@mine, @movie, 'Work', 'CoverArt', 'user_upload', 1, 0, '/stream/same'),
+                       (@theirs, @episode, 'Work', 'CoverArt', 'tmdb', 0, 1, '/STREAM/same');
+                """, new { mine, theirs, movie, episode });
         }
 
-        await Assert.ThrowsAsync<UserDetailsClashException>(() =>
-            _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.TV, episodeHints, FilePath));
+        var result = await _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.TV, episodeHints, FilePath);
 
+        Assert.Equal(episode, result.WorkId);
         using var conn = _db.CreateConnection();
-        Assert.Equal(movie, conn.ExecuteScalar<Guid>("SELECT entity_id FROM entity_assets WHERE id = @mine;", new { mine }));
-        Assert.Equal(movie, conn.ExecuteScalar<Guid>("SELECT work_id FROM editions WHERE id = (SELECT edition_id FROM media_assets WHERE id = @assetId);", new { assetId }));
+        Assert.Equal((episode, 1), conn.QuerySingle<(Guid, int)>("SELECT entity_id, is_preferred FROM entity_assets WHERE id = @mine;", new { mine }));
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets WHERE id = @theirs;", new { theirs }));
     }
 
     [Fact]
-    public async Task A_persons_artwork_link_that_would_collide_with_one_the_new_title_already_has_is_a_clash_and_stays_on_the_old_title()
+    public async Task A_persons_artwork_link_that_is_also_on_the_new_title_as_a_looked_up_link_takes_its_place_but_links_without_a_context_never_collide()
     {
-        var episodeHints = new Dictionary<string, string>
-        {
-            ["show_name"] = "Some Show",
-            [MetadataFieldConstants.SeasonNumber] = "1",
-            [MetadataFieldConstants.EpisodeNumber] = "1",
-        };
+        var episodeHints = EpisodeHints();
         var (_, episode) = await IngestAsync(MediaType.TV, new Dictionary<string, string>(episodeHints) { ["title"] = "Pilot" });
         var (assetId, movie) = await IngestAsync(MediaType.Movies);
         var artwork = Guid.NewGuid();
-        var mine = Guid.NewGuid();
+        var withContext = Guid.NewGuid();
+        var withContextTheirs = Guid.NewGuid();
+        var noContext = Guid.NewGuid();
+        var noContextTheirs = Guid.NewGuid();
         using (var seed = _db.CreateConnection())
         {
             seed.Execute("""
                 INSERT INTO artwork_assets (id, content_hash, source_provider) VALUES (@artwork, 'shared', 'user_upload');
-                INSERT INTO entity_artwork_links (id, entity_id, entity_type, artwork_asset_id, role, is_user_override) VALUES
-                    (@mine, @movie, 'Work', @artwork, 'Primary', 1),
-                    (@theirs, @episode, 'Work', @artwork, 'Primary', 0);
-                """, new { artwork, mine, theirs = Guid.NewGuid(), movie, episode });
+                INSERT INTO entity_artwork_links (id, entity_id, entity_type, artwork_asset_id, role, context, is_user_override) VALUES
+                    (@withContext, @movie, 'Work', @artwork, 'Primary', 'poster', 1),
+                    (@withContextTheirs, @episode, 'Work', @artwork, 'Primary', 'poster', 0),
+                    (@noContext, @movie, 'Work', @artwork, 'Background', NULL, 1),
+                    (@noContextTheirs, @episode, 'Work', @artwork, 'Background', NULL, 0);
+                """, new { artwork, withContext, withContextTheirs, noContext, noContextTheirs, movie, episode });
         }
 
-        await Assert.ThrowsAsync<UserDetailsClashException>(() =>
-            _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.TV, episodeHints, FilePath));
+        await _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.TV, episodeHints, FilePath);
 
         using var conn = _db.CreateConnection();
-        Assert.Equal(movie, conn.ExecuteScalar<Guid>("SELECT entity_id FROM entity_artwork_links WHERE id = @mine;", new { mine }));
-        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id = @movie;", new { movie }));
+        Assert.Equal(episode, conn.ExecuteScalar<Guid>("SELECT entity_id FROM entity_artwork_links WHERE id = @withContext;", new { withContext }));
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_artwork_links WHERE id = @withContextTheirs;", new { withContextTheirs }));
+        // The table allows two rows with no context, so neither is a collision and both stay.
+        Assert.Equal(episode, conn.ExecuteScalar<Guid>("SELECT entity_id FROM entity_artwork_links WHERE id = @noContext;", new { noContext }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_artwork_links WHERE id = @noContextTheirs;", new { noContextTheirs }));
+    }
+
+    [Fact]
+    public async Task Tidying_removes_the_empty_places_a_stopped_placement_left_but_keeps_one_a_person_saved()
+    {
+        var (assetId, episode) = await IngestAsync(MediaType.TV, new Dictionary<string, string>(EpisodeHints()) { ["title"] = "Pilot" });
+        using (var seed = _db.CreateConnection())
+        {
+            // The episode's edition went elsewhere and the episode was never removed (a stop between the two).
+            seed.Execute("UPDATE editions SET work_id = @other WHERE id = (SELECT edition_id FROM media_assets WHERE id = @assetId);",
+                new { other = IngestStandaloneWork(), assetId });
+            seed.Execute("DELETE FROM works WHERE id = @episode;", new { episode });
+        }
+
+        await _repository.TidyEmptyPlacesAsync();
+
+        using var conn = _db.CreateConnection();
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE media_type = 'TV';"));
     }
 
     [Fact]
@@ -558,6 +574,21 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
     {
         using var conn = _db.CreateConnection();
         return conn.ExecuteScalar<Guid>("SELECT edition_id FROM media_assets WHERE id = @assetId;", new { assetId });
+    }
+
+    private static Dictionary<string, string> EpisodeHints() => new()
+    {
+        ["show_name"] = "Some Show",
+        [MetadataFieldConstants.SeasonNumber] = "1",
+        [MetadataFieldConstants.EpisodeNumber] = "1",
+    };
+
+    private Guid IngestStandaloneWork()
+    {
+        var work = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        conn.Execute("INSERT INTO works (id, media_type, work_kind, ownership) VALUES (@work, 'Videos', 'standalone', 'Owned');", new { work });
+        return work;
     }
 
     private static IReadOnlyDictionary<string, string> Hints(Guid assetId) =>
