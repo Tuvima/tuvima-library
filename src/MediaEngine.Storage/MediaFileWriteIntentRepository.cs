@@ -39,12 +39,23 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
     // watcher and reconciliation treat the file normally at its current path.
     private const string MoveInFlightFilter = "move_step IS NOT NULL AND move_step NOT IN ('waiting', 'held')";
 
+    // Library writes nothing into a file it could not match, kept as it is or not (Library setup D64, D34): its tag requests stay pending
+    // and are written once a lookup identifies the file and its Unmatched row goes. A row of a View item has no asset and is never held back.
+    // The rule is for Library's own automatic writes: a tag write a person asked for with an explicit edit (Editing Mode) is written as normal.
+    private static readonly string PersonsEditTriggers = string.Join(", ", MediaFileWriteTriggers.PersonsEdits.Select(trigger => $"'{trigger}'"));
+
+    private static readonly string NoOpenUnmatchedRow = $"""
+        (i.trigger IN ({PersonsEditTriggers})
+         OR NOT EXISTS (SELECT 1 FROM unmatched_assets um WHERE um.asset_id = i.asset_id))
+        """;
+
     // The one statement every place that asks for a file write uses. A newer ask for a file already on the list (whatever state it is
     // in, including being written right now) bumps the generation and puts it back to pending, so the write that is in flight cannot
     // mark the newer version done. A move in progress is never cleared: the first step recorded wins until the move is finished.
     // The one exception is a person's own move asked for while an automatic filing waits or is held: theirs is done at once, so the
-    // row becomes a requested move of the person's. An id that is not a media asset adds nothing.
-    private const string UpsertAssetSql = """
+    // row becomes a requested move of the person's. An id that is not a media asset adds nothing. A person's edit that has not been written yet
+    // keeps its trigger when an automatic request lands on the row, so it is still written while its file is Unmatched.
+    private static readonly string UpsertAssetSql = $"""
         INSERT INTO media_file_write_intents
             (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step, move_origin)
         SELECT @id, 'media_asset', @assetId, 1, @token, @trigger, 'pending', 0, @now, @now, @moveStep,
@@ -55,6 +66,9 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             operation_token = excluded.operation_token,
             trigger = CASE
                 WHEN media_file_write_intents.trigger = 'library_move' AND media_file_write_intents.move_step IS NOT NULL
+                THEN media_file_write_intents.trigger
+                WHEN media_file_write_intents.trigger IN ({PersonsEditTriggers}) AND excluded.trigger NOT IN ({PersonsEditTriggers})
+                     AND media_file_write_intents.status IN ('pending', 'writing')
                 THEN media_file_write_intents.trigger
                 ELSE excluded.trigger END,
             status = 'pending', attempts = 0, lease_expires_at = NULL, last_error = NULL, completed_at = NULL,
@@ -251,6 +265,8 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 WHERE i.target_kind = @targetKind AND i.move_step IS NULL
                   AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
                   AND i.updated_at <= @changedBefore AND (i.claimed_run_id IS NULL OR i.claimed_run_id <> @runId)
+                  AND NOT ({FolderFirstCheckRepository.FileInHeldFolder("ma")})
+                  AND {NoOpenUnmatchedRow}
                 ORDER BY i.updated_at, i.id
                 LIMIT @limit;
                 """, new
@@ -690,12 +706,19 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         ct.ThrowIfCancellationRequested();
         var hidden = hiddenLibraryIds is { Count: > 0 };
         using var connection = database.CreateConnection();
-        return Task.FromResult(connection.QuerySingle<FileWriteCounts>("""
-            SELECT COALESCE(SUM(CASE WHEN i.status IN ('pending', 'writing') THEN 1 ELSE 0 END), 0) AS Waiting,
+        // A tag write for a file in a folder whose first check is running or paused is waiting, but cannot be claimed yet (Library setup D61).
+        // One held back only because its file is Unmatched is not counted as waiting, so a file kept as it is does not show as waiting for
+        // good; the row itself stays, and is written once the file is identified (D64).
+        return Task.FromResult(connection.QuerySingle<FileWriteCounts>($"""
+            SELECT COALESCE(SUM(CASE WHEN i.status IN ('pending', 'writing')
+                                      AND ({NoOpenUnmatchedRow} OR {FolderFirstCheckRepository.FileInHeldFolder("ma")})
+                                     THEN 1 ELSE 0 END), 0) AS Waiting,
                    COALESCE(SUM(CASE WHEN i.status = 'failed' THEN 1 ELSE 0 END), 0) AS Failed,
                    COALESCE(SUM(CASE WHEN i.move_step IS NULL
                                       AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
                                       AND (i.next_attempt_at IS NULL OR i.next_attempt_at <= @now)
+                                      AND NOT ({FolderFirstCheckRepository.FileInHeldFolder("ma")})
+                                      AND {NoOpenUnmatchedRow}
                                      THEN 1 ELSE 0 END), 0)
                    + COALESCE(SUM(CASE WHEN i.move_step = 'waiting' AND i.status = 'pending' THEN 1 ELSE 0 END), 0) AS Claimable,
                    COALESCE(SUM(CASE WHEN i.move_step = 'waiting' AND i.status = 'pending' THEN 1 ELSE 0 END), 0) AS FilingWaiting

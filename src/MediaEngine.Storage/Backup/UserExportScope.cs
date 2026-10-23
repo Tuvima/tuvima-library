@@ -117,6 +117,7 @@ public static class UserExportScope
         ["excluded_source_files"] = "Files kept out of this Library's own folders.",
         ["fictional_entity_user_overrides"] = "Typed catalogue corrections belong to the Library, not to one person.",
         ["narrative_root_user_overrides"] = "Typed catalogue corrections belong to the Library, not to one person.",
+        ["folder_first_checks"] = "The first check of a folder belongs to the Library's own folders, not to one person.",
         ["backup_restores"] = "The Library's own restore history.",
         ["waiting_personal_state"] = "Items still waiting on the old Library are not moved; a file could otherwise name any table to write into.",
         ["vault_libraries"] = "Server settings: which libraries are Vault libraries belongs to the Library.",

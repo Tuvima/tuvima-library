@@ -100,6 +100,10 @@
                         <LibraryUnmatchedCount Count="@row.Unmatched" />
                     </span>
                     <span class="lib-page__status">
+                        @if (row.Paused)
+                        {
+                            <AppTooltip Text="@PausedTooltip" Placement="AppPlacement.Top"><span class="lib-unmatched" role="img" tabindex="0" aria-label="@($"Paused. {PausedTooltip}")" data-paused="true">Paused</span></AppTooltip>
+                        }
                         @if (row.Health is { Healthy: false })
                         {
                             <AppTooltip Text="@row.Health.Text"><span class="lib-meta__icon" tabindex="0"><LibraryHealthIcon Health="@row.Health" /></span></AppTooltip>
@@ -136,6 +140,9 @@
     [Parameter] public EventCallback RetryVault { get; set; }
     /// <summary>Raised after a folder was added through the wizard, so the page can refresh its counts.</summary>
     [Parameter] public EventCallback FolderAdded { get; set; }
+
+    /// <summary>What the amber Paused note on a row says when it is hovered or focused (Library setup D35).</summary>
+    public const string PausedTooltip = "A folder is paused because most of its files aren't matching";
 
     private bool IsVault => Group.Key == LibraryGroupCatalog.VaultKey;
 
@@ -175,7 +182,8 @@
 
     private static string AccessibleName(LibraryRowSummary row)
     {
-        var unmatched = row.Unmatched > 0 ? $", {LibraryKindLook.UnmatchedText(row.Unmatched)}" : string.Empty;
+        var unmatched = (row.Unmatched > 0 ? $", {LibraryKindLook.UnmatchedText(row.Unmatched)}" : string.Empty)
+            + (row.Paused ? ", a folder is paused" : string.Empty);
         if (row.Folders is null) return row.Type.Label + unmatched;
         if (row.Folders == 0) return $"{row.Type.Label}, nothing added yet{unmatched}";
         var counts = LibraryRollup.CountsText(row.Folders, row.Titles).Replace(" · ", ", ", StringComparison.Ordinal);

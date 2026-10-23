@@ -99,6 +99,7 @@ internal static class SettingsContractMapper
         foreach (var library in value.Libraries)
         {
             library.UnmatchedCount = 0;
+            ClearFirstChecks(library);
         }
 
         var result = Convert<LibrariesConfiguration>(value);
@@ -125,6 +126,16 @@ internal static class SettingsContractMapper
 
         // Access follows management mode and each library gets its destination, whoever sent the change.
         return LibrariesConfigurationNormalizer.Normalize(result);
+    }
+
+    /// <summary>The first check shown on a source is read-only, like the Unmatched count: it is never stored, and never counts as an edit.</summary>
+    internal static void ClearFirstChecks(LibraryFolderDto library)
+    {
+        // A saved list may carry null where a list belongs; the normalising step after the conversion supplies the empty list.
+        foreach (var source in library.Sources ?? [])
+        {
+            source.FirstCheck = null;
+        }
     }
 
     private static TTarget Convert<TTarget>(object source) =>

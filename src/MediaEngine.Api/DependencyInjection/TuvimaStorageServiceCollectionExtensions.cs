@@ -217,6 +217,11 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
         services.AddSingleton<IImportUploadRepository, ImportUploadRepository>();
         services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();
+        // The first check of a newly added folder (Library setup D35, D61). The hold is registered here, before the ingestion modules,
+        // so their "nothing is ever held" default does not apply.
+        services.AddSingleton<FolderFirstCheckSignal>();
+        services.AddSingleton<IFolderFirstCheckRepository, FolderFirstCheckRepository>();
+        services.AddSingleton<MediaEngine.Domain.Contracts.IFilingHold, FolderFirstCheckFilingHold>();
         services.AddSingleton<MediaEngine.Ingestion.Services.UnmatchedFileMarker>();
         services.AddSingleton<MediaEditorCommitRepository>();
         services.AddSingleton<MediaFileWriteIntentRepository>();

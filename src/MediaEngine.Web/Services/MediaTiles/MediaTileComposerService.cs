@@ -340,6 +340,7 @@ public sealed class MediaTileComposerService
             PreviewTotalCount = card.PreviewTotalCount,
             MetaText = string.Join(" / ", card.Facts),
             QualityBadge = BadgeLabel(card.Badges, "quality"),
+            IsKept = card.Flags.KeptAsIs,
             SourceBadgeLabel = BadgeLabel(card.Badges, "source"),
             SourceLogoUrl = SourceLogos.ResolveLogoPath(BadgeLabel(card.Badges, "source")),
             MediaCounts = card.GroupSummary?.MediaCounts.Select(ToMediaCount).ToList() ?? [],

@@ -37,4 +37,11 @@ public static class MediaFileWriteTriggers
     /// so the profile's name is written into the file when the format can hold it (batched write-back D7).
     /// </summary>
     public const string ViewAddedBy = "view_added_by";
+
+    /// <summary>
+    /// The triggers of a write a person asked for with an explicit edit of a field (Editing Mode: the editor, a manual override, the item's
+    /// own preferences or an applied canonical choice). Library writes nothing on its own into a file it could not match (Library setup
+    /// D64), but a person's own edit is written as normal.
+    /// </summary>
+    public static IReadOnlyList<string> PersonsEdits { get; } = [EditorCommit, "manual_override", "item_preferences", "item_canonical_apply"];
 }

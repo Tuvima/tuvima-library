@@ -43,6 +43,13 @@ public sealed record UnmatchedAsset(
 /// <summary>One Unmatched file that is not kept as it is, with the work it belongs to and the library it is in now.</summary>
 public sealed record UnmatchedWorkFile(Guid WorkId, Guid AssetId, string LibraryId);
 
+/// <summary>
+/// What the Unmatched files of one work mean for one library (Library setup spec D64, D65). <see cref="EveryFileUnmatched"/> is true when
+/// every normal file the work has in that library is Unmatched (kept or not), so the work stays out of the lanes there;
+/// <see cref="EveryUnmatchedFileKept"/> is true when each of those Unmatched files is kept as it is. The library id is upper case.
+/// </summary>
+public sealed record UnmatchedWorkLibrary(Guid WorkId, string LibraryId, bool EveryFileUnmatched, bool EveryUnmatchedFileKept);
+
 /// <summary>One Unmatched file as a list shows it: the row plus where the file is and the title it plays under.</summary>
 public sealed record UnmatchedAssetListItem(UnmatchedAsset Asset, string FilePath, string? Title);
 

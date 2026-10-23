@@ -3,6 +3,7 @@ using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
@@ -26,23 +27,82 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     // limit and keep the Vault out of view.
     private ContentLimitPolicy? _contentLimits;
 
+    private IUnmatchedAssetRepository? _unmatched;
+
+    private IUnmatchedAssetRepository Unmatched => _unmatched ??= new UnmatchedAssetRepository(database);
+
+    // This service lives for one request, so what it learns about Unmatched files is kept for that request only and invalidated by
+    // nothing: the lane reads of one request (works, journey, favourites, collections) look the same works up once, not once per read.
+    // Reads run side by side, hence the lock.
+    private readonly object _unmatchedLock = new();
+    private readonly HashSet<Guid> _unmatchedAsked = [];
+    private readonly Dictionary<Guid, List<UnmatchedWorkLibrary>> _unmatchedByWork = [];
+
+    private async Task<List<UnmatchedWorkLibrary>> UnmatchedFilesOfAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct)
+    {
+        List<Guid> missing;
+        lock (_unmatchedLock)
+        {
+            missing = workIds.Where(id => !_unmatchedAsked.Contains(id)).Distinct().ToList();
+        }
+
+        if (missing.Count > 0)
+        {
+            var found = await Unmatched.ListWorkLibrariesAsync(missing, ct).ConfigureAwait(false);
+            lock (_unmatchedLock)
+            {
+                foreach (var entry in found)
+                {
+                    if (!_unmatchedByWork.TryGetValue(entry.WorkId, out var list))
+                    {
+                        _unmatchedByWork[entry.WorkId] = list = [];
+                    }
+
+                    if (!list.Contains(entry))
+                    {
+                        list.Add(entry);
+                    }
+                }
+
+                _unmatchedAsked.UnionWith(missing);
+            }
+        }
+
+        lock (_unmatchedLock)
+        {
+            return workIds.Distinct().SelectMany(id => _unmatchedByWork.TryGetValue(id, out var list) ? list : []).ToList();
+        }
+    }
+
     private ContentLimitPolicy ContentLimits => _contentLimits ??= new(
         new ProfileContentLimitRepository(database),
         new VaultAccessResolver(new VaultLibraryRepository(database), new NsfwAccessRepository(database), clock ?? TimeProvider.System),
         configuration);
 
+    // An Unmatched file lives only under the Unmatched filter (Library setup spec D64): every shared list below leaves out a work whose
+    // files in a library are all Unmatched, kept or not, and only the filter's own reads (the ...IncludingUnmatched ones) keep it. A parent
+    // shared with matched files stays, because the leaf rows it is built from are still there.
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) =>
-        FilterWorks(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
+        await FilterWorksAsync(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false), false, ct).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorksIncludingUnmatchedAsync(CancellationToken ct) =>
+        await FilterWorksAsync(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false), true, ct).ConfigureAwait(false);
 
     public async Task<IReadOnlySet<Guid>> LoadVisibleWorkIdsAsync(CancellationToken ct)
     {
         var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
-        return await AllowedWorkIdsAsync(scope, ct).ConfigureAwait(false);
+        return await AllowedWorkIdsAsync(scope, false, ct).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlySet<Guid>> LoadVisibleWorkIdsIncludingUnmatchedAsync(CancellationToken ct)
+    {
+        var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
+        return await AllowedWorkIdsAsync(scope, true, ct).ConfigureAwait(false);
     }
 
     // The same rule LoadWorksAsync applies, over the light rows: an invalid scope sees nothing, otherwise a work is visible
     // when any of its (work, library) rows passes Allows.
-    private async Task<IReadOnlySet<Guid>> AllowedWorkIdsAsync(CatalogueScope scope, CancellationToken ct)
+    private async Task<IReadOnlySet<Guid>> AllowedWorkIdsAsync(CatalogueScope scope, bool includeUnmatched, CancellationToken ct)
     {
         if (!scope.IsValid)
         {
@@ -51,10 +111,33 @@ internal sealed class AuthorizedDisplayProjectionReadService(
 
         var visibleRows = await inner.LoadVisibleWorkRowsAsync(ct).ConfigureAwait(false);
         var vaultWorks = WorksInHiddenVault(visibleRows.Select(row => (row.WorkId, row.LibraryId)), scope);
-        return visibleRows
+        var allowed = visibleRows
             .Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
-            .Select(row => row.WorkId)
+            .ToList();
+        allowed = await WithoutUnmatchedOnlyAsync(allowed, row => row.WorkId, row => row.LibraryId, includeUnmatched, ct).ConfigureAwait(false);
+        return allowed.Select(row => row.WorkId).ToHashSet();
+    }
+
+    /// <summary>
+    /// Drops the rows whose work has only Unmatched files in the row's library (kept or not), so an Unmatched file never reaches a lane,
+    /// Home, a shelf, a collection, a people page or a normal search. Only the works in view are looked up, and nothing is read when
+    /// nothing is Unmatched.
+    /// </summary>
+    private async Task<List<T>> WithoutUnmatchedOnlyAsync<T>(
+        List<T> rows, Func<T, Guid> workId, Func<T, string?> libraryId, bool includeUnmatched, CancellationToken ct)
+    {
+        if (includeUnmatched || rows.Count == 0)
+        {
+            return rows;
+        }
+
+        var unmatchedOnly = (await UnmatchedFilesOfAsync(rows.Select(workId).Distinct().ToList(), ct).ConfigureAwait(false))
+            .Where(entry => entry.EveryFileUnmatched)
+            .Select(entry => (entry.WorkId, entry.LibraryId))
             .ToHashSet();
+        return unmatchedOnly.Count == 0
+            ? rows
+            : rows.Where(row => !unmatchedOnly.Contains((workId(row), (libraryId(row) ?? string.Empty).ToUpperInvariant()))).ToList();
     }
 
     public async Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct)
@@ -64,7 +147,10 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     }
 
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsAsync(CancellationToken ct) =>
-        AllowedWorkLibraryRows(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false)).ToList();
+        await AllowedWorkLibraryRowsAsync(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false), false, ct).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsIncludingUnmatchedAsync(CancellationToken ct) =>
+        await AllowedWorkLibraryRowsAsync(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false), true, ct).ConfigureAwait(false);
 
     public async Task<DisplayLibraryAccess> LoadLibraryAccessAsync(CancellationToken ct)
     {
@@ -75,8 +161,19 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             : DisplayLibraryAccess.Nothing;
     }
 
+    // A work's own detail page keeps its Unmatched files (they play from there, D64); a person's or any other page leaves them out.
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadDetailWorksAsync(Guid id, CancellationToken ct) =>
-        FilterWorks(await inner.LoadDetailWorksAsync(id, ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
+        await FilterWorksAsync(
+            await inner.LoadDetailWorksAsync(id, ct).ConfigureAwait(false),
+            await ResolveScopeAsync(ct).ConfigureAwait(false),
+            IsWork(id),
+            ct).ConfigureAwait(false);
+
+    private bool IsWork(Guid id)
+    {
+        using var connection = database.CreateConnection();
+        return connection.ExecuteScalar<long>("-- readiness: an id lookup, not a list of works\nSELECT EXISTS(SELECT 1 FROM works WHERE id = @id);", new { id }) != 0;
+    }
 
     internal async Task<IReadOnlyList<DisplayWorkRow>> LoadAuthorizedAssetsAsync(CancellationToken ct)
     {
@@ -130,7 +227,8 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
         var vaultWorks = WorksInHiddenVault(rows.Select(row => (row.WorkId, row.LibraryId)), scope);
-        return rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
+        var allowed = rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
+        return await WithoutUnmatchedOnlyAsync(allowed, row => row.WorkId, row => row.LibraryId, false, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -144,13 +242,14 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         {
             return [];
         }
-        return candidates
+        var allowed = candidates
             .Where(candidate => !scope.Content.IsVaultLibrary(candidate.LibraryId) && AllowsLibraryAndFeature(candidate.LibraryId, candidate.MediaType, scope))
             .ToList();
+        return await WithoutUnmatchedOnlyAsync(allowed, candidate => candidate.WorkId, candidate => candidate.LibraryId, false, ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct) =>
-        FilterWorks(await inner.LoadHomeWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
+        await FilterWorksAsync(await inner.LoadHomeWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false), false, ct).ConfigureAwait(false);
 
     public async Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct)
     {
@@ -160,9 +259,11 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
 
-        return (await inner.LoadJourneyAsync(profileId, lane, ct).ConfigureAwait(false))
+        var allowed = (await inner.LoadJourneyAsync(profileId, lane, ct).ConfigureAwait(false))
             .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
             .ToList();
+        // Continue and journey lanes hold identified titles only; the state read below stays whole so a card in the Unmatched filter keeps its progress.
+        return await WithoutUnmatchedOnlyAsync(allowed, row => row.WorkId, row => row.LibraryId, false, ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct)
@@ -187,11 +288,22 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         var favorites = await inner.LoadFavoriteWorkIdsAsync(profileId, ct).ConfigureAwait(false);
         if (scope.Content.Vault.VaultLibraryIds.Count == 0)
         {
-            return favorites;
+            // A favourite whose files are all Unmatched is not part of the lanes either (D64): only those need the visible-work check.
+            var unmatchedOnly = (await UnmatchedFilesOfAsync(favorites, ct).ConfigureAwait(false))
+                .Where(entry => entry.EveryFileUnmatched)
+                .Select(entry => entry.WorkId)
+                .ToHashSet();
+            if (unmatchedOnly.Count == 0)
+            {
+                return favorites;
+            }
+
+            var shown = await AllowedWorkIdsAsync(scope, false, ct).ConfigureAwait(false);
+            return favorites.Where(id => !unmatchedOnly.Contains(id) || shown.Contains(id)).ToHashSet();
         }
 
         // A favourite that is a Vault item is not part of the shared catalogue, locked or not (Videos spec D27, D45).
-        var visible = await AllowedWorkIdsAsync(scope, ct).ConfigureAwait(false);
+        var visible = await AllowedWorkIdsAsync(scope, false, ct).ConfigureAwait(false);
         return favorites.Where(visible.Contains).ToHashSet();
     }
 
@@ -203,12 +315,14 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
 
-        if (scope.AllLibraries && scope.Content.NeedsNoFiltering && scope.Content.Vault.VaultLibraryIds.Count == 0)
+        var allowedWorkIds = await AllowedWorkIdsAsync(scope, false, ct).ConfigureAwait(false);
+        if (scope.AllLibraries && scope.Content.NeedsNoFiltering && scope.Content.Vault.VaultLibraryIds.Count == 0
+            && allowedWorkIds.Count == (await inner.LoadVisibleWorkIdsAsync(ct).ConfigureAwait(false)).Count)
         {
+            // Nothing is narrowed: no limit, no Vault, and no work left out as Unmatched.
             return await inner.LoadHomeCollectionsAsync(profileId, ct).ConfigureAwait(false);
         }
 
-        var allowedWorkIds = await AllowedWorkIdsAsync(scope, ct).ConfigureAwait(false);
         if (allowedWorkIds.Count == 0)
         {
             return [];
@@ -264,11 +378,13 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         return new(authority, true, false, libraries, features, content);
     }
 
-    private static IReadOnlyList<DisplayWorkRow> FilterWorks(
+    private async Task<IReadOnlyList<DisplayWorkRow>> FilterWorksAsync(
         IReadOnlyList<DisplayWorkRow> rows,
-        CatalogueScope scope)
+        CatalogueScope scope,
+        bool includeUnmatched,
+        CancellationToken ct)
     {
-        return AllowedWorkLibraryRows(rows, scope)
+        return (await AllowedWorkLibraryRowsAsync(rows, scope, includeUnmatched, ct).ConfigureAwait(false))
             .GroupBy(row => row.WorkId)
             .Select(group => group
                 .OrderBy(row => row.CreatedAt)
@@ -278,8 +394,9 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             .ToList();
     }
 
-    // The one allow rule for works, applied per (work, library) row; FilterWorks then keeps one row per work.
-    private static IEnumerable<DisplayWorkRow> AllowedWorkLibraryRows(IReadOnlyList<DisplayWorkRow> rows, CatalogueScope scope)
+    // The one allow rule for works, applied per (work, library) row; FilterWorksAsync then keeps one row per work.
+    private async Task<IReadOnlyList<DisplayWorkRow>> AllowedWorkLibraryRowsAsync(
+        IReadOnlyList<DisplayWorkRow> rows, CatalogueScope scope, bool includeUnmatched, CancellationToken ct)
     {
         if (!scope.IsValid)
         {
@@ -287,7 +404,8 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         }
 
         var vaultWorks = WorksInHiddenVault(rows.Select(row => (row.WorkId, row.LibraryId)), scope);
-        return rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope));
+        var allowed = rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
+        return await WithoutUnmatchedOnlyAsync(allowed, row => row.WorkId, row => row.LibraryId, includeUnmatched, ct).ConfigureAwait(false);
     }
 
     /// <summary>

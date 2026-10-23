@@ -114,6 +114,44 @@ public sealed class WorkPersonalStateMergeTests : IDisposable
         Assert.Equal(0, Scalar<long>("SELECT COUNT(*) FROM collection_items WHERE work_id = @source;", new { source }));
     }
 
+    // A file that was Unmatched and is later identified onto an existing title keeps what its person did with it (Library setup spec D64):
+    // the carry is the same for every media type, so each one is checked with a row in every work-keyed table.
+    [Theory]
+    [InlineData("Movies", "Movie")]
+    [InlineData("TV", "TvShow")]
+    [InlineData("Music", "Song")]
+    [InlineData("Audiobooks", "Audiobook")]
+    [InlineData("Books", "Book")]
+    [InlineData("Comics", "Comic")]
+    public void EveryKindOfWorkKeyedPersonalState_FollowsTheTitleItIsMergedInto_ForEveryMediaType(string mediaType, string entityKind)
+    {
+        var source = Work(mediaType);
+        var target = Work(mediaType);
+        var asset = Asset(source);
+        Execute(
+            """
+            INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, @entityKind, @source, '2026-10-01T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, @entityKind, @source, 'Love', '2026-10-01T00:00:00Z');
+            INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at) VALUES (@person, @source, '["watch later"]', 1, '2026-10-01T00:00:00Z');
+            INSERT INTO music_play_stats (profile_id, work_id, play_count, last_played_at) VALUES (@person, @source, 3, '2026-10-01T00:00:00Z');
+            INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, position_seconds, created_at) VALUES (@bookmark, @person, @source, @asset, 12, '2026-10-01T00:00:00Z');
+            INSERT INTO audiobook_listen_history (id, profile_id, work_id, asset_id, title, position_seconds, device_id, client, started_at, ended_at)
+            VALUES (@history, @person, @source, @asset, 'Heard', 12, 'd', 'web', '2026-10-01T00:00:00Z', '2026-10-01T00:10:00Z');
+            """,
+            new { person = Person, entityKind, source, target, asset, bookmark = Guid.NewGuid(), history = Guid.NewGuid() });
+
+        Carry(source, target);
+
+        Assert.Equal(1, Scalar<long>("SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @target AND entity_kind = @entityKind;", new { target, entityKind }));
+        Assert.Equal("Love", Scalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @target AND entity_kind = @entityKind;", new { target, entityKind }));
+        Assert.Equal("""["watch later"]""", Scalar<string>("SELECT local_tags_json FROM profile_work_preferences WHERE work_id = @target;", new { target }));
+        Assert.Equal(3, Scalar<long>("SELECT play_count FROM music_play_stats WHERE work_id = @target;", new { target }));
+        Assert.Equal(1, Scalar<long>("SELECT COUNT(*) FROM audiobook_bookmarks WHERE work_id = @target;", new { target }));
+        Assert.Equal(1, Scalar<long>("SELECT COUNT(*) FROM audiobook_listen_history WHERE work_id = @target;", new { target }));
+        Assert.Equal(0, Scalar<long>("SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @source;", new { source }));
+        Assert.Equal(0, Scalar<long>("SELECT COUNT(*) FROM profile_work_preferences WHERE work_id = @source;", new { source }));
+    }
+
     private void Carry(Guid source, Guid target)
     {
         using var connection = _database.CreateConnection();

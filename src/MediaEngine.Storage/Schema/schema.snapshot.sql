@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0043 import_uploads).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0044 import_uploads).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1111,6 +1111,29 @@ CREATE TABLE file_write_runs (
     last_run_failed INTEGER,
     last_run_kept INTEGER
 , last_run_filed INTEGER);
+
+CREATE TABLE folder_first_check_files (
+    seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id   TEXT NOT NULL REFERENCES folder_first_checks(source_id) ON DELETE CASCADE,
+    asset_id    BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    outcome     TEXT NOT NULL CHECK (outcome IN ('matched', 'unmatched', 'needs_review')),
+    recorded_at TEXT NOT NULL,
+    UNIQUE (source_id, asset_id)
+);
+
+CREATE TABLE folder_first_checks (
+    source_id            TEXT NOT NULL PRIMARY KEY,
+    library_id           TEXT NOT NULL,
+    path                 TEXT NOT NULL,
+    path_prefix          TEXT NOT NULL CHECK (length(path_prefix) >= 1),
+    path_prefix_folded   TEXT NOT NULL,
+    path_range_end_folded TEXT NOT NULL,
+    state                TEXT NOT NULL CHECK (state IN ('checking', 'passed', 'paused', 'kept_going')),
+    tried                INTEGER NOT NULL DEFAULT 0 CHECK (tried >= 0),
+    unmatched            INTEGER NOT NULL DEFAULT 0 CHECK (unmatched >= 0),
+    started_at           TEXT NOT NULL,
+    ended_at             TEXT
+);
 
 CREATE TABLE folder_organise_log (
   operation_id BLOB NOT NULL,
@@ -3659,6 +3682,10 @@ CREATE INDEX ix_doc_item_details_type
 CREATE INDEX ix_doc_rules_owner_order
     ON doc_rules(owner_profile_id, personal_space_id, sort_order, id);
 
+CREATE INDEX ix_folder_first_checks_held ON folder_first_checks (state, library_id) WHERE state IN ('checking', 'paused');
+
+CREATE INDEX ix_folder_first_checks_library ON folder_first_checks (library_id);
+
 CREATE INDEX ix_local_file_sources_device
     ON local_file_sources(device_id, indexed_at DESC, id);
 
@@ -3725,6 +3752,8 @@ CREATE INDEX ix_local_items_owner_timeline
 CREATE INDEX ix_local_items_space_timeline
     ON local_items(personal_space_id, archived_at, trashed_at,
                    COALESCE(captured_at, created_at) DESC, id DESC);
+
+CREATE INDEX ix_media_assets_path_folded ON media_assets (lower(replace(file_path_root, '\', '/')));
 
 CREATE INDEX ix_media_editor_commits_asset ON media_editor_commits(asset_id, committed_at);
 

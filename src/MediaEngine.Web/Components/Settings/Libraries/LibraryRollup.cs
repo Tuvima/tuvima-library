@@ -12,7 +12,7 @@ namespace MediaEngine.Web.Components.Settings;
 /// <param name="Titles">Titles the Engine counts for the type; null when the overview is not available or the type has no count.</param>
 /// <param name="Unmatched">Files in the row's library (or libraries) the Engine could not match; kept-as-is files are not counted.</param>
 /// <param name="SharesKindTitles">True for one of several named libraries of a kind: the Engine counts titles per media type, so the kind's count cannot be split between them.</param>
-public sealed record LibraryRowSummary(LibraryTypeOption Type, int? Folders, int? Titles, LibraryHealth? Health, int Unmatched = 0, bool SharesKindTitles = false);
+public sealed record LibraryRowSummary(LibraryTypeOption Type, int? Folders, int? Titles, LibraryHealth? Health, int Unmatched = 0, bool SharesKindTitles = false, bool Paused = false);
 
 /// <summary>A group card: its rows plus their totals and the worst health among them.</summary>
 public sealed record LibraryGroupSummary(LibraryGroup Group, IReadOnlyList<LibraryRowSummary> Rows, int? Folders, int? Titles, LibraryHealth? Health);
@@ -116,13 +116,18 @@ public static class LibraryRollup
 
         var library = LibraryFor(configuration, type);
         var sources = library?.Sources ?? [];
-        return new LibraryRowSummary(type, sources.Count, TitlesFor(type, overview), issues is null ? null : LibraryFolderHealth.Worst(sources, issues), UnmatchedFor(configuration, type));
+        return new LibraryRowSummary(type, sources.Count, TitlesFor(type, overview), issues is null ? null : LibraryFolderHealth.Worst(sources, issues), UnmatchedFor(configuration, type), Paused: PausedFor(configuration, type));
     }
 
     /// <summary>The Unmatched files of a row: its own library's count, or the sum over the libraries a bare kind holds.</summary>
     public static int UnmatchedFor(LibrariesConfigurationDto configuration, LibraryTypeOption type) => type.LibraryId is not null
         ? LibraryFor(configuration, type)?.UnmatchedCount ?? 0
         : LibrariesOf(configuration, type).Sum(library => library.UnmatchedCount);
+
+    /// <summary>True when any folder of the row's library (or of the libraries a bare kind holds) has its first check paused (Library setup D35).</summary>
+    public static bool PausedFor(LibrariesConfigurationDto configuration, LibraryTypeOption type) =>
+        (type.LibraryId is not null ? [.. new[] { LibraryFor(configuration, type) }.OfType<LibraryFolderDto>()] : LibrariesOf(configuration, type))
+            .Any(library => library.Sources.Any(source => source.FirstCheck is { State: "paused" }));
 
     /// <summary>
     /// The rows of a group page: its types in order, then that area's other libraries. A kind that allows several named libraries

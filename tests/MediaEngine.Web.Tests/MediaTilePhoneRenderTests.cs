@@ -68,6 +68,51 @@ public sealed class MediaTilePhoneRenderTests : AsyncBunitContext
         Assert.Single(JSInterop.Invocations["registerMediaTileHover"]);
     }
 
+    private static MediaTileViewModel KeptShow() => new()
+    {
+        Id = Guid.NewGuid(),
+        WorkId = Guid.NewGuid(),
+        Title = "Lost Show",
+        SortYear = 2024,
+        MediaKind = "TV",
+        IsCollection = true,
+        IsKept = true,
+        Shape = MediaTileShape.Portrait,
+        SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
+        HoverLayout = MediaTileHoverLayout.BannerPopover,
+        HoverMode = MediaTileHoverMode.Expanded,
+        TileImageUrl = "/art/lost.jpg",
+        HoverImageUrl = "/art/lost-wide.jpg",
+        DetailsNavigationUrl = "/details/tvshow/lost",
+        NavigationUrl = "/details/tvshow/lost",
+    };
+
+    [Theory]
+    [InlineData("phone", true)]
+    [InlineData("desktop", false)]
+    public async Task AKeptShowCard_ShowsAMutedKeptLabelUnderItsTitle_NotOnTheGroupKindChip(string formFactor, bool touch)
+    {
+        await Init(formFactor, touch);
+
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, KeptShow()).Add(c => c.IsHomeSurface, true));
+
+        var label = Assert.Single(cut.FindAll(".media-tile-caption .media-tile-caption__year"), element => element.TextContent.Trim() == "Kept");
+        Assert.NotNull(label);
+        // The chip that names the group's kind never carries it, so the two cannot overlap.
+        Assert.DoesNotContain("Kept", string.Concat(cut.FindAll(".media-tile-group-indicators").Select(element => element.TextContent)));
+        Assert.DoesNotContain(cut.FindAll(".media-tile-group-kind"), element => element.TextContent.Contains("Kept"));
+    }
+
+    [Fact]
+    public async Task ACardThatIsNotKept_ShowsNoKeptLabel()
+    {
+        await Init("phone", touch: true);
+
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, CinematicMovie()).Add(c => c.IsHomeSurface, true));
+
+        Assert.DoesNotContain("Kept", cut.Markup);
+    }
+
     [Fact]
     public async Task SwitchingToPhoneRemovesThePanelAndStopsTheHoverScript()
     {

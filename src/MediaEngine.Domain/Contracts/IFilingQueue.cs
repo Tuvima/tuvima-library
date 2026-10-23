@@ -18,8 +18,9 @@ public interface IFilingQueue
 
 /// <summary>
 /// Says whether automatic filing into a Managed folder is held back (Library setup D61): a newly added Managed folder changes nothing
-/// on disk until its first check passes. This is only the hook: the answer is always no until the first-check work (WP9b) supplies it,
-/// and it is also WP9b that releases held requests. A held request is recorded as held and is never moved by anything else.
+/// on disk until its first check passes. The Engine answers from the folder's first check (checking or paused means held); the check
+/// releases the held requests when it passes or an administrator chooses Keep going. A held request is recorded as held and is never
+/// moved by anything else. <see cref="NoFilingHold"/> is the answer where no first check exists.
 /// </summary>
 public interface IFilingHold
 {
@@ -27,7 +28,7 @@ public interface IFilingHold
     bool IsHeld(string libraryId, string sourceId, string path);
 }
 
-/// <summary>The hold used until the first-check work exists: nothing is ever held.</summary>
+/// <summary>The hold used where no first check exists: nothing is ever held.</summary>
 public sealed class NoFilingHold : IFilingHold
 {
     public bool IsHeld(string libraryId, string sourceId, string path) => false;

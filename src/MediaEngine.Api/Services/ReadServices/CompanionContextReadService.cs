@@ -51,7 +51,8 @@ public sealed class CompanionContextReadService(
         Profile? profile,
         CancellationToken ct = default)
     {
-        var rows = await display.LoadWorksAsync(ct).ConfigureAwait(false);
+        // Playing is not browsing: an Unmatched file the profile may see still has a companion (Library setup spec D64).
+        var rows = await display.LoadWorksIncludingUnmatchedAsync(ct).ConfigureAwait(false);
         var row = rows.FirstOrDefault(candidate => candidate.WorkId == workId);
         if (row is null)
         {

@@ -86,7 +86,8 @@
               "isPlayable": true,
               "isReadable": false,
               "isCollection": false,
-              "isFavorite": false
+              "isFavorite": false,
+              "keptAsIs": false
             },
             "sortTimestamp": "2026-10-01T09:30:00+00:00",
             "subject": "Work",
@@ -189,7 +190,8 @@
               "isPlayable": true,
               "isReadable": false,
               "isCollection": false,
-              "isFavorite": false
+              "isFavorite": false,
+              "keptAsIs": false
             },
             "sortTimestamp": "2026-10-01T09:30:00+00:00",
             "subject": "Work",
@@ -307,7 +309,8 @@
               "isPlayable": false,
               "isReadable": true,
               "isCollection": false,
-              "isFavorite": false
+              "isFavorite": false,
+              "keptAsIs": false
             },
             "sortTimestamp": "2026-10-01T09:30:00+00:00",
             "subject": "Work",
@@ -410,7 +413,8 @@
               "isPlayable": false,
               "isReadable": true,
               "isCollection": false,
-              "isFavorite": false
+              "isFavorite": false,
+              "keptAsIs": false
             },
             "sortTimestamp": "2026-10-01T09:30:00+00:00",
             "subject": "Work",
@@ -535,7 +539,8 @@
               "isPlayable": false,
               "isReadable": true,
               "isCollection": false,
-              "isFavorite": false
+              "isFavorite": false,
+              "keptAsIs": false
             },
             "sortTimestamp": "2026-10-01T09:30:00+00:00",
             "subject": "Work",

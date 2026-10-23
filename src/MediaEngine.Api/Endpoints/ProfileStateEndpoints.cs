@@ -47,7 +47,7 @@ public static class ProfileStateEndpoints
                 return ApiErrors.BadRequest("Unknown profile entity kind.");
             }
             var profileId = RequireProfileId(user);
-            if (!(await access.ResolveAsync(profileId, ct)).Allows(kind, entityId))
+            if (!(await access.ResolveAsync(profileId, ct, includeUnmatched: true)).Allows(kind, entityId))
             {
                 return Results.NoContent();
             }
@@ -76,7 +76,7 @@ public static class ProfileStateEndpoints
             try
             {
                 var profileId = RequireProfileId(user);
-                if (!(await access.ResolveAsync(profileId, ct)).Allows(kind, entityId))
+                if (!(await access.ResolveAsync(profileId, ct, includeUnmatched: true)).Allows(kind, entityId))
                 {
                     return ApiErrors.NotFound($"{kind} '{entityId:D}' is unavailable to the active profile.");
                 }
@@ -85,7 +85,7 @@ public static class ProfileStateEndpoints
                 if (!alreadySaved)
                 {
                     // Adding to My list shows in the person's own activity; the recorder never fails the request.
-                    await activity.RecordMyListAddedAsync(profileId, kind, entityId, display.LoadWorksAsync, ct);
+                    await activity.RecordMyListAddedAsync(profileId, kind, entityId, display.LoadWorksIncludingUnmatchedAsync, ct);
                 }
                 return Results.Ok(new ProfileStateMutationDto(kind, entityId, true, null, item.SavedAt));
             }
@@ -143,7 +143,7 @@ public static class ProfileStateEndpoints
                 return ApiErrors.BadRequest("Unknown profile entity kind.");
             }
             var profileId = RequireProfileId(user);
-            if (!(await access.ResolveAsync(profileId, ct)).Allows(kind, entityId))
+            if (!(await access.ResolveAsync(profileId, ct, includeUnmatched: true)).Allows(kind, entityId))
             {
                 return Results.NoContent();
             }
@@ -175,7 +175,7 @@ public static class ProfileStateEndpoints
             try
             {
                 var profileId = RequireProfileId(user);
-                if (!(await access.ResolveAsync(profileId, ct)).Allows(kind, entityId))
+                if (!(await access.ResolveAsync(profileId, ct, includeUnmatched: true)).Allows(kind, entityId))
                 {
                     return ApiErrors.NotFound($"{kind} '{entityId:D}' is unavailable to the active profile.");
                 }

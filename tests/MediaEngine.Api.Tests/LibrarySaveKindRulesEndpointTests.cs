@@ -44,6 +44,7 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     private readonly LibraryKindListService _kinds;
     private WebApplication? _app;
     private bool _asAdministrator;
+    private readonly FirstCheckSpy _firstChecks = new();
 
     public LibrarySaveKindRulesEndpointTests()
     {
@@ -102,6 +103,54 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
 
         Assert.Equal(4, Assert.Single(asAdministrator.Libraries).UnmatchedCount);
         Assert.Equal(0, Assert.Single(asSomeoneElse.Libraries).UnmatchedCount);
+    }
+
+    [Fact]
+    public async Task TheLibrariesList_GivesAnAdministratorEachSourcesFirstCheck_AndAnyoneElseNone()
+    {
+        var movies = Standard("movies", "Movies", LibraryAreas.Watch, "Movies");
+        const string sourceA = "eeeeeeee-0000-4000-8000-00000000000a";
+        const string sourceB = "eeeeeeee-0000-4000-8000-00000000000b";
+        movies.Sources = [new LibrarySourceConfig { Id = sourceA, Path = Path.Combine(_libraryRoot, "Movies") }, new LibrarySourceConfig { Id = sourceB, Path = Path.Combine(_libraryRoot, "More") }];
+        var baseline = _loader.LoadLibraries();
+        baseline.Libraries = [movies];
+        _loader.SaveLibraries(baseline);
+        _firstChecks.Running.Add(new MediaEngine.Domain.Models.FolderFirstCheckSnapshot(
+            new MediaEngine.Domain.Models.FolderFirstCheck(
+                sourceA, movies.Id, movies.Sources[0].Path, MediaEngine.Domain.Models.FolderFirstCheckStates.Paused, 50, 30, DateTimeOffset.UtcNow, null),
+            300));
+
+        _asAdministrator = true;
+        var asAdministrator = Assert.Single((await ReadLibrariesAsync()).Libraries).Sources;
+        _asAdministrator = false;
+        var asSomeoneElse = Assert.Single((await ReadLibrariesAsync()).Libraries).Sources;
+
+        var paused = asAdministrator.Single(source => source.Id == sourceA).FirstCheck!;
+        Assert.Equal(("paused", 50, 30, 300), (paused.State, paused.Tried, paused.Unmatched, paused.TotalFiles));
+        Assert.Null(asAdministrator.Single(source => source.Id == sourceB).FirstCheck);
+        Assert.All(asSomeoneElse, source => Assert.Null(source.FirstCheck));
+    }
+
+    [Theory]
+    [InlineData(SettingsSave)]
+    [InlineData(SetupSave)]
+    [InlineData(Mutation)]
+    public async Task ANewFolderInALookupLibrary_GetsAFirstCheck_ThroughEveryDoor_AndAPlainKindDoesNot(string door)
+    {
+        var moviesFolder = Directory.CreateDirectory(Path.Combine(_libraryRoot, "Movies")).FullName;
+        var clipsFolder = Directory.CreateDirectory(Path.Combine(_libraryRoot, "Clips")).FullName;
+        var movies = Standard("movies", "Movies", LibraryAreas.Watch, "Movies");
+        const string moviesSource = "eeeeeeee-0000-4000-8000-0000000000c1";
+        const string clipsSource = "eeeeeeee-0000-4000-8000-0000000000c2";
+        movies.Sources = [new LibrarySourceConfig { Id = moviesSource, Path = moviesFolder }];
+        var clips = Other("Clips");
+        clips.Sources = [new LibrarySourceConfig { Id = clipsSource, Path = clipsFolder }];
+
+        var first = await SaveAsync(door, [], movies);
+        var second = await SaveAsync(door, [movies], clips);
+
+        Assert.Equal((200, 200), (first.Status, second.Status));
+        Assert.Equal([(movies.Id, moviesSource, moviesFolder)], _firstChecks.Started);
     }
 
     [Theory]
@@ -362,6 +411,9 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         builder.Services.AddSingleton(sp => new MediaEngine.Api.Services.Unmatched.UnmatchedCountService(
             new UnmatchedCountsSpy(), sp.GetRequiredService<IVaultLibraryRepository>()));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AllowEverything());
+        builder.Services.AddSingleton(_firstChecks);
+        builder.Services.AddSingleton(sp => new FolderFirstCheckService(
+            sp.GetRequiredService<FirstCheckSpy>(), _loader, NullLogger<FolderFirstCheckService>.Instance));
         var app = builder.Build();
         app.MapSettingsEndpoints();
         app.MapSetupEndpoints();
@@ -412,12 +464,47 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     }
 
     /// <summary>Two libraries with Unmatched files, as the data store would count them.</summary>
+    /// <summary>Records the first checks a save starts and drops, and lists the ones the test says are running.</summary>
+    private sealed class FirstCheckSpy : IFolderFirstCheckRepository
+    {
+        public List<(string LibraryId, string SourceId, string Path)> Started { get; } = [];
+
+        public List<string> Dropped { get; } = [];
+
+        public List<MediaEngine.Domain.Models.FolderFirstCheckSnapshot> Running { get; } = [];
+
+        public Task<bool> StartAsync(string libraryId, string sourceId, string path, DateTimeOffset now, CancellationToken ct = default)
+        {
+            Started.Add((libraryId, sourceId, path));
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> DropAsync(string sourceId, CancellationToken ct = default)
+        {
+            Dropped.Add(sourceId);
+            return Task.FromResult(true);
+        }
+
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.FolderFirstCheckSnapshot>> ListOpenAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<MediaEngine.Domain.Models.FolderFirstCheckSnapshot>>(Running);
+
+        public Task<MediaEngine.Domain.Models.FolderFirstCheck?> GetAsync(string sourceId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.FolderFirstCheck>> ListCheckingAsync(CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<MediaEngine.Domain.Models.FolderFirstCheckProgress> GetProgressAsync(string sourceId, int firstFiles, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task RecordOutcomeAsync(Guid assetId, string outcome, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> PassAsync(string sourceId, int tried, int unmatched, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> PauseAsync(string sourceId, int tried, int unmatched, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> KeepGoingAsync(string sourceId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public bool IsHeld(string sourceId) => throw new NotSupportedException();
+    }
+
     private sealed class UnmatchedCountsSpy : IUnmatchedAssetRepository
     {
         public Task<IReadOnlyDictionary<string, int>> CountByLibraryAsync(CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int> { ["dddddddd-0000-4000-8000-000000000001"] = 4, ["dddddddd-0000-4000-8000-000000000002"] = 9 });
 
         public Task MarkUnmatchedAsync(Guid assetId, string libraryId, string reason, DateTimeOffset now, DateTimeOffset nextRetryAt, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedWorkLibrary>> ListWorkLibrariesAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedWorkFile>> ListOpenByWorksAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedAsset>> ListByAssetsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<MediaEngine.Domain.Models.UnmatchedAsset?> GetAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
