@@ -129,7 +129,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     private bool IsWork(Guid id)
     {
         using var connection = database.CreateConnection();
-        return connection.ExecuteScalar<long>("SELECT EXISTS(SELECT 1 FROM works WHERE id = @id);", new { id }) != 0;
+        return connection.ExecuteScalar<long>("-- readiness: an id lookup, not a list of works\nSELECT EXISTS(SELECT 1 FROM works WHERE id = @id);", new { id }) != 0;
     }
 
     internal async Task<IReadOnlyList<DisplayWorkRow>> LoadAuthorizedAssetsAsync(CancellationToken ct)
