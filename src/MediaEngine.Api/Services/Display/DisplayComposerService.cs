@@ -16,6 +16,7 @@ public sealed partial class DisplayComposerService
     private readonly ISeriesManifestRepository? _manifests;
     private readonly ICanonicalValueArrayRepository? _arrays;
     private readonly ICollectionRepository? _collections;
+    private readonly IUnmatchedAssetRepository? _unmatched;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
@@ -26,7 +27,8 @@ public sealed partial class DisplayComposerService
         DisplayGridPersonalReader? personal = null,
         ISeriesManifestRepository? manifests = null,
         ICanonicalValueArrayRepository? arrays = null,
-        ICollectionRepository? collections = null)
+        ICollectionRepository? collections = null,
+        IUnmatchedAssetRepository? unmatched = null)
     {
         _readService = readService;
         _cards = cards;
@@ -37,6 +39,7 @@ public sealed partial class DisplayComposerService
         _manifests = manifests;
         _arrays = arrays;
         _collections = collections;
+        _unmatched = unmatched;
     }
 
     // Projection rows remain per asset for resume/state calculations. Only presentation
@@ -163,10 +166,15 @@ public sealed partial class DisplayComposerService
         string? year = null,
         string? sort = null,
         string? vibes = null,
-        string? themes = null)
+        string? themes = null,
+        Guid? libraryId = null,
+        bool unmatchedOnly = false)
     {
         var normalizedLane = DisplayMediaRules.NormalizeLane(lane);
-        if (normalizedLane is not null &&
+        // A single library or the Unmatched filter always needs the rows, so the lane shortcuts below (prebuilt shelves) do not apply.
+        var narrowed = libraryId is not null || unmatchedOnly;
+        if (!narrowed &&
+            normalizedLane is not null &&
             string.IsNullOrWhiteSpace(mediaType) &&
             string.IsNullOrWhiteSpace(search) &&
             (string.IsNullOrWhiteSpace(grouping) || string.Equals(grouping, "all", StringComparison.OrdinalIgnoreCase)) &&
@@ -175,7 +183,8 @@ public sealed partial class DisplayComposerService
             return await BuildLaneAsync(normalizedLane, includeCatalog, profileId, ct);
         }
 
-        if (string.Equals(normalizedLane, "listen", StringComparison.OrdinalIgnoreCase) &&
+        if (!narrowed &&
+            string.Equals(normalizedLane, "listen", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(DisplayMediaRules.NormalizeMediaType(mediaType ?? string.Empty), "Music", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(grouping, "home", StringComparison.OrdinalIgnoreCase) &&
             string.IsNullOrWhiteSpace(search) &&
@@ -195,6 +204,16 @@ public sealed partial class DisplayComposerService
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
 
         var filtered = works.AsEnumerable();
+
+        // Both narrowings look only at (work, library) rows the read service has already authorized (grants, lane feature, content limits,
+        // Vault), so a library the profile cannot see is simply an empty result and nothing says whether it exists. The result stays one
+        // row per work: the works that qualify keep the row they always show.
+        if (narrowed)
+        {
+            var qualifying = await WorksInNarrowingAsync(libraryId, unmatchedOnly, ct);
+            filtered = filtered.Where(work => qualifying.Contains(work.WorkId));
+        }
+
         if (!string.IsNullOrWhiteSpace(mediaType))
         {
             filtered = filtered.Where(work => string.Equals(DisplayMediaRules.NormalizeMediaType(work.MediaType), DisplayMediaRules.NormalizeMediaType(mediaType), StringComparison.OrdinalIgnoreCase));
@@ -386,6 +405,10 @@ public sealed partial class DisplayComposerService
                 .GroupBy(item => item.Year).Select(group => new DisplayTimelinePeriodDto(group.Key, group.Count(), group.Min(item => item.Index))).ToList() : null,
         };
     }
+
+    // The works that qualify for the library and Unmatched narrowing; the rule lives in BrowseNarrowing so the group reads share it.
+    private Task<HashSet<Guid>> WorksInNarrowingAsync(Guid? libraryId, bool unmatchedOnly, CancellationToken ct) =>
+        BrowseNarrowing.WorksInAsync(_readService, _unmatched, libraryId, unmatchedOnly, ct);
 
     public async Task<DisplayPageDto> BuildContinueAsync(
         string? lane,

@@ -66,7 +66,9 @@ public sealed partial class EngineApiClient
         string? year = null,
         string? sort = null,
         string? vibes = null,
-        string? themes = null)
+        string? themes = null,
+        Guid? libraryId = null,
+        bool? unmatched = null)
     {
         const string endpoint = "GET /api/v1/display/browse";
         try
@@ -87,6 +89,8 @@ public sealed partial class EngineApiClient
             AddQuery(query, "limit", limit?.ToString(System.Globalization.CultureInfo.InvariantCulture));
             AddQuery(query, "includeCatalog", includeCatalog?.ToString().ToLowerInvariant());
             AddQuery(query, "profileId", profileId?.ToString("D"));
+            AddQuery(query, "libraryId", libraryId?.ToString("D"));
+            AddQuery(query, "unmatched", unmatched?.ToString().ToLowerInvariant());
             var url = "/api/v1/display/browse" + (query.Count == 0 ? string.Empty : "?" + string.Join("&", query));
             var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode)
@@ -107,6 +111,9 @@ public sealed partial class EngineApiClient
             return null;
         }
     }
+
+    public async Task<IReadOnlyList<BrowseLibraryDto>?> GetBrowseLibrariesAsync(CancellationToken ct = default) =>
+        await GetAsync<List<BrowseLibraryDto>>("GET /api/v1/display/browse/libraries", "/api/v1/display/browse/libraries", ct: ct);
 
     public async Task<DisplayPageDto?> GetDisplayContinueAsync(
         string? lane = null,

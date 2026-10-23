@@ -9,15 +9,12 @@ public static class BrowseQueryBuilder
         string? requestedTab,
         string absoluteUri)
     {
-        var normalizedTab = string.IsNullOrWhiteSpace(requestedTab) ? null : requestedTab.Trim().ToLowerInvariant();
-        var fallbackTab = preset.Tabs[0];
-        var resolvedTab = preset.Tabs.FirstOrDefault(tab =>
-            string.Equals(tab.Id, normalizedTab, StringComparison.OrdinalIgnoreCase)) ?? fallbackTab;
+        var resolvedTab = FindTab(preset, requestedTab) ?? preset.Tabs[0];
 
         var query = System.Web.HttpUtility.ParseQueryString(new Uri(absoluteUri).Query);
         var grouping = ResolveGrouping(query["browse"], resolvedTab);
         var layout = ResolveLayout(query["view"], resolvedTab, grouping);
-        var sortBy = ResolveSort(query["sort"], resolvedTab.Id, grouping);
+        var sortBy = ResolveSort(query["sort"], resolvedTab.EffectiveBehaviourId, grouping);
 
         return new BrowseState(
             resolvedTab.Id,
@@ -32,7 +29,25 @@ public static class BrowseQueryBuilder
             int.TryParse(query["tile"], out var tileSize) ? tileSize : null,
             query["period"] == "decade" ? MediaEngine.Web.Components.Shared.TimelineGrouping.Decade : MediaEngine.Web.Components.Shared.TimelineGrouping.Year,
             ParseList(query.GetValues("vibe")),
-            ParseList(query.GetValues("theme")));
+            ParseList(query.GetValues("theme")),
+            // The Unmatched filter only exists on a library's own tab (Library setup spec D64).
+            resolvedTab.LibraryId is not null && string.Equals(query["unmatched"], "true", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// The tab a link names: its own id first, then the first tab that follows the fixed tab of that name, so an old link such as
+    /// <c>/watch/videos</c> opens the first Videos tab when the tabs are now one per library. Null for a blank or unknown name.
+    /// </summary>
+    public static BrowseTabPreset? FindTab(LibraryBrowsePreset preset, string? requestedTab)
+    {
+        if (string.IsNullOrWhiteSpace(requestedTab))
+        {
+            return null;
+        }
+
+        var name = requestedTab.Trim();
+        return preset.Tabs.FirstOrDefault(tab => string.Equals(tab.Id, name, StringComparison.OrdinalIgnoreCase))
+            ?? preset.Tabs.FirstOrDefault(tab => string.Equals(tab.EffectiveBehaviourId, name, StringComparison.OrdinalIgnoreCase));
     }
 
     public static string ResolveGrouping(string? requestedGrouping, BrowseTabPreset tab)

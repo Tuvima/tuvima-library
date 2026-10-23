@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.MediaTiles
 @inject MediaTileComposerService MediaTiles
+@inject BrowseLibrariesState LibraryList
 @inject ILogger<WatchPage> Logger
 
 @namespace MediaEngine.Web.Components.Pages
@@ -19,6 +20,7 @@
                NavigationGroups="@WatchNavigationGroups"
                ActiveMode="@ActiveWatchMode"
                Tab="@Tab"
+               TabsLoading="@(!_tabsLoaded)"
                LandingPage="@_landingPage"
                Shelves="@WatchHubShelves"
                Loading="@_loading"
@@ -37,32 +39,53 @@
     private bool _loadFailed;
     private Task? _landingLoadTask;
 
-    private string ActiveWatchMode => Tab?.Trim().ToLowerInvariant() switch
-    {
-        "movies" => "movies",
-        "tv" => "tv",
-        "videos" => "videos",
-        _ => "all",
-    };
+    // The tabs follow the Engine's library list (one per library with folders); the fixed tabs stand in when it cannot be read, and the
+    // page draws its header and a tab-strip skeleton while the list and the landing load side by side.
+    private LibraryBrowsePreset Preset = StaticPreset;
+    private bool _tabsLoaded;
+    private bool _landingAttempted;
 
-    private static IReadOnlyList<MediaSectionNavigationGroup> WatchNavigationGroups =>
+    private string ActiveWatchMode => BrowseQueryBuilder.FindTab(Preset, Tab)?.Id ?? "all";
+
+    private IReadOnlyList<MediaSectionNavigationGroup> WatchNavigationGroups =>
     [
         MediaLaneConfigurationBuilder.BuildLibraryGroup(Preset),
         new("Watch next",
         [
             new("My List", "/for-me?view=my-list&area=watch", AppMaterialIcons.Outlined.FavoriteBorder, Exact: true),
-            new("Continue Watching", "/watch/movies?status=in-progress", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
-            new("Unwatched", "/watch/movies?status=not-started", AppMaterialIcons.Outlined.VisibilityOff, Exact: true),
-            new("Recently Added", "/watch/movies?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
+            .. ShortcutTab is { } tab
+                ? new MediaSectionNavigationItem[]
+                {
+                    new("Continue Watching", $"/watch/{tab.Id}?status=in-progress", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
+                    new("Unwatched", $"/watch/{tab.Id}?status=not-started", AppMaterialIcons.Outlined.VisibilityOff, Exact: true),
+                    new("Recently Added", $"/watch/{tab.Id}?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
+                }
+                : [],
         ]),
     ];
 
-    private static IReadOnlyList<MediaHubModeViewModel> WatchModes =>
+    // The tab the "Watch next" shortcuts open: the Movies tab, or the first tab when this profile has none.
+    private BrowseTabPreset? ShortcutTab => BrowseQueryBuilder.FindTab(Preset, "movies") ?? Preset.Tabs.FirstOrDefault();
+
+    private IReadOnlyList<MediaHubModeViewModel> WatchModes =>
         MediaLaneConfigurationBuilder.BuildModes(Preset);
 
     private IReadOnlyList<MediaHubShelfViewModel> WatchHubShelves => _landingPage?.Shelves
         .Select(shelf => MediaHubShelfViewModel.FromShelf(shelf))
         .ToList() ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var tabs = LoadTabsAsync();
+        var landing = string.IsNullOrWhiteSpace(Tab) ? LoadLandingAsync() : Task.CompletedTask;
+        await Task.WhenAll(tabs, landing);
+    }
+
+    private async Task LoadTabsAsync()
+    {
+        Preset = BrowseLibraryTabs.Build(StaticPreset, "watch", await LibraryList.GetAsync());
+        _tabsLoaded = true;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -72,7 +95,10 @@
             return;
         }
 
-        await LoadLandingAsync();
+        if (!_landingAttempted)
+        {
+            await LoadLandingAsync();
+        }
     }
 
     private Task LoadLandingAsync()
@@ -88,6 +114,7 @@
 
     private async Task LoadLandingCoreAsync()
     {
+        _landingAttempted = true;
         _loading = true;
         _loadFailed = false;
 
@@ -106,7 +133,7 @@
         }
     }
 
-    private static readonly LibraryBrowsePreset Preset = new()
+    private static readonly LibraryBrowsePreset StaticPreset = new()
     {
         RouteBase = "/watch",
         Title = "Watch",

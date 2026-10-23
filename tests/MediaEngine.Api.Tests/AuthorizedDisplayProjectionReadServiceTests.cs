@@ -1645,7 +1645,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
 
     private AuthorizedDisplayProjectionReadService CreateService(
         DefaultHttpContext context,
-        IRawDisplayProjectionReadService raw)
+        IRawDisplayProjectionReadService raw,
+        IConfigurationLoader? configuration = null)
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var unlocks = new GrantAdminUnlockService(
@@ -1665,7 +1666,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)),
             _accounts,
             evaluator,
-            _database);
+            _database,
+            configuration);
     }
 
     private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context)

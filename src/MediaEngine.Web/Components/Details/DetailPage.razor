@@ -652,6 +652,11 @@ else if (Model is not null)
             await HandlePersonalStatusAsync(action);
             return;
         }
+        if (DetailActionKeys.IsUnmatchedAction(action.Key))
+        {
+            await HandleUnmatchedActionAsync(action);
+            return;
+        }
         if (action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit)
         {
             if (action.IsDisabled) return;
@@ -771,6 +776,69 @@ else if (Model is not null)
         }
         catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
         finally { _changingPersonalStatus = false; }
+    }
+
+    // Retry now, Keep as is and Look up again (Library setup spec D34, D40): each calls the Engine's Unmatched item route for every
+    // file on this page it applies to (not-kept files for Retry and Keep, kept files for Look up again), then refreshes the page.
+    // They are administrator actions, not edits, so the device rule does not apply; the Engine sends them only to administrators.
+    private bool _changingUnmatched;
+    private async Task HandleUnmatchedActionAsync(DetailAction action)
+    {
+        if (Model is null || _changingUnmatched) return;
+        var lookUpAgain = action.Key == DetailActionKeys.UnmatchedLookUpAgain;
+        var targets = Model.UnmatchedAssets
+            .Where(asset => asset.KeptAsIs == lookUpAgain)
+            .Select(asset => asset.AssetId)
+            .ToList();
+        if (targets.Count == 0) return;
+
+        _changingUnmatched = true;
+        try
+        {
+            if (action.Key == DetailActionKeys.UnmatchedKeep
+                && await AppConfirmDialog.ShowAsync(
+                    Dialogs,
+                    "Keep as is?",
+                    "Stop trying to match this? It stays under Unmatched, marked Kept. You can look it up again later.",
+                    "Keep as is",
+                    "Cancel") != AppConfirmResult.Primary)
+            {
+                return;
+            }
+
+            var failed = 0;
+            foreach (var assetId in targets)
+            {
+                var result = action.Key switch
+                {
+                    DetailActionKeys.UnmatchedRetry => await ApiClient.RetryUnmatchedItemAsync(assetId),
+                    DetailActionKeys.UnmatchedKeep => await ApiClient.KeepUnmatchedItemAsync(assetId),
+                    _ => await ApiClient.LookUpUnmatchedItemAgainAsync(assetId),
+                };
+                if (result is null) failed++;
+            }
+
+            if (failed == targets.Count)
+            {
+                Snackbar.Add("That could not be done. Try again in a moment.", AppSeverity.Warning);
+            }
+            else if (failed > 0)
+            {
+                Snackbar.Add($"Done for {targets.Count - failed} of {targets.Count} files; {failed} could not be changed.", AppSeverity.Warning);
+            }
+            else
+            {
+                Snackbar.Add(action.Key switch
+                {
+                    DetailActionKeys.UnmatchedRetry => "Looking it up again now.",
+                    DetailActionKeys.UnmatchedKeep => "Kept as is.",
+                    _ => "Looking it up again.",
+                }, AppSeverity.Success);
+            }
+
+            await RefreshCurrentDetailAsync();
+        }
+        finally { _changingUnmatched = false; }
     }
 
     private async Task OpenMediaEditorAsync()

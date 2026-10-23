@@ -56,6 +56,19 @@ public sealed class DetailPageViewModel
     /// from any entry, and the page shows it as "Not matched". A later Match clears it.
     /// </summary>
     public bool IsUnmatched { get; set; }
+
+    /// <summary>
+    /// The page's own files that have an Unmatched row (the Engine could not match them), for the "..." menu's Unmatched actions. Filled only
+    /// for an administrator on a single-item page; empty for everyone else. Not the same as <see cref="IsUnmatched"/>, which is about placement.
+    /// </summary>
+    public IReadOnlyList<DetailUnmatchedAssetViewModel> UnmatchedAssets { get; set; } = [];
+}
+
+/// <summary>One of a page's files that is Unmatched: its asset id (the id the Unmatched item routes take) and whether it is kept as it is.</summary>
+public sealed class DetailUnmatchedAssetViewModel
+{
+    public Guid AssetId { get; init; }
+    public bool KeptAsIs { get; init; }
 }
 
 /// <summary>A link from an item page to the Universe page: the Universe's Wikidata QID and its name.</summary>

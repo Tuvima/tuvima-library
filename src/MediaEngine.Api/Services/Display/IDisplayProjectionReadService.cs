@@ -31,6 +31,28 @@ public interface IDisplayProjectionReadService
 
     /// <summary>Which libraries the current request may see files from. Unscoped sources allow every library.</summary>
     Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct) => Task.FromResult(DisplayLibraryScope.All);
+
+    /// <summary>
+    /// Which libraries the current request may browse: the same rule that decides which works it sees (library grants, the lane's feature,
+    /// the content limit's video rule, the Vault), asked of a whole library instead of one work. A source that does not answer allows
+    /// nothing, so a stand-in can never open a library by accident; a wrapper must forward it.
+    /// </summary>
+    Task<DisplayLibraryAccess> LoadLibraryAccessAsync(CancellationToken ct) => Task.FromResult(DisplayLibraryAccess.Nothing);
+
+    /// <summary>
+    /// Every (work, library) row the request may see, before <see cref="LoadWorksAsync"/> keeps one row per work. Narrowing by library or by
+    /// Unmatched state looks here, so a work whose first row is in another library is not lost. A source that does not answer gives the
+    /// one-row-per-work list, which never shows more than <see cref="LoadWorksAsync"/> does.
+    /// </summary>
+    Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsAsync(CancellationToken ct) => LoadWorksAsync(ct);
+}
+
+/// <summary>Whether a request may browse a library, given the library's id and the media type it holds.</summary>
+public sealed class DisplayLibraryAccess(Func<string, string, bool> allows)
+{
+    public static readonly DisplayLibraryAccess Nothing = new((_, _) => false);
+
+    public bool Allows(string libraryId, string mediaType) => allows(libraryId, mediaType);
 }
 
 /// <summary>The libraries a request may see: every library, or exactly the granted ones.</summary>

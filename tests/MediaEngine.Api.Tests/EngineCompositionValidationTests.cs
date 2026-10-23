@@ -333,6 +333,8 @@ public sealed class EngineCompositionValidationTests
             typeof(IDisplayProjectionReadService),
             typeof(ContributorShelfReadService),
             typeof(DisplayComposerService),
+            // The browse tab list reads the request's library grants through the request-scoped projection.
+            typeof(BrowseLibraryListService),
             // Recent reads reapply the request's profile authority and Mine View scope.
             typeof(RecentCatalogueReadService),
             typeof(DisplayRecentComposerService),

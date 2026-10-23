@@ -33,6 +33,7 @@ public static class DetailEndpoints
             HttpContext httpContext,
             DetailComposerService composer,
             ContributorReadiness readiness,
+            DetailUnmatchedStateService unmatchedState,
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
@@ -79,6 +80,8 @@ public static class DetailEndpoints
             if (detail is not null)
             {
                 await readiness.ApplyAsync(detail, ct);
+                // Single-item pages only (authorizedAssetIds is set for them): an administrator sees the item's Unmatched state and actions.
+                await unmatchedState.ApplyAsync(detail, authorizedAssetIds, actionAuthorization, ct);
             }
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("DetailPerformance")
                 .LogInformation("Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, total {TotalMs:F0} ms",
