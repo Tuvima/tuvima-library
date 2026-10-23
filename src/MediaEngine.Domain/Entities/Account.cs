@@ -24,6 +24,12 @@ public sealed class Account
     public Guid? HouseholdId { get; set; }
 
     /// <summary>
+    /// The profile this sign-in opens (a user is a sign-in attached to one profile; a profile has at most one user).
+    /// <see langword="null"/> until the profile side of the data store is switched on for this account.
+    /// </summary>
+    public Guid? ProfileId { get; set; }
+
+    /// <summary>
     /// When set, this account has no feature or library access of its own: it follows the access of the named
     /// account (a person's own sign-in follows the household's main sign-in). Read at use time, so later changes to
     /// the household's access reach the person without being copied.

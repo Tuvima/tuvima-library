@@ -130,7 +130,7 @@ public sealed class FirstPartyIdentityService(
             }
 
             var now = UtcNow;
-            var account = new Account { Id = Account.SeedAccountId, Email = hasEmail ? email!.Trim() : null, NormalizedEmail = normalizedEmail, IsEnabled = true, IsAdministrator = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now };
+            var account = new Account { Id = Account.SeedAccountId, Email = hasEmail ? email!.Trim() : null, NormalizedEmail = normalizedEmail, IsEnabled = true, IsAdministrator = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now, ProfileId = profile.Id };
             if (!withPassword)
             {
                 account.MarkThisComputerOnly();

@@ -1,0 +1,57 @@
+using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Entities;
+
+namespace MediaEngine.Domain.Contracts;
+
+/// <summary>
+/// What a profile may see and do: administrator roles, Read/Watch/Listen/View, library access, the admin PIN question and its
+/// unlocks, and which household is the default. A user (sign-in) is attached to one profile. Every change to a profile's access
+/// raises <c>profiles.authorization_version</c> so open screens and sessions re-check.
+/// </summary>
+public interface IProfileAccessRepository
+{
+    /// <summary>The Read/Watch/Listen/View access the profile holds; empty when it has none or does not exist.</summary>
+    Task<IReadOnlySet<AccountFeatureId>> GetFeatureGrantsAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>The libraries the profile may use; empty when it has none or does not exist.</summary>
+    Task<IReadOnlySet<Guid>> GetLibraryGrantsAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Replaces the profile's feature and library access in one step and raises its authorization version. Returns
+    /// <see langword="false"/> when the profile does not exist. The Vault can never be given as a library.
+    /// </summary>
+    Task<bool> ReplaceAccessAsync(Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default);
+
+    /// <summary>The profile's administrator roles, or <see langword="null"/> when the profile does not exist.</summary>
+    Task<ProfileAdminFlags?> GetAdminFlagsAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sets the profile's server and household administrator roles and raises its authorization version. Returns
+    /// <see langword="false"/> when the profile does not exist. This is storage only; who may be an administrator is decided by the caller.
+    /// </summary>
+    Task<bool> SetAdminFlagsAsync(Guid profileId, bool isServerAdministrator, bool isHouseholdAdministrator, DateTimeOffset changedAt, CancellationToken ct = default);
+
+    Task<ProfileAdminProtection?> GetAdminProtectionAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Saves the admin PIN question for the profile. The protection version goes up on every save, earlier unlocks are cleared and
+    /// the profile's authorization version is raised.
+    /// </summary>
+    Task SetAdminProtectionAsync(ProfileAdminProtection protection, CancellationToken ct = default);
+
+    /// <summary>The unlock for this session and profile when it has not run out at <paramref name="now"/>.</summary>
+    Task<ProfileAdminUnlock?> GetAdminUnlockAsync(Guid sessionId, Guid profileId, DateTimeOffset now, CancellationToken ct = default);
+
+    Task SetAdminUnlockAsync(ProfileAdminUnlock unlock, CancellationToken ct = default);
+
+    Task ClearAdminUnlockAsync(Guid sessionId, CancellationToken ct = default);
+
+    /// <summary>The user (sign-in) attached to the profile, or <see langword="null"/> when it has none.</summary>
+    Task<Guid?> FindUserIdOfProfileAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>The default household (the server administrator's original one), or <see langword="null"/> when none is marked yet.</summary>
+    Task<Guid?> GetDefaultHouseholdIdAsync(CancellationToken ct = default);
+
+    /// <summary>Makes one household the default and clears the mark on any other. Returns <see langword="false"/> when it does not exist.</summary>
+    Task<bool> SetDefaultHouseholdAsync(Guid householdId, CancellationToken ct = default);
+}

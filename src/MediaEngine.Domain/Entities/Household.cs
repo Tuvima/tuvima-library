@@ -13,7 +13,7 @@ public sealed class Household
     /// <summary>The plain message shown when a household is full.</summary>
     public const string FullMessage = "A household can have up to 8 people.";
 
-    public Household(Guid id, string name, DateTimeOffset createdAt, Guid? primaryAccountId = null)
+    public Household(Guid id, string name, DateTimeOffset createdAt, Guid? primaryAccountId = null, bool isDefault = false)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -24,6 +24,7 @@ public sealed class Household
         Name = name.Trim();
         CreatedAt = createdAt;
         PrimaryAccountId = primaryAccountId;
+        IsDefault = isDefault;
     }
 
     public Guid Id { get; }
@@ -35,6 +36,11 @@ public sealed class Household
     /// the household's administrator can hand out. <see langword="null"/> until the household has a main sign-in.
     /// </summary>
     public Guid? PrimaryAccountId { get; }
+
+    /// <summary>
+    /// True for the server administrator's original household: exactly one household has it, and it is never deleted.
+    /// </summary>
+    public bool IsDefault { get; }
 
     /// <summary>The default name for the household an account starts, for example "Sam's household".</summary>
     public static string DefaultNameFor(string? displayName) =>

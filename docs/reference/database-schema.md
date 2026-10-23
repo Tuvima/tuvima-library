@@ -886,6 +886,7 @@ One row per person who signs in. A sign-in that works away from this computer ha
 | `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It signs in without a password and, since Tuvima is open from the start, can be used from any device that reaches the server until a password or passkey is added (see Security). Defaults to 0. |
 | `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0. |
 | `temporary_password_expires_at` | TEXT | When an administrator-set temporary password stops working; null when none is set. Sessions of an account whose temporary password has run out stop validating. |
+| `profile_id` | BLOB | The profile this sign-in opens (a user is a sign-in attached to one profile; references `profiles`, deleting the profile deletes the sign-in). A unique partial index (`ux_accounts_profile`) allows at most one sign-in per profile. Null until the profile side is switched on for the account; setup attaches the first administrator to the profile it creates (users, profiles and households spec, step `0041_profile_held_access`). |
 | `household_admin` | INTEGER | 1 when the account looks after its own household (a **household administrator**). It never reaches another household or the server's settings. A person's own sign-in (`grants_inherit_from_account_id` set) can never have it. Defaults to 0, and a household's first main sign-in gets it when the household is created. |
 
 ### households
@@ -897,6 +898,7 @@ A household is the group of people (profiles) who live together and the sign-ins
 | `id` | BLOB | GUID, primary key |
 | `name` | TEXT | Display name, for example `Alex's household` |
 | `created_at` | TEXT | Timestamp |
+| `is_default` | INTEGER | 1 for the server administrator's original household. At most one household has it (unique partial index `ux_households_default`); setup marks the first administrator's household. It is never deleted. Added by step `0041_profile_held_access`. |
 | `primary_account_id` | BLOB | The household's main sign-in (the one the server administrator set up; household administrators can only hand out what it holds). Set when the first main sign-in is saved; re-pointed to the next oldest enabled main sign-in when it is deleted. Null only for a household with no main sign-in. |
 
 **Creation.** The baseline step creates `household_id` on `accounts` and `profiles`. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
@@ -920,6 +922,11 @@ User profiles for multi-user support.
 | `display_name` | TEXT | Name shown on the profile picker and in Settings |
 | `role` | TEXT | `Administrator`, `StandardUser` or `RestrictedProfile` (a Kids profile) |
 | `created_at` | TEXT | Timestamp |
+| `is_server_admin` | INTEGER | 1 when the profile may look after the whole Library. Defaults to 0. Setup sets it on the first administrator's profile. |
+| `is_household_admin` | INTEGER | 1 when the profile looks after its own household. Defaults to 0. Setup sets it on the first administrator's profile. |
+| `authorization_version` | INTEGER | Above zero, starts at 1, bumped on every change to the profile's administrator roles, feature and library access or admin PIN question, so open sessions re-check. |
+
+These three columns (and the four `profile_*` access tables below) were added by upgrade step `0041_profile_held_access`: the profile holds the person's access and a user (`accounts`) is only a sign-in. Until the Engine switches over, authority still reads the account side; the profile side is written alongside it at setup. A user file never carries the administrator columns, and a user import forces them to 0.
 
 The PIN is not stored on this row. It is the `profile_credentials` row described below.
 
@@ -1014,6 +1021,22 @@ The "Ask for my PIN on admin pages" switch on one account-profile grant (off unl
 ### grant_admin_unlocks
 
 An administrator unlock held by one signed-in session. `session_id` (primary key, references `auth_sessions`), `account_id`, `profile_id`, `protection_version`, `method`, `granted_at` and `expires_at` (NULL when the unlock has no fixed end).
+
+### profile_feature_grants
+
+The features a profile may use: `profile_id` (references `profiles`, deleting the profile removes the rows) and `feature_id` (`read`, `watch`, `listen` or `view`, primary key together) and `granted_at`. Added by step `0041_profile_held_access`.
+
+### profile_library_grants
+
+The libraries a profile may open: `profile_id` (references `profiles`) and `library_id` (primary key together) and `granted_at`. Like `account_library_grants`, `library_id` has no foreign key, and the Vault can never be granted here.
+
+### profile_admin_protections
+
+The "Ask for my PIN on admin pages" switch on one profile (off unless turned on). `profile_id` (primary key; references `profiles`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `protection_version` and `updated_at`. The PIN asked for is the profile's own PIN; none is stored here.
+
+### profile_admin_unlocks
+
+An administrator unlock held by one signed-in session. `session_id` (primary key, references `auth_sessions`), `profile_id` (references `profiles`), `protection_version`, `method`, `granted_at` and `expires_at` (NULL when the unlock has no fixed end). Indexed by `ix_profile_admin_unlocks_profile`.
 
 ### client_devices
 

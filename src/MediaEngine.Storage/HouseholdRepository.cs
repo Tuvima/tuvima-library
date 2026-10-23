@@ -14,7 +14,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         var row = conn.QueryFirstOrDefault<HouseholdRow>(
-            "SELECT id AS Id, name AS Name, created_at AS CreatedAt, primary_account_id AS PrimaryAccountId FROM households WHERE id = @householdId LIMIT 1;",
+            "SELECT id AS Id, name AS Name, created_at AS CreatedAt, primary_account_id AS PrimaryAccountId, is_default AS IsDefault FROM households WHERE id = @householdId LIMIT 1;",
             new { householdId });
         return Task.FromResult(row is null ? null : Map(row));
     }
@@ -24,7 +24,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         var row = conn.QueryFirstOrDefault<HouseholdRow>("""
-            SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId
+            SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId, h.is_default AS IsDefault
             FROM accounts a JOIN households h ON h.id = a.household_id
             WHERE a.id = @accountId LIMIT 1;
             """, new { accountId });
@@ -39,7 +39,9 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             SELECT id AS Id, display_name AS DisplayName, avatar_color AS AvatarColor,
                    avatar_image_path AS AvatarImagePath, avatar_icon AS AvatarIcon,
                    content_limit AS ContentLimit, content_limit_allow_unrated AS ContentLimitAllowUnrated, role AS Role, created_at AS CreatedAt,
-                   navigation_config AS NavigationConfig, household_id AS HouseholdId
+                   navigation_config AS NavigationConfig, household_id AS HouseholdId,
+                   is_server_admin AS IsServerAdministrator, is_household_admin AS IsHouseholdAdministrator,
+                   authorization_version AS AuthorizationVersion
             FROM profiles WHERE household_id = @householdId
             ORDER BY created_at, id;
             """, new { householdId }).Select(row => new Profile
@@ -55,6 +57,9 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
             NavigationConfig = row.NavigationConfig,
             HouseholdId = row.HouseholdId,
+            IsServerAdministrator = row.IsServerAdministrator,
+            IsHouseholdAdministrator = row.IsHouseholdAdministrator,
+            AuthorizationVersion = row.AuthorizationVersion,
         }).ToList();
         return Task.FromResult<IReadOnlyList<Profile>>(rows);
     }
@@ -67,7 +72,8 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail, is_enabled AS IsEnabled,
                    is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
                    created_at AS CreatedAt, updated_at AS UpdatedAt, household_id AS HouseholdId,
-                   household_admin AS HouseholdAdmin, grants_inherit_from_account_id AS GrantsInheritFromAccountId
+                   household_admin AS HouseholdAdmin, grants_inherit_from_account_id AS GrantsInheritFromAccountId,
+                   profile_id AS ProfileId
             FROM accounts WHERE household_id = @householdId
             ORDER BY created_at, id;
             """, new { householdId }).ToList();
@@ -86,6 +92,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
                 UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt, System.Globalization.CultureInfo.InvariantCulture),
                 HouseholdId = row.HouseholdId,
                 GrantsInheritFromAccountId = row.GrantsInheritFromAccountId,
+                ProfileId = row.ProfileId,
             };
             if (row.HouseholdAdmin && row.GrantsInheritFromAccountId is null)
             {
@@ -179,7 +186,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         }, ct);
 
     private const string SummarySelect = """
-        SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId,
+        SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId, h.is_default AS IsDefault,
                (SELECT COUNT(*) FROM profiles p WHERE p.household_id = h.id) AS ProfileCount,
                (SELECT COUNT(*) FROM accounts a WHERE a.household_id = h.id) AS AccountCount
         FROM households h
@@ -189,12 +196,12 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
 
     private static HouseholdSummary MapSummary(HouseholdSummaryRow row) =>
         new(new Household(row.Id, row.Name,
-                DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture), row.PrimaryAccountId),
+                DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture), row.PrimaryAccountId, row.IsDefault),
             row.ProfileCount, row.AccountCount);
 
     private static Household Map(HouseholdRow row) =>
         new(row.Id, row.Name, DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
-            row.PrimaryAccountId);
+            row.PrimaryAccountId, row.IsDefault);
 
     private sealed class HouseholdRow
     {
@@ -202,6 +209,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public string Name { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
         public Guid? PrimaryAccountId { get; set; }
+        public bool IsDefault { get; set; }
     }
 
     private sealed class HouseholdSummaryRow
@@ -210,6 +218,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public string Name { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
         public Guid? PrimaryAccountId { get; set; }
+        public bool IsDefault { get; set; }
         public int ProfileCount { get; set; }
         public int AccountCount { get; set; }
     }
@@ -227,6 +236,9 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public string CreatedAt { get; set; } = string.Empty;
         public string? NavigationConfig { get; set; }
         public Guid? HouseholdId { get; set; }
+        public bool IsServerAdministrator { get; set; }
+        public bool IsHouseholdAdministrator { get; set; }
+        public long AuthorizationVersion { get; set; }
     }
 
     private sealed class AccountRow
@@ -242,5 +254,6 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public Guid? HouseholdId { get; set; }
         public bool HouseholdAdmin { get; set; }
         public Guid? GrantsInheritFromAccountId { get; set; }
+        public Guid? ProfileId { get; set; }
     }
 }

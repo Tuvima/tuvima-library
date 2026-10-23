@@ -156,6 +156,9 @@ See "What a backup file holds" above. The restore screens come in the next step.
 | `account_profile_grants` | Which profiles an account may use. | none | none | all rows |
 | `account_notice_dismissals` | Notices an account has dismissed, so they do not return. | none | none | all rows |
 | `grant_admin_protections` | Optional extra lock (PIN hash and lock settings) on an administrator grant. | none | none | all rows |
+| `profile_feature_grants` | Which features a profile may use. | none | none | all rows |
+| `profile_library_grants` | Which libraries a profile may use. | none | none | all rows |
+| `profile_admin_protections` | Optional extra lock (lock settings) on a profile's administrator rights. | none | none | all rows |
 | `households` | Households that group accounts and profiles. | none | none | all rows |
 | `profiles` | People using the Library, with their display, content limit and navigation settings. | none | `avatar_image_path` | all rows |
 | `profile_credentials` | Profile PIN hashes, needed to switch profile after a restore. | none | none | all rows |
@@ -326,6 +329,7 @@ None of these are kept.
 | `two_step_challenges` | One-time sign-in challenges. |
 | `setup_codes` | One-time setup codes. |
 | `grant_admin_unlocks` | Temporary administrator unlocks. |
+| `profile_admin_unlocks` | Temporary administrator unlocks on a profile. |
 | `device_pairing_requests` | Pairing requests from devices. |
 | `authorization_audit_events` | Access change audit log. |
 | `identity_audit_events` | Sign-in audit log. |

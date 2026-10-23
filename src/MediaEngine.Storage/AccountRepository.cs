@@ -165,7 +165,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                this_computer_only AS ThisComputerOnly,
                must_change_password AS MustChangePassword,
-               temporary_password_expires_at AS TemporaryPasswordExpiresAt
+               temporary_password_expires_at AS TemporaryPasswordExpiresAt,
+               profile_id AS ProfileId
         FROM accounts
         """;
 
@@ -185,6 +186,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         ThisComputerOnly = account.IsThisComputerOnly ? 1 : 0,
         MustChangePassword = account.MustChangePassword ? 1 : 0,
         TemporaryPasswordExpiresAt = account.TemporaryPasswordExpiresAt?.ToString("O"),
+        account.ProfileId,
     };
 
     private static Account Map(AccountRow row)
@@ -215,6 +217,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         CreatedAt = DateTimeOffset.Parse(row.CreatedAt),
         UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt),
         HouseholdId = row.HouseholdId,
+        ProfileId = row.ProfileId,
         GrantsInheritFromAccountId = row.GrantsInheritFromAccountId,
         MustChangePassword = row.MustChangePassword,
         TemporaryPasswordExpiresAt = string.IsNullOrWhiteSpace(row.TemporaryPasswordExpiresAt)
@@ -238,6 +241,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public bool ThisComputerOnly { get; set; }
         public bool MustChangePassword { get; set; }
         public string? TemporaryPasswordExpiresAt { get; set; }
+        public Guid? ProfileId { get; set; }
     }
     private sealed class InvitationRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string TokenHash { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
 
@@ -449,10 +453,19 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             {
                 throw new KeyNotFoundException("Profile not found.");
             }
+            if (account.ProfileId is { } attachedProfile && attachedProfile != initialGrant.ProfileId)
+            {
+                throw new InvalidOperationException("A sign-in can only be attached to the profile it opens.");
+            }
+
             InsertAccount(connection, transaction, account);
             InsertGrant(connection, transaction, initialGrant);
             ReplaceAccess(connection, transaction, account.Id, features, libraries, account.UpdatedAt);
             EnsureHouseholdPrimary(connection, transaction, account.Id);
+            if (account.ProfileId is not null)
+            {
+                MirrorAccessOntoProfile(connection, transaction, account);
+            }
         }, ct);
 
     public Task CreateInvitedAccountAsync(
@@ -1057,7 +1070,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             "DELETE FROM grant_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
-    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,household_admin,grants_inherit_from_account_id,this_computer_only,must_change_password,temporary_password_expires_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@HouseholdAdmin,@GrantsInheritFromAccountId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt);", Parameters(a), tx);
+    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,household_admin,grants_inherit_from_account_id,this_computer_only,must_change_password,temporary_password_expires_at,profile_id) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@HouseholdAdmin,@GrantsInheritFromAccountId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt,@ProfileId);", Parameters(a), tx);
     private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g)
     {
         JoinHousehold(c, tx, g.AccountId, g.ProfileId, g.GrantedAt);
@@ -1186,6 +1199,32 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             // A brand-new account has no open sessions to re-check, so its authorization version stays as created.
             c.Execute("UPDATE accounts SET household_admin=1 WHERE id=@accountId;",
                 new { accountId }, tx);
+        }
+    }
+
+    /// <summary>
+    /// Writes the profile side of a new sign-in that names its profile: the profile takes the account's administrator roles and its
+    /// Read/Watch/Listen/View and library access (the same rows just written), and a server administrator's household becomes the
+    /// default household when there is none yet. The account side stays what authority reads until the Engine switches over.
+    /// </summary>
+    private static void MirrorAccessOntoProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account)
+    {
+        var profileId = account.ProfileId!.Value;
+        c.Execute("""
+            UPDATE profiles
+            SET is_server_admin=@server,
+                is_household_admin=(SELECT household_admin FROM accounts WHERE id=@accountId)
+            WHERE id=@profileId;
+            DELETE FROM profile_feature_grants WHERE profile_id=@profileId;
+            DELETE FROM profile_library_grants WHERE profile_id=@profileId;
+            INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at)
+                SELECT @profileId,feature_id,granted_at FROM account_feature_grants WHERE account_id=@accountId;
+            INSERT INTO profile_library_grants(profile_id,library_id,granted_at)
+                SELECT @profileId,library_id,granted_at FROM account_library_grants WHERE account_id=@accountId;
+            """, new { profileId, accountId = account.Id, server = account.IsAdministrator ? 1 : 0 }, tx);
+        if (account.IsAdministrator && HouseholdOfProfile(c, tx, profileId) is { } householdId)
+        {
+            ProfileAccessRepository.MarkDefaultHouseholdIfNone(c, tx, householdId);
         }
     }
 

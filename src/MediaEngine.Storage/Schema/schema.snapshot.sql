@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0040 drop_vault_pending_bookmarks).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0041 profile_held_access).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -105,7 +105,7 @@ CREATE TABLE accounts (
     this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1)),
     must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
     temporary_password_expires_at TEXT
-);
+, profile_id BLOB REFERENCES profiles(id) ON DELETE CASCADE);
 
 CREATE TABLE adaptive_hls_packages (
     id              BLOB NOT NULL PRIMARY KEY,
@@ -1152,7 +1152,7 @@ CREATE TABLE households (
     name       TEXT NOT NULL,
     created_at TEXT NOT NULL,
     primary_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL
-);
+, is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)));
 
 CREATE TABLE identity_audit_events (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2080,6 +2080,25 @@ CREATE TABLE plugin_records (
     PRIMARY KEY (plugin_id, collection, record_key)
 );
 
+CREATE TABLE profile_admin_protections (
+    profile_id         BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+    is_enabled         INTEGER NOT NULL DEFAULT 0 CHECK (is_enabled IN (0, 1)),
+    unlock_mode        TEXT NOT NULL DEFAULT 'FixedDuration'
+        CHECK (unlock_mode IN ('FixedDuration','UntilProfileSwitch','LockOnLeave')),
+    unlock_minutes     INTEGER,
+    protection_version INTEGER NOT NULL DEFAULT 1 CHECK (protection_version > 0),
+    updated_at         TEXT NOT NULL
+);
+
+CREATE TABLE profile_admin_unlocks (
+    session_id BLOB NOT NULL PRIMARY KEY REFERENCES auth_sessions(id) ON DELETE CASCADE,
+    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    protection_version INTEGER NOT NULL,
+    method TEXT NOT NULL,
+    granted_at TEXT NOT NULL,
+    expires_at TEXT
+);
+
 CREATE TABLE profile_credentials (
     id                   BLOB NOT NULL PRIMARY KEY,
     profile_id           BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -2096,12 +2115,26 @@ CREATE TABLE profile_credentials (
     UNIQUE(profile_id, credential_kind)
 );
 
+CREATE TABLE profile_feature_grants (
+    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    feature_id TEXT NOT NULL CHECK (feature_id IN ('read','watch','listen','view')),
+    granted_at TEXT NOT NULL,
+    PRIMARY KEY (profile_id, feature_id)
+);
+
 CREATE TABLE profile_grid_preferences (
     profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     grid_key    TEXT NOT NULL CHECK (grid_key IN ('watch', 'read', 'listen', 'my-list', 'liked')),
     sort        TEXT NOT NULL CHECK (sort IN ('added', 'title', 'year', 'played')),
     updated_at  TEXT NOT NULL,   -- ISO 8601 UTC
     PRIMARY KEY (profile_id, grid_key)
+);
+
+CREATE TABLE profile_library_grants (
+    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    library_id BLOB NOT NULL,
+    granted_at TEXT NOT NULL,
+    PRIMARY KEY (profile_id, library_id)
 );
 
 CREATE TABLE profile_notice_dismissals (
@@ -2211,7 +2244,7 @@ CREATE TABLE profiles (
                      CHECK (role IN ('Administrator', 'StandardUser', 'RestrictedProfile')),
     created_at   TEXT NOT NULL
 , navigation_config TEXT
-, household_id BLOB REFERENCES households(id));
+, household_id BLOB REFERENCES households(id), is_server_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_server_admin IN (0, 1)), is_household_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_household_admin IN (0, 1)), authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0));
 
 CREATE TABLE provider_config (
     provider_id BLOB    NOT NULL REFERENCES metadata_providers(id) ON DELETE CASCADE,
@@ -3708,6 +3741,8 @@ CREATE INDEX ix_playback_telemetry_library ON playback_telemetry_sessions(librar
 
 CREATE INDEX ix_playback_telemetry_profile ON playback_telemetry_sessions(account_id,profile_id,started_at DESC,id);
 
+CREATE INDEX ix_profile_admin_unlocks_profile ON profile_admin_unlocks(profile_id);
+
 CREATE INDEX ix_profiles_household ON profiles(household_id);
 
 CREATE INDEX ix_scheduled_task_runs_task_started ON scheduled_task_runs(task_key, started_at DESC);
@@ -3754,6 +3789,8 @@ CREATE UNIQUE INDEX ux_account_profile_default
 CREATE UNIQUE INDEX ux_accounts_normalized_email
     ON accounts(normalized_email);
 
+CREATE UNIQUE INDEX ux_accounts_profile ON accounts(profile_id) WHERE profile_id IS NOT NULL;
+
 CREATE UNIQUE INDEX ux_collection_view_sources_gallery
     ON collection_view_sources(collection_id, gallery_id)
     WHERE source_kind = 'gallery';
@@ -3774,6 +3811,8 @@ ON entity_capability_states(entity_id, capability_id, COALESCE(sub_key, ''));
 
 CREATE UNIQUE INDEX ux_file_hash_cache_path_nocase
     ON file_hash_cache(absolute_path COLLATE NOCASE);
+
+CREATE UNIQUE INDEX ux_households_default ON households(is_default) WHERE is_default = 1;
 
 CREATE UNIQUE INDEX ux_identity_jobs_entity_pass_active
     ON identity_jobs (entity_id, pass)

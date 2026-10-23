@@ -176,6 +176,47 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     [Fact]
+    public void Export_NeverHoldsAProfilesAdministratorRoles_AndKeepsTheProfileASignInOpens()
+    {
+        var source = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: true);
+        source.Execute($"UPDATE profiles SET is_server_admin = 1, is_household_admin = 1 WHERE id = {Blob(maya.Profiles[0])}");
+        source.Execute($"UPDATE accounts SET profile_id = {Blob(maya.Profiles[0])} WHERE id = {Blob(maya.Account)}");
+
+        var export = Export(source, maya);
+
+        var profiles = Table(export, "profiles");
+        Assert.DoesNotContain("is_server_admin", profiles.Columns, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("is_household_admin", profiles.Columns, StringComparer.OrdinalIgnoreCase);
+        var accounts = Table(export, "accounts");
+        Assert.Equal(maya.Profiles[0], UserExportReader.GuidOf(Value(accounts, Assert.Single(accounts.Rows), "profile_id")));
+    }
+
+    [Fact]
+    public void Import_NeverCarriesAProfilesAdministratorRoles_EvenWhenTheFileSaysSo_AndKeepsTheSignInAttachedToItsProfile()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        source.Execute($"UPDATE accounts SET profile_id = {Blob(maya.Profiles[0])} WHERE id = {Blob(maya.Account)}");
+        var export = Export(source, maya);
+        var profiles = Table(export, "profiles");
+        var crafted = profiles with
+        {
+            Columns = [.. profiles.Columns, "is_server_admin", "is_household_admin"],
+            Rows = profiles.Rows
+                .Select(row => (IReadOnlyList<BackupValue>)[.. row, BackupValue.FromInteger(1), BackupValue.FromInteger(1)])
+                .ToList(),
+        };
+        export = export with { Tables = export.Tables.Select(table => ReferenceEquals(table, profiles) ? crafted : table).ToList() };
+
+        ImportInto(target, export);
+
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_server_admin = 1 OR is_household_admin = 1"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM accounts WHERE profile_id = {Blob(maya.Profiles[0])}"));
+    }
+
+    [Fact]
     public async Task RoundTrip_AfterTheUserIsDeleted_TheSameFileImportsAgainWithNothingLeftToClash()
     {
         var store = NewStore();

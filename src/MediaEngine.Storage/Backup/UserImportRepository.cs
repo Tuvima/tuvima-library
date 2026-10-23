@@ -225,7 +225,9 @@ public sealed class UserImportRepository
                         ["grants_inherit_from_account_id"] = BackupValue.Null,
                         ["household_admin"] = BackupValue.FromInteger(createdHousehold && summary.HouseholdAdmin ? 1 : 0),
                         ["household_id"] = keepHousehold ? BackupValue.FromBlob(GuidSql.ToBlob(summary.HouseholdId!.Value)) : BackupValue.Null,
-                    }));
+                    },
+                    // The profile the sign-in opens travels only when it is one of the profiles in the file.
+                    ("profile_id", value => UserExportReader.GuidOf(value) is { } opened && summary.ProfileIds.Contains(opened) ? value : BackupValue.Null)));
                     break;
                 case "households":
                     // A household that already exists is joined as it is; its primary account is not changed.
@@ -248,6 +250,9 @@ public sealed class UserImportRepository
                         new Dictionary<string, BackupValue>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["household_id"] = keepHousehold ? BackupValue.FromBlob(GuidSql.ToBlob(summary.HouseholdId!.Value)) : BackupValue.Null,
+                            // A user file never makes anyone an administrator, whatever the file says.
+                            ["is_server_admin"] = BackupValue.FromInteger(0),
+                            ["is_household_admin"] = BackupValue.FromInteger(0),
                         },
                         ("role", value => value is BackupValue.Text { Value: "Administrator" } ? BackupValue.FromText("StandardUser") : value)));
                     break;

@@ -38,7 +38,10 @@ public sealed class ProfileRepository : IProfileRepository
                    role         AS Role,
                    created_at   AS CreatedAt,
                    navigation_config AS NavigationConfig,
-                   household_id AS HouseholdId
+                   household_id AS HouseholdId,
+                   is_server_admin AS IsServerAdministrator,
+                   is_household_admin AS IsHouseholdAdministrator,
+                   authorization_version AS AuthorizationVersion
             FROM   profiles
             ORDER  BY created_at ASC;
             """).AsList();
@@ -63,7 +66,10 @@ public sealed class ProfileRepository : IProfileRepository
                    role         AS Role,
                    created_at   AS CreatedAt,
                    navigation_config AS NavigationConfig,
-                   household_id AS HouseholdId
+                   household_id AS HouseholdId,
+                   is_server_admin AS IsServerAdministrator,
+                   is_household_admin AS IsHouseholdAdministrator,
+                   authorization_version AS AuthorizationVersion
             FROM   profiles
             WHERE  id = @id
             LIMIT  1;
@@ -114,6 +120,9 @@ public sealed class ProfileRepository : IProfileRepository
         public string CreatedAt { get; set; } = string.Empty;
         public string? NavigationConfig { get; set; }
         public Guid? HouseholdId { get; set; }
+        public bool IsServerAdministrator { get; set; }
+        public bool IsHouseholdAdministrator { get; set; }
+        public long AuthorizationVersion { get; set; }
     }
 
     private static Profile MapRow(ProfileRow r) => new()
@@ -129,5 +138,8 @@ public sealed class ProfileRepository : IProfileRepository
         CreatedAt = DateTimeOffset.Parse(r.CreatedAt),
         NavigationConfig = r.NavigationConfig,
         HouseholdId = r.HouseholdId,
+        IsServerAdministrator = r.IsServerAdministrator,
+        IsHouseholdAdministrator = r.IsHouseholdAdministrator,
+        AuthorizationVersion = r.AuthorizationVersion,
     };
 }

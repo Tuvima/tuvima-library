@@ -78,6 +78,9 @@ public static class UserExportScope
         ["account_feature_grants"] = "Access rights: the receiving administrator chooses which features the person may use.",
         ["account_library_grants"] = "Access rights: the receiving administrator chooses which libraries the person may use.",
         ["grant_admin_protections"] = "An administrator's extra lock on a grant; administrator settings are never carried.",
+        ["profile_feature_grants"] = "Access rights are never carried by a user file (backup spec D19).",
+        ["profile_library_grants"] = "Access rights are never carried by a user file (backup spec D19).",
+        ["profile_admin_protections"] = "Access rights are never carried by a user file (backup spec D19).",
         ["device_profile_preferences"] = "Paired devices are not carried, so neither is which profile they open.",
         ["client_devices"] = "Paired devices sign in again on the new Library.",
         ["applications"] = "Server settings: outside applications belong to the Library.",
@@ -145,7 +148,8 @@ public static class UserExportScope
         var tables = new List<UserExportTable>
         {
             // The account and how it signs in.
-            new("accounts", "id = {account}", ["grants_inherit_from_account_id"], [new UserRowCheck.AccountColumn("id")]),
+            new("accounts", "id = {account}", ["grants_inherit_from_account_id"],
+                [new UserRowCheck.AccountColumn("id"), new UserRowCheck.ProfileColumn("profile_id", Nullable: true)]),
             new("account_credentials", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
             new(TwoStepTable, "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
             new("account_passkeys", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
@@ -159,7 +163,7 @@ public static class UserExportScope
             // The profiles the account may use, and only this account's grants to them.
             new("account_profile_grants", "account_id = {account}", [],
                 [new UserRowCheck.AccountColumn("account_id"), new UserRowCheck.ProfileColumn("profile_id")]),
-            new("profiles", "id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("id")]),
+            new("profiles", "id IN (" + InProfiles + ")", ["is_server_admin", "is_household_admin"], [new UserRowCheck.ProfileColumn("id")]),
             new("profile_credentials", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_grid_preferences", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_notice_dismissals", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),

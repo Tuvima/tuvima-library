@@ -73,6 +73,8 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
         connection.Execute(
             "INSERT INTO households(id,name,created_at) VALUES(@created,'Household',@now);",
             new { created, now = DateTimeOffset.UtcNow.ToString("O") }, transaction);
+        // The server's own household is the default household until the server administrator's profile joins it.
+        ProfileAccessRepository.MarkDefaultHouseholdIfNone(connection, transaction, created);
         return created;
     }
 
