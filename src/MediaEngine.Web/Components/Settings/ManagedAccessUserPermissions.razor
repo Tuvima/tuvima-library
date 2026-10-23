@@ -14,7 +14,7 @@
 </section>
 <section class="access-user-permissions">
     <AppText Typo="AppTypo.subtitle1">Catalogued libraries</AppText>
-    @if (LibrariesUnavailable) { <AppAlert Severity="AppSeverity.Error">The libraries could not be loaded, so their visibility can't be changed right now. Nothing about them is saved.</AppAlert> }
+    @if (LibrariesUnavailable) { <AppAlert Severity="AppSeverity.Error">The libraries could not be loaded, so which ones are hidden can't be changed right now. Libraries already hidden stay hidden; a new person starts with every library visible.</AppAlert> }
     else if (Libraries.Count == 0) { <small>No catalogued libraries are configured.</small> }
     else
     {

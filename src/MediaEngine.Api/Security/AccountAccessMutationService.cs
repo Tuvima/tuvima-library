@@ -1270,6 +1270,14 @@ public sealed class AccountAccessMutationService(
             throw new ArgumentException($"Unknown catalogued library '{refused[0]:D}'.");
         }
 
+        if (known.Count == 0)
+        {
+            // No catalogued library is configured at all (a missing or unreadable libraries file): keep what is stored rather than
+            // dropping every hidden row, so the libraries stay hidden if the file comes back.
+            logger?.LogWarning("No catalogued libraries are configured; kept {Count} stored hidden librar(ies) for account {AccountId} unchanged.", unknown.Length, accountId);
+            return libraryIds;
+        }
+
         logger?.LogDebug("Dropped {Count} hidden librar(ies) that are no longer configured while saving access for account {AccountId}.", unknown.Length, accountId);
         return libraryIds.Where(known.Contains).ToHashSet();
     }

@@ -907,9 +907,11 @@
             if (result.Succeeded && result.Value is not null)
             {
                 _invitation = result.Value;
+                // An invitation can reuse an existing account (one with no password yet), so start from what is hidden from it now.
+                var existing = _accounts.FirstOrDefault(candidate => candidate.Id == result.Value.AccountId);
                 var permissions = await Identity.ReplaceManagedAccountAccessResultAsync(
                     result.Value.AccountId,
-                    new(_featureIds.Order().ToArray(), HiddenLibraryIds(null)));
+                    new(_featureIds.Order().ToArray(), HiddenLibraryIds(existing?.HiddenLibraryIds)));
                 if (!IsCurrentMutation(generation))
                     return;
                 _drawerMessage = permissions.Succeeded

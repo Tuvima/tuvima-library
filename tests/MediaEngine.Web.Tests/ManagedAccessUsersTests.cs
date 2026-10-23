@@ -232,6 +232,25 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AnInvitationThatReusesAnAccount_KeepsItsHiddenLibraries_WhenTheLibraryListFailed()
+    {
+        var hiddenAlready = Guid.NewGuid();
+        _handler.LibrariesFail = true;
+        _handler.HiddenIds = [hiddenAlready];
+        _handler.InvitationReusesAccount = true;
+        var cut = RenderUsers();
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Invite user").Click();
+        cut.Find("input[type='text']").Input("owner@example.test");
+        cut.Find(".access-drawer__body input[type='checkbox']").Change(true);
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Create invitation").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal)));
+        var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
+        var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
+        Assert.Equal([hiddenAlready], payload.HiddenLibraryIds);
+    }
+
+    [Fact]
     public void Invitation_ShowsCodeLinkAndQrOnlyInTheOpenResultDrawer()
     {
         var cut = RenderUsers();
@@ -390,6 +409,9 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         /// <summary>When true the Engine's library list can't be read (a server error, not an empty list).</summary>
         public bool LibrariesFail { get; set; }
 
+        /// <summary>When true the invitation reuses the existing account (one with no password yet), as the Engine does for the same email.</summary>
+        public bool InvitationReusesAccount { get; set; }
+
         /// <summary>The libraries the Engine already hides from the account.</summary>
         public Guid[] HiddenIds { get; set; } = [];
 
@@ -446,7 +468,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
             }
             if (request.Method == HttpMethod.Post && path == "/access/invitations")
             {
-                return Json(new AccountInvitationResponse(Guid.NewGuid(), InvitationCode, DateTimeOffset.UtcNow.AddDays(1), "https://tuvima.example"));
+                return Json(new AccountInvitationResponse(InvitationReusesAccount ? AccountId : Guid.NewGuid(), InvitationCode, DateTimeOffset.UtcNow.AddDays(1), "https://tuvima.example"));
             }
 
             if (request.Method == HttpMethod.Post && path == $"/access/accounts/{AccountId:D}/temporary-password")

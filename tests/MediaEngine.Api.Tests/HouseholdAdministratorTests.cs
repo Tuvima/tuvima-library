@@ -1,6 +1,7 @@
 using MediaEngine.Api.Security;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -145,6 +146,7 @@ public sealed class HouseholdAdministratorTests
     public async Task AHiddenLibraryThatLeftTheConfiguration_DoesNotBlockASave_ButANewUnknownOneIsStillRefused()
     {
         await using var world = await World.CreateAsync();
+        world.ConfigureOneCataloguedLibrary();
         var gone = Guid.NewGuid();
         var owner = world.A.Owner;
         var read = new HashSet<AccountFeatureId> { AccountFeatureId.Read };
@@ -157,6 +159,20 @@ public sealed class HouseholdAdministratorTests
         // An id nobody stored for this account, that is not configured, is refused.
         await Assert.ThrowsAsync<ArgumentException>(() =>
             world.Mutations.ReplaceAccessAsync(world.ServerAdmin, owner.Id, read, new HashSet<Guid> { Guid.NewGuid() }));
+    }
+
+    [Fact]
+    public async Task WithNoLibrariesConfiguredAtAll_StoredHiddenLibrariesAreKept_SoTheyStayHiddenWhenTheFileComesBack()
+    {
+        await using var world = await World.CreateAsync();
+        var hidden = Guid.NewGuid();
+        var owner = world.A.Owner;
+        var read = new HashSet<AccountFeatureId> { AccountFeatureId.Read };
+        await world.Accounts.ReplaceAccountAccessAsync(owner.Id, read, new HashSet<Guid> { hidden }, DateTimeOffset.UtcNow);
+
+        await world.Mutations.ReplaceAccessAsync(world.ServerAdmin, owner.Id, read, new HashSet<Guid> { hidden });
+
+        Assert.Equal([hidden], await world.Accounts.GetHiddenLibrariesAsync(owner.Id));
     }
 
     [Fact]
@@ -409,6 +425,27 @@ public sealed class HouseholdAdministratorTests
         public RealAdministratorDecisions Decisions { get; } = new();
         public NoProfilePhotos Photos { get; } = new();
         public DatabaseConnection Database => _database;
+
+        /// <summary>Writes a libraries file with one catalogued library, so a save has a configuration to check hidden ids against.</summary>
+        public void ConfigureOneCataloguedLibrary() =>
+            _configuration.SaveLibraries(new LibrariesConfiguration
+            {
+                StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Library data", Path = _configPath, AllowWrite = true }],
+                ViewStorage = new ViewStorageConfig { StorageLocationId = "media", RelativeRoot = "View" },
+                Libraries =
+                [
+                    new LibraryFolderConfig
+                    {
+                        Id = Guid.NewGuid().ToString("D"),
+                        Name = "Books",
+                        Category = "Books",
+                        Kind = LibraryKinds.Catalogued,
+                        KindKey = "books",
+                        MediaTypes = ["Books"],
+                        Area = LibraryAreas.Read,
+                    },
+                ],
+            });
 
         public static async Task<World> CreateAsync(bool sharedLibraryFirst = false)
         {
