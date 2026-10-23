@@ -40,51 +40,14 @@
     background: color-mix(in srgb, var(--add-wizard-colour, var(--tl-text-muted)) 16%, transparent);
 }
 
-.add-wizard__kinds {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 10px;
-}
-
-.add-wizard__kind,
-.add-wizard__option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-}
-
-.add-wizard__info,
 .add-wizard__warning {
     display: inline-flex;
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    min-width: 44px;
-    min-height: 44px;
-    color: var(--tl-text-muted);
-    font-size: 1.25rem;
-}
-
-.add-wizard__warning {
-    min-width: 0;
-    min-height: 0;
     margin-left: auto;
     color: var(--tl-status-warning);
-}
-
-.add-wizard__options {
-    display: grid;
-    gap: 10px;
-}
-
-.add-wizard__lead,
-.add-wizard__question {
-    margin: 0;
-}
-
-.add-wizard__question {
-    font-size: 1rem;
+    font-size: 1.25rem;
 }
 
 .add-wizard__path {

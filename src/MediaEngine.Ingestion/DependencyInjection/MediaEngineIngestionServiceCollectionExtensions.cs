@@ -8,6 +8,7 @@ using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Organise;
 using MediaEngine.Ingestion.Pipeline;
 using MediaEngine.Ingestion.Services;
+using MediaEngine.Ingestion.Services.ImportUploads;
 using MediaEngine.Processors;
 using MediaEngine.Processors.Contracts;
 using MediaEngine.Processors.Processors;
@@ -76,6 +77,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<ImportFilingJournal>();
         services.TryAddSingleton<IImportFolderFiler, ImportFolderFiler>();
         services.TryAddSingleton<IImportFolderWaitingReader, ImportFolderWaitingReader>();
+        services.TryAddSingleton<ImportUploadService>();
         services.TryAddSingleton<IOrganiseFileMover, SystemOrganiseFileMover>();
         services.TryAddSingleton<SidecarMover>();
         services.TryAddSingleton<VideoOrderRenamer>();

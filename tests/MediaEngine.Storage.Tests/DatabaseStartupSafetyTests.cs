@@ -745,6 +745,9 @@ public sealed class DatabaseStartupSafetyTests
             ("waiting_personal_state", "profile_id"),
             ("folder_first_check_files", "asset_id"),
             ("unmatched_assets", "asset_id"),
+            ("import_uploads", "id"),
+            ("import_uploads", "created_by"),
+            ("import_upload_pieces", "upload_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)

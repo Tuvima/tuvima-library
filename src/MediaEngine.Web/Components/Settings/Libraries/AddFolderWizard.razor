@@ -51,49 +51,20 @@
 
                 @if (CurrentGroup is { } shown && !IsVault)
                 {
-                    <div class="add-wizard__kinds" role="group" aria-label="@($"{shown.Label} kinds")">
-                        @foreach (var kind in KindsOf(shown))
-                        {
-                            <div class="add-wizard__kind">
-                                <AppNativeButton Type="button"
-                                                 Class="@($"add-wizard__kind-option{(kind.Key == _type?.Key ? " is-selected" : string.Empty)}")"
-                                                 data-type="@kind.Key"
-                                                 OnClick="@(_ => ChooseKind(kind))">
-                                    <span class="@LibraryKindLook.TileClass(kind)" data-lookup="@(LibraryKindLook.LooksUp(kind) ? "true" : "false")"><AppMaterialIcon Icon="@kind.Icon" /></span>
-                                    <strong>@kind.Label</strong>
-                                </AppNativeButton>
-                                <AppTooltip Text="@TipFor(kind)" Placement="AppPlacement.Top">
-                                    <span class="add-wizard__info" role="img" tabindex="0" aria-label="@($"About {kind.Label}: {TipFor(kind)}")" data-info-for="@kind.Key"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
-                                </AppTooltip>
-                            </div>
-                        }
-                    </div>
+                    <LibraryKindCards Kinds="@KindsOf(shown)" Label="@($"{shown.Label} kinds")" SelectedKey="@_type?.Key" OnChoose="@(EventCallback.Factory.Create<LibraryTypeOption>(this, ChooseKind))" />
                 }
             }
             else if (_step == WizardStep.Library && _type is not null)
             {
                 @* A kind that holds several named libraries asks which one the folder joins: an existing library by name, or a new custom one. *@
-                <h3 class="add-wizard__question" id="add-wizard-library">Which library?</h3>
-                <div class="add-wizard__options" role="radiogroup" aria-labelledby="add-wizard-library">
-                    @foreach (var library in ExistingLibraries)
-                    {
-                        @LibraryOption(library.Id, string.IsNullOrWhiteSpace(library.Name) ? _type.Label : library.Name)
-                    }
-                    @if (CanAddLibrary)
-                    {
-                        @LibraryOption(NewLibraryChoice, "New custom library")
-                    }
-                </div>
-                @if (!CanAddLibrary)
-                {
-                    <p class="add-wizard__lead" data-library-limit>@LibraryLimitText</p>
-                }
-                @if (_libraryChoice == NewLibraryChoice)
-                {
-                    <div class="add-wizard__options add-wizard__field">
-                        <AppTextField Label="Library name" Value="@_newLibraryName" ValueChanged="@((string? value) => _newLibraryName = value ?? string.Empty)" />
-                    </div>
-                }
+                <LibraryChoiceOptions Libraries="ExistingLibraries"
+                                      FallbackName="@_type.Label"
+                                      CanAddLibrary="CanAddLibrary"
+                                      LimitText="@LibraryLimitText"
+                                      Choice="@_libraryChoice"
+                                      ChoiceChanged="@((string? value) => _libraryChoice = value)"
+                                      NewLibraryName="@_newLibraryName"
+                                      NewLibraryNameChanged="@((string value) => _newLibraryName = value)" />
             }
             else if (_step == WizardStep.Folder && _type is not null)
             {
@@ -268,7 +239,7 @@
     private enum WizardStep { Kind, Library, Folder, How, Vault, Done }
 
     // The library step's answer for a new custom library; an existing library's answer is its id.
-    private const string NewLibraryChoice = "new";
+    private const string NewLibraryChoice = LibraryChoiceOptions.NewChoice;
 
     private const string ReadOnlyTip = "Library reads the files and never changes them. Best for folders other apps also use.";
     private const string MergeTip = "Library moves these files into your managed folder, renamed and tagged.";
@@ -434,9 +405,6 @@
 
     private IEnumerable<LibraryTypeOption> KindsOf(LibraryGroup group) =>
         group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>();
-
-    // What belongs in each kind (the (i) beside its card) is part of the kind's own entry.
-    private static string TipFor(LibraryTypeOption kind) => kind.Tooltip;
 
     private void ChooseGroup(LibraryGroup group)
     {
@@ -769,22 +737,6 @@
             <AppTooltip Text="@tip" Placement="AppPlacement.Top">
                 <span class="add-wizard__info" role="img" tabindex="0" aria-label="@($"About {title}: {tip}")"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
             </AppTooltip>
-        </div>
-    };
-
-    // One radio card for a library the folder can join: an existing library by name, or a new custom one.
-    private RenderFragment LibraryOption(string choice, string title) => __builder =>
-    {
-        var selected = _libraryChoice == choice;
-        <div class="add-wizard__option">
-            <AppNativeButton Type="button"
-                             role="radio"
-                             Class="@(selected ? "add-wizard__choice is-selected" : "add-wizard__choice")"
-                             data-library="@choice"
-                             aria-checked="@(selected ? "true" : "false")"
-                             OnClick="@(_ => _libraryChoice = choice)">
-                <strong>@title</strong>
-            </AppNativeButton>
         </div>
     };
 

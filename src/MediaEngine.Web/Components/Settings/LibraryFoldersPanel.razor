@@ -189,6 +189,13 @@
         else
         {
             <AppCard Class="library-folders__detail">
+                @* Dropping files on this type's page, or Add files, puts them in the Import folder (Library setup D44); only a type page offers it. *@
+                <LibraryUploadZone Kinds="@Kinds"
+                                   Configuration="@_configuration"
+                                   Type="@_selected"
+                                   ReadOnly="@(ReadOnly || !UploadsOffered)"
+                                   Embedded="@Embedded"
+                                   FolderAdded="@(EventCallback.Factory.Create(this, () => FolderAddedAsync(null)))">
                 @* The type's name is already the selected entry in the list on the left, so the pane starts with the folders. *@
                 <header class="library-folders__detail-header">
                     <div class="library-folders__detail-actions">
@@ -198,6 +205,7 @@
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Disabled="@(_saving || ReadOnly)"
                                    OnClick="AddFolderAsync" />
+                        <LibraryAddFilesButton />
                     </div>
                 </header>
 
@@ -238,6 +246,7 @@
 
                     @LibraryBody(SelectedLibrary, true)
                 }
+                </LibraryUploadZone>
             </AppCard>
         }
 
@@ -298,6 +307,8 @@
 
     // The seventh entry in the list is not a media type; it has its own panel.
     private static readonly LibraryTypeOption ImportEntry = new("import", "Import folder", "import", string.Empty, [], AppMaterialIcons.Outlined.MoveToInbox);
+    // Uploads belong to a type's own page (the host chose the type), never to the list of types or first-run setup.
+    private bool UploadsOffered => !Embedded && !ShowTypeNav;
     private bool ImportSelected => string.Equals(_selected.Key, ImportEntry.Key, StringComparison.Ordinal);
     private string ImportSubtitle => ImportStatus.Configured ? "Set" : "Not set";
     private string ImportTypeClass => $"library-folders__type{(ImportSelected ? " is-active" : string.Empty)}";
