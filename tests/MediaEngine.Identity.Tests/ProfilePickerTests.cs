@@ -12,8 +12,10 @@ using Microsoft.AspNetCore.Identity;
 namespace MediaEngine.Identity.Tests;
 
 /// <summary>
-/// "Who's using Tuvima?": after sign-in a household with several people is asked who is watching, unless this device was
-/// set to always open as one person. That choice belongs to one account on one device and never skips a PIN.
+/// Signing in and switching people (users, profiles and households spec D3, D12, D13): a sign-in always opens the user's own
+/// profile, and the user switches from there to any profile of its own household. A profile with a PIN asks for it, one without
+/// opens freely (Kids included). The old "always open as" choice is still stored per account and device but no longer picks where a
+/// sign-in starts.
 /// </summary>
 public sealed class ProfilePickerTests : IDisposable
 {
@@ -38,7 +40,7 @@ public sealed class ProfilePickerTests : IDisposable
     }
 
     [Fact]
-    public async Task ThisComputerSignIn_WithSeveralProfiles_AsksWhoIsUsingTuvima_AndRecordsTheHomeNetwork()
+    public async Task ThisComputerSignIn_WithSeveralProfiles_OpensTheUsersOwnProfile_AndRecordsTheHomeNetwork()
     {
         var owner = await _service.BootstrapThisComputerAdministratorAsync(Email, "Dad", "setup-device", "Setup", "Dashboard");
         var mary = new Profile
@@ -60,18 +62,19 @@ public sealed class ProfilePickerTests : IDisposable
         var signedIn = await _service.SignInThisComputerAccountAsync("laptop", "Laptop", "Dashboard", ClientIngress.HomeNetwork);
 
         Assert.NotNull(signedIn);
-        Assert.True(signedIn!.ChooseProfile);
+        Assert.False(signedIn!.ChooseProfile);
+        Assert.Equal(owner.Profile.Id, signedIn.ActiveProfile.Id);
         Assert.Equal(ClientIngress.HomeNetwork, signedIn.Session.IssuedIngress);
     }
 
     [Fact]
-    public async Task SignIn_WithSeveralProfiles_AsksWhoIsUsingTuvima()
+    public async Task SignIn_WithSeveralProfilesInTheHousehold_OpensTheUsersOwnProfile_WithoutAsking()
     {
         var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
 
         var signedIn = await SignInAsync("laptop");
 
-        Assert.True(signedIn.ChooseProfile);
+        Assert.False(signedIn.ChooseProfile);
         Assert.Equal(owner.Profile.Id, signedIn.ActiveProfile.Id);
     }
 
@@ -84,7 +87,7 @@ public sealed class ProfilePickerTests : IDisposable
     }
 
     [Fact]
-    public async Task AlwaysOpenAs_StartsTheNextSignInInThatProfile_OnlyOnThatDevice()
+    public async Task AStoredAlwaysOpenAsChoice_NoLongerChangesWhichProfileASignInOpens()
     {
         var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
         var mary = (await ExtraProfilesAsync(owner.Account.Id))[0];
@@ -95,35 +98,41 @@ public sealed class ProfilePickerTests : IDisposable
         var tv = await SignInAsync("living-room-tv");
 
         Assert.False(again.ChooseProfile);
-        Assert.Equal(mary.Id, again.ActiveProfile.Id);
-        Assert.True(tv.ChooseProfile);
+        Assert.Equal(owner.Profile.Id, again.ActiveProfile.Id);
+        Assert.False(tv.ChooseProfile);
         Assert.Equal(owner.Profile.Id, tv.ActiveProfile.Id);
         Assert.Null(await _service.GetDeviceProfilePreferenceAsync(owner.Account.Id, tv.Session.Id));
     }
 
     [Fact]
-    public async Task AlwaysOpenAs_ForAProfileWithAPin_AsksForThePinInsteadOfSkippingIt()
+    public async Task SwitchingToAProfileWithAPin_StillAsksForThePin_AndAProfileWithoutOneOpensFreely()
     {
         var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
-        var mary = (await ExtraProfilesAsync(owner.Account.Id))[0];
+        var extras = await ExtraProfilesAsync(owner.Account.Id);
+        var mary = extras[0];
+        var sue = extras[1];
         await _service.SetProfilePinAsync(mary.Id, "2468");
-        var laptop = await SignInAsync("laptop");
-        await _service.SetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id, mary.Id);
+        var signedIn = await SignInAsync("laptop");
 
-        var again = await SignInAsync("laptop");
+        await Assert.ThrowsAsync<ProfilePinRequiredException>(() =>
+            _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, mary.Id, null));
+        await Assert.ThrowsAsync<ProfilePinRequiredException>(() =>
+            _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, mary.Id, "0000"));
+        Assert.Equal(owner.Profile.Id, (await _service.ValidateSessionAsync(signedIn.PlaintextToken))!.Session.ActiveProfileId);
 
-        Assert.True(again.ChooseProfile);
-        Assert.Equal(owner.Profile.Id, again.ActiveProfile.Id);
-        Assert.Equal(mary.Id, await _service.GetDeviceProfilePreferenceAsync(owner.Account.Id, again.Session.Id));
+        var opened = await _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, mary.Id, "2468");
+        Assert.Equal(mary.Id, opened.ActiveProfile.Id);
+        Assert.False((await _service.ValidateSessionAsync(signedIn.PlaintextToken))!.Session.ProfilePending);
 
-        // The session stays "not yet chosen" until the person is switched to someone, with their PIN.
-        Assert.True((await _service.ValidateSessionAsync(again.PlaintextToken))!.Session.ProfilePending);
-        await _service.SwitchActiveProfileAsync(again.PlaintextToken, mary.Id, "2468");
-        Assert.False((await _service.ValidateSessionAsync(again.PlaintextToken))!.Session.ProfilePending);
+        // A Kids profile switches into an adult profile that has no PIN without being asked for anything.
+        Assert.Equal(ProfileRole.RestrictedProfile, sue.Role);
+        await _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, sue.Id, null);
+        var adult = await _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, owner.Profile.Id, null);
+        Assert.Equal(owner.Profile.Id, adult.ActiveProfile.Id);
     }
 
     [Fact]
-    public async Task StopAlwaysOpeningAs_AsksAgainNextTime()
+    public async Task StopAlwaysOpeningAs_ClearsTheStoredChoice()
     {
         var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
         var mary = (await ExtraProfilesAsync(owner.Account.Id))[0];
@@ -132,21 +141,26 @@ public sealed class ProfilePickerTests : IDisposable
 
         Assert.True(await _service.ClearDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id));
 
-        Assert.True((await SignInAsync("laptop")).ChooseProfile);
+        Assert.Null(await _service.GetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id));
+        Assert.Equal(owner.Profile.Id, (await SignInAsync("laptop")).ActiveProfile.Id);
     }
 
     [Fact]
-    public async Task APreferenceForAProfileNoLongerGranted_IsIgnored()
+    public async Task AStoredChoiceForAPersonWhoLeftTheHousehold_ReadsAsNoChoice_AndSignInStillOpensTheUsersOwnProfile()
     {
         var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
         var mary = (await ExtraProfilesAsync(owner.Account.Id))[0];
         var laptop = await SignInAsync("laptop");
         await _service.SetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id, mary.Id);
-        await _accounts.RevokeProfileAsync(owner.Account.Id, mary.Id);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET household_id = NULL WHERE id = @id;", new { id = mary.Id });
+        }
 
         var again = await SignInAsync("laptop");
 
-        Assert.True(again.ChooseProfile);
+        Assert.False(again.ChooseProfile);
+        Assert.Equal(owner.Profile.Id, again.ActiveProfile.Id);
         Assert.Null(await _service.GetDeviceProfilePreferenceAsync(owner.Account.Id, again.Session.Id));
     }
 

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0041 profile_held_access).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0042 storage_epoch_profile_held_access).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 

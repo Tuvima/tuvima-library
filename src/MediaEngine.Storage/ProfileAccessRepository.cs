@@ -111,8 +111,7 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 return true;
             }
 
-            if (!isServerAdministrator && IsUsableServerAdministrator(conn, tx, profileId)
-                && !HasAnotherUsableServerAdministrator(conn, tx, profileId))
+            if (!isServerAdministrator && !HasAnotherUsableServerAdministrator(conn, tx, profileId))
             {
                 throw new InvalidOperationException("The final effective administrator cannot be demoted.");
             }
@@ -217,7 +216,7 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
             conn.Execute("""
                 INSERT INTO profile_admin_protections
                     (profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at)
-                VALUES(@ProfileId,@IsEnabled,@UnlockMode,@UnlockMinutes,@ProtectionVersion,@UpdatedAt)
+                VALUES(@ProfileId,@IsEnabled,@UnlockMode,@UnlockMinutes,1,@UpdatedAt)
                 ON CONFLICT(profile_id) DO UPDATE SET
                     is_enabled=excluded.is_enabled,unlock_mode=excluded.unlock_mode,
                     unlock_minutes=excluded.unlock_minutes,
@@ -229,7 +228,6 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 IsEnabled = protection.IsEnabled ? 1 : 0,
                 protection.UnlockMode,
                 protection.UnlockMinutes,
-                ProtectionVersion = Math.Max(1, protection.ProtectionVersion),
                 UpdatedAt = Iso(protection.UpdatedAt),
             }, tx);
             conn.Execute("DELETE FROM profile_admin_unlocks WHERE profile_id=@ProfileId;", new { protection.ProfileId }, tx);

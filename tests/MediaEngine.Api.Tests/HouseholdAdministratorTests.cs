@@ -256,6 +256,39 @@ public sealed class HouseholdAdministratorTests
     }
 
     [Fact]
+    public async Task TheServerAdministratorRole_CanOnlyBeGivenToAPersonInTheLibrarysOwnHousehold()
+    {
+        await using var world = await World.CreateAsync();
+        var access = new ProfileAccessRepository(world.Database);
+
+        // Household A is not the Library's own household, so none of its people can be a server administrator.
+        var adult = await world.AddPersonAsync(world.A);
+        var invited = await world.Mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "elsewhere@example.com", [adult.Id], null));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.UpdateAsync(
+            world.ServerAdmin, invited.AccountId, new UpdateAccountAccessCommand("elsewhere@example.com", true, true)));
+        Assert.Equal("A server administrator must belong to the Library's own household.", refused.Message);
+        Assert.False((await access.GetAdminFlagsAsync(adult.Id))!.IsServerAdministrator);
+        Assert.False((await world.Accounts.GetByIdAsync(invited.AccountId))!.IsAdministrator);
+
+        var spare = await world.AddPersonAsync(world.A);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.CreateAsync(world.ServerAdmin,
+            new CreateAccountAccessCommand("other.elsewhere@example.com", IsAdministrator: true, ProfileId: spare.Id, NewProfile: null,
+                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>())));
+        Assert.False((await access.GetAdminFlagsAsync(spare.Id))!.IsServerAdministrator);
+
+        // The Library's own household takes one.
+        var home = (await world.Households.GetForAccountAsync(world.ServerAdminAccount.Id))!;
+        var partner = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
+            new AddHouseholdPersonCommand(home.Id, "Partner", null, false, null));
+        var created = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
+            "partner@example.com", IsAdministrator: true, ProfileId: partner.Id, NewProfile: null,
+            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>()));
+        Assert.True((await access.GetAdminFlagsAsync(partner.Id))!.IsServerAdministrator);
+        Assert.True((await world.Accounts.GetByIdAsync(created.Id))!.IsAdministrator);
+    }
+
+    [Fact]
     public async Task APersonAdded_StartsWithTheAccessOfTheActorsPerson_OrOfTheHouseholdAdministratorForAnApp_AndNeverAnAdministrator()
     {
         await using var world = await World.CreateAsync();

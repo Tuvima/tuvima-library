@@ -78,7 +78,7 @@ public sealed class IntercomAudienceTests : IDisposable
             IsEnabled = true,
             UnlockMode = AdminUnlockMode.FixedDuration.ToString(),
             UnlockMinutes = 30,
-            ProtectionVersion = 2,
+            ProtectionVersion = 1,
             UpdatedAt = DateTimeOffset.UtcNow,
         });
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.ProviderStatusChanged,
@@ -87,7 +87,7 @@ public sealed class IntercomAudienceTests : IDisposable
         {
             SessionId = _sessionId,
             ProfileId = Profile.SeedProfileId,
-            ProtectionVersion = 2,
+            ProtectionVersion = 1,
             Method = "test",
             GrantedAt = DateTimeOffset.UtcNow,
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(30),

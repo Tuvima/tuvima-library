@@ -600,23 +600,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         var bootstrap = await _service.BootstrapAdministratorAsync(
             "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
         const string token = "KQ7M4XH2TA";
-        var invited = new Account
-        {
-            Id = Guid.NewGuid(),
-            Email = "guest@example.com",
-            NormalizedEmail = "GUEST@EXAMPLE.COM",
-            IsEnabled = true,
-            CreatedAt = _clock.GetUtcNow(),
-            UpdatedAt = _clock.GetUtcNow(),
-        };
-        await _accounts.InsertAsync(invited);
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = invited.Id,
-            ProfileId = bootstrap.Profile.Id,
-            IsDefault = true,
-            GrantedAt = _clock.GetUtcNow(),
-        });
+        var (invited, _) = await InsertInvitedAccountAsync("guest@example.com", bootstrap.Profile.Id);
         await _accounts.InsertInvitationAsync(new AccountInvitation
         {
             Id = Guid.NewGuid(),
@@ -784,23 +768,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         var bootstrap = await _service.BootstrapAdministratorAsync(
             "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
         const string token = "WD5N8RB3CJ";
-        var invited = new Account
-        {
-            Id = Guid.NewGuid(),
-            Email = "family@example.com",
-            NormalizedEmail = "FAMILY@EXAMPLE.COM",
-            IsEnabled = true,
-            CreatedAt = _clock.GetUtcNow(),
-            UpdatedAt = _clock.GetUtcNow(),
-        };
-        await _accounts.InsertAsync(invited);
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = invited.Id,
-            ProfileId = bootstrap.Profile.Id,
-            IsDefault = true,
-            GrantedAt = _clock.GetUtcNow(),
-        });
+        var (invited, _) = await InsertInvitedAccountAsync("family@example.com", bootstrap.Profile.Id);
         await _accounts.InsertInvitationAsync(new AccountInvitation
         {
             Id = Guid.NewGuid(),
@@ -818,6 +786,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             _service.AcceptInvitationAsync(token, "different password", "other", "Other", "Dashboard"));
     }
 
+    /// <summary>A sign-in that has not chosen a password yet. A user opens one profile of its own, so it gets a new one (<paramref name="profileId"/> is the inviter's, kept for the callers' signature).</summary>
     private async Task<(Account Account, Guid ProfileId)> InsertInvitedAccountAsync(string email, Guid profileId)
     {
         var invited = new Account
@@ -826,18 +795,16 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             Email = email,
             NormalizedEmail = email.ToUpperInvariant(),
             IsEnabled = true,
+            AuthorizationVersion = 1,
             CreatedAt = _clock.GetUtcNow(),
             UpdatedAt = _clock.GetUtcNow(),
         };
-        await _accounts.InsertAsync(invited);
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = invited.Id,
-            ProfileId = profileId,
-            IsDefault = true,
-            GrantedAt = _clock.GetUtcNow(),
-        });
-        return (invited, profileId);
+        var person = new Profile { Id = Guid.NewGuid(), DisplayName = "Invited", AvatarColor = "#7C4DFF", Role = ProfileRole.StandardUser, CreatedAt = _clock.GetUtcNow() };
+        await _accounts.CreateAccountAsync(
+            invited,
+            new AccountProfileGrant { AccountId = invited.Id, ProfileId = person.Id, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = _clock.GetUtcNow() },
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: person);
+        return (invited, person.Id);
     }
 
     [Fact]

@@ -1160,6 +1160,46 @@ public sealed class DatabaseStartupSafetyTests
     }
 
     [Fact]
+    public void ADataStoreFromBeforeProfileHeldAccess_IsRefusedByDefault_AndBackedUpAndRecreatedWhenResetIsExplicit()
+    {
+        using var fixture = TempDatabase.Create();
+        // The epoch before roles and access moved to the profile: the administrator lived on the sign-in, so this store is not carried forward.
+        using (var conn = new SqliteConnection($"Data Source={fixture.Path};Pooling=False"))
+        {
+            conn.Open();
+            using var command = conn.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE storage_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);
+                INSERT INTO storage_metadata (key, value) VALUES ('storage_epoch', 'guid-blob-v11-upgrade-steps');
+                CREATE TABLE accounts (id BLOB NOT NULL PRIMARY KEY, is_administrator INTEGER NOT NULL DEFAULT 0);
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        Assert.NotEqual("guid-blob-v11-upgrade-steps", StorageEpochGuard.CurrentEpoch);
+        var refused = Assert.Throws<InvalidOperationException>(() => fixture.Database.InitializeSchema());
+        Assert.Contains("not migrated in place", refused.Message, StringComparison.OrdinalIgnoreCase);
+
+        var previous = Environment.GetEnvironmentVariable("TUVIMA_STORAGE_RESET");
+        try
+        {
+            Environment.SetEnvironmentVariable("TUVIMA_STORAGE_RESET", "1");
+            fixture.Database.InitializeSchema();
+            fixture.Database.RunStartupChecks();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TUVIMA_STORAGE_RESET", previous);
+        }
+
+        using var current = fixture.Database.CreateConnection();
+        Assert.Equal(StorageEpochGuard.CurrentEpoch, Scalar(current, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal("INTEGER", ColumnType(current, "profiles", "is_server_admin"));
+        Assert.Equal("0", Scalar(current, "SELECT COUNT(*) FROM accounts;"));
+        Assert.NotEmpty(Directory.GetFiles(Path.GetDirectoryName(fixture.Path)!, $"{Path.GetFileName(fixture.Path)}.legacy-text-guid.*.bak"));
+    }
+
+    [Fact]
     public void LegacyDatabaseWithoutStorageEpoch_IsBackedUpAndRecreatedWhenResetIsExplicit()
     {
         using var fixture = TempDatabase.Create();
