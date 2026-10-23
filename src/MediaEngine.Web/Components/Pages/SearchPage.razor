@@ -215,8 +215,9 @@
 
             // Items waiting for their file after a restore are a section of their own: never a top result, never merged into a
             // media-scoped list, sorted by the Engine and always last.
+            // Unmatched files are a group of their own too (Library setup spec D66): never the top result and never merged into an identified list.
             var all = _response.Sections
-                .Where(section => !IsFileMissingSection(section))
+                .Where(section => !IsFileMissingSection(section) && !IsUnmatchedSection(section))
                 .SelectMany(section => section.Results)
                 .Prepend(_response.TopResult)
                 .Where(result => result is not null)
@@ -227,7 +228,7 @@
 
             all = SortResults(all).ToList();
             var sections = _response.Sections
-                .Where(section => !IsFileMissingSection(section))
+                .Where(section => !IsFileMissingSection(section) && !IsUnmatchedSection(section))
                 .Select(section => section with
                 {
                     Results = SortResults(section.Results.Where(MatchesFilters)).ToList(),
@@ -248,6 +249,16 @@
                         ScopedRoute(_selectedMedia[0])),
                 ];
             }
+
+            var unmatched = _response.Sections
+                .Where(IsUnmatchedSection)
+                .Select(section => section with
+                {
+                    Results = section.Results.Where(MatchesFilters).ToList(),
+                    TotalCount = section.Results.Count(MatchesFilters),
+                })
+                .Where(section => section.Results.Count > 0);
+            sections.AddRange(unmatched);
 
             var fileMissing = _response.Sections
                 .Where(IsFileMissingSection)
@@ -423,7 +434,7 @@
     private void SyncSelectedResultToFilters(bool forceFirstMatch = false)
     {
         var matching = _response?.Sections
-            .Where(section => !IsFileMissingSection(section))
+            .Where(section => !IsFileMissingSection(section) && !IsUnmatchedSection(section))
             .SelectMany(section => section.Results)
             .Where(MatchesFilters)
             .DistinctBy(result => $"{result.EntityType}:{result.Id}", StringComparer.OrdinalIgnoreCase)
@@ -484,6 +495,7 @@
     };
 
     private static bool IsFileMissingSection(UniversalSearchSectionDto section) => section.Key == "file-missing";
+    private static bool IsUnmatchedSection(UniversalSearchSectionDto section) => section.Key == "unmatched";
 
     private static int ParseYear(string? value) => int.TryParse(value, out var parsed) ? parsed : 0;
     private static string NormalizeYear(string? value) => int.TryParse(value, out var parsed) && parsed is >= 1000 and <= 9999 ? parsed.ToString() : string.Empty;

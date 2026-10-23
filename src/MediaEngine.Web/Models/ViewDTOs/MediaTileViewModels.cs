@@ -121,6 +121,8 @@ public sealed class MediaTileViewModel
     public string? StatusText { get; init; }
     public string? MetaText { get; init; }
     public string? QualityBadge { get; init; }
+    /// <summary>True on a tile in the Unmatched filter whose file is kept as it is; it shows a small Kept label.</summary>
+    public bool IsKept { get; init; }
     public string? SourceBadgeLabel { get; init; }
     public string? SourceLogoUrl { get; init; }
     public IReadOnlyList<MediaTileMediaCountViewModel> MediaCounts { get; init; } = [];

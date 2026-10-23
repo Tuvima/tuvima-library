@@ -322,6 +322,60 @@ public sealed class UnmatchedAssetRepositoryTests : IDisposable
         Assert.Empty(await _unmatched.ListOpenByWorksAsync([]));
     }
 
+    [Fact]
+    public async Task ListWorkLibraries_SaysWhetherEveryFileAWorkHasInALibraryIsUnmatched_AndWhetherThoseAreAllKept()
+    {
+        var onlyOpen = AddAsset("movies", "Open.mkv");
+        var onlyKept = AddAsset("movies", "Kept.mkv");
+        var mixed = AddAsset("movies", "Mixed.mkv");
+        var matchedSibling = AddAsset("movies", "Sibling.mkv");
+        var untouched = AddAsset("movies", "Matched.mkv");
+        var spread = AddAsset("movies", "Spread.mkv");
+        var spreadElsewhere = AddAsset("lectures", "SpreadElsewhere.mkv");
+        MoveToWork(matchedSibling, WorkOf(mixed));
+        MoveToWork(spreadElsewhere, WorkOf(spread));
+        foreach (var (asset, library) in new[] { (onlyOpen, "movies"), (onlyKept, "movies"), (mixed, "movies"), (spread, "movies") })
+        {
+            await _unmatched.MarkUnmatchedAsync(asset, library, UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        }
+
+        await _unmatched.KeepAsIsAsync(onlyKept, Now);
+        var works = new[] { onlyOpen, onlyKept, mixed, untouched, spread }.Select(WorkOf).ToList();
+
+        var rows = await _unmatched.ListWorkLibrariesAsync(works);
+
+        UnmatchedWorkLibrary Row(Guid asset, string library) => rows.Single(row => row.WorkId == WorkOf(asset) && row.LibraryId == library);
+        Assert.True(Row(onlyOpen, "MOVIES").EveryFileUnmatched);
+        Assert.False(Row(onlyOpen, "MOVIES").EveryUnmatchedFileKept);
+        Assert.True(Row(onlyKept, "MOVIES").EveryFileUnmatched);
+        Assert.True(Row(onlyKept, "MOVIES").EveryUnmatchedFileKept);
+        // A matched file beside the Unmatched one keeps the work in the lanes, so it is not "every file".
+        Assert.False(Row(mixed, "MOVIES").EveryFileUnmatched);
+        // The same work's file in another library is judged on its own: unmatched there, matched here.
+        Assert.True(Row(spread, "MOVIES").EveryFileUnmatched);
+        Assert.DoesNotContain(rows, row => row.WorkId == WorkOf(untouched));
+        Assert.DoesNotContain(rows, row => row.WorkId == WorkOf(spread) && row.LibraryId == "LECTURES");
+        Assert.Empty(await _unmatched.ListWorkLibrariesAsync([]));
+        Assert.Empty(await _unmatched.ListWorkLibrariesAsync([Guid.NewGuid()]));
+    }
+
+    [Fact]
+    public async Task ListWorkLibraries_LeavesOutAnOrphanedFileAndReadsOnlyTheWorksAskedFor()
+    {
+        var gone = AddAsset("movies", "Gone.mkv");
+        var other = AddAsset("movies", "Other.mkv");
+        await _unmatched.MarkUnmatchedAsync(gone, "movies", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        await _unmatched.MarkUnmatchedAsync(other, "movies", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("UPDATE media_assets SET is_orphaned = 1 WHERE id = @gone;", new { gone });
+        }
+
+        Assert.Empty(await _unmatched.ListWorkLibrariesAsync([WorkOf(gone)]));
+        var rows = await _unmatched.ListWorkLibrariesAsync([WorkOf(other)]);
+        Assert.Equal([WorkOf(other)], rows.Select(row => row.WorkId).ToArray());
+    }
+
     private Guid WorkOf(Guid assetId)
     {
         using var conn = _db.CreateConnection();

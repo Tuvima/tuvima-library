@@ -2761,6 +2761,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardFlagsDto
   IsReadable: System.Boolean | nullability=not-null | accessors=get,init
   IsCollection: System.Boolean | nullability=not-null | accessors=get,init
   IsFavorite: System.Boolean | nullability=not-null | accessors=get,init
+  KeptAsIs: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardListMetadataDto
   Author: System.String | nullability=nullable | accessors=get,init

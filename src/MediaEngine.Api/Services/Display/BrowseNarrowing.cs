@@ -12,7 +12,7 @@ internal static class BrowseNarrowing
 {
     /// <summary>
     /// The works that have a file the profile may see in the library asked for (any library when none is) and, when asked, a file that is
-    /// Unmatched and not kept in that same library. Only the works in view are looked up.
+    /// Unmatched (open or kept, Library setup spec D64, D65) in that same library. Only the works in view are looked up.
     /// </summary>
     public static async Task<HashSet<Guid>> WorksInAsync(
         IDisplayProjectionReadService read,
@@ -22,7 +22,11 @@ internal static class BrowseNarrowing
         CancellationToken ct)
     {
         var library = libraryId?.ToString("D");
-        var pairs = (await read.LoadWorkLibraryRowsAsync(ct).ConfigureAwait(false))
+        // The Unmatched filter is the one place Unmatched works are still in the rows; every other read leaves them out.
+        var rows = unmatchedOnly
+            ? await read.LoadWorkLibraryRowsIncludingUnmatchedAsync(ct).ConfigureAwait(false)
+            : await read.LoadWorkLibraryRowsAsync(ct).ConfigureAwait(false);
+        var pairs = rows
             .Where(row => library is null || string.Equals(row.LibraryId, library, StringComparison.OrdinalIgnoreCase))
             .Select(row => (row.WorkId, Library: (row.LibraryId ?? string.Empty).ToUpperInvariant()))
             .Distinct()
@@ -37,10 +41,10 @@ internal static class BrowseNarrowing
             return [];
         }
 
-        var open = (await unmatched.ListOpenByWorksAsync(pairs.Select(pair => pair.WorkId).Distinct().ToList(), ct).ConfigureAwait(false))
-            .Select(file => (file.WorkId, Library: file.LibraryId.ToUpperInvariant()))
+        var withUnmatched = (await unmatched.ListWorkLibrariesAsync(pairs.Select(pair => pair.WorkId).Distinct().ToList(), ct).ConfigureAwait(false))
+            .Select(file => (file.WorkId, Library: file.LibraryId))
             .ToHashSet();
-        return pairs.Where(open.Contains).Select(pair => pair.WorkId).ToHashSet();
+        return pairs.Where(withUnmatched.Contains).Select(pair => pair.WorkId).ToHashSet();
     }
 
     /// <summary>
@@ -54,7 +58,9 @@ internal static class BrowseNarrowing
         bool unmatchedOnly,
         CancellationToken ct)
     {
-        var visible = await read.LoadVisibleWorkIdsAsync(ct).ConfigureAwait(false);
+        var visible = unmatchedOnly
+            ? await read.LoadVisibleWorkIdsIncludingUnmatchedAsync(ct).ConfigureAwait(false)
+            : await read.LoadVisibleWorkIdsAsync(ct).ConfigureAwait(false);
         if (libraryId is null && !unmatchedOnly)
         {
             return visible;

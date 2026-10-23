@@ -112,7 +112,7 @@ public static class DetailEndpoints
                 return ApiErrors.BadRequest("The 'after' episode file is required.");
             }
 
-            var next = NextEpisodesPlanner.Plan(id, afterAssetId, NextEpisodesPlanner.ClampCount(count), await display.LoadWorksAsync(ct));
+            var next = NextEpisodesPlanner.Plan(id, afterAssetId, NextEpisodesPlanner.ClampCount(count), await display.LoadWorksIncludingUnmatchedAsync(ct));
             return next is null
                 ? ApiErrors.NotFound($"No episodes found after '{afterAssetId}' in show '{id}'.")
                 : Results.Ok(next);

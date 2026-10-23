@@ -225,4 +225,8 @@ public sealed record DisplayCardFlagsDto(
     bool IsPlayable,
     bool IsReadable,
     bool IsCollection,
-    bool IsFavorite);
+    bool IsFavorite)
+{
+    /// <summary>True on a card in the Unmatched filter whose file is kept as it is (Library setup spec D65); false everywhere else.</summary>
+    public bool KeptAsIs { get; init; }
+}
