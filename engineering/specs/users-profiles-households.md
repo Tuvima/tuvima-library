@@ -1,6 +1,6 @@
 # Spec: Users, profiles and households
 
-> **Status:** In progress (Locked by Shy 2026-10-23) · **Version:** 4 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Security model](../../docs/architecture/security.md) · [ADR 0007 Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md) (replaced by this spec) · [Backup and restore](backup-and-restore.md) D19, D20 · [Open from the start](archive/open-from-the-start.md) · [Profiles and setup redesign](archive/profiles-setup-redesign.md)
+> **Status:** Built, awaiting your Local checks (Locked by Shy 2026-10-23) · **Version:** 5 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Security model](../../docs/architecture/security.md) · [ADR 0007 Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md) (replaced by this spec) · [Backup and restore](backup-and-restore.md) D19, D20 · [Open from the start](archive/open-from-the-start.md) · [Profiles and setup redesign](archive/profiles-setup-redesign.md)
 
 ## 1. Goal
 
