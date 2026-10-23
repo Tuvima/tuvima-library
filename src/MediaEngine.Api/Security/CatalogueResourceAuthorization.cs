@@ -425,11 +425,17 @@ internal sealed class CatalogueResourceAuthorizationService(
         {
             // A combined file is playable from every episode it covers, so each covered episode's rating must pass too. An episode
             // with no rating passes when allowed, or when the file sits in a folder marked "Suitable for limited profiles" (D7).
-            var filePath = content.SuitableFolderPrefixes.Count == 0
-                ? null
-                : await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
+            var ratings = await ReadContentRatingsAsync(connection, assetId, ct).ConfigureAwait(false);
+            // The file's path is read only when the folder rule could change the answer: an item with no rating that the limit refuses.
+            string? filePath = null;
+            if (content.SuitableFolderPrefixes.Count > 0
+                && ratings.Any(rating => !content.Allows(rating) && ContentLimitFilter.IsUnrated(rating)))
+            {
+                filePath = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
                     "SELECT file_path_root FROM media_assets WHERE id=@assetId;", new { assetId }, cancellationToken: ct)).ConfigureAwait(false);
-            foreach (var rating in await ReadContentRatingsAsync(connection, assetId, ct).ConfigureAwait(false))
+            }
+
+            foreach (var rating in ratings)
             {
                 if (!content.AllowsItem(rating, filePath))
                 {

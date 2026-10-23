@@ -7,9 +7,9 @@ namespace MediaEngine.Domain.Contracts;
 public interface ISuitableFolderAssetRepository
 {
     /// <summary>
-    /// The listed files (media asset ids) whose file is inside any of <paramref name="folderPaths"/>. An id that is not a file, or sits
-    /// elsewhere, is left out. With no folder nothing is read and nothing is returned.
+    /// The media assets (files still on disk that belong to an edition of a work) inside any of <paramref name="folderPaths"/>. It asks from the folder
+    /// side, one range read on the folded-path index per folder, so the cost follows the marked folders and not the length of any list.
+    /// With no folder nothing is read and nothing is returned.
     /// </summary>
-    Task<IReadOnlySet<Guid>> FindAssetsInFoldersAsync(
-        IReadOnlyCollection<Guid> assetIds, IReadOnlyList<string> folderPaths, CancellationToken ct = default);
+    Task<IReadOnlySet<Guid>> FindAssetsInFoldersAsync(IReadOnlyList<string> folderPaths, CancellationToken ct = default);
 }

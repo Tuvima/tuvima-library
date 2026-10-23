@@ -40,8 +40,11 @@ internal sealed class ContentLimitFilter(
 
     public bool Allows(string? rating) => ProfileContentLimits.Allows(_limit.Limit, _limit.AllowUnrated, rating);
 
-    /// <summary>True when the limit has nothing to say about the rating (none given, or not one the ladder knows), so only "allow unrated" or a marked folder can let the item through.</summary>
-    public static bool IsUnrated(string? rating) => ProfileContentLimits.RankOfRating(rating) is null;
+    /// <summary>
+    /// True only when the item has no rating (missing, blank, or an outright "Not Rated"): the one case a marked folder lets through. A
+    /// rating the ladder does not know ("R18+") is not unrated here; it still follows "allow unrated", as it always has.
+    /// </summary>
+    public static bool IsUnrated(string? rating) => ProfileContentLimits.IsUnrated(rating);
 
     /// <summary>
     /// The one rule for an item (simpler access D7): a rated item follows the limit exactly; an item with no rating is allowed when the

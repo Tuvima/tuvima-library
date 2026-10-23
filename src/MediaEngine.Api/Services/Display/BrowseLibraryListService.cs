@@ -6,8 +6,9 @@ namespace MediaEngine.Api.Services.Display;
 
 /// <summary>
 /// The libraries the signed-in profile may browse, one per browse tab (Library setup spec D54). The catalogue read decides, with the same
-/// rule it applies to works: library grants (an administrator holds every library), the lane's feature (Watch, Listen or Read), the
-/// content limit's video rule and the Vault. The View area is never listed.
+/// rule it applies to works: library grants (an administrator holds every library), the lane's feature (Watch, Listen or Read) and the
+/// Vault. A content limit does not hide a library: its items are filtered one by one (a folder marked "Suitable for limited profiles" lets
+/// its unrated items through). The View area is never listed.
 /// </summary>
 public sealed class BrowseLibraryListService(
     IDisplayProjectionReadService display,

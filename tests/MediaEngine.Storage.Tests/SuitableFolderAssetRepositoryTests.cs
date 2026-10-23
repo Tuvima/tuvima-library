@@ -42,12 +42,13 @@ public sealed class SuitableFolderAssetRepositoryTests : IDisposable
         var backslashes = AddAsset(@"\media\kids\c.mkv");
         var sibling = AddAsset("/media/kids2/d.mkv");
         var other = AddAsset("/media/other/e.mkv");
-        var unasked = AddAsset("/media/kids/not-asked.mkv");
+        var unasked = AddAsset("/media/kids/another.mkv");
 
-        var found = await _folders.FindAssetsInFoldersAsync([inside, nested, backslashes, sibling, other, Guid.NewGuid()], ["/media/kids"]);
+        var found = await _folders.FindAssetsInFoldersAsync(["/media/kids"]);
 
-        Assert.Equivalent(new[] { inside, nested, backslashes }, found);
-        Assert.DoesNotContain(unasked, found);
+        Assert.Equivalent(new[] { inside, nested, backslashes, unasked }, found);
+        Assert.DoesNotContain(sibling, found);
+        Assert.DoesNotContain(other, found);
     }
 
     [Fact]
@@ -56,10 +57,12 @@ public sealed class SuitableFolderAssetRepositoryTests : IDisposable
         var inside = AddAsset("/media/kids/a.mkv");
         var sibling = AddAsset("/media/kids2/b.mkv");
 
-        Assert.Equal(await _folders.FindAssetsInFoldersAsync([inside, sibling], ["/media/kids"]),
-            await _folders.FindAssetsInFoldersAsync([inside, sibling], ["/media/kids/"]));
-        Assert.Equal(await _folders.FindAssetsInFoldersAsync([inside, sibling], ["/media/kids"]),
-            await _folders.FindAssetsInFoldersAsync([inside, sibling], [@"\media\kids\"]));
+        var plain = await _folders.FindAssetsInFoldersAsync(["/media/kids"]);
+
+        Assert.Equivalent(new[] { inside }, plain);
+        Assert.Equal(plain, await _folders.FindAssetsInFoldersAsync(["/media/kids/"]));
+        Assert.Equal(plain, await _folders.FindAssetsInFoldersAsync([@"\media\kids\"]));
+        Assert.DoesNotContain(sibling, plain);
     }
 
     [Fact]
@@ -69,11 +72,24 @@ public sealed class SuitableFolderAssetRepositoryTests : IDisposable
         var films = AddAsset("/media/films/b.mkv");
         var other = AddAsset("/media/other/c.mkv");
 
-        var found = await _folders.FindAssetsInFoldersAsync([kids, films, other], ["/media/kids", "/media/films"]);
+        var found = await _folders.FindAssetsInFoldersAsync(["/media/kids", "/media/films"]);
 
         Assert.Equivalent(new[] { kids, films }, found);
-        Assert.Empty(await _folders.FindAssetsInFoldersAsync([kids, films, other], []));
-        Assert.Empty(await _folders.FindAssetsInFoldersAsync([], ["/media/kids"]));
+        Assert.DoesNotContain(other, found);
+        Assert.Empty(await _folders.FindAssetsInFoldersAsync([]));
+    }
+
+    [Fact]
+    public async Task OrphanedFiles_AreLeftOut()
+    {
+        var gone = AddAsset("/media/kids/gone.mkv");
+        var kept = AddAsset("/media/kids/kept.mkv");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE media_assets SET is_orphaned = 1 WHERE id = @gone;", new { gone });
+        }
+
+        Assert.Equivalent(new[] { kept }, await _folders.FindAssetsInFoldersAsync(["/media/kids"]));
     }
 
     [Theory]
@@ -90,7 +106,7 @@ public sealed class SuitableFolderAssetRepositoryTests : IDisposable
     {
         var asset = AddAsset(file);
 
-        var inStore = (await _folders.FindAssetsInFoldersAsync([asset], [folder])).Contains(asset);
+        var inStore = (await _folders.FindAssetsInFoldersAsync([folder])).Contains(asset);
         var inMemory = FolderFirstCheckPaths.IsInFolder(FolderFirstCheckPaths.Prefix(folder), file);
 
         Assert.Equal(inMemory, inStore);

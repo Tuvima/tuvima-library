@@ -131,6 +131,34 @@ public static class ProfileContentLimits
         return null;
     }
 
+    /// <summary>The values a library may hold that explicitly say "no rating". Compared without case, ignoring <c>-</c> and <c>_</c> as spaces.</summary>
+    private static readonly string[] NotRatedValues = ["NR", "NOT RATED", "UNRATED"];
+
+    /// <summary>
+    /// True when the item really has no rating: the rating is missing or blank, or says so outright (NR, Not Rated, Unrated). A
+    /// rating the ladder does not recognise ("R18+", "BBFC 18") is <b>not</b> unrated: it is a rating somebody wrote, so a folder
+    /// marked "Suitable for limited profiles" never lets it through. Several values for one item ("PG|R") are unrated only when every
+    /// one of them is.
+    /// </summary>
+    public static bool IsUnrated(string? rating)
+    {
+        if (string.IsNullOrWhiteSpace(rating))
+        {
+            return true;
+        }
+
+        foreach (var part in rating.Split('|'))
+        {
+            var key = part.Trim().ToUpperInvariant().Replace('_', ' ').Replace('-', ' ');
+            if (key.Length > 0 && !NotRatedValues.Contains(key, StringComparer.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>
     /// True when a profile with <paramref name="limit"/> may see an item rated <paramref name="rating"/>.
     /// An unrated or unrecognised rating is allowed only when <paramref name="allowUnrated"/> is set.

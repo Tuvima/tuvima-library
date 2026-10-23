@@ -1672,7 +1672,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             _accounts,
             evaluator,
             _database,
-            configuration);
+            configuration,
+            clock: null,
+            suitableFolders: new SuitableFolderAssetRepository(_database));
     }
 
     private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context, IConfigurationLoader? configuration = null)

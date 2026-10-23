@@ -153,6 +153,30 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
+    public async Task AnUnrecognisedRatingInATickedFolder_StaysHiddenFromAGProfile_WhileNotRatedAndBlankShow_InBothListsAndTheStreamGate()
+    {
+        var library = Guid.NewGuid();
+        var odd = await InsertFolderWorkAsync(library, KidsFolder, "Audiobooks", "R18+");
+        var notRated = await InsertFolderWorkAsync(library, KidsFolder, "Audiobooks", "Not Rated");
+        var blank = await InsertFolderWorkAsync(library, KidsFolder, "Audiobooks", "");
+        var none = await InsertFolderWorkAsync(library, KidsFolder, "Audiobooks", null);
+        var context = await LimitedContextAsync("G", allowUnrated: false);
+        var config = FolderConfig(library);
+
+        var visible = await VisibleWorksAsync(context, config);
+        var service = CreateService(context, new StubRawProjection([], []), config);
+        var assets = (await service.LoadAuthorizedAssetsAsync(CancellationToken.None)).Select(row => row.AssetId).ToHashSet();
+        var resources = CreateResourceService(context, config);
+
+        Assert.Equivalent(new[] { notRated.WorkId, blank.WorkId, none.WorkId }, visible);
+        Assert.Equivalent(new[] { notRated.AssetId, blank.AssetId, none.AssetId }, assets);
+        Assert.Equal(CatalogueResourceAccess.Denied, await resources.EvaluateAssetAsync(context, odd.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, notRated.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, blank.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, none.AssetId, ApplicationPermissionIds.PlaybackRead));
+    }
+
+    [Fact]
     public async Task AnUnrestrictedProfile_SeesEverythingWhetherOrNotAnyFolderIsTicked()
     {
         var library = Guid.NewGuid();

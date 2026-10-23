@@ -79,7 +79,7 @@ def prepare(root):
             presentation='catalogue', metadata_policy='enriched', media_types=[kind], sources=[],
             accepted_intake_modes=[],
             organization_policy=dict(mode='keep_original_folders', write_tags=False)))
-    dump(config/'libraries.json', dict(schema_version='7.0', file_handling=dict(duplicate_policy='keep_one'), storage_locations=[dict(id='qa',label='Disposable QA',path=str(root/'media'),allow_write=True)],
+    dump(config/'libraries.json', dict(schema_version='8.0', file_handling=dict(duplicate_policy='keep_one'), storage_locations=[dict(id='qa',label='Disposable QA',path=str(root/'media'),allow_write=True)],
         view_storage=dict(storage_location_id='qa',relative_root='View'), libraries=libraries,
         personal_library_policy=dict(allow_mobile_backup=False, allow_browser_upload=False, allow_drag_and_drop=False,
             allow_connected_device_import=False, allow_managed_storage=True, allow_existing_folder_attachment=True)))

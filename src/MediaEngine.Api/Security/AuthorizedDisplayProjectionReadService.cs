@@ -21,7 +21,8 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     IAuthorizationEvaluator evaluator,
     IDatabaseConnection database,
     IConfigurationLoader? configuration = null,
-    TimeProvider? clock = null) : IDisplayProjectionReadService
+    TimeProvider? clock = null,
+    ISuitableFolderAssetRepository? suitableFolders = null) : IDisplayProjectionReadService
 {
     // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the
     // limit and keep the Vault out of view.
@@ -77,32 +78,36 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         }
     }
 
-    private ISuitableFolderAssetRepository? _suitableFolders;
-
-    private ISuitableFolderAssetRepository SuitableFolders => _suitableFolders ??= new SuitableFolderAssetRepository(database);
+    private readonly object _suitableLock = new();
+    private (string Key, Task<IReadOnlySet<Guid>> Assets)? _suitableAssets;
 
     /// <summary>
-    /// Of the listed rows, the files that sit in a folder marked "Suitable for limited profiles" and whose item has no rating the limit
-    /// can read (simpler access D7). One batched read per list, and none at all for a profile with no limit, one that allows unrated
-    /// items anyway, or when no folder is marked, so those requests pay nothing.
+    /// The files that sit in a folder marked "Suitable for limited profiles" (simpler access D7), read from the folder side: one range read
+    /// per marked folder, not one id per row of a list. Read once per request and shared by every list that asks, like the hidden set.
+    /// Nothing is read for a profile with no limit, one that allows unrated items anyway, or when no folder is marked, so those requests
+    /// pay nothing. Without a repository (a host that did not register one) no folder counts, so an unrated item stays hidden.
     /// </summary>
-    private async Task<IReadOnlySet<Guid>> SuitableFolderAssetsAsync(
-        IEnumerable<(string? Rating, Guid AssetId)> items, CatalogueScope scope, CancellationToken ct)
+    private Task<IReadOnlySet<Guid>> SuitableFolderAssetsAsync(CatalogueScope scope)
     {
         var content = scope.Content;
-        if (content.IsUnrestricted || content.SuitableFolderPrefixes.Count == 0)
+        if (suitableFolders is null || content.IsUnrestricted || content.SuitableFolderPrefixes.Count == 0 || content.Allows(null))
         {
-            return EmptyAssets;
+            return Task.FromResult(EmptyAssets);
         }
 
-        var unrated = items
-            .Where(item => item.AssetId != Guid.Empty && !content.Allows(item.Rating) && ContentLimitFilter.IsUnrated(item.Rating))
-            .Select(item => item.AssetId)
-            .Distinct()
-            .ToList();
-        return unrated.Count == 0
-            ? EmptyAssets
-            : await SuitableFolders.FindAssetsInFoldersAsync(unrated, content.SuitableFolderPrefixes, ct).ConfigureAwait(false);
+        var key = string.Join('\n', content.SuitableFolderPrefixes);
+        lock (_suitableLock)
+        {
+            if (_suitableAssets is { } cached && cached.Key == key)
+            {
+                return cached.Assets;
+            }
+
+            // Not tied to one caller's cancellation: the answer is cached for the rest of the request.
+            var loading = suitableFolders.FindAssetsInFoldersAsync(content.SuitableFolderPrefixes, CancellationToken.None);
+            _suitableAssets = (key, loading);
+            return loading;
+        }
     }
 
     private static readonly IReadOnlySet<Guid> EmptyAssets = new HashSet<Guid>();
@@ -144,7 +149,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
 
         var visibleRows = await inner.LoadVisibleWorkRowsAsync(ct).ConfigureAwait(false);
         var vaultWorks = WorksInHiddenVault(visibleRows.Select(row => (row.WorkId, row.LibraryId)), scope);
-        var inSuitableFolder = await SuitableFolderAssetsAsync(visibleRows.Select(row => (row.ContentRating, row.AssetId)), scope, ct).ConfigureAwait(false);
+        var inSuitableFolder = await SuitableFolderAssetsAsync(scope).ConfigureAwait(false);
         var allowed = visibleRows
             .Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, inSuitableFolder.Contains(row.AssetId), scope))
             .ToList();
@@ -265,7 +270,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             ORDER BY ma.presented_at DESC, ma.id, woa.is_covered;
             """,
             cancellationToken: ct)).ConfigureAwait(false)).AsList();
-        var inSuitableFolder = await SuitableFolderAssetsAsync(rows.Select(row => (row.ContentRating, row.AssetId)), scope, ct).ConfigureAwait(false);
+        var inSuitableFolder = await SuitableFolderAssetsAsync(scope).ConfigureAwait(false);
         return rows.Where(row => AllowsFile(row.LibraryId, row.MediaType, row.ContentRating, inSuitableFolder.Contains(row.AssetId), scope)).ToList();
     }
 
@@ -277,7 +282,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
         var vaultWorks = WorksInHiddenVault(rows.Select(row => (row.WorkId, row.LibraryId)), scope);
-        var inSuitableFolder = await SuitableFolderAssetsAsync(rows.Select(row => (row.ContentRating, row.AssetId)), scope, ct).ConfigureAwait(false);
+        var inSuitableFolder = await SuitableFolderAssetsAsync(scope).ConfigureAwait(false);
         var allowed = rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, inSuitableFolder.Contains(row.AssetId), scope)).ToList();
         return await WithoutUnmatchedOnlyAsync(allowed, row => row.WorkId, row => row.LibraryId, false, ct).ConfigureAwait(false);
     }
@@ -311,7 +316,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         }
 
         var journey = await inner.LoadJourneyAsync(profileId, lane, ct).ConfigureAwait(false);
-        var inSuitableFolder = await SuitableFolderAssetsAsync(journey.Select(row => (row.ContentRating, row.AssetId)), scope, ct).ConfigureAwait(false);
+        var inSuitableFolder = await SuitableFolderAssetsAsync(scope).ConfigureAwait(false);
         var allowed = journey
             .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, row.ContentRating, inSuitableFolder.Contains(row.AssetId), scope))
             .ToList();
@@ -327,7 +332,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
         var states = await inner.LoadStatesAsync(profileId, lane, ct).ConfigureAwait(false);
-        var inSuitableFolder = await SuitableFolderAssetsAsync(states.Select(row => (row.ContentRating, row.AssetId)), scope, ct).ConfigureAwait(false);
+        var inSuitableFolder = await SuitableFolderAssetsAsync(scope).ConfigureAwait(false);
         return states
             .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, row.ContentRating, inSuitableFolder.Contains(row.AssetId), scope)).ToList();
     }
@@ -476,7 +481,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         }
 
         var vaultWorks = WorksInHiddenVault(rows.Select(row => (row.WorkId, row.LibraryId)), scope);
-        var inSuitableFolder = await SuitableFolderAssetsAsync(rows.Select(row => (row.ContentRating, row.AssetId)), scope, ct).ConfigureAwait(false);
+        var inSuitableFolder = await SuitableFolderAssetsAsync(scope).ConfigureAwait(false);
         var allowed = rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, inSuitableFolder.Contains(row.AssetId), scope)).ToList();
         return await WithoutUnmatchedOnlyAsync(allowed, row => row.WorkId, row => row.LibraryId, includeUnmatched, ct).ConfigureAwait(false);
     }

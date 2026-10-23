@@ -46,6 +46,44 @@ public sealed class VideoContentLimitTests
         Assert.True(lenient.AllowsItem(null, "/media/adults/a.mkv"));
     }
 
+    [Theory]
+    [InlineData("R18+")]
+    [InlineData("BBFC 18")]
+    [InlineData("R21")]
+    [InlineData("M18")]
+    [InlineData("III")]
+    public void AnUnrecognisedRating_IsNotLetThroughByAMarkedFolder_ForAGProfile(string rating)
+    {
+        var strict = new ContentLimitFilter(new ProfileContentLimit("G", AllowUnrated: false), [Kids()]);
+
+        Assert.False(strict.AllowsItem(rating, "/media/kids/a.mkv"));
+        Assert.False(strict.AllowsItem(rating, inSuitableFolder: true));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("NR")]
+    [InlineData("Not Rated")]
+    [InlineData("Unrated")]
+    public void ABlankOrOutrightNotRatedItem_IsLetThroughByAMarkedFolder(string? rating)
+    {
+        var strict = new ContentLimitFilter(new ProfileContentLimit("G", AllowUnrated: false), [Kids()]);
+
+        Assert.True(strict.AllowsItem(rating, "/media/kids/a.mkv"));
+        Assert.False(strict.AllowsItem(rating, "/media/adults/a.mkv"));
+    }
+
+    [Fact]
+    public void AnUnrecognisedRating_StillFollowsAllowUnrated_AsItAlwaysDid()
+    {
+        var lenient = new ContentLimitFilter(new ProfileContentLimit("G", AllowUnrated: true));
+        var strict = new ContentLimitFilter(new ProfileContentLimit("G", AllowUnrated: false));
+
+        Assert.True(lenient.AllowsItem("R18+", "/media/adults/a.mkv"));
+        Assert.False(strict.AllowsItem("R18+", "/media/adults/a.mkv"));
+    }
+
     [Fact]
     public void ASiblingFolderSharingAPrefix_IsNotInsideTheMarkedFolder()
     {
