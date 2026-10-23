@@ -117,6 +117,31 @@ public sealed class HouseholdAdministratorTests
     }
 
     [Fact]
+    public async Task HouseholdAdministrator_CanNotShowAgainALibraryTheMainSignInHides_WhateverTheyPutInTheSave()
+    {
+        await using var world = await World.CreateAsync();
+        var mutations = world.Mutations;
+        var invitation = await mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "second.adult@example.com", [world.A.Person.Id], null));
+        var secondAdult = (await world.Accounts.GetByIdAsync(invitation.AccountId))!;
+
+        // The server administrator hid a library from the household's main sign-in.
+        var hiddenByMain = Guid.NewGuid();
+        var main = world.A.Owner;
+        await world.Accounts.ReplaceAccountAccessAsync(
+            main.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { hiddenByMain }, DateTimeOffset.UtcNow);
+
+        // The household administrator saves a list that hides nothing: the main sign-in's hidden library stays hidden.
+        await mutations.ReplaceAccessAsync(world.AdminOfA, secondAdult.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
+        Assert.Equal([hiddenByMain], (await world.Accounts.GetHiddenLibrariesAsync(secondAdult.Id)).ToArray());
+        Assert.True(await world.Accounts.IsLibraryHiddenAsync(secondAdult.Id, hiddenByMain));
+
+        // Another household's main sign-in, and an account nobody hid anything from, are untouched.
+        Assert.Empty(await world.Accounts.GetHiddenLibrariesAsync(world.B.Owner.Id));
+    }
+
+    [Fact]
     public async Task OnlyAServerAdministrator_DecidesWhoLooksAfterAHousehold()
     {
         await using var world = await World.CreateAsync();

@@ -48,7 +48,8 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         var cut = RenderUsers();
         OpenAction(cut, "Edit permissions");
 
-        cut.Find("input[aria-label='Books']").Change(false);
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".access-user-permissions__libraries input")));
+        cut.Find(".access-user-permissions__libraries input").Change(false);
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Permissions for owner@example.test were saved.", cut.Markup));

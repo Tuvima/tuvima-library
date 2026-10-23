@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1237; api=0; web-client=54
+# scopes: contracts=1236; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -659,6 +659,7 @@
   DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Category: System.String | json=category | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Area: System.String | json=area | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HiddenByPrimary: System.Boolean | json=hidden_by_primary | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.AccountAccessResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -668,7 +669,7 @@
   IsAdministrator: System.Boolean | json=is_administrator | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AuthorizationVersion: System.Int64 | json=authorization_version | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FeatureGrants: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountFeatureGrantDto> | json=feature_grants | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  LibraryGrants: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountLibraryGrantDto> | json=library_grants | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=hidden_library_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProfileGrants: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountProfileGrantDto> | json=profile_grants | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTimeOffset | json=created_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UpdatedAt: System.DateTimeOffset | json=updated_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -714,12 +715,6 @@
   Code: System.String | json=code | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExpiresAt: System.DateTimeOffset | json=expires_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PublicAddress: System.String | json=public_address | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-
-[contracts] MediaEngine.Contracts.Authentication.AccountLibraryGrantDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  LibraryId: System.Guid | json=library_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Allowed: System.Boolean | json=allowed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.AccountNoticesResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1115,7 +1110,7 @@
   ProfileId: System.Guid? | json=profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NewProfile: MediaEngine.Contracts.Authentication.NewAccountProfileRequest | json=new_profile | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | json=feature_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  LibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=library_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=hidden_library_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TemporaryPassword: System.String | json=temporary_password | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.CreateManagedProfileRequest
@@ -1435,7 +1430,7 @@
 [contracts] MediaEngine.Contracts.Authentication.ReplaceAccountAccessRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | json=feature_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  LibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=library_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=hidden_library_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.ResetPasswordTokenRequest
   kind=class | converter=default | number-handling=default | unmapped=default
