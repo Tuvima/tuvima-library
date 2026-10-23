@@ -1,6 +1,6 @@
 # Spec: Simpler access (areas, ratings, untick a library, folder checkbox)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D51, D60) · [Vault sections and Move to Vault](vault-sections-and-move.md) (D28, D32, D39) · [Videos](videos.md) (D55) · [Security](../../docs/architecture/security.md)
+> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D51, D60) · [Vault sections and Move to Vault](vault-sections-and-move.md) (D28, D32, D39) · [Videos](videos.md) (D55) · [Security](../../docs/architecture/security.md)
 
 > Written 2026-10-23 after Shy asked for a review of the permissions strategy and a comparison with Plex, Jellyfin, Netflix and Disney+. Shy approved the recommended model the same day ("Good with all these suggestions and the new access model"), which locks this spec. Because it is an access change, every packet gets the security review before merge.
 
