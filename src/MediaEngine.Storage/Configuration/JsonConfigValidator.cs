@@ -63,6 +63,9 @@ public static class JsonConfigValidator
                     errors.Add("first_check_unmatched_share must be above 0 and below 1.");
                 }
 
+                AddRange(errors, maintenance.UploadPieceBytes, "upload_piece_bytes", ImportUploadLimits.MinPieceBytes, ImportUploadLimits.MaxPieceBytes);
+                AddRange(errors, maintenance.LargeUploadWarningBytes, "large_upload_warning_bytes", ImportUploadLimits.MinLargeUploadWarningBytes, ImportUploadLimits.MaxLargeUploadWarningBytes);
+                AddRange(errors, maintenance.UploadAbandonHours, "upload_abandon_hours", ImportUploadLimits.MinAbandonHours, ImportUploadLimits.MaxAbandonHours);
                 AddPositive(errors, maintenance.MaxTransactionLogEntries, "max_transaction_log_entries");
                 AddPositive(errors, maintenance.WeeklySyncIntervalDays, "weekly_sync_interval_days");
                 AddPositive(errors, maintenance.WeeklySyncBatchSize, "weekly_sync_batch_size");

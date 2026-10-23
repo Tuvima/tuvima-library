@@ -1,0 +1,17 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* The Add files button, placed beside Add folder. It draws nothing unless it sits inside a LibraryUploadZone that takes files. *@
+@if (Zone is { Enabled: true })
+{
+    <AppButton Label="Add files"
+               StartIcon="@AppMaterialIcons.Outlined.UploadFile"
+               ButtonStyle="AppButtonStyle.Outlined"
+               Class="@Class"
+               aria-label="Add files to the Import folder"
+               OnClick="@(() => Zone.ChooseFilesAsync())" />
+}
+
+@code {
+    [CascadingParameter] private LibraryUploadZone? Zone { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

@@ -285,6 +285,27 @@ The files that reached a final identification outcome (matched, Unmatched or nee
 
 Unique on `(source_id, asset_id)`.
 
+### import_uploads and import_upload_pieces
+
+The resumable uploads of big files into the Import folder (Library setup spec D44), added by upgrade step 0044. One `import_uploads` row per upload an administrator started, so an upload resumes after a dropped connection or an Engine restart. The bytes are never in the data store: they are written into a hidden working file under the Import folder's `.data/uploads` folder (the file scanner skips `.data`), which becomes the real file by a rename into the kind's Import sub-folder when the upload completes. Both tables are transient for backup: an upload in progress is not worth restoring.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key; the upload id the Dashboard sends with every call |
+| `created_by` | BLOB | The administrator's profile id. Only that administrator can read, send to, complete or cancel the upload |
+| `kind_key` | TEXT | The library kind the file was dropped on (`movies`, `music`, `other_videos`, ...) |
+| `library_id` | TEXT | The library named for a kind that has several; null means the kind's own (nullable) |
+| `type_label` | TEXT | The Import folder type the kind maps to (`Movies`, `TV`, `Music`, ...) |
+| `file_name` | TEXT | The checked name asked for. The saved name is chosen when the upload completes and gets a number added if the name is taken |
+| `total_bytes`, `piece_bytes`, `piece_count` | INTEGER | The file's size, the size of every piece but the last (`upload_piece_bytes` when the upload started) and how many pieces there are |
+| `working_path` | TEXT | The hidden working file |
+| `destination_folder` | TEXT | The Import folder's sub-folder for the kind |
+| `state` | TEXT | `open`, `completed` or `cancelled` (an abandoned upload is cancelled by the sweep) |
+| `final_path` | TEXT | Where the file was saved; set on completion (nullable) |
+| `created_at`, `last_piece_at`, `closed_at` | TEXT | ISO 8601 UTC. `last_piece_at` moves with every new piece; an open upload idle for `upload_abandon_hours` is abandoned. A finished row is deleted a week after `closed_at` (`closed_at` is nullable) |
+
+`import_upload_pieces` has one row per piece received (`upload_id` cascading on delete, `piece_index` from 0, `received_at`), `WITHOUT ROWID` with the primary key `(upload_id, piece_index)`. A piece is recorded with an insert that ignores an existing row, so sending a piece again changes nothing. Index: `idx_import_uploads_state_last_piece (state, last_piece_at)` for the abandoned-upload sweep.
+
 ---
 
 ## View Personal Media

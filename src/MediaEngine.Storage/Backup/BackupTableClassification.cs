@@ -210,6 +210,8 @@ public static partial class BackupTableClassification
         Transient("playback_telemetry_sessions", "Playback telemetry."),
         Transient("audiobook_listen_active_segments", "Audiobook listening in progress."),
         Transient("music_play_active_segments", "Music playing in progress."),
+        Transient("import_uploads", "Resumable uploads into the Import folder in progress, with the hidden working file each is written into."),
+        Transient("import_upload_pieces", "Which pieces of each upload into the Import folder have arrived."),
         Transient("player_sessions", "Live player sessions."),
         Transient("player_queue_items", "Live player queues."),
         Transient("companion_sessions", "Companion screen sessions."),
