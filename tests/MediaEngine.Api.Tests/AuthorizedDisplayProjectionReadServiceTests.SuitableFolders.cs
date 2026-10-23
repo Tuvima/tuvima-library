@@ -52,12 +52,14 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         return HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
     }
 
-    private async Task<IReadOnlySet<Guid>> VisibleWorksAsync(DefaultHttpContext context, LibrariesOnlyBrowseLoader config)
+    private async Task<IReadOnlySet<Guid>> VisibleWorksAsync(
+        DefaultHttpContext context, LibrariesOnlyBrowseLoader config, bool registerSuitableFolders = true)
     {
         var service = CreateService(
             context,
             new ReaderBackedProjection(new DisplayWorkProjectionReader(_database), new DisplayVisibleWorkReader(_database)),
-            config);
+            config,
+            registerSuitableFolders);
         var listed = (await service.LoadWorksAsync(CancellationToken.None)).Select(row => row.WorkId).ToHashSet();
         var counted = await service.LoadVisibleWorkIdsAsync(CancellationToken.None);
         // Counts are taken from the same rule as the list, so the two never disagree.
@@ -174,6 +176,25 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, notRated.AssetId, ApplicationPermissionIds.PlaybackRead));
         Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, blank.AssetId, ApplicationPermissionIds.PlaybackRead));
         Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, none.AssetId, ApplicationPermissionIds.PlaybackRead));
+    }
+
+    // Fail closed: a host that did not register the marked-folder lookup must hide the unrated item, never guess that it is allowed.
+    [Fact]
+    public async Task WithNoMarkedFolderLookupRegistered_AnUnratedItemInATickedFolder_StaysHiddenFromALimitedProfile()
+    {
+        var library = Guid.NewGuid();
+        var unrated = await InsertFolderWorkAsync(library, KidsFolder, "Audiobooks", null);
+        var rated = await InsertFolderWorkAsync(library, KidsFolder, "Audiobooks", "G");
+        var context = await LimitedContextAsync("PG", allowUnrated: false);
+        var config = FolderConfig(library);
+
+        var visible = await VisibleWorksAsync(context, config, registerSuitableFolders: false);
+        var service = CreateService(context, new StubRawProjection([], []), config, registerSuitableFolders: false);
+        var assets = (await service.LoadAuthorizedAssetsAsync(CancellationToken.None)).Select(row => row.AssetId).ToHashSet();
+
+        Assert.Equivalent(new[] { rated.WorkId }, visible);
+        Assert.Equivalent(new[] { rated.AssetId }, assets);
+        Assert.DoesNotContain(unrated.AssetId, assets);
     }
 
     [Fact]

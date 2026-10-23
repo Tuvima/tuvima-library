@@ -1651,7 +1651,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     private AuthorizedDisplayProjectionReadService CreateService(
         DefaultHttpContext context,
         IRawDisplayProjectionReadService raw,
-        IConfigurationLoader? configuration = null)
+        IConfigurationLoader? configuration = null,
+        bool registerSuitableFolders = true)
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var unlocks = new GrantAdminUnlockService(
@@ -1674,7 +1675,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             _database,
             configuration,
             clock: null,
-            suitableFolders: new SuitableFolderAssetRepository(_database));
+            suitableFolders: registerSuitableFolders ? new SuitableFolderAssetRepository(_database) : null);
     }
 
     private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context, IConfigurationLoader? configuration = null)
