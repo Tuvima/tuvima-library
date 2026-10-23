@@ -42,4 +42,13 @@ public sealed record DroppedProviderDetails(IReadOnlyList<Guid> EntityIds, int C
 /// carried over the other (Library setup D69). Nothing was changed. The job reports the file and starting the change again refuses it again
 /// without looping.
 /// </summary>
-public sealed class UserDetailsClashException(string message) : InvalidOperationException(message);
+public sealed class UserDetailsClashException(string first, string second) : InvalidOperationException(Describe(first, second))
+{
+    /// <summary>The sentence the ledger, the job's message and the Dashboard show: both titles, and what to do.</summary>
+    public static string Describe(string first, string second) =>
+        $"\"{first}\" and \"{second}\" both have your own artwork or details. Remove them from one of the two in Editing Mode, then start the change again.";
+
+    public string FirstTitle { get; } = first;
+
+    public string SecondTitle { get; } = second;
+}

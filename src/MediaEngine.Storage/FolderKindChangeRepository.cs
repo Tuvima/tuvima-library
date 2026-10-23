@@ -27,10 +27,6 @@ public sealed class FolderKindChangeRepository(
     private static readonly string[] LocalArtworkSources = ["embedded", "folder", "user_upload"];
 
     // Placement and bookkeeping keys that belong to the old place, never to the details a person set: they do not follow a file to a new title.
-    /// <summary>Why a file is not placed again: it and the title it would join both hold artwork or details a person made, and one cannot be carried over the other.</summary>
-    public const string UserDetailsReason =
-        "This file and an existing title both have your own artwork or details, so the file was not changed.";
-
     private static readonly string[] KeysThatStayWithThePlace =
         [.. PlacementNumbers.Keys, MetadataFieldConstants.MediaTypeField, "identity_revision"];
 
@@ -200,9 +196,11 @@ public sealed class FolderKindChangeRepository(
         // The last file of a title a person made their own: their artwork and details follow it to the title it joins, unless that title has its own.
         var lastFile = connection.ExecuteScalar<long>("SELECT COUNT(*) FROM editions WHERE work_id = @id;", new { id = oldWorkId }, transaction) == 1;
         var carriesOverrides = lastFile && HoldsPersonalWorkDetails(connection, transaction, oldWorkId);
+        // Named before the file leaves it, while the title can still be found by its file.
+        var oldTitle = carriesOverrides ? TitleOf(connection, transaction, oldWorkId) : string.Empty;
         if (carriesOverrides && HoldsPersonalWorkDetails(connection, transaction, newWorkId))
         {
-            throw new UserDetailsClashException(UserDetailsReason);
+            throw new UserDetailsClashException(oldTitle, TitleOf(connection, transaction, newWorkId));
         }
 
         connection.Execute(
@@ -226,7 +224,7 @@ public sealed class FolderKindChangeRepository(
             CarryPersonalDetails(connection, transaction, oldWorkId, newWorkId);
             if (carriesOverrides)
             {
-                CarryOverrides(connection, transaction, oldWorkId, newWorkId);
+                CarryOverrides(connection, transaction, oldWorkId, newWorkId, oldTitle);
             }
 
             WorkPersonalStateMerge.Carry(connection, transaction, oldWorkId, newWorkId);
@@ -264,12 +262,43 @@ public sealed class FolderKindChangeRepository(
     }
 
     // The person's own artwork (the link rows and records; the uploaded files stay where they are) and the details they typed move to the new
-    // title, which has none of its own, before the old title is removed.
-    private static void CarryOverrides(SqliteConnection connection, SqliteTransaction transaction, Guid oldWorkId, Guid newWorkId) =>
+    // title, which has none of its own, before the old title is removed. A row that would clash with one the new title already has (the same
+    // picture in the same place) is a clash like any other: nothing is changed and the file is refused. The person's preferred picture takes the
+    // slot: the new title's looked-up preferred picture for it is let go, so one is preferred.
+    private static void CarryOverrides(SqliteConnection connection, SqliteTransaction transaction, Guid oldWorkId, Guid newWorkId, string oldTitle)
+    {
+        var clash = connection.ExecuteScalar<long>(
+            """
+            SELECT EXISTS (
+                SELECT 1 FROM entity_assets mine
+                JOIN entity_assets there ON there.entity_id = @newWorkId AND there.asset_type = mine.asset_type
+                    AND there.image_url IS NOT NULL AND length(trim(there.image_url)) > 0
+                    AND mine.image_url IS NOT NULL AND length(trim(mine.image_url)) > 0
+                    AND there.image_url = mine.image_url COLLATE NOCASE
+                WHERE mine.entity_id = @oldWorkId AND COALESCE(mine.is_user_override, 0) = 1)
+            OR EXISTS (
+                SELECT 1 FROM entity_artwork_links mine
+                JOIN entity_artwork_links there ON there.entity_id = @newWorkId AND there.entity_type = mine.entity_type
+                    AND there.artwork_asset_id = mine.artwork_asset_id AND there.role = mine.role AND there.context IS mine.context
+                WHERE mine.entity_id = @oldWorkId AND COALESCE(mine.is_user_override, 0) = 1);
+            """,
+            new { oldWorkId, newWorkId },
+            transaction) == 1;
+        if (clash)
+        {
+            throw new UserDetailsClashException(oldTitle, TitleOf(connection, transaction, newWorkId));
+        }
+
         connection.Execute(
             """
-            UPDATE OR IGNORE entity_assets SET entity_id = @newWorkId WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1;
-            UPDATE OR IGNORE entity_artwork_links SET entity_id = @newWorkId WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1;
+            UPDATE entity_assets SET is_preferred = 0
+            WHERE entity_id = @newWorkId AND COALESCE(is_user_override, 0) = 0
+              AND asset_type IN (SELECT asset_type FROM entity_assets WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1 AND is_preferred = 1);
+            UPDATE entity_artwork_links SET is_preferred = 0
+            WHERE entity_id = @newWorkId AND COALESCE(is_user_override, 0) = 0
+              AND role IN (SELECT role FROM entity_artwork_links WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1 AND is_preferred = 1);
+            UPDATE entity_assets SET entity_id = @newWorkId WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1;
+            UPDATE entity_artwork_links SET entity_id = @newWorkId WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1;
             UPDATE works
             SET display_overrides_json = (SELECT old.display_overrides_json FROM works old WHERE old.id = @oldWorkId)
             WHERE id = @newWorkId
@@ -277,6 +306,37 @@ public sealed class FolderKindChangeRepository(
             """,
             new { oldWorkId, newWorkId },
             transaction);
+    }
+
+    // What a title is called in a message: its own title, else its file's, else the file's name.
+    private static string TitleOf(SqliteConnection connection, SqliteTransaction? transaction, Guid workId)
+    {
+        var title = connection.ExecuteScalar<string?>(
+            """
+            SELECT COALESCE(
+                (SELECT value FROM canonical_values WHERE entity_id = @workId AND key = 'title' LIMIT 1),
+                (SELECT cv.value FROM canonical_values cv JOIN media_assets ma ON ma.id = cv.entity_id JOIN editions e ON e.id = ma.edition_id
+                 WHERE e.work_id = @workId AND cv.key = 'title' ORDER BY ma.file_path_root LIMIT 1),
+                (SELECT ma.file_path_root FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @workId ORDER BY ma.file_path_root LIMIT 1));
+            """,
+            new { workId },
+            transaction);
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return "This title";
+        }
+
+        // A file path stands in for a title when nothing is called anything yet: only its name is shown.
+        var cut = title.LastIndexOfAny(['/', '\\']);
+        if (cut < 0)
+        {
+            return title;
+        }
+
+        var name = title[(cut + 1)..];
+        var dot = name.LastIndexOf('.');
+        return dot > 0 ? name[..dot] : name;
+    }
 
     // Removes the title the file left (its people's state was carried to the new title first), then sweeps the places that are left empty with the
     // rule every move uses: a show, season, album or series someone saved, reacted to, collected, tagged or gave their own artwork or details stays.

@@ -301,10 +301,16 @@ folder jobs; the folder row shows the job's state). The folder row carries no ex
      (`WorkHierarchyMaintenanceService.CleanupEmptyParentsCore`): a show, season, album or series that someone saved, reacted to,
      collected, tagged, or gave their own artwork or details stays. When this is the last file of a title that holds artwork a person
      uploaded or chose, or details they typed, those follow it: the artwork link rows and records are re-pointed (the uploaded files stay
-     where they are) and `display_overrides_json` is copied, before the old title is removed. If the title it joins already has its own
-     such artwork or details, the file is left exactly as it was and logged `kind_change_refused`; that is final for the job (a resume does
-     not retry it), the job ends as "Finished, but N files were not changed: they and an existing title both have your own artwork or
-     details", and starting the same kind again looks at it once more and refuses it once more. With the same media type (Music to Other audio, Other videos to YouTube) the Work stays where it is.
+     where they are), the person's preferred picture takes its slot (the new title's looked-up preferred picture for it is let go) and
+     `display_overrides_json` is copied, before the old title is removed. If the title it joins already has its own such artwork or
+     details, or a picture would collide with one it already has (the same picture in the same place), the file is left exactly as it was
+     and logged `kind_change_refused` with a sentence naming both titles ("\"A\" and \"B\" both have your own artwork or details. Remove
+     them from one of the two in Editing Mode, then start the change again."). That is final for the job (a resume does not retry it); the
+     job ends as failed with "Finished, but N files were not changed" and those sentences as its message (the folder row's job message), and
+     starting the same kind again looks at the file once more and refuses it once more. While such files remain, any kind other than the
+     folder's original one is refused with the same sentences; changing back to the original kind is allowed and ends with the folder whole.
+     A crash between the placement and the new title's values being worked out is finished on resume: the values are worked out again
+     (files Tuvima wrote for a removed title that a crash left behind are not found again). With the same media type (Music to Other audio, Other videos to YouTube) the Work stays where it is.
      Asset-keyed state (watch progress) never moves because the asset row stays.
   2. A plain target drops the details looked up for the file and its Work (D69): claims from providers, bridge ids, the Wikidata id,
      external identifiers and provider artwork links. Claims from the file itself (tags, file name) and a person's own edits stay;
@@ -315,8 +321,11 @@ folder jobs; the folder row shows the job's state). The folder row carries no ex
   3. In a Managed, writable folder the file's filing into the new kind's pattern is queued (`IFilingQueue.RequestFilingAsync`), held
      while the first check runs. Filing waits for the batch (D62) and the file stays playable until then (D63); a file in use goes
      to the retry batch as it does today. A Read-only folder changes kind with nothing queued and nothing moved.
-  4. Last, `media_assets.library_id` becomes the target library, so a file that failed on any step above is still wholly what it was.
-     A file that fails is logged `failed` and the job carries on; it retries those files when it resumes. A job that ends with any
+  4. `media_assets.library_id` becomes the target library after the steps that need not wait for it (the placement, the drop and the
+     YouTube re-read), so a file that failed on those is still wholly what it was. The identity job and the filing request are written
+     after it, never before (a worker that saw the file in the library it has left would close the lookup or hold the filing); the library,
+     the job and the filing request live in three repositories and cannot share one transaction. A file that fails is logged `failed` and
+     the job carries on; it retries those files when it resumes (every step can be repeated). A job that ends with any
      failed file ends as failed ("Finished, but N files were not changed ..."), not as a success, and starting the same kind again
      (the repair) retries exactly the files logged as failed and those still in the old library. A different kind is refused until
      that is done.

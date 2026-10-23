@@ -264,17 +264,113 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
                 UPDATE works SET display_overrides_json = '{"genre":"Comedy"}' WHERE id = @episode;
                 INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override)
                 VALUES (@asset, @movie, 'Work', 'CoverArt', 'user_upload', 1);
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@episode, 'title', 'Pilot', '2026-01-01'), (@movie, 'title', 'My movie', '2026-01-01');
                 """, new { episode, movie, asset = Guid.NewGuid() });
         }
 
         var refused = await Assert.ThrowsAsync<UserDetailsClashException>(() =>
             _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.TV, episodeHints, FilePath));
 
-        Assert.Equal(FolderKindChangeRepository.UserDetailsReason, refused.Message);
+        // Both titles are named, with what to do.
+        Assert.Equal(UserDetailsClashException.Describe("My movie", "Pilot"), refused.Message);
+        Assert.Contains("\"My movie\" and \"Pilot\" both have your own artwork or details", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("Editing Mode", refused.Message, StringComparison.Ordinal);
         using var conn = _db.CreateConnection();
         Assert.Equal(movie, conn.ExecuteScalar<Guid>("SELECT work_id FROM editions WHERE id = (SELECT edition_id FROM media_assets WHERE id = @assetId);", new { assetId }));
         Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets WHERE entity_id = @movie AND is_user_override = 1;", new { movie }));
         Assert.Equal("""{"genre":"Comedy"}""", conn.ExecuteScalar<string>("SELECT display_overrides_json FROM works WHERE id = @episode;", new { episode }));
+    }
+
+    [Fact]
+    public async Task A_persons_preferred_picture_takes_the_slot_so_the_new_titles_looked_up_preferred_picture_is_let_go()
+    {
+        var episodeHints = new Dictionary<string, string>
+        {
+            ["show_name"] = "Some Show",
+            [MetadataFieldConstants.SeasonNumber] = "1",
+            [MetadataFieldConstants.EpisodeNumber] = "1",
+        };
+        var (_, episode) = await IngestAsync(MediaType.TV, new Dictionary<string, string>(episodeHints) { ["title"] = "Pilot" });
+        var (assetId, movie) = await IngestAsync(MediaType.Movies);
+        var mine = Guid.NewGuid();
+        var lookedUp = Guid.NewGuid();
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override, is_preferred, image_url)
+                VALUES (@mine, @movie, 'Work', 'CoverArt', 'user_upload', 1, 1, '/stream/mine'),
+                       (@lookedUp, @episode, 'Work', 'CoverArt', 'tmdb', 0, 1, '/stream/theirs');
+                """, new { mine, lookedUp, movie, episode });
+        }
+
+        var result = await _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.TV, episodeHints, FilePath);
+
+        Assert.Equal(episode, result.WorkId);
+        using var conn = _db.CreateConnection();
+        Assert.Equal(episode, conn.ExecuteScalar<Guid>("SELECT entity_id FROM entity_assets WHERE id = @mine;", new { mine }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT is_preferred FROM entity_assets WHERE id = @mine;", new { mine }));
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT is_preferred FROM entity_assets WHERE id = @lookedUp;", new { lookedUp }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets WHERE entity_id = @episode AND asset_type = 'CoverArt' AND is_preferred = 1;", new { episode }));
+    }
+
+    [Fact]
+    public async Task A_persons_picture_that_would_collide_with_one_the_new_title_already_has_is_a_clash_and_stays_on_the_old_title()
+    {
+        var episodeHints = new Dictionary<string, string>
+        {
+            ["show_name"] = "Some Show",
+            [MetadataFieldConstants.SeasonNumber] = "1",
+            [MetadataFieldConstants.EpisodeNumber] = "1",
+        };
+        var (_, episode) = await IngestAsync(MediaType.TV, new Dictionary<string, string>(episodeHints) { ["title"] = "Pilot" });
+        var (assetId, movie) = await IngestAsync(MediaType.Movies);
+        var mine = Guid.NewGuid();
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override, image_url)
+                VALUES (@mine, @movie, 'Work', 'CoverArt', 'user_upload', 1, '/stream/same'),
+                       (@theirs, @episode, 'Work', 'CoverArt', 'tmdb', 0, '/STREAM/same');
+                """, new { mine, theirs = Guid.NewGuid(), movie, episode });
+        }
+
+        await Assert.ThrowsAsync<UserDetailsClashException>(() =>
+            _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.TV, episodeHints, FilePath));
+
+        using var conn = _db.CreateConnection();
+        Assert.Equal(movie, conn.ExecuteScalar<Guid>("SELECT entity_id FROM entity_assets WHERE id = @mine;", new { mine }));
+        Assert.Equal(movie, conn.ExecuteScalar<Guid>("SELECT work_id FROM editions WHERE id = (SELECT edition_id FROM media_assets WHERE id = @assetId);", new { assetId }));
+    }
+
+    [Fact]
+    public async Task A_persons_artwork_link_that_would_collide_with_one_the_new_title_already_has_is_a_clash_and_stays_on_the_old_title()
+    {
+        var episodeHints = new Dictionary<string, string>
+        {
+            ["show_name"] = "Some Show",
+            [MetadataFieldConstants.SeasonNumber] = "1",
+            [MetadataFieldConstants.EpisodeNumber] = "1",
+        };
+        var (_, episode) = await IngestAsync(MediaType.TV, new Dictionary<string, string>(episodeHints) { ["title"] = "Pilot" });
+        var (assetId, movie) = await IngestAsync(MediaType.Movies);
+        var artwork = Guid.NewGuid();
+        var mine = Guid.NewGuid();
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO artwork_assets (id, content_hash, source_provider) VALUES (@artwork, 'shared', 'user_upload');
+                INSERT INTO entity_artwork_links (id, entity_id, entity_type, artwork_asset_id, role, is_user_override) VALUES
+                    (@mine, @movie, 'Work', @artwork, 'Primary', 1),
+                    (@theirs, @episode, 'Work', @artwork, 'Primary', 0);
+                """, new { artwork, mine, theirs = Guid.NewGuid(), movie, episode });
+        }
+
+        await Assert.ThrowsAsync<UserDetailsClashException>(() =>
+            _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.TV, episodeHints, FilePath));
+
+        using var conn = _db.CreateConnection();
+        Assert.Equal(movie, conn.ExecuteScalar<Guid>("SELECT entity_id FROM entity_artwork_links WHERE id = @mine;", new { mine }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id = @movie;", new { movie }));
     }
 
     [Fact]

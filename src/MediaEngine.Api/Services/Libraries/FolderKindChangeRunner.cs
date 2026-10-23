@@ -157,6 +157,7 @@ public sealed class FolderKindChangeRunner
             // When an earlier attempt was cut short, when it began is kept so its identity job is not queued a second time.
             var earlier = await _ledger.GetAsync(operationId, file.FilePath, ct).ConfigureAwait(false);
             var earlierAttemptAt = earlier is { Outcome: FolderOrganiseOutcomes.Moving } ? earlier.At : (DateTimeOffset?)null;
+            var resuming = earlier is { Outcome: FolderOrganiseOutcomes.Moving or FolderOrganiseOutcomes.Failed } || failedBefore.Contains(file.FilePath);
             await _ledger.UpsertAsync(
                 new FolderOrganiseLogEntry(operationId, sourceId, file.FilePath, file.FilePath, FolderOrganiseOutcomes.Moving, DateTimeOffset.UtcNow),
                 ct).ConfigureAwait(false);
@@ -164,7 +165,7 @@ public sealed class FolderKindChangeRunner
             string detail;
             try
             {
-                detail = await ChangeFileAsync(plan, target, mode, mediaType, fileMayMove, sourceId, file, earlierAttemptAt, ct).ConfigureAwait(false);
+                detail = await ChangeFileAsync(plan, target, mode, mediaType, fileMayMove, sourceId, file, earlierAttemptAt, resuming, ct).ConfigureAwait(false);
                 outcome = FolderOrganiseOutcomes.KindChanged;
             }
             catch (UserDetailsClashException ex)
@@ -221,14 +222,11 @@ public sealed class FolderKindChangeRunner
         {
             var left = result.Failed.ToString("N0", CultureInfo.InvariantCulture);
             var were = result.Failed == 1 ? "file was" : "files were";
-            var refused = result.Count(FolderOrganiseOutcomes.KindChangeRefused);
-            if (refused == result.Failed)
-            {
-                return $"Finished, but {left} {were} not changed: {(refused == 1 ? "it and an existing title both have" : "they and an existing title both have")} your own artwork or details. ({summary}.)";
-            }
-
-            var clash = refused > 0 ? $" {refused.ToString("N0", CultureInfo.InvariantCulture)} of them and an existing title both have your own artwork or details." : string.Empty;
-            return $"Finished, but {left} {were} not changed ({summary}).{clash} See the log, then start the change again to retry {(result.Failed == 1 ? "it" : "them")}.";
+            var refused = await RefusedDetailsAsync(_ledger, operationId, ct).ConfigureAwait(false);
+            var named = refused.Count > 0 ? " " + JoinSentences(refused) : string.Empty;
+            return result.Failed == result.Count(FolderOrganiseOutcomes.KindChangeRefused)
+                ? $"Finished, but {left} {were} not changed ({summary}).{named}"
+                : $"Finished, but {left} {were} not changed ({summary}).{named} See the log, then start the change again to retry {(result.Failed == 1 ? "it" : "them")}.";
         }
 
         return summary + ".";
@@ -299,6 +297,7 @@ public sealed class FolderKindChangeRunner
         Guid sourceId,
         MediaAssetFileRef file,
         DateTimeOffset? earlierAttemptAt,
+        bool resuming,
         CancellationToken ct)
     {
         var placement = await _changes.GetPlacementAsync(file.AssetId, ct).ConfigureAwait(false);
@@ -323,21 +322,40 @@ public sealed class FolderKindChangeRunner
                 notes.Add($"placed as {mediaType}");
             }
         }
+        else if (resuming)
+        {
+            // An earlier attempt may have placed the file and stopped before the new title's values were worked out: they are worked out again.
+            await _rescorer.RescoreAsync(placement.WorkId, ct).ConfigureAwait(false);
+        }
 
-        var queuedIdentity = false;
+        // Steps that do not need the file to be registered in the new library: a plain kind drops the details looked up for the file (D69),
+        // and the YouTube kind reads it again (the lookup runs on the video ID, under the library its folder is now in).
+        if (mode == LibraryLookupMode.Plain)
+        {
+            var dropped = await DropDetailsAsync(file.AssetId, ct).ConfigureAwait(false);
+            notes.Add(dropped > 0 ? "looked-up details dropped" : "no looked-up details to drop");
+        }
+        else if (mode == LibraryLookupMode.YouTube)
+        {
+            var reread = await _rereader.RereadAsync(file.AssetId, ct).ConfigureAwait(false);
+            notes.Add(reread.Refreshed ? "looked up again on YouTube" : $"could not be read again ({reread.Status})");
+        }
+
+        // The file joins the new library. The jobs below are written after it, never before: a worker that sees the file in the library it
+        // has left would close the lookup or hold the filing, and the library, the job and the filing request live in three repositories, so
+        // they cannot share a transaction. A file that fails after this point is logged failed and done again (every step can be repeated).
+        await _assets.SetLibraryIdAsync(file.AssetId, target.Id, ct).ConfigureAwait(false);
+
         switch (mode)
         {
             case LibraryLookupMode.Plain:
-                // A plain kind shows a file as it is (D69): the details looked up for it go, and the cascade is worked out again from the
-                // claims the file itself and the person left.
-                var dropped = await DropDetailsAsync(file.AssetId, ct).ConfigureAwait(false);
-                notes.Add(dropped > 0 ? "looked-up details dropped" : "no looked-up details to drop");
+                // A lookup that was already running for the file may have written details while the library changed; they go too.
+                await DropDetailsAsync(file.AssetId, ct).ConfigureAwait(false);
+                // A plain kind never has Unmatched files (D38).
+                await _unmatched.ClearAsync(file.AssetId, ct).ConfigureAwait(false);
                 break;
 
             case LibraryLookupMode.YouTube:
-                // The YouTube lookup runs on the video ID when the file is read again, under the library it is now in.
-                var reread = await _rereader.RereadAsync(file.AssetId, ct).ConfigureAwait(false);
-                notes.Add(reread.Refreshed ? "looked up again on YouTube" : $"could not be read again ({reread.Status})");
                 break;
 
             default:
@@ -357,7 +375,7 @@ public sealed class FolderKindChangeRunner
                     MediaType = mediaType.ToString(),
                     Pass = "Quick",
                 }, ct).ConfigureAwait(false);
-                queuedIdentity = true;
+                _signal?.Signal(IdentityPipelineSignalKind.Retail);
                 notes.Add("queued to be identified again");
                 break;
         }
@@ -368,23 +386,6 @@ public sealed class FolderKindChangeRunner
             var held = _firstChecks.IsHeld(sourceId.ToString("D"));
             await _filing.RequestFilingAsync(file.AssetId, held, ct).ConfigureAwait(false);
             notes.Add(held ? "filing held until the first check passes" : "filing waits for the next batch");
-        }
-
-        // The file joins the new library last: until every step above has worked, a file that failed is still in the old library, never
-        // half changed, and the job (or a new start) does it again.
-        await _assets.SetLibraryIdAsync(file.AssetId, target.Id, ct).ConfigureAwait(false);
-        if (queuedIdentity)
-        {
-            // Told only now, so the lookup never sees the file in the library it has left.
-            _signal?.Signal(IdentityPipelineSignalKind.Retail);
-        }
-
-        if (mode == LibraryLookupMode.Plain)
-        {
-            // A lookup that was already running for the file may have written details while the library changed; they go too.
-            await DropDetailsAsync(file.AssetId, ct).ConfigureAwait(false);
-            // A plain kind never has Unmatched files (D38).
-            await _unmatched.ClearAsync(file.AssetId, ct).ConfigureAwait(false);
         }
 
         return $"Now in {target.Name}: {string.Join("; ", notes)}.";
@@ -403,24 +404,33 @@ public sealed class FolderKindChangeRunner
     }
 
     /// <summary>The files whose latest line in the job's ledger says they could not be changed.</summary>
-    internal static async Task<HashSet<string>> FailedPathsAsync(IFolderOrganiseLogRepository ledger, Guid operationId, CancellationToken ct)
+    internal static async Task<HashSet<string>> FailedPathsAsync(IFolderOrganiseLogRepository ledger, Guid operationId, CancellationToken ct) =>
+        [.. (await EntriesWithOutcomeAsync(ledger, operationId, FolderOrganiseOutcomes.Failed, ct).ConfigureAwait(false)).Select(entry => entry.OldPath)];
+
+    /// <summary>The plain sentences of the files left as they were because they and the title they would join both hold a person's own details.</summary>
+    internal static async Task<IReadOnlyList<string>> RefusedDetailsAsync(IFolderOrganiseLogRepository ledger, Guid operationId, CancellationToken ct) =>
+        [.. (await EntriesWithOutcomeAsync(ledger, operationId, FolderOrganiseOutcomes.KindChangeRefused, ct).ConfigureAwait(false))
+            .Select(entry => entry.Detail ?? string.Empty).Where(detail => detail.Length > 0).Distinct(StringComparer.Ordinal)];
+
+    private static async Task<List<FolderOrganiseLogEntry>> EntriesWithOutcomeAsync(
+        IFolderOrganiseLogRepository ledger, Guid operationId, string outcome, CancellationToken ct)
     {
         const int Page = 1000;
-        var failed = new HashSet<string>(StringComparer.Ordinal);
+        var found = new List<FolderOrganiseLogEntry>();
         for (var offset = 0; ; offset += Page)
         {
             var entries = await ledger.ListAsync(operationId, offset, Page, ct).ConfigureAwait(false);
-            foreach (var entry in entries.Where(entry => entry.Outcome == FolderOrganiseOutcomes.Failed))
-            {
-                failed.Add(entry.OldPath);
-            }
-
+            found.AddRange(entries.Where(entry => entry.Outcome == outcome));
             if (entries.Count < Page)
             {
-                return failed;
+                return found;
             }
         }
     }
+
+    /// <summary>Up to three of the sentences, then how many more there are.</summary>
+    internal static string JoinSentences(IReadOnlyList<string> sentences) =>
+        string.Join(' ', sentences.Take(3)) + (sentences.Count > 3 ? $" And {sentences.Count - 3} more: see the log." : string.Empty);
 
     // ----- helpers -----------------------------------------------------------------------------------------------------------------
 

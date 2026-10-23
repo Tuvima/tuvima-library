@@ -355,7 +355,8 @@ public sealed class FolderKindChangeTests : IDisposable
         var status = await _w.Service.StartAsync(folder.Id, new() { KindKey = "youtube" }, default);
         await _w.RunWorkerUntilFinishedAsync(status.OperationId);
 
-        var refused = await Assert.ThrowsAsync<FolderJobException>(() => _w.Service.StartAsync(folder.Id, new() { KindKey = "other_videos" }, default));
+        // A third kind waits (the original kind, Videos, would be allowed: changing back).
+        var refused = await Assert.ThrowsAsync<FolderJobException>(() => _w.Service.StartAsync(folder.Id, new() { KindKey = "movies" }, default));
 
         Assert.Contains("not finished", refused.Message, StringComparison.Ordinal);
     }
@@ -402,7 +403,8 @@ public sealed class FolderKindChangeTests : IDisposable
             UPDATE works SET display_overrides_json = '{"genre":"Comedy"}' WHERE id = @episode;
             INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override) VALUES (@asset, @work, 'Work', 'CoverArt', 'user_upload', 1);
             INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
-                (@file, 'show_name', 'Some Show', '2026-01-01'), (@file, 'season_number', '1', '2026-01-01'), (@file, 'episode_number', '1', '2026-01-01');
+                (@file, 'show_name', 'Some Show', '2026-01-01'), (@file, 'season_number', '1', '2026-01-01'), (@file, 'episode_number', '1', '2026-01-01'),
+                (@work, 'title', 'A film', '2026-01-01'), (@episode, 'title', 'Pilot', '2026-01-01');
             """, new { episode, asset = Guid.NewGuid(), work = file.WorkId, file = file.AssetId });
 
         var status = await _w.Service.StartAsync(folder.Id, new() { KindKey = "tv" }, default);
@@ -411,7 +413,9 @@ public sealed class FolderKindChangeTests : IDisposable
 
         var done = await _w.Jobs.GetAsync(operationId, default);
         Assert.Equal("failed", done!.State);
-        Assert.StartsWith("Finished, but 1 file was not changed: it and an existing title both have your own artwork or details.", done.Message, StringComparison.Ordinal);
+        Assert.Contains("\"A film\" and \"Pilot\" both have your own artwork or details. Remove them from one of the two in Editing Mode, then start the change again.", done.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Finished, but 1 file was not changed", done.Message, StringComparison.Ordinal);
+        Assert.Contains("Pilot", (await _w.Ledger.GetAsync(operationId, file.Path))!.Detail, StringComparison.Ordinal);
         Assert.Equal("kind_change_refused", (await _w.Ledger.GetAsync(operationId, file.Path))!.Outcome);
         Assert.Equal(_w.MoviesLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = file.AssetId }));
         Assert.Equal(file.WorkId, _w.Scalar<Guid>("SELECT e.work_id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @id;", new { id = file.AssetId }));
@@ -426,6 +430,72 @@ public sealed class FolderKindChangeTests : IDisposable
         await _w.RunWorkerUntilFinishedAsync(again.OperationId);
         Assert.Equal(2, _w.FlakyChanges.ReplaceCalls);
         Assert.Equal("failed", (await _w.Jobs.GetAsync(Guid.Parse(again.OperationId), default))!.State);
+    }
+
+    [Fact]
+    public async Task After_a_clash_the_folder_can_be_changed_back_and_ends_whole_in_its_original_kind_while_a_third_kind_is_refused_naming_both_titles()
+    {
+        var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: false);
+        var clash = _w.AddFile(folder, "clash.mkv", MediaType.Movies, "Clash film");
+        var fine = _w.AddFile(folder, "fine.mkv", MediaType.Movies, "Fine film");
+        var episode = (await new HierarchyResolver(new WorkRepository(_w.Database)).ResolveAsync(MediaType.TV, new Dictionary<string, string>
+        {
+            ["show_name"] = "Some Show",
+            [MetadataFieldConstants.SeasonNumber] = "1",
+            [MetadataFieldConstants.EpisodeNumber] = "1",
+        })).WorkId;
+        _w.Execute("""
+            UPDATE works SET display_overrides_json = '{"genre":"Comedy"}' WHERE id = @episode;
+            INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override) VALUES (@asset, @work, 'Work', 'CoverArt', 'user_upload', 1);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                (@clash, 'show_name', 'Some Show', '2026-01-01'), (@clash, 'season_number', '1', '2026-01-01'), (@clash, 'episode_number', '1', '2026-01-01'),
+                (@work, 'title', 'Clash film', '2026-01-01'), (@episode, 'title', 'Pilot', '2026-01-01');
+            """, new { episode, asset = Guid.NewGuid(), work = clash.WorkId, clash = clash.AssetId });
+        var forward = await _w.Service.StartAsync(folder.Id, new() { KindKey = "tv" }, default);
+        await _w.RunWorkerUntilFinishedAsync(forward.OperationId);
+        Assert.Equal(_w.TvLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = fine.AssetId }));
+        Assert.Equal(_w.MoviesLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = clash.AssetId }));
+
+        // Any other kind waits, and says which two titles are in the way and what to do.
+        var third = await Assert.ThrowsAsync<FolderJobException>(() => _w.Service.StartAsync(folder.Id, new() { KindKey = "other_videos" }, default));
+        Assert.Contains("\"Clash film\" and \"Pilot\" both have your own artwork or details", third.Message, StringComparison.Ordinal);
+        Assert.Contains("Editing Mode", third.Message, StringComparison.Ordinal);
+
+        // Changing back is allowed: the file that was changed goes back, the one left behind is already there.
+        var preview = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "movies" }, default);
+        var back = await _w.Service.StartAsync(folder.Id, new() { KindKey = "movies" }, default);
+        await _w.RunWorkerUntilFinishedAsync(back.OperationId);
+
+        Assert.Equal(1, preview.FileCount);
+        Assert.Equal("completed", (await _w.Jobs.GetAsync(Guid.Parse(back.OperationId), default))!.State);
+        Assert.All([clash, fine], file => Assert.Equal(_w.MoviesLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = file.AssetId })));
+        Assert.Equal("Movies", _w.Scalar<string>("SELECT w.media_type FROM media_assets ma JOIN editions e ON e.id = ma.edition_id JOIN works w ON w.id = e.work_id WHERE ma.id = @id;", new { id = fine.AssetId }));
+        var libraries = _w.Config.LoadLibraries();
+        Assert.Single(libraries.Libraries.Single(library => library.Id == _w.MoviesLibrary).Sources, source => source.Id == folder.Id);
+        Assert.Empty(libraries.Libraries.Single(library => library.Id == _w.TvLibrary).Sources);
+        // The folder is whole again, so it can be changed to another kind now.
+        await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_videos" }, default);
+    }
+
+    [Fact]
+    public async Task A_job_resumed_after_a_stop_between_the_placement_and_the_new_titles_values_works_them_out_again()
+    {
+        var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: false);
+        var file = _w.AddFile(folder, "film.mkv", MediaType.Movies, "A film");
+        var status = await _w.Service.StartAsync(folder.Id, new() { KindKey = "other_videos" }, default);
+        var operationId = Guid.Parse(status.OperationId);
+        // The first attempt placed the file and was stopped before the new title's values were worked out.
+        var replaced = await _w.Changes.ReplaceUnderMediaTypeAsync(file.AssetId, MediaType.Videos, new Dictionary<string, string> { ["title"] = "A film" }, file.Path);
+        _w.Execute("DELETE FROM canonical_values WHERE entity_id = @work;", new { work = replaced.WorkId });
+        _w.Execute("INSERT INTO metadata_claims (id, entity_id, provider_id, claim_key, claim_value, confidence, claimed_at, is_user_locked) VALUES (@id, @work, @manual, 'title', 'My own title', 1, '2026-01-03', 1);",
+            new { id = Guid.NewGuid(), work = replaced.WorkId, manual = WellKnownProviders.UserManual });
+        await _w.Ledger.UpsertAsync(new FolderOrganiseLogEntry(
+            operationId, Guid.Parse(folder.Id), file.Path, file.Path, FolderOrganiseOutcomes.Moving, DateTimeOffset.UtcNow.AddMinutes(-1)));
+
+        await _w.Runner.RunAsync(operationId, Guid.Parse(folder.Id), new ScriptedHost(allowFiles: 10), default);
+
+        Assert.Equal("My own title", _w.Scalar<string>("SELECT value FROM canonical_values WHERE entity_id = @work AND key = 'title';", new { work = replaced.WorkId }));
+        Assert.Equal(_w.VideosLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = file.AssetId }));
     }
 
     [Fact]
