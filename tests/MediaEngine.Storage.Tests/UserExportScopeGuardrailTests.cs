@@ -59,7 +59,7 @@ public sealed class UserExportScopeGuardrailTests
     {
         var rights = new[]
         {
-            "account_feature_grants", "account_library_grants", "grant_admin_protections", "client_devices", "device_profile_preferences",
+            "profile_library_grants", "profile_admin_protections", "profile_admin_unlocks", "client_devices", "device_profile_preferences",
             "auth_sessions", "account_invitations", "password_recovery_codes", "applications", "provider_config", "backup_settings",
         };
 
@@ -121,7 +121,7 @@ public sealed class UserExportScopeGuardrailTests
                 // The filter must be valid SQL for the table, with real column names.
                 using var command = connection.CreateCommand();
                 command.CommandText = $"SELECT COUNT(*) FROM \"{entry.Table}\" WHERE " +
-                    UserExportScope.FilterFor(entry, Guid.NewGuid(), [Guid.NewGuid()]);
+                    UserExportScope.FilterFor(entry, [Guid.NewGuid()], [Guid.NewGuid()]);
                 try
                 {
                     command.ExecuteScalar();
@@ -144,7 +144,7 @@ public sealed class UserExportScopeGuardrailTests
             foreach (var entry in UserExportScope.Tables)
             {
                 using var command = connection.CreateCommand();
-                command.CommandText = $"SELECT COUNT(*) FROM \"{entry.Table}\" WHERE " + UserExportScope.FilterFor(entry, Guid.NewGuid(), []);
+                command.CommandText = $"SELECT COUNT(*) FROM \"{entry.Table}\" WHERE " + UserExportScope.FilterFor(entry, [], []);
                 command.ExecuteScalar();
             }
         });

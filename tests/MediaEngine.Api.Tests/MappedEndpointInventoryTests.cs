@@ -302,7 +302,7 @@ public sealed class MappedEndpointInventoryTests
     }
 
     [Fact]
-    public async Task UserTransfer_IsSelfServiceForYourOwnData_AndInPersonAdministratorOnlyForEveryoneElse()
+    public async Task UserTransfer_IsSelfServiceForYourOwnData_InPersonForAHouseholdAdministratorsOwnHousehold_AndInPersonServerAdministratorOnlyForEveryoneElse()
     {
         await using var app = BuildEndpointOnlyApplication();
         var inventory = EndpointInventory.From(app);
@@ -330,6 +330,16 @@ public sealed class MappedEndpointInventoryTests
             Assert.True(requirement.SurfaceUnlock);
             Assert.False(requirement.AllowHouseholdAdministrator);
         }
+
+        // A household's own administrator may export their household (users spec D16), still only in person at the Dashboard; the action
+        // itself limits them to their own household.
+        var household = inventory.Require("/access/households/{householdId:guid}/export", "POST");
+        Assert.Equal("ExportHousehold", household.Name);
+        Assert.False(household.AllowsAnonymousEndpoint);
+        var householdRequirement = Assert.Single(Assert.Single(household.Policies).Requirements.OfType<EffectiveAdministratorRequirement>());
+        Assert.True(householdRequirement.HumanOnly);
+        Assert.True(householdRequirement.SurfaceUnlock);
+        Assert.True(householdRequirement.AllowHouseholdAdministrator);
     }
 
     [Fact]

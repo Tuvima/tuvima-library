@@ -2,17 +2,17 @@ using System.Globalization;
 
 namespace MediaEngine.Storage.Backup;
 
-/// <summary>A check an imported row must pass: it belongs to the one account in the file, or to one of that account's profiles.</summary>
+/// <summary>A check an imported row must pass: it belongs to one of the sign-ins in the file, or to one of the file's profiles.</summary>
 public abstract record UserRowCheck
 {
     private UserRowCheck()
     {
     }
 
-    /// <summary>The column holds the id of the account the file is about.</summary>
+    /// <summary>The column holds the id of one of the sign-ins (users) the file holds.</summary>
     public sealed record AccountColumn(string Column) : UserRowCheck;
 
-    /// <summary>The column holds the id of one of the account's profiles (BLOB, or the TEXT form some tables keep).</summary>
+    /// <summary>The column holds the id of one of the file's profiles (BLOB, or the TEXT form some tables keep).</summary>
     public sealed record ProfileColumn(string Column, bool Nullable = false) : UserRowCheck;
 
     /// <summary>The column holds the key of a row of another table that the file also holds.</summary>
@@ -28,8 +28,8 @@ public abstract record UserRowCheck
 /// <summary>How a user export treats one table: which rows it holds, which columns it leaves out, and what every row must prove.</summary>
 /// <param name="Table">The table name.</param>
 /// <param name="Filter">
-/// SQL predicate over the table's own columns. <c>{account}</c> stands for the account's id as a BLOB literal, <c>{profiles}</c> for a
-/// comma-separated list of the account's profile ids as BLOB literals and <c>{profileTexts}</c> for the same ids as lower-case text
+/// SQL predicate over the table's own columns. <c>{accounts}</c> stands for a comma-separated list of the file's user ids as BLOB
+/// literals, <c>{profiles}</c> for the file's profile ids as BLOB literals and <c>{profileTexts}</c> for the same ids as lower-case text
 /// literals. The literals are built from <see cref="Guid"/> values only.
 /// </param>
 /// <param name="ExcludedColumns">Nullable columns written as NULL because they point at someone else (another account or profile).</param>
@@ -43,9 +43,10 @@ public sealed record UserExportTable(
     IReadOnlyList<string>? ZeroedColumns = null);
 
 /// <summary>
-/// What one user's export holds, as one explicit map (backup and restore spec D19). A user export holds one user (sign-in), the one profile it
-/// opens, that profile's own state, and the playlists and collections it built. It never holds another user or profile, access rights
-/// (feature and library access, administrator settings), devices, server settings or the catalogue.
+/// What a user file holds, as one explicit map (backup and restore spec D19, users spec D9 and D16). A user file holds one profile or a whole
+/// household: each profile, the sign-in that opens it (when there is one), the profile's own state, the playlists and collections it
+/// built, and the Read/Watch/Listen/View access it had (an import applies that only when the administrator chooses to keep it). It never
+/// holds roles, library access, administrator settings, devices, server settings or the catalogue.
 /// A guardrail test fails when a Configuration or PersonalState table is neither in <see cref="Tables"/> nor in
 /// <see cref="NotInAUserExport"/>, so a new table forces a decision.
 /// </summary>
@@ -77,9 +78,8 @@ public static class UserExportScope
     /// </summary>
     public static IReadOnlyDictionary<string, string> NotInAUserExport { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["profile_feature_grants"] = "Access rights are never carried by a user file (backup spec D19).",
-        ["profile_library_grants"] = "Access rights are never carried by a user file (backup spec D19).",
-        ["profile_admin_protections"] = "Access rights are never carried by a user file (backup spec D19).",
+        ["profile_library_grants"] = "Library ids differ between Libraries, so library access is never carried by a user file (users spec D9).",
+        ["profile_admin_protections"] = "Administrator settings are never carried by a user file (users spec D9).",
         ["device_profile_preferences"] = "Paired devices are not carried, so neither is which profile they open.",
         ["client_devices"] = "Paired devices sign in again on the new Library.",
         ["applications"] = "Server settings: outside applications belong to the Library.",
@@ -125,17 +125,19 @@ public static class UserExportScope
     };
 
     /// <summary>
-    /// The predicate that picks this table's rows for one account and its profiles, with the tokens filled in. When the account has no
-    /// profiles, <c>{profiles}</c> becomes <c>NULL</c>, which matches no row.
+    /// The predicate that picks this table's rows for the file's users and profiles, with the tokens filled in. When there are none,
+    /// the token becomes <c>NULL</c>, which matches no row.
     /// </summary>
-    public static string FilterFor(UserExportTable table, Guid accountId, IReadOnlyCollection<Guid> profileIds)
+    public static string FilterFor(UserExportTable table, IReadOnlyCollection<Guid> accountIds, IReadOnlyCollection<Guid> profileIds)
     {
         ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(accountIds);
         ArgumentNullException.ThrowIfNull(profileIds);
+        var accounts = accountIds.Count == 0 ? "NULL" : string.Join(", ", accountIds.Select(Literal));
         var blobs = profileIds.Count == 0 ? "NULL" : string.Join(", ", profileIds.Select(Literal));
         var texts = profileIds.Count == 0 ? "NULL" : string.Join(", ", profileIds.Select(id => "'" + id.ToString("D", CultureInfo.InvariantCulture) + "'"));
         return table.Filter
-            .Replace("{account}", Literal(accountId), StringComparison.Ordinal)
+            .Replace("{accounts}", accounts, StringComparison.Ordinal)
             .Replace("{profiles}", blobs, StringComparison.Ordinal)
             .Replace("{profileTexts}", texts, StringComparison.Ordinal);
     }
@@ -146,23 +148,27 @@ public static class UserExportScope
     {
         var tables = new List<UserExportTable>
         {
-            // The account and how it signs in.
-            // A user opens exactly one profile, and the file holds that profile.
-            new("accounts", "id = {account}", [],
+            // The users (sign-ins) that open the file's profiles, and how they sign in. A user opens exactly one profile.
+            new("accounts", "id IN ({accounts})", [],
                 [new UserRowCheck.AccountColumn("id"), new UserRowCheck.ProfileColumn("profile_id")]),
-            new("account_credentials", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
-            new(TwoStepTable, "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
-            new("account_passkeys", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
-            new("account_external_logins", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
-            new("account_notice_dismissals", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
+            new("account_credentials", "account_id IN ({accounts})", [], [new UserRowCheck.AccountColumn("account_id")]),
+            new(TwoStepTable, "account_id IN ({accounts})", [], [new UserRowCheck.AccountColumn("account_id")]),
+            new("account_passkeys", "account_id IN ({accounts})", [], [new UserRowCheck.AccountColumn("account_id")]),
+            new("account_external_logins", "account_id IN ({accounts})", [], [new UserRowCheck.AccountColumn("account_id")]),
+            new("account_notice_dismissals", "account_id IN ({accounts})", [], [new UserRowCheck.AccountColumn("account_id")]),
 
-            // The household of the profile the user opens. Whether it is the Library's default household is never carried (written as 0).
+            // The household of the file's profiles. An import puts the profiles in the household the administrator chooses, so this row is
+            // only read for its name. Whether it is the Library's default household is never carried (written as 0).
             new("households", "id IN (SELECT household_id FROM profiles WHERE id IN (" + InProfiles + "))", [],
                 [new UserRowCheck.ParentRow("id", "profiles", "household_id")], ["is_default"]),
 
-            // The profile the user opens, and nothing of anyone else.
+            // The file's profiles, and nothing of anyone else.
             // The administrator roles are NOT NULL, so they are written as 0 rather than left out; an import forces them to 0 as well.
             new("profiles", "id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("id")], ["is_server_admin", "is_household_admin"]),
+
+            // Read/Watch/Listen/View as the profile had it. An import applies these only when the administrator ticks "Keep their access".
+            new("profile_feature_grants", "profile_id IN (" + InProfiles + ")", [],
+                [new UserRowCheck.ProfileColumn("profile_id"), new UserRowCheck.ColumnIn("feature_id", ["read", "watch", "listen", "view"])]),
             new("profile_credentials", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_grid_preferences", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_notice_dismissals", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),

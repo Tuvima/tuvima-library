@@ -128,7 +128,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     }
 
     /// <summary>"The user <c>a</c> has an email and a password or passkey", for use in a query over <c>accounts a</c>.</summary>
-    private const string SecuredUserSql = """
+    internal const string SecuredUserSql = """
         a.email IS NOT NULL AND TRIM(a.email)<>''
         AND a.normalized_email IS NOT NULL AND TRIM(a.normalized_email)<>''
         AND (EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
@@ -646,17 +646,16 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     {
         var user = connection.QuerySingleOrDefault<AccountRow>(Select + " WHERE id=@userId;", new { userId }, transaction)
             ?? throw new KeyNotFoundException("User not found.");
-        var profile = user.ProfileId is { } profileId
-            ? connection.QuerySingleOrDefault<PlanProfileRow>("""
-                SELECT id AS Id, display_name AS DisplayName, household_id AS HouseholdId,
-                       is_server_admin AS IsServerAdministrator, is_household_admin AS IsHouseholdAdministrator
-                FROM profiles WHERE id=@profileId;
-                """, new { profileId }, transaction)
-            : null;
-        if (profile?.HouseholdId is not { } householdId)
+        // A user always opens a profile (accounts.profile_id is NOT NULL and a foreign key), so the profile row is always there.
+        var profile = connection.QuerySingle<PlanProfileRow>("""
+            SELECT id AS Id, display_name AS DisplayName, household_id AS HouseholdId,
+                   is_server_admin AS IsServerAdministrator, is_household_admin AS IsHouseholdAdministrator
+            FROM profiles WHERE id=@profileId;
+            """, new { profileId = user.ProfileId }, transaction);
+        if (profile.HouseholdId is not { } householdId)
         {
-            return new UserRemovalPlan(user.Id, user.Email, profile?.Id, profile?.DisplayName, null, null, false,
-                profile?.IsServerAdministrator ?? false, profile?.IsHouseholdAdministrator ?? false, false, [], false);
+            return new UserRemovalPlan(user.Id, user.Email, profile.Id, profile.DisplayName, null, null, false,
+                profile.IsServerAdministrator, profile.IsHouseholdAdministrator, false, [], false);
         }
 
         var household = connection.QuerySingleOrDefault<(string Name, bool IsDefault)>(

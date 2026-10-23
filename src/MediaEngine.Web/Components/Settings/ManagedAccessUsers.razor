@@ -305,7 +305,8 @@
     {
         await ReloadAll();
         Close();
-        _notice = $"{added.DisplayName} was added. Choose what they can see on their profile, under Profiles.";
+        var names = string.Join(", ", added.Profiles.Select(profile => profile.Name));
+        _notice = $"{names} {(added.Profiles.Count == 1 ? "was" : "were")} added to {added.HouseholdName}. Choose what they can see on their profile, under Profiles.";
     }
 
     // The user is made: show the hand-over (the invitation, or the temporary password once) and reload the list.

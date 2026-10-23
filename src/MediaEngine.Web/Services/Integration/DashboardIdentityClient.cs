@@ -729,13 +729,17 @@ public sealed partial class DashboardIdentityClient(
     /// <summary>The biggest user export file the Engine takes (the same cap as the Engine's), so the Dashboard can refuse a bigger one before sending it.</summary>
     public const long MaxUserImportBytes = 256L * 1024 * 1024;
 
-    /// <summary>Downloads the signed-in person's own data (sign-in, profiles, progress, bookmarks, favourites) as one file.</summary>
+    /// <summary>Downloads the signed-in person's own data (their profile, its sign-in, progress, bookmarks, favourites) as one file.</summary>
     public Task<DashboardAccessMutationResult<DashboardDownloadedFile>> ExportMyDataResultAsync(CancellationToken ct = default) =>
         SendDownloadAsync("/access/me/export", ct);
 
-    /// <summary>An administrator downloads one user's data so another Library can import it.</summary>
+    /// <summary>The server administrator downloads one user's profile and sign-in so another Library can import it.</summary>
     public Task<DashboardAccessMutationResult<DashboardDownloadedFile>> ExportAccountResultAsync(Guid accountId, CancellationToken ct = default) =>
         SendDownloadAsync($"/access/accounts/{accountId:D}/export", ct);
+
+    /// <summary>A household administrator (or the server administrator) downloads a whole household: every profile, their sign-ins and their own state.</summary>
+    public Task<DashboardAccessMutationResult<DashboardDownloadedFile>> ExportHouseholdResultAsync(Guid householdId, CancellationToken ct = default) =>
+        SendDownloadAsync($"/access/households/{householdId:D}/export", ct);
 
     /// <summary>
     /// Sends a user export file to be checked. Nothing is imported yet. <paramref name="openFile"/> is called for each attempt, because a
@@ -769,12 +773,16 @@ public sealed partial class DashboardIdentityClient(
         }
     }
 
-    /// <summary>Imports a file that was checked, as a new user who sees nothing until an administrator gives them access.</summary>
-    public async Task<DashboardAccessMutationResult<UserImportResultDto>> ImportUserResultAsync(Guid operationId, CancellationToken ct = default)
+    /// <summary>
+    /// Imports a file that was checked, as new profiles in the household the administrator chose. They arrive as ordinary members with no
+    /// access unless the choices keep it.
+    /// </summary>
+    public async Task<DashboardAccessMutationResult<UserImportResultDto>> ImportUserResultAsync(Guid operationId, UserImportRequestDto choices, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(choices);
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"/access/accounts/import/{operationId:D}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"/access/accounts/import/{operationId:D}") { Content = JsonContent.Create(choices) };
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             return await ReadMutationResponseAsync<UserImportResultDto>(response, ct).ConfigureAwait(false);
         }

@@ -55,7 +55,7 @@ public sealed class PersonalStateBackupRepository
         ArgumentNullException.ThrowIfNull(scope);
         using var connection = _db.CreateConnection();
         using var transaction = connection.BeginTransaction(deferred: true);
-        var export = scope.IsAccount
+        var export = scope.IsUserFile
             ? BuildUser(connection, transaction, scope, _portableValues, _isWithheld, afterSnapshotStarted, ct)
             : Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, _portableValues, _isWithheld, afterSnapshotStarted, ct);
         transaction.Commit();
@@ -203,8 +203,9 @@ public sealed class PersonalStateBackupRepository
     }
 
     /// <summary>
-    /// One user: the account, every profile in its profile grants, those profiles' own state and what they built, as listed by
-    /// <see cref="UserExportScope"/>. No other account or profile, no access rights, and no choices or corrections on catalogue rows.
+    /// A user file: one profile and the sign-in that opens it, or every profile of a household and their sign-ins, with those profiles' own
+    /// state and what they built, as listed by <see cref="UserExportScope"/>. No other profile or sign-in, no roles, no library access, and
+    /// no choices or corrections on catalogue rows.
     /// </summary>
     private static BackupExport BuildUser(
         SqliteConnection connection,
@@ -217,13 +218,27 @@ public sealed class PersonalStateBackupRepository
     {
         var live = ReadLiveStructure(connection, transaction);
         afterSnapshotStarted?.Invoke();
-        var accountId = scope.AccountId ?? throw new ArgumentException("A user export needs an account.", nameof(scope));
-        if (!AccountExists(connection, transaction, accountId))
+        List<Guid> profiles;
+        if (scope.AccountId is { } accountId)
         {
-            throw new InvalidOperationException("The account to export was not found.");
+            if (!AccountExists(connection, transaction, accountId))
+            {
+                throw new InvalidOperationException("The account to export was not found.");
+            }
+
+            profiles = ReadProfileIds(connection, transaction, accountId);
+        }
+        else
+        {
+            var householdId = scope.HouseholdId ?? throw new ArgumentException("A user export needs an account or a household.", nameof(scope));
+            profiles = ReadHouseholdProfileIds(connection, transaction, householdId);
+            if (profiles.Count == 0)
+            {
+                throw new InvalidOperationException("The household to export was not found.");
+            }
         }
 
-        var profiles = ReadProfileIds(connection, transaction, accountId);
+        var accountIds = ReadAccountIds(connection, transaction, profiles);
         var book = new TitleBook(new TitleRecognitionReader(connection, transaction, isWithheld));
         var tables = new List<BackupExportTable>();
         var dropped = 0;
@@ -244,13 +259,19 @@ public sealed class PersonalStateBackupRepository
                 continue;
             }
 
-            // An administrator exporting someone else never carries that person's two-step secret.
+            // Someone exporting another person never carries that person's two-step secret; only the exporting person's own stays.
+            var accountsForTable = accountIds;
             if (scope.LeaveOutTwoStep && string.Equals(entry.Table, UserExportScope.TwoStepTable, StringComparison.OrdinalIgnoreCase))
             {
-                continue;
+                if (scope.KeepTwoStepForAccountId is not { } keep || !accountIds.Contains(keep))
+                {
+                    continue;
+                }
+
+                accountsForTable = [keep];
             }
 
-            var filter = UserExportScope.FilterFor(entry, accountId, profiles);
+            var filter = UserExportScope.FilterFor(entry, accountsForTable, profiles);
             var predicate = string.IsNullOrWhiteSpace(rule.KeepWhere) ? filter : "(" + rule.KeepWhere + ") AND (" + filter + ")";
             tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, predicate, portableValues, ref dropped, ref withheld, ref keptMachineBound, ct, entry.ExcludedColumns, entry.ZeroedColumns));
         }
@@ -279,6 +300,43 @@ public sealed class PersonalStateBackupRepository
         command.CommandText = "SELECT COUNT(*) FROM accounts WHERE id = $id";
         command.Parameters.AddWithValue("$id", GuidSql.ToBlob(accountId));
         return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
+    }
+
+    /// <summary>The profiles of a household, oldest first.</summary>
+    private static List<Guid> ReadHouseholdProfileIds(SqliteConnection connection, SqliteTransaction transaction, Guid householdId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT id FROM profiles WHERE household_id = $id ORDER BY created_at, id";
+        command.Parameters.AddWithValue("$id", GuidSql.ToBlob(householdId));
+        var ids = new List<Guid>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            ids.Add(GuidSql.FromDb(reader.GetValue(0)));
+        }
+
+        return ids;
+    }
+
+    /// <summary>The users (sign-ins) that open the given profiles: at most one each.</summary>
+    private static List<Guid> ReadAccountIds(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyCollection<Guid> profiles)
+    {
+        var ids = new List<Guid>();
+        foreach (var profile in profiles)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "SELECT id FROM accounts WHERE profile_id = $profile";
+            command.Parameters.AddWithValue("$profile", GuidSql.ToBlob(profile));
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                ids.Add(GuidSql.FromDb(reader.GetValue(0)));
+            }
+        }
+
+        return ids;
     }
 
     /// <summary>The profile the user opens (a user opens exactly one).</summary>

@@ -16,8 +16,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// One user moved between Libraries (backup and restore spec D19), through the real export, the real file checks, the real import and the
-/// real Data Protection codec, on two temporary data stores that stand for two computers with their own keys.
+/// People moved between Libraries (backup and restore spec D19, users spec D9 and D16), through the real export, the real file checks, the
+/// real import and the real Data Protection codec, on two temporary data stores that stand for two computers with their own keys.
 /// </summary>
 public sealed class UserTransferServiceTests : IDisposable
 {
@@ -53,9 +53,10 @@ public sealed class UserTransferServiceTests : IDisposable
         {
             using var manifest = JsonDocument.Parse(new StreamReader(archive.GetEntry("manifest.json")!.Open()).ReadToEnd());
             Assert.Equal("user", manifest.RootElement.GetProperty("kind").GetString());
-            Assert.Equal("user", manifest.RootElement.GetProperty("scope").GetString());
-            Assert.Equal("maya@example.com", manifest.RootElement.GetProperty("user_email").GetString());
+            Assert.Equal("profile", manifest.RootElement.GetProperty("scope").GetString());
+            Assert.False(manifest.RootElement.TryGetProperty("user_email", out _));
             Assert.Equal(1, manifest.RootElement.GetProperty("profile_count").GetInt32());
+            Assert.Equal(1, manifest.RootElement.GetProperty("sign_in_count").GetInt32());
             Assert.False(manifest.RootElement.GetProperty("two_step_left_out").GetBoolean());
         }
 
@@ -162,9 +163,9 @@ public sealed class UserTransferServiceTests : IDisposable
         Assert.Null(preview.BlockedReason);
         Assert.True(preview.TwoStepToSetUp);
 
-        var result = await service.ImportAsync(Human(admin.Account), preview.OperationId, CancellationToken.None);
+        var result = await service.ImportAsync(Human(admin.Account), preview.OperationId, Into(fresh), CancellationToken.None);
 
-        Assert.Equal(maya.Account, result.AccountId);
+        Assert.Equal("maya@example.com", Assert.Single(result.Profiles).SignInEmail);
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_two_step WHERE account_id = " + Blob(maya.Account)));
         Assert.Equal(1, fresh.Scalar("SELECT COUNT(*) FROM account_credentials WHERE account_id = " + Blob(maya.Account)));
     }
@@ -215,16 +216,19 @@ public sealed class UserTransferServiceTests : IDisposable
         var preview = await InspectAsync(service, admin.Account, download.Content);
 
         Assert.Null(preview.BlockedReason);
-        Assert.Equal("maya@example.com", preview.Email);
+        Assert.Equal("maya@example.com", Assert.Single(preview.SignIns).Email);
         Assert.Equal(["Maya"], preview.Profiles.Select(profile => profile.Name));
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM accounts WHERE email = 'maya@example.com'"));
         Assert.Single(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
 
-        var result = await service.ImportAsync(Human(admin.Account), preview.OperationId, CancellationToken.None);
+        var home = fresh.Home();
+        var result = await service.ImportAsync(Human(admin.Account), preview.OperationId, new(TargetHouseholdId: home), CancellationToken.None);
 
-        Assert.Equal(maya.Account, result.AccountId);
-        Assert.Equal("maya@example.com", result.DisplayName);
-        Assert.Equal(["Maya"], result.Profiles);
+        Assert.Equal(home, result.HouseholdId);
+        Assert.False(result.CreatedHousehold);
+        Assert.Equal("maya@example.com", Assert.Single(result.Profiles).SignInEmail);
+        Assert.Equal(["Maya"], result.Profiles.Select(profile => profile.Name));
+        Assert.Equal(1, fresh.Scalar($"SELECT COUNT(*) FROM profiles WHERE display_name = 'Maya' AND household_id = {Blob(home)}"));
         Assert.Equal(old.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(maya.Account)),
             fresh.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(maya.Account)));
         Assert.Equal(TwoStepSecret, fresh.Protector.Unprotect(fresh.Text("SELECT secret_protected FROM account_two_step WHERE account_id = " + Blob(maya.Account))));
@@ -239,13 +243,14 @@ public sealed class UserTransferServiceTests : IDisposable
         var imported = Assert.Single(audit.Events);
         Assert.Equal("account.imported", imported.EventType);
         Assert.Equal(admin.Account, imported.ActorAccountId);
-        Assert.Equal(maya.Account.ToString("D"), imported.SubjectId);
+        Assert.Equal("household", imported.SubjectType);
+        Assert.Equal(home.ToString("D"), imported.SubjectId);
         var everythingAudited = imported.EventType + imported.SubjectId + string.Join(",", imported.Changes.Select(pair => pair.Key + pair.Value));
         Assert.DoesNotContain("maya@example.com", everythingAudited, StringComparison.Ordinal);
         Assert.DoesNotContain(TwoStepSecret, everythingAudited, StringComparison.Ordinal);
 
         // The same file cannot be imported twice.
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, CancellationToken.None));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, Into(fresh), CancellationToken.None));
     }
 
     [Fact]
@@ -260,15 +265,15 @@ public sealed class UserTransferServiceTests : IDisposable
 
         var preview = await InspectAsync(fresh.Service(administrator: admin.Account), admin.Account, download.Content);
 
-        Assert.Equal(
-            [
-                new MediaEngine.Contracts.Backups.UserImportProfileDto("Maya", "RestrictedProfile", "PG", true),
-            ],
-            preview.Profiles);
+        var profile = Assert.Single(preview.Profiles);
+        Assert.Equal(("Maya", "RestrictedProfile", "PG", true), (profile.Name, profile.Role, profile.ContentLimit, profile.ContentLimitAllowUnrated));
+        Assert.Equal(maya.Profile, profile.Id);
+        Assert.Equal(maya.Account, profile.SignInId);
+        Assert.Equal(["read"], profile.Access);
     }
 
     [Fact]
-    public async Task Inspect_NamesTheHouseholdThePersonWillJoin_ThatExistsHereOtherwiseTheFilesOwn_OtherwiseNone()
+    public async Task Inspect_NamesTheFilesHouseholdAsASuggestion_ListsTheHouseholdsHere_AndSaysHowManyProfilesFit()
     {
         var old = Computer.New(this, "old");
         var fresh = Computer.New(this, "new");
@@ -277,16 +282,21 @@ public sealed class UserTransferServiceTests : IDisposable
         var maya = old.AddUser("maya@example.com", ["Maya"], household: householdId);
         var noHousehold = old.AddUser("noor@example.com", ["Noor"]);
         var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var home = fresh.Home();
         var service = fresh.Service(administrator: admin.Account);
         var mayaFile = (await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None)).Content;
         var noorFile = (await old.Service().ExportOwnAsync(Human(noHousehold.Account), CancellationToken.None)).Content;
 
-        Assert.Equal("The Khans (old name)", (await InspectAsync(service, admin.Account, mayaFile)).HouseholdName);
-        Assert.Null((await InspectAsync(service, admin.Account, noorFile)).HouseholdName);
+        var preview = await InspectAsync(service, admin.Account, mayaFile);
 
-        // The household already exists here under its own name: that is the one they join, whatever the file says.
-        fresh.AddHousehold(householdId, "The Khans (here)");
-        Assert.Equal("The Khans (here)", (await InspectAsync(service, admin.Account, mayaFile)).HouseholdName);
+        Assert.Equal("The Khans (old name)", preview.HouseholdName);
+        Assert.Null((await InspectAsync(service, admin.Account, noorFile)).HouseholdName);
+        Assert.Equal("profile", preview.Scope);
+        var here = Assert.Single(preview.Households);
+        Assert.Equal((home, "Home"), (here.Id, here.Name));
+        Assert.Equal(8, preview.MaxProfilesPerHousehold);
+        Assert.True(preview.CanAddHousehold);
+        Assert.Null(preview.AddHouseholdBlockedReason);
     }
 
     [Fact]
@@ -303,13 +313,13 @@ public sealed class UserTransferServiceTests : IDisposable
         var second = await InspectAsync(service, admin.Account, (await old.Service().ExportOwnAsync(Human(noor.Account), CancellationToken.None)).Content);
 
         Assert.Single(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ImportAsync(Human(admin.Account), first.OperationId, CancellationToken.None));
-        Assert.Equal("noor@example.com", (await service.ImportAsync(Human(admin.Account), second.OperationId, CancellationToken.None)).DisplayName);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ImportAsync(Human(admin.Account), first.OperationId, Into(fresh), CancellationToken.None));
+        Assert.Equal("noor@example.com", Assert.Single((await service.ImportAsync(Human(admin.Account), second.OperationId, Into(fresh), CancellationToken.None)).Profiles).SignInEmail);
         Assert.NotEqual(admin.Account, other.Account);
     }
 
     [Fact]
-    public async Task Inspect_SaysSoWhenSomeoneHereAlreadySignsInWithThatEmail_AndKeepsNothing()
+    public async Task Inspect_SaysWhichSignInUsesAnEmailThatIsTakenHere_AndKeepsTheFileSoAnotherEmailCanBeChosen()
     {
         var old = Computer.New(this, "old");
         var fresh = Computer.New(this, "new");
@@ -321,22 +331,18 @@ public sealed class UserTransferServiceTests : IDisposable
 
         var preview = await InspectAsync(service, admin.Account, download.Content);
 
-        Assert.Equal("Someone in this Library already signs in with maya@example.com. Nothing was imported.", preview.BlockedReason);
-        Assert.Empty(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, CancellationToken.None));
-    }
+        var signIn = Assert.Single(preview.SignIns);
+        Assert.True(signIn.EmailInUse);
+        Assert.Null(signIn.Problem);
+        Assert.Null(preview.BlockedReason);
+        Assert.Single(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
 
-    [Fact]
-    public async Task Inspect_SaysTheUserIsAlreadyHere_WhenTheSameAccountExists()
-    {
-        var old = Computer.New(this, "old");
-        var maya = old.AddUser("maya@example.com", ["Maya"]);
-        var admin = old.AddUser("admin@example.com", ["Admin"]);
-        var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+        var imported = await service.ImportAsync(
+            Human(admin.Account), preview.OperationId, Into(fresh) with { Emails = new Dictionary<Guid, string> { [signIn.Id] = "maya.new@example.com" } }, CancellationToken.None);
 
-        var preview = await InspectAsync(old.Service(administrator: admin.Account), admin.Account, download.Content);
-
-        Assert.Equal("This user is already in this Library. Nothing was imported.", preview.BlockedReason);
+        Assert.Equal("maya.new@example.com", Assert.Single(imported.Profiles).SignInEmail);
+        Assert.Equal(old.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(maya.Account)),
+            fresh.Text("SELECT c.secret_hash FROM account_credentials c JOIN accounts a ON a.id = c.account_id WHERE a.email = 'maya.new@example.com'"));
     }
 
     [Fact]
@@ -349,16 +355,44 @@ public sealed class UserTransferServiceTests : IDisposable
         var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
         var service = fresh.Service(administrator: admin.Account);
         var preview = await InspectAsync(service, admin.Account, download.Content);
-        Assert.Null(preview.BlockedReason);
+        Assert.False(Assert.Single(preview.SignIns).EmailInUse);
 
         fresh.AddUser("maya@example.com", ["Quick"]);
+        var home = fresh.Home();
         var accountsBefore = fresh.Scalar("SELECT COUNT(*) FROM accounts");
-        var refused = await Assert.ThrowsAsync<UserTransferRefusedException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, CancellationToken.None));
+        var refused = await Assert.ThrowsAsync<UserTransferRefusedException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, new(TargetHouseholdId: home), CancellationToken.None));
 
         Assert.Equal("Someone in this Library already signs in with maya@example.com. Nothing was imported.", refused.Message);
         Assert.Equal(accountsBefore, fresh.Scalar("SELECT COUNT(*) FROM accounts"));
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM backup_restores"));
-        Assert.Empty(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
+        // The file stays kept, so the administrator can choose another email and go on.
+        Assert.Single(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
+    }
+
+    [Fact]
+    public async Task Import_OfAFileMadeByThisVeryLibrary_GivesTheCopyNewIds_AndLeavesTheOriginalAlone()
+    {
+        var old = Computer.New(this, "old");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var admin = old.AddUser("admin@example.com", ["Admin"]);
+        var home = old.Home();
+        var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+        var service = old.Service(administrator: admin.Account);
+        var preview = await InspectAsync(service, admin.Account, download.Content);
+        var signIn = Assert.Single(preview.SignIns);
+        Assert.True(signIn.EmailInUse);
+
+        var result = await service.ImportAsync(
+            Human(admin.Account),
+            preview.OperationId,
+            new(TargetHouseholdId: home, Emails: new Dictionary<Guid, string> { [signIn.Id] = "maya.copy@example.com" }),
+            CancellationToken.None);
+
+        var copy = Assert.Single(result.Profiles);
+        Assert.NotEqual(maya.Profile, copy.Id);
+        Assert.Equal(2, old.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name = 'Maya'"));
+        Assert.Equal(1, old.Scalar($"SELECT COUNT(*) FROM accounts WHERE id = {Blob(maya.Account)} AND email = 'maya@example.com' AND profile_id = {Blob(maya.Profile)}"));
+        Assert.Equal(1, old.Scalar($"SELECT COUNT(*) FROM accounts WHERE email = 'maya.copy@example.com' AND profile_id = {Blob(copy.Id)}"));
     }
 
     [Fact]
@@ -373,7 +407,7 @@ public sealed class UserTransferServiceTests : IDisposable
         var preview = await InspectAsync(fresh.Service(administrator: admin.Account), admin.Account, download.Content);
 
         await Assert.ThrowsAsync<KeyNotFoundException>(
-            () => fresh.Service(administrator: second.Account).ImportAsync(Human(second.Account), preview.OperationId, CancellationToken.None));
+            () => fresh.Service(administrator: second.Account).ImportAsync(Human(second.Account), preview.OperationId, Into(fresh), CancellationToken.None));
 
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM accounts WHERE email = 'maya@example.com'"));
     }
@@ -389,7 +423,7 @@ public sealed class UserTransferServiceTests : IDisposable
         var service = fresh.Service(administrator: null);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => InspectAsync(service, member.Account, download.Content));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.ImportAsync(Human(member.Account), Guid.NewGuid(), CancellationToken.None));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.ImportAsync(Human(member.Account), Guid.NewGuid(), Into(fresh), CancellationToken.None));
 
         Assert.Empty(Directory.Exists(fresh.StagingFolder) ? Directory.GetFiles(fresh.StagingFolder, "*.zip") : []);
     }
@@ -411,6 +445,145 @@ public sealed class UserTransferServiceTests : IDisposable
         Assert.Equal("This file is damaged and can't be imported.", notAZip.Message);
         Assert.Empty(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM accounts WHERE email = 'maya@example.com'"));
+    }
+
+    [Fact]
+    public async Task ExportMyData_ImportedUnderAnotherHouseholdWithADifferentEmail_SignsInWithTheSamePassword_AndSeesNothingUntilAccessIsGiven()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya"], administrator: true);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var home = fresh.Home();
+        var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+        var service = fresh.Service(administrator: admin.Account);
+        var preview = await InspectAsync(service, admin.Account, download.Content);
+        var signIn = Assert.Single(preview.SignIns);
+
+        var result = await service.ImportAsync(
+            Human(admin.Account),
+            preview.OperationId,
+            new(TargetHouseholdId: home, Emails: new Dictionary<Guid, string> { [signIn.Id] = "maya@new-home.example" }),
+            CancellationToken.None);
+
+        var profile = Assert.Single(result.Profiles);
+        Assert.Equal("maya@new-home.example", profile.SignInEmail);
+        Assert.False(profile.IsHouseholdAdministrator);
+        Assert.Equal(
+            old.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(maya.Account)),
+            fresh.Text("SELECT c.secret_hash FROM account_credentials c JOIN accounts a ON a.id = c.account_id WHERE a.email = 'maya@new-home.example'"));
+        Assert.Equal(1, fresh.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(profile.Id)} AND household_id = {Blob(home)} AND is_server_admin = 0 AND is_household_admin = 0"));
+        Assert.Equal(0, fresh.Scalar($"SELECT COUNT(*) FROM profile_feature_grants WHERE profile_id = {Blob(profile.Id)}"));
+        Assert.Equal(0, fresh.Scalar($"SELECT COUNT(*) FROM profile_library_grants WHERE profile_id = {Blob(profile.Id)}"));
+    }
+
+    [Fact]
+    public async Task ExportMyData_ImportedWithKeepTheirAccess_ArrivesWithReadWatchListenViewAsTheFileHadThem_ButNeverLibraries()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var home = fresh.Home();
+        var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+        var service = fresh.Service(administrator: admin.Account);
+        var preview = await InspectAsync(service, admin.Account, download.Content);
+
+        var result = await service.ImportAsync(Human(admin.Account), preview.OperationId, new(TargetHouseholdId: home, KeepAccess: true), CancellationToken.None);
+
+        var profile = Assert.Single(result.Profiles);
+        Assert.Equal(1, fresh.Scalar($"SELECT COUNT(*) FROM profile_feature_grants WHERE profile_id = {Blob(profile.Id)} AND feature_id = 'read'"));
+        Assert.Equal(0, fresh.Scalar($"SELECT COUNT(*) FROM profile_library_grants WHERE profile_id = {Blob(profile.Id)}"));
+    }
+
+    [Fact]
+    public async Task AHouseholdExport_ImportedAsANewHousehold_MakesTheChosenPersonItsAdministrator_KeepsPasswords_AndOnlyTheExportersTwoStep()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var khans = Guid.NewGuid();
+        old.AddHousehold(khans, "The Khans");
+        var mom = old.AddUser("mom@example.com", ["Mom"], household: khans, householdAdministrator: true);
+        var kid = old.AddUser("kid@example.com", ["Kid"], household: khans);
+        old.Execute("UPDATE profiles SET role = 'RestrictedProfile', content_limit = 'PG' WHERE display_name = 'Kid'");
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var download = await old.Service(householdAdministrator: mom.Account).ExportHouseholdAsync(Human(mom.Account, khans), khans, CancellationToken.None);
+
+        using (var archive = new ZipArchive(new MemoryStream(download.Content), ZipArchiveMode.Read))
+        {
+            using var manifest = JsonDocument.Parse(new StreamReader(archive.GetEntry("manifest.json")!.Open()).ReadToEnd());
+            Assert.Equal("household", manifest.RootElement.GetProperty("scope").GetString());
+            Assert.Equal(2, manifest.RootElement.GetProperty("profile_count").GetInt32());
+            Assert.Equal(2, manifest.RootElement.GetProperty("sign_in_count").GetInt32());
+            Assert.True(manifest.RootElement.GetProperty("two_step_left_out").GetBoolean());
+        }
+
+        var service = fresh.Service(administrator: admin.Account);
+        var preview = await InspectAsync(service, admin.Account, download.Content);
+        Assert.Equal("household", preview.Scope);
+        Assert.Equal(2, preview.Profiles.Count);
+        Assert.Equal(2, preview.SignIns.Count);
+        Assert.True(preview.TwoStepToSetUp);
+
+        var result = await service.ImportAsync(
+            Human(admin.Account),
+            preview.OperationId,
+            new(NewHouseholdName: "Imported Khans", NewHouseholdAdministratorProfileId: mom.Profile),
+            CancellationToken.None);
+
+        Assert.True(result.CreatedHousehold);
+        Assert.Equal("Imported Khans", result.HouseholdName);
+        Assert.Equal(["Kid", "Mom"], result.Profiles.Select(profile => profile.Name).Order());
+        Assert.Equal(1, fresh.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(result.HouseholdId)} AND is_household_admin = 1"));
+        Assert.Equal(1, fresh.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(mom.Profile)} AND is_household_admin = 1 AND role = 'StandardUser'"));
+        Assert.Equal(1, fresh.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(kid.Profile)} AND is_household_admin = 0 AND role = 'RestrictedProfile' AND content_limit = 'PG'"));
+        Assert.Equal(
+            old.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(kid.Account)),
+            fresh.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(kid.Account)));
+        Assert.Equal(TwoStepSecret, fresh.Protector.Unprotect(fresh.Text("SELECT secret_protected FROM account_two_step WHERE account_id = " + Blob(mom.Account))));
+        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_two_step WHERE account_id = " + Blob(kid.Account)));
+        Assert.Equal(0, fresh.Scalar($"SELECT COUNT(*) FROM profile_feature_grants WHERE profile_id IN ({Blob(mom.Profile)}, {Blob(kid.Profile)})"));
+    }
+
+    [Fact]
+    public async Task AHouseholdExport_IsForTheServerAdministratorOrTheHouseholdsOwnAdministrator_AndNobodyElse()
+    {
+        var old = Computer.New(this, "old");
+        var khans = Guid.NewGuid();
+        var elsewhere = Guid.NewGuid();
+        old.AddHousehold(khans, "The Khans");
+        old.AddHousehold(elsewhere, "Elsewhere");
+        var mom = old.AddUser("mom@example.com", ["Mom"], household: khans, householdAdministrator: true);
+        var kid = old.AddUser("kid@example.com", ["Kid"], household: khans);
+        var stranger = old.AddUser("stranger@example.com", ["Stranger"], household: elsewhere, householdAdministrator: true);
+        var root = old.AddUser("root@example.com", ["Root"], administrator: true);
+        var audit = new ManagedSessionServiceTests.RecordingAudit();
+
+        // The household's own administrator.
+        var own = await old.Service(householdAdministrator: mom.Account, audit: audit).ExportHouseholdAsync(Human(mom.Account, khans), khans, CancellationToken.None);
+        Assert.Contains("kid@example.com", ZipText(own.Content), StringComparison.Ordinal);
+        Assert.DoesNotContain("stranger@example.com", ZipText(own.Content), StringComparison.OrdinalIgnoreCase);
+        Assert.Matches(new Regex(@"^tuvima-household-\d{8}-\d{6}\.zip$"), own.FileName);
+        var audited = Assert.Single(audit.Events);
+        Assert.Equal(("household.exported", "household", khans.ToString("D")), (audited.EventType, audited.SubjectType, audited.SubjectId));
+
+        // Another household's administrator, a member, and an unknown household are all told the household is not there or not theirs.
+        audit.Events.Clear();
+        var anotherHousehold = await Assert.ThrowsAsync<KeyNotFoundException>(
+            () => old.Service(householdAdministrator: stranger.Account, audit: audit).ExportHouseholdAsync(Human(stranger.Account, elsewhere), khans, CancellationToken.None));
+        var unknown = await Assert.ThrowsAsync<KeyNotFoundException>(
+            () => old.Service(householdAdministrator: stranger.Account, audit: audit).ExportHouseholdAsync(Human(stranger.Account, elsewhere), Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(anotherHousehold.Message, unknown.Message);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => old.Service(audit: audit).ExportHouseholdAsync(Human(kid.Account, khans), khans, CancellationToken.None));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => old.Service(audit: audit).ExportHouseholdAsync(new RequestAuthority(PrincipalKind.ServiceApplication, true, ApplicationId: Guid.NewGuid()), khans, CancellationToken.None));
+        Assert.Empty(audit.Events);
+
+        // The server administrator may export any household.
+        var any = await old.Service(administrator: root.Account, audit: audit).ExportHouseholdAsync(Human(root.Account), elsewhere, CancellationToken.None);
+        Assert.Contains("stranger@example.com", ZipText(any.Content), StringComparison.Ordinal);
+        Assert.DoesNotContain("two_step", Encoding.Latin1.GetString(any.Content), StringComparison.Ordinal);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -502,8 +675,12 @@ public sealed class UserTransferServiceTests : IDisposable
     // Helpers
     // ---------------------------------------------------------------------------------------------------------
 
-    private static RequestAuthority Human(Guid account) =>
-        new(PrincipalKind.Human, true, AccountId: account, ActiveProfileId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true);
+    private static RequestAuthority Human(Guid account, Guid? householdAdministratorOf = null) =>
+        new(PrincipalKind.Human, true, AccountId: account, ActiveProfileId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,
+            ActiveProfileHouseholdId: householdAdministratorOf, ActiveProfileIsHouseholdAdministrator: householdAdministratorOf is not null);
+
+    /// <summary>Put the profiles in the household this computer has (made on first use).</summary>
+    private static MediaEngine.Contracts.Backups.UserImportRequestDto Into(Computer computer) => new(TargetHouseholdId: computer.Home());
 
     private static async Task<MediaEngine.Contracts.Backups.UserImportPreviewDto> InspectAsync(UserTransferService service, Guid actor, byte[] file)
     {
@@ -616,8 +793,13 @@ public sealed class UserTransferServiceTests : IDisposable
 
     private sealed record Person(Guid Account, Guid Profile);
 
-    private sealed class Decisions(Guid? administrator) : IAccountAccessDecisionService
+    private sealed class Decisions(Guid? administrator, Guid? householdAdministrator = null) : IAccountAccessDecisionService
     {
+        public ValueTask<AuthorizationDecision> EvaluateHouseholdAdministratorAsync(RequestAuthority authority, bool requireSurfaceUnlock, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(householdAdministrator is { } id && authority.AccountId == id && authority.IsEffectiveHouseholdAdministrator
+                ? AuthorizationDecision.Allow()
+                : AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired));
+
         public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired));
 
@@ -663,13 +845,14 @@ public sealed class UserTransferServiceTests : IDisposable
 
         public DatabaseBackupService BackupService() => BackupTestKit.Service(Database, Config, _backups, Codec);
 
-        public UserTransferService Service(Guid? administrator = null, ManagedSessionServiceTests.RecordingAudit? audit = null) => new(
+        public UserTransferService Service(Guid? administrator = null, ManagedSessionServiceTests.RecordingAudit? audit = null, Guid? householdAdministrator = null) => new(
             new PersonalStateBackupRepository(Database, Codec),
             new UserImportRepository(Database),
             Codec,
             Staging(),
             new AccountRepository(Database),
-            new Decisions(administrator),
+            new HouseholdRepository(Database),
+            new Decisions(administrator, householdAdministrator),
             audit ?? new ManagedSessionServiceTests.RecordingAudit(),
             TimeProvider.System);
 
@@ -677,6 +860,21 @@ public sealed class UserTransferServiceTests : IDisposable
 
         private UserImportStagingArea Staging() =>
             _staging ??= new UserImportStagingArea(_backups, TimeProvider.System, NullLogger<UserImportStagingArea>.Instance);
+
+        private Guid? _home;
+
+        /// <summary>A household on this computer to put imported profiles in (made on first use).</summary>
+        public Guid Home()
+        {
+            if (_home is { } existing)
+            {
+                return existing;
+            }
+
+            _home = Guid.NewGuid();
+            AddHousehold(_home.Value, "Home");
+            return _home.Value;
+        }
 
         public void AddHousehold(Guid id, string name)
         {
@@ -696,7 +894,7 @@ public sealed class UserTransferServiceTests : IDisposable
         /// A user with its sign-in and the profile it opens (the first name), which holds the features, libraries and roles. Any further
         /// names are other people of the same household: they exist, but the user does not open them and an export never holds them.
         /// </summary>
-        public Person AddUser(string email, string[] profileNames, bool administrator = false, Guid? household = null)
+        public Person AddUser(string email, string[] profileNames, bool administrator = false, Guid? household = null, bool householdAdministrator = false)
         {
             var account = Guid.NewGuid();
             var accountBlob = GuidSql.ToBlob(account);
@@ -707,7 +905,7 @@ public sealed class UserTransferServiceTests : IDisposable
                 var profile = Guid.NewGuid();
                 first = i == 0 ? profile : first;
                 connection.Execute(
-                    "INSERT INTO profiles (id, display_name, role, created_at, household_id, is_server_admin) VALUES (@id, @name, 'StandardUser', @now, @household, @admin)",
+                    "INSERT INTO profiles (id, display_name, role, created_at, household_id, is_server_admin, is_household_admin) VALUES (@id, @name, 'StandardUser', @now, @household, @admin, @householdAdmin)",
                     new
                     {
                         id = GuidSql.ToBlob(profile),
@@ -715,6 +913,7 @@ public sealed class UserTransferServiceTests : IDisposable
                         now = Stamp,
                         household = household is { } h ? GuidSql.ToBlob(h) : null,
                         admin = i == 0 && administrator ? 1 : 0,
+                        householdAdmin = i == 0 && householdAdministrator ? 1 : 0,
                     });
             }
 

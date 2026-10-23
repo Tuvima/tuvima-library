@@ -73,10 +73,10 @@ public sealed class UserExportImportTests : IDisposable
 
         var result = ImportInto(target, export);
 
-        Assert.Equal(maya.Account, result.AccountId);
+        Assert.Equal(maya.Account, Assert.Single(result.Profiles).SignInId);
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_two_step"));
         Assert.Equal(source.Text("SELECT secret_hash FROM account_credentials"), target.Text("SELECT secret_hash FROM account_credentials"));
-        Assert.Equal(UserImportRefusal.None, new UserImportRepository(NewStore().Database).Check(UserExportReader.Read(export)));
+        Assert.Equal(UserImportRefusal.None, Assert.Single(new UserImportRepository(NewStore().Database).Inspect(UserExportReader.Read(export)).SignIns).Problem);
     }
 
     [Fact]
@@ -89,7 +89,8 @@ public sealed class UserExportImportTests : IDisposable
         var export = Export(source, maya);
 
         var names = export.Tables.Select(table => table.Table).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        Assert.DoesNotContain("profile_feature_grants", names);
+        // Read/Watch/Listen/View travel (an import applies them only when asked); library access and administrator settings never do.
+        Assert.Contains("profile_feature_grants", names);
         Assert.DoesNotContain("profile_library_grants", names);
         Assert.DoesNotContain("profile_admin_protections", names);
         Assert.DoesNotContain("auth_sessions", names);
@@ -158,8 +159,9 @@ public sealed class UserExportImportTests : IDisposable
 
         var result = ImportInto(target, Export(source, maya));
 
-        Assert.Equal(maya.Account, result.AccountId);
-        Assert.Equal("Maya@Example.com", result.Email);
+        var imported = Assert.Single(result.Profiles);
+        Assert.Equal(maya.Account, imported.SignInId);
+        Assert.Equal("Maya@Example.com", imported.Email);
         Assert.Equal(source.Text("SELECT secret_hash FROM account_credentials"), target.Text("SELECT secret_hash FROM account_credentials"));
         Assert.Equal("MAYA@EXAMPLE.COM", target.Text("SELECT normalized_email FROM accounts"));
         Assert.Equal("sealed:readable:SECRET-MARKER", target.Text("SELECT secret_protected FROM account_two_step"));
@@ -245,7 +247,7 @@ public sealed class UserExportImportTests : IDisposable
 
         var result = ImportInto(store, export);
 
-        Assert.Equal(maya.Account, result.AccountId);
+        Assert.Equal(maya.Account, Assert.Single(result.Profiles).SignInId);
         Assert.Equal(1, store.Scalar("SELECT COUNT(*) FROM accounts"));
         Assert.Equal(1, store.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
     }
@@ -313,7 +315,7 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     [Fact]
-    public void Import_CreatesTheHousehold_ButNeverAsTheDefaultOne_AndNeverMakesThemAHouseholdAdministrator()
+    public void Import_CreatesTheHouseholdTheAdministratorNamed_NeverAsTheDefaultOne_AndOnlyTheChosenProfileLooksAfterIt()
     {
         var source = NewStore();
         var target = NewStore();
@@ -321,12 +323,15 @@ public sealed class UserExportImportTests : IDisposable
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false, household: household, householdAdmin: true);
         source.Execute($"UPDATE households SET is_default = 1 WHERE id = {Blob(household)}");
 
-        ImportInto(target, Export(source, maya));
+        var result = ImportWith(target, Export(source, maya), new UserImportChoices(null, "Our new home", maya.Profiles[0]));
 
-        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM households WHERE name = 'The Khans'"));
+        Assert.True(result.CreatedHousehold);
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM households WHERE name = 'Our new home' AND is_default = 0"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM households WHERE is_default = 1"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_household_admin = 1"));
-        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(household)}"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM households WHERE name = 'The Khans'"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(result.HouseholdId)} AND is_household_admin = 1"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_server_admin = 1"));
+        Assert.True(Assert.Single(result.Profiles).IsHouseholdAdministrator);
     }
 
     [Fact]
@@ -335,33 +340,45 @@ public sealed class UserExportImportTests : IDisposable
         var source = NewStore();
         var target = NewStore();
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
-        target.AddUser("MAYA@example.com", ["Someone else"], administrator: false);
+        var home = target.AddHousehold("Home");
+        target.AddUser("MAYA@example.com", ["Someone else"], administrator: false, household: home);
         var before = Counts(target);
 
         var ex = Assert.Throws<UserImportRefusedException>(() => ImportInto(target, Export(source, maya)));
 
         Assert.Equal(UserImportRefusal.EmailInUse, ex.Refusal);
+        Assert.Equal("maya@example.com", ex.Email);
         Assert.Equal(before, Counts(target));
     }
 
     [Fact]
-    public void Import_IsRefused_WhenTheAccountOrAProfileIsAlreadyHere_AndNothingIsWritten()
+    public void Import_GivesNewIds_WhenTheUserOrAProfileIdIsAlreadyUsedHere_AndNeverOverwritesWhatIsThere()
     {
         var source = NewStore();
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        var movie = source.AddMovie("Dune", "tt1160419", "aaaa1111");
+        source.AddPlaylist(maya.Profiles[0], "Friday night", movie);
         var export = Export(source, maya);
 
-        var sameAccount = NewStore();
-        sameAccount.Execute($"INSERT INTO profiles (id, display_name, created_at) VALUES (randomblob(16), 'Renamed', '{Stamp}')");
-        sameAccount.Execute($"INSERT INTO accounts (id, email, normalized_email, created_at, updated_at, profile_id) VALUES ({Blob(maya.Account)}, 'renamed@example.com', 'RENAMED@EXAMPLE.COM', '{Stamp}', '{Stamp}', (SELECT id FROM profiles WHERE display_name = 'Renamed'))");
-        Assert.Equal(UserImportRefusal.AlreadyHere, Assert.Throws<UserImportRefusedException>(() => ImportInto(sameAccount, export)).Refusal);
-        Assert.Equal(0, sameAccount.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
+        var sameUser = NewStore();
+        sameUser.Execute($"INSERT INTO profiles (id, display_name, created_at) VALUES (randomblob(16), 'Renamed', '{Stamp}')");
+        sameUser.Execute($"INSERT INTO accounts (id, email, normalized_email, created_at, updated_at, profile_id) VALUES ({Blob(maya.Account)}, 'renamed@example.com', 'RENAMED@EXAMPLE.COM', '{Stamp}', '{Stamp}', (SELECT id FROM profiles WHERE display_name = 'Renamed'))");
+        var first = ImportInto(sameUser, export);
+        var arrived = Assert.Single(first.Profiles);
+        Assert.NotEqual(maya.Account, arrived.SignInId);
+        Assert.Equal(1, sameUser.Scalar($"SELECT COUNT(*) FROM accounts WHERE id = {Blob(maya.Account)} AND email = 'renamed@example.com'"));
+        Assert.Equal(1, sameUser.Scalar($"SELECT COUNT(*) FROM accounts WHERE id = {Blob(arrived.SignInId!.Value)} AND email = 'maya@example.com' AND profile_id = {Blob(arrived.ProfileId)}"));
 
         var sameProfile = NewStore();
         sameProfile.Execute($"INSERT INTO profiles (id, display_name, created_at) VALUES ({Blob(maya.Profiles[0])}, 'Taken', '{Stamp}')");
-        Assert.Equal(UserImportRefusal.AlreadyHere, Assert.Throws<UserImportRefusedException>(() => ImportInto(sameProfile, export)).Refusal);
-        Assert.Equal(0, sameProfile.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
-        Assert.Equal(0, sameProfile.Scalar("SELECT COUNT(*) FROM accounts"));
+        var second = ImportInto(sameProfile, export);
+        var imported = Assert.Single(second.Profiles);
+        Assert.NotEqual(maya.Profiles[0], imported.ProfileId);
+        Assert.Equal(1, sameProfile.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(maya.Profiles[0])} AND display_name = 'Taken'"));
+        Assert.Equal(1, sameProfile.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(imported.ProfileId)} AND display_name = 'Maya'"));
+        Assert.Equal(1, sameProfile.Scalar($"SELECT COUNT(*) FROM profile_credentials WHERE profile_id = {Blob(imported.ProfileId)}"));
+        Assert.Equal(1, sameProfile.Scalar($"SELECT COUNT(*) FROM collections WHERE display_name = 'Friday night' AND profile_id = {Blob(imported.ProfileId)}"));
+        Assert.Equal(0, sameProfile.Scalar($"SELECT COUNT(*) FROM profile_credentials WHERE profile_id = {Blob(maya.Profiles[0])}"));
     }
 
     [Fact]
@@ -370,7 +387,8 @@ public sealed class UserExportImportTests : IDisposable
         var source = NewStore();
         var target = NewStore();
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false, outsideSubject: "sub-123");
-        var someone = target.AddUser("someone@example.com", ["Someone"], administrator: false, outsideSubject: "sub-123");
+        var home = target.AddHousehold("Home");
+        var someone = target.AddUser("someone@example.com", ["Someone"], administrator: false, outsideSubject: "sub-123", household: home);
         Assert.NotEqual(maya.Account, someone.Account);
         var before = Counts(target);
 
@@ -395,17 +413,25 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     [Fact]
-    public void Check_ReportsTheSameRefusalsAsTheImport_AndWritesNothing()
+    public void Inspect_SaysWhichSignInsClash_WritesNothing_AndNamesTheHouseholdsThatExist()
     {
         var source = NewStore();
         var target = NewStore();
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
         var summary = UserExportReader.Read(Export(source, maya));
         var repository = new UserImportRepository(target.Database);
+        var home = target.AddHousehold("Home");
 
-        Assert.Equal(UserImportRefusal.None, repository.Check(summary));
-        target.AddUser("maya@example.com", ["Other"], administrator: false);
-        Assert.Equal(UserImportRefusal.EmailInUse, repository.Check(summary));
+        var clear = repository.Inspect(summary);
+        Assert.False(Assert.Single(clear.SignIns).EmailInUse);
+        Assert.Equal(UserImportRefusal.None, clear.SignIns[0].Problem);
+        Assert.Equal(new UserImportHouseholdOption(home, "Home", 0), Assert.Single(clear.Households));
+        Assert.True(clear.CanAddHousehold);
+
+        target.AddUser("maya@example.com", ["Other"], administrator: false, household: home);
+        var clash = repository.Inspect(summary);
+        Assert.True(Assert.Single(clash.SignIns).EmailInUse);
+        Assert.Equal(1, Assert.Single(clash.Households).Profiles);
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM accounts"));
     }
 
@@ -490,8 +516,12 @@ public sealed class UserExportImportTests : IDisposable
 
         var summary = UserExportReader.Read(Export(source, maya));
 
-        Assert.Equal(new UserExportProfile("Maya (kids)", "RestrictedProfile", "PG", true), Assert.Single(summary.Profiles));
-        Assert.Equal(maya.Profiles[0], Assert.Single(summary.ProfileIds));
+        var profile = Assert.Single(summary.Profiles);
+        Assert.Equal(("Maya (kids)", "RestrictedProfile", "PG", true), (profile.Name, profile.Role, profile.ContentLimit, profile.AllowsUnrated));
+        Assert.Equal(maya.Profiles[0], profile.Id);
+        Assert.Equal(maya.Account, profile.SignInId);
+        Assert.Equal(["read"], profile.Access);
+        Assert.Equal(UserExportSummary.ProfileScope, summary.Scope);
     }
 
     [Fact]
@@ -537,6 +567,302 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     // ---------------------------------------------------------------------------------------------------------
+    // Households (users spec D9, D10, D14, D15, D16)
+    // ---------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void ExportingAHousehold_HoldsEveryProfileWithItsSignIn_AndNothingOfAnotherHousehold_AndOnlyTheExportersTwoStepSecret()
+    {
+        var source = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        var elsewhere = source.AddHousehold("Elsewhere");
+        var mom = source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans, householdAdmin: true, twoStepSecret: "MOM-SECRET");
+        var kid = source.AddUser("kid@example.com", ["Kid"], administrator: false, household: khans, twoStepSecret: "KID-SECRET");
+        source.Execute($"INSERT INTO profiles (id, display_name, created_at, household_id) VALUES (randomblob(16), 'No sign-in', '{Stamp}', {Blob(khans)})");
+        source.AddUser("stranger@example.com", ["Stranger"], administrator: false, household: elsewhere);
+
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans, mom.Account));
+
+        Assert.Equal(["Kid", "Mom", "No sign-in"], Table(export, "profiles").Rows.Select(row => Text(Table(export, "profiles"), row, "display_name")).Order().ToList());
+        Assert.Equal(2, Table(export, "accounts").Rows.Count);
+        var twoStep = Table(export, "account_two_step");
+        Assert.Equal(mom.Account, UserExportReader.GuidOf(Value(twoStep, Assert.Single(twoStep.Rows), "account_id")));
+        var text = ArchiveText(export);
+        Assert.DoesNotContain("stranger@example.com", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("KID-SECRET", text, StringComparison.Ordinal);
+        var summary = UserExportReader.Read(export);
+        Assert.Equal(UserExportSummary.HouseholdScope, summary.Scope);
+        Assert.Equal(3, summary.Profiles.Count);
+        Assert.Equal(kid.Account, summary.Profiles.Single(profile => profile.Name == "Kid").SignInId);
+        Assert.Null(summary.Profiles.Single(profile => profile.Name == "No sign-in").SignInId);
+        Assert.Equal("household", ContentsScope(export));
+    }
+
+    [Fact]
+    public void ExportingAHousehold_ByAnAdministratorWhoIsNotInIt_HoldsNoTwoStepSecretAtAll()
+    {
+        var source = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans, twoStepSecret: "MOM-SECRET");
+
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans));
+
+        Assert.DoesNotContain(export.Tables, table => table.Table == "account_two_step");
+        Assert.DoesNotContain("MOM-SECRET", ArchiveText(export), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ImportingAHouseholdAsANewOne_MakesTheChosenProfileItsAdministrator_AndEveryoneElseAMember_WithoutAccess()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        var mom = source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans, householdAdmin: true);
+        var kid = source.AddUser("kid@example.com", ["Kid"], administrator: false, household: khans);
+        source.Execute($"UPDATE profiles SET role = 'RestrictedProfile', content_limit = 'PG' WHERE id = {Blob(kid.Profiles[0])}");
+        var movie = source.AddMovie("Dune", "tt1160419", "aaaa1111");
+        source.AddUserState(kid.Profiles[0], movie.Asset, 12.5);
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans));
+
+        var result = ImportWith(target, export, new UserImportChoices(null, "Imported Khans", mom.Profiles[0]));
+
+        Assert.True(result.CreatedHousehold);
+        Assert.Equal(2, result.Profiles.Count);
+        Assert.Equal(2, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(result.HouseholdId)}"));
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_household_admin = 1"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(mom.Profiles[0])} AND is_household_admin = 1 AND role = 'StandardUser'"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(kid.Profiles[0])} AND is_household_admin = 0 AND role = 'RestrictedProfile' AND content_limit = 'PG'"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_server_admin = 1"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_feature_grants"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_library_grants"));
+        Assert.Equal(2, target.Scalar("SELECT COUNT(*) FROM accounts"));
+        Assert.Equal(source.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(kid.Account)),
+            target.Text("SELECT secret_hash FROM account_credentials WHERE account_id = " + Blob(kid.Account)));
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM waiting_personal_state"));
+    }
+
+    [Fact]
+    public void ImportingAHousehold_NeverCarriesRoles_EvenWhenTheFileSetsThemEverywhere()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        var mom = source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans);
+        source.AddUser("kid@example.com", ["Kid"], administrator: false, household: khans);
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans));
+        export = WithValue(export, "profiles", "is_server_admin", BackupValue.FromInteger(1));
+        export = WithValue(export, "profiles", "is_household_admin", BackupValue.FromInteger(1));
+        export = WithValue(export, "profiles", "role", BackupValue.FromText("Administrator"));
+        var home = target.AddHousehold("Home");
+
+        ImportWith(target, export, Into(home));
+
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_server_admin = 1 OR is_household_admin = 1"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE role = 'Administrator' AND display_name IN ('Mom', 'Kid')"));
+        Assert.Equal(2, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(home)}"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM accounts WHERE id = {Blob(mom.Account)}"));
+    }
+
+    [Fact]
+    public void ImportingWithKeepTheirAccess_AppliesTheFilesReadWatchListenView_ButNeverLibraryAccess_AndWithoutItTheyArriveWithNone()
+    {
+        var source = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        var mom = source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans);
+        source.Execute($"INSERT INTO profile_feature_grants (profile_id, feature_id, granted_at) VALUES ({Blob(mom.Profiles[0])}, 'listen', '{Stamp}')");
+        var export = Export(source, mom);
+
+        var without = NewStore();
+        ImportInto(without, export);
+        Assert.Equal(0, without.Scalar("SELECT COUNT(*) FROM profile_feature_grants"));
+
+        var kept = NewStore();
+        ImportInto(kept, export, choices => choices with { KeepAccess = true });
+        Assert.Equal(["listen", "read"], kept.Texts("SELECT feature_id FROM profile_feature_grants ORDER BY feature_id"));
+        Assert.Equal(0, kept.Scalar("SELECT COUNT(*) FROM profile_library_grants"));
+    }
+
+    [Fact]
+    public void ImportingWithADifferentEmail_KeepsThePassword_AndLeavesTheFilesEmailUnused()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        var home = target.AddHousehold("Home");
+        target.AddUser("maya@example.com", ["Someone else"], administrator: false, household: home);
+
+        var result = ImportWith(target, Export(source, maya), Into(home) with
+        {
+            Emails = new Dictionary<Guid, string> { [maya.Account] = "  Maya.New@Example.com " },
+        });
+
+        Assert.Equal("Maya.New@Example.com", Assert.Single(result.Profiles).Email);
+        Assert.Equal("MAYA.NEW@EXAMPLE.COM", target.Text($"SELECT normalized_email FROM accounts WHERE id = {Blob(maya.Account)}"));
+        Assert.Equal(source.Text("SELECT secret_hash FROM account_credentials"), target.Text($"SELECT secret_hash FROM account_credentials WHERE account_id = {Blob(maya.Account)}"));
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM accounts WHERE normalized_email = 'MAYA@EXAMPLE.COM'"));
+    }
+
+    [Fact]
+    public void ImportingWithoutASignIn_BringsTheProfileAndItsState_ButNoUserAndNothingAboutHowTheyCouldSignIn()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false, twoStepSecret: "SECRET", outsideSubject: "sub-9");
+        var home = target.AddHousehold("Home");
+
+        var result = ImportWith(target, Export(source, maya), Into(home) with { WithoutSignIn = [maya.Account] });
+
+        var profile = Assert.Single(result.Profiles);
+        Assert.Null(profile.SignInId);
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE id = {Blob(maya.Profiles[0])}"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM accounts"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_credentials"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_two_step"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_external_logins"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_notice_dismissals"));
+    }
+
+    [Fact]
+    public void ANewHousehold_NeedsASignedInNonKidsProfileToLookAfterIt_AndAnExistingOneTakesNoAdministratorChoice()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        var mom = source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans);
+        var kid = source.AddUser("kid@example.com", ["Kid"], administrator: false, household: khans);
+        source.Execute($"UPDATE profiles SET role = 'RestrictedProfile' WHERE id = {Blob(kid.Profiles[0])}");
+        source.Execute($"INSERT INTO profiles (id, display_name, created_at, household_id) VALUES (randomblob(16), 'No sign-in', '{Stamp}', {Blob(khans)})");
+        var noSignIn = source.ProfileId("No sign-in");
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans));
+        var before = Counts(target);
+
+        UserImportRefusal Refusal(UserImportChoices choices) => Assert.Throws<UserImportRefusedException>(() => ImportWith(target, export, choices)).Refusal;
+
+        Assert.Equal(UserImportRefusal.AdministratorChoiceNeeded, Refusal(new UserImportChoices(null, "New", null)));
+        Assert.Equal(UserImportRefusal.AdministratorChoiceNeeded, Refusal(new UserImportChoices(null, "New", kid.Profiles[0])));
+        Assert.Equal(UserImportRefusal.AdministratorChoiceNeeded, Refusal(new UserImportChoices(null, "New", noSignIn)));
+        Assert.Equal(UserImportRefusal.AdministratorChoiceNeeded, Refusal(new UserImportChoices(null, "New", Guid.NewGuid())));
+        Assert.Equal(UserImportRefusal.AdministratorChoiceNeeded, Refusal(new UserImportChoices(null, "New", mom.Profiles[0], WithoutSignIn: [mom.Account])));
+        Assert.Equal(UserImportRefusal.HouseholdChoiceNeeded, Refusal(new UserImportChoices(null, null)));
+        Assert.Equal(UserImportRefusal.HouseholdChoiceNeeded, Refusal(new UserImportChoices(Guid.NewGuid(), "Both", mom.Profiles[0])));
+        Assert.Equal(UserImportRefusal.HouseholdNotFound, Refusal(new UserImportChoices(Guid.NewGuid(), null)));
+        var home = target.AddHousehold("Home");
+        before = Counts(target);
+        Assert.Equal(UserImportRefusal.InvalidChoice, Refusal(new UserImportChoices(home, null, mom.Profiles[0])));
+        Assert.Equal(UserImportRefusal.InvalidChoice, Refusal(new UserImportChoices(home, null, null, false, new Dictionary<Guid, string> { [Guid.NewGuid()] = "x@example.com" })));
+        Assert.Equal(UserImportRefusal.InvalidChoice, Refusal(new UserImportChoices(home, null, null, false, null, [Guid.NewGuid()])));
+        Assert.Equal(before, Counts(target));
+    }
+
+    [Fact]
+    public void ASecondHousehold_IsRefusedWhileAServerAdministratorHasNoPassword_AndAllowedOnceTheyDo()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        var export = Export(source, maya);
+        var home = target.AddHousehold("Home");
+        target.Execute($"INSERT INTO profiles (id, display_name, created_at, household_id, is_server_admin) VALUES (randomblob(16), 'Owner', '{Stamp}', {Blob(home)}, 1)");
+        var repository = new UserImportRepository(target.Database);
+        var before = Counts(target);
+
+        Assert.False(repository.Inspect(UserExportReader.Read(export)).CanAddHousehold);
+        var refused = Assert.Throws<UserImportRefusedException>(() => ImportWith(target, export, new UserImportChoices(null, "Second", maya.Profiles[0])));
+        Assert.Equal(UserImportRefusal.SecureAdministratorsFirst, refused.Refusal);
+        Assert.Equal(before, Counts(target));
+
+        // Importing into the household that exists is not adding one.
+        ImportWith(target, export, Into(home) with { Emails = new Dictionary<Guid, string> { [maya.Account] = "maya.two@example.com" } });
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM households"));
+    }
+
+    [Fact]
+    public void ASecondHousehold_IsAllowedWhenEveryServerAdministratorHasAnEmailAndAPassword()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        var home = target.AddHousehold("Home");
+        target.AddUser("owner@example.com", ["Owner"], administrator: true, household: home);
+        var export = Export(source, maya);
+
+        Assert.True(new UserImportRepository(target.Database).Inspect(UserExportReader.Read(export)).CanAddHousehold);
+        var result = ImportWith(target, export, new UserImportChoices(null, "Second", maya.Profiles[0]));
+
+        Assert.Equal(2, target.Scalar("SELECT COUNT(*) FROM households"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(result.HouseholdId)} AND is_household_admin = 1"));
+    }
+
+    [Fact]
+    public void AHouseholdOfEight_TakesNoMoreImportedProfiles_AndNothingIsWritten()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans);
+        source.AddUser("kid@example.com", ["Kid"], administrator: false, household: khans);
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans));
+        var home = target.AddHousehold("Home");
+        for (var number = 1; number <= 7; number++)
+        {
+            target.Execute($"INSERT INTO profiles (id, display_name, created_at, household_id) VALUES (randomblob(16), 'Person {number}', '{Stamp}', {Blob(home)})");
+        }
+
+        var before = Counts(target);
+
+        Assert.Equal(UserImportRefusal.HouseholdFull, Assert.Throws<UserImportRefusedException>(() => ImportWith(target, export, Into(home))).Refusal);
+        Assert.Equal(before, Counts(target));
+        Assert.Equal(7, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(home)}"));
+    }
+
+    [Fact]
+    public void AFileWithMoreProfilesThanAHouseholdMayHold_IsNotAUserExport()
+    {
+        var source = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans);
+        for (var number = 1; number <= 8; number++)
+        {
+            source.Execute($"INSERT INTO profiles (id, display_name, created_at, household_id) VALUES (randomblob(16), 'Extra {number}', '{Stamp}', {Blob(khans)})");
+        }
+
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans));
+
+        Assert.Throws<InvalidDataException>(() => UserExportReader.Read(export));
+    }
+
+    [Fact]
+    public void ImportingAHouseholdBackIntoTheLibraryThatMadeIt_GivesEveryProfileAndSignInNewIds_AndLeavesTheOriginalsAlone()
+    {
+        var source = NewStore();
+        var khans = source.AddHousehold("The Khans");
+        var mom = source.AddUser("mom@example.com", ["Mom"], administrator: false, household: khans, householdAdmin: true);
+        var kid = source.AddUser("kid@example.com", ["Kid"], administrator: false, household: khans);
+        var movie = source.AddMovie("Dune", "tt1160419", "aaaa1111");
+        source.AddPlaylist(kid.Profiles[0], "Friday night", movie);
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForHousehold(khans));
+        var emails = new Dictionary<Guid, string> { [mom.Account] = "mom.copy@example.com", [kid.Account] = "kid.copy@example.com" };
+
+        var result = ImportWith(source, export, new UserImportChoices(null, "Copy of the Khans", mom.Profiles[0], false, emails));
+
+        Assert.Equal(4, source.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name IN ('Mom', 'Kid')"));
+        Assert.Equal(4, source.Scalar("SELECT COUNT(*) FROM accounts"));
+        Assert.All(result.Profiles, profile =>
+        {
+            Assert.NotEqual(mom.Profiles[0], profile.ProfileId);
+            Assert.NotEqual(kid.Profiles[0], profile.ProfileId);
+            Assert.NotEqual(mom.Account, profile.SignInId);
+            Assert.NotEqual(kid.Account, profile.SignInId);
+        });
+        Assert.Equal(2, source.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(result.HouseholdId)}"));
+        Assert.Equal(2, source.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(khans)}"));
+        Assert.Equal(1, source.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(result.HouseholdId)} AND is_household_admin = 1"));
+        var copiedKid = result.Profiles.Single(profile => profile.Name == "Kid");
+        Assert.Equal(1, source.Scalar($"SELECT COUNT(*) FROM collections WHERE display_name = 'Friday night' AND profile_id = {Blob(copiedKid.ProfileId)}"));
+        Assert.Equal(2, source.Scalar("SELECT COUNT(*) FROM collections WHERE display_name = 'Friday night'"));
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
     // Reading a file
     // ---------------------------------------------------------------------------------------------------------
 
@@ -549,7 +875,7 @@ public sealed class UserExportImportTests : IDisposable
 
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true))
         {
-            Assert.Equal(maya.Account, UserExportReader.Read(BackupArchiveFormat.ReadUserExport(archive)).AccountId);
+            Assert.Equal(maya.Account, Assert.Single(UserExportReader.Read(BackupArchiveFormat.ReadUserExport(archive)).SignIns).Id);
         }
 
         stream.Position = 0;
@@ -602,7 +928,7 @@ public sealed class UserExportImportTests : IDisposable
         // The export holds only what a person built.
         var collections = Table(export, "collections");
         Assert.Equal(["Mine"], collections.Rows.Select(row => Text(collections, row, "display_name")).ToList());
-        Assert.Equal(maya.Account, UserExportReader.Read(export).AccountId);
+        Assert.Equal(maya.Account, Assert.Single(UserExportReader.Read(export).SignIns).Id);
 
         var typeIndex = collections.Columns.ToList().IndexOf("collection_type");
         var crafted = collections with { Rows = [collections.Rows[0].Select((value, index) => index == typeIndex ? BackupValue.FromText("Universe") : value).ToList()] };
@@ -617,10 +943,10 @@ public sealed class UserExportImportTests : IDisposable
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
         var export = Export(source, maya);
         var grants = new BackupExportTable(
-            "profile_feature_grants",
+            "profile_library_grants",
             BackupDataKind.Configuration,
-            ["profile_id", "feature_id", "granted_at"],
-            [[BackupValue.FromBlob(GuidSql.ToBlob(maya.Profiles[0])), BackupValue.FromText("read"), BackupValue.FromText(Stamp)]]);
+            ["profile_id", "library_id", "granted_at"],
+            [[BackupValue.FromBlob(GuidSql.ToBlob(maya.Profiles[0])), BackupValue.FromBlob(GuidSql.ToBlob(Guid.NewGuid())), BackupValue.FromText(Stamp)]]);
         using var stream = Zip(export with { Tables = [.. export.Tables, grants] });
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
@@ -641,8 +967,24 @@ public sealed class UserExportImportTests : IDisposable
     private static BackupExport Export(Store source, User user) =>
         new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForAccount(user.Account));
 
-    private static UserImportResult ImportInto(Store target, BackupExport export) =>
-        new UserImportRepository(target.Database).Import(export, "tuvima-user-1.zip", ImportedAt.AddDays(-1), new FakeCodec(), ImportedAt);
+    /// <summary>
+    /// Imports under a household that already exists here: the file's own household when this store has it, otherwise the first one, otherwise
+    /// a new empty one. Nothing is chosen to look after it, so these imports show what an ordinary member gets.
+    /// </summary>
+    private static UserImportResult ImportInto(Store target, BackupExport export, Func<UserImportChoices, UserImportChoices>? adjust = null)
+    {
+        var summary = UserExportReader.Read(export);
+        var repository = new UserImportRepository(target.Database);
+        var household = summary.HouseholdId is { } fileHousehold && repository.FindHouseholdName(fileHousehold) is not null
+            ? fileHousehold
+            : target.FirstHousehold() ?? target.AddHousehold("Home");
+        return ImportWith(target, export, adjust is null ? Into(household) : adjust(Into(household)));
+    }
+
+    private static UserImportResult ImportWith(Store target, BackupExport export, UserImportChoices choices) =>
+        new UserImportRepository(target.Database).Import(export, "tuvima-user-1.zip", ImportedAt.AddDays(-1), new FakeCodec(), ImportedAt, choices);
+
+    private static UserImportChoices Into(Guid household) => new(household, null);
 
     /// <summary>The export with one column of a table set to a value in every row (or in the rows that pass <paramref name="rowWhere"/>), as a crafted file would hold it.</summary>
     private static BackupExport WithValue(
@@ -678,6 +1020,15 @@ public sealed class UserExportImportTests : IDisposable
         using var reader = new StreamReader(archive.GetEntry(BackupArchiveFormat.ContentsEntry)!.Open(), Encoding.UTF8);
         using var json = System.Text.Json.JsonDocument.Parse(reader.ReadToEnd());
         return json.RootElement.GetProperty("kind").GetString()!;
+    }
+
+    private static string ContentsScope(BackupExport export)
+    {
+        using var stream = Zip(export);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+        using var reader = new StreamReader(archive.GetEntry(BackupArchiveFormat.ContentsEntry)!.Open(), Encoding.UTF8);
+        using var json = System.Text.Json.JsonDocument.Parse(reader.ReadToEnd());
+        return json.RootElement.GetProperty("scope").GetString()!;
     }
 
     private static MemoryStream Zip(BackupExport export)
@@ -749,6 +1100,18 @@ public sealed class UserExportImportTests : IDisposable
         }
 
         public DatabaseConnection Database { get; }
+
+        public Guid ProfileId(string name)
+        {
+            using var connection = Database.CreateConnection();
+            return connection.ExecuteScalar<Guid>("SELECT id FROM profiles WHERE display_name = @name", new { name });
+        }
+
+        public Guid? FirstHousehold()
+        {
+            using var connection = Database.CreateConnection();
+            return connection.ExecuteScalar<Guid?>("SELECT id FROM households ORDER BY created_at, name LIMIT 1");
+        }
 
         public Guid AddHousehold(string name, Guid? id = null)
         {
@@ -891,6 +1254,12 @@ public sealed class UserExportImportTests : IDisposable
         {
             using var connection = Database.CreateConnection();
             return connection.ExecuteScalar<double>(sql);
+        }
+
+        public List<string> Texts(string sql)
+        {
+            using var connection = Database.CreateConnection();
+            return connection.Query<string>(sql).ToList();
         }
 
         public string Text(string sql)

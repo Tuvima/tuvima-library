@@ -79,6 +79,46 @@ public sealed class ProfileHeldAccessContractStepTests : IDisposable
         Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM accounts WHERE profile_id = @profileId;", new { profileId }));
     }
 
+    [Fact]
+    public void EveryTableThatHangsOffAUser_StillPointsAtTheRebuiltAccountsTable_AndGoesWhenTheUserGoes()
+    {
+        using var connection = _database.CreateConnection();
+        var referencing = connection.Query<(string Child, string Parent, string OnDelete)>("""
+            SELECT m.name, f."table", f.on_delete
+            FROM sqlite_master m, pragma_foreign_key_list(m.name) f
+            WHERE m.type = 'table' AND lower(f."table") LIKE 'accounts%';
+            """).ToList();
+
+        // Step 0043 rebuilt accounts (create, copy, drop, rename): no child may be left pointing at the dropped or the temporary name.
+        Assert.All(referencing, link => Assert.Equal("accounts", link.Parent));
+        Assert.NotEmpty(referencing);
+
+        var profileId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        connection.Execute(
+            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@profileId,'Sam','#7C4DFF','StandardUser',@now);",
+            new { profileId, now = _now });
+        connection.Execute(
+            "INSERT INTO accounts(id,email,normalized_email,created_at,updated_at,profile_id) VALUES(@userId,'sam@example.com','SAM@EXAMPLE.COM',@now,@now,@profileId);",
+            new { userId, now = _now, profileId });
+        connection.Execute(
+            "INSERT INTO account_credentials(id,account_id,credential_kind,secret_hash,hash_scheme,hash_version,security_stamp,created_at,updated_at) VALUES(@id,@userId,'Password','h','s',1,'stamp',@now,@now);",
+            new { id = Guid.NewGuid(), userId, now = _now });
+        connection.Execute(
+            "INSERT INTO account_notice_dismissals(account_id,notice_key,dismissed_at) VALUES(@userId,'secure-account',@now);",
+            new { userId, now = _now });
+        connection.Execute(
+            "INSERT INTO account_passkeys(credential_id,account_id,name,data_json,created_at) VALUES(@id,@userId,'Phone','{}',@now);",
+            new { id = Guid.NewGuid().ToByteArray(), userId, now = _now });
+
+        connection.Execute("DELETE FROM accounts WHERE id = @userId;", new { userId });
+
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM account_credentials WHERE account_id = @userId;", new { userId }));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM account_notice_dismissals WHERE account_id = @userId;", new { userId }));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM account_passkeys WHERE account_id = @userId;", new { userId }));
+        Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id = @profileId;", new { profileId }));
+    }
+
     private void InsertUser(SqliteConnection connection, Guid profileId, string email) => connection.Execute(
         "INSERT INTO accounts(id,email,normalized_email,created_at,updated_at,profile_id) VALUES(@id,@email,@normalized,@now,@now,@profileId);",
         new { id = Guid.NewGuid(), email, normalized = email.ToUpperInvariant(), now = _now, profileId });

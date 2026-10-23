@@ -8,9 +8,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
-/// Moving one user between Libraries (backup and restore spec D19). The file holds what is needed to sign in as that person, so every
-/// route asks the person to confirm it is them first (403 <c>confirm_its_you</c> for a stale sign-in), a person exports only themselves,
-/// and only an administrator signed in at the Dashboard exports or imports anyone else.
+/// Moving people between Libraries (backup and restore spec D19, users spec D9 and D16). The file holds what is needed to sign in as each
+/// person in it, so every route asks the person to confirm it is them first (403 <c>confirm_its_you</c> for a stale sign-in), a person
+/// exports only their own profile, a household administrator also their own household, and only the server administrator signed in at the
+/// Dashboard exports anyone else, or imports.
 /// </summary>
 public static class UserTransferEndpoints
 {
@@ -33,7 +34,7 @@ public static class UserTransferEndpoints
         }))
             .RequireHumanSelfService()
             .WithName("ExportMyData")
-            .WithSummary("Downloads the signed-in person's own data as one file: their sign-in, profiles and each profile's own state.")
+            .WithSummary("Downloads the signed-in person's own data as one file: their profile, the sign-in that opens it and the profile's own state.")
             .Produces(StatusCodes.Status200OK, contentType: "application/zip")
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
@@ -52,11 +53,33 @@ public static class UserTransferEndpoints
         }))
             .RequireEffectiveAdministratorInPerson()
             .WithName("ExportAccount")
-            .WithSummary("Downloads one user's data as a file another Library can import. For administrators.")
+            .WithSummary("Downloads one user's profile and sign-in as a file another Library can import. For the server administrator.")
             .Produces(StatusCodes.Status200OK, contentType: "application/zip")
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        // A whole household: every profile, their sign-ins and their own state. The household's own administrator, or the server
+        // administrator; the service refuses anyone else and gives another household and an unknown one the same answer.
+        access.MapPost("/households/{householdId:guid}/export", async (Guid householdId, HttpContext http, IRequestAuthorityResolver resolver,
+            [FromServices] IUserTransferService transfers, [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(http, async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            var download = await transfers.ExportHouseholdAsync(await resolver.ResolveAsync(http, ct), householdId, ct);
+            return Results.File(download.Content, "application/zip", download.FileName);
+        }))
+            .RequireEffectiveAdministratorOrHouseholdAdministratorInPerson()
+            .WithName("ExportHousehold")
+            .WithSummary("Downloads a whole household (every profile, their sign-ins and their own state) as a file another Library can import. For that household's administrator or the server administrator.")
+            .Produces(StatusCodes.Status200OK, contentType: "application/zip")
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         accounts.MapPost("/import/inspect", async (HttpRequest request, HttpContext http, IRequestAuthorityResolver resolver,
@@ -85,7 +108,7 @@ public static class UserTransferEndpoints
         }))
             .RequireEffectiveAdministratorInPerson()
             .WithName("InspectUserImport")
-            .WithSummary("Checks an uploaded user export and says who it holds and whether it can be imported. Writes nothing to the data store.")
+            .WithSummary("Checks an uploaded user file and says who it holds, which sign-ins clash, and the households to put them in. Writes nothing to the data store.")
             .Produces<UserImportPreviewDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -94,8 +117,8 @@ public static class UserTransferEndpoints
                 new RequestFormLimitsAttribute { MultipartBodyLengthLimit = UserTransferService.MaxUploadBytes + 1024 * 1024 })
             .DisableAntiforgery();
 
-        accounts.MapPost("/import/{operationId:guid}", async (Guid operationId, HttpContext http, IRequestAuthorityResolver resolver,
-            [FromServices] IUserTransferService transfers, [FromServices] RecentSignInGuard recentSignIn,
+        accounts.MapPost("/import/{operationId:guid}", async (Guid operationId, [FromBody] UserImportRequestDto? request, HttpContext http,
+            IRequestAuthorityResolver resolver, [FromServices] IUserTransferService transfers, [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(http, async () =>
         {
             if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
@@ -103,12 +126,13 @@ public static class UserTransferEndpoints
                 return stale;
             }
 
-            return Results.Ok(await transfers.ImportAsync(await resolver.ResolveAsync(http, ct), operationId, ct));
+            return Results.Ok(await transfers.ImportAsync(await resolver.ResolveAsync(http, ct), operationId, request!, ct));
         }))
             .RequireEffectiveAdministratorInPerson()
             .WithName("ImportUser")
-            .WithSummary("Imports a checked user export as a new user. They can sign in but see nothing until an administrator gives them access.")
+            .WithSummary("Imports a checked user file as new profiles in the chosen household. Never carries a role; Read, Watch, Listen and View only when kept; never library access.")
             .Produces<UserImportResultDto>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
