@@ -174,15 +174,6 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("primary_destination_source_id")]
     public string? PrimaryDestinationSourceId { get; set; }
 
-    [JsonPropertyName("owner_profile_id")]
-    public string? OwnerProfileId { get; set; }
-
-    [JsonPropertyName("visibility")]
-    public string Visibility { get; set; } = "household";
-
-    [JsonPropertyName("authorized_profile_ids")]
-    public List<string> AuthorizedProfileIds { get; set; } = [];
-
     [JsonPropertyName("accepted_intake_modes")]
     public List<string> AcceptedIntakeModes { get; set; } = [];
 
@@ -396,9 +387,6 @@ public sealed class PersonalLibraryPolicyDto
 
     [JsonPropertyName("allow_existing_folder_attachment")]
     public bool AllowExistingFolderAttachment { get; set; } = true;
-
-    [JsonPropertyName("default_visibility")]
-    public string DefaultVisibility { get; set; } = "private";
 }
 
 public sealed class TestPathRequest

@@ -119,7 +119,6 @@ internal static class SettingsContractMapper
         {
             library.MediaTypes ??= [];
             library.Sources ??= [];
-            library.AuthorizedProfileIds ??= [];
             library.AcceptedIntakeModes ??= [];
             library.OrganizationPolicy ??= new LibraryOrganizationPolicyConfig();
         }
