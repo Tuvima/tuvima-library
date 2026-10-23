@@ -40,7 +40,7 @@ public sealed class CollectionPersonalMediaAuthorizationTests : IDisposable
             Guid.NewGuid(),
             Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             ApplicationEnabled: true);
 
         var result = await service.ListForViewerAsync(Guid.NewGuid(), authority);

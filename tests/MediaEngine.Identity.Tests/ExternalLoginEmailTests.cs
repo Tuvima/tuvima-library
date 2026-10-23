@@ -91,10 +91,12 @@ public sealed class ExternalLoginEmailTests : IDisposable
     {
         var now = DateTimeOffset.UtcNow;
         var id = Guid.NewGuid();
+        // A user opens a profile of its own (a profile has at most one user).
+        var profile = new MediaEngine.Domain.Aggregates.Profile { Id = Guid.NewGuid(), DisplayName = "Person", CreatedAt = now };
         await _accounts.CreateAccountAsync(
             new Account { Id = id, IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now },
-            new AccountProfileGrant { AccountId = id, ProfileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+            new TestGrant(id, profile.Id, IsDefault: true),
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: profile);
         return id;
     }
 

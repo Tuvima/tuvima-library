@@ -387,7 +387,6 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         MetadataPolicy = "enriched",
         RecycleBin = option.MediaTypes[0] == "Videos",
         MediaTypes = [option.MediaTypes[0]],
-        Visibility = "household",
         AcceptedIntakeModes = ["incoming_folder"],
         OrganizationPolicy = new LibraryOrganizationPolicyDto { Mode = "tuvima_standard", WriteTags = true },
     };

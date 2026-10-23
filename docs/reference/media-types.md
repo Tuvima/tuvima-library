@@ -72,9 +72,10 @@ Other videos library instead (**Settings > Libraries**, Add folder).
 
 ### Ratings and the Explicit mark
 
-Saved videos have no age ratings. Profiles with a content limit (G to R) do not see Videos until an administrator turns on
-**OK for limited profiles** for the library; profiles set to Everything always see them. In Editing Mode, a video or a series
-can be marked **Explicit**: it is then hidden from every profile with a content limit, whatever the library setting says.
+Saved videos have no age ratings, so they follow each profile's "allow unrated" setting like every other unrated item. An
+administrator can also turn on **Suitable for limited profiles** for a Videos folder, which shows that folder's unrated videos to
+profiles with a content limit (G to R), whatever their "allow unrated" setting says; profiles set to Everything always see them. In Editing Mode, a video or a series
+can be marked **Explicit**: it is then hidden from every profile with a content limit, whatever the folder setting says.
 
 ---
 

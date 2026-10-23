@@ -102,11 +102,11 @@ public sealed class ViewScopeResolverTests
         var stranger = State(access: true, include: true, theirs);
         var resolver = new ViewScopeResolver(new ScopeStore(caller, stranger));
 
-        var serverAdministrator = Identity(caller) with { AccountIsAdministrator = true, GrantAdminEnabled = true };
+        var serverAdministrator = Identity(caller) with { ActiveProfileIsServerAdministrator = true };
         foreach (var authority in new[]
                  {
                      Identity(caller),
-                     Identity(caller) with { AccountIsHouseholdAdmin = true, AccountHouseholdId = ours },
+                     Identity(caller) with { ActiveProfileIsHouseholdAdministrator = true, ActiveProfileHouseholdId = ours },
                      serverAdministrator with { ActiveProfileIsRestricted = true },
                      serverAdministrator with { PrincipalKind = PrincipalKind.DelegatedUserClient, ApplicationId = Guid.NewGuid() },
                  })
@@ -160,7 +160,7 @@ public sealed class ViewScopeResolverTests
 
     private static RequestAuthority Identity(ViewScopeStoreEntry state) =>
         new(PrincipalKind.Human, true, Guid.NewGuid(), state.Policy.ProfileId,
-            AccountEnabled: true, GrantEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true);
 
     internal sealed class ScopeStore(params ViewScopeStoreEntry[] profiles) : IViewScopeStore
     {

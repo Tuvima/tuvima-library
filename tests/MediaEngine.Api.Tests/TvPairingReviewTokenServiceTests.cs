@@ -19,7 +19,7 @@ public sealed class TvPairingReviewTokenServiceTests
         var route = Guid.NewGuid();
         var actor = new RequestAuthority(PrincipalKind.Human, true,
             AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
-            SessionId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true);
+            SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true);
         var http = new DefaultHttpContext();
         http.User = new ClaimsPrincipal(new ClaimsIdentity([
             new Claim(TuvimaClaimTypes.PrincipalKind, PrincipalKind.Human.ToString()),

@@ -832,12 +832,16 @@
         finally { _saving = false; }
     }
 
-    private async Task SetOkForLimitedProfilesAsync(LibraryFolderDto source, bool value)
+    // The folder's own switch (simpler access D7): saved straight away through the same folder save as the folder's other settings.
+    private async Task SetSuitableForLimitedAsync(LibraryFolderTable.SuitableForLimitedChange change)
     {
-        var library = Clone(source);
-        if (library is null || _saving) return;
-        library.OkForLimitedProfiles = value;
-        await SaveAsync(library, value ? "Limited profiles can now see Videos." : "Videos are hidden from limited profiles.");
+        var library = Clone(LibraryHolding(change.Source));
+        var target = library?.Sources.FirstOrDefault(item => item.Id == change.Source.Id);
+        if (library is null || target is null || _saving || Embedded || ReadOnly) return;
+        target.OkForLimitedProfiles = change.Value;
+        await SaveAsync(library, change.Value
+            ? "Unrated items from this folder are now shown to limited profiles."
+            : "Unrated items from this folder follow each limited profile's own setting.");
     }
 
     private async Task SetRecycleBinAsync(LibraryFolderDto source, bool value)
@@ -1033,6 +1037,7 @@
                                 OnLabel="LabelFolderAsync"
                                 OnRemove="RemoveFolderAsync"
                                 OnKeepGoing="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
+                                OnSetSuitableForLimited="@(Embedded ? default : EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))"
                                 Jobs="@_jobs"
                                 OnJobControl="ControlJobAsync"
                                 OnOrganiseNow="OrganiseNowAsync"
@@ -1042,15 +1047,6 @@
             {
                 <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
             }
-        }
-
-        if (IsVideosSelected && library is not null)
-        {
-            <AppSwitchRow Label="OK for limited profiles"
-                          Description="Saved videos have no age ratings, so profiles with a content limit (G to R) don't see Videos until you turn this on. Profiles set to Everything always see them."
-                          Value="@library.OkForLimitedProfiles"
-                          Disabled="@(_saving || ReadOnly)"
-                          ValueChanged="@((bool value) => SetOkForLimitedProfilesAsync(library, value))" />
         }
 
         // Shown even when the last folder has been removed: files that stayed on disk can still be listed and added back.

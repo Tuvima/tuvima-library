@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Notifications;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
@@ -22,6 +23,7 @@ public sealed class NotificationServiceTests : IDisposable
     private readonly DatabaseConnection _db;
     private readonly NotificationRepository _repository;
     private readonly AccountRepository _accounts;
+    private Guid? _household;
     private readonly MutableClock _clock = new(Start);
     private readonly SpyEvents _events = new();
     private readonly SpyChannel _email = new(NotificationChannelIds.Email, "Email");
@@ -317,16 +319,35 @@ public sealed class NotificationServiceTests : IDisposable
 
     private async Task AddAccountAsync(string? email, bool administrator, bool enabled = true)
     {
-        await _accounts.InsertAsync(new Account
+        // The administrator role is the profile's, so each sign-in opens a profile of its own.
+        var accountId = Guid.NewGuid();
+        var profile = new MediaEngine.Domain.Aggregates.Profile
         {
             Id = Guid.NewGuid(),
-            Email = email,
-            NormalizedEmail = email?.ToUpperInvariant(),
-            IsEnabled = enabled,
-            IsAdministrator = administrator,
+            DisplayName = email ?? "Administrator",
+            Role = MediaEngine.Domain.Enums.ProfileRole.StandardUser,
             CreatedAt = Start,
-            UpdatedAt = Start,
-        });
+        };
+        await _accounts.CreateAccountAsync(
+            new Account
+            {
+                Id = accountId,
+                Email = email,
+                NormalizedEmail = email?.ToUpperInvariant(),
+                IsEnabled = enabled,
+                CreatedAt = Start,
+                UpdatedAt = Start,
+            },
+            new TestGrant(accountId, profile.Id, IsDefault: true, AdminEnabled: administrator),
+            new HashSet<AccountFeatureId>(),
+            new HashSet<Guid>(),
+            newProfile: profile,
+            // Every server administrator lives in the Library's own household.
+            householdId: administrator ? _household : null);
+        if (administrator)
+        {
+            _household ??= await _accounts.GetHouseholdIdAsync(_db, accountId);
+        }
     }
 
     private sealed record SentMessage(OutgoingNotification Message, string[] Recipients);

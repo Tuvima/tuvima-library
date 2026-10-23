@@ -100,7 +100,7 @@ public sealed class PluginDirectoryServiceTests : IDisposable
         _handler.Answer(ListJson(Entry("acme.one", "One")));
         var administrator = new RequestAuthority(
             PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(), SessionId: Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true);
 
         var directory = await PluginEndpoints.ReadDirectoryAsync(
             new DefaultHttpContext(), new FixedAuthorityResolver(administrator), NewService(), [], CancellationToken.None);

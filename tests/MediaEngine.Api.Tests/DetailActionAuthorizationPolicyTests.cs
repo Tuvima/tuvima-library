@@ -50,7 +50,7 @@ public sealed class DetailActionAuthorizationPolicyTests
             ActiveProfileId: Guid.NewGuid(),
             ApplicationId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             ApplicationEnabled: true);
 
         var missingConsent = await DetailActionAuthorizationPolicy.ResolveAsync(
@@ -118,7 +118,7 @@ public sealed class DetailActionAuthorizationPolicyTests
         var delegated = await DetailActionAuthorizationPolicy.ResolveAsync(
             new RequestAuthority(
                 PrincipalKind.DelegatedUserClient, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
-                ApplicationId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true),
+                ApplicationId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true),
             new AccountDecisions(AuthorizationDecision.Allow()), new AppEvaluator(true), default);
 
         Assert.True(service.Allows("edit"));
@@ -132,7 +132,7 @@ public sealed class DetailActionAuthorizationPolicyTests
         AccountId: Guid.NewGuid(),
         ActiveProfileId: Guid.NewGuid(),
         AccountEnabled: true,
-        GrantEnabled: true);
+        ActiveProfileInUserHousehold: true);
 
     private sealed class AccountDecisions(AuthorizationDecision administrator) : IAccountAccessDecisionService
     {

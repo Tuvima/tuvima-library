@@ -85,9 +85,8 @@ public sealed class OneProfilePinTests : IDisposable
     {
         var owner = await BootstrapAsync();
         await _service.SetProfilePinAsync(owner.Profile.Id, Pin);
-        await _accounts.SetAdminProtectionAsync(new GrantAdminProtection
+        await new ProfileAccessRepository(_database).SetAdminProtectionAsync(new ProfileAdminProtection
         {
-            AccountId = owner.Account.Id,
             ProfileId = owner.Profile.Id,
             IsEnabled = true,
             UnlockMode = "FixedDuration",

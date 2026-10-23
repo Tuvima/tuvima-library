@@ -50,14 +50,17 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
             new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
             TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(_configuration));
         var decisions = new RealAdministratorDecisions();
-        var mutations = new AccountAccessMutationService(
-            accounts, identities, profiles, _configuration, decisions, new AllowEvaluator(),
-            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+        var mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
+            accounts,
+            new ProfileAccessRepository(_database), identities, profiles, _configuration, decisions, new AllowEvaluator(),
+            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+            accounts, new ProfileAccessRepository(_database), _identity);
         _devices = new ClientAuthorizationRepository(_database);
         _service = new PhoneBackupProfileService(_devices, accounts, profiles, _identity, decisions, new NoOpAudit(), TimeProvider.System);
 
         var bootstrap = Authority(Guid.NewGuid(), Guid.NewGuid(), serverAdmin: true);
         var serverAccount = await mutations.CreateAsync(bootstrap, NewAccount("server@example.com", administrator: true, "Server"));
+        await identities.GiveAsync(serverAccount.Id);
         _serverAdmin = Authority(serverAccount.Id, (await accounts.GetDefaultProfileIdAsync(serverAccount.Id))!.Value, serverAdmin: true);
 
         var createdHome = await mutations.CreateAsync(_serverAdmin, NewAccount("home@example.com", administrator: false, "Mary"));
@@ -69,13 +72,13 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
         _bea = (await profiles.GetByIdAsync((await accounts.GetDefaultProfileIdAsync(otherOwner.Id))!.Value))!;
         _jim = await mutations.AddHouseholdPersonAsync(_serverAdmin,
             new AddHouseholdPersonCommand(homeHousehold.Id, "Jim", null, false, null));
-        var givenSignIn = (await mutations.GiveOwnSignInAsync(_serverAdmin,
-            new GiveOwnSignInCommand(_jim.Id, "jim@example.com", TemporaryPassword))).Account;
-        var memberSignIn = (await accounts.GetByIdAsync(givenSignIn.Id))!;
+        var memberSignIn = (await mutations.CreateUserAsync(_serverAdmin,
+            new CreateUserCommand("jim@example.com", _jim.Id, null, NewUserSignInMethod.TemporaryPassword, TemporaryPassword))).User;
+        var otherHousehold = (await new HouseholdRepository(_database).GetForAccountAsync(otherOwner.Id))!;
 
-        _adminOfHome = Authority(_homeOwner.Id, _mary.Id, householdId: _homeOwner.HouseholdId, householdAdmin: true);
-        _adminOfOther = Authority(otherOwner.Id, _bea.Id, householdId: otherOwner.HouseholdId, householdAdmin: true);
-        _memberOfHome = Authority(memberSignIn.Id, _jim.Id, householdId: memberSignIn.HouseholdId, householdAdmin: false);
+        _adminOfHome = Authority(_homeOwner.Id, _mary.Id, householdId: homeHousehold.Id, householdAdmin: true);
+        _adminOfOther = Authority(otherOwner.Id, _bea.Id, householdId: otherHousehold.Id, householdAdmin: true);
+        _memberOfHome = Authority(memberSignIn.Id, _jim.Id, householdId: homeHousehold.Id, householdAdmin: false);
 
         _phoneId = await PairPhoneAsync(accounts, identities);
     }
@@ -282,11 +285,10 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
             ActiveProfileId: profileId,
             SessionId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountIsAdministrator: serverAdmin,
-            GrantAdminEnabled: serverAdmin,
-            AccountHouseholdId: householdId,
-            AccountIsHouseholdAdmin: householdAdmin);
+            ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: serverAdmin,
+            ActiveProfileHouseholdId: householdId,
+            ActiveProfileIsHouseholdAdministrator: householdAdmin);
 
     /// <summary>Allows what the real rules allow: an effective server administrator, or an effective household administrator.</summary>
     private sealed class RealAdministratorDecisions : IAccountAccessDecisionService

@@ -151,7 +151,7 @@ public sealed class ViewSharedTransferServiceTests
             fixture.ProfileId, true, true, false, true, null));
         var original = fixture.WriteManaged("denied-direct.jpg", [41, 42]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
-        var nonAdministrator = fixture.Authority with { AccountIsAdministrator = false };
+        var nonAdministrator = fixture.Authority with { ActiveProfileIsServerAdministrator = false };
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Contributions.AddDirectAsync(
             nonAdministrator, new ViewSharedDirectAddRequest([indexed!.ItemId])));
@@ -227,7 +227,7 @@ public sealed class ViewSharedTransferServiceTests
         var authority = fixture.Authority with
         {
             PrincipalKind = applicationEnabled ? PrincipalKind.Human : PrincipalKind.DelegatedUserClient,
-            GrantEnabled = grantEnabled,
+            ActiveProfileInUserHousehold = grantEnabled,
             ApplicationId = applicationEnabled ? null : Guid.NewGuid(),
             ApplicationEnabled = applicationEnabled,
         };
@@ -725,7 +725,7 @@ public sealed class ViewSharedTransferServiceTests
         var eveContribution = await SubmitAsync(fixture, fixture.Person(eveId), eveItem, "eve-key");
 
         // A server administrator whose own household is Mary's.
-        var server = fixture.Authority with { AccountHouseholdId = ProfileTestData.TestHouseholdId };
+        var server = fixture.Authority with { ActiveProfileHouseholdId = ProfileTestData.TestHouseholdId };
         var list = await fixture.Contributions.ListAsync(server, "review", "pending", 0, 20);
         Assert.Equal(2, list.Items.Count);
 
@@ -1024,8 +1024,8 @@ public sealed class ViewSharedTransferServiceTests
                 Role = ProfileRole.Administrator,
             }).GetAwaiter().GetResult();
             Authority = new RequestAuthority(PrincipalKind.Human, true, Guid.NewGuid(), ProfileId,
-                AccountEnabled: true, GrantEnabled: true,
-                AccountIsAdministrator: true, GrantAdminEnabled: true);
+                AccountEnabled: true, ActiveProfileInUserHousehold: true,
+                ActiveProfileIsServerAdministrator: true);
             Storage = new ViewStorageService(_configuration, _spaces, new ViewSharedLibraryRepository(_database));
             Space = Storage.EnsurePersonalSpaceAsync(ProfileId).GetAwaiter().GetResult();
             Library = new ViewLibraryService(_assets, _configuration, _spaces, Storage,
@@ -1053,13 +1053,13 @@ public sealed class ViewSharedTransferServiceTests
 
         /// <summary>An ordinary signed-in person acting as the given profile.</summary>
         public RequestAuthority Person(Guid profileId) => new(PrincipalKind.Human, true, Guid.NewGuid(), profileId,
-            AccountEnabled: true, GrantEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true);
 
         /// <summary>A household administrator (not a server administrator) of the given household.</summary>
         public RequestAuthority HouseholdAdministrator(Guid householdId) => Person(ProfileId) with
         {
-            AccountHouseholdId = householdId,
-            AccountIsHouseholdAdmin = true,
+            ActiveProfileHouseholdId = householdId,
+            ActiveProfileIsHouseholdAdministrator = true,
         };
 
         public ViewResourceAuthorizationService NewAuthorization() => new(

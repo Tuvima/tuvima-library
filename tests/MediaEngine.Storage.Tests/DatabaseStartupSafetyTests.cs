@@ -167,11 +167,6 @@ public sealed class DatabaseStartupSafetyTests
             "client_tokens",
             "households",
             "accounts",
-            "account_profile_grants",
-            "account_feature_grants",
-            "account_library_hidden",
-            "grant_admin_protections",
-            "grant_admin_unlocks",
             "applications",
             "application_credentials",
             "application_permission_grants",
@@ -259,7 +254,7 @@ public sealed class DatabaseStartupSafetyTests
         fixture.Database.RunStartupChecks();
 
         using var conn = fixture.Database.CreateConnection();
-        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal(StorageEpochGuard.CurrentEpoch, Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
 
         (string Table, string Column)[] internalGuidColumns =
         [
@@ -407,8 +402,6 @@ public sealed class DatabaseStartupSafetyTests
             ("device_pairing_requests", "account_id"),
             ("device_pairing_requests", "profile_id"),
             ("device_pairing_requests", "approved_by_profile_id"),
-            ("device_profile_preferences", "account_id"),
-            ("device_profile_preferences", "profile_id"),
             ("editions", "work_id"),
             ("encode_jobs", "id"),
             ("encode_jobs", "asset_id"),
@@ -576,21 +569,18 @@ public sealed class DatabaseStartupSafetyTests
             ("bookmark_pack_items", "id"),
             ("bookmark_pack_items", "pack_id"),
             ("accounts", "id"),
-            ("accounts", "household_id"),
-            ("accounts", "grants_inherit_from_account_id"),
+            ("accounts", "profile_id"),
             ("households", "id"),
-            ("households", "primary_account_id"),
             ("profiles", "household_id"),
-            ("account_profile_grants", "account_id"),
-            ("account_profile_grants", "profile_id"),
             ("account_two_step", "account_id"),
-            ("account_feature_grants", "account_id"),
-            ("account_library_hidden", "account_id"),
-            ("account_library_hidden", "library_id"),
-            ("account_library_hidden", "created_by_account_id"),
             ("account_notice_dismissals", "account_id"),
-            ("grant_admin_protections", "account_id"),
-            ("grant_admin_protections", "profile_id"),
+            ("profile_feature_grants", "profile_id"),
+            ("profile_library_hidden", "profile_id"),
+            ("profile_library_hidden", "library_id"),
+            ("profile_library_hidden", "created_by_profile_id"),
+            ("profile_admin_protections", "profile_id"),
+            ("profile_admin_unlocks", "session_id"),
+            ("profile_admin_unlocks", "profile_id"),
             ("account_invitations", "id"),
             ("account_invitations", "account_id"),
             ("account_passkeys", "account_id"),
@@ -601,9 +591,6 @@ public sealed class DatabaseStartupSafetyTests
             ("auth_sessions", "id"),
             ("auth_sessions", "account_id"),
             ("auth_sessions", "active_profile_id"),
-            ("grant_admin_unlocks", "session_id"),
-            ("grant_admin_unlocks", "account_id"),
-            ("grant_admin_unlocks", "profile_id"),
             ("applications", "id"),
             ("application_credentials", "id"),
             ("application_credentials", "application_id"),
@@ -1055,7 +1042,7 @@ public sealed class DatabaseStartupSafetyTests
         Assert.True(TableExists(conn, "review_queue"));
         Assert.True(TableExists(conn, "works"));
         Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'schema_migrations';"));
-        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal(StorageEpochGuard.CurrentEpoch, Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
         Assert.Contains(fixture.Database.StartupNotes, note => note.StartsWith("Applied data store upgrade step 0001 (baseline)", StringComparison.Ordinal));
     }
 
@@ -1098,7 +1085,7 @@ public sealed class DatabaseStartupSafetyTests
         fixture.Database.RunStartupChecks();
 
         using var conn = fixture.Database.CreateConnection();
-        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal(StorageEpochGuard.CurrentEpoch, Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
         Assert.True(TableExists(conn, "review_queue"));
     }
 
@@ -1131,7 +1118,7 @@ public sealed class DatabaseStartupSafetyTests
         }
 
         var exception = Assert.Throws<InvalidOperationException>(() => fixture.Database.InitializeSchema());
-        Assert.Contains("guid-blob-v11-upgrade-steps", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(StorageEpochGuard.CurrentEpoch, exception.Message, StringComparison.Ordinal);
         Assert.Contains("not migrated in place", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -1158,8 +1145,48 @@ public sealed class DatabaseStartupSafetyTests
 
         var exception = Assert.Throws<InvalidOperationException>(() => fixture.Database.InitializeSchema());
 
-        Assert.Contains("guid-blob-v11-upgrade-steps", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(StorageEpochGuard.CurrentEpoch, exception.Message, StringComparison.Ordinal);
         Assert.Contains("not migrated in place", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ADataStoreFromBeforeProfileHeldAccess_IsRefusedByDefault_AndBackedUpAndRecreatedWhenResetIsExplicit()
+    {
+        using var fixture = TempDatabase.Create();
+        // The epoch before roles and access moved to the profile: the administrator lived on the sign-in, so this store is not carried forward.
+        using (var conn = new SqliteConnection($"Data Source={fixture.Path};Pooling=False"))
+        {
+            conn.Open();
+            using var command = conn.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE storage_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);
+                INSERT INTO storage_metadata (key, value) VALUES ('storage_epoch', 'guid-blob-v11-upgrade-steps');
+                CREATE TABLE accounts (id BLOB NOT NULL PRIMARY KEY, is_administrator INTEGER NOT NULL DEFAULT 0);
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        Assert.NotEqual("guid-blob-v11-upgrade-steps", StorageEpochGuard.CurrentEpoch);
+        var refused = Assert.Throws<InvalidOperationException>(() => fixture.Database.InitializeSchema());
+        Assert.Contains("not migrated in place", refused.Message, StringComparison.OrdinalIgnoreCase);
+
+        var previous = Environment.GetEnvironmentVariable("TUVIMA_STORAGE_RESET");
+        try
+        {
+            Environment.SetEnvironmentVariable("TUVIMA_STORAGE_RESET", "1");
+            fixture.Database.InitializeSchema();
+            fixture.Database.RunStartupChecks();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TUVIMA_STORAGE_RESET", previous);
+        }
+
+        using var current = fixture.Database.CreateConnection();
+        Assert.Equal(StorageEpochGuard.CurrentEpoch, Scalar(current, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal("INTEGER", ColumnType(current, "profiles", "is_server_admin"));
+        Assert.Equal("0", Scalar(current, "SELECT COUNT(*) FROM accounts;"));
+        Assert.NotEmpty(Directory.GetFiles(Path.GetDirectoryName(fixture.Path)!, $"{Path.GetFileName(fixture.Path)}.legacy-text-guid.*.bak"));
     }
 
     [Fact]
@@ -1182,7 +1209,7 @@ public sealed class DatabaseStartupSafetyTests
         }
 
         using var conn = fixture.Database.CreateConnection();
-        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal(StorageEpochGuard.CurrentEpoch, Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
         Assert.Equal("BLOB", ColumnType(conn, "metadata_providers", "id"));
         Assert.True(TableExists(conn, "review_queue"));
 
@@ -1221,7 +1248,7 @@ public sealed class DatabaseStartupSafetyTests
         }
 
         using var current = fixture.Database.CreateConnection();
-        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(current, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal(StorageEpochGuard.CurrentEpoch, Scalar(current, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
         Assert.Equal("INTEGER", ColumnType(current, "user_states", "revision"));
     }
 

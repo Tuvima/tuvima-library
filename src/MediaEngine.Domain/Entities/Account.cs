@@ -1,6 +1,10 @@
 namespace MediaEngine.Domain.Entities;
 
-/// <summary>A sign-in principal that may be granted access to one or more library profiles.</summary>
+/// <summary>
+/// A user: a sign-in (email, credentials, passkeys, two-step codes, outside sign-ins) attached to exactly one profile. The profile
+/// holds the person and what the person may see and do (roles, Read/Watch/Listen/View, libraries); the household of a user is its
+/// profile's household.
+/// </summary>
 public sealed class Account
 {
     public static readonly Guid SeedAccountId = new("00000000-0000-0000-0000-000000000002");
@@ -12,23 +16,16 @@ public sealed class Account
     /// <summary>True when the account has an email to sign in with. Only a this-computer account made without one is false.</summary>
     public bool HasEmail => !string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(NormalizedEmail);
     public bool IsEnabled { get; set; } = true;
-    public bool IsAdministrator { get; set; }
+
     public long AuthorizationVersion { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
     /// <summary>
-    /// The household this account belongs to. <see langword="null"/> on a new account means "start a new household
-    /// for it"; the data store fills it in when the account is saved.
+    /// The profile this sign-in opens (a user is a sign-in attached to one profile; a profile has at most one user). A sign-in cannot
+    /// exist without its profile.
     /// </summary>
-    public Guid? HouseholdId { get; set; }
-
-    /// <summary>
-    /// When set, this account has no feature or library access of its own: it follows the access of the named
-    /// account (a person's own sign-in follows the household's main sign-in). Read at use time, so later changes to
-    /// the household's access reach the person without being copied.
-    /// </summary>
-    public Guid? GrantsInheritFromAccountId { get; set; }
+    public Guid ProfileId { get; set; }
 
     /// <summary>
     /// True for an account that was set up on this computer without a password. It can only be used in a browser
@@ -50,81 +47,9 @@ public sealed class Account
     public bool IsTemporaryPasswordExpired(DateTimeOffset now) =>
         MustChangePassword && TemporaryPasswordExpiresAt is { } expires && expires <= now;
 
-    /// <summary>
-    /// True for the person who looks after one household (add and remove people, give own sign-ins, PINs, hand out
-    /// what the household already has). It never reaches another household or the server's settings. Changed only
-    /// through <see cref="MakeHouseholdAdmin"/> and <see cref="RemoveHouseholdAdmin"/>.
-    /// </summary>
-    public bool HouseholdAdmin { get; private set; }
-
-    /// <summary>Makes this sign-in the administrator of its own household. A person's own sign-in never qualifies.</summary>
-    public void MakeHouseholdAdmin()
-    {
-        if (GrantsInheritFromAccountId is not null)
-        {
-            throw new InvalidOperationException("A person's own sign-in can't be a household administrator.");
-        }
-
-        HouseholdAdmin = true;
-    }
-
-    /// <summary>Takes household administration away from this sign-in.</summary>
-    public void RemoveHouseholdAdmin() => HouseholdAdmin = false;
-
-    /// <summary>
-    /// Whether this sign-in may switch to <paramref name="profileHouseholdId"/>'s person. A server administrator keeps the
-    /// grant-based rule (the caller still checks the grant); anyone else switches only inside their own household.
-    /// </summary>
-    public bool MaySwitchInto(Guid? profileHouseholdId) =>
-        IsAdministrator || (HouseholdId is { } own && profileHouseholdId == own);
-
     /// <summary>Marks the account as usable only on this computer (no password has been set yet).</summary>
     public void MarkThisComputerOnly() => IsThisComputerOnly = true;
 
     /// <summary>Lifts the this-computer-only limit once the account has a password or passkey of its own.</summary>
     public void ClearThisComputerOnly() => IsThisComputerOnly = false;
-}
-
-public sealed class AccountProfileGrant
-{
-    public Guid AccountId { get; set; }
-    public Guid ProfileId { get; set; }
-    public bool IsDefault { get; set; }
-    public bool IsEnabled { get; set; } = true;
-    public bool AdminEnabled { get; set; }
-    public long AuthorizationVersion { get; set; } = 1;
-    public DateTimeOffset GrantedAt { get; set; }
-}
-
-public sealed class AccountFeatureGrant
-{
-    public Guid AccountId { get; set; }
-    public string FeatureId { get; set; } = string.Empty;
-    public DateTimeOffset GrantedAt { get; set; }
-}
-
-/// <summary>
-/// "Ask for my PIN on admin pages" for one sign-in's use of one profile. The PIN asked for is the profile's own PIN (one PIN per
-/// profile); this row only records that the question is switched on and how long the answer lasts.
-/// </summary>
-public sealed class GrantAdminProtection
-{
-    public Guid AccountId { get; set; }
-    public Guid ProfileId { get; set; }
-    public bool IsEnabled { get; set; }
-    public string UnlockMode { get; set; } = "FixedDuration";
-    public int? UnlockMinutes { get; set; }
-    public long ProtectionVersion { get; set; } = 1;
-    public DateTimeOffset UpdatedAt { get; set; }
-}
-
-public sealed class GrantAdminUnlock
-{
-    public Guid SessionId { get; set; }
-    public Guid AccountId { get; set; }
-    public Guid ProfileId { get; set; }
-    public long ProtectionVersion { get; set; }
-    public string Method { get; set; } = string.Empty;
-    public DateTimeOffset GrantedAt { get; set; }
-    public DateTimeOffset? ExpiresAt { get; set; }
 }

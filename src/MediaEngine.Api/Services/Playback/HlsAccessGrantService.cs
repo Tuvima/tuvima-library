@@ -116,17 +116,17 @@ public sealed class HlsAccessGrantService
             }
 
             var account = await _accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-            var grant = await _accounts.GetGrantAsync(accountId, profileId, ct).ConfigureAwait(false);
+            var profile = await _accounts.GetActiveProfileAccessAsync(accountId, profileId, ct).ConfigureAwait(false);
             var session = await _identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
-            if (account?.IsEnabled != true || grant?.IsEnabled != true || session is null ||
+            if (account?.IsEnabled != true || profile is null || session is null ||
                 !session.IsActive(now) || session.AccountId != accountId || session.ActiveProfileId != profileId ||
                 account.AuthorizationVersion != binding.AccountAuthorizationVersion ||
-                grant.AuthorizationVersion != binding.GrantAuthorizationVersion)
+                profile.AuthorizationVersion != binding.ProfileAuthorizationVersion)
             {
                 return null;
             }
 
-            return HumanAuthority(account, grant, sessionId);
+            return HumanAuthority(account, profile, sessionId);
         }
 
         if (binding.PrincipalKind == PrincipalKind.DelegatedUserClient)
@@ -163,24 +163,24 @@ public sealed class HlsAccessGrantService
         }
 
         var accountTask = _accounts.GetByIdAsync(accountId, ct);
-        var grantTask = _accounts.GetGrantAsync(accountId, profileId, ct);
+        var profileTask = _accounts.GetActiveProfileAccessAsync(accountId, profileId, ct);
         var applicationTask = _applications.GetApplicationAsync(applicationId, ct);
         var deviceTask = _clients.GetDeviceAsync(deviceId, ct);
         var tokenTask = _clients.GetTokenByIdAsync(tokenId, ct);
-        await Task.WhenAll(accountTask, grantTask, applicationTask, deviceTask, tokenTask).ConfigureAwait(false);
+        await Task.WhenAll(accountTask, profileTask, applicationTask, deviceTask, tokenTask).ConfigureAwait(false);
         var account = await accountTask.ConfigureAwait(false);
-        var grant = await grantTask.ConfigureAwait(false);
+        var profile = await profileTask.ConfigureAwait(false);
         var application = await applicationTask.ConfigureAwait(false);
         var device = await deviceTask.ConfigureAwait(false);
         var clientToken = await tokenTask.ConfigureAwait(false);
-        if (account?.IsEnabled != true || grant?.IsEnabled != true || application?.IsEnabled != true ||
+        if (account?.IsEnabled != true || profile is null || application?.IsEnabled != true ||
             device?.IsActive != true || clientToken is null || clientToken.RevokedAt is not null ||
             clientToken.ExpiresAt <= now || !string.Equals(clientToken.Kind, "access", StringComparison.Ordinal) ||
             device.AccountId != accountId || device.ProfileId != profileId || device.ApplicationId != applicationId ||
             clientToken.AccountId != accountId || clientToken.ProfileId != profileId ||
             clientToken.ApplicationId != applicationId || clientToken.DeviceId != deviceId ||
             account.AuthorizationVersion != binding.AccountAuthorizationVersion ||
-            grant.AuthorizationVersion != binding.GrantAuthorizationVersion ||
+            profile.AuthorizationVersion != binding.ProfileAuthorizationVersion ||
             application.AuthorizationVersion != binding.ApplicationAuthorizationVersion ||
             !ScopesEqual(binding.Scopes, ClientAuthorizationService.SplitScopes(clientToken.Scopes)) ||
             !await HasLivePlaybackPermissionAsync(application, binding.Scopes, ct).ConfigureAwait(false))
@@ -190,7 +190,7 @@ public sealed class HlsAccessGrantService
 
         var currentBinding = await _applications.GetApplicationByClientIdAsync(device.ClientId, ct).ConfigureAwait(false);
         return currentBinding?.Id == applicationId && currentBinding.ApplicationType == ApplicationType.UserClient
-            ? DelegatedAuthority(account, grant, application, deviceId)
+            ? DelegatedAuthority(account, profile, application, deviceId)
             : null;
     }
 
@@ -246,7 +246,7 @@ public sealed class HlsAccessGrantService
             authority.DeviceId,
             tokenId,
             authority.AccountAuthorizationVersion,
-            authority.GrantAuthorizationVersion,
+            authority.ProfileAuthorizationVersion,
             authority.ApplicationAuthorizationVersion,
             scopes.Where(scope => !string.IsNullOrWhiteSpace(scope))
                 .Distinct(StringComparer.Ordinal)
@@ -254,27 +254,21 @@ public sealed class HlsAccessGrantService
                 .ToArray());
     }
 
-    private static RequestAuthority HumanAuthority(Account account, AccountProfileGrant grant, Guid sessionId) =>
-        new(PrincipalKind.Human, true, account.Id, grant.ProfileId, SessionId: sessionId,
-            AccountEnabled: true, GrantEnabled: true,
-            AccountAuthorizationVersion: account.AuthorizationVersion,
-            GrantAuthorizationVersion: grant.AuthorizationVersion,
-            AccountIsAdministrator: account.IsAdministrator,
-            GrantAdminEnabled: grant.AdminEnabled);
+    private static RequestAuthority HumanAuthority(Account account, ActiveProfileAccess profile, Guid sessionId) =>
+        new RequestAuthority(PrincipalKind.Human, true, account.Id, profile.ProfileId, SessionId: sessionId,
+            AccountEnabled: true,
+            AccountAuthorizationVersion: account.AuthorizationVersion).WithActiveProfile(profile);
 
     private static RequestAuthority DelegatedAuthority(
         Account account,
-        AccountProfileGrant grant,
+        ActiveProfileAccess profile,
         RegisteredApplication application,
         Guid deviceId) =>
-        new(PrincipalKind.DelegatedUserClient, true, account.Id, grant.ProfileId, application.Id,
-            DeviceId: deviceId, AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true,
+        new RequestAuthority(PrincipalKind.DelegatedUserClient, true, account.Id, profile.ProfileId, application.Id,
+            DeviceId: deviceId, AccountEnabled: true, ApplicationEnabled: true,
             AccountAuthorizationVersion: account.AuthorizationVersion,
-            GrantAuthorizationVersion: grant.AuthorizationVersion,
             ApplicationAuthorizationVersion: application.AuthorizationVersion,
-            AccountIsAdministrator: account.IsAdministrator,
-            GrantAdminEnabled: grant.AdminEnabled,
-            ApplicationIsAdministrator: application.IsAdministrator);
+            ApplicationIsAdministrator: application.IsAdministrator).WithActiveProfile(profile);
 
     private static RequestAuthority ApplicationAuthority(RegisteredApplication application) =>
         new(PrincipalKind.ServiceApplication, true, ApplicationId: application.Id,
@@ -300,7 +294,7 @@ public sealed class HlsAccessGrantService
         Guid? DeviceId,
         Guid? TokenId,
         long AccountAuthorizationVersion,
-        long GrantAuthorizationVersion,
+        long ProfileAuthorizationVersion,
         long ApplicationAuthorizationVersion,
         IReadOnlyList<string> Scopes);
 }

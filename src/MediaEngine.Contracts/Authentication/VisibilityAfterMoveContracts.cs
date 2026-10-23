@@ -14,15 +14,14 @@ public sealed record VisibilityAfterMoveRequest(
     [property: JsonPropertyName("library_id")] Guid? LibraryId = null,
     [property: JsonPropertyName("asset_ids")] IReadOnlyList<Guid>? AssetIds = null);
 
-/// <summary>The people who see the files now and would not after the move, one per sign-in with at least one such file. Never lists administrators.</summary>
+/// <summary>The people (profiles) who see the files now and would not after the move, one per profile with at least one such file. Never lists administrators.</summary>
 public sealed record VisibilityAfterMoveResponse(
     [property: JsonPropertyName("people")] IReadOnlyList<VisibilityLossDto> People);
 
 /// <summary>
-/// One sign-in that would lose sight of <c>file_count</c> files (files, not titles). <c>display_name</c> is the default profile's
-/// name, or the email when the sign-in has no profile.
+/// One profile that would lose sight of <c>file_count</c> files (files, not titles). <c>display_name</c> is the profile's name.
 /// </summary>
 public sealed record VisibilityLossDto(
-    [property: JsonPropertyName("account_id")] Guid AccountId,
+    [property: JsonPropertyName("profile_id")] Guid ProfileId,
     [property: JsonPropertyName("display_name")] string DisplayName,
     [property: JsonPropertyName("file_count")] int FileCount);

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Backups;
@@ -17,9 +18,10 @@ using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>Export my data, Export a user and Import a user (backup and restore spec D19, WP6).</summary>
+/// <summary>Export my data, Export a user and Import people (backup and restore spec D19, WP6; users spec D9 and D16): only the server administrator exports.</summary>
 public sealed class UserTransferSecurityPageTests : AsyncBunitContext
 {
+    private readonly DashboardSessionAccessor _session = new();
     private const string HelpLine = "Download a file with your sign-in, profiles, progress, bookmarks and favourites. Anyone with this file can sign in as you. Keep it somewhere safe.";
     private readonly ExportHandler _handler = new();
     private readonly Confirmer _confirmer = new();
@@ -33,7 +35,8 @@ public sealed class UserTransferSecurityPageTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new Factory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<AccountNoticeState>();
-        Services.AddSingleton(new DashboardSessionAccessor());
+        UseSession(serverAdministrator: true);
+        Services.AddSingleton(_session);
         Services.AddSingleton<AuthenticationStateProvider>(new PasswordAccountState());
         Services.AddSingleton<IEngineApiClient>(System.Reflection.DispatchProxy.Create<IEngineApiClient, SecuritySettingsPageTests.PhotoViewsApiClient>());
         Services.AddScoped<IItsYouConfirmer>(_ => _confirmer);
@@ -101,7 +104,7 @@ public sealed class UserTransferSecurityPageTests : AsyncBunitContext
     [Fact]
     public void ExportMyData_WhenTheEngineSaysWhy_ShowsThatSentenceAsItIs()
     {
-        _handler.FailWith = (HttpStatusCode.InternalServerError, "The file couldn't be made on this computer.");
+        _handler.FailWith = (HttpStatusCode.UnprocessableEntity, "The file couldn't be made on this computer.");
         var cut = RenderPage();
 
         cut.Find("[data-testid='export-my-data-button']").Click();
@@ -110,6 +113,19 @@ public sealed class UserTransferSecurityPageTests : AsyncBunitContext
             cut.Find("[data-testid='export-my-data-result']").TextContent.Trim()));
         Assert.Equal("alert", cut.Find("[data-testid='export-my-data-result']").GetAttribute("role"));
         Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "tuvimaDownloads.fromStream");
+    }
+
+    [Fact]
+    public void ExportMyData_AfterAServerError_NeverShowsTheErrorsText_OnlyThePlainSentence()
+    {
+        _handler.FailWith = (HttpStatusCode.InternalServerError, "System.IO.IOException at C:\\data\\export.zip");
+        var cut = RenderPage();
+
+        cut.Find("[data-testid='export-my-data-button']").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("The file couldn't be made. Try again.",
+            cut.Find("[data-testid='export-my-data-result']").TextContent.Trim()));
+        Assert.DoesNotContain("IOException", cut.Markup);
     }
 
     [Fact]
@@ -129,6 +145,28 @@ public sealed class UserTransferSecurityPageTests : AsyncBunitContext
         var cut = Render<SecuritySettingsPage>();
         cut.WaitForElement("[data-testid='export-my-data-button']");
         return cut;
+    }
+
+    private void UseSession(bool serverAdministrator)
+    {
+        var accountId = Guid.NewGuid();
+        var profileId = Guid.NewGuid();
+        _session.Set("session", accountId, profileId, Guid.NewGuid(), new DashboardAuthorityResponse(
+            accountId, profileId, true, true, 1, 1, serverAdministrator, serverAdministrator, null, 1, [],
+            serverAdministrator ? ["settings.administration"] : [], serverAdministrator ? ["access.manage"] : ["household.manage"]));
+    }
+
+    [Fact]
+    public void ExportMyData_IsNotOffered_ToAnyoneButTheServerAdministrator_HouseholdAdministratorsIncluded()
+    {
+        UseSession(serverAdministrator: false);
+
+        var cut = Render<SecuritySettingsPage>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Account details", cut.Markup, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-testid='export-my-data']"));
+        Assert.DoesNotContain("Export my data", cut.Markup, StringComparison.Ordinal);
+        Assert.Equal(0, _handler.Exports);
     }
 
     private sealed class Confirmer : IItsYouConfirmer
@@ -247,7 +285,7 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
 
         OpenMenu(cut, "No email");
 
-        Assert.Contains(cut.FindAll("[role='menu'] button"), button => button.TextContent.Trim() == "Account details");
+        Assert.Contains(cut.FindAll("[role='menu'] button"), button => button.TextContent.Trim() == "Change email");
         Assert.DoesNotContain(cut.FindAll("[role='menu'] button"), button => button.TextContent.Trim() == "Export");
     }
 
@@ -359,12 +397,15 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
         ChooseFile(cut);
 
         var preview = cut.WaitForElement("[data-testid='user-import-preview']").TextContent;
-        Assert.Contains("sam@example.test", preview, StringComparison.Ordinal);
         Assert.Contains("Household: Finch family", preview, StringComparison.Ordinal);
         Assert.Contains("Sam", preview, StringComparison.Ordinal);
         Assert.Contains("Kids profile, limited to PG", preview, StringComparison.Ordinal);
+        Assert.Contains("no sign-in", preview, StringComparison.Ordinal);
         Assert.Contains("12 items of progress, bookmarks and favourites, which return as their titles are found.", preview, StringComparison.Ordinal);
-        Assert.Contains("They can sign in straight away but won't see any libraries until you give them access.", preview, StringComparison.Ordinal);
+        Assert.Equal("sam@example.test", cut.Find("[data-testid='user-import-email-0']").GetAttribute("value"));
+        Assert.Equal(
+            "They arrive as ordinary members (Kids profiles stay Kids) with no access, so they won't see any libraries until you give them access.",
+            cut.Find("[data-testid='user-import-summary']").TextContent.Trim());
         Assert.Contains(cut.FindAll("[data-testid='user-import-confirm']"), button => button.TextContent.Trim() == "Import");
         Assert.DoesNotContain(_handler.Requests, request => request.Path.StartsWith("/access/accounts/import/", StringComparison.Ordinal) && request.Path != "/access/accounts/import/inspect");
     }
@@ -394,7 +435,7 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ImportAUser_ShowsAnAdministratorRoleInTheFileAsAStandardProfile()
+    public void ImportAUser_ShowsAnAdministratorRoleInTheFileAsAStandardProfile_BecauseRolesAreNeverCarried()
     {
         _handler.Preview = Preview(profiles: [new("Pat", "Administrator", null, false)]);
         var cut = RenderUsers();
@@ -419,7 +460,7 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
             cut.Find("[data-testid='user-import-blocked']").TextContent.Trim()));
         Assert.Empty(cut.FindAll("[data-testid='user-import-confirm']"));
         Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Cancel");
-        Assert.DoesNotContain("They can sign in straight away", cut.Find("[data-testid='user-import']").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='user-import-where']"));
     }
 
     [Fact]
@@ -451,7 +492,7 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ImportAUser_OnSuccess_OpensThePermissionsEditorForTheNewAccount()
+    public void ImportAUser_OnSuccess_ListsTheNewSignInAndPointsToTheirProfileForAccess()
     {
         var cut = RenderUsers();
         ChooseFile(cut);
@@ -459,15 +500,20 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Permissions · sam@example.test", cut.Markup, StringComparison.Ordinal);
-            Assert.Contains("sam@example.test was added. Choose what they can see.", cut.Markup, StringComparison.Ordinal);
-            Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Save permissions");
+            Assert.Contains("Sam, Sam (grown-up) were added to Home. Choose what they can see on their profile, under Profiles.", cut.Find("[data-testid='access-notice']").TextContent, StringComparison.Ordinal);
+            Assert.Empty(cut.FindAll("[data-testid='user-import']"));
+            Assert.Contains("Sam", cut.Find(".access-users").TextContent, StringComparison.Ordinal);
         });
-        Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/accounts/import/{_handler.OperationId:D}");
+        var import = Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/accounts/import/{_handler.OperationId:D}");
+        using var body = JsonDocument.Parse(import.Body);
+        Assert.Equal(TransferHandler.HomeId, body.RootElement.GetProperty("target_household_id").GetGuid());
+        Assert.False(body.RootElement.GetProperty("keep_access").GetBoolean());
+        Assert.Empty(body.RootElement.GetProperty("emails").EnumerateObject());
+        Assert.Empty(body.RootElement.GetProperty("without_sign_in").EnumerateArray());
     }
 
     [Fact]
-    public void ImportAUser_WhenSomethingClashesNow_ShowsTheEnginesSentenceAndNoImportButton()
+    public void ImportAUser_WhenSomethingClashesNow_ShowsTheEnginesSentence_AndKeepsTheChoicesSoOneCanBeChanged()
     {
         _handler.ImportFailure = (HttpStatusCode.Conflict, "sam@example.test was added a moment ago by someone else.");
         var cut = RenderUsers();
@@ -476,8 +522,149 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("sam@example.test was added a moment ago by someone else.",
             cut.Find("[data-testid='user-import-error']").TextContent.Trim()));
-        Assert.Empty(cut.FindAll("[data-testid='user-import-confirm']"));
+        Assert.NotEmpty(cut.FindAll("[data-testid='user-import-confirm']"));
         Assert.NotEmpty(cut.FindAll("[data-testid='user-import-preview']"));
+    }
+
+    [Fact]
+    public void ImportAUser_WhenTheEmailIsUsedHere_NeedsADifferentEmailOrNoSignIn_AndSendsTheChosenOne()
+    {
+        _handler.Preview = Preview(signInEmailInUse: true);
+        var cut = RenderUsers();
+        ChooseFile(cut);
+        cut.WaitForElement("[data-testid='user-import-email-used']");
+        Assert.True(cut.Find("[data-testid='user-import-confirm']").HasAttribute("disabled"));
+
+        cut.Find("[data-testid='user-import-email-0']").Input("sam.new@example.test");
+
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid='user-import-confirm']").HasAttribute("disabled")));
+        Assert.Empty(cut.FindAll("[data-testid='user-import-email-used']"));
+        cut.Find("[data-testid='user-import-confirm']").Click();
+        var body = ImportBody();
+        Assert.Equal("sam.new@example.test", body.RootElement.GetProperty("emails").GetProperty(TransferHandler.SamSignIn.ToString("D")).GetString());
+    }
+
+    [Fact]
+    public void ImportAUser_WithoutASignIn_SendsThatChoice_AndNoEmailForIt()
+    {
+        _handler.Preview = Preview(signInEmailInUse: true);
+        var cut = RenderUsers();
+        ChooseFile(cut);
+        cut.WaitForElement("[data-testid='user-import-email-used']");
+
+        cut.Find("[data-testid='user-import-without-0']").Change(true);
+
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid='user-import-confirm']").HasAttribute("disabled")));
+        Assert.True(cut.Find("[data-testid='user-import-email-0']").HasAttribute("disabled"));
+        cut.Find("[data-testid='user-import-confirm']").Click();
+        var body = ImportBody();
+        Assert.Equal(TransferHandler.SamSignIn, Assert.Single(body.RootElement.GetProperty("without_sign_in").EnumerateArray()).GetGuid());
+        Assert.Empty(body.RootElement.GetProperty("emails").EnumerateObject());
+    }
+
+    [Fact]
+    public void ImportAUser_ASignInThatCannotMove_ArrivesWithoutASignIn_AndSaysWhy()
+    {
+        _handler.Preview = Preview(signInProblem: "Their two-step sign-in can't be moved to this Library. They can still come without a sign-in.");
+        var cut = RenderUsers();
+        ChooseFile(cut);
+
+        Assert.Equal("Their two-step sign-in can't be moved to this Library. They can still come without a sign-in.",
+            cut.WaitForElement("[data-testid='user-import-signin-problem']").TextContent.Trim());
+        Assert.Empty(cut.FindAll("[data-testid='user-import-email-0']"));
+        cut.Find("[data-testid='user-import-confirm']").Click();
+        var body = ImportBody();
+        Assert.Equal(TransferHandler.SamSignIn, Assert.Single(body.RootElement.GetProperty("without_sign_in").EnumerateArray()).GetGuid());
+    }
+
+    [Fact]
+    public void ImportAUser_KeepTheirAccess_IsOffByDefault_AndSentOnlyWhenTicked()
+    {
+        var cut = RenderUsers();
+        ChooseFile(cut);
+        cut.WaitForElement("[data-testid='user-import-keep-access']");
+        Assert.False(cut.Find("[data-testid='user-import-keep-access']").HasAttribute("checked"));
+
+        cut.Find("[data-testid='user-import-keep-access']").Change(true);
+
+        cut.WaitForAssertion(() => Assert.Contains("with the Read, Watch, Listen and View access the file had", cut.Find("[data-testid='user-import-summary']").TextContent, StringComparison.Ordinal));
+        cut.Find("[data-testid='user-import-confirm']").Click();
+        Assert.True(ImportBody().RootElement.GetProperty("keep_access").GetBoolean());
+    }
+
+    [Fact]
+    public void ImportAUser_WhenTheFileHasNoAccess_OffersNoKeepAccessChoice()
+    {
+        _handler.Preview = Preview(profiles: [new("Sam", "StandardUser", null, false, TransferHandler.SamProfile, TransferHandler.SamSignIn, [])]);
+        var cut = RenderUsers();
+        ChooseFile(cut);
+        cut.WaitForElement("[data-testid='user-import-where']");
+
+        Assert.Empty(cut.FindAll("[data-testid='user-import-keep-access']"));
+    }
+
+    [Fact]
+    public void ImportAUser_IntoANewHousehold_NeedsANameAndSomeoneToLookAfterIt_AndSendsThem()
+    {
+        _handler.Preview = Preview(
+            profiles:
+            [
+                new("Sam", "RestrictedProfile", "PG", false, TransferHandler.SamProfile, TransferHandler.SamSignIn, []),
+                new("Pat", "StandardUser", null, false, TransferHandler.PatProfile, TransferHandler.PatSignIn, []),
+            ],
+            signIns: [Sign(TransferHandler.SamSignIn, "sam@example.test", TransferHandler.SamProfile), Sign(TransferHandler.PatSignIn, "pat@example.test", TransferHandler.PatProfile)]);
+        var cut = RenderUsers();
+        ChooseFile(cut);
+        cut.WaitForElement("[data-testid='user-import-where']");
+
+        cut.FindAll("[data-testid='user-import-where'] button").Single(button => button.TextContent.Trim() == "A new household").Click();
+
+        cut.WaitForElement("[data-testid='user-import-new-household']");
+        // The Kids profile can't look after a household, so only Pat is offered, and the only candidate is chosen already.
+        var choices = cut.Find("[data-testid='user-import-administrator']").QuerySelectorAll("option").Select(option => option.TextContent.Trim()).ToList();
+        Assert.Equal(["Who looks after it?", "Pat"], choices);
+        cut.Find("[data-testid='user-import-new-household']").Input("  The Finches  ");
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid='user-import-confirm']").HasAttribute("disabled")));
+        cut.Find("[data-testid='user-import-confirm']").Click();
+
+        var body = ImportBody();
+        Assert.Equal("The Finches", body.RootElement.GetProperty("new_household_name").GetString());
+        Assert.Equal(TransferHandler.PatProfile, body.RootElement.GetProperty("new_household_administrator_profile_id").GetGuid());
+        Assert.Equal(JsonValueKind.Null, body.RootElement.GetProperty("target_household_id").ValueKind);
+    }
+
+    [Fact]
+    public void ImportAUser_IntoAHouseholdWithNoRoom_SaysSoAndCannotImport()
+    {
+        _handler.Preview = Preview(
+            households: [new(TransferHandler.HomeId, "Home", 8)],
+            profiles: [new("Sam", "StandardUser", null, false, TransferHandler.SamProfile, TransferHandler.SamSignIn, [])]);
+        var cut = RenderUsers();
+        ChooseFile(cut);
+
+        var line = cut.WaitForElement("[data-testid='user-import-full']").TextContent;
+
+        Assert.Contains("That household has room for 0 more, and the file has 1.", line, StringComparison.Ordinal);
+        Assert.Contains("up to 8 people", line, StringComparison.Ordinal);
+        Assert.True(cut.Find("[data-testid='user-import-confirm']").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void ImportAUser_AsASecondHouseholdBeforeTheAdministratorHasAPassword_ShowsTheEnginesSentenceAndAWayToFixIt()
+    {
+        _handler.Preview = Preview(canAddHousehold: false);
+        var cut = RenderUsers();
+        ChooseFile(cut);
+        cut.WaitForElement("[data-testid='user-import-where']");
+
+        cut.FindAll("[data-testid='user-import-where'] button").Single(button => button.TextContent.Trim() == "A new household").Click();
+
+        Assert.Equal(
+            "Set an email and password for your own sign-in first. A Library with several households must not be open to anyone who reaches it.",
+            cut.WaitForElement("[data-testid='user-import-secure-first']").TextContent.Trim());
+        Assert.Empty(cut.FindAll("[data-testid='user-import-new-household']"));
+        Assert.Contains(cut.FindAll("[data-testid='user-import-where'] button"), button => button.TextContent.Trim() == "Set an email and password");
+        Assert.True(cut.Find("[data-testid='user-import-confirm']").HasAttribute("disabled"));
     }
 
     [Fact]
@@ -506,10 +693,36 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
     // ----- helpers -----
 
     private static UserImportPreviewDto Preview(
-        IReadOnlyList<UserImportProfileDto>? profiles = null, string? blockedReason = null, bool twoStepToSetUp = false) =>
-        new(TransferHandler.DefaultOperationId, "sam@example.test", "Finch family",
-            profiles ?? [new("Sam", "RestrictedProfile", "PG", false), new("Sam (grown-up)", "StandardUser", null, false)],
-            12, blockedReason, twoStepToSetUp);
+        IReadOnlyList<UserImportProfileDto>? profiles = null,
+        string? blockedReason = null,
+        bool twoStepToSetUp = false,
+        IReadOnlyList<UserImportSignInDto>? signIns = null,
+        IReadOnlyList<UserImportHouseholdDto>? households = null,
+        bool canAddHousehold = true,
+        bool signInEmailInUse = false,
+        string? signInProblem = null) =>
+        new(TransferHandler.DefaultOperationId, "profile", "Finch family",
+            profiles ??
+            [
+                new("Sam", "RestrictedProfile", "PG", false, TransferHandler.SamProfile, TransferHandler.SamSignIn, ["read"]),
+                new("Sam (grown-up)", "StandardUser", null, false, Guid.NewGuid(), null, []),
+            ],
+            signIns ?? [new(TransferHandler.SamSignIn, "sam@example.test", TransferHandler.SamProfile, signInEmailInUse, signInProblem)],
+            households ?? [new(TransferHandler.HomeId, "Home", 1)],
+            canAddHousehold,
+            canAddHousehold ? null : "Set an email and password for your own sign-in first. A Library with several households must not be open to anyone who reaches it.",
+            8,
+            12,
+            blockedReason,
+            twoStepToSetUp);
+
+    private static UserImportSignInDto Sign(Guid id, string email, Guid profile) => new(id, email, profile, false, null);
+
+    private JsonDocument ImportBody()
+    {
+        var import = Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/accounts/import/{_handler.OperationId:D}");
+        return JsonDocument.Parse(import.Body);
+    }
 
     private IRenderedComponent<ManagedAccessUsers> RenderUsers(string expectedText = "owner@example.test")
     {
@@ -562,9 +775,15 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
     private sealed class TransferHandler : HttpMessageHandler
     {
         public static readonly Guid DefaultOperationId = Guid.Parse("8f1d1f0a-3b5e-4c6d-9a47-0d2f5a3c9e11");
+        public static readonly Guid HomeId = Guid.Parse("5a0c1f10-2b3c-4d5e-8f60-7a8b9c0d1e2f");
+        public static readonly Guid SamProfile = Guid.Parse("11111111-aaaa-4aaa-8aaa-111111111111");
+        public static readonly Guid SamSignIn = Guid.Parse("22222222-aaaa-4aaa-8aaa-222222222222");
+        public static readonly Guid PatProfile = Guid.Parse("33333333-aaaa-4aaa-8aaa-333333333333");
+        public static readonly Guid PatSignIn = Guid.Parse("44444444-aaaa-4aaa-8aaa-444444444444");
 
         private readonly Guid _ownerProfile = Guid.NewGuid();
         private readonly Guid _importedProfile = Guid.NewGuid();
+        private readonly Guid _household = Guid.NewGuid();
         private bool _imported;
 
         public Guid OwnerId { get; } = Guid.NewGuid();
@@ -585,15 +804,20 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
             var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
             Requests.Add(new(request.Method, path, body));
 
-            if (request.Method == HttpMethod.Get && path == "/access/accounts")
+            if (request.Method == HttpMethod.Get && path == "/access/users")
             {
-                return Json(_imported ? new[] { Account(OwnerId, OwnerEmail, _ownerProfile, "Owner"), Account(ImportedAccountId, "sam@example.test", _importedProfile, "Sam") }
-                    : [Account(OwnerId, OwnerEmail, _ownerProfile, "Owner")]);
+                return Json(_imported ? new[] { User(OwnerId, OwnerEmail, _ownerProfile, "Owner"), User(ImportedAccountId, "sam@example.test", _importedProfile, "Sam") }
+                    : [User(OwnerId, OwnerEmail, _ownerProfile, "Owner")]);
             }
 
             if (request.Method == HttpMethod.Get && path == "/access/profiles")
             {
                 return Json(new[] { new ManagedProfileResponse(_ownerProfile, "Owner", "#7C4DFF", null, DateTimeOffset.UtcNow) });
+            }
+
+            if (request.Method == HttpMethod.Get && path == "/access/households")
+            {
+                return Json(new[] { new HouseholdResponse(_household, "Home", 1, 1, DateTimeOffset.UtcNow) });
             }
 
             if (request.Method == HttpMethod.Get && path == "/access/libraries")
@@ -639,17 +863,19 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
                 }
 
                 _imported = true;
-                return Json(new UserImportResultDto(ImportedAccountId, "sam@example.test", ["Sam", "Sam (grown-up)"], 12));
+                return Json(new UserImportResultDto(
+                    HomeId,
+                    "Home",
+                    false,
+                    [new(_importedProfile, "Sam", "sam@example.test", false), new(Guid.NewGuid(), "Sam (grown-up)", null, false)],
+                    12));
             }
 
             return new HttpResponseMessage(HttpStatusCode.NoContent);
         }
 
-        private AccountAccessResponse Account(Guid id, string? email, Guid profileId, string profileName) => new(
-            id, email, true, id == OwnerId, 1,
-            id == OwnerId ? [new("read", true), new("watch", true), new("listen", true), new("view", true)] : [],
-            [], [new(id, profileId, profileName, null, true, true, true, new GrantAdminProtectionDto(false, "FixedDuration", 30, 1), 1, DateTimeOffset.UtcNow)],
-            DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(-2));
+        private UserSummaryResponse User(Guid id, string? email, Guid profileId, string profileName) =>
+            new(id, email, profileId, profileName, _household, "Home", true, false, true, false);
 
         private static HttpResponseMessage ConfirmItsYou() => new(HttpStatusCode.Forbidden)
         {

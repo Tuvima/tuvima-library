@@ -41,7 +41,7 @@ public sealed class VaultExistenceLeakTests : IAsyncLifetime
     }
 
     private static RequestAuthority Person() => new(
-        PrincipalKind.Human, true, Account, Profile, null, Session, null, AccountEnabled: true, GrantEnabled: true);
+        PrincipalKind.Human, true, Account, Profile, null, Session, null, AccountEnabled: true, ActiveProfileInUserHousehold: true);
 
     private RouteEndpoint Route(string name) =>
         ((IEndpointRouteBuilder)_app!).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>()

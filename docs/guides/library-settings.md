@@ -26,7 +26,8 @@ Libraries is **Settings > Libraries**, in three levels: Watch, Listen, Read and 
    - A Watch folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) gets a hint with **Add to View instead**. Nothing is saved until the last step.
    - Paths are shown as the server sees them. On Docker that means paths inside the container, such as `/library`, not paths on your computer.
    - If a path does not exist, the picker says so in plain words.
-   - Choosing the YouTube kind looks videos up on YouTube by their ID; the Videos (Other videos) kind never looks anything up. There is no YouTube switch: the kind decides. Videos libraries also have the **OK for limited profiles** switch; removing a Videos folder never touches the files.
+   - Choosing the YouTube kind looks videos up on YouTube by their ID; the Videos (Other videos) kind never looks anything up. There is no YouTube switch: the kind decides. Removing a Videos folder never touches the files.
+   - Every folder row has a **Suitable for limited profiles** switch (not on a Vault folder). Unrated items from that folder, such as saved videos or audiobooks with no rating, are then shown to profiles with a rating limit, whatever their "allow unrated" setting says; rated items still follow each profile's limit, and only a blank rating, NR, Not Rated or Unrated counts as unrated. Without the switch, a limited profile sees an unrated item only if that profile allows unrated. It saves straight away.
    - Every library type has a **Recycle bin** switch (on for Videos). With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
 3. In the **How** step, if the folder already has files, choose **Read-only** (recommended), **Merge into your managed folder**, or **Let Library manage it**. An empty folder only asks whether new media should go there. **Add folder** saves it; the dialog then offers **Go to** the type or **Add another**.
 
@@ -40,6 +41,10 @@ Each type has one **New media goes here** folder: the managed folder that receiv
 The folder list is a table with Folder, New media and Files columns. Each folder's icon shows how Library treats it: a plain folder for Managed (full access) and a folder with a lock for Read-only; hover it for the words. The row menu offers Make this the place for new media, Organise files now, Merge into, Switch to Read-only or Managed, Label and Remove folder. Removing a folder never deletes files.
 
 Keep music album folders intact. Tuvima uses tags or fingerprints to identify music before moving it.
+
+## Who sees a library
+
+Everyone with a library's area (Read, Watch, Listen or View) sees it, including a library you have just added; nothing needs ticking. To keep one from a person, open their page under **Settings > Profiles**, find the area, and untick the library in its **Libraries** list. It saves at once and says "Hidden from {name}"; the list shows only when the area has more than one library, administrators always see everything, and the Vault keeps its own rules and never appears in the list. Moving a folder or changing its kind tells you who will stop seeing its files before you confirm. See [Set up a household](households.md) for who may change this.
 
 ## Advanced settings
 

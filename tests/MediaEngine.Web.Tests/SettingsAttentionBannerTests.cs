@@ -633,7 +633,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         Assert.Equal(MediaSectionAttentionLevel.Blocked, rows.Single(row => row.Label == "Local AI").Attention);
         Assert.Equal("Broken", rows.Single(row => row.Label == "Local AI").AttentionLabel);
         Assert.Equal(MediaSectionAttentionLevel.Waiting, rows.Single(row => row.Label == "Library and Ingestion").Attention);
-        Assert.Equal("3", rows.Single(row => row.Label == "Library and Ingestion").Meta);
+        Assert.Null(rows.Single(row => row.Label == "Library and Ingestion").Meta);
         Assert.Equal(MediaSectionAttentionLevel.None, rows.Single(row => row.Label == "Tools and requirements").EffectiveAttention);
     }
 
@@ -745,7 +745,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         AccountProfileGrantDto[] grants =
         [
             new(AccountId, ProfileId, "Test User", null, true, true, administrator,
-                new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow),
+                new ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow),
         ];
         _session.Set("token", AccountId, ProfileId, Guid.NewGuid(),
             new DashboardAuthorityResponse(AccountId, ProfileId, true, true, 1, 1, administrator, administrator, null, 1, grants, navigation, actions));

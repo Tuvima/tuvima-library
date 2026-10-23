@@ -114,6 +114,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAccessRepository>(sp => sp.GetRequiredService<AccountRepository>());
         services.AddSingleton<IAccountAccessMutationRepository>(sp => sp.GetRequiredService<AccountRepository>());
         services.AddSingleton<IHouseholdRepository, HouseholdRepository>();
+        services.AddSingleton<IProfileAccessRepository, ProfileAccessRepository>();
         services.AddSingleton<IApplicationRepository, ApplicationRepository>();
         services.AddSingleton<IIdentityRepository, IdentityRepository>();
         // The Vault (Videos spec WP9): the list of Vault libraries, per-profile Vault access and device-session unlocks (Vault mode uses the profile PIN),
@@ -229,6 +230,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IFolderFirstCheckRepository, FolderFirstCheckRepository>();
         // Files per library for a folder or a list of files: the one grouped read behind "who would lose sight" (simpler access D13).
         services.AddSingleton<IMediaAssetLibraryCountRepository, MediaAssetLibraryCountRepository>();
+        services.AddSingleton<ISuitableFolderAssetRepository, SuitableFolderAssetRepository>();
         services.AddSingleton<MediaEngine.Domain.Contracts.IFilingHold, FolderFirstCheckFilingHold>();
         services.AddSingleton<MediaEngine.Ingestion.Services.UnmatchedFileMarker>();
         services.AddSingleton<MediaEditorCommitRepository>();

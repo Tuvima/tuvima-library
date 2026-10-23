@@ -9,15 +9,12 @@ public sealed record UsableAdministratorStatus(
     bool LocalhostBypassDisabled);
 
 /// <summary>
-/// What a change would take away from administrator sign-in, so it can be checked before it is made: a whole account
-/// (disabled, demoted or deleted), one profile grant of an account (administrator access switched off or removed), or
-/// every grant to one profile (the profile is deleted).
+/// What a change would take away from administrator sign-in, so it can be checked before it is made: a whole user
+/// (disabled or deleted), or the server administrator role of one profile (switched off, or the profile is deleted).
 /// </summary>
 public readonly record struct AdministratorSignInLoss(Guid? AccountId, Guid? ProfileId)
 {
     public static AdministratorSignInLoss OfAccount(Guid accountId) => new(accountId, null);
-
-    public static AdministratorSignInLoss OfGrant(Guid accountId, Guid profileId) => new(accountId, profileId);
 
     public static AdministratorSignInLoss OfProfile(Guid profileId) => new(null, profileId);
 }

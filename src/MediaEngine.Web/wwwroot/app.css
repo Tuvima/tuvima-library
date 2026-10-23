@@ -4830,8 +4830,8 @@ input[type="reset"],
 @media (prefers-reduced-motion: reduce) { .who-grid, .who-skeleton__avatar, .who-skeleton__name { animation: none; } }
 .who-card { display: grid; justify-items: center; align-content: start; gap: 10px; width: 100%; padding: 12px; color: var(--tl-text-primary); border: 0; border-radius: 16px; background: transparent; font: inherit; cursor: pointer; transition: background-color 140ms ease, transform 140ms ease; }
 .who-card__picture { position: relative; display: block; width: 100%; max-width: 168px; aspect-ratio: 1; border-radius: 50%; transition: box-shadow 140ms ease; }
-.who-card:hover:not(:disabled), .who-card:focus-visible { background: color-mix(in srgb, var(--tl-bg-surface-elevated) 70%, transparent); outline: none; transform: scale(1.04); }
-.who-card:hover:not(:disabled) .who-card__picture, .who-card:focus-visible .who-card__picture { box-shadow: 0 0 0 4px var(--tl-accent-primary), 0 0 28px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
+.who-card:hover:not(:disabled), .who-card:focus-visible, .who-card.is-preselected { background: color-mix(in srgb, var(--tl-bg-surface-elevated) 70%, transparent); outline: none; transform: scale(1.04); }
+.who-card:hover:not(:disabled) .who-card__picture, .who-card:focus-visible .who-card__picture, .who-card.is-preselected .who-card__picture { box-shadow: 0 0 0 4px var(--tl-accent-primary), 0 0 28px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
 .who-card:disabled { cursor: wait; opacity: .6; }
 .who-card--add:disabled { cursor: not-allowed; opacity: .5; }
 .who-card__picture--add { display: grid; place-items: center; color: var(--tl-text-muted); border: 2px dashed var(--tl-border-strong); box-sizing: border-box; }
@@ -4841,7 +4841,7 @@ input[type="reset"],
 .who-card__name { max-width: 100%; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { .who-card { transition: none; } .who-card:hover:not(:disabled), .who-card:focus-visible { transform: none; } }
 @media (min-width: 1600px) { .who-card__picture { max-width: 220px; } .who-card__name { font-size: 1.35rem; } .who-button, .who-link { min-height: 56px; } }
-.who-check__box { width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
+.who-check__box { flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
 .who-link { min-height: 44px; padding: 0 8px; color: var(--tl-accent-primary); border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
 /* Settings > Profiles rows: the class sits on an AppNativeButton, so it cannot be styled from the page's isolated CSS. */
 .profiles-tab__row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 16px; box-sizing: border-box; color: inherit; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
@@ -4925,13 +4925,8 @@ input[type="reset"],
 @media (min-width: 641px) { .settings-sheet-backdrop { align-items: center; padding: 24px; } .settings-sheet { width: min(560px, 100%); padding-bottom: 22px; border-radius: 18px; } }
 @media (min-width: 1600px) { .settings-sheet { width: min(640px, 100%); gap: 22px; } }
 .sign-in-sheet__intro { margin: 0; color: var(--tl-text-muted); }
-.sign-in-sheet__password { display: grid; gap: 8px; justify-items: start; }
-.sign-in-sheet__rows { display: grid; margin: 0; padding: 0; list-style: none; overflow: hidden; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); }
-.sign-in-sheet__row + .sign-in-sheet__row { border-top: 1px solid var(--tl-border-subtle); }
 .sign-in-sheet__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .sign-in-sheet__spacer { flex: 1 1 auto; }
-.sign-in-sheet .access-invitation strong, .sign-in-sheet .access-invitation span, .sign-in-sheet .access-invitation code, .sign-in-sheet .access-invitation small { display: block; }
-.sign-in-sheet .access-invitation code { margin: .55rem 0; padding: .65rem; overflow-wrap: anywhere; border-radius: var(--app-radius-sm, 8px); background: rgb(0 0 0 / 28%); user-select: all; }
 @media (prefers-reduced-motion: reduce) { .settings-sheet-backdrop, .settings-sheet { animation: none; } }
 .invitation-qr {
     width: 11rem;
@@ -4949,7 +4944,10 @@ input[type="reset"],
 .who-dialog__hint { margin: 0; color: var(--tl-text-muted); font-size: .85rem; text-align: center; }
 .profile-editor__photos { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
 .profile-editor__photos legend { padding: 0; font-weight: 600; }
-.profile-editor__choice { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; cursor: pointer; }
+.profile-editor__choice { --profile-editor-choice-line: 1.5rem; display: flex; align-items: flex-start; gap: 12px; min-height: 44px; cursor: pointer; }
+/* The box sits level with the first line of its label, however far the helper text below it wraps. */
+.profile-editor__choice > .who-check__box { margin-top: calc((var(--profile-editor-choice-line) - 20px) / 2); }
+.profile-editor__choice span > strong { line-height: var(--profile-editor-choice-line); }
 .profile-editor__choice span { display: grid; gap: 2px; }
 .profile-editor__choice small { color: var(--tl-text-muted); font-size: .85rem; }
 

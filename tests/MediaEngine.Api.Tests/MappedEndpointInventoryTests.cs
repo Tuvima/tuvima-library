@@ -160,14 +160,14 @@ public sealed class MappedEndpointInventoryTests
         await using var app = BuildEndpointOnlyApplication();
         var inventory = EndpointInventory.From(app);
 
-        inventory.Require("/access/accounts", HttpMethods.Get)
+        inventory.Require("/access/users", HttpMethods.Get)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersRead);
-        inventory.Require("/access/accounts/{accountId:guid}", HttpMethods.Put)
+        inventory.Require("/access/users/{userId:guid}", HttpMethods.Delete)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
-        inventory.Require("/access/accounts/{accountId:guid}/access", HttpMethods.Put)
-            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
-        inventory.Require("/access/accounts/{accountId:guid}/grants/{profileId:guid}/admin-protection", HttpMethods.Put)
-            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
+        inventory.Require("/access/profiles/{profileId:guid}/access", HttpMethods.Put)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: true);
+        inventory.Require("/access/profiles/{profileId:guid}/admin-protection", HttpMethods.Put)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: true);
 
         // Households: anyone eligible may ask for the list (the service limits a household administrator to their own);
         // adding, renaming and removing are for server administrators and trusted applications only.
@@ -276,7 +276,7 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/intercom").AllowsAnonymous();
         inventory.Require("/intercom/negotiate").AllowsAnonymous();
 
-        Assert.False(inventory.Require("/access/accounts", HttpMethods.Get).AllowsAnonymousEndpoint);
+        Assert.False(inventory.Require("/access/users", HttpMethods.Get).AllowsAnonymousEndpoint);
         Assert.False(inventory.Require("/access/applications", HttpMethods.Get).AllowsAnonymousEndpoint);
         Assert.False(inventory.Require("/auth/login", HttpMethods.Post).AllowsAnonymousEndpoint);
 
@@ -326,22 +326,34 @@ public sealed class MappedEndpointInventoryTests
     }
 
     [Fact]
-    public async Task UserTransfer_IsSelfServiceForYourOwnData_AndInPersonAdministratorOnlyForEveryoneElse()
+    public async Task EveryEndpointAPendingSessionMayUse_ExistsUnderItsName_AndNoDeviceProfileRouteRemains()
     {
         await using var app = BuildEndpointOnlyApplication();
         var inventory = EndpointInventory.From(app);
 
-        // A person exports only themselves; the route takes no account from the request.
-        var mine = inventory.Require("/access/me/export", "POST");
-        Assert.Equal("ExportMyData", mine.Name);
-        mine.RequiresNamedPolicy(AuthPolicies.HumanSelfService);
-        Assert.DoesNotContain("{", mine.Pattern, StringComparison.Ordinal);
+        // The names the profile-choice limit allows must be real routes, or the picker would be refused at sign-in.
+        Assert.Equal(PasswordChangeRequiredMiddleware.ValidateSessionEndpoint, inventory.Require("/auth/session/validate", "POST").Name);
+        Assert.Equal(PasswordChangeRequiredMiddleware.RevokeSessionEndpoint, inventory.Require("/auth/sessions/{sessionId:guid}", "DELETE").Name);
+        Assert.Equal(ProfilePendingMiddleware.SwitchProfileEndpoint, inventory.Require("/auth/session/switch-profile", "POST").Name);
+        Assert.Equal(ProfilePendingMiddleware.ListProfilesEndpoint, inventory.Require("/profiles", "GET").Name);
+        Assert.Equal(ProfilePendingMiddleware.ProfileAvatarEndpoint, inventory.Require("/profiles/{id:guid}/avatar", "GET").Name);
+        // "Always open as" is gone (users, profiles and households spec D3): nothing is mapped at /auth/device-profile.
+        Assert.DoesNotContain(inventory.Endpoints, route => route.Pattern.Contains("device-profile", StringComparison.Ordinal) && route.Pattern.StartsWith("/auth", StringComparison.Ordinal));
+    }
 
-        // Anyone else's sign-in material, and every import, is for an administrator signed in at the Dashboard: no paired app, no
-        // service application, no household administrator.
+    [Fact]
+    public async Task UserTransfer_IsInPersonServerAdministratorOnly_OnEveryExportAndImportRoute()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        // Only the server administrator exports or imports anything (users spec D16): their own profile, anyone else's sign-in material
+        // and a whole household alike, in person at the Dashboard. No paired app, no service application, no household administrator.
         foreach (var (pattern, name) in new[]
         {
+            ("/access/me/export", "ExportMyData"),
             ("/access/accounts/{accountId:guid}/export", "ExportAccount"),
+            ("/access/households/{householdId:guid}/export", "ExportHousehold"),
             ("/access/accounts/import/inspect", "InspectUserImport"),
             ("/access/accounts/import/{operationId:guid}", "ImportUser"),
         })
@@ -354,6 +366,9 @@ public sealed class MappedEndpointInventoryTests
             Assert.True(requirement.SurfaceUnlock);
             Assert.False(requirement.AllowHouseholdAdministrator);
         }
+
+        // The route takes no account from the request: it exports the signed-in server administrator's own profile.
+        Assert.DoesNotContain("{", inventory.Require("/access/me/export", "POST").Pattern, StringComparison.Ordinal);
     }
 
     [Fact]

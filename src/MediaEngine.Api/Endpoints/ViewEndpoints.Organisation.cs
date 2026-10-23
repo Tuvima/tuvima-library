@@ -557,7 +557,7 @@ public static partial class ViewEndpoints
                 households[creator] = household;
             }
 
-            return household.HasValue && household == authority.AccountHouseholdId;
+            return household.HasValue && household == authority.ActiveProfileHouseholdId;
         }
     }
 

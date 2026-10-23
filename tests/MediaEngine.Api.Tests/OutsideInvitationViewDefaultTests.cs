@@ -11,21 +11,6 @@ namespace MediaEngine.Api.Tests;
 /// <summary>People outside your household start with View off (D16); an administrator switches it on per person.</summary>
 public sealed class OutsideInvitationViewDefaultTests
 {
-    private static readonly string[] Everything = ["read", "watch", "listen", "view"];
-
-    [Fact]
-    public void ANewHouseholdStartsWithViewOff_ExistingProfilesKeepWhatWasChosen()
-    {
-        var outside = AccountEndpoints.FeaturesForNewAccount(Everything, startsNewHousehold: true);
-        Assert.DoesNotContain(AccountFeatureId.View, outside);
-        Assert.Contains(AccountFeatureId.Read, outside);
-        Assert.Contains(AccountFeatureId.Watch, outside);
-        Assert.Contains(AccountFeatureId.Listen, outside);
-
-        var inside = AccountEndpoints.FeaturesForNewAccount(Everything, startsNewHousehold: false);
-        Assert.Contains(AccountFeatureId.View, inside);
-    }
-
     [Fact]
     public async Task OutsidePersonCannotUseViewUntilAnAdministratorSwitchesItOn()
     {
@@ -49,15 +34,7 @@ public sealed class OutsideInvitationViewDefaultTests
                 CreatedAt = now,
                 UpdatedAt = now,
             };
-            var grant = new AccountProfileGrant
-            {
-                AccountId = account.Id,
-                ProfileId = profileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = now,
-            };
+            var grant = new TestGrant(account.Id, profileId, IsDefault: true, AdminEnabled: false);
             var profile = new Profile
             {
                 Id = profileId,
@@ -67,14 +44,15 @@ public sealed class OutsideInvitationViewDefaultTests
             };
 
             await accounts.CreateAccountAsync(account, grant,
-                AccountEndpoints.FeaturesForNewAccount(Everything, startsNewHousehold: true),
+                new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen },
                 new HashSet<Guid>(), newProfile: profile);
-            Assert.DoesNotContain(AccountFeatureId.View, await accounts.GetFeatureGrantsAsync(account.Id));
+            var access = new ProfileAccessRepository(database);
+            Assert.DoesNotContain(AccountFeatureId.View, await access.GetFeatureGrantsAsync(profileId));
 
-            var features = (await accounts.GetFeatureGrantsAsync(account.Id)).Append(AccountFeatureId.View).ToHashSet();
-            await accounts.ReplaceAccountAccessAsync(account.Id, features, new HashSet<Guid>(), DateTimeOffset.UtcNow);
+            var features = (await access.GetFeatureGrantsAsync(profileId)).Append(AccountFeatureId.View).ToHashSet();
+            await access.ReplaceAccessAsync(profileId, features, new HashSet<Guid>(), DateTimeOffset.UtcNow);
 
-            Assert.Contains(AccountFeatureId.View, await accounts.GetFeatureGrantsAsync(account.Id));
+            Assert.Contains(AccountFeatureId.View, await access.GetFeatureGrantsAsync(profileId));
             TestTemp.ReleaseSqlitePoolsIn(root);
         }
         finally

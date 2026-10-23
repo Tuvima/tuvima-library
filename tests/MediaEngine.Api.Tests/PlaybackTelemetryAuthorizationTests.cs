@@ -35,7 +35,7 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
         SeedAccess(accountId, profileId, hiddenLibrary);
         var authority = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, accountId, profileId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
         var repository = new CapturingRepository();
         var service = Service(authority, AuthorizationDecision.Allow(), repository);
 
@@ -57,7 +57,7 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
         SeedAccess(accountId, profileId, Guid.NewGuid());
         var authority = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, accountId, profileId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
         var repository = new CapturingRepository();
         var service = Service(authority,
             AuthorizationDecision.Deny(AuthorizationDenialReason.MissingPermission), repository);
@@ -72,7 +72,7 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
         var repository = new CapturingRepository();
         var administrator = new RequestAuthority(
             PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(), SessionId: Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true);
         Assert.NotNull(await Service(administrator, AuthorizationDecision.Allow(), repository)
             .GetPlaybackAsync(ApplicationPermissionIds.AnalyticsPlaybackRead, null, null, default));
         Assert.True(repository.Scope!.AllAccounts);
@@ -119,7 +119,7 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
     {
         var context = new DefaultHttpContext();
         return new(new HttpContextAccessor { HttpContext = context }, new AuthorityResolver(authority),
-            new Evaluator(decision), new AccountRepository(_database), repository);
+            new Evaluator(decision), new ProfileAccessRepository(_database), repository);
     }
 
     private void SeedAccess(Guid accountId, Guid profileId, Guid libraryId)
@@ -129,12 +129,10 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
         connection.Execute("""
             INSERT INTO profiles(id,display_name,avatar_color,role,created_at)
             VALUES(@profileId,'Viewer','#000000','RestrictedProfile',@now);
-            INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at)
-            VALUES(@accountId,@email,@normalized,1,0,1,@now,@now);
-            INSERT INTO account_profile_grants(account_id,profile_id,is_default,is_enabled,admin_enabled,authorization_version,granted_at)
-            VALUES(@accountId,@profileId,1,1,0,1,@now);
-            INSERT INTO account_feature_grants(account_id,feature_id,granted_at) VALUES(@accountId,'watch',@now);
-            INSERT INTO account_library_hidden(account_id,library_id,created_at) VALUES(@accountId,@libraryId,@now);
+            INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id)
+            VALUES(@accountId,@email,@normalized,1,1,@now,@now,@profileId);
+            INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,'watch',@now);
+            INSERT INTO profile_library_hidden(profile_id,library_id,created_at) VALUES(@profileId,@libraryId,@now);
             """, new
         {
             accountId,

@@ -6,8 +6,6 @@
 .who-card__tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 22px; }
 .who-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 999px; font-size: .75rem; }
 .who-tag__icon { width: 12px; height: 12px; }
-.who-options { display: grid; justify-items: center; gap: 10px; }
-.who-check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; color: var(--tl-text-muted); cursor: pointer; }
 .who-signout { margin: 0; }
 .who-note { max-width: 520px; margin: 0; padding: 10px 14px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 10px; font-size: .9rem; }
 .who-backdrop { position: fixed; inset: 0; display: grid; place-items: center; overflow-y: auto; padding: 16px; background: rgb(0 0 0 / 62%); }

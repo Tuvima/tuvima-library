@@ -46,7 +46,7 @@ public sealed class FolderKindChangeContractTests
         Assert.Contains("\"starts_first_check\":false", json, StringComparison.Ordinal);
         Assert.Contains("\"other_apps_warning\":true", json, StringComparison.Ordinal);
         Assert.Contains("\"visibility_loss_checked\":true", json, StringComparison.Ordinal);
-        Assert.Contains("\"visibility_loss\":[{\"account_id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"Sam\",\"file_count\":12}]", json, StringComparison.Ordinal);
+        Assert.Contains("\"visibility_loss\":[{\"profile_id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"Sam\",\"file_count\":12}]", json, StringComparison.Ordinal);
         Assert.Equal(("Sam", 12), (roundTrip.VisibilityLoss.Single().DisplayName, roundTrip.VisibilityLoss.Single().FileCount));
     }
 

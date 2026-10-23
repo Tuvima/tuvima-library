@@ -10,6 +10,7 @@ namespace MediaEngine.Api.Services.ReadServices;
 public sealed class VisibilityAfterMoveReadService(
     IAccountRepository accounts,
     IProfileRepository profiles,
+    IProfileAccessRepository profileAccess,
     IMediaAssetLibraryCountRepository assets,
     IVaultLibraryRepository vaultLibraries,
     IConfigurationLoader configuration,
@@ -53,16 +54,17 @@ public sealed class VisibilityAfterMoveReadService(
             .Where(library => Guid.TryParse(library.Id, out _))
             .ToDictionary(library => Guid.Parse(library.Id), library => library.Area);
         var lost = new List<VisibilityLossDto>();
-        foreach (var account in await accounts.GetAllAsync(ct).ConfigureAwait(false))
+        foreach (var profile in await profiles.GetAllAsync(ct).ConfigureAwait(false))
         {
-            // An administrator sees everything; a disabled sign-in cannot sign in, so a line about what it would lose helps no one.
-            if (account.IsAdministrator || !account.IsEnabled)
+            // A server administrator profile sees everything. A profile whose only sign-in is disabled cannot be opened by it, so a
+            // line about what it would lose helps no one; a person without a sign-in is still opened by their household.
+            if (profile.IsServerAdministrator || await HasOnlyDisabledSignInAsync(profile.Id, ct).ConfigureAwait(false))
             {
                 continue;
             }
 
-            var features = await accounts.GetFeatureGrantsAsync(account.Id, ct).ConfigureAwait(false);
-            var hidden = await rule.LoadHiddenAsync(account.Id, ct).ConfigureAwait(false);
+            var features = await profileAccess.GetFeatureGrantsAsync(profile.Id, ct).ConfigureAwait(false);
+            var hidden = await rule.LoadHiddenAsync(profile.Id, ct).ConfigureAwait(false);
             var seesAfter = LibraryVisibilityRule.MaySee(false, false, HasArea(features, target.Area), hidden.Contains(request.TargetLibraryId));
 
             var count = 0;
@@ -79,7 +81,7 @@ public sealed class VisibilityAfterMoveReadService(
 
             if (count > 0)
             {
-                lost.Add(new VisibilityLossDto(account.Id, await DisplayNameAsync(account, ct).ConfigureAwait(false), count));
+                lost.Add(new VisibilityLossDto(profile.Id, DisplayName(profile), count));
             }
         }
 
@@ -139,15 +141,10 @@ public sealed class VisibilityAfterMoveReadService(
     private static bool HasArea(IReadOnlySet<AccountFeatureId> features, string area) =>
         features.Any(feature => string.Equals(feature.Value, area, StringComparison.OrdinalIgnoreCase));
 
-    private async Task<string> DisplayNameAsync(MediaEngine.Domain.Entities.Account account, CancellationToken ct)
-    {
-        if (await accounts.GetDefaultProfileIdAsync(account.Id, ct).ConfigureAwait(false) is { } profileId
-            && await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is { } profile
-            && !string.IsNullOrWhiteSpace(profile.DisplayName))
-        {
-            return profile.DisplayName;
-        }
+    private static string DisplayName(MediaEngine.Domain.Aggregates.Profile profile) =>
+        string.IsNullOrWhiteSpace(profile.DisplayName) ? "Unnamed person" : profile.DisplayName;
 
-        return string.IsNullOrWhiteSpace(account.Email) ? "Unnamed sign-in" : account.Email;
-    }
+    private async Task<bool> HasOnlyDisabledSignInAsync(Guid profileId, CancellationToken ct) =>
+        await profileAccess.FindUserIdOfProfileAsync(profileId, ct).ConfigureAwait(false) is { } userId
+        && await accounts.GetByIdAsync(userId, ct).ConfigureAwait(false) is { IsEnabled: false };
 }

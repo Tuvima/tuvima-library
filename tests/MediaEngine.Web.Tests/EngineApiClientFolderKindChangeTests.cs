@@ -19,7 +19,7 @@ public sealed class EngineApiClientFolderKindChangeTests
         {
             sent = request;
             body = request.Content!.ReadAsStringAsync().Result;
-            return Json(HttpStatusCode.OK, """{"source_id":"s","file_count":12,"files_to_refile":12,"drops_details":true,"visibility_loss_checked":true,"visibility_loss":[{"account_id":"11111111-1111-1111-1111-111111111111","display_name":"Sam","file_count":12}]}""");
+            return Json(HttpStatusCode.OK, """{"source_id":"s","file_count":12,"files_to_refile":12,"drops_details":true,"visibility_loss_checked":true,"visibility_loss":[{"profile_id":"11111111-1111-1111-1111-111111111111","display_name":"Sam","file_count":12}]}""");
         });
         var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
 

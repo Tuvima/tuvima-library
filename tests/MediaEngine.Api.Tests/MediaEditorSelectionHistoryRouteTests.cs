@@ -71,7 +71,7 @@ public sealed class MediaEditorSelectionHistoryRouteTests
             var access = new LibraryAccess(firstLibrary);
             var actor = new RequestAuthority(PrincipalKind.Human, true,
                 AccountId: Guid.NewGuid(), ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId, SessionId: Guid.NewGuid(),
-                AccountEnabled: true, GrantEnabled: true);
+                AccountEnabled: true, ActiveProfileInUserHousehold: true);
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions
             { EnvironmentName = "Development" });
             builder.Logging.ClearProviders();

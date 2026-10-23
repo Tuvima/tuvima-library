@@ -145,7 +145,6 @@ public sealed class CoreSettingsWireContractTests
             {
                 AllowMobileBackup = false,
                 AllowConnectedDeviceImport = false,
-                DefaultVisibility = "private",
             },
             Libraries =
             [
@@ -179,7 +178,7 @@ public sealed class CoreSettingsWireContractTests
         var storage = SettingsContractMapper.ToStorage(request);
         var contract = SettingsContractMapper.ToContract(storage);
 
-        Assert.Equal("7.0", storage.SchemaVersion);
+        Assert.Equal("8.0", storage.SchemaVersion);
         Assert.Equal("keep_both", storage.FileHandling.DuplicatePolicy);
         Assert.Equal("keep_both", contract.FileHandling.DuplicatePolicy);
         Assert.Equal(@"D:\Media", storage.StorageLocations.Single().Path);
@@ -188,7 +187,6 @@ public sealed class CoreSettingsWireContractTests
         Assert.True(storage.Libraries.Single().PrimaryDestination?.AllowsFileMutation);
         Assert.False(storage.PersonalLibraryPolicy.AllowMobileBackup);
         Assert.False(contract.PersonalLibraryPolicy.AllowConnectedDeviceImport);
-        Assert.Equal("private", contract.PersonalLibraryPolicy.DefaultVisibility);
         Assert.Contains("personal_library_policy", JsonSerializer.Serialize(contract, JsonOptions), StringComparison.Ordinal);
         Assert.DoesNotContain("source_paths", JsonSerializer.Serialize(contract, JsonOptions), StringComparison.Ordinal);
     }

@@ -31,6 +31,7 @@ using MediaEngine.Ingestion.Organise;
 using MediaEngine.Intelligence;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Services;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -43,7 +44,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Account = MediaEngine.Domain.Entities.Account;
-using AccountProfileGrant = MediaEngine.Domain.Entities.AccountProfileGrant;
 
 namespace MediaEngine.Api.Tests;
 
@@ -702,7 +702,7 @@ public sealed class FolderKindChangeTests : IDisposable
     {
         var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: false);
         _w.AddFile(folder, "film.mkv", MediaType.Movies, "A film");
-        var admin = Guid.NewGuid();
+        var admin = Profile.SeedProfileId;
 
         var status = await _w.Service.StartAsync(folder.Id, new() { KindKey = "other_videos", LibraryId = _w.VideosLibrary }, default, admin);
         await _w.RunWorkerUntilFinishedAsync(status.OperationId);
@@ -814,7 +814,7 @@ public sealed class FolderKindChangeTests : IDisposable
             _w.AddFile(folder, $"film{index}.mkv", MediaType.Movies, $"Film {index}");
         }
 
-        var sam = await _w.CreateAccountAsync("sam@example.test", "Sam", hidden: [Guid.Parse(_w.VideosLibrary)]);
+        var sam = await _w.CreateProfileAsync("sam@example.test", "Sam", hidden: [Guid.Parse(_w.VideosLibrary)]);
 
         var preview = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_videos", LibraryId = _w.VideosLibrary }, default);
 
@@ -826,7 +826,7 @@ public sealed class FolderKindChangeTests : IDisposable
         Assert.Equal(("Movies", "Videos", _w.VideosLibrary), (preview.FromKindLabel, preview.ToKindLabel, preview.ToLibraryId));
         Assert.True(preview.VisibilityLossChecked);
         var loss = Assert.Single(preview.VisibilityLoss);
-        Assert.Equal((sam.Id, "Sam", 3), (loss.AccountId, loss.DisplayName, loss.FileCount));
+        Assert.Equal((sam.Id, "Sam", 3), (loss.ProfileId, loss.DisplayName, loss.FileCount));
         // Nothing was changed by asking.
         Assert.Empty(await _w.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 50));
         Assert.Equal(_w.MoviesLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets LIMIT 1;"));
@@ -1070,10 +1070,10 @@ public sealed class FolderKindChangeTests : IDisposable
 
     private static readonly IReadOnlyDictionary<string, RequestAuthority> Principals = new Dictionary<string, RequestAuthority>
     {
-        ["admin"] = new(PrincipalKind.Human, true, AccountId, Guid.NewGuid(), null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+        ["admin"] = new(PrincipalKind.Human, true, AccountId, Profile.SeedProfileId, null, Guid.NewGuid(), null,
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true),
         ["member"] = new(PrincipalKind.Human, true, AccountId, Guid.NewGuid(), null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true),
     };
 
     private sealed class PrincipalHeaderResolver : IRequestAuthorityResolver
@@ -1299,6 +1299,7 @@ public sealed class FolderKindChangeTests : IDisposable
         private static readonly DateTimeOffset Now = new(2026, 10, 23, 9, 0, 0, TimeSpan.Zero);
 
         private readonly AccountRepository _accounts;
+        private readonly ProfileAccessRepository _profileAccess;
         private readonly IMediaAssetRepository _assets;
 
         public World()
@@ -1337,6 +1338,7 @@ public sealed class FolderKindChangeTests : IDisposable
             Activity = new SystemActivityRepository(Database);
             _assets = new MediaAssetRepository(Database);
             _accounts = new AccountRepository(Database);
+            _profileAccess = new ProfileAccessRepository(Database);
             FirstChecks = new FolderFirstCheckRepository(Database);
             var vaultLibraries = new VaultLibraryRepository(Database);
             using (var connection = Database.CreateConnection())
@@ -1364,9 +1366,9 @@ public sealed class FolderKindChangeTests : IDisposable
                 NamingTemplate = "default",
             };
             var kinds = new FixedKinds([.. LibraryKindsConfiguration.BuiltIn(), vaultKind]);
-            var visibilityRule = new LibraryVisibilityRule(_accounts, vaultLibraries);
+            var visibilityRule = new LibraryVisibilityRule(_profileAccess, vaultLibraries);
             Visibility = new SwitchableVisibility(new VisibilityAfterMoveReadService(
-                _accounts, new ProfileRepository(Database), new MediaAssetLibraryCountRepository(Database), vaultLibraries, Config, visibilityRule));
+                _accounts, new ProfileRepository(Database), _profileAccess, new MediaAssetLibraryCountRepository(Database), vaultLibraries, Config, visibilityRule));
 
             var resolver = new HierarchyResolver(new WorkRepository(Database));
             Changes = new FolderKindChangeRepository(Database, resolver);
@@ -1520,9 +1522,9 @@ public sealed class FolderKindChangeTests : IDisposable
             return new FileRef(assetId, workId, path, title);
         }
 
-        public async Task<Account> CreateAccountAsync(string email, string name, IEnumerable<Guid> hidden)
+        public async Task<Profile> CreateProfileAsync(string email, string name, IEnumerable<Guid> hidden)
         {
-            var profileId = Guid.NewGuid();
+            var profile = new Profile { Id = Guid.NewGuid(), DisplayName = name, Role = ProfileRole.StandardUser, CreatedAt = Now };
             var account = new Account
             {
                 Id = Guid.NewGuid(),
@@ -1533,21 +1535,16 @@ public sealed class FolderKindChangeTests : IDisposable
                 CreatedAt = Now,
                 UpdatedAt = Now,
             };
+            var features = new HashSet<AccountFeatureId> { AccountFeatureId.Watch };
             await _accounts.CreateAccountAsync(
                 account,
-                new AccountProfileGrant
-                {
-                    AccountId = account.Id,
-                    ProfileId = profileId,
-                    IsDefault = true,
-                    IsEnabled = true,
-                    AuthorizationVersion = 1,
-                    GrantedAt = Now,
-                },
-                new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
+                new TestGrant(account.Id, profile.Id, IsDefault: true, AdminEnabled: false),
+                features,
                 hidden.ToHashSet(),
-                newProfile: new Profile { Id = profileId, DisplayName = name, Role = ProfileRole.StandardUser, CreatedAt = Now });
-            return account;
+                newProfile: profile,
+                newHouseholdName: $"{name}'s home");
+            await _profileAccess.ReplaceAccessAsync(profile.Id, features, hidden.ToHashSet(), Now);
+            return profile;
         }
 
         public void Execute(string sql, object? args = null)

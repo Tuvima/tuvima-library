@@ -156,7 +156,7 @@ public sealed partial class UiShellRenderTests
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
             profile, profile, true, true, 1, 1, true, false, null, 1,
             [new MediaEngine.Contracts.Authentication.AccountProfileGrantDto(profile, profile, "Profile", null, true, true, true,
-                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
+                new MediaEngine.Contracts.Authentication.ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
             [], []);
         var session = new DashboardSessionAccessor();
         session.Set("member-session", profile, profile, Guid.NewGuid(), authority);

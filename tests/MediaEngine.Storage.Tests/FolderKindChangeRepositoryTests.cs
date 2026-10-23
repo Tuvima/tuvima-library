@@ -569,7 +569,7 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
         var plan = new FolderKindChangePlan(
             operationId, sourceId, "library-from", "library-to", "movies", "other_videos", "Videos",
             TargetIsPlain: true, StartsFirstCheck: false, DateTimeOffset.Parse("2026-10-23T10:00:00Z"),
-            StartedByProfileId: Guid.NewGuid(), RepairsOperationId: Guid.NewGuid());
+            StartedByProfileId: Profile.SeedProfileId, RepairsOperationId: Guid.NewGuid());
 
         await _repository.SavePlanAsync(plan);
         await _repository.SavePlanAsync(plan with { ToLibraryId = "someone-else" });

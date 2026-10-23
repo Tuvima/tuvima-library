@@ -40,7 +40,6 @@ public sealed class LibraryKindLookupValidationTests
         MetadataPolicy = LibraryMetadataPolicies.LocalOnly,
         YoutubeLookup = false,
         MediaTypes = [mediaType],
-        Visibility = LibraryVisibility.Household,
         Sources =
         [
             new LibrarySourceConfig

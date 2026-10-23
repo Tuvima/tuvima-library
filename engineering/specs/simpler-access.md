@@ -1,8 +1,8 @@
 # Spec: Simpler access (areas, ratings, untick a library, folder checkbox)
 
-> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D51, D60) · [Vault sections and Move to Vault](vault-sections-and-move.md) (D28, D32, D39) · [Videos](videos.md) (D55) · [Security](../../docs/architecture/security.md)
+> **Status:** Built, awaiting your Local checks · **Version:** 3 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D51, D60) · [Vault sections and Move to Vault](vault-sections-and-move.md) (D28, D32, D39) · [Videos](videos.md) (D55) · [Security](../../docs/architecture/security.md)
 
-> Written 2026-10-23 after Shy asked for a review of the permissions strategy and a comparison with Plex, Jellyfin, Netflix and Disney+. Shy approved the recommended model the same day ("Good with all these suggestions and the new access model"), which locks this spec. Because it is an access change, every packet gets the security review before merge.
+> Written 2026-10-23 after Shy asked for a review of the permissions strategy and a comparison with Plex, Jellyfin, Netflix and Disney+. Shy approved the recommended model the same day ("Good with all these suggestions and the new access model"), which locks this spec. Because it is an access change, every packet gets the security review before merge. Version 2 (same day) records two more answers: saved videos follow "allow unrated" like every other unrated item (D14), and removing settings from the libraries file is a fresh start, not a conversion (D15). Version 3 (same day): built (WP1 #446, WP2 #447, WP5 #448, WP3 and WP4 #449, WP6 docs). *Amendment note: the [Users, profiles and households](users-profiles-households.md) spec (D19, merged in #451) moved every access right from the account to the profile. Read "account" as "profile" in D2, D4, D5 and D13: hidden libraries are stored per profile (`profile_library_hidden`), a household administrator can hide more for the household's profiles but never show a library hidden from their own profile, and the move notice names profiles.*
 
 ## 1. Goal
 
@@ -44,6 +44,8 @@ Make "who sees what" simple and hard to get wrong. A person gets whole areas (Wa
 - **D11. One rule in the Engine.** Every place that asks "may this account see this library" asks one question, "is this library hidden from this account?". That covers browse, search, detail pages, players, artwork, streams, events, counts, downloads, View and the native apps. A guardrail fails the build if a read path checks the old grant table or a second copy of the rule. The Vault sections spec's central access service (its WP0) later absorbs this rule rather than duplicating it. Reason: Reliability and Privacy.
 - **D12. Not built: single-title blocking, labels and tags.** Ratings, the folder checkbox and unticking cover household needs, and either can be added later. Reason: Maintenance.
 - **D13. A folder move tells you who will stop seeing the files** (Shy, 2026-10-23, answers library setup Q2). A moved folder's files follow the library they move into. If anyone has that library hidden, the confirmation names them first: "Sam won't see these 40 files." Otherwise nothing extra is said. The Engine answers "who would lose sight" in one read (WP5), which "Change what this folder is" (library setup WP7b-3) and Merge into use.
+- **D14. Saved videos follow "allow unrated" like every other unrated item** (Shy, 2026-10-23, answer 1A). Under D7 a profile with "allow unrated" on sees unrated items from every folder, saved videos (YouTube downloads, Other videos) included; with it off, only those from folders marked suitable. This replaces today's rule that a limited profile sees Videos only from a library marked OK. Reason: Ease of use; one rule, and the safe choice (off) is the default.
+- **D15. Removing settings from the libraries file is a fresh start** (Shy, 2026-10-23, answer 2: "do whatever is the cleanest method"). WP3 and WP4 remove library-level settings and add the folder one, together, under one new libraries file format version. An older file is refused with the existing plain message (move it aside, Library starts fresh, add the folders again); nothing is converted. Reason: Maintenance; pre-release, a clean format beats compatibility code.
 
 ## 4. UI behaviour
 
@@ -122,7 +124,7 @@ Wave 1: WP1 and WP4 (different files). Wave 2: WP2 and WP3. Wave 3: WP5 and WP6.
   - A PG profile with allow unrated off sees an unrated audiobook from a ticked folder, and not one from an unticked folder.
   - An R film in a ticked folder stays hidden.
   - Counts match the lists.
-- **Depends on:** WP1 (both touch `AuthorizedDisplayProjectionReadService`)
+- **Depends on:** WP1 (both touch `AuthorizedDisplayProjectionReadService`); ships with WP4 under one libraries file format bump (D15)
 - **Size:** Complex (security)
 - **Done when:** the tests pass and the CI-strength build is clean.
 

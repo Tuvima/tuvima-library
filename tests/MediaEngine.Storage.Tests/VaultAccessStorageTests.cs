@@ -819,8 +819,9 @@ public sealed class VaultAccessStorageTests : IDisposable
         using var connection = _database.CreateConnection();
         connection.Execute(
             """
-            INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at)
-            VALUES(@accountId,@email,@normalized,1,0,1,@now,@now);
+            INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@ownerProfileId,'Session owner','#7C4DFF','StandardUser',@now);
+            INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id)
+            VALUES(@accountId,@email,@normalized,1,1,@now,@now,@ownerProfileId);
             INSERT INTO auth_sessions(id,account_id,active_profile_id,token_hash,device_id,device_name,client,authentication_method,security_stamp,created_at,last_seen_at,expires_at)
             VALUES(@sessionId,@accountId,@profileId,@hash,'device','Device','Dashboard','password','stamp',@now,@now,@later);
             """,
@@ -829,6 +830,7 @@ public sealed class VaultAccessStorageTests : IDisposable
                 sessionId,
                 accountId,
                 profileId,
+                ownerProfileId = Guid.NewGuid(),
                 email = $"{accountId:N}@example.com",
                 normalized = $"{accountId:N}@EXAMPLE.COM",
                 hash = Guid.NewGuid().ToString("N"),

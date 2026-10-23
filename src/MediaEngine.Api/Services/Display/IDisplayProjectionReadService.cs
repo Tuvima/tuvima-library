@@ -92,6 +92,7 @@ internal interface IRawDisplayProjectionReadService : IDisplayProjectionReadServ
             WorkId = work.WorkId,
             LibraryId = work.LibraryId,
             MediaType = work.MediaType,
+            AssetId = work.AssetId,
             ContentRating = work.ContentRating,
         })
         .ToList();

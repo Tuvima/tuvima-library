@@ -39,14 +39,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Sources = withFolder ? [new LibrarySourceConfig { Id = $"{kindKey}-folder", Path = $"/media/{kindKey}" }] : [],
     };
 
-    private static LibrariesOnlyBrowseLoader BrowseLibrariesConfig(bool lecturesOkForLimitedProfiles = false)
-    {
-        var loader = BrowseLibrariesConfigCore();
-        loader.Libraries.Libraries.Single(library => library.Id == LecturesLibrary.ToString("D")).OkForLimitedProfiles = lecturesOkForLimitedProfiles;
-        return loader;
-    }
-
-    private static LibrariesOnlyBrowseLoader BrowseLibrariesConfigCore() => new(
+    private static LibrariesOnlyBrowseLoader BrowseLibrariesConfig() => new(
         // Written out of order on purpose: the list must come back area first, then the kinds' own order, then name.
         Library(BooksLibrary, "Books", "books", LibraryAreas.Read, "Books", true),
         Library(MusicLibrary, "Music", "music", LibraryAreas.Listen, "Music", true),
@@ -57,7 +50,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Library(HiddenVaultLibrary, "Private", "other_videos", LibraryAreas.Watch, "Videos", true));
 
     // Not async: the request context lives in an async-local the service reads later, so it must be set in the caller's own flow.
-    private BrowseLibraryListService CreateBrowseLibraryList(Guid account, bool lecturesOkForLimitedProfiles = false)
+    private BrowseLibraryListService CreateBrowseLibraryList(Guid account)
     {
         using (var connection = _database.CreateConnection())
         {
@@ -67,8 +60,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
                 new { library = HiddenVaultLibrary.ToString("D"), now });
         }
 
-        var config = BrowseLibrariesConfig(lecturesOkForLimitedProfiles);
-        var service = CreateService(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId), new StubRawProjection([], []), config);
+        var config = BrowseLibrariesConfig();
+        var service = CreateService(HumanContext(account, ProfileOf(account)), new StubRawProjection([], []), config);
         return new BrowseLibraryListService(service, config, new VaultLibraryRepository(_database));
     }
 
@@ -110,7 +103,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.Equal([MoviesLibrary, ShowsLibrary, LecturesLibrary, MusicLibrary, BooksLibrary], libraries.Select(library => library.Id).ToArray());
         using var connection = _database.CreateConnection();
-        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM account_library_hidden;"));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_library_hidden;"));
     }
 
     [Fact]
@@ -158,17 +151,15 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Theory]
     [InlineData("PG")]
     [InlineData("G")]
-    public async Task BrowseLibraries_ALimitedProfile_GetsVideosLibrariesOnlyWhenTheyAreOkForLimitedProfiles(string limit)
+    public async Task BrowseLibraries_ALimitedProfile_StillGetsTheVideosLibrary_BecauseItsItemsAreFilteredOneByOne(string limit)
     {
         var account = Guid.NewGuid();
         await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { ShowsLibrary, MusicLibrary, BooksLibrary });
         SetContentLimit(limit);
 
-        var withoutTheSetting = await CreateBrowseLibraryList(account).ListAsync(default);
-        var withTheSetting = await CreateBrowseLibraryList(account, lecturesOkForLimitedProfiles: true).ListAsync(default);
+        var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
 
-        Assert.Equal([MoviesLibrary], withoutTheSetting.Select(library => library.Id).ToArray());
-        Assert.Equal([MoviesLibrary, LecturesLibrary], withTheSetting.Select(library => library.Id).ToArray());
+        Assert.Equal([MoviesLibrary, LecturesLibrary], libraries.Select(library => library.Id).ToArray());
     }
 
     [Fact]
@@ -377,7 +368,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Matched", "Movie");
         await InsertOwnedWorkWithIdAsync(LecturesLibrary, "Lecture", "Movie");
         await MarkUnmatchedAsync(open.AssetId, MoviesLibrary, keep: false);
-        var user = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var user = HumanContext(account, ProfileOf(account));
         var composer = BrowseComposer(account);
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
         builder.Services.AddAuthorization();
@@ -423,7 +414,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     // Not async: the request context lives in an async-local the service reads later, so it must be set in the caller's own flow.
     private Task<IReadOnlySet<Guid>> NarrowedWorkIdsAsync(Guid account, Guid? library, bool unmatchedOnly) =>
         BrowseNarrowing.VisibleWorkIdsAsync(
-            CreateService(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId), RealReaders()),
+            CreateService(HumanContext(account, ProfileOf(account)), RealReaders()),
             new UnmatchedAssetRepository(_database),
             library,
             unmatchedOnly,
@@ -511,11 +502,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         }
     }
 
-    private RequestAuthorityResolver Authorities() => new(_accounts, _applications, new ProfileRepository(_database));
+    private RequestAuthorityResolver Authorities() => new(_accounts, _applications);
 
     private DisplayComposerService BrowseComposer(Guid account)
     {
-        var service = CreateService(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId), RealReaders());
+        var service = CreateService(HumanContext(account, ProfileOf(account)), RealReaders());
         var cards = new DisplayCardBuilder();
         return new DisplayComposerService(service, cards, new DisplayShelfBuilder(cards), unmatched: new UnmatchedAssetRepository(_database));
     }

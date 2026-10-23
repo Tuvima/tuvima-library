@@ -10,6 +10,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Services;
 using MediaEngine.Identity;
 using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
@@ -17,6 +18,7 @@ using MediaEngine.Storage.Backup;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
@@ -28,9 +30,10 @@ using Microsoft.Extensions.Primitives;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// The routes that move one user between Libraries (backup and restore spec D19), run in memory against a real data store and the real
-/// "confirm it's you" check: a stale sign-in is asked to confirm first on every route, application and service callers cannot export
-/// anyone's sign-in material, and only an administrator exports another person or imports one.
+/// The routes that move people between Libraries (backup and restore spec D19, users spec D9 and D16), run in memory against a real data
+/// store and the real "confirm it's you" check: a stale sign-in is asked to confirm first on every route, application and service callers
+/// cannot export anyone's sign-in material, and only the server administrator exports (their own profile, another person or a whole
+/// household) or imports; everyone else, household administrators included, is refused with 403.
 /// </summary>
 public sealed class UserTransferEndpointTests : IDisposable
 {
@@ -58,6 +61,7 @@ public sealed class UserTransferEndpointTests : IDisposable
     [Theory]
     [InlineData("/access/me/export")]
     [InlineData("/access/accounts/{accountId:guid}/export")]
+    [InlineData("/access/households/{householdId:guid}/export")]
     [InlineData("/access/accounts/import/inspect")]
     [InlineData("/access/accounts/import/{operationId:guid}")]
     public async Task EveryRoute_AsksAStaleSignInToConfirmFirst_AndDoesNothing(string route)
@@ -66,7 +70,7 @@ public sealed class UserTransferEndpointTests : IDisposable
         await using var app = BuildApplication();
 
         _clock.Advance(TimeSpan.FromMinutes(11));
-        var stale = await SendAsync(app, route, HumanUser(issued), account: Guid.NewGuid(), operation: Guid.NewGuid(), upload: []);
+        var stale = await SendAsync(app, route, HumanUser(issued), account: Guid.NewGuid(), operation: Guid.NewGuid(), upload: [], household: Guid.NewGuid());
 
         Assert.Equal(StatusCodes.Status403Forbidden, stale.Status);
         Assert.Equal("confirm_its_you", stale.Json.GetProperty("code").GetString());
@@ -74,9 +78,10 @@ public sealed class UserTransferEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportMyData_AfterConfirming_ReturnsTheZipForTheSignedInPersonOnly()
+    public async Task ExportMyData_ForTheServerAdministratorAfterConfirming_ReturnsTheZipForTheirOwnProfileOnly()
     {
         var issued = await SignInAsync();
+        _administrator = issued.Account.Id;
         AddOtherPerson("other-person@example.com");
         await using var app = BuildApplication();
 
@@ -90,6 +95,26 @@ public sealed class UserTransferEndpointTests : IDisposable
         var exported = Assert.Single(_audit.Events);
         Assert.Equal("account.exported", exported.EventType);
         Assert.Equal(issued.Account.Id, exported.ActorAccountId);
+    }
+
+    [Fact]
+    public async Task ExportMyData_IsRefusedWith403_ForEveryoneButTheServerAdministrator_HouseholdAdministratorsIncluded()
+    {
+        var issued = await SignInAsync();
+        var home = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO households (id, name, created_at) VALUES (@id, 'Home', '2026-10-21T10:00:00Z')", new { id = GuidSql.ToBlob(home) });
+        }
+
+        await using var app = BuildApplication();
+
+        var member = await SendAsync(app, "/access/me/export", HumanUser(issued));
+        var householdAdministrator = await SendAsync(app, "/access/me/export", HumanUser(issued), household: home, householdAdministratorOf: home);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, member.Status);
+        Assert.Equal(StatusCodes.Status403Forbidden, householdAdministrator.Status);
+        Assert.Empty(_audit.Events);
     }
 
     [Theory]
@@ -138,10 +163,12 @@ public sealed class UserTransferEndpointTests : IDisposable
         Assert.Equal(StatusCodes.Status200OK, file.Status);
 
         // Move the person out of this data store so the import has somewhere to put them.
+        Guid household;
         using (var connection = _database.CreateConnection())
         {
             connection.Execute("DELETE FROM accounts WHERE email = 'maya@example.com'");
             connection.Execute("DELETE FROM profiles WHERE display_name = 'Maya'");
+            household = EnsureHousehold(connection);
         }
 
         _administrator = Guid.Empty;
@@ -151,24 +178,140 @@ public sealed class UserTransferEndpointTests : IDisposable
         _administrator = issued.Account.Id;
         var preview = await SendAsync(app, "/access/accounts/import/inspect", HumanUser(issued), upload: file.Bytes);
         Assert.Equal(StatusCodes.Status200OK, preview.Status);
-        Assert.Equal("maya@example.com", preview.Json.GetProperty("email").GetString());
+        Assert.Equal("profile", preview.Json.GetProperty("scope").GetString());
+        Assert.Equal("maya@example.com", preview.Json.GetProperty("sign_ins")[0].GetProperty("email").GetString());
+        Assert.False(preview.Json.GetProperty("sign_ins")[0].GetProperty("email_in_use").GetBoolean());
         Assert.Equal(JsonValueKind.Null, preview.Json.GetProperty("blocked_reason").ValueKind);
         Assert.Equal("Maya", preview.Json.GetProperty("profiles")[0].GetProperty("name").GetString());
+        Assert.Contains(preview.Json.GetProperty("households").EnumerateArray(), item => item.GetProperty("id").GetGuid() == household);
+        Assert.Equal(8, preview.Json.GetProperty("max_profiles_per_household").GetInt32());
         var operation = Guid.Parse(preview.Json.GetProperty("operation_id").GetString()!);
+        var choices = new UserImportRequestDto(TargetHouseholdId: household);
 
         _administrator = Guid.Empty;
-        var refusedImport = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation);
+        var refusedImport = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation, body: choices);
         Assert.Equal(StatusCodes.Status403Forbidden, refusedImport.Status);
 
         _administrator = issued.Account.Id;
-        var imported = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation);
+        var imported = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation, body: choices);
         Assert.Equal(StatusCodes.Status200OK, imported.Status);
-        Assert.Equal(exportingPerson, imported.Json.GetProperty("account_id").GetGuid());
-        Assert.Equal("maya@example.com", imported.Json.GetProperty("display_name").GetString());
+        Assert.Equal(household, imported.Json.GetProperty("household_id").GetGuid());
+        Assert.False(imported.Json.GetProperty("created_household").GetBoolean());
+        Assert.Equal("maya@example.com", imported.Json.GetProperty("profiles")[0].GetProperty("sign_in_email").GetString());
+        Assert.False(imported.Json.GetProperty("profiles")[0].GetProperty("is_household_administrator").GetBoolean());
 
-        var again = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation);
+        var again = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation, body: choices);
         Assert.Equal(StatusCodes.Status404NotFound, again.Status);
-        Assert.Contains(_audit.Events, item => item.EventType == "account.imported" && item.SubjectId == exportingPerson.ToString("D"));
+        Assert.Contains(_audit.Events, item => item.EventType == "account.imported" && item.SubjectId == household.ToString("D"));
+    }
+
+    [Fact]
+    public async Task Import_WithAnEmailThatIsAlreadyUsed_IsRefusedBeforeAnythingIsWritten_KeepsTheFile_AndWorksWithADifferentEmail()
+    {
+        var issued = await SignInAsync();
+        _administrator = issued.Account.Id;
+        var maya = AddOtherPerson("maya@example.com");
+        await using var app = BuildApplication();
+        var file = await SendAsync(app, "/access/accounts/{accountId:guid}/export", HumanUser(issued), account: maya);
+        Guid household;
+        using (var connection = _database.CreateConnection())
+        {
+            household = EnsureHousehold(connection);
+        }
+
+        var preview = await SendAsync(app, "/access/accounts/import/inspect", HumanUser(issued), upload: file.Bytes);
+        // Maya is still here, so the file's email is used, and her ids are too: the import will give the copy new ones.
+        Assert.Equal(StatusCodes.Status200OK, preview.Status);
+        Assert.True(preview.Json.GetProperty("sign_ins")[0].GetProperty("email_in_use").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, preview.Json.GetProperty("blocked_reason").ValueKind);
+        var operation = Guid.Parse(preview.Json.GetProperty("operation_id").GetString()!);
+        var signIn = preview.Json.GetProperty("sign_ins")[0].GetProperty("id").GetGuid();
+
+        var refused = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation, body: new UserImportRequestDto(TargetHouseholdId: household));
+        Assert.Equal(StatusCodes.Status409Conflict, refused.Status);
+        Assert.Contains("Someone in this Library already signs in with maya@example.com. Nothing was imported.", refused.Text, StringComparison.Ordinal);
+        using (var connection = _database.CreateConnection())
+        {
+            Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE display_name = 'Maya'"));
+        }
+
+        var badEmail = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation,
+            body: new UserImportRequestDto(TargetHouseholdId: household, Emails: new Dictionary<Guid, string> { [signIn] = "not an email" }));
+        Assert.Equal(StatusCodes.Status400BadRequest, badEmail.Status);
+
+        var imported = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation,
+            body: new UserImportRequestDto(TargetHouseholdId: household, Emails: new Dictionary<Guid, string> { [signIn] = "maya.two@example.com" }));
+        Assert.Equal(StatusCodes.Status200OK, imported.Status);
+        Assert.Equal("maya.two@example.com", imported.Json.GetProperty("profiles")[0].GetProperty("sign_in_email").GetString());
+        using (var connection = _database.CreateConnection())
+        {
+            Assert.Equal(2, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE display_name = 'Maya'"));
+            Assert.Equal(2, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM accounts WHERE email LIKE 'maya%'"));
+        }
+    }
+
+    [Fact]
+    public async Task ExportHousehold_IsForTheServerAdministratorOnly_AHouseholdAdministratorGets403LikeAnyoneElse()
+    {
+        var issued = await SignInAsync();
+        var home = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            foreach (var (id, name) in new[] { (home, "Home"), (other, "Elsewhere") })
+            {
+                connection.Execute("INSERT INTO households (id, name, created_at) VALUES (@id, @name, '2026-10-21T10:00:00Z')", new { id = GuidSql.ToBlob(id), name });
+            }
+        }
+
+        AddOtherPerson("mom@example.com", home);
+        AddOtherPerson("kid@example.com", home);
+        AddOtherPerson("stranger@example.com", other);
+        await using var app = BuildApplication();
+
+        // A household administrator is refused for their own household, for another one and for one that does not exist, alike.
+        var own = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: home, householdAdministratorOf: home);
+        var another = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: other, householdAdministratorOf: home);
+        var unknown = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: Guid.NewGuid(), householdAdministratorOf: home);
+        var member = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: home);
+        Assert.All(new[] { own, another, unknown, member }, reply => Assert.Equal(StatusCodes.Status403Forbidden, reply.Status));
+        Assert.Empty(_audit.Events);
+
+        // The server administrator exports any household, and only that household's people are in the file.
+        _administrator = issued.Account.Id;
+        var any = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: other);
+        Assert.Equal(StatusCodes.Status200OK, any.Status);
+        Assert.Matches(@"^tuvima-household-\d{8}-\d{6}\.zip$", any.DownloadName);
+        Assert.Contains("stranger@example.com", any.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("mom@example.com", any.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("\"scope\":\"household\"", any.Text, StringComparison.Ordinal);
+        var exported = Assert.Single(_audit.Events);
+        Assert.Equal("household.exported", exported.EventType);
+        Assert.Equal(other.ToString("D"), exported.SubjectId);
+
+        var missing = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: Guid.NewGuid());
+        Assert.Equal(StatusCodes.Status404NotFound, missing.Status);
+    }
+
+    [Theory]
+    [InlineData(nameof(PrincipalKind.ServiceApplication))]
+    [InlineData(nameof(PrincipalKind.DelegatedUserClient))]
+    public async Task ExportHousehold_IsRefusedForAnApplicationOrServiceCaller_EvenOneActingForAnAdministrator(string kind)
+    {
+        var issued = await SignInAsync();
+        _administrator = issued.Account.Id;
+        var home = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO households (id, name, created_at) VALUES (@id, 'Home', '2026-10-21T10:00:00Z')", new { id = GuidSql.ToBlob(home) });
+        }
+
+        await using var app = BuildApplication();
+
+        var result = await SendAsync(app, "/access/households/{householdId:guid}/export", ApplicationUser(kind), account: issued.Account.Id, household: home, kind: Enum.Parse<PrincipalKind>(kind));
+
+        Assert.Equal(StatusCodes.Status403Forbidden, result.Status);
+        Assert.Empty(_audit.Events);
     }
 
     [Fact]
@@ -215,22 +358,6 @@ public sealed class UserTransferEndpointTests : IDisposable
         Assert.Contains("Someone in this Library already signs in with maya@example.com. Nothing was imported.", clash.Text, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task Inspect_OfAFileForAUserWhoIsAlreadyHere_SaysSoInOneSentence()
-    {
-        var issued = await SignInAsync();
-        _administrator = issued.Account.Id;
-        var maya = AddOtherPerson("maya@example.com");
-        await using var app = BuildApplication();
-        var file = await SendAsync(app, "/access/accounts/{accountId:guid}/export", HumanUser(issued), account: maya);
-
-        var preview = await SendAsync(app, "/access/accounts/import/inspect", HumanUser(issued), upload: file.Bytes);
-
-        // Maya is still here, so the file clashes with her own account.
-        Assert.Equal(StatusCodes.Status200OK, preview.Status);
-        Assert.Equal("This user is already in this Library. Nothing was imported.", preview.Json.GetProperty("blocked_reason").GetString());
-    }
-
     // ---------------------------------------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------------------------------------
@@ -238,20 +365,37 @@ public sealed class UserTransferEndpointTests : IDisposable
     private async Task<SessionIssueResult> SignInAsync() =>
         await _identity.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "device", "Browser", "Dashboard");
 
-    private Guid AddOtherPerson(string email)
+    /// <summary>A household in this data store: the first one that exists, or a new one.</summary>
+    private static Guid EnsureHousehold(Microsoft.Data.Sqlite.SqliteConnection connection)
+    {
+        var existing = connection.ExecuteScalar<Guid?>("SELECT id FROM households ORDER BY created_at LIMIT 1");
+        if (existing is { } found)
+        {
+            return found;
+        }
+
+        var created = Guid.NewGuid();
+        connection.Execute("INSERT INTO households (id, name, created_at) VALUES (@id, 'Home', '2026-10-21T10:00:00Z')", new { id = GuidSql.ToBlob(created) });
+        return created;
+    }
+
+    private Guid AddOtherPerson(string email, Guid? household = null)
     {
         var account = Guid.NewGuid();
         var profile = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "INSERT INTO accounts (id, email, normalized_email, created_at, updated_at) VALUES (@account, @email, @normalized, @now, @now)",
-            new { account = GuidSql.ToBlob(account), email, normalized = email.ToUpperInvariant(), now = "2026-10-21T10:00:00Z" });
+            "INSERT INTO profiles (id, display_name, role, created_at, household_id) VALUES (@profile, @name, 'StandardUser', @now, @household)",
+            new
+            {
+                profile = GuidSql.ToBlob(profile),
+                name = email.StartsWith("maya", StringComparison.Ordinal) ? "Maya" : "Other " + email,
+                now = "2026-10-21T10:00:00Z",
+                household = household is { } home ? GuidSql.ToBlob(home) : null,
+            });
         connection.Execute(
-            "INSERT INTO profiles (id, display_name, role, created_at) VALUES (@profile, @name, 'StandardUser', @now)",
-            new { profile = GuidSql.ToBlob(profile), name = email.StartsWith("maya", StringComparison.Ordinal) ? "Maya" : "Other " + email, now = "2026-10-21T10:00:00Z" });
-        connection.Execute(
-            "INSERT INTO account_profile_grants (account_id, profile_id, is_default, is_enabled, admin_enabled, granted_at) VALUES (@account, @profile, 1, 1, 0, @now)",
-            new { account = GuidSql.ToBlob(account), profile = GuidSql.ToBlob(profile), now = "2026-10-21T10:00:00Z" });
+            "INSERT INTO accounts (id, email, normalized_email, created_at, updated_at, profile_id) VALUES (@account, @email, @normalized, @now, @now, @profile)",
+            new { account = GuidSql.ToBlob(account), profile = GuidSql.ToBlob(profile), email, normalized = email.ToUpperInvariant(), now = "2026-10-21T10:00:00Z" });
         return account;
     }
 
@@ -281,6 +425,7 @@ public sealed class UserTransferEndpointTests : IDisposable
             codec,
             new UserImportStagingArea(Path.Combine(_root, "backups"), _clock, NullLogger<UserImportStagingArea>.Instance),
             new AccountRepository(_database),
+            new HouseholdRepository(_database),
             new AdministratorDecisions(() => _administrator),
             _audit,
             _clock));
@@ -290,7 +435,16 @@ public sealed class UserTransferEndpointTests : IDisposable
     }
 
     private static async Task<Reply> SendAsync(
-        WebApplication app, string pattern, ClaimsPrincipal user, Guid? account = null, Guid? operation = null, byte[]? upload = null, PrincipalKind kind = PrincipalKind.Human)
+        WebApplication app,
+        string pattern,
+        ClaimsPrincipal user,
+        Guid? account = null,
+        Guid? operation = null,
+        byte[]? upload = null,
+        PrincipalKind kind = PrincipalKind.Human,
+        Guid? household = null,
+        Guid? householdAdministratorOf = null,
+        UserImportRequestDto? body = null)
     {
         var endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
             .SelectMany(source => source.Endpoints)
@@ -314,6 +468,25 @@ public sealed class UserTransferEndpointTests : IDisposable
         if (operation is { } operationId)
         {
             context.Request.RouteValues["operationId"] = operationId.ToString("D");
+        }
+
+        if (household is { } householdId)
+        {
+            context.Request.RouteValues["householdId"] = householdId.ToString("D");
+        }
+
+        if (body is not null)
+        {
+            var payload = JsonSerializer.SerializeToUtf8Bytes(body, MediaEngineJson.Web);
+            context.Request.ContentType = "application/json";
+            context.Request.ContentLength = payload.Length;
+            context.Request.Body = new MemoryStream(payload);
+            context.Features.Set<IHttpRequestBodyDetectionFeature>(new BodyDetection());
+        }
+
+        if (householdAdministratorOf is { } administeredHousehold)
+        {
+            context.Items["householdAdministratorOf"] = administeredHousehold;
         }
 
         if (upload is not null)
@@ -372,6 +545,11 @@ public sealed class UserTransferEndpointTests : IDisposable
         }
     }
 
+    private sealed class BodyDetection : IHttpRequestBodyDetectionFeature
+    {
+        public bool CanHaveBody => true;
+    }
+
     private sealed record Reply(int Status, JsonElement Json, string Text, byte[] Bytes, string? ContentType, string? DownloadName);
 
     private sealed class ClaimsAuthorityResolver : IRequestAuthorityResolver
@@ -380,8 +558,11 @@ public sealed class UserTransferEndpointTests : IDisposable
         {
             var kind = context.Items.TryGetValue("kind", out var value) && value is PrincipalKind principal ? principal : PrincipalKind.Human;
             var account = Guid.TryParse(context.User.FindFirstValue(TuvimaClaimTypes.AccountId), out var id) ? id : (Guid?)null;
+            var administered = context.Items.TryGetValue("householdAdministratorOf", out var home) && home is Guid householdId ? householdId : (Guid?)null;
             return ValueTask.FromResult(new RequestAuthority(
-                kind, true, AccountId: account, ActiveProfileId: Guid.NewGuid(), ApplicationId: kind == PrincipalKind.Human ? null : Guid.NewGuid()));
+                kind, true, AccountId: account, ActiveProfileId: Guid.NewGuid(), ApplicationId: kind == PrincipalKind.Human ? null : Guid.NewGuid(),
+                AccountEnabled: administered is not null, ActiveProfileInUserHousehold: administered is not null,
+                ActiveProfileHouseholdId: administered, ActiveProfileIsHouseholdAdministrator: administered is not null));
         }
     }
 
@@ -416,9 +597,11 @@ public sealed class UserTransferEndpointTests : IDisposable
 
         public Task<UserExportDownload> ExportAsync(RequestAuthority actor, Guid accountId, CancellationToken ct) => throw failure;
 
+        public Task<UserExportDownload> ExportHouseholdAsync(RequestAuthority actor, Guid householdId, CancellationToken ct) => throw failure;
+
         public Task<UserImportPreviewDto> InspectAsync(RequestAuthority actor, Stream upload, string originalFileName, CancellationToken ct) => throw failure;
 
-        public Task<UserImportResultDto> ImportAsync(RequestAuthority actor, Guid operationId, CancellationToken ct) => throw failure;
+        public Task<UserImportResultDto> ImportAsync(RequestAuthority actor, Guid operationId, UserImportRequestDto request, CancellationToken ct) => throw failure;
     }
 
     /// <summary>Keeps what is logged, whatever the category.</summary>

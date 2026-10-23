@@ -81,7 +81,7 @@ public sealed class ParentFirstPairingSaveRouteTests
 
             var actor = new RequestAuthority(PrincipalKind.Human, true,
                 AccountId: Guid.NewGuid(), ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId, SessionId: Guid.NewGuid(),
-                AccountEnabled: true, GrantEnabled: true);
+                AccountEnabled: true, ActiveProfileInUserHousehold: true);
             var resolver = new MutableAuthorityResolver(actor);
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
             builder.Logging.ClearProviders();

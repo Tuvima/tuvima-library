@@ -8,7 +8,7 @@ namespace MediaEngine.Api.Services.BatchEdit;
 
 /// <summary>
 /// Decides, item by item, which of a batch's selected items the caller may not edit. The route already requires an effective
-/// administrator; this adds the same resource check a single edit gets (the caller's library grants and content limit, and
+/// administrator; this adds the same resource check a single edit gets (the libraries hidden from the caller, their content limit, and
 /// the "still being ingested" guard), so an item the caller cannot edit is refused by name instead of being skipped quietly.
 /// </summary>
 internal sealed class LibraryBatchEditAccessService(
