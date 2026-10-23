@@ -6,6 +6,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,6 +19,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     public ManagedAccessUsersTests()
     {
         Services.AddNativeUiServices();
+        Services.AddLocalization();
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddSingleton<IHttpClientFactory>(new ClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
@@ -43,19 +45,55 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Permissions_UntickingALibrary_SavesItAsHiddenFromThePerson()
+    public void Permissions_UntickingALibrary_SavesStraightAway_AndSaysItWasHiddenFromThePerson()
     {
         var cut = RenderUsers();
         OpenAction(cut, "Edit permissions");
 
-        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".access-user-permissions__libraries input")));
-        cut.Find(".access-user-permissions__libraries input").Change(false);
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".area-library-list input")));
+        cut.Find($".area-library-list [data-library-id='{_handler.Library.Id}'] input").Change(false);
 
-        cut.WaitForAssertion(() => Assert.Contains("Permissions for owner@example.test were saved.", cut.Markup));
+        // No "Save permissions" click: the tick saved on its own, with the lanes as they were saved.
+        cut.WaitForAssertion(() => Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal)));
         var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
         var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
         Assert.Equal([_handler.Library.Id], payload.HiddenLibraryIds);
+        Assert.Equal(["listen", "read", "view", "watch"], payload.FeatureIds.Order());
+        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Hidden from owner@example.test"));
+    }
+
+    [Fact]
+    public void Permissions_TickingItAgain_ShowsTheLibraryAgain_AndSaysSo()
+    {
+        _handler.HiddenIds = [_handler.Library.Id];
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".area-library-list input")));
+        Assert.False(cut.Find($".area-library-list [data-library-id='{_handler.Library.Id}'] input").HasAttribute("checked"));
+        cut.Find($".area-library-list [data-library-id='{_handler.Library.Id}'] input").Change(true);
+
+        cut.WaitForAssertion(() => Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal)));
+        var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
+        var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
+        Assert.Empty(payload.HiddenLibraryIds);
+        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Shown to owner@example.test"));
+    }
+
+    [Fact]
+    public void Permissions_EverythingStartsTicked_AnAreaWithOneLibraryShowsNoList_AndAnAreaSwitchedOffShowsNone()
+    {
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+
+        // Read has two libraries, Watch has one: only Read gets a list, and everything in it starts ticked.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-area-libraries='read']")));
+        Assert.Empty(cut.FindAll("[data-area-libraries='watch']"));
+        Assert.All(cut.FindAll("[data-area-libraries='read'] input"), input => Assert.True(input.HasAttribute("checked")));
+
+        // Switching Read off takes its list away.
+        cut.Find("input[aria-label='Read']").Change(false);
+        Assert.Empty(cut.FindAll("[data-area-libraries='read']"));
     }
 
     [Fact]
@@ -69,7 +107,8 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
         // The Libraries part says it could not load, and offers no ticks to change.
         cut.WaitForAssertion(() => Assert.Contains("libraries could not be loaded", cut.Markup));
-        Assert.Empty(cut.FindAll(".access-user-permissions__libraries input"));
+        Assert.Contains("Retry", cut.Find(".app-error-state").TextContent);
+        Assert.Empty(cut.FindAll(".area-library-list input"));
         cut.Find("input[aria-label='Watch']").Change(false);
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
 
@@ -88,11 +127,10 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         var cut = RenderUsers();
         OpenAction(cut, "Edit permissions");
 
-        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".access-user-permissions__libraries input")));
-        cut.Find(".access-user-permissions__libraries input").Change(false);
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".area-library-list input")));
+        cut.Find($".area-library-list [data-library-id='{_handler.Library.Id}'] input").Change(false);
 
-        cut.WaitForAssertion(() => Assert.Contains("Permissions for owner@example.test were saved.", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal)));
         var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
         var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
         Assert.Equal(new[] { hiddenAlready, _handler.Library.Id }.Order(), payload.HiddenLibraryIds.Order());
@@ -404,6 +442,8 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         public Guid AccountId { get; } = Guid.NewGuid();
         public Guid OwnerProfileId { get; } = Guid.NewGuid();
         public AccessLibraryOptionDto Library { get; } = new(Guid.NewGuid(), "Books", "Books", "read");
+        public AccessLibraryOptionDto SecondLibrary { get; } = new(Guid.NewGuid(), "Comics", "Comics", "read");
+        public AccessLibraryOptionDto WatchLibrary { get; } = new(Guid.NewGuid(), "Movies", "Movies", "watch");
         public HttpStatusCode AccessStatus { get; set; } = HttpStatusCode.NoContent;
 
         /// <summary>When true the Engine's library list can't be read (a server error, not an empty list).</summary>
@@ -450,7 +490,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
                     return new HttpResponseMessage(HttpStatusCode.InternalServerError);
                 }
 
-                return Json(new[] { Library });
+                return Json(new[] { Library, SecondLibrary, WatchLibrary });
             }
 
             if (request.Method == HttpMethod.Put && path.EndsWith("/access", StringComparison.Ordinal))

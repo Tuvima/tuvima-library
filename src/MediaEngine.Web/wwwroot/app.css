@@ -4953,6 +4953,12 @@ input[type="reset"],
 .profile-editor__choice span { display: grid; gap: 2px; }
 .profile-editor__choice small { color: var(--tl-text-muted); font-size: .85rem; }
 
+/* The Libraries list under an area on a person's page (AreaLibraryList); global because it sits inside several access screens. */
+.area-library-list { display: grid; gap: 2px; margin: 0 0 8px 16px; }
+.area-library-list__title, .area-library-list__note { color: var(--tl-text-muted); font-size: .85rem; }
+.area-library-list__item--held { opacity: .6; }
+.area-library-list__item .app-checkbox { flex-wrap: wrap; }
+
 /* Top-bar quick profile switch (TopNavProfileSwitcher); global because its buttons are shared components. */
 .profile-switcher {
     display: flex;

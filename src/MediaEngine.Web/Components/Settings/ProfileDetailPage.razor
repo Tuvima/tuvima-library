@@ -13,6 +13,7 @@
 @inject NavigationManager Nav
 @inject IAppDialogService Dialogs
 @inject IAppToastService Toasts
+@inject DeviceContextService DeviceContext
 @inject ILogger<ProfileDetailPage> Logger
 
 @* Settings > Profiles > one person: a short list of rows, the same for your own profile and (for administrators) anyone in the household. *@
@@ -155,6 +156,15 @@
                             <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes" Status="@AccessStatus"
                                             Note="Follows the household's access. Change it on the household's main sign-in."
                                             Href="@(CanOpenHouseholdSettings ? HouseholdAccessRoute : null)" Disabled="@(!CanOpenHouseholdSettings)" />
+                            @if (!_accessLibrariesUnavailable && _access is not null)
+                            {
+                                @* The same Libraries lists, read only: what the main sign-in's access gives this person, with nothing to tick. *@
+                                @foreach (var feature in ManagedAccessUserPermissions.Features.Where(feature => _access.FeatureGrants.Any(grant => grant.Allowed && grant.Feature == feature.Id)))
+                                {
+                                    <AreaLibraryList Area="@feature.Id" Libraries="_accessLibraries" HiddenIds="@AccessHiddenIds" PersonName="@PersonName"
+                                                     PrimaryName="@_accessPrimaryName" FollowsPrimary="true" ReadOnly="true" />
+                                }
+                            }
                         }
                         else
                         {
@@ -267,6 +277,10 @@
                     Error="@_accessError"
                     Libraries="@_accessLibraries"
                     LibrariesUnavailable="@_accessLibrariesUnavailable"
+                    PrimaryName="@_accessPrimaryName"
+                    ReadOnly="@DeviceContext.IsPhone"
+                    OnHiddenChanged="HiddenChangedAsync"
+                    OnRetryLibraries="RetryLibrariesAsync"
                     Account="@_access"
                     OnSave="SaveAccessAsync"
                     OnClose="CloseAccess" />
@@ -298,6 +312,7 @@
     private AccountAccessResponse? _access;
     private List<AccessLibraryOptionDto> _accessLibraries = [];
     private bool _accessLibrariesUnavailable;
+    private string? _accessPrimaryName;
     private bool _accessOpen;
     private bool _accessLoading;
     private bool _accessSaving;
@@ -348,6 +363,10 @@
     // The profile editor saves through administrator-only Engine actions; a member's rename/avatar route may come later.
     private bool CanEditDetails => IsAdministrator;
 
+    private IReadOnlySet<Guid> AccessHiddenIds => (_access?.HiddenLibraryIds ?? []).ToHashSet();
+
+    // "Read, Watch · all libraries", or per lane what is hidden: "Read, Watch · Watch: 1 hidden". Without the Engine's library list
+    // (it failed, or no lane has a library to hide) the hidden ones are only counted.
     private string? AccessStatus
     {
         get
@@ -359,11 +378,23 @@
 
             var lanes = ManagedAccessUserPermissions.Features
                 .Where(feature => _access.FeatureGrants.Any(grant => grant.Allowed && grant.Feature == feature.Id))
-                .Select(feature => feature.Label)
                 .ToList();
+            var laneText = lanes.Count == 0 ? "No lanes" : string.Join(", ", lanes.Select(feature => feature.Label));
             var hidden = _access.HiddenLibraryIds.Count;
-            var laneText = lanes.Count == 0 ? "No lanes" : string.Join(", ", lanes);
-            return hidden == 0 ? $"{laneText} · all libraries" : $"{laneText} · {hidden} hidden";
+            if (hidden == 0)
+            {
+                return $"{laneText} · all libraries";
+            }
+
+            var perLane = _accessLibrariesUnavailable
+                ? []
+                : lanes
+                    .Select(feature => (feature.Label, Count: _accessLibraries.Count(library =>
+                        string.Equals(library.Area, feature.Id, StringComparison.OrdinalIgnoreCase) && _access.HiddenLibraryIds.Contains(library.Id))))
+                    .Where(entry => entry.Count > 0)
+                    .Select(entry => $"{entry.Label}: {entry.Count} hidden")
+                    .ToList();
+            return perLane.Count > 0 ? $"{laneText} · {string.Join(", ", perLane)}" : $"{laneText} · {hidden} hidden";
         }
     }
 
@@ -523,6 +554,11 @@
                 await NameChanged.InvokeAsync(_person.DisplayName);
                 await LoadSettingsAsync();
                 await LoadAccessAsync();
+                if (_access is not null)
+                {
+                    // The summary line names what is hidden per lane, and a person who follows the household shows its lists here.
+                    await LoadLibrariesAsync();
+                }
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
@@ -597,6 +633,7 @@
             if (ShowHouseholdAccess && OwnSignIn is { } signIn)
             {
                 _access = accounts.FirstOrDefault(account => account.Id == signIn.AccountId);
+                _accessPrimaryName = AccessPrimaryName.For(accounts, _access);
             }
 
             // Every account that lets this person open administrator settings, each with its own PIN protection.
@@ -621,11 +658,9 @@
         try
         {
             // The list is what this administrator may hand out, so a Library the household lacks is never offered.
-            var libraries = Identity.GetAccessLibrariesAsync();
+            var libraries = LoadLibrariesAsync();
             await LoadAccessAsync();
-            var loaded = await libraries;
-            _accessLibrariesUnavailable = loaded is null;
-            _accessLibraries = loaded ?? [];
+            await libraries;
             if (AccessFollowsHousehold)
             {
                 // Found out only now that this access follows the household: there is nothing to edit here.
@@ -640,6 +675,71 @@
         finally
         {
             _accessLoading = false;
+        }
+    }
+
+    // Reads the Engine's library picker. A failed read is "unavailable", never "empty": the libraries are then left as they are.
+    private async Task LoadLibrariesAsync()
+    {
+        var loaded = await Identity.GetAccessLibrariesAsync();
+        _accessLibrariesUnavailable = loaded is null;
+        _accessLibraries = loaded ?? [];
+    }
+
+    private async Task RetryLibrariesAsync()
+    {
+        try
+        {
+            await LoadLibrariesAsync();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the Libraries to choose from.");
+            _accessLibrariesUnavailable = true;
+        }
+    }
+
+    // One tick on a lane's Libraries list. It saves straight away: the lanes as they are saved now, and the hidden libraries with this
+    // one added or removed. The lanes still waiting for Save are not sent. Answers true when the Engine took it.
+    private async Task<bool> HiddenChangedAsync(Guid libraryId, bool hidden)
+    {
+        if (_accessSaving || DeviceContext.IsPhone || _accessLibrariesUnavailable || AccessFollowsHousehold || _access is null || OwnSignIn is not { } signIn)
+        {
+            return false;
+        }
+
+        var nextHidden = _access.HiddenLibraryIds.ToHashSet();
+        if (hidden)
+        {
+            nextHidden.Add(libraryId);
+        }
+        else
+        {
+            nextHidden.Remove(libraryId);
+        }
+
+        _accessSaving = true;
+        _accessError = null;
+        try
+        {
+            var lanes = _access.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature).Order().ToArray();
+            var result = await Identity.ReplaceManagedAccountAccessResultAsync(signIn.AccountId,
+                new ReplaceAccountAccessRequest(lanes, nextHidden.Order().ToArray()));
+            if (!result.Succeeded)
+            {
+                _accessError = AccessFailureMessage(result.Failure, result.Message);
+                return false;
+            }
+
+            _access = _access with { HiddenLibraryIds = nextHidden.Order().ToArray() };
+            Toasts.Add(hidden ? $"Hidden from {PersonName}" : $"Shown to {PersonName}", AppSeverity.Success);
+            return true;
+        }
+        finally
+        {
+            _accessSaving = false;
+            // The tick was reported by the list, not by this page, so nothing else would draw the new saved state.
+            StateHasChanged();
         }
     }
 
