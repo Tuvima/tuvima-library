@@ -54,6 +54,9 @@ public static class FolderOrganiseOutcomes
     /// <summary>Merge: the job was stopped before this file was reached, so it is still only in the source folder.</summary>
     public const string LeftInSource = "left_in_source";
 
+    /// <summary>Change what this folder is: the file moved to the new kind's library and was identified again (or its looked-up details were dropped) under it; any filing waits for the batch.</summary>
+    public const string KindChanged = "kind_changed";
+
     public static bool IsFinal(string outcome) => !string.Equals(outcome, Moving, StringComparison.Ordinal);
 
     /// <summary>

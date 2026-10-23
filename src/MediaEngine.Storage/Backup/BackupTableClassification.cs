@@ -195,6 +195,7 @@ public static partial class BackupTableClassification
         Transient("transaction_log", "Change log."),
         Transient("ingestion_log", "Ingestion run log."),
         Transient("folder_organise_log", "Folder organise run log."),
+        Transient("folder_kind_changes", "Plans of the change-what-this-folder-is jobs."),
         Transient("scheduled_task_runs", "Scheduled task run log."),
         Transient("media_operations", "Media operation queue."),
         Transient("media_operation_events", "Media operation log."),

@@ -209,11 +209,31 @@ The ledger of the organising job: one row for each file, and each sidecar, the j
 | `source_id` | BLOB | The library source (folder) being switched |
 | `old_path` | TEXT | Where the file was. Part of the primary key. |
 | `new_path` | TEXT | Where the file went |
-| `outcome` | TEXT | `moving` (intent, not yet finished), `moved`, `moved_unique_name` (a different file had the name, so a numbered name was used), `already_correct`, `duplicate_removed` (an exact copy under Keep one copy), `sidecar_moved`, `not_moved`, `needs_review`, `queued_for_identification`, `skipped` or `failed`. A merge job (`operation_type = merge_folder`) also writes `copied`, `copied_unique_name`, `duplicate_skipped` (an exact copy already in the target, nothing copied), `sidecar_copied`, `merged_for_review` (put in the target's From merge folder) and `left_in_source` (the job stopped before reaching the file); for a merge `old_path` is the file in the source folder and `new_path` its copy in the target |
+| `outcome` | TEXT | `moving` (intent, not yet finished), `moved`, `moved_unique_name` (a different file had the name, so a numbered name was used), `already_correct`, `duplicate_removed` (an exact copy under Keep one copy), `sidecar_moved`, `not_moved`, `needs_review`, `queued_for_identification`, `skipped` or `failed`. A merge job (`operation_type = merge_folder`) also writes `copied`, `copied_unique_name`, `duplicate_skipped` (an exact copy already in the target, nothing copied), `sidecar_copied`, `merged_for_review` (put in the target's From merge folder) and `left_in_source` (the job stopped before reaching the file); for a merge `old_path` is the file in the source folder and `new_path` its copy in the target. A change-of-kind job (`operation_type = change_folder_kind`) writes `kind_changed` (the file moved to the new kind's library and was identified again, or its looked-up details were dropped; `old_path` and `new_path` are the file's path, since filing waits for the batch) and `failed`, with the plain-English `detail` of what was done |
 | `at` | TEXT | Timestamp |
 | `detail` | TEXT | The plain-English reason for any outcome that needs one (nullable) |
 
 Indexes: `idx_folder_organise_log_source (source_id, at)` and `idx_folder_organise_log_old_path (old_path COLLATE NOCASE)`. The second one backs the check the mutation gate makes before every delete, move or rename: a path with a merge line whose original stays in place (`copied`, `copied_unique_name`, `duplicate_skipped`, `sidecar_copied`, `merged_for_review`, `left_in_source`) is never deleted, moved or renamed by anything except the merge job itself, even after the merge is cancelled. A restarted merge also reads this table (any earlier operation for the same `source_id`) to carry on from copies already made.
+
+### folder_kind_changes
+
+The plan of one "Change what this folder is" job (Library setup spec D40(c), D60, D61, D69; added by upgrade step `0046_folder_kind_changes`). It is written before anything changes, so a job stopped half way carries on from the same plan. One row per job; the owning operation is a `media_operations` row (`operation_type = change_folder_kind`, `queue_name = folder_jobs`) with the same id, and the job's per-file progress is its `folder_organise_log` ledger.
+
+| Column | Type | Notes |
+|---|---|---|
+| `operation_id` | BLOB | Primary key; the `media_operations` row that runs the change |
+| `source_id` | BLOB | The folder (library source) being changed |
+| `from_library_id` | TEXT | The configured library the folder came from |
+| `to_library_id` | TEXT | The configured library the folder goes into |
+| `from_kind_key` | TEXT | The kind the folder was |
+| `to_kind_key` | TEXT | The kind the folder becomes |
+| `target_media_type` | TEXT | The Engine media type its files are filed under afterwards (`Movies`, `Videos`, `Music`, ...) |
+| `target_is_plain` | INTEGER | 1 when the new kind is plain: its files drop the details looked up for them (D69) |
+| `starts_first_check` | INTEGER | 1 when the new kind looks details up: a new first check starts for the folder and its filing moves are held until it passes (D35, D61) |
+| `created_at` | TEXT | When the plan was written, ISO 8601 UTC |
+| `config_applied_at` | TEXT | When the folder moved to the new library in `libraries.json` and its first checks were settled, ISO 8601 UTC; null until then. That step is never repeated |
+
+Index: `idx_folder_kind_changes_source (source_id)`, which finds a folder's latest plan (a change that was cancelled or failed half way can be started again to finish its files).
 
 ### excluded_source_files
 

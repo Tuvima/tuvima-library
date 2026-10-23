@@ -86,6 +86,11 @@ public static class TuvimaStorageServiceCollectionExtensions
             sp.GetRequiredService<ILoggerFactory>().CreateLogger("MediaEngine.Api.Services.Libraries.RecycleBinService")));
         services.AddSingleton<ExcludedFileService>();
         services.AddSingleton<FolderJobService>();
+        services.AddSingleton<IEntityRescorer, ClaimRescorer>();
+        // The files Tuvima wrote for a title that a placement removed; also registered by the library-move module, so only added when it is not there yet.
+        services.TryAddSingleton<MediaEngine.Api.Services.Libraries.Moves.MoveOwnedFileCleaner>();
+        services.AddSingleton<FolderKindChangeRunner>();
+        services.AddSingleton<FolderKindChangeService>();
         services.AddSingleton<ServerFolderBrowserService>();
         services.AddSingleton<ImportFolderApplier>();
         services.AddSingleton<SetupMediaLocationValidationService>();
@@ -214,6 +219,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ITasteOverrideRepository, TasteOverrideRepository>();
         services.TryAddSingleton<IIngestionQueueProgressRepository, IngestionQueueProgressRepository>();
         services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
+        services.AddSingleton<IFolderKindChangeRepository, FolderKindChangeRepository>();
         services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
         services.AddSingleton<IImportUploadRepository, ImportUploadRepository>();
         services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();

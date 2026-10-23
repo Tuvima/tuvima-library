@@ -268,6 +268,52 @@ exportable log, pause, resume, cancel, restart-resume).
   could resume has its unfinished lines closed as `copied` (`KeepUnfinishedMergeCopiesAsync`)
   so the original beside a copy that landed is protected too. If the ledger cannot be read
   the gate refuses (fail closed).
+
+### Change-kind job (changing what a folder is)
+
+"Change what this folder is" (Library setup D40(c), D60 to D64, D69) moves one folder to a library of another kind in the same
+area (Movies to Videos, Music to Other audio, Other videos to YouTube). `POST /settings/libraries/folders/{sourceId}/change-kind/preview`
+and `POST .../change-kind` (`{kind_key, library_id?}`, administrators only) share `FolderKindChangeService`, which refuses a Vault
+folder or target, an unknown kind, the folder's current kind (unless an earlier change of the folder was cancelled or failed half way,
+when starting it again finishes the rest), a kind from another area, a library that is not a library of that kind, and a folder with
+any folder job already open. A new named library (Other videos, Other audio, Other reading allow up to five) is created first through
+the normal library action; the Engine never creates one here, and a kind with no library yet is refused with a plain message.
+
+The start writes the plan to `folder_kind_changes` (one row per job, before anything changes) and queues one `media_operations` row
+(`change_folder_kind`, the same `folder_jobs` queue, one job at a time). `FolderOrganiseJobWorker` runs it with
+`FolderKindChangeRunner`, which reuses the organising job's control, progress and ledger plumbing (`folder_organise_log`: an intent
+`moving` before each file and `kind_changed` or `failed` after it; pause, resume, cancel and restart-resume work as for the other
+folder jobs; the folder row shows the job's state). The folder row carries no extra state.
+
+- **Once, first.** The folder's `sources[]` entry moves to the target library in `libraries.json` (its management mode and access are
+  unchanged; the old library stays even if it is left with no folders). Its old first check and the filing moves held for it end
+  (`FolderFirstCheckService.EndBecauseKindChangedAsync`), and a target that looks details up starts a new first check
+  (`StartForKindChangeAsync`, D35, D61). `config_applied_at` on the plan records that this is done, so it is never repeated.
+- **Each file, recorded in the ledger, safe to repeat.**
+  1. If the file's Work has a different media type, it is placed again the way ingestion places a new file:
+     `HierarchyResolver.ResolveAsync` finds or makes the new Work and its parents (from the file's own canonical values),
+     the file's Edition moves under it, the file's media type is recorded as a current claim, what people did with the old
+     title (`WorkPersonalStateMerge.Carry`: plays, hearts, saves, bookmarks, queue places, collections, tags) and the details they
+     set on it (locked and manual claims) go to the new one, and the old title and any parent it leaves empty are removed
+     (`LibraryItemDeletionRepository.DeleteWorksCore`). With the same media type (Music to Other audio, Other videos to YouTube) the
+     Work stays where it is. Asset-keyed state (watch progress) never moves because the asset row stays.
+  2. `media_assets.library_id` becomes the target library.
+  3. A plain target drops the details looked up for the file and its Work (D69): claims from providers, bridge ids, the Wikidata id,
+     external identifiers and provider artwork links. Claims from the file itself (tags, file name) and a person's own edits stay;
+     the canonical values of the keys that lost claims are worked out again from the claims that remain (`ScoringHelper`), so the file
+     shows by its file name and embedded tags and a refile plan still has a name to take. A YouTube target reads the file again so the
+     video-ID lookup runs under the new library. Any other lookup kind queues a new `Quick` identity job with the new media type, the
+     way the Unmatched retry does.
+  4. In a Managed, writable folder the file's filing into the new kind's pattern is queued (`IFilingQueue.RequestFilingAsync`), held
+     while the first check runs. Filing waits for the batch (D62) and the file stays playable until then (D63); a file in use goes
+     to the retry batch as it does today. A Read-only folder changes kind with nothing queued and nothing moved.
+- **Re-filing template.** The refile planner takes its naming template from the file's media type (`AutoOrganizeService.PlanRefileAsync`),
+  not from the kind's `naming_template`. A change that keeps the media type therefore finds a file already fitting (nothing moves);
+  a change that re-places the file uses the new media type's template. The kind's `naming_template` is not yet read by the organiser.
+- **Activity.** One `FolderKindChanged` entry when the job finishes: "{folder} changed from {old kind} to {new kind}: {n} files".
+- **Not covered.** Details dropped from a file's Work do not reach parents it shares with other files (an album, a show); a parent a
+  placement leaves empty is removed, but personal state attached to that parent is not carried. A file whose canonical values hold no
+  show, album or series folder is placed under a stand-alone Work of the new type until identification fills it in.
 - **Known limits.** These are recorded, not fixed:
   - `AutoOrganizeService` still moves files out of a managed folder that is not the
     destination into the destination's root; a merge into such a target is unaffected by

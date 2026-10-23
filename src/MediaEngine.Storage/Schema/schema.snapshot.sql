@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0045 simpler_access_hidden_libraries).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0046 folder_kind_changes).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1134,6 +1134,20 @@ CREATE TABLE folder_first_checks (
     unmatched            INTEGER NOT NULL DEFAULT 0 CHECK (unmatched >= 0),
     started_at           TEXT NOT NULL,
     ended_at             TEXT
+);
+
+CREATE TABLE folder_kind_changes (
+    operation_id      BLOB NOT NULL PRIMARY KEY,
+    source_id         BLOB NOT NULL,
+    from_library_id   TEXT NOT NULL,
+    to_library_id     TEXT NOT NULL,
+    from_kind_key     TEXT NOT NULL,
+    to_kind_key       TEXT NOT NULL,
+    target_media_type TEXT NOT NULL,
+    target_is_plain   INTEGER NOT NULL CHECK (target_is_plain IN (0, 1)),
+    starts_first_check INTEGER NOT NULL CHECK (starts_first_check IN (0, 1)),
+    created_at        TEXT NOT NULL,           -- ISO 8601 UTC
+    config_applied_at TEXT                     -- ISO 8601 UTC; null until the folder has moved to the new library
 );
 
 CREATE TABLE folder_organise_log (
@@ -3320,6 +3334,8 @@ CREATE INDEX idx_field_changes_field ON entity_field_changes(entity_id, field);
 
 CREATE INDEX idx_file_hash_cache_sha256
     ON file_hash_cache(sha256);
+
+CREATE INDEX idx_folder_kind_changes_source ON folder_kind_changes (source_id);
 
 CREATE INDEX idx_folder_organise_log_old_path
   ON folder_organise_log(old_path COLLATE NOCASE);

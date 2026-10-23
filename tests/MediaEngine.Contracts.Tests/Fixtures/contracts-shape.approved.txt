@@ -8151,6 +8151,26 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderJobStatusDto
   CompletedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   HasLog: System.Boolean | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderKindChangePreviewResponse
+  SourceId: System.String | nullability=not-null | accessors=get,set
+  FromKindLabel: System.String | nullability=not-null | accessors=get,set
+  ToKindKey: System.String | nullability=not-null | accessors=get,set
+  ToKindLabel: System.String | nullability=not-null | accessors=get,set
+  ToLibraryId: System.String | nullability=not-null | accessors=get,set
+  ToLibraryName: System.String | nullability=not-null | accessors=get,set
+  FileCount: System.Int32 | nullability=not-null | accessors=get,set
+  Moves: System.Int32 | nullability=not-null | accessors=get,set
+  DropsDetails: System.Boolean | nullability=not-null | accessors=get,set
+  StartsFirstCheck: System.Boolean | nullability=not-null | accessors=get,set
+  OtherAppsWarning: System.Boolean | nullability=not-null | accessors=get,set
+  VisibilityLoss: System.Collections.Generic.List<MediaEngine.Contracts.Authentication.VisibilityLossDto> | nullability=not-null | accessors=get,set
+  VisibilityLossChecked: System.Boolean | nullability=not-null | accessors=get,set
+  VisibilityMessage: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderKindChangeRequest
+  KindKey: System.String | nullability=not-null | accessors=get,set
+  LibraryId: System.String | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderMergePreviewRequest
   SourceId: System.String | nullability=not-null | accessors=get,set
   TargetSourceId: System.String | nullability=not-null | accessors=get,set

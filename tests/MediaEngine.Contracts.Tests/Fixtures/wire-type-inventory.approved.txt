@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1243; api=0; web-client=54
+# scopes: contracts=1245; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9609,6 +9609,30 @@
   CompletedAt: System.DateTimeOffset? | json=completed_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasLog: System.Boolean | json=has_log | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"operation_id":"sample","source_id":"sample","job_type":"sample","state":"sample","items_total":7,"items_completed":7,"items_failed":7,"progress_percent":7,"estimated_seconds_remaining":7,"message":"sample","queued_behind":"sample","started_at":"2025-01-02T03:04:05+00:00","completed_at":"2025-01-02T03:04:05+00:00","has_log":true}
+
+[contracts] MediaEngine.Contracts.Settings.FolderKindChangePreviewResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  SourceId: System.String | json=source_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FromKindLabel: System.String | json=from_kind_label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ToKindKey: System.String | json=to_kind_key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ToKindLabel: System.String | json=to_kind_label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ToLibraryId: System.String | json=to_library_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ToLibraryName: System.String | json=to_library_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileCount: System.Int32 | json=file_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Moves: System.Int32 | json=moves | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DropsDetails: System.Boolean | json=drops_details | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StartsFirstCheck: System.Boolean | json=starts_first_check | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OtherAppsWarning: System.Boolean | json=other_apps_warning | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  VisibilityLoss: System.Collections.Generic.List<MediaEngine.Contracts.Authentication.VisibilityLossDto> | json=visibility_loss | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  VisibilityLossChecked: System.Boolean | json=visibility_loss_checked | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  VisibilityMessage: System.String | json=visibility_message | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"source_id":"sample","from_kind_label":"sample","to_kind_key":"sample","to_kind_label":"sample","to_library_id":"sample","to_library_name":"sample","file_count":7,"moves":7,"drops_details":true,"starts_first_check":true,"other_apps_warning":true,"visibility_loss":[],"visibility_loss_checked":true,"visibility_message":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.FolderKindChangeRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  KindKey: System.String | json=kind_key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LibraryId: System.String | json=library_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind_key":"sample","library_id":"sample"}
 
 [contracts] MediaEngine.Contracts.Settings.FolderMergePreviewRequest
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -226,7 +226,7 @@ public sealed class FolderJobStatusDto
     [JsonPropertyName("source_id")]
     public string SourceId { get; set; } = string.Empty;
 
-    /// <summary><c>organise_folder</c> or <c>merge_folder</c>.</summary>
+    /// <summary><c>organise_folder</c>, <c>merge_folder</c> or <c>change_folder_kind</c>.</summary>
     [JsonPropertyName("job_type")]
     public string JobType { get; set; } = "organise_folder";
 
@@ -301,4 +301,77 @@ public sealed class FolderJobLogDto
 
     [JsonPropertyName("entries")]
     public List<FolderJobLogEntryDto> Entries { get; set; } = [];
+}
+
+/// <summary>
+/// Asks to change what a folder is (Library setup D40(c)): the kind it should become and the library of that kind it goes into. The folder is
+/// named by the route. A kind that holds one library needs no <see cref="LibraryId"/> (the kind's own library is used); a kind that allows
+/// several named libraries needs the id of an existing library of that kind. A new library is created first, through the normal library
+/// action, and its id is passed here.
+/// </summary>
+public sealed class FolderKindChangeRequest
+{
+    /// <summary>The kind the folder becomes (for example <c>other_audio</c>). Never a Vault kind, never the folder's current kind, and always in the same area.</summary>
+    [JsonPropertyName("kind_key")]
+    public string KindKey { get; set; } = string.Empty;
+
+    /// <summary>The existing library of that kind the folder moves into. Required for a kind with several libraries (unless it has exactly one); when given it must be a library of <see cref="KindKey"/>.</summary>
+    [JsonPropertyName("library_id")]
+    public string? LibraryId { get; set; }
+}
+
+/// <summary>What changing what a folder is would do, worked out without changing anything: the numbers for the confirmation (D60).</summary>
+public sealed class FolderKindChangePreviewResponse
+{
+    [JsonPropertyName("source_id")]
+    public string SourceId { get; set; } = string.Empty;
+
+    /// <summary>What the folder is now (the kind's label, for example "Movies").</summary>
+    [JsonPropertyName("from_kind_label")]
+    public string FromKindLabel { get; set; } = string.Empty;
+
+    [JsonPropertyName("to_kind_key")]
+    public string ToKindKey { get; set; } = string.Empty;
+
+    [JsonPropertyName("to_kind_label")]
+    public string ToKindLabel { get; set; } = string.Empty;
+
+    /// <summary>The library the folder moves into.</summary>
+    [JsonPropertyName("to_library_id")]
+    public string ToLibraryId { get; set; } = string.Empty;
+
+    [JsonPropertyName("to_library_name")]
+    public string ToLibraryName { get; set; } = string.Empty;
+
+    /// <summary>The files in the folder that change kind with it.</summary>
+    [JsonPropertyName("file_count")]
+    public int FileCount { get; set; }
+
+    /// <summary>How many files will be re-filed into the new kind's naming pattern in the next batch; 0 for a Read-only folder, where nothing moves.</summary>
+    [JsonPropertyName("moves")]
+    public int Moves { get; set; }
+
+    /// <summary>True when the new kind is plain and the folder's kind now looks details up, so the details looked up for its files are dropped (D69).</summary>
+    [JsonPropertyName("drops_details")]
+    public bool DropsDetails { get; set; }
+
+    /// <summary>True when the new kind looks details up, so a new first check starts for the folder and moves wait until it passes (D35, D61).</summary>
+    [JsonPropertyName("starts_first_check")]
+    public bool StartsFirstCheck { get; set; }
+
+    /// <summary>True for a Managed folder: other apps pointing at its files (another player, a playlist, a backup) will lose them when they are re-filed.</summary>
+    [JsonPropertyName("other_apps_warning")]
+    public bool OtherAppsWarning { get; set; }
+
+    /// <summary>The people who can see these files now and would not in the new library (Simpler access D13). Meaningful only when <see cref="VisibilityLossChecked"/> is true.</summary>
+    [JsonPropertyName("visibility_loss")]
+    public List<MediaEngine.Contracts.Authentication.VisibilityLossDto> VisibilityLoss { get; set; } = [];
+
+    /// <summary>False when who would lose sight of the files could not be worked out; an empty <see cref="VisibilityLoss"/> then does not mean nobody.</summary>
+    [JsonPropertyName("visibility_loss_checked")]
+    public bool VisibilityLossChecked { get; set; }
+
+    /// <summary>The plain reason the question was refused or could not be answered, when <see cref="VisibilityLossChecked"/> is false.</summary>
+    [JsonPropertyName("visibility_message")]
+    public string? VisibilityMessage { get; set; }
 }
