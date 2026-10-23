@@ -24,7 +24,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_PlayingAVaultFile_KeepsTheUnlockedSessionAwake_SoTheIdleLockNeverInterruptsIt()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockNearlyIdleAsync(session);
         Assert.False(await StillUnlockedInAsync(session, TimeSpan.FromMinutes(10)));
@@ -41,7 +41,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_UsingAnOrdinaryFile_DoesNotKeepNsfwModeAwake()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockNearlyIdleAsync(session);
 
@@ -55,7 +55,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_ASessionThatHasAlreadyLocked_IsNotWokenByAskingForAVaultFile_AndGetsNotFound()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         var nsfw = new NsfwAccessRepository(_database);
         await nsfw.SetAsync(VaultProfile, NsfwAccessMode.Allowed, 15, null, DateTimeOffset.UtcNow - TimeSpan.FromMinutes(30));
@@ -71,7 +71,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_NsfwModeBelongsToOneDeviceSession_AnotherSessionOfTheSameProfileStaysLocked()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var phone = NewVaultSession(shape.Account);
         var television = NewVaultSession(shape.Account);
         await UnlockVaultAsync(phone);
@@ -99,7 +99,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_FetchingASegmentOfAVaultVideo_KeepsTheUnlockedSessionAwake()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockNearlyIdleAsync(session);
         Assert.False(await StillUnlockedInAsync(session, TimeSpan.FromMinutes(10)));
@@ -115,7 +115,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_FetchingASegmentOfAnOrdinaryVideo_DoesNotKeepNsfwModeAwake()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockNearlyIdleAsync(session);
 
@@ -128,7 +128,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_ASegmentGrantForAPairedAppOrAnAnonymousCaller_NeverWakesNsfwMode()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockNearlyIdleAsync(session);
         var resources = CreateResourceService(VaultContext(shape.Account, session));

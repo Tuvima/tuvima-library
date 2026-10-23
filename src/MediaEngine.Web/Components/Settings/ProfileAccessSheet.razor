@@ -60,7 +60,7 @@
     [Parameter] public bool Saving { get; set; }
     [Parameter] public string? Error { get; set; }
 
-    /// <summary>Only the Libraries the Engine says this administrator may hand out.</summary>
+    /// <summary>Every Library an administrator can hide from the person (the Engine marks the ones the household's main sign-in already hides).</summary>
     [Parameter] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
 
     /// <summary>The person's current lanes and Libraries, used each time the sheet opens or finishes loading.</summary>
@@ -85,10 +85,12 @@
     {
         _featureIds.Clear();
         _libraryIds.Clear();
+        // A ticked library is one that is not hidden from the person: every library starts ticked.
+        _libraryIds.UnionWith(Libraries.Select(library => library.Id));
         if (Account is { } account)
         {
             _featureIds.UnionWith(account.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature));
-            _libraryIds.UnionWith(account.LibraryGrants.Where(grant => grant.Allowed).Select(grant => grant.LibraryId));
+            _libraryIds.ExceptWith(account.HiddenLibraryIds);
         }
     }
 
@@ -117,7 +119,9 @@
     }
 
     private Task SaveAsync() =>
-        OnSave.InvokeAsync(new ReplaceAccountAccessRequest(_featureIds.Order().ToArray(), _libraryIds.Order().ToArray()));
+        OnSave.InvokeAsync(new ReplaceAccountAccessRequest(
+            _featureIds.Order().ToArray(),
+            Libraries.Select(library => library.Id).Where(id => !_libraryIds.Contains(id)).Order().ToArray()));
 
     private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
 

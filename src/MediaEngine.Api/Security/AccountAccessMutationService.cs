@@ -64,7 +64,7 @@ public sealed class AccountAccessMutationService(
         {
             throw new InvalidOperationException("Child profiles can't be administrators.");
         }
-        ValidateLibraries(command.Libraries);
+        ValidateLibraries(command.HiddenLibraries);
 
         var now = clock.GetUtcNow();
         var email = NormalizeEmail(command.Email);
@@ -90,7 +90,7 @@ public sealed class AccountAccessMutationService(
             GrantedAt = now,
         };
         await accounts.CreateAccountAsync(
-            account, grant, command.Features, command.Libraries, ct, newProfile).ConfigureAwait(false);
+            account, grant, command.Features, command.HiddenLibraries, ct, newProfile, actor.AccountId).ConfigureAwait(false);
         if (!string.IsNullOrEmpty(command.TemporaryPassword))
         {
             try
@@ -880,7 +880,7 @@ public sealed class AccountAccessMutationService(
         RequestAuthority actor,
         Guid accountId,
         IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries,
+        IReadOnlySet<Guid> hiddenLibraries,
         CancellationToken ct = default)
     {
         var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
@@ -889,7 +889,7 @@ public sealed class AccountAccessMutationService(
         {
             throw new KeyNotFoundException("Account not found.");
         }
-        ValidateLibraries(libraries);
+        ValidateLibraries(hiddenLibraries);
         if (target.GrantsInheritFromAccountId is not null)
         {
             throw new InvalidOperationException("This person's access follows the household. Change it on the household's main sign-in.");
@@ -898,11 +898,12 @@ public sealed class AccountAccessMutationService(
         if (householdOnly)
         {
             RequireNotAdministratorTarget(target, householdOnly);
-            await RequireWithinHouseholdAccessAsync(target, features, libraries, ct).ConfigureAwait(false);
+            // The main sign-in's hidden libraries always apply, whatever was sent (simpler access D4).
+            hiddenLibraries = await RequireWithinHouseholdAccessAsync(target, features, hiddenLibraries, ct).ConfigureAwait(false);
         }
 
         await accounts.ReplaceAccountAccessAsync(
-            accountId, features, libraries, clock.GetUtcNow(), ct).ConfigureAwait(false);
+            accountId, features, hiddenLibraries, clock.GetUtcNow(), ct, actor.AccountId).ConfigureAwait(false);
         await ChangedAsync(actor, "account.access_replaced", "account", accountId.ToString("D"),
             accountId, null, ct).ConfigureAwait(false);
     }
@@ -1172,13 +1173,14 @@ public sealed class AccountAccessMutationService(
     }
 
     /// <summary>
-    /// A household administrator hands out only what the household already has: nothing beyond the libraries and features of
-    /// the household's primary sign-in (the one the server administrator set up).
+    /// A household administrator hands out only what the household already has: no feature beyond those of the household's primary
+    /// sign-in (the one the server administrator set up), and never a library the primary sign-in hides. Returns the hidden libraries to
+    /// save: the ones sent plus every one the primary sign-in hides, so the inherited ones always apply.
     /// </summary>
-    private async Task RequireWithinHouseholdAccessAsync(
+    private async Task<IReadOnlySet<Guid>> RequireWithinHouseholdAccessAsync(
         Account target,
         IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries,
+        IReadOnlySet<Guid> hiddenLibraries,
         CancellationToken ct)
     {
         var primaryId = target.HouseholdId is { } household
@@ -1187,15 +1189,16 @@ public sealed class AccountAccessMutationService(
         var allowedFeatures = primaryId is { } featureSource
             ? (await accounts.GetFeatureGrantsAsync(featureSource, ct).ConfigureAwait(false)).Select(feature => feature.Value).ToHashSet()
             : [];
-        var allowedLibraries = primaryId is { } librarySource
-            ? (await accounts.GetLibraryGrantsAsync(librarySource, ct).ConfigureAwait(false)).ToHashSet()
-            : [];
-        if (features.Any(feature => !allowedFeatures.Contains(feature.Value)) ||
-            libraries.Any(library => !allowedLibraries.Contains(library)))
+        var hiddenByPrimary = primaryId is { } librarySource
+            ? await accounts.GetHiddenLibrariesAsync(librarySource, ct).ConfigureAwait(false)
+            : new HashSet<Guid>();
+        if (features.Any(feature => !allowedFeatures.Contains(feature.Value)))
         {
             throw new UnauthorizedAccessException(
-                "A household administrator can only hand out the libraries and features the household already has.");
+                "A household administrator can only hand out the features the household already has.");
         }
+
+        return hiddenLibraries.Union(hiddenByPrimary).ToHashSet();
     }
 
     private async Task RequireWriteAsync(RequestAuthority actor, CancellationToken ct)

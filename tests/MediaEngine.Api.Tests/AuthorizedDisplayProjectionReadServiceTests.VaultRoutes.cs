@@ -29,7 +29,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_EveryRouteThatClearsAVaultFile_MarksItsResponsePrivateAndUncacheable()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var context = VaultContext(shape.Account, session);
@@ -46,7 +46,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_ARouteThatSetsItsOwnCaching_CannotUndoTheVaultHeader()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var context = VaultContext(shape.Account, session);
@@ -64,7 +64,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_AnOrdinaryFile_KeepsItsNormalCaching()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var context = VaultContext(shape.Account, session);
@@ -77,7 +77,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_TheVaultArtworkRoute_IsUncacheableWhetherTheImageIsFoundOrNot()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var route = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
         var locked = await InvokeAsync(route["GetVaultArtwork"], shape.Account, NewVaultSession(shape.Account), ("artworkId", Guid.NewGuid().ToString("D")));
 
@@ -94,7 +94,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData("MoveReviewItemToTv", false)]
     public async Task Vault_AReviewItemOnAVaultFile_AnswersExactlyLikeAMissingOne_ForEveryReviewAction(string routeName, bool hasBody)
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var vaultReview = await InsertReviewAsync(shape.Secret.AssetId, ReviewStatus.Pending);
         var workReview = await InsertReviewAsync(shape.Secret.WorkId, ReviewStatus.Pending, "Work");
         var session = NewVaultSession(shape.Account);
@@ -124,7 +124,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_AnOrdinaryReviewItem_StillGetsPastTheVaultCheck()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var ordinary = await InsertReviewAsync(shape.Normal.AssetId, ReviewStatus.Dismissed);
         var routes = await MapReviewRoutesAsync();
 
@@ -139,7 +139,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_CapabilityStateOfAVaultAsset_IsEmptyExactlyLikeAnIdThatDoesNotExist()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         await SeedCapabilityAsync(shape.Secret.AssetId);
         await SeedCapabilityAsync(shape.Normal.AssetId);
         var routes = await MapRoutesAsync(builder => builder.MapCapabilityEndpoints());
@@ -159,7 +159,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_TheCapabilitySummary_NeverCountsAVaultAsset()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         await SeedCapabilityAsync(shape.Secret.AssetId);
         await SeedCapabilityAsync(shape.Normal.AssetId);
 

@@ -27,6 +27,9 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     // limit and keep the Vault out of view.
     private ContentLimitPolicy? _contentLimits;
 
+    private readonly object _hiddenLock = new();
+    private (Guid AccountId, Task<IReadOnlySet<Guid>> Hidden)? _hidden;
+
     private IUnmatchedAssetRepository? _unmatched;
 
     private IUnmatchedAssetRepository Unmatched => _unmatched ??= new UnmatchedAssetRepository(database);
@@ -143,7 +146,9 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     public async Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct)
     {
         var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
-        return scope.IsValid ? new DisplayLibraryScope(scope.AllLibraries, scope.Libraries) : new DisplayLibraryScope(false, new HashSet<Guid>());
+        return scope.IsValid
+            ? new DisplayLibraryScope(scope.HiddenLibraries)
+            : DisplayLibraryScope.Nothing;
     }
 
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsAsync(CancellationToken ct) =>
@@ -374,8 +379,25 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         }
 
         var features = await accounts.GetFeatureGrantsAsync(authority.AccountId!.Value, ct).ConfigureAwait(false);
-        var libraries = await accounts.GetLibraryGrantsAsync(authority.AccountId.Value, ct).ConfigureAwait(false);
-        return new(authority, true, false, libraries, features, content);
+        var hidden = await HiddenLibrariesAsync(authority.AccountId.Value, ct).ConfigureAwait(false);
+        return new(authority, true, false, hidden, features, content);
+    }
+
+    // The hidden set is read once per request (this service lives for one request) and shared by every read that asks, so a request that
+    // loads works, Home, search and counts pays for one lookup, not one per read.
+    private Task<IReadOnlySet<Guid>> HiddenLibrariesAsync(Guid accountId, CancellationToken ct)
+    {
+        lock (_hiddenLock)
+        {
+            if (_hidden is { } cached && cached.AccountId == accountId)
+            {
+                return cached.Hidden;
+            }
+
+            var loading = accounts.GetHiddenLibrariesAsync(accountId, ct);
+            _hidden = (accountId, loading);
+            return loading;
+        }
     }
 
     private async Task<IReadOnlyList<DisplayWorkRow>> FilterWorksAsync(
@@ -441,7 +463,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     {
         if (scope.Content.IsVaultLibrary(libraryId))
         {
-            // Vault access is the device session's Vault mode, not an account's library grants; the Watch feature still applies.
+            // Vault access is the device session's Vault mode, never the ordinary library rule; the Watch feature still applies.
             return scope.Content.Vault.Unlocked && scope.Features.Contains(AccountFeatureId.Watch);
         }
 
@@ -455,7 +477,10 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return false;
         }
 
-        return scope.AllLibraries || scope.Libraries.Contains(parsedLibraryId);
+        // The feature check above is the area; the one visibility rule decides the rest (Vault handled at the top).
+        return LibraryVisibilityRule.MaySee(
+            isAdministrator: scope.AllLibraries, isVault: false, hasArea: true,
+            isHidden: scope.HiddenLibraries.Contains(parsedLibraryId));
     }
 
     private static AccountFeatureId FeatureFor(string mediaType) =>
@@ -469,7 +494,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         RequestAuthority Authority,
         bool IsValid,
         bool AllLibraries,
-        IReadOnlySet<Guid> Libraries,
+        IReadOnlySet<Guid> HiddenLibraries,
         IReadOnlySet<AccountFeatureId> Features,
         ContentLimitFilter Content)
     {

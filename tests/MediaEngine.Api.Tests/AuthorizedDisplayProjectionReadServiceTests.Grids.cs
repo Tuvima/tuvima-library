@@ -379,17 +379,18 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Grid_FormatFilterIgnoresFilesOwnedInLibrariesTheViewerHasNoGrantFor()
+    public async Task Grid_FormatFilterIgnoresFilesOwnedInLibrariesHiddenFromTheViewer()
     {
-        var (context, library) = await SignInForLookupsAsync(AccountFeatureId.Watch);
+        var hiddenLibrary = Guid.NewGuid();
+        var (context, library) = await SignInForLookupsAsync(new HashSet<Guid> { hiddenLibrary }, AccountFeatureId.Watch);
         var split = await InsertOwnedWorkWithIdAsync(library, "Split film", "Movie");
         var control = await InsertOwnedWorkWithIdAsync(library, "Control film", "Movie");
         SetOwnedPath(split.AssetId, $"C:/library/{split.AssetId:N}.mkv");
         SetOwnedPath(control.AssetId, $"C:/library/{control.AssetId:N}.mkv");
         SetVideoHeight(split.AssetId, 480);
         SetVideoHeight(control.AssetId, 1080);
-        // The same Work also has a 4K file, but in a library this account has no grant for.
-        AddMovieFileInLibrary(split.WorkId, Guid.NewGuid(), 2160, "Split film");
+        // The same Work also has a 4K file, but in a library hidden from this account.
+        AddMovieFileInLibrary(split.WorkId, hiddenLibrary, 2160, "Split film");
         var composer = CreateGridComposer(context);
 
         var movies = await composer.BuildGridAsync("watch", "movies", new DisplayGridQuery());
@@ -405,12 +406,12 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Grid_FormatFilterCountsFilesInEveryLibraryTheViewerIsGrantedFor()
+    public async Task Grid_FormatFilterCountsFilesInEveryLibraryNotHiddenFromTheViewer()
     {
         var account = Guid.NewGuid();
         var library = Guid.NewGuid();
         var other = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library, other });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
         var context = HumanContext(account, ProfileForLookups);
         var split = await InsertOwnedWorkWithIdAsync(library, "Split film", "Movie");
         SetOwnedPath(split.AssetId, $"C:/library/{split.AssetId:N}.mkv");

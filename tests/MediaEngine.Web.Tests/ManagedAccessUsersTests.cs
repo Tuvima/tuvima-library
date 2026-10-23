@@ -39,7 +39,22 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
         var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
         Assert.Equal(["listen", "read", "view"], payload.FeatureIds.Order());
-        Assert.Equal([_handler.Library.Id], payload.LibraryIds);
+        Assert.Empty(payload.HiddenLibraryIds);
+    }
+
+    [Fact]
+    public void Permissions_UntickingALibrary_SavesItAsHiddenFromThePerson()
+    {
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+
+        cut.Find("input[aria-label='Books']").Change(false);
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Permissions for owner@example.test were saved.", cut.Markup));
+        var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
+        var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
+        Assert.Equal([_handler.Library.Id], payload.HiddenLibraryIds);
     }
 
     [Fact]
@@ -53,7 +68,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
         var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
         Assert.Equal(["listen", "read", "watch"], payload.FeatureIds.Order());
-        Assert.Equal([_handler.Library.Id], payload.LibraryIds);
+        Assert.Empty(payload.HiddenLibraryIds);
     }
 
     [Fact]
@@ -411,7 +426,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
             return new(AccountId, Email, true, true, 1,
                 [new("read", true), new("watch", true), new("listen", true), new("view", true)],
-                [new(Library.Id, Library.DisplayName, true)], grants,
+                [], grants,
                 DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(-2),
                 MustChangePassword: TemporaryPasswordSet,
                 TemporaryPasswordExpiresAt: TemporaryPasswordSet ? DateTimeOffset.UtcNow.AddDays(7) : null,

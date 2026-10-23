@@ -152,7 +152,7 @@ public sealed class MediaEditorSelectionHistoryRouteTests
             Guid libraryId, CancellationToken ct = default)
             => ValueTask.FromResult(libraryId == allowedLibrary
                 ? AuthorizationDecision.Allow()
-                : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant));
+                : AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible));
         public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(RequestAuthority authority,
             bool requireSurfaceUnlock, CancellationToken ct = default)
             => ValueTask.FromResult(AuthorizationDecision.Allow());

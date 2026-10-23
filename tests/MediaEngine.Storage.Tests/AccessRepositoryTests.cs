@@ -339,7 +339,7 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AVaultLibrary_CanNeverBeGrantedToAnAccount_AndNothingIsChangedWhenItIsTried()
+    public async Task AVaultLibrary_CanNeverBeHiddenFromAnAccount_AndNothingIsChangedWhenItIsTried()
     {
         var account = new Account
         {
@@ -371,7 +371,98 @@ public sealed class AccessRepositoryTests : IDisposable
             new HashSet<Guid> { ordinary, vault },
             _now.AddMinutes(1)));
 
-        Assert.Equal(new HashSet<Guid> { ordinary }, (await _accounts.GetLibraryGrantsAsync(account.Id)).ToHashSet());
+        Assert.Equal(new HashSet<Guid> { ordinary }, (await _accounts.GetHiddenLibrariesAsync(account.Id)).ToHashSet());
+    }
+
+    [Fact]
+    public async Task ANewAccount_HasNoHiddenLibraries_SoANewLibraryNeedsNoRow()
+    {
+        var account = await CreateAccountAsync("fresh@example.test", new HashSet<Guid>());
+
+        Assert.Empty(await _accounts.GetHiddenLibrariesAsync(account.Id));
+        Assert.False(await _accounts.IsLibraryHiddenAsync(account.Id, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task AHiddenLibrary_IsHiddenFromThatAccountOnly()
+    {
+        var hidden = Guid.NewGuid();
+        var sam = await CreateAccountAsync("sam@example.test", new HashSet<Guid> { hidden });
+        var other = await CreateAccountAsync("other@example.test", new HashSet<Guid>());
+
+        Assert.True(await _accounts.IsLibraryHiddenAsync(sam.Id, hidden));
+        Assert.False(await _accounts.IsLibraryHiddenAsync(other.Id, hidden));
+        Assert.False(await _accounts.IsLibraryHiddenAsync(sam.Id, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task ReplacingAccess_ReplacesTheHiddenLibraries_AndRecordsWhoSavedThem()
+    {
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        var administrator = await CreateAccountAsync("admin@example.test", new HashSet<Guid>());
+        var sam = await CreateAccountAsync("sam2@example.test", new HashSet<Guid> { first });
+
+        await _accounts.ReplaceAccountAccessAsync(
+            sam.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { second },
+            _now.AddMinutes(1), changedByAccountId: administrator.Id);
+
+        Assert.Equal(new HashSet<Guid> { second }, (await _accounts.GetHiddenLibrariesAsync(sam.Id)).ToHashSet());
+        using var connection = _database.CreateConnection();
+        Assert.Equal(administrator.Id, connection.ExecuteScalar<Guid>(
+            "SELECT created_by_account_id FROM account_library_hidden WHERE account_id=@id;", new { id = sam.Id }));
+    }
+
+    [Fact]
+    public async Task AHouseholdMember_FollowsTheLibrariesHiddenFromTheAccountItInheritsFrom_AndKeepsItsOwn()
+    {
+        var hiddenByPrimary = Guid.NewGuid();
+        var hiddenForMember = Guid.NewGuid();
+        var primary = await CreateAccountAsync("primary@example.test", new HashSet<Guid> { hiddenByPrimary });
+        var member = await CreateAccountAsync("member@example.test", new HashSet<Guid> { hiddenForMember });
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "UPDATE accounts SET grants_inherit_from_account_id=@primary WHERE id=@member;",
+                new { primary = primary.Id, member = member.Id });
+        }
+
+        Assert.Equal(
+            new HashSet<Guid> { hiddenByPrimary, hiddenForMember },
+            (await _accounts.GetHiddenLibrariesAsync(member.Id)).ToHashSet());
+        Assert.True(await _accounts.IsLibraryHiddenAsync(member.Id, hiddenByPrimary));
+        Assert.Equal(new HashSet<Guid> { hiddenByPrimary }, (await _accounts.GetHiddenLibrariesAsync(primary.Id)).ToHashSet());
+    }
+
+    [Fact]
+    public async Task DeletingAnAccount_RemovesItsHiddenLibraries()
+    {
+        var account = await CreateAccountAsync("gone@example.test", new HashSet<Guid> { Guid.NewGuid() });
+
+        await _accounts.DeleteAccountAsync(account.Id);
+
+        using var connection = _database.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM account_library_hidden;"));
+    }
+
+    private async Task<Account> CreateAccountAsync(string email, IReadOnlySet<Guid> hidden)
+    {
+        var account = new Account
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            IsEnabled = true,
+            AuthorizationVersion = 1,
+            CreatedAt = _now,
+            UpdatedAt = _now,
+        };
+        await _accounts.CreateAccountAsync(
+            account,
+            Grant(account.Id, Profile.SeedProfileId, isDefault: true),
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read },
+            hidden);
+        return account;
     }
 
     [Fact]

@@ -47,7 +47,7 @@ public sealed class LibraryItemMoveEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IAuthorizationHandler, AdministratorOrApplicationHandler>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new CallerResolver());
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AccountAccessDecisionService(
-            new AccountRepository(_world.Database), new NoUnlock()));
+            new AccountRepository(_world.Database), new NoUnlock(), new LibraryVisibilityRule(new AccountRepository(_world.Database), new VaultLibraryRepository(_world.Database))));
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator>(new DenyingEvaluator());
         // The other routes in the group are mapped but never reached by these requests; their services are only named so the group can be built.
         builder.Services.AddSingleton<IProfileRepository>(new ProfileRepository(_world.Database));

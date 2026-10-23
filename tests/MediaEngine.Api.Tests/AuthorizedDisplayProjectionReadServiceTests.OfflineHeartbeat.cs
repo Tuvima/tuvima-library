@@ -21,7 +21,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var account = Guid.NewGuid();
         var library = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
         var film = await InsertOwnedWorkWithIdAsync(library, "Film", "Movie");
         return (account, film.AssetId);
     }
@@ -268,7 +268,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var (account, _) = await SeedHeartbeatAssetAsync();
         var (player, profile, states) = BuildHeartbeatPlayer(account);
-        var foreign = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Elsewhere", "Movie");
+        var foreignLibrary = Guid.NewGuid();
+        await HideLibraryFromAsync(account, foreignLibrary);
+        var foreign = await InsertOwnedWorkWithIdAsync(foreignLibrary, "Elsewhere", "Movie");
 
         await Assert.ThrowsAsync<PlayerResourceDeniedException>(() => player.HeartbeatAsync(
             OfflineBeat(profile, foreign.AssetId, offline: true, DateTimeOffset.UtcNow.AddMinutes(-10))));

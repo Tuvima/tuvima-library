@@ -61,7 +61,7 @@ public sealed record AuthorizationRequirement(
     bool RequiresHumanContext = false,
     bool RequiresAdministrator = false,
     bool RequiresAdministratorSurfaceUnlock = false,
-    bool RequiresLibraryGrant = false);
+    bool RequiresLibraryVisibility = false);
 
 public sealed record ResourceAuthorizationContext(
     string ResourceType,
@@ -125,7 +125,7 @@ public enum AuthorizationDenialReason
     MissingPermission,
     PermissionUnavailable,
     MissingFeatureGrant,
-    MissingLibraryGrant,
+    LibraryNotVisible,
     ResourceDenied,
     AdministratorRequired,
     AdministratorUnlockRequired,

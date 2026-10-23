@@ -115,7 +115,7 @@ public sealed record PlaybackTelemetryReadScope(
     Guid? AccountId,
     Guid? ProfileId,
     bool AllLibraries,
-    IReadOnlySet<Guid> LibraryIds,
+    IReadOnlySet<Guid> HiddenLibraryIds,
     IReadOnlySet<AccountFeatureId> Features)
 {
     public static PlaybackTelemetryReadScope Denied { get; } = new(

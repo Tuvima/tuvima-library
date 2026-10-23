@@ -54,7 +54,8 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
 
         var decisions = new AccountAccessDecisionService(
             _accounts,
-            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System));
+            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System),
+            new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)));
         _services = new ServiceCollection()
             .AddSingleton<IRequestAuthorityResolver>(
                 new RequestAuthorityResolver(_accounts, new ApplicationRepository(_database), _profileRepository))

@@ -44,7 +44,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData(true, true)]
     public async Task VaultPinScan_EveryNsfwAndVaultAdminRoute_NeverEchoesOrLogsAPinOrAVaultTitle(bool unlocked, bool rightPin)
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         await new FirstPartyIdentityService(
             new IdentityRepository(_database), _accounts, new ProfileRepository(_database),

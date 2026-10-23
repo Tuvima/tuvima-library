@@ -371,7 +371,7 @@ public static class AccountEndpoints
                 request.NewProfile is null ? null : new NewAccountProfileCommand(
                     request.NewProfile.DisplayName, request.NewProfile.AvatarColor),
                 FeaturesForNewAccount(request.FeatureIds, request.NewProfile is not null),
-                request.LibraryIds.ToHashSet(),
+                request.HiddenLibraryIds.ToHashSet(),
                 request.TemporaryPassword);
             var account = await mutations.CreateAsync(await resolver.ResolveAsync(http, ct), command, ct);
             return Results.Created($"/access/accounts/{account.Id:D}",
@@ -530,7 +530,7 @@ public static class AccountEndpoints
 
             await mutations.ReplaceAccessAsync(await resolver.ResolveAsync(http, ct), accountId,
                 request.FeatureIds.Select(id => new AccountFeatureId(id)).ToHashSet(),
-                request.LibraryIds.ToHashSet(), ct);
+                request.HiddenLibraryIds.ToHashSet(), ct);
             return Results.NoContent();
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("ReplaceAccountAccess").Produces(StatusCodes.Status204NoContent);
@@ -626,23 +626,24 @@ public static class AccountEndpoints
         access.MapGet("/libraries", async (HttpContext http, IRequestAuthorityResolver resolver,
             IAccountRepository accounts, IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
-            // The Vault is in no library list, not even the one an administrator picks grants from (Videos spec D45).
+            // The Vault is in no library list, not even the one an administrator picks the libraries to hide from (Videos spec D45).
             var vaultIds = await vaultLibraries.GetIdsAsync(ct);
-            // A household administrator can only hand out what the household already has.
+            // A household administrator sees every library, with the ones the household's main sign-in hides marked: they can't be shown again.
             var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
-            IReadOnlySet<Guid>? allowed = null;
+            IReadOnlySet<Guid>? hiddenByPrimary = null;
             if (household is { } own)
             {
-                allowed = await accounts.GetHouseholdPrimaryAccountIdAsync(own, ct) is { } primary
-                    ? await accounts.GetLibraryGrantsAsync(primary, ct)
+                hiddenByPrimary = await accounts.GetHouseholdPrimaryAccountIdAsync(own, ct) is { } primary
+                    ? await accounts.GetHiddenLibrariesAsync(primary, ct)
                     : new HashSet<Guid>();
             }
 
             var values = configuration.LoadLibraries().Libraries
                 .Where(library => library.Kind == LibraryKinds.Catalogued && !vaultIds.Contains(library.Id) &&
-                    Guid.TryParse(library.Id, out var id) && (allowed is null || allowed.Contains(id)))
+                    Guid.TryParse(library.Id, out _))
                 .Select(library => new AccessLibraryOptionDto(Guid.Parse(library.Id),
-                    library.Name, library.Category, library.Area))
+                    library.Name, library.Category, library.Area,
+                    hiddenByPrimary?.Contains(Guid.Parse(library.Id)) == true))
                 .ToList();
             return Results.Ok(values);
         }).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersRead)
@@ -899,18 +900,13 @@ public static class AccountEndpoints
         IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles,
         IConfigurationLoader configuration, CancellationToken ct)
     {
-        var libraryNames = configuration.LoadLibraries().Libraries
-            .Where(library => library.Kind == LibraryKinds.Catalogued && Guid.TryParse(library.Id, out _))
-            .ToDictionary(library => Guid.Parse(library.Id), library => library.Name);
         var sessions = await identities.GetSessionsAsync(account.Id, ct);
         var lastActiveAt = sessions.Count == 0 ? (DateTimeOffset?)null : sessions.Max(session => session.LastSeenAt);
         return new AccountAccessResponse(account.Id, account.Email,
             account.IsEnabled, account.IsAdministrator, account.AuthorizationVersion,
             (await accounts.GetFeatureGrantsAsync(account.Id, ct))
                 .Select(feature => new AccountFeatureGrantDto(feature.Value, true)).ToList(),
-            (await accounts.GetLibraryGrantsAsync(account.Id, ct))
-                .Select(id => new AccountLibraryGrantDto(
-                    id, libraryNames.GetValueOrDefault(id, "Unavailable library"), true)).ToList(),
+            (await accounts.GetHiddenLibrariesAsync(account.Id, ct)).OrderBy(id => id).ToList(),
             await MapGrants(account.Id, accounts, profiles, ct), account.CreatedAt, account.UpdatedAt,
             lastActiveAt, account.HouseholdId, account.MustChangePassword, account.TemporaryPasswordExpiresAt,
             await identities.GetAccountTwoStepAsync(account.Id, ct) is { IsEnabled: true },

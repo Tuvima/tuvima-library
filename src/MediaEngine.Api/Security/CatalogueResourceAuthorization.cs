@@ -411,7 +411,8 @@ internal sealed class CatalogueResourceAuthorizationService(
             return vault.IsVaultLibrary(resource.LibraryId) ? CatalogueResourceAccess.NotFound : CatalogueResourceAccess.Denied;
         }
 
-        // Vault access is the device session's Vault mode (already checked above), not an account's library grants.
+        // Vault access is the device session's Vault mode (already checked above), never the ordinary library visibility rule.
+        // Not hidden from this account (the area was checked just above): the same rule the lists, search and events use.
         if (!vault.IsVaultLibrary(resource.LibraryId)
             && !(await accounts.EvaluateLibraryAsync(authority, libraryId, ct).ConfigureAwait(false)).IsAllowed)
         {

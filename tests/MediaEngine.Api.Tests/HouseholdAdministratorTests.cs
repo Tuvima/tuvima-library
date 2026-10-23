@@ -410,7 +410,7 @@ public sealed class HouseholdAdministratorTests
                 "server@example.com", IsAdministrator: true, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             var serverProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value;
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile);
 
@@ -483,7 +483,7 @@ public sealed class HouseholdAdministratorTests
                 email, IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand(personName, "#112233"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             var household = (await Households.GetForAccountAsync(owner.Id))!;
             var person = await Mutations.AddHouseholdPersonAsync(ServerAdmin,
                 new AddHouseholdPersonCommand(household.Id, $"{personName}'s friend", null, false, null));

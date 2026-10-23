@@ -14,7 +14,8 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
     IPermissionRegistry permissions,
     ApplicationEventRegistry registry,
     IApplicationEventDeliveryAuthorizer serviceAuthorization,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    LibraryVisibilityRule libraryVisibility)
 {
     internal async ValueTask<bool> CanDeliverServiceConnectionAsync(
         ApplicationEventSubscriber subscriber,
@@ -80,7 +81,9 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
 
             foreach (var id in libraryIds)
             {
-                if (!(await accounts.HasLibraryGrantAsync(authority.AccountId.Value, id, ct).ConfigureAwait(false)))
+                // The area is checked below for library-scoped events; this is the library half of the visibility rule.
+                if (!await libraryVisibility.MaySeeAsync(
+                        authority.AccountId.Value, authority.IsEffectiveAdministrator, id, true, ct).ConfigureAwait(false))
                 {
                     return false;
                 }
@@ -156,7 +159,8 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
         if (definition.IsLibraryScoped)
         {
             if (value.Subject.LibraryId is not { } libraryId ||
-                !await accounts.HasLibraryGrantAsync(account.Id, libraryId, ct).ConfigureAwait(false))
+                !await libraryVisibility.MaySeeAsync(
+                    account.Id, authority.IsEffectiveAdministrator, libraryId, true, ct).ConfigureAwait(false))
             {
                 return false;
             }

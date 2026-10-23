@@ -511,8 +511,13 @@
         _administrator = account.IsAdministrator;
         _enabled = account.IsEnabled;
         _featureIds.UnionWith(account.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature));
-        _libraryIds.UnionWith(account.LibraryGrants.Where(grant => grant.Allowed).Select(grant => grant.LibraryId));
+        // A ticked library is one that is not hidden from the person (everything is visible unless an administrator unticks it).
+        _libraryIds.UnionWith(_libraries.Select(library => library.Id).Where(id => !account.HiddenLibraryIds.Contains(id)));
     }
+
+    // The unticked libraries are what the Engine stores: it saves the ones hidden from the person.
+    private Guid[] HiddenLibraryIds() =>
+        _libraries.Select(library => library.Id).Where(id => !_libraryIds.Contains(id)).Order().ToArray();
 
     private void ResetDrawer(UserDrawerMode mode)
     {
@@ -545,7 +550,7 @@
             {
                 var useTemporaryPassword = _signInMethod == TemporaryPasswordMethod;
                 var result = await Identity.CreateManagedAccountResultAsync(new(_email.Trim(), _administrator, null,
-                    new(_profileName.Trim(), _profileColor), _featureIds.Order().ToArray(), _libraryIds.Order().ToArray(),
+                    new(_profileName.Trim(), _profileColor), _featureIds.Order().ToArray(), HiddenLibraryIds(),
                     useTemporaryPassword ? _temporaryPassword : null));
                 if (!IsCurrentMutation(generation))
                     return;
@@ -623,7 +628,7 @@
             ClearMessages();
             var label = EditingLabel;
             var result = await Identity.ReplaceManagedAccountAccessResultAsync(_editing.Id,
-                new(_featureIds.Order().ToArray(), _libraryIds.Order().ToArray()));
+                new(_featureIds.Order().ToArray(), HiddenLibraryIds()));
             if (!IsCurrentMutation(generation))
                 return;
             if (result.Succeeded)
@@ -661,9 +666,8 @@
                 features.Add("view");
             else
                 features.Remove("view");
-            var libraries = account.LibraryGrants.Where(grant => grant.Allowed).Select(grant => grant.LibraryId);
             var result = await Identity.ReplaceManagedAccountAccessResultAsync(account.Id,
-                new(features.Order().ToArray(), libraries.Order().ToArray()));
+                new(features.Order().ToArray(), account.HiddenLibraryIds.Order().ToArray()));
             if (!IsCurrentMutation(generation))
                 return;
             if (result.Succeeded)
@@ -888,7 +892,7 @@
                 _invitation = result.Value;
                 var permissions = await Identity.ReplaceManagedAccountAccessResultAsync(
                     result.Value.AccountId,
-                    new(_featureIds.Order().ToArray(), _libraryIds.Order().ToArray()));
+                    new(_featureIds.Order().ToArray(), HiddenLibraryIds()));
                 if (!IsCurrentMutation(generation))
                     return;
                 _drawerMessage = permissions.Succeeded

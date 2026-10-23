@@ -29,7 +29,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData("SearchVault")]
     public async Task VaultBrowse_ALockedSession_GetsNotFound_PrivatelyAndUncacheably_ForEveryRoute(string routeName)
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
 
         var result = await InvokeBrowseAsync(routes[routeName], shape.Account, NewVaultSession(shape.Account), shape.Secret.AssetId);
@@ -42,7 +42,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultBrowse_EveryBrowsingRoute_IsMapped_AndTheLockedAnswerIsTheSameAsForAMissingPage()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
         Assert.All(VaultBrowseRouteNames, name => Assert.True(routes.ContainsKey(name), name));
         var session = NewVaultSession(shape.Account);
@@ -57,7 +57,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultBrowse_AnAccountWithoutTheWatchFeature_GetsNotFound_EvenWhenUnlocked()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false, features: new HashSet<AccountFeatureId> { AccountFeatureId.Read });
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false, features: new HashSet<AccountFeatureId> { AccountFeatureId.Read });
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
@@ -71,7 +71,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultBrowse_AnUnlockedSession_ListsVaultScenesOnly_PrivatelyAndUncacheably()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
@@ -96,7 +96,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultBrowse_TheUnmatchedFilter_AndTheNameLists_ComeBackEmptyForAnUnmatchedVault()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
@@ -117,7 +117,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultBrowse_Search_NeedsTwoCharacters_AndReadsTheTextFromTheBody()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
@@ -136,7 +136,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultBrowse_ASizedArtworkRequest_IsStillNotFoundAndUncacheableForALockedSession()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
 
         var locked = await InvokeBrowseAsync(routes["GetVaultArtwork"], shape.Account, NewVaultSession(shape.Account), artworkId: Guid.NewGuid(), query: "?w=640");

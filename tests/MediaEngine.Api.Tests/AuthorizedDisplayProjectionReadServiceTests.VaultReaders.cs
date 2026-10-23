@@ -18,7 +18,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultReaders_CollectionBrowse_NeverListsAVaultWorkInAnyCollection()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var collectionId = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
         {
@@ -40,7 +40,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultReaders_CollectionMediaLookup_NeverCountsOrResolvesAVaultWork()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var service = new CollectionMediaLookupReadService(_database);
         var ids = new[] { shape.Secret.WorkId, shape.Normal.WorkId };
 
@@ -55,7 +55,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultReaders_LibraryCuration_NeverLoadsAVaultItemForABatchEdit()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
 
         var items = await new LibraryCurationReadService(_database).LoadBatchEditItemsAsync(
             [shape.Secret.WorkId, shape.Secret.AssetId, shape.Normal.WorkId], ["title"], default);
@@ -68,7 +68,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultReaders_LibraryOverview_NeverCountsAVaultFileAsRecentlyAdded()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         using (var connection = _database.CreateConnection())
         {
             var provider = Guid.NewGuid();
@@ -91,7 +91,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultReaders_CollectionSearch_DropsAVaultWorkEvenWhenTheIndexNamesIt()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var service = new CollectionSearchReadService(_database, new NamingSearchIndex(shape.Secret.WorkId, shape.Normal.WorkId));
 
         var found = Json(await service.SearchAsync("scene", default));
@@ -103,7 +103,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultReaders_TheNeedsReviewList_AndItsCounts_NeverIncludeAVaultFile()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var vaultReview = await InsertReviewAsync(shape.Secret.AssetId, ReviewStatus.Pending);
         var vaultWorkReview = await InsertReviewAsync(shape.Secret.WorkId, ReviewStatus.Pending, "Work");
         var ordinaryReview = await InsertReviewAsync(shape.Normal.AssetId, ReviewStatus.Pending);
@@ -125,7 +125,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultReaders_IngestionPresentation_NeverCountsOrShowsAVaultFile()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         await InsertReviewAsync(shape.Secret.AssetId, ReviewStatus.Pending);
         await InsertReviewAsync(shape.Normal.AssetId, ReviewStatus.Pending);
         var operations = new MediaOperationRepository(_database);

@@ -77,10 +77,10 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
     // An own sign-in the Engine creates always follows the household's main sign-in (grants_inherit_from_account_id is set); the plain
     // account here keeps its own access, which is the only kind whose access is edited from the page.
-    private static AccountAccessResponse SamAccess(bool twoStep = true, string[]? lanes = null, Guid[]? libraries = null, bool inherits = false) =>
+    private static AccountAccessResponse SamAccess(bool twoStep = true, string[]? lanes = null, Guid[]? hidden = null, bool inherits = false) =>
         new(SamAccountId, "sam@home.test", true, false, 1,
             (lanes ?? ["read", "watch"]).Select(lane => new AccountFeatureGrantDto(lane, true)).ToList(),
-            (libraries ?? [LibraryA]).Select(id => new AccountLibraryGrantDto(id, id == LibraryA ? "Books" : "Films", true)).ToList(),
+            (hidden ?? []).ToList(),
             [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, HouseholdId, HasTwoStep: twoStep,
             GrantsInheritFromAccountId: inherits ? MainAccountId : null);
 
@@ -99,7 +99,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId);
 
-        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · 1 library", Row(cut, "access").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · all libraries", Row(cut, "access").TextContent));
         var row = Row(cut, "access");
         Assert.Contains("Follows the household's access", row.TextContent);
         Assert.Equal("/settings/access/users", row.GetAttribute("href"));
@@ -123,7 +123,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var row = Row(cut, "access");
         Assert.Equal("true", row.GetAttribute("aria-disabled"));
         Assert.Null(row.GetAttribute("href"));
-        Assert.Contains("Read, Watch · 1 library", row.TextContent);
+        Assert.Contains("Read, Watch · all libraries", row.TextContent);
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId);
 
-        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · 1 library", Row(cut, "access").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · all libraries", Row(cut, "access").TextContent));
         Assert.Single(cut.FindAll("[data-profile-section='household-access']"));
         Assert.Contains("On", Row(cut, "two-step").TextContent);
     }
@@ -197,7 +197,8 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/accounts/{SamAccountId:D}/access");
         using var body = System.Text.Json.JsonDocument.Parse(put.Body);
         Assert.Equal("listen,read,watch", string.Join(",", body.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString())));
-        Assert.Equal(LibraryA.ToString("D"), string.Join(",", body.RootElement.GetProperty("library_ids").EnumerateArray().Select(item => item.GetString())));
+        // Nothing was unticked, so nothing is hidden (every library is visible unless an administrator unticks it).
+        Assert.Empty(body.RootElement.GetProperty("hidden_library_ids").EnumerateArray());
     }
 
     [Fact]

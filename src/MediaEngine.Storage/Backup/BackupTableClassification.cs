@@ -20,7 +20,7 @@ public static partial class BackupTableClassification
         Config("account_passkeys", "Passkey public keys, needed to sign in after a restore."),
         Config("account_two_step", "Two-step sign-in data, needed to sign in after a restore; the secret is protected with this computer's Data Protection key, so the export writes it readable (or keeps it as it is when it cannot be read).", portable: ["secret_protected"]),
         Config("account_feature_grants", "Which features an account may use."),
-        Config("account_library_grants", "Which libraries an account may use."),
+        Config("account_library_hidden", "Which libraries an administrator hid from an account."),
         Config("account_profile_grants", "Which profiles an account may use."),
         Config("account_notice_dismissals", "Notices an account has dismissed, so they do not return."),
         Config("grant_admin_protections", "Optional extra lock (PIN hash and lock settings) on an administrator grant."),

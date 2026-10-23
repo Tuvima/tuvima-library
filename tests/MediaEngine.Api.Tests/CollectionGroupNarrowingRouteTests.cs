@@ -72,7 +72,7 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
                 GrantedAt = DateTimeOffset.UtcNow,
             },
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen },
-            new HashSet<Guid> { _granted }).GetAwaiter().GetResult();
+            new HashSet<Guid> { _hidden }).GetAwaiter().GetResult();
         // Each library holds one identified book and one Unmatched book, in different series, so the lane answers and the Unmatched answers differ.
         SeedBook(_granted, "Granted Saga", "Granted Book");
         SeedBook(_hidden, "Hidden Saga", "Hidden Book");
@@ -135,7 +135,7 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
 
     [Theory]
     [MemberData(nameof(Routes))]
-    public async Task AnUngrantedLibraryAnswersEmpty_AndNeverLeaksItsGroupsIntoTheUnfilteredAnswer(string route)
+    public async Task ALibraryHiddenFromTheProfileAnswersEmpty_AndNeverLeaksItsGroupsIntoTheUnfilteredAnswer(string route)
     {
         await using var app = await StartAsync();
 
@@ -145,7 +145,7 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
 
     [Theory]
     [MemberData(nameof(Routes))]
-    public async Task AGrantedLibraryAnswersItsOwnGroups(string route)
+    public async Task AVisibleLibraryAnswersItsOwnGroups(string route)
     {
         await using var app = await StartAsync();
 
@@ -155,7 +155,7 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
 
     [Theory]
     [MemberData(nameof(Routes))]
-    public async Task TheUnmatchedFilterAnswersNothingForALibraryWithoutAGrant_EvenWhenItHasUnmatchedFiles(string route)
+    public async Task TheUnmatchedFilterAnswersNothingForALibraryHiddenFromTheProfile_EvenWhenItHasUnmatchedFiles(string route)
     {
         await using var app = await StartAsync();
 
@@ -286,7 +286,7 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
             RequestAuthority authority, Guid requestedLibraryId, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(requestedLibraryId == libraryId
                 ? AuthorizationDecision.Allow()
-                : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant));
+                : AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible));
 
         public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(
             RequestAuthority authority, bool requireSurfaceUnlock, CancellationToken cancellationToken = default) =>

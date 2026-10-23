@@ -158,7 +158,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
         await _accounts.ReplaceAccountAccessAsync(
             _accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { _libraryId },
+            new HashSet<Guid>(),
             now);
         await _applications.ReplacePermissionsAsync(
             BuiltInApplicationIds.NativeClient,
@@ -226,7 +226,8 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
             permissions,
             registry,
             new ApplicationEventDeliveryAuthorizer(_applications, permissions, registry),
-            _clock);
+            _clock,
+            new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)));
         return new(authorizer, subscriber);
     }
 

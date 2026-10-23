@@ -289,7 +289,7 @@ public sealed class MetadataResourceAdmissionTests : IDisposable
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(libraryId == allowedLibrary
                 ? AuthorizationDecision.Allow()
-                : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant));
+                : AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible));
 
         public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(
             RequestAuthority authority,
