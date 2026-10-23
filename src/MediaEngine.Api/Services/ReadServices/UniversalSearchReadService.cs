@@ -20,7 +20,8 @@ public sealed class UniversalSearchReadService(
     IRequestAuthorityResolver authorities,
     CharacterSpoilerService spoilers,
     IProfileRepository profiles,
-    WaitingPersonalStateRepository waiting) : IUniversalSearchReadService
+    WaitingPersonalStateRepository waiting,
+    IUnmatchedAssetRepository? unmatched = null) : IUniversalSearchReadService
 {
     public async Task<UniversalSearchResponseDto> SearchAsync(string? query, int limit, CancellationToken ct)
     {
@@ -72,6 +73,14 @@ public sealed class UniversalSearchReadService(
             .ToList();
 
         var sections = BuildSections(results, trimmed).ToList();
+        // Unmatched files are never in the results above (the display read leaves them out); they get a group of their own, found by
+        // file name and embedded tags, for the same authorized profile (Library setup spec D66).
+        var unmatchedMatches = await SearchUnmatchedAsync(trimmed, Math.Min(10, take), visibleWorks, ct).ConfigureAwait(false);
+        if (unmatchedMatches.Count > 0)
+        {
+            sections.Add(new UniversalSearchSectionDto(UnmatchedKey, "Unmatched", unmatchedMatches, unmatchedMatches.Count, null));
+        }
+
         // The profile's own items still waiting for their file after a restore: a section of its own, always last, never the top
         // result and not counted in the response total (that total is the titles the person can open).
         var fileMissing = SearchFileMissing(trimmed, authority, profileId, ct);
@@ -81,6 +90,46 @@ public sealed class UniversalSearchReadService(
         }
 
         return new UniversalSearchResponseDto(trimmed, results.FirstOrDefault(), sections, results.Count);
+    }
+
+    /// <summary>The section key of Unmatched files: found by file name and tags, listed apart from the identified results.</summary>
+    public const string UnmatchedKey = "unmatched";
+
+    // The works the profile may see whose files in a library are all Unmatched (kept or not), matched by title (the file name) and the
+    // embedded tags the work already has. Authorized exactly like the normal results, and a work that also has matched files stays in them.
+    private async Task<IReadOnlyList<UniversalSearchResultDto>> SearchUnmatchedAsync(
+        string query,
+        int limit,
+        IReadOnlyList<DisplayWorkRow> identifiedWorks,
+        CancellationToken ct)
+    {
+        if (unmatched is null)
+        {
+            return [];
+        }
+
+        var matching = (await display.LoadWorkLibraryRowsIncludingUnmatchedAsync(ct).ConfigureAwait(false))
+            .Where(row => Matches(row, query))
+            .ToList();
+        if (matching.Count == 0)
+        {
+            return [];
+        }
+
+        var identified = identifiedWorks.Select(row => row.WorkId).ToHashSet();
+        var unmatchedOnly = (await unmatched.ListWorkLibrariesAsync(matching.Select(row => row.WorkId).Distinct().ToList(), ct).ConfigureAwait(false))
+            .Where(entry => entry.EveryFileUnmatched)
+            .Select(entry => (entry.WorkId, entry.LibraryId))
+            .ToHashSet();
+        return matching
+            .Where(row => !identified.Contains(row.WorkId) && unmatchedOnly.Contains((row.WorkId, (row.LibraryId ?? string.Empty).ToUpperInvariant())))
+            .GroupBy(row => row.WorkId)
+            .Select(group => group.First())
+            .OrderByDescending(row => WorkScore(row, query))
+            .ThenBy(row => row.Title, StringComparer.OrdinalIgnoreCase)
+            .Take(limit)
+            .Select(row => FromWork(row, query))
+            .ToList();
     }
 
     /// <summary>The section key of items waiting for their file after a restore (no link, no artwork, no play).</summary>

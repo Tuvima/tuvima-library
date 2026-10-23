@@ -73,8 +73,11 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
             },
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen },
             new HashSet<Guid> { _granted }).GetAwaiter().GetResult();
-        _grantedAsset = SeedBook(_granted, "Granted Saga", "Granted Book");
-        _hiddenAsset = SeedBook(_hidden, "Hidden Saga", "Hidden Book");
+        // Each library holds one identified book and one Unmatched book, in different series, so the lane answers and the Unmatched answers differ.
+        SeedBook(_granted, "Granted Saga", "Granted Book");
+        SeedBook(_hidden, "Hidden Saga", "Hidden Book");
+        _grantedAsset = SeedBook(_granted, "Granted Unmatched Saga", "Granted Unmatched Book");
+        _hiddenAsset = SeedBook(_hidden, "Hidden Unmatched Saga", "Hidden Unmatched Book");
         var unmatched = new UnmatchedAssetRepository(_database);
         var now = DateTimeOffset.UtcNow;
         unmatched.MarkUnmatchedAsync(_grantedAsset, _granted.ToString("D"), UnmatchedReasons.NoMatch, now, now.AddDays(7)).GetAwaiter().GetResult();
@@ -157,18 +160,18 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
         await using var app = await StartAsync();
 
         Assert.Empty(await GroupNamesAsync(app, With(route, $"libraryId={_hidden:D}&unmatched=true")));
-        Assert.Equal(["Granted Saga"], await GroupNamesAsync(app, With(route, "unmatched=true")));
-        Assert.Equal(["Granted Saga"], await GroupNamesAsync(app, With(route, $"libraryId={_granted:D}&unmatched=true")));
+        Assert.Equal(["Granted Unmatched Saga"], await GroupNamesAsync(app, With(route, "unmatched=true")));
+        Assert.Equal(["Granted Unmatched Saga"], await GroupNamesAsync(app, With(route, $"libraryId={_granted:D}&unmatched=true")));
     }
 
     [Theory]
     [MemberData(nameof(Routes))]
-    public async Task AKeptUnmatchedFileIsNotInTheUnmatchedGroups(string route)
+    public async Task AKeptUnmatchedFileStaysInTheUnmatchedGroups_AndNeverReachesTheLanes(string route)
     {
         await new UnmatchedAssetRepository(_database).KeepAsIsAsync(_grantedAsset, DateTimeOffset.UtcNow);
         await using var app = await StartAsync();
 
-        Assert.Empty(await GroupNamesAsync(app, With(route, $"libraryId={_granted:D}&unmatched=true")));
+        Assert.Equal(["Granted Unmatched Saga"], await GroupNamesAsync(app, With(route, $"libraryId={_granted:D}&unmatched=true")));
         Assert.Equal(["Granted Saga"], await GroupNamesAsync(app, With(route, $"libraryId={_granted:D}")));
     }
 

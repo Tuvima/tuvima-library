@@ -85,7 +85,10 @@
                     <section class="universal-results__section" aria-labelledby="@SectionId(resultSection)">
                         <header>
                             <h2 id="@SectionId(resultSection)">@resultSection.Title</h2>
-                            <a href="@resultSection.SeeAllRoute">See all</a>
+                            @if (!string.IsNullOrWhiteSpace(resultSection.SeeAllRoute))
+                            {
+                                <a href="@resultSection.SeeAllRoute">See all</a>
+                            }
                         </header>
                         <div class="universal-results__grid">
                             @foreach (var result in resultSection.Results)

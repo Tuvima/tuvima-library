@@ -211,7 +211,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Browse_TheUnmatchedFilter_KeepsOnlyRowsWithAnUnmatchedFileThatIsNotKept()
+    public async Task Browse_TheUnmatchedFilter_ListsOpenAndKeptUnmatchedWorks_AndMarksOnlyTheKeptOneKept()
     {
         var account = Guid.NewGuid();
         await CreateHumanAsync(account, EveryFeature, new HashSet<Guid>(), administrator: true);
@@ -223,7 +223,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         var page = await BrowseComposer(account).BuildBrowseAsync("watch", "Movie", "all", null, 0, 48, unmatchedOnly: true);
 
-        Assert.Equal([open.AssetId], page.Catalog.Select(card => card.AssetId!.Value).ToArray());
+        Assert.Equal(new[] { open.AssetId, kept.AssetId }.Order(), page.Catalog.Select(card => card.AssetId!.Value).Order());
+        Assert.False(page.Catalog.Single(card => card.AssetId == open.AssetId).Flags.KeptAsIs);
+        Assert.True(page.Catalog.Single(card => card.AssetId == kept.AssetId).Flags.KeptAsIs);
     }
 
     [Fact]
@@ -238,7 +240,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var all = await BrowseComposer(account).BuildBrowseAsync("watch", "Movie", "all", null, 0, 48);
         var filtered = await BrowseComposer(account).BuildBrowseAsync("watch", "Movie", "all", null, 0, 48, unmatchedOnly: true);
 
-        Assert.Equal(2, all.TotalCount);
+        // The Unmatched file is only under the filter; the lane holds the identified film alone.
+        Assert.Equal(1, all.TotalCount);
+        Assert.DoesNotContain(all.Catalog, card => card.AssetId == open.AssetId);
         Assert.Equal([open.AssetId], filtered.Catalog.Select(card => card.AssetId!.Value).ToArray());
     }
 
@@ -381,8 +385,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             return json.RootElement.GetProperty("totalCount").GetInt32();
         }
 
-        Assert.Equal(3, await TotalAsync("?lane=watch&mediaType=Movie"));
-        Assert.Equal(2, await TotalAsync($"?lane=watch&mediaType=Movie&libraryId={MoviesLibrary:D}"));
+        Assert.Equal(2, await TotalAsync("?lane=watch&mediaType=Movie"));
+        Assert.Equal(1, await TotalAsync($"?lane=watch&mediaType=Movie&libraryId={MoviesLibrary:D}"));
         Assert.Equal(1, await TotalAsync("?lane=watch&mediaType=Movie&unmatched=true"));
         Assert.Equal(1, await TotalAsync($"?lane=watch&mediaType=Movie&libraryId={MoviesLibrary:D}&unmatched=true"));
         Assert.Equal(0, await TotalAsync($"?lane=watch&mediaType=Movie&libraryId={LecturesLibrary:D}&unmatched=true"));
@@ -440,7 +444,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task GroupNarrowing_TheUnmatchedFilter_KeepsWorksWithAnOpenUnmatchedFileInThatLibraryOnly()
+    public async Task GroupNarrowing_TheUnmatchedFilter_KeepsWorksWithAnOpenOrKeptUnmatchedFileInThatLibraryOnly()
     {
         var admin = Guid.NewGuid();
         await CreateHumanAsync(admin, EveryFeature, new HashSet<Guid>(), administrator: true);
@@ -450,8 +454,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await MarkUnmatchedAsync(open.AssetId, MoviesLibrary, keep: false);
         await MarkUnmatchedAsync(kept.AssetId, MoviesLibrary, keep: true);
 
-        Assert.Equal([open.WorkId], (await NarrowedWorkIdsAsync(admin, null, true)).ToArray());
-        Assert.Equal([open.WorkId], (await NarrowedWorkIdsAsync(admin, MoviesLibrary, true)).ToArray());
+        Assert.Equal(new[] { open.WorkId, kept.WorkId }.Order(), (await NarrowedWorkIdsAsync(admin, null, true)).Order());
+        Assert.Equal(new[] { open.WorkId, kept.WorkId }.Order(), (await NarrowedWorkIdsAsync(admin, MoviesLibrary, true)).Order());
         Assert.Empty(await NarrowedWorkIdsAsync(admin, LecturesLibrary, true));
     }
 
