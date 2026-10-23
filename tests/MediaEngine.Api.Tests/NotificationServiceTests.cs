@@ -23,6 +23,7 @@ public sealed class NotificationServiceTests : IDisposable
     private readonly DatabaseConnection _db;
     private readonly NotificationRepository _repository;
     private readonly AccountRepository _accounts;
+    private Guid? _household;
     private readonly MutableClock _clock = new(Start);
     private readonly SpyEvents _events = new();
     private readonly SpyChannel _email = new(NotificationChannelIds.Email, "Email");
@@ -335,6 +336,8 @@ public sealed class NotificationServiceTests : IDisposable
                 NormalizedEmail = email?.ToUpperInvariant(),
                 IsEnabled = enabled,
                 IsAdministrator = administrator,
+                // Every sign-in lives in the Library's own household (a server administrator must).
+                HouseholdId = administrator ? _household : null,
                 CreatedAt = Start,
                 UpdatedAt = Start,
             },
@@ -350,6 +353,10 @@ public sealed class NotificationServiceTests : IDisposable
             new HashSet<AccountFeatureId>(),
             new HashSet<Guid>(),
             newProfile: profile);
+        if (administrator)
+        {
+            _household ??= (await _accounts.GetByIdAsync(accountId))!.HouseholdId;
+        }
     }
 
     private sealed record SentMessage(OutgoingNotification Message, string[] Recipients);

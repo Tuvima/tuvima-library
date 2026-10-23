@@ -109,6 +109,8 @@ public sealed class AccessRepositoryTests : IDisposable
         });
 
         var pending = NewAdministrator("pending@example.com");
+        // A server administrator lives in the Library's own household, like the one who signs in.
+        pending.HouseholdId = (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id;
         var pendingProfile = Guid.NewGuid();
         InsertProfile(NewProfile(pendingProfile, "Pending"));
         await _accounts.CreateAccountAsync(
@@ -145,6 +147,8 @@ public sealed class AccessRepositoryTests : IDisposable
         });
 
         var pending = NewAdministrator("pending@example.com");
+        // A server administrator lives in the Library's own household, like the one who signs in.
+        pending.HouseholdId = (await new HouseholdRepository(_database).GetForAccountAsync(owner.Id))!.Id;
         var pendingProfile = Guid.NewGuid();
         InsertProfile(NewProfile(pendingProfile, "Pending"));
         await _accounts.CreateAccountAsync(

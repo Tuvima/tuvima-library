@@ -1256,6 +1256,19 @@ public sealed class AccountAccessMutationService(
             throw new UnauthorizedAccessException("A household administrator can only protect their own administrator access.");
         }
 
+        if (householdOnly)
+        {
+            // The protection belongs to the profile. A person changes it only on the profile their own sign-in opens; a household
+            // administrator never changes another administrator's (server or household), however the request names it.
+            var ownProfileId = actor.AccountId is { } actorAccountId
+                ? (await accounts.GetByIdAsync(actorAccountId, ct).ConfigureAwait(false))?.ProfileId
+                : null;
+            if (ownProfileId != profileId)
+            {
+                throw new UnauthorizedAccessException("A household administrator can only protect their own administrator access.");
+            }
+        }
+
         // The question is about a profile the user can act as (its household), and only a profile that holds an administrator role has
         // administrator pages to protect.
         var protectedProfile = protectedAccount is not null &&

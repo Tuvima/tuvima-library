@@ -278,19 +278,112 @@ public sealed class ProfileHeldAccessTests : IDisposable
     }
 
     [Fact]
-    public async Task ASecondServerAdministratorInAnotherHousehold_NeverMakesThatHouseholdADefault()
+    public async Task ASecondServerAdministratorInAnotherHousehold_IsRefused_AndNothingIsWritten()
     {
         await CreateServerAdministratorAsync();
         var second = NewAccount("second.admin@example.com", administrator: true);
         var secondPerson = NewProfile("Second");
 
-        await _accounts.CreateAccountAsync(second, Grant(second.Id, secondPerson.Id, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: secondPerson);
+        // D17: a server administrator profile lives in the Library's own household.
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.CreateAccountAsync(
+            second, Grant(second.Id, secondPerson.Id, isDefault: true, administrator: true),
+            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: secondPerson));
 
-        var secondHousehold = (await _households.GetForAccountAsync(second.Id))!;
-        Assert.False(secondHousehold.IsDefault);
+        Assert.Equal("A server administrator must belong to the Library's own household.", refused.Message);
+        Assert.Null(await _accounts.GetByIdAsync(second.Id));
         using var connection = _database.CreateConnection();
         Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE is_default = 1;"));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE display_name = 'Second';"));
+    }
+
+    [Fact]
+    public async Task TheServerAdministratorRole_IsRefusedByTheProfileRepository_ForAPersonOutsideTheDefaultHousehold()
+    {
+        var (_, person, _) = await CreateMemberAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _access.SetServerAdministratorAsync(person.Id, true, _now));
+
+        Assert.False((await _access.GetAdminFlagsAsync(person.Id))!.IsServerAdministrator);
+    }
+
+    [Fact]
+    public async Task ASignInAttachedToAPersonWithLeftoverRoles_DoesNotBringThoseRolesBack()
+    {
+        var admin = await CreateServerAdministratorAsync();
+        var mary = await AddHouseholdPersonAsync(admin, "Mary");
+        await _access.ReplaceAccessAsync(mary.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>(), _now);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET is_server_admin = 1, is_household_admin = 1 WHERE id = @id;", new { id = mary.Id });
+        }
+
+        var account = NewAccount("mary@example.com", administrator: false, householdId: mary.HouseholdId);
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, mary.Id, isDefault: true),
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), preserveProfileAccess: true);
+
+        var flags = (await _access.GetAdminFlagsAsync(mary.Id))!;
+        Assert.False(flags.IsServerAdministrator);
+        Assert.False(flags.IsHouseholdAdministrator);
+        Assert.Equal(new[] { "listen" }, (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
+    }
+
+    [Fact]
+    public async Task APersonWhoLosesTheirLastSignIn_LosesTheirAdministratorRoles()
+    {
+        // A household administrator in a household of their own.
+        var (admin, person, member) = await CreateMemberAsync();
+        Assert.True((await _access.GetAdminFlagsAsync(person.Id))!.IsHouseholdAdministrator);
+        await _accounts.DeleteAccountAsync(member.Id);
+        Assert.False((await _access.GetAdminFlagsAsync(person.Id))!.IsHouseholdAdministrator);
+
+        // A second server administrator, in the Library's own household, while the first one stays and can still sign in.
+        await GiveCredentialAsync(admin);
+        var (second, secondPerson) = await CreateMainSignInAsync(admin, "second.admin@example.com");
+        await _access.SetServerAdministratorAsync(secondPerson.Id, true, _now);
+        Assert.True((await _access.GetAdminFlagsAsync(secondPerson.Id))!.IsServerAdministrator);
+        await _accounts.DeleteAccountAsync(second.Id);
+        Assert.False((await _access.GetAdminFlagsAsync(secondPerson.Id))!.IsServerAdministrator);
+        Assert.True((await _access.GetAdminFlagsAsync(Profile.SeedProfileId))!.IsServerAdministrator);
+    }
+
+    [Fact]
+    public async Task TheOnlyServerAdministratorProfile_CannotLoseItsSignIn_EvenWhenThatSignInIsOff()
+    {
+        var admin = await CreateServerAdministratorAsync();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE accounts SET is_enabled = 0 WHERE id = @id;", new { id = admin.Id });
+        }
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteAccountAsync(admin.Id));
+
+        Assert.True((await _access.GetAdminFlagsAsync(Profile.SeedProfileId))!.IsServerAdministrator);
+        Assert.NotNull(await _accounts.GetByIdAsync(admin.Id));
+    }
+
+    [Fact]
+    public async Task ASignInsHousehold_IsTheHouseholdOfItsOwnProfile_WhateverItsOwnHouseholdColumnSays()
+    {
+        var (admin, person, member) = await CreateMemberAsync();
+        var adminHousehold = (await _accounts.GetByIdAsync(admin.Id))!.HouseholdId;
+        var memberHousehold = (await _accounts.GetByIdAsync(member.Id))!.HouseholdId;
+        Assert.NotEqual(adminHousehold, memberHousehold);
+
+        // Make the column disagree with the profile.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE accounts SET household_id = @wrong WHERE id = @id;", new { wrong = adminHousehold, id = member.Id });
+        }
+
+        var read = (await _accounts.GetByIdAsync(member.Id))!;
+        Assert.Equal(memberHousehold, read.HouseholdId);
+        Assert.Equal(person.Id, read.ProfileId);
+        Assert.True(read.HouseholdAdmin, "the sign-in of a household administrator profile is itself protected");
+        Assert.Equal(memberHousehold, (await _households.GetForAccountAsync(member.Id))!.Id);
+        Assert.Contains(member.Id, (await _households.ListAccountsAsync(memberHousehold!.Value)).Select(account => account.Id));
+        Assert.DoesNotContain(member.Id, (await _households.ListAccountsAsync(adminHousehold!.Value)).Select(account => account.Id));
+        Assert.True(read.MaySwitchInto(memberHousehold));
+        Assert.False(read.MaySwitchInto(adminHousehold));
     }
 
     [Fact]

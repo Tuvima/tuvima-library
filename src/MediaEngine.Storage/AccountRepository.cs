@@ -164,13 +164,15 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return Task.FromResult(row is null ? null : Map(row));
     }
 
+    // The household of a user is its own profile's household (the same source authority uses); accounts.household_id is written as
+    // before but read for no decision.
     private const string Select = """
         SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail,
                is_enabled AS IsEnabled,
                COALESCE((SELECT p.is_server_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS IsAdministrator,
                authorization_version AS AuthorizationVersion,
                created_at AS CreatedAt, updated_at AS UpdatedAt,
-               household_id AS HouseholdId,
+               (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id) AS HouseholdId,
                COALESCE((SELECT p.is_household_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS HouseholdAdmin,
                grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                this_computer_only AS ThisComputerOnly,
@@ -371,6 +373,17 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new InvalidOperationException("The final effective administrator account cannot be deleted.");
         }
 
+        // The only server administrator profile never loses its role by losing a sign-in that cannot sign in anyway.
+        if (account.ProfileId is { } adminProfileId &&
+            connection.ExecuteScalar<int>("""
+                SELECT EXISTS(SELECT 1 FROM profiles WHERE id=@adminProfileId AND is_server_admin=1)
+                   AND NOT EXISTS(SELECT 1 FROM accounts WHERE profile_id=@adminProfileId AND id<>@accountId)
+                   AND NOT EXISTS(SELECT 1 FROM profiles WHERE is_server_admin=1 AND id<>@adminProfileId);
+                """, new { adminProfileId, accountId }, transaction) == 1)
+        {
+            throw new InvalidOperationException("The final effective administrator account cannot be deleted.");
+        }
+
         // People whose access followed this account follow the household's next main sign-in instead.
         connection.Execute("""
             UPDATE accounts SET grants_inherit_from_account_id=(
@@ -390,6 +403,17 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             WHERE primary_account_id=@accountId;
             """, new { accountId }, transaction);
         connection.Execute("DELETE FROM accounts WHERE id=@accountId;", new { accountId }, transaction);
+        // A person left without a sign-in cannot be an administrator (D15). The last-administrator checks above and in the service
+        // run first, so this never removes the last one that can sign in.
+        if (account.ProfileId is { } profileId)
+        {
+            connection.Execute("""
+                UPDATE profiles
+                SET is_server_admin=0, is_household_admin=0, authorization_version=authorization_version+1
+                WHERE id=@profileId AND (is_server_admin=1 OR is_household_admin=1)
+                  AND NOT EXISTS (SELECT 1 FROM accounts WHERE profile_id=@profileId);
+                """, new { profileId }, transaction);
+        }
     }
 
     public Task<IReadOnlyList<AccountProfileGrant>> GetGrantsAsync(Guid accountId, CancellationToken ct = default)
@@ -480,6 +504,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             {
                 SeedProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
             }
+            else
+            {
+                ClearStaleRolesForNewSignIn(connection, transaction, account);
+            }
         }, ct);
 
     public Task CreateInvitedAccountAsync(
@@ -554,6 +582,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             if (newProfile is not null || !preserveProfileAccess)
             {
                 SeedProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
+            }
+            else
+            {
+                ClearStaleRolesForNewSignIn(connection, transaction, account);
             }
         }, ct);
 
@@ -984,7 +1016,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         {
             token.ThrowIfCancellationRequested();
             var account = connection.QuerySingleOrDefault<(Guid? HouseholdId, bool Follows)>(
-                "SELECT household_id AS HouseholdId, (grants_inherit_from_account_id IS NOT NULL) AS Follows FROM accounts WHERE id=@accountId;",
+                "SELECT (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id) AS HouseholdId, (grants_inherit_from_account_id IS NOT NULL) AS Follows FROM accounts WHERE id=@accountId;",
                 new { accountId }, transaction);
             if (account.HouseholdId is null)
             {
@@ -1179,6 +1211,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
 
         var server = account.IsAdministrator && account.OwnGrantAdmin;
+        if (server)
+        {
+            // D17: a server administrator profile lives in the Library's own household.
+            ProfileAccessRepository.RequireInDefaultHousehold(c, tx, profileId);
+        }
+
         c.Execute("""
             UPDATE profiles
             SET is_server_admin=@server, is_household_admin=@household, authorization_version=authorization_version+@bump
@@ -1201,6 +1239,26 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         {
             ProfileAccessRepository.MarkDefaultHouseholdIfNone(c, tx, householdId);
         }
+    }
+
+    /// <summary>
+    /// A person who already exists gets a sign-in: no administrator role left on the profile from an earlier sign-in comes back with
+    /// it. The profile had no sign-in until now, so clearing a role cannot strand a server administrator; a role is given again only
+    /// by an explicit choice afterwards (the server administrator's own, in the service). Their Read/Watch/Listen/View and library
+    /// access stay as they are.
+    /// </summary>
+    private static void ClearStaleRolesForNewSignIn(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account)
+    {
+        if (account.ProfileId is not { } profileId)
+        {
+            return;
+        }
+
+        c.Execute("""
+            UPDATE profiles
+            SET is_server_admin=0, is_household_admin=0, authorization_version=authorization_version+1
+            WHERE id=@profileId AND (is_server_admin=1 OR is_household_admin=1);
+            """, new { profileId }, tx);
     }
 
     private sealed class SyncRow

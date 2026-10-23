@@ -132,16 +132,7 @@ public sealed class UserImportRepository
         var prepared = Prepare(export, summary, householdExists);
         var result = BackupRestoreRepository.ImportCore(connection, transaction, prepared, fileName, fileCreatedAt, codec, now, Guid.NewGuid(), ct, plainInsert: true);
 
-        // The person who starts a household by being imported looks after it, as before: the household administrator role now lives on
-        // the profile their sign-in opens (which has a user attached). Joining a household that already exists makes no one an administrator.
-        if (summary.HouseholdId is not null && !householdExists && summary.HouseholdName is not null && summary.HouseholdAdmin)
-        {
-            using var promote = connection.CreateCommand();
-            promote.Transaction = transaction;
-            promote.CommandText = "UPDATE profiles SET is_household_admin = 1 WHERE id = (SELECT profile_id FROM accounts WHERE id = $account)";
-            promote.Parameters.AddWithValue("$account", GuidSql.ToBlob(summary.AccountId));
-            promote.ExecuteNonQuery();
-        }
+        // An import never makes anyone an administrator, of the server or of a household (D9): the administrator chooses after the import.
 
         // Nothing is removed quietly: a row left pointing at something that does not exist means the file was not a whole user.
         foreach (var table in prepared.Tables.Where(table => table.Rows.Count > 0))
@@ -210,8 +201,8 @@ public sealed class UserImportRepository
 
     /// <summary>
     /// The export with the access rights taken out: not an administrator, no administrator grant, no follow-another-account link, no Vault
-    /// access, no administrator profile role; the household joined or created; the household's administrator flag only when this import
-    /// creates the household. Every excluded column (a file path, someone else's id) is emptied whatever the file says, so no file can
+    /// access, no administrator profile role; the household joined or created, and no household administrator role either (the
+    /// administrator chooses after the import, D9). Every excluded column (a file path, someone else's id) is emptied whatever the file says, so no file can
     /// make the Engine open, serve or delete a path it chose; collections arrive private and not featured, and keep a parent only when
     /// the parent is in the same file.
     /// </summary>
@@ -219,7 +210,6 @@ public sealed class UserImportRepository
     {
         var accountBlob = GuidSql.ToBlob(summary.AccountId);
         var keepHousehold = summary.HouseholdId is not null && (householdExists || summary.HouseholdName is not null);
-        var createdHousehold = keepHousehold && !householdExists;
         var collectionIds = summary.CollectionIds.ToHashSet();
         var tables = new List<BackupExportTable>();
         foreach (var original in export.Tables)
@@ -234,7 +224,7 @@ public sealed class UserImportRepository
                         ["normalized_email"] = BackupValue.FromText(NormalizedEmail(summary.Email)),
                         ["is_administrator"] = BackupValue.FromInteger(0),
                         ["grants_inherit_from_account_id"] = BackupValue.Null,
-                        ["household_admin"] = BackupValue.FromInteger(createdHousehold && summary.HouseholdAdmin ? 1 : 0),
+                        ["household_admin"] = BackupValue.FromInteger(0),
                         ["household_id"] = keepHousehold ? BackupValue.FromBlob(GuidSql.ToBlob(summary.HouseholdId!.Value)) : BackupValue.Null,
                     },
                     // The profile the sign-in opens travels only when it is one of the profiles in the file.

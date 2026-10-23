@@ -25,7 +25,9 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         using var conn = db.CreateConnection();
         var row = conn.QueryFirstOrDefault<HouseholdRow>("""
             SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId, h.is_default AS IsDefault
-            FROM accounts a JOIN households h ON h.id = a.household_id
+            FROM accounts a
+            JOIN profiles own ON own.id = a.profile_id
+            JOIN households h ON h.id = own.household_id
             WHERE a.id = @accountId LIMIT 1;
             """, new { accountId });
         return Task.FromResult(row is null ? null : Map(row));
@@ -72,11 +74,13 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail, is_enabled AS IsEnabled,
                    COALESCE((SELECT p.is_server_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS IsAdministrator,
                    authorization_version AS AuthorizationVersion,
-                   created_at AS CreatedAt, updated_at AS UpdatedAt, household_id AS HouseholdId,
+                   created_at AS CreatedAt, updated_at AS UpdatedAt,
+                   (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id) AS HouseholdId,
                    COALESCE((SELECT p.is_household_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS HouseholdAdmin,
                    grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                    profile_id AS ProfileId
-            FROM accounts WHERE household_id = @householdId
+            FROM accounts
+            WHERE (SELECT p.household_id FROM profiles p WHERE p.id = accounts.profile_id) = @householdId
             ORDER BY created_at, id;
             """, new { householdId }).ToList();
         var accounts = new List<Account>(rows.Count);
@@ -163,8 +167,10 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
                 return HouseholdDeleteOutcome.IsDefaultHousehold;
             }
 
+            // A safety check, so it counts a sign-in under either record (its own profile's household or the column still written).
             if (conn.ExecuteScalar<int>("""
-                SELECT (SELECT COUNT(*) FROM accounts WHERE household_id = @householdId)
+                SELECT (SELECT COUNT(*) FROM accounts WHERE household_id = @householdId
+                          OR profile_id IN (SELECT id FROM profiles WHERE household_id = @householdId))
                      + (SELECT COUNT(*) FROM profiles WHERE household_id = @householdId);
                 """, new { householdId }, tx) > 0)
             {
@@ -196,7 +202,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
     private const string SummarySelect = """
         SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId, h.is_default AS IsDefault,
                (SELECT COUNT(*) FROM profiles p WHERE p.household_id = h.id) AS ProfileCount,
-               (SELECT COUNT(*) FROM accounts a WHERE a.household_id = h.id) AS AccountCount
+               (SELECT COUNT(*) FROM accounts a JOIN profiles own ON own.id = a.profile_id WHERE own.household_id = h.id) AS AccountCount
         FROM households h
         """;
 

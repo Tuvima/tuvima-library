@@ -116,6 +116,11 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 throw new InvalidOperationException("The final effective administrator cannot be demoted.");
             }
 
+            if (isServerAdministrator)
+            {
+                RequireInDefaultHousehold(conn, tx, profileId);
+            }
+
             conn.Execute("UPDATE profiles SET is_server_admin=@value, authorization_version=authorization_version+1 WHERE id=@profileId;",
                 new { profileId, value = isServerAdministrator ? 1 : 0 }, tx);
             if (isServerAdministrator
@@ -314,6 +319,25 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
             conn.Execute("UPDATE households SET is_default=1 WHERE id=@householdId;", new { householdId }, tx);
             return true;
         }, ct);
+
+    /// <summary>
+    /// Refuses a server administrator role for a profile outside the default household (D17). With no default household marked yet
+    /// the check passes and <see cref="MarkDefaultHouseholdIfNone"/> makes the profile's household the default.
+    /// </summary>
+    internal static void RequireInDefaultHousehold(IDbConnection conn, IDbTransaction tx, Guid profileId)
+    {
+        var defaultHousehold = conn.QueryFirstOrDefault<Guid?>("SELECT id FROM households WHERE is_default=1 LIMIT 1;", transaction: tx);
+        if (defaultHousehold is not { } home)
+        {
+            return;
+        }
+
+        var household = conn.QueryFirstOrDefault<Guid?>("SELECT household_id FROM profiles WHERE id=@profileId;", new { profileId }, tx);
+        if (household != home)
+        {
+            throw new InvalidOperationException("A server administrator must belong to the Library's own household.");
+        }
+    }
 
     /// <summary>
     /// Marks a household as the default only when no household is yet. Used by setup, where the server administrator's household

@@ -311,7 +311,7 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     [Fact]
-    public void Import_CreatesTheHouseholdWithThePersonAsPrimary_AndKeepsTheirHouseholdAdministratorFlag()
+    public void Import_CreatesTheHouseholdWithThePersonAsPrimary_AndNeverMakesThemAHouseholdAdministrator()
     {
         var source = NewStore();
         var target = NewStore();
@@ -322,7 +322,8 @@ public sealed class UserExportImportTests : IDisposable
 
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM households WHERE name = 'The Khans'"));
         Assert.Equal(Blob(maya.Account), "X'" + target.Text("SELECT hex(primary_account_id) FROM households") + "'");
-        Assert.Equal(1, target.Scalar("SELECT household_admin FROM accounts"));
+        Assert.Equal(0, target.Scalar("SELECT household_admin FROM accounts"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profiles WHERE is_household_admin = 1"));
         Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM profiles WHERE household_id = {Blob(household)}"));
     }
 

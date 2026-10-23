@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Security;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
@@ -376,6 +377,135 @@ public sealed class HouseholdAdministratorTests
             world.AdminOfA, world.B.Owner.Id, otherProfile, command));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.SetAdminProtectionAsync(
             world.MemberOfA, world.A.Owner.Id, ownerProfile, command));
+    }
+
+    [Fact]
+    public async Task HouseholdAdministrator_CannotChangeAnotherAdministratorsPinProtection_ThoughTheServerAdministratorCanChangeAnyones()
+    {
+        await using var world = await World.CreateAsync();
+        var access = new ProfileAccessRepository(world.Database);
+        var mom = world.AdminOfA;
+        var momProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value;
+        var shyProfile = world.ServerAdmin.ActiveProfileId!.Value;
+
+        // Dad is a second household administrator in Mom's household, with protection on.
+        var dad = await world.Mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "dad@example.com", [world.A.Spare.Id], null));
+        await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, dad.AccountId, true);
+        var on = new GrantAdminProtectionCommand(true, AdminUnlockMode.FixedDuration, 30);
+        var off = new GrantAdminProtectionCommand(false, AdminUnlockMode.FixedDuration, 30);
+        await world.Mutations.SetProfilePinAsync(world.ServerAdmin, world.A.Spare.Id, "123456");
+        await world.Mutations.SetAdminProtectionAsync(world.ServerAdmin, dad.AccountId, world.A.Spare.Id, on);
+        await world.Mutations.SetProfilePinAsync(world.ServerAdmin, shyProfile, "654321");
+        await world.Mutations.SetAdminProtectionAsync(world.ServerAdmin, world.ServerAdminAccount.Id, shyProfile, on);
+
+        // Mom cannot turn off Dad's, naming Dad's sign-in or her own; nor Shy's, however the request names it.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.SetAdminProtectionAsync(
+            mom, dad.AccountId, world.A.Spare.Id, off));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.SetAdminProtectionAsync(
+            mom, world.A.Owner.Id, world.A.Spare.Id, off));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.SetAdminProtectionAsync(
+            mom, world.A.Owner.Id, shyProfile, off));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.SetAdminProtectionAsync(
+            mom, world.ServerAdminAccount.Id, shyProfile, off));
+        Assert.True((await access.GetAdminProtectionAsync(world.A.Spare.Id))!.IsEnabled);
+        Assert.True((await access.GetAdminProtectionAsync(shyProfile))!.IsEnabled);
+
+        // Mom can change her own.
+        await world.Mutations.SetProfilePinAsync(world.ServerAdmin, momProfile, "111222");
+        await world.Mutations.SetAdminProtectionAsync(mom, world.A.Owner.Id, momProfile, on);
+        Assert.True((await access.GetAdminProtectionAsync(momProfile))!.IsEnabled);
+        await world.Mutations.SetAdminProtectionAsync(mom, world.A.Owner.Id, momProfile, off);
+        Assert.False((await access.GetAdminProtectionAsync(momProfile))!.IsEnabled);
+
+        // The server administrator can change anyone's, Mom's included.
+        await world.Mutations.SetAdminProtectionAsync(world.ServerAdmin, world.A.Owner.Id, momProfile, on);
+        Assert.True((await access.GetAdminProtectionAsync(momProfile))!.IsEnabled);
+        await world.Mutations.SetAdminProtectionAsync(world.ServerAdmin, dad.AccountId, world.A.Spare.Id, off);
+        Assert.False((await access.GetAdminProtectionAsync(world.A.Spare.Id))!.IsEnabled);
+    }
+
+    [Fact]
+    public async Task ASignInGivenToAPersonWithLeftoverAdministratorRoles_NeverBringsThoseRolesBack_ByCreateInviteOrOwnSignIn()
+    {
+        await using var world = await World.CreateAsync();
+        var access = new ProfileAccessRepository(world.Database);
+        var home = (await world.Households.GetForAccountAsync(world.ServerAdminAccount.Id))!;
+
+        async Task<Profile> PersonWithLeftoverRolesAsync(Place place)
+        {
+            var person = await world.AddPersonAsync(place);
+            using var connection = world.Database.CreateConnection();
+            connection.Execute("UPDATE profiles SET is_server_admin = 1, is_household_admin = 1 WHERE id = @id;", new { id = person.Id });
+            return person;
+        }
+
+        async Task AssertNoRolesAsync(Guid profileId)
+        {
+            var flags = (await access.GetAdminFlagsAsync(profileId))!;
+            Assert.False(flags.IsServerAdministrator);
+            Assert.False(flags.IsHouseholdAdministrator);
+        }
+
+        // Create, not as an administrator.
+        var created = await PersonWithLeftoverRolesAsync(world.A);
+        await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
+            "created@example.com", IsAdministrator: false, ProfileId: created.Id, NewProfile: null,
+            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>()));
+        await AssertNoRolesAsync(created.Id);
+
+        // Invite.
+        var invited = await PersonWithLeftoverRolesAsync(world.A);
+        await world.Mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "invited@example.com", [invited.Id], null));
+        await AssertNoRolesAsync(invited.Id);
+
+        // A person's own sign-in.
+        var own = await PersonWithLeftoverRolesAsync(world.A);
+        await world.Mutations.GiveOwnSignInAsync(world.ServerAdmin, new GiveOwnSignInCommand(own.Id, "own@example.com", TemporaryPassword));
+        await AssertNoRolesAsync(own.Id);
+
+        // Create as a server administrator, in the Library's own household: exactly that choice, and no household administrator role.
+        var partner = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
+            new AddHouseholdPersonCommand(home.Id, "Partner", null, false, null));
+        using (var connection = world.Database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET is_household_admin = 1 WHERE id = @id;", new { id = partner.Id });
+        }
+
+        await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
+            "partner@example.com", IsAdministrator: true, ProfileId: partner.Id, NewProfile: null,
+            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>()));
+        var partnerFlags = (await access.GetAdminFlagsAsync(partner.Id))!;
+        Assert.True(partnerFlags.IsServerAdministrator);
+        Assert.False(partnerFlags.IsHouseholdAdministrator);
+    }
+
+    [Fact]
+    public async Task ASignInsHousehold_IsItsProfilesHousehold_ForSwitchingAndScoping_WhateverTheAccountColumnSays()
+    {
+        await using var world = await World.CreateAsync();
+        var ownerProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value;
+
+        // Make household A's main sign-in claim household B in the account's own column.
+        using (var connection = world.Database.CreateConnection())
+        {
+            connection.Execute("UPDATE accounts SET household_id = @wrong WHERE id = @id;", new { wrong = world.B.Id, id = world.A.Owner.Id });
+        }
+
+        var owner = (await world.Accounts.GetByIdAsync(world.A.Owner.Id))!;
+        Assert.Equal(world.A.Id, owner.HouseholdId);
+        Assert.True(owner.MaySwitchInto(world.A.Id));
+        Assert.False(owner.MaySwitchInto(world.B.Id));
+        Assert.Equal(world.A.Id, (await world.Households.GetForAccountAsync(owner.Id))!.Id);
+
+        // Household A's administrator still looks after household A, and household B is still out of reach.
+        await world.Mutations.SetProfilePinAsync(world.AdminOfA, world.A.Person.Id, "4321");
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Mutations.SetProfilePinAsync(world.AdminOfA, world.B.Person.Id, "4321"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Mutations.SetTemporaryPasswordAsync(world.AdminOfA, world.B.Owner.Id, "another long temporary password"));
+        Assert.Contains(ownerProfile, (await world.Accounts.GetProfileIdsAsync(owner.Id)));
     }
 
     [Fact]
