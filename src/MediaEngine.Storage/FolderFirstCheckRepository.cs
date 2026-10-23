@@ -190,23 +190,20 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
     public Task<bool> KeepGoingAsync(string sourceId, DateTimeOffset now, CancellationToken ct = default) =>
         EndAsync(sourceId, FolderFirstCheckStates.Paused, FolderFirstCheckStates.KeptGoing, tried: null, unmatched: null, now, ct);
 
-    public Task<bool> DropAsync(string sourceId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var connection = db.CreateConnection();
-        using var transaction = connection.BeginTransaction();
-        // The folder's held filing rows go with the check; nothing is moved. A row that waits for the next run is a different thing
-        // (the check had already passed) and is left alone.
-        connection.Execute($"""
-            DELETE FROM media_file_write_intents
-            WHERE target_kind = 'media_asset' AND move_step = 'held' AND move_origin = 'filing'
-              AND asset_id IN (SELECT a.id FROM media_assets a JOIN folder_first_checks c ON c.source_id = @sourceId
-                               WHERE {FileInFolder("a", "c")});
-            """, new { sourceId }, transaction);
-        var removed = connection.Execute("DELETE FROM folder_first_checks WHERE source_id = @sourceId;", new { sourceId }, transaction) > 0;
-        transaction.Commit();
-        return Task.FromResult(removed);
-    }
+    public Task<bool> DropAsync(string sourceId, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            // The folder's held filing rows go with the check; nothing is moved. A row that waits for the next run is a different thing
+            // (the check had already passed) and is left alone.
+            connection.Execute($"""
+                DELETE FROM media_file_write_intents
+                WHERE target_kind = 'media_asset' AND move_step = 'held' AND move_origin = 'filing'
+                  AND asset_id IN (SELECT a.id FROM media_assets a JOIN folder_first_checks c ON c.source_id = @sourceId
+                                   WHERE {FileInFolder("a", "c")});
+                """, new { sourceId }, transaction);
+            return connection.Execute("DELETE FROM folder_first_checks WHERE source_id = @sourceId;", new { sourceId }, transaction) > 0;
+        }, ct);
 
     public bool IsHeld(string sourceId)
     {
@@ -224,18 +221,20 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
     // Ends the check in one transaction: the state changes only from the expected one, the folder's held filing rows become waiting (the
     // row of a file that is Unmatched now is dropped instead: it stays where it is) and the per-file rows are no longer needed.
     private Task<bool> EndAsync(
-        string sourceId, string from, string to, int? tried, int? unmatched, DateTimeOffset now, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var connection = db.CreateConnection();
-        using var transaction = connection.BeginTransaction();
-        var changed = connection.Execute("""
-            UPDATE folder_first_checks
-            SET state = @to, tried = COALESCE(@tried, tried), unmatched = COALESCE(@unmatched, unmatched), ended_at = @now
-            WHERE source_id = @sourceId AND state = @from;
-            """, new { sourceId, from, to, tried, unmatched, now = Format(now) }, transaction) > 0;
-        if (changed)
+        string sourceId, string from, string to, int? tried, int? unmatched, DateTimeOffset now, CancellationToken ct) =>
+        db.ExecuteWriteAsync((connection, transaction, token) =>
         {
+            token.ThrowIfCancellationRequested();
+            var changed = connection.Execute("""
+                UPDATE folder_first_checks
+                SET state = @to, tried = COALESCE(@tried, tried), unmatched = COALESCE(@unmatched, unmatched), ended_at = @now
+                WHERE source_id = @sourceId AND state = @from;
+                """, new { sourceId, from, to, tried, unmatched, now = Format(now) }, transaction) > 0;
+            if (!changed)
+            {
+                return false;
+            }
+
             // A file that is Unmatched now has no business being filed: its held row goes, and a later match asks for filing afresh.
             connection.Execute($"""
                 DELETE FROM media_file_write_intents
@@ -252,11 +251,8 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
                                    WHERE {FileInFolder("a", "c")});
                 """, new { sourceId, now = Format(now) }, transaction);
             connection.Execute("DELETE FROM folder_first_check_files WHERE source_id = @sourceId;", new { sourceId }, transaction);
-        }
-
-        transaction.Commit();
-        return Task.FromResult(changed);
-    }
+            return true;
+        }, ct);
 
     private static int CountFiles(SqliteConnection connection, string sourceId) =>
         connection.ExecuteScalar<int>($"""

@@ -44,7 +44,8 @@ public sealed class BatchedFilingCompositionTests
 
             Assert.Same(provider.GetRequiredService<MediaFileWriteIntentRepository>(), Field(organiser, "_filingQueue"));
             Assert.Same(provider.GetRequiredService<IFilingQueue>(), Field(organiser, "_filingQueue"));
-            Assert.IsType<NoFilingHold>(Field(organiser, "_filingHold"));
+            // The Engine answers the hold from the first check of a newly added folder; NoFilingHold is only for hosts with no checks.
+            Assert.IsType<FolderFirstCheckFilingHold>(Field(organiser, "_filingHold"));
             Assert.Same(provider.GetRequiredService<IFilingHold>(), Field(organiser, "_filingHold"));
         }
         finally
