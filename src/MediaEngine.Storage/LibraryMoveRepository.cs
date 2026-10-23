@@ -861,7 +861,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
     /// Writes where the item sits in its list, on the title and on each of its files (readers look at the file first). Each value is
     /// the person's choice, so it is a current claim from the manual provider and the chosen value.
     /// </summary>
-    private static void SetNumbers(
+    internal static void SetNumbers(
         SqliteConnection connection,
         SqliteTransaction transaction,
         IReadOnlyList<Guid> entityIds,

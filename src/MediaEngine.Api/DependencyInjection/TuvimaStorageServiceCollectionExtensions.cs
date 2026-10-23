@@ -86,6 +86,11 @@ public static class TuvimaStorageServiceCollectionExtensions
             sp.GetRequiredService<ILoggerFactory>().CreateLogger("MediaEngine.Api.Services.Libraries.RecycleBinService")));
         services.AddSingleton<ExcludedFileService>();
         services.AddSingleton<FolderJobService>();
+        services.AddSingleton<IEntityRescorer, ClaimRescorer>();
+        // Removes the files Tuvima wrote for a title that a library move or a change of kind merged away. Registered here only, so every composition has it.
+        services.AddSingleton<MediaEngine.Api.Services.Libraries.Moves.MoveOwnedFileCleaner>();
+        services.AddSingleton<FolderKindChangeRunner>();
+        services.AddSingleton<FolderKindChangeService>();
         services.AddSingleton<ServerFolderBrowserService>();
         services.AddSingleton<ImportFolderApplier>();
         services.AddSingleton<SetupMediaLocationValidationService>();
@@ -215,6 +220,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ITasteOverrideRepository, TasteOverrideRepository>();
         services.TryAddSingleton<IIngestionQueueProgressRepository, IngestionQueueProgressRepository>();
         services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
+        services.AddSingleton<IFolderKindChangeRepository, FolderKindChangeRepository>();
         services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
         services.AddSingleton<IImportUploadRepository, ImportUploadRepository>();
         services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();

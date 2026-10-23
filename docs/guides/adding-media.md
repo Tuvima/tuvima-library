@@ -25,10 +25,10 @@ Start with one media type and a few files. Large imports are easier to check aft
 
 ## Configure a catalogue folder
 
-1. Open **Settings → Libraries** and choose the media type.
-2. Choose **Add folder** and pick the folder on the server. Click a folder to open it, or type the path.
+1. Open **Settings → Libraries** and choose **+ Add folder**.
+2. Say what it is (Watch, Listen, Read or View, then the kind), then pick the folder on the server. Click a folder to open it, or type the path.
 3. If the folder has files, choose **Use read-only**, **Merge into**, or **Let Tuvima manage it**.
-4. Choose **Add**. It saves at once.
+4. Choose **Add folder** on the last step. It saves at once. See [Manage library settings and operations](library-settings.md) for the three levels of Libraries and what happens to a new folder first.
 5. Open **Settings → Operations** and choose **Check folders for changes** (in the Ingestion page "⋯" menu) for an existing batch.
 
 New files in watched folders are picked up automatically. **Check folders for changes** (in the Ingestion page "⋯" menu) explicitly starts an extra scan. Operations at `/settings/ingestion` shows current work and bounded batch history without manual refresh.

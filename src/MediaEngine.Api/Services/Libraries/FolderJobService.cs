@@ -29,6 +29,7 @@ public sealed class FolderJobService
 {
     private const string OrganiseFolder = MediaOperationType.OrganiseFolder;
     private const string MergeFolder = MediaOperationType.MergeFolder;
+    private const string ChangeFolderKind = MediaOperationType.ChangeFolderKind;
     private const int DefaultLogPage = 200;
     private const int MaxLogPage = 1000;
     private static readonly TimeSpan RecentJobWindow = TimeSpan.FromDays(7);
@@ -205,7 +206,7 @@ public sealed class FolderJobService
             {
                 return open.OperationType == MergeFolder
                     ? await ToStatusAsync(open, libraries, ct).ConfigureAwait(false)
-                    : throw new FolderJobException("This folder is being organised right now. Wait for that to finish first.", conflict: true);
+                    : throw new FolderJobException(BusyMessage(open), conflict: true);
             }
 
             var context = FolderMergeContext.TryCreateForPlan(libraries, sourceId, request.TargetSourceId, request.Mode, out var check)
@@ -303,9 +304,9 @@ public sealed class FolderJobService
                 return await ToStatusAsync(running, libraries, ct).ConfigureAwait(false);
             }
 
-            if (await FindOpenOperationAsync(sourceId, null, ct).ConfigureAwait(false) is not null)
+            if (await FindOpenOperationAsync(sourceId, null, ct).ConfigureAwait(false) is { } busy)
             {
-                throw new FolderJobException("This folder is being merged right now. Wait for that to finish first.", conflict: true);
+                throw new FolderJobException(busy.OperationType == ChangeFolderKind ? BusyMessage(busy) : "This folder is being merged right now. Wait for that to finish first.", conflict: true);
             }
 
             var proposed = Clone(libraries);
@@ -459,6 +460,12 @@ public sealed class FolderJobService
             if (operation.OperationType == MergeFolder)
             {
                 await StopMergeIfFoldersGoneAsync(operation, sourceId, libraries, ct).ConfigureAwait(false);
+                continue;
+            }
+
+            // Changing what a folder is works on a Read-only folder as well (nothing moves on disk there), so it does not stop with management.
+            if (operation.OperationType == ChangeFolderKind)
+            {
                 continue;
             }
 
@@ -917,6 +924,15 @@ public sealed class FolderJobService
         (await OpenOperationsAsync(ct).ConfigureAwait(false)).FirstOrDefault(operation =>
             operation.EntityId == sourceId && (operationType is null || operation.OperationType == operationType));
 
+    /// <summary>True while any folder job (organising, merging or changing what the folder is) is queued, running or paused for the folder.</summary>
+    public async Task<bool> HasOpenJobAsync(Guid sourceId, CancellationToken ct) =>
+        await FindOpenOperationAsync(sourceId, null, ct).ConfigureAwait(false) is not null;
+
+    /// <summary>The sentence for a folder that cannot start something new because a job is open for it.</summary>
+    private static string BusyMessage(MediaOperation open) => open.OperationType == ChangeFolderKind
+        ? "This folder is changing what it is right now. Wait for that to finish first."
+        : "This folder is being organised right now. Wait for that to finish first.";
+
     private static void ClearMerge(LibrarySourceConfig source)
     {
         source.MergeState = LibrarySourceMergeStates.None;
@@ -988,6 +1004,8 @@ public sealed class FolderJobService
     private static string StoppedMessage(MediaOperation operation, bool isMove) =>
         operation.OperationType == MergeFolder
             ? MergeStoppedMessage(isMove)
+            : operation.OperationType == ChangeFolderKind
+            ? $"Stopped after {operation.ItemsCompleted.ToString("N0", CultureInfo.InvariantCulture)} of {operation.ItemsTotal.ToString("N0", CultureInfo.InvariantCulture)} files. Files not changed yet keep the old kind; start the change again to finish them."
             : operation.ItemsTotal > 0
             ? $"Stopped after {operation.ItemsCompleted.ToString("N0", CultureInfo.InvariantCulture)} of {operation.ItemsTotal.ToString("N0", CultureInfo.InvariantCulture)}; the rest will be tidied gradually by normal scans."
             : "Stopped; the rest will be tidied gradually by normal scans.";
@@ -1020,6 +1038,8 @@ public sealed class FolderJobService
                 "completed" or "cancelled" => operation.ResultSummary,
                 "failed" => operation.LastError ?? (operation.OperationType == MergeFolder
                     ? "Merging stopped before it finished."
+                    : operation.OperationType == ChangeFolderKind
+                    ? "Changing what this folder is stopped before it finished."
                     : "Organising stopped before it finished."),
                 "paused" => $"Paused at {operation.ItemsCompleted.ToString("N0", CultureInfo.InvariantCulture)} of {operation.ItemsTotal.ToString("N0", CultureInfo.InvariantCulture)}.",
                 _ => null,
@@ -1106,7 +1126,7 @@ public sealed class FolderJobService
     private static int EstimateSeconds(int video, int other, double? measured) =>
         (int)Math.Ceiling(FolderConversionEstimator.Estimate(video, Math.Max(0, other), measured).TotalSeconds);
 
-    private static string FolderName(LibrariesConfiguration libraries, Guid sourceId)
+    internal static string FolderName(LibrariesConfiguration libraries, Guid sourceId)
     {
         var source = FindSource(libraries, sourceId);
         if (source is null)

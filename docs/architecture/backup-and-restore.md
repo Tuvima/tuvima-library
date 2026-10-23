@@ -317,7 +317,7 @@ The rows a rescan rebuilds are not kept; the tables below say where a person's o
 | `qid_labels` | Cached Wikidata labels. |
 | `search_index` | Search index over titles. |
 
-## Transient tables (67)
+## Transient tables (68)
 
 None of these are kept.
 
@@ -340,6 +340,7 @@ None of these are kept.
 | `transaction_log` | Change log. |
 | `ingestion_log` | Ingestion run log. |
 | `folder_organise_log` | Folder organise run log. |
+| `folder_kind_changes` | Plans of the change-what-this-folder-is jobs. |
 | `scheduled_task_runs` | Scheduled task run log. |
 | `media_operations` | Media operation queue. |
 | `media_operation_events` | Media operation log. |

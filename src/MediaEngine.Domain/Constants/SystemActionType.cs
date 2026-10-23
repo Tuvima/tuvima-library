@@ -167,6 +167,9 @@ public static class SystemActionType
     /// <summary>An empty folder was cleaned up during reconciliation.</summary>
     public const string FolderCleaned = "FolderCleaned";
 
+    /// <summary>An administrator changed what a folder is (Library setup D40(c)): it moved to a library of another kind and its files were identified again.</summary>
+    public const string FolderKindChanged = "FolderKindChanged";
+
     /// <summary>A person folder was renamed following a metadata update (e.g. name change).</summary>
     public const string PersonFolderRenamed = "PersonFolderRenamed";
 

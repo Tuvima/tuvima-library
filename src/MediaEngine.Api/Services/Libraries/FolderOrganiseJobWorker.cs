@@ -5,13 +5,13 @@ using MediaEngine.Ingestion.Organise;
 namespace MediaEngine.Api.Services.Libraries;
 
 /// <summary>
-/// Runs the folder jobs (organising a folder, merging a folder) on the <c>folder_jobs</c> queue, one at a time, from the
+/// Runs the folder jobs (organising a folder, merging a folder, changing what a folder is) on the <c>folder_jobs</c> queue, one at a time, from the
 /// durable operation table. A job that was running when the Engine stopped is picked up again on the next start: its ledger
 /// says which files are done.
 /// </summary>
 public sealed class FolderOrganiseJobWorker : BackgroundService
 {
-    private static readonly string[] JobTypes = [MediaOperationType.OrganiseFolder, MediaOperationType.MergeFolder];
+    private static readonly string[] JobTypes = [MediaOperationType.OrganiseFolder, MediaOperationType.MergeFolder, MediaOperationType.ChangeFolderKind];
     private static readonly TimeSpan Lease = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan IdlePoll = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan ReconcileEvery = TimeSpan.FromSeconds(30);
@@ -21,6 +21,7 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
     private readonly FolderOrganiseRunner _runner;
     private readonly FolderMergeRunner _mergeRunner;
     private readonly FolderJobService _jobs;
+    private readonly FolderKindChangeRunner? _kindChangeRunner;
     private readonly ILogger<FolderOrganiseJobWorker> _logger;
     private readonly string _workerName = Environment.MachineName + ":folder-jobs";
 
@@ -30,13 +31,15 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
         FolderOrganiseRunner runner,
         FolderMergeRunner mergeRunner,
         FolderJobService jobs,
-        ILogger<FolderOrganiseJobWorker> logger)
+        ILogger<FolderOrganiseJobWorker> logger,
+        FolderKindChangeRunner? kindChangeRunner = null)
     {
         _operations = operations;
         _tracker = tracker;
         _runner = runner;
         _mergeRunner = mergeRunner;
         _jobs = jobs;
+        _kindChangeRunner = kindChangeRunner;
         _logger = logger;
     }
 
@@ -95,7 +98,7 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
     {
         foreach (var operation in await _operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 1000, ct).ConfigureAwait(false))
         {
-            if (operation.OperationType is MediaOperationType.OrganiseFolder or MediaOperationType.MergeFolder
+            if (operation.OperationType is MediaOperationType.OrganiseFolder or MediaOperationType.MergeFolder or MediaOperationType.ChangeFolderKind
                 && operation.Status is MediaOperationStatus.Leased or MediaOperationStatus.Running)
             {
                 await _operations.InterruptIfRunningAsync(operation.Id, "The Engine restarted; resuming from where it stopped.", ct)
@@ -114,12 +117,15 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
         }
 
         var merging = operation.OperationType == MediaOperationType.MergeFolder;
-        _logger.LogInformation("{Verb} folder {SourceId} (job {OperationId})", merging ? "Merging" : "Organising", sourceId, operation.Id);
+        var changing = operation.OperationType == MediaOperationType.ChangeFolderKind;
+        _logger.LogInformation("{Verb} folder {SourceId} (job {OperationId})", changing ? "Changing the kind of" : merging ? "Merging" : "Organising", sourceId, operation.Id);
         await _operations.UpdateStageAsync(operation.Id, MediaOperationStage.Organising, operation.ProgressPercent, ct).ConfigureAwait(false);
         var host = new JobHost(operation, _operations, _tracker);
         try
         {
-            var result = merging
+            var result = changing
+                ? await RequireKindChangeRunner().RunAsync(operation.Id, sourceId, host, ct).ConfigureAwait(false)
+                : merging
                 ? await _mergeRunner.RunAsync(new FolderMergeJob(operation.Id, sourceId), host, ct).ConfigureAwait(false)
                 : await _runner.RunAsync(new FolderOrganiseJob(operation.Id, sourceId), host, ct).ConfigureAwait(false);
             await SettleAsync(operation, sourceId, result, ct).ConfigureAwait(false);
@@ -134,10 +140,12 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "{Verb} folder {SourceId} failed", merging ? "Merging" : "Organising", sourceId);
+            _logger.LogError(ex, "{Verb} folder {SourceId} failed", changing ? "Changing the kind of" : merging ? "Merging" : "Organising", sourceId);
             await _operations.MarkFailedTerminalAsync(
                 operation.Id,
-                merging
+                changing
+                    ? "Changing what this folder is stopped because of an unexpected error. Files already changed stay changed; start the change again to finish the rest. See the Engine log."
+                    : merging
                     ? "Merging stopped because of an unexpected error. What was already copied stays where it is. See the Engine log."
                     : "Organising stopped because of an unexpected error. See the Engine log.",
                 ct).ConfigureAwait(false);
@@ -147,21 +155,38 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
 
     /// <summary>A job is over: the folder stops saying it is converting or merging.</summary>
     private Task FinishAsync(MediaOperation operation, Guid sourceId, bool completed, CancellationToken ct) =>
-        operation.OperationType == MediaOperationType.MergeFolder
+        operation.OperationType == MediaOperationType.ChangeFolderKind
+            ? Task.CompletedTask // A kind change leaves no state on the folder row; its progress is the job's own.
+            : operation.OperationType == MediaOperationType.MergeFolder
             ? _jobs.FinishMergeAsync(sourceId, operation.Id, completed, ct)
             : _jobs.FinishConversionAsync(sourceId, operation.Id, ct);
+
+    private FolderKindChangeRunner RequireKindChangeRunner() =>
+        _kindChangeRunner ?? throw new InvalidOperationException("The folder worker was built without the runner that changes what a folder is.");
 
     private async Task SettleAsync(MediaOperation operation, Guid sourceId, FolderOrganiseRunResult result, CancellationToken ct)
     {
         var merging = operation.OperationType == MediaOperationType.MergeFolder;
         switch (result.Stop)
         {
+            case FolderOrganiseStop.Finished when operation.OperationType == MediaOperationType.ChangeFolderKind && result.Failed > 0:
+                // Files that could not be changed are not a plain success: the job says so, and starting the change again retries them.
+                await _operations.RecordProgressAsync(
+                    operation.Id, result.Total, result.Completed, result.Failed, 100, ct: ct).ConfigureAwait(false);
+                await _operations.MarkFailedTerminalAsync(
+                    operation.Id,
+                    await RequireKindChangeRunner().CompletionMessageAsync(operation.Id, result, ct).ConfigureAwait(false),
+                    ct).ConfigureAwait(false);
+                break;
+
             case FolderOrganiseStop.Finished:
                 await _operations.RecordProgressAsync(
                     operation.Id, result.Total, result.Completed, result.Failed, 100, ct: ct).ConfigureAwait(false);
                 await _tracker.MarkSucceededAsync(
                     operation.Id,
-                    merging ? FolderJobService.MergeCompletionMessage(result) : FolderJobService.CompletionMessage(result),
+                    operation.OperationType == MediaOperationType.ChangeFolderKind
+                        ? await RequireKindChangeRunner().CompletionMessageAsync(operation.Id, result, ct).ConfigureAwait(false)
+                        : merging ? FolderJobService.MergeCompletionMessage(result) : FolderJobService.CompletionMessage(result),
                     ct: ct).ConfigureAwait(false);
                 await FinishAsync(operation, sourceId, completed: true, ct).ConfigureAwait(false);
                 break;

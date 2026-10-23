@@ -269,6 +269,28 @@ public sealed class FolderFirstCheckService(
     /// </summary>
     public Task<bool> EndBecauseKindChangedAsync(string sourceId, CancellationToken ct) => checks.DropAsync(sourceId, ct);
 
+    /// <summary>
+    /// Starts a new check for a folder that has just moved to a library whose kind looks details up (Change what this folder is; D35, D61):
+    /// nothing in it is renamed, moved or tagged until the check passes. Returns false when the folder already has a check (a check never
+    /// restarts by itself, so repeating the call is harmless).
+    /// </summary>
+    public async Task<bool> StartForKindChangeAsync(string libraryId, LibrarySourceConfig source, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var started = await checks.StartAsync(libraryId, source.Id, source.Path, _clock.GetUtcNow(), ct).ConfigureAwait(false);
+        if (started)
+        {
+            logger.LogInformation(
+                "First check started for {Path} after its kind changed (library {LibraryId}): nothing in it is renamed, moved or tagged until it passes",
+                source.Path, libraryId);
+        }
+
+        return started;
+    }
+
+    /// <summary>True while the folder's first check is checking or paused, so filing into it must wait.</summary>
+    public bool IsHeld(string sourceId) => checks.IsHeld(sourceId);
+
     /// <summary>The check to show on a source (checking or paused), or null.</summary>
     public static FolderFirstCheckDto? ToSourceDto(FolderFirstCheckSnapshot? snapshot) =>
         snapshot is null || !FolderFirstCheckStates.IsHeld(snapshot.Check.State)
