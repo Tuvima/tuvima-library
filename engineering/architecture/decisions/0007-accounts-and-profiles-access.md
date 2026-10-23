@@ -1,6 +1,6 @@
 # 0007 — Accounts own access; profiles own experience; no guest keys
 
-**Date:** 2026-09-08 (access architecture plan, completed P00–P13) · **Status:** Accepted
+**Date:** 2026-09-08 (access architecture plan, completed P00–P13) · **Status:** Replaced by [0015](0015-profiles-hold-the-person.md) for who owns access (accounts → profiles); the removals of guest keys, localhost administration and seed-owner fallback still stand
 
 ## What
 An **account** (someone who signs in) holds feature and library permissions; a **profile** holds the experience — watch history, preferences, content limits. Administration needs an enabled account with an active admin grant, plus an optional PIN unlock. Apps get their own revocable permissions. Old role-based guest keys, "localhost is admin" and seed-owner fallbacks were removed and must not return. Details: `docs/architecture/security.md`; history: `engineering/plans/access-architecture-2026-09-08/`.

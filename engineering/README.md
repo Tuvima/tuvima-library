@@ -80,11 +80,12 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [0004 — `MediaEngine.Contracts` alone owns Engine↔Dashboard wire types](architecture/decisions/0004-contracts-own-the-wire.md) | Accepted |
 | [0005 — Local-first; no Tuvima-hosted account](architecture/decisions/0005-local-first.md) | Accepted |
 | [0006 — All-in-one management workspace retired; shared editor + Needs Review](architecture/decisions/0006-management-workspace-retired.md) | Accepted |
-| [0007 — Accounts own access; profiles own experience; no guest keys](architecture/decisions/0007-accounts-and-profiles-access.md) | Accepted |
+| [0007 — Accounts own access; profiles own experience; no guest keys](architecture/decisions/0007-accounts-and-profiles-access.md) | Replaced by 0015 (who owns access) |
 | [0008 — Public docs site in `docs/`; internal planning in `engineering/`](architecture/decisions/0008-public-docs-vs-engineering-docs.md) | Accepted |
 | [0009 — Open from the start; apps always allowed](architecture/decisions/0009-open-from-the-start.md) | Accepted |
 | [0010 — Missing helper tools: report them, hold the files, offer a checked download](architecture/decisions/0010-helper-tools-report-hold-offer.md) | Accepted |
 | [0011 — Personal activity is its own lasting record; one scope check decides who sees whose](architecture/decisions/0011-personal-activity-record-and-scopes.md) | Accepted |
+| [0015 — Profiles hold the person and their access; a user is a sign-in](architecture/decisions/0015-profiles-hold-the-person.md) | Accepted |
 
 ## Design
 

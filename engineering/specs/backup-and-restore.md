@@ -3,6 +3,8 @@
 > **Status:** Built, awaiting your Local checks · **Version:** 8 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Videos spec](videos.md) D43, D46 (bookmark packs) · [Developer tools spec](developer-tools.md) D-P, WP25, WP26 (destinations, schedule, passphrase) · [Encrypted plugin keys](encrypted-plugin-keys.md) EK2 · [Delete groups](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
 
 > **Build note (2026-10-22):** Every packet is built and merged: WP1, WP2 (#397), WP2b (#405), WP3 (#421), WP4 (#424), WP5 "File missing" in search (#428) and WP6 export and import of a user (#431, with D20). Backups hold settings, personal state and typed corrections against recognition data, with no encryption; restore loads a fresh Library and re-attaches state automatically; a person can move to another Library with their sign-in, profiles and progress. Local checks L1 to L6 are in `engineering/validation/batch.md`.
+>
+> **Change note (2026-10-23):** the [Users, profiles and households](users-profiles-households.md) spec (Locked) changes parts of D19 and D20: a user file now holds a profile (or, for a household administrator, a whole household) and its sign-ins; it is imported under a household and email the administrator chooses (an email already used is no longer a reason to refuse; another email can be given); administrator roles are never carried; Read/Watch/Listen/View come along only when the administrator ticks "Keep their access", and library access never does. Users, profiles, roles and access in a full backup follow the profile-held model. Backups and user files from before that change are refused.
 
 ## 1. Goal
 
