@@ -16,6 +16,7 @@ namespace MediaEngine.Web.Tests;
 /// <summary>Settings &gt; Profiles &gt; Households: a server administrator adds, renames and removes households; the Engine's refusal is shown as it is.</summary>
 public sealed class HouseholdsTabTests : AsyncBunitContext
 {
+    private const string PasswordSentence = "Set an email and password for your own sign-in first. A Library with several households must not be open to anyone who reaches it.";
     private const string EngineRefusal = "This household still has people or sign-ins, so it can't be removed. Nothing was changed.";
 
     private static readonly Guid HomeId = Guid.NewGuid();
@@ -24,6 +25,7 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
     private readonly List<RecordedRequest> _requests = [];
     private readonly List<HouseholdResponse> _households = [];
     private HttpStatusCode _deleteStatus = HttpStatusCode.NoContent;
+    private bool _passwordRequired;
     private bool _confirmRemoval = true;
     private int _confirmCount;
 
@@ -179,6 +181,44 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
         Assert.DoesNotContain("was removed", cut.Markup);
     }
 
+    [Fact]
+    public void AddHousehold_WithoutAPassword_ShowsTheEnginesSentence_AndAButtonToSetOneInSecurity()
+    {
+        UseSession(serverAdministrator: true);
+        _passwordRequired = true;
+        var cut = Render<HouseholdsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".households-tab__item").Count));
+        Assert.Empty(cut.FindAll("[data-households-set-password]"));
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add household").Click();
+        cut.Find("[data-households-add] input").Input("Lake house");
+        cut.FindAll("[data-households-add] button").Single(button => button.TextContent.Trim() == "Add").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(PasswordSentence, cut.Find("[data-households-error]").TextContent));
+        Assert.Equal(2, cut.FindAll(".households-tab__item").Count);
+        var setPassword = cut.Find("[data-households-set-password] button");
+        Assert.Equal("Set an email and password", setPassword.TextContent.Trim());
+
+        setPassword.Click();
+
+        Assert.EndsWith("/settings/security", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OtherRefusals_DoNotOfferTheSetPasswordButton()
+    {
+        UseSession(serverAdministrator: true);
+        _passwordRequired = false;
+        _deleteStatus = HttpStatusCode.Conflict;
+        var cut = Render<HouseholdsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".households-tab__item").Count));
+
+        cut.Find("button[aria-label='Remove Home']").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(EngineRefusal, cut.Find("[data-households-error]").TextContent));
+        Assert.Empty(cut.FindAll("[data-households-set-password]"));
+    }
+
     private void UseSession(bool serverAdministrator, bool householdAdministrator = false)
     {
         var accountId = Guid.NewGuid();
@@ -210,6 +250,14 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
             if (request.Method == HttpMethod.Get && path == "/access/households")
             {
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._households) };
+            }
+
+            if (request.Method == HttpMethod.Post && path == "/access/households" && owner._passwordRequired)
+            {
+                return new HttpResponseMessage(HttpStatusCode.Conflict)
+                {
+                    Content = JsonContent.Create(new { title = "Conflict.", status = 409, detail = PasswordSentence }),
+                };
             }
 
             if (request.Method == HttpMethod.Post && path == "/access/households")

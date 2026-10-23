@@ -18,7 +18,7 @@ public sealed record IntercomTokenAttempt(IntercomTokenResponse? Token, HttpStat
 /// <summary>A file the Engine made for the person to keep (a user export): its bytes and the name the Engine gave it.</summary>
 public sealed record DashboardDownloadedFile(byte[] Content, string FileName);
 
-public sealed class DashboardIdentityClient(
+public sealed partial class DashboardIdentityClient(
     IHttpClientFactory clients,
     IHttpContextAccessor? contextAccessor = null,
     ILogger<DashboardIdentityClient>? logger = null,
@@ -525,7 +525,7 @@ public sealed class DashboardIdentityClient(
         SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}/avatar", ct);
 
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> AddHouseholdPersonResultAsync(Guid householdId, AddHouseholdPersonRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<AddHouseholdPersonRequest, ManagedProfileResponse>(HttpMethod.Post, $"/access/households/{householdId:D}/people", request, ct);
+        SendMutationAsync<AddHouseholdPersonRequest, ManagedProfileResponse>(HttpMethod.Post, $"/access/households/{householdId:D}/people", request, ct, includeMessage: true);
 
     public Task<DashboardAccessMutationResult<GiveOwnSignInResponse>> GiveOwnSignInResultAsync(Guid profileId, GiveOwnSignInRequest request, CancellationToken ct = default) =>
         SendMutationAsync<GiveOwnSignInRequest, GiveOwnSignInResponse>(HttpMethod.Post, $"/access/profiles/{profileId:D}/own-sign-in", request, ct);

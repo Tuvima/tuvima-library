@@ -547,6 +547,13 @@
                 result.ContentLimit, result.ContentLimitAllowUnrated)));
         if (!added.Succeeded || added.Value is null)
         {
+            // A refusal such as the eight-person limit is shown in the Engine's own sentence.
+            if (added.Failure is DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation && !string.IsNullOrWhiteSpace(added.Message))
+            {
+                _editorError = added.Message;
+                return false;
+            }
+
             return Fail(added.Failure, () => SaveAsync(result));
         }
 
@@ -617,7 +624,7 @@
             var removed = await Confirmed.RunAsync(() => Identity.DeleteManagedProfileResultAsync(profile.Id, keepPhotos));
             if (!removed.Succeeded)
             {
-                if (removed.Failure == DashboardAccessMutationFailure.Conflict)
+                if (removed.Failure is DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation)
                 {
                     _editorError = string.IsNullOrWhiteSpace(removed.Message) ? ProfileEditingWorkflow.RemoveBlockedMessage : removed.Message;
                     return;

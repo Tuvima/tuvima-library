@@ -1,6 +1,7 @@
 .households-tab { display: grid; gap: 16px; width: 100%; box-sizing: border-box; }
 .households-tab__notice { margin-bottom: 12px; }
 .households-tab__error { margin: 0 0 12px; color: var(--tl-status-error, var(--tl-text-primary)); font-size: .9rem; }
+.households-tab__set-password { display: flex; margin: 0 0 12px; }
 .households-tab__form { display: grid; gap: 12px; margin-bottom: 12px; }
 .households-tab__form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 /* The households sit inside a standard settings card, so the list draws no box of its own. */
