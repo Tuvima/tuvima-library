@@ -18,7 +18,7 @@ public sealed record IntercomTokenAttempt(IntercomTokenResponse? Token, HttpStat
 /// <summary>A file the Engine made for the person to keep (a user export): its bytes and the name the Engine gave it.</summary>
 public sealed record DashboardDownloadedFile(byte[] Content, string FileName);
 
-public sealed class DashboardIdentityClient(
+public sealed partial class DashboardIdentityClient(
     IHttpClientFactory clients,
     IHttpContextAccessor? contextAccessor = null,
     ILogger<DashboardIdentityClient>? logger = null,
@@ -393,11 +393,9 @@ public sealed class DashboardIdentityClient(
         return true;
     }
 
-    public Task<List<AccountAccessResponse>> GetManagedAccountsAsync(CancellationToken ct = default) =>
-        GetAsync<List<AccountAccessResponse>>("/access/accounts", ct).ContinueWith(task => task.Result ?? [], ct);
-
-    public Task<AccountAccessResponse?> GetManagedAccountAsync(Guid accountId, CancellationToken ct = default) =>
-        GetAsync<AccountAccessResponse>($"/access/accounts/{accountId:D}", ct);
+    /// <summary>"Ask for my PIN on admin pages" for a profile: a person reads their own, a server administrator any.</summary>
+    public Task<ProfileAdminProtectionResponse?> GetProfileAdminProtectionAsync(Guid profileId, CancellationToken ct = default) =>
+        GetAsync<ProfileAdminProtectionResponse>($"/access/profiles/{profileId:D}/admin-protection", ct);
 
     /// <summary>Paired phones and TVs: every device for an administrator, only your own otherwise.</summary>
     public async Task<List<ManagedClientDeviceDto>> GetManagedDevicesAsync(CancellationToken ct = default) =>
@@ -537,87 +535,14 @@ public sealed class DashboardIdentityClient(
         SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}/avatar", ct);
 
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> AddHouseholdPersonResultAsync(Guid householdId, AddHouseholdPersonRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<AddHouseholdPersonRequest, ManagedProfileResponse>(HttpMethod.Post, $"/access/households/{householdId:D}/people", request, ct);
-
-    public Task<DashboardAccessMutationResult<GiveOwnSignInResponse>> GiveOwnSignInResultAsync(Guid profileId, GiveOwnSignInRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<GiveOwnSignInRequest, GiveOwnSignInResponse>(HttpMethod.Post, $"/access/profiles/{profileId:D}/own-sign-in", request, ct);
-
-    /// <summary>Removes a person's own sign-in and sends any screen open on it back to sign-in; the person stays.</summary>
-    public async Task<DashboardAccessMutationResult> RemoveOwnSignInResultAsync(Guid accountId, CancellationToken ct = default)
-    {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}/own-sign-in", ct).ConfigureAwait(false);
-        if (result.Succeeded)
-        {
-            openScreens?.CloseWhere(screen => screen.AccountId == accountId);
-        }
-
-        return result;
-    }
+        SendMutationAsync<AddHouseholdPersonRequest, ManagedProfileResponse>(HttpMethod.Post, $"/access/households/{householdId:D}/people", request, ct, includeMessage: true);
 
     /// <summary>Sets a person's profile PIN. A server administrator can set anyone's; a household administrator only their own household's.</summary>
     public Task<DashboardAccessMutationResult> SetProfilePinResultAsync(Guid profileId, string pin, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Put, $"/auth/profiles/{profileId:D}/pin", new SetProfilePinRequest { Pin = pin }, ct);
 
-    public Task<DashboardAccessMutationResult<AccountInvitationResponse>> CreateInvitationResultAsync(CreateAccountInvitationRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<CreateAccountInvitationRequest, AccountInvitationResponse>(HttpMethod.Post, "/access/invitations", request, ct);
-
-    public async Task<AccountAccessResponse?> CreateManagedAccountAsync(CreateManagedAccountRequest request, CancellationToken ct = default) =>
-        (await CreateManagedAccountResultAsync(request, ct).ConfigureAwait(false)).Value;
-
-    public Task<DashboardAccessMutationResult<AccountAccessResponse>> CreateManagedAccountResultAsync(CreateManagedAccountRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<CreateManagedAccountRequest, AccountAccessResponse>(HttpMethod.Post, "/access/accounts", request, ct);
-
-    public async Task<AccountAccessResponse?> UpdateManagedAccountAsync(Guid accountId, UpdateManagedAccountRequest request, CancellationToken ct = default) =>
-        (await UpdateManagedAccountResultAsync(accountId, request, ct).ConfigureAwait(false)).Value;
-
-    public async Task<DashboardAccessMutationResult<AccountAccessResponse>> UpdateManagedAccountResultAsync(Guid accountId, UpdateManagedAccountRequest request, CancellationToken ct = default)
-    {
-        var result = await SendMutationAsync<UpdateManagedAccountRequest, AccountAccessResponse>(HttpMethod.Put, $"/access/accounts/{accountId:D}", request, ct, includeMessage: true).ConfigureAwait(false);
-        if (result.Succeeded && !request.IsEnabled)
-        {
-            // A disabled account's open screens go to sign-in at once instead of at the next check.
-            openScreens?.CloseWhere(screen => screen.AccountId == accountId);
-        }
-
-        return result;
-    }
-
-    public async Task<bool> DeleteManagedAccountAsync(Guid accountId, CancellationToken ct = default) =>
-        (await DeleteManagedAccountResultAsync(accountId, ct).ConfigureAwait(false)).Succeeded;
-
-    public async Task<DashboardAccessMutationResult> DeleteManagedAccountResultAsync(Guid accountId, CancellationToken ct = default)
-    {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}", ct, includeMessage: true).ConfigureAwait(false);
-        if (result.Succeeded)
-        {
-            openScreens?.CloseWhere(screen => screen.AccountId == accountId);
-        }
-
-        return result;
-    }
-
-    public Task<DashboardAccessMutationResult> ReplaceManagedAccountAccessResultAsync(Guid accountId, ReplaceAccountAccessRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/access", request, ct, includeMessage: true);
-
-    public Task<DashboardAccessMutationResult> SetManagedProfileGrantResultAsync(Guid accountId, Guid profileId, SetAccountProfileGrantAccessRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}", request, ct, includeMessage: true);
-
-    public Task<DashboardAccessMutationResult> SetGrantProtectionResultAsync(Guid accountId, Guid profileId, SetGrantAdminProtectionRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}/admin-protection", request, ct, includeMessage: true);
-
-    public async Task<bool> RevokeManagedProfileGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
-        (await RevokeManagedProfileGrantResultAsync(accountId, profileId, ct).ConfigureAwait(false)).Succeeded;
-
-    public async Task<DashboardAccessMutationResult> RevokeManagedProfileGrantResultAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
-    {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}/grants/{profileId:D}", ct, includeMessage: true).ConfigureAwait(false);
-        if (result.Succeeded)
-        {
-            openScreens?.CloseWhere(screen => screen.AccountId == accountId && screen.ProfileId == profileId);
-        }
-
-        return result;
-    }
+    public Task<DashboardAccessMutationResult> SetProfileAdminProtectionResultAsync(Guid profileId, SetProfileAdminProtectionRequest request, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Put, $"/access/profiles/{profileId:D}/admin-protection", request, ct, includeMessage: true);
 
     public Task<List<ApplicationPermissionDefinitionDto>> GetApplicationPermissionsAsync(CancellationToken ct = default) =>
         GetAsync<List<ApplicationPermissionDefinitionDto>>("/access/applications/permissions", ct).ContinueWith(task => task.Result ?? [], ct);
@@ -787,12 +712,8 @@ public sealed class DashboardIdentityClient(
     }
 
     /// <summary>Sets a new password for a person. By default it is temporary; <c>MustChangePassword = false</c> sets an ordinary one.</summary>
-    public Task<DashboardAccessMutationResult<AccountAccessResponse>> SetTemporaryPasswordResultAsync(Guid accountId, SetTemporaryPasswordRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<SetTemporaryPasswordRequest, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/temporary-password", request, ct);
-
-    /// <summary>Changes the email a person signs in with. Administrators only; never for your own sign-in.</summary>
-    public Task<DashboardAccessMutationResult<AccountAccessResponse>> ChangeAccountEmailResultAsync(Guid accountId, ChangeAccountEmailRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<ChangeAccountEmailRequest, AccountAccessResponse>(HttpMethod.Put, $"/access/accounts/{accountId:D}/email", request, ct);
+    public Task<DashboardAccessMutationResult<UserTemporaryPasswordResponse>> SetTemporaryPasswordResultAsync(Guid accountId, SetTemporaryPasswordRequest request, CancellationToken ct = default) =>
+        SendMutationAsync<SetTemporaryPasswordRequest, UserTemporaryPasswordResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/temporary-password", request, ct);
 
     /// <summary>Finishes a password sign-in that asked for a code from the authenticator app (or a recovery code).</summary>
     public async Task<DashboardSessionAttempt> CompleteTwoStepSignInAsync(CompleteTwoStepSignInRequest request, CancellationToken ct = default)
@@ -814,19 +735,23 @@ public sealed class DashboardIdentityClient(
         SendMutationAsync(HttpMethod.Post, "/auth/two-step/disable", new DisableTwoStepRequest { Code = code }, ct);
 
     /// <summary>An administrator turns two-step codes off for someone who lost their phone and recovery codes.</summary>
-    public Task<DashboardAccessMutationResult<AccountAccessResponse>> ResetAccountTwoStepResultAsync(Guid accountId, CancellationToken ct = default) =>
-        SendMutationAsync<object, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct, includeMessage: true);
+    public Task<DashboardAccessMutationResult<UserSummaryResponse>> ResetAccountTwoStepResultAsync(Guid accountId, CancellationToken ct = default) =>
+        SendMutationAsync<object, UserSummaryResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct, includeMessage: true);
 
     /// <summary>The biggest user export file the Engine takes (the same cap as the Engine's), so the Dashboard can refuse a bigger one before sending it.</summary>
     public const long MaxUserImportBytes = 256L * 1024 * 1024;
 
-    /// <summary>Downloads the signed-in person's own data (sign-in, profiles, progress, bookmarks, favourites) as one file.</summary>
+    /// <summary>Downloads the signed-in person's own data (their profile, its sign-in, progress, bookmarks, favourites) as one file.</summary>
     public Task<DashboardAccessMutationResult<DashboardDownloadedFile>> ExportMyDataResultAsync(CancellationToken ct = default) =>
         SendDownloadAsync("/access/me/export", ct);
 
-    /// <summary>An administrator downloads one user's data so another Library can import it.</summary>
+    /// <summary>The server administrator downloads one user's profile and sign-in so another Library can import it.</summary>
     public Task<DashboardAccessMutationResult<DashboardDownloadedFile>> ExportAccountResultAsync(Guid accountId, CancellationToken ct = default) =>
         SendDownloadAsync($"/access/accounts/{accountId:D}/export", ct);
+
+    /// <summary>A household administrator (or the server administrator) downloads a whole household: every profile, their sign-ins and their own state.</summary>
+    public Task<DashboardAccessMutationResult<DashboardDownloadedFile>> ExportHouseholdResultAsync(Guid householdId, CancellationToken ct = default) =>
+        SendDownloadAsync($"/access/households/{householdId:D}/export", ct);
 
     /// <summary>
     /// Sends a user export file to be checked. Nothing is imported yet. <paramref name="openFile"/> is called for each attempt, because a
@@ -860,12 +785,16 @@ public sealed class DashboardIdentityClient(
         }
     }
 
-    /// <summary>Imports a file that was checked, as a new user who sees nothing until an administrator gives them access.</summary>
-    public async Task<DashboardAccessMutationResult<UserImportResultDto>> ImportUserResultAsync(Guid operationId, CancellationToken ct = default)
+    /// <summary>
+    /// Imports a file that was checked, as new profiles in the household the administrator chose. They arrive as ordinary members with no
+    /// access unless the choices keep it.
+    /// </summary>
+    public async Task<DashboardAccessMutationResult<UserImportResultDto>> ImportUserResultAsync(Guid operationId, UserImportRequestDto choices, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(choices);
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"/access/accounts/import/{operationId:D}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"/access/accounts/import/{operationId:D}") { Content = JsonContent.Create(choices) };
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             return await ReadMutationResponseAsync<UserImportResultDto>(response, ct).ConfigureAwait(false);
         }
@@ -1208,11 +1137,11 @@ public sealed class DashboardIdentityClient(
         var fields = failure == DashboardAccessMutationFailure.Validation && !readAnyEngineSentence
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
-        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct, readAnyEngineSentence).ConfigureAwait(false) : null;
-        return DashboardAccessMutationResult<T>.FailureResult(failure, response.StatusCode, fields, message);
+        var (message, code) = includeMessage ? await ReadPlainProblemAsync(response, failure, ct, readAnyEngineSentence).ConfigureAwait(false) : (null, null);
+        return DashboardAccessMutationResult<T>.FailureResult(failure, response.StatusCode, fields, message, code: code);
     }
 
-    private async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
+    private async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false, bool readAnyEngineSentence = false)
     {
         if (await ApprovalResponses.TryReadAsync(response, logger, ct).ConfigureAwait(false) is { } approval)
         {
@@ -1221,48 +1150,57 @@ public sealed class DashboardIdentityClient(
         }
 
         var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
-        var fields = failure == DashboardAccessMutationFailure.Validation
+        var fields = failure == DashboardAccessMutationFailure.Validation && !readAnyEngineSentence
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
-        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct).ConfigureAwait(false) : null;
-        return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, fields, message);
+        var (message, code) = includeMessage ? await ReadPlainProblemAsync(response, failure, ct, readAnyEngineSentence).ConfigureAwait(false) : (null, null);
+        return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, fields, message, code: code);
     }
 
-    // The Engine's own sentence for a rule refusal (a bad name, a household that still holds people). Only calls that opt in
-    // read it, and only for those two classes of refusal (plus a missing item, a refusal and a failure for the user export and
-    // import calls), so submitted values are never replayed.
-    private static async Task<string?> ReadPlainMessageAsync(
+    // The Engine's own sentence for a rule refusal (a bad name, a household that still holds people), with the problem body's stable
+    // `code` (for example `secure_administrators_first`) next to it so a screen can react to the code instead of the words. Only calls
+    // that opt in read it, and only for those two classes of refusal (plus a missing item, a refusal and a failure for the user export
+    // and import calls), so submitted values are never replayed. A server error's text (a 5xx) is never read: the screen's own plain
+    // sentence is shown instead.
+    private static async Task<(string? Message, string? Code)> ReadPlainProblemAsync(
         HttpResponseMessage response, DashboardAccessMutationFailure failure, CancellationToken ct, bool readAnyEngineSentence = false)
     {
         var readable = failure is DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation
             || (readAnyEngineSentence
                 && failure is DashboardAccessMutationFailure.NotFound or DashboardAccessMutationFailure.Forbidden or DashboardAccessMutationFailure.Failed);
-        if (!readable)
+        if (!readable || (int)response.StatusCode >= 500)
         {
-            return null;
+            return (null, null);
         }
 
         try
         {
             await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
-            return document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("detail", out var detail)
-                && detail.ValueKind == JsonValueKind.String
-                    ? detail.GetString()
-                    : null;
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return (null, null);
+            }
+
+            var message = document.RootElement.TryGetProperty("detail", out var detail) && detail.ValueKind == JsonValueKind.String
+                ? detail.GetString()
+                : null;
+            var code = document.RootElement.TryGetProperty("code", out var codeElement) && codeElement.ValueKind == JsonValueKind.String
+                ? codeElement.GetString()
+                : null;
+            return (message, code);
         }
         catch (JsonException)
         {
-            return null;
+            return (null, null);
         }
         catch (NotSupportedException)
         {
-            return null;
+            return (null, null);
         }
         catch (IOException)
         {
-            return null;
+            return (null, null);
         }
     }
 
@@ -1383,16 +1321,6 @@ public sealed class DashboardIdentityClient(
     /// <summary>Turns the this-computer-only account into a normal one. The Engine answers with the new session.</summary>
     public Task<DashboardAccessMutationResult<AuthSessionResponse>> SecureAccountAsync(SecureAccountRequest request, CancellationToken ct = default) =>
         SendMutationAsync<SecureAccountRequest, AuthSessionResponse>(HttpMethod.Post, "/auth/account/secure", request, ct);
-
-    /// <summary>The profile this browser or device always opens as for the signed-in account, or <c>null</c> when none is set.</summary>
-    public async Task<Guid?> GetDeviceProfilePreferenceAsync(CancellationToken ct = default) =>
-        (await GetAsync<DeviceProfilePreferenceResponse>("/auth/device-profile", ct).ConfigureAwait(false))?.ProfileId;
-
-    public Task<DashboardAccessMutationResult> SetDeviceProfilePreferenceAsync(Guid profileId, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, "/auth/device-profile", new SetDeviceProfilePreferenceRequest(profileId), ct);
-
-    public Task<DashboardAccessMutationResult> ClearDeviceProfilePreferenceAsync(CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Delete, "/auth/device-profile", ct);
 
     /// <summary>Wrong-PIN guesses allowed per minute for one target profile, from one kind of place.</summary>
     public const int ProfilePinAttemptsPerMinute = 10;

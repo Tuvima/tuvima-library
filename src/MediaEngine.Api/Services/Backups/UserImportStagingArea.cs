@@ -25,6 +25,7 @@ public sealed class UserImportStagingArea
     private readonly TimeProvider _clock;
     private readonly ILogger<UserImportStagingArea> _logger;
     private readonly ConcurrentDictionary<Guid, StagedUserImport> _staged = new();
+    private readonly ConcurrentDictionary<Guid, byte> _importing = new();
 
     /// <param name="backupDirectory">The backup folder; the staging area is a folder inside it, apart from the backups themselves.</param>
     /// <param name="clock">The clock.</param>
@@ -107,6 +108,41 @@ public sealed class UserImportStagingArea
         return null;
     }
 
+    /// <summary>
+    /// Claims the kept file for the one import that will use it, so two requests naming the same operation can never both import it.
+    /// Returns the file when this caller now holds it (and must call <see cref="Release"/> when the import was refused, or
+    /// <see cref="Discard"/> when it went through), <c>null</c> when the file is not kept for this administrator, and sets
+    /// <paramref name="alreadyImporting"/> when another request holds it.
+    /// </summary>
+    internal StagedUserImport? Claim(Guid operationId, Guid actorAccountId, out bool alreadyImporting)
+    {
+        alreadyImporting = false;
+
+        // Only the administrator who uploaded the file can even learn whether it is being imported.
+        if (Find(operationId, actorAccountId) is null)
+        {
+            return null;
+        }
+
+        if (!_importing.TryAdd(operationId, 0))
+        {
+            alreadyImporting = true;
+            return null;
+        }
+
+        // Looked at again once held: the first import may have finished (and removed the file) between the two steps.
+        var kept = Find(operationId, actorAccountId);
+        if (kept is null)
+        {
+            _importing.TryRemove(operationId, out _);
+        }
+
+        return kept;
+    }
+
+    /// <summary>Gives a claimed file back after a refusal or failure, so the administrator can change a choice and try again.</summary>
+    internal void Release(Guid operationId) => _importing.TryRemove(operationId, out _);
+
     /// <summary>Forgets an operation and removes its file.</summary>
     public void Discard(Guid operationId)
     {
@@ -114,6 +150,8 @@ public sealed class UserImportStagingArea
         {
             DeleteFile(item.Path);
         }
+
+        _importing.TryRemove(operationId, out _);
     }
 
     /// <summary>Removes a file this store made. A file that cannot be removed is logged and swept on the next upload; it never changes the outcome of an import.</summary>

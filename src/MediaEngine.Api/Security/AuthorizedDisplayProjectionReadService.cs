@@ -17,7 +17,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     IRawDisplayProjectionReadService inner,
     IHttpContextAccessor http,
     IRequestAuthorityResolver authorities,
-    IAccountRepository accounts,
+    IProfileAccessRepository profileAccess,
     IAuthorizationEvaluator evaluator,
     IDatabaseConnection database,
     IConfigurationLoader? configuration = null,
@@ -29,7 +29,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     private ContentLimitPolicy? _contentLimits;
 
     private readonly object _hiddenLock = new();
-    private (Guid AccountId, Task<IReadOnlySet<Guid>> Hidden)? _hidden;
+    private (Guid ProfileId, Task<IReadOnlySet<Guid>> Hidden)? _hidden;
 
     private IUnmatchedAssetRepository? _unmatched;
 
@@ -433,24 +433,30 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return new(authority, true, true, new HashSet<Guid>(), AccountFeatureId.All.ToHashSet(), content);
         }
 
-        var features = await accounts.GetFeatureGrantsAsync(authority.AccountId!.Value, ct).ConfigureAwait(false);
-        var hidden = await HiddenLibrariesAsync(authority.AccountId.Value, ct).ConfigureAwait(false);
+        // Read access follows the profile being acted as.
+        if (authority.ActiveProfileId is not { } actingProfile)
+        {
+            return new(authority, false, false, new HashSet<Guid>(), new HashSet<AccountFeatureId>(), ContentLimitFilter.Unrestricted);
+        }
+
+        var features = await profileAccess.GetFeatureGrantsAsync(actingProfile, ct).ConfigureAwait(false);
+        var hidden = await HiddenLibrariesAsync(actingProfile, ct).ConfigureAwait(false);
         return new(authority, true, false, hidden, features, content);
     }
 
     // The hidden set is read once per request (this service lives for one request) and shared by every read that asks, so a request that
     // loads works, Home, search and counts pays for one lookup, not one per read.
-    private Task<IReadOnlySet<Guid>> HiddenLibrariesAsync(Guid accountId, CancellationToken ct)
+    private Task<IReadOnlySet<Guid>> HiddenLibrariesAsync(Guid profileId, CancellationToken ct)
     {
         lock (_hiddenLock)
         {
-            if (_hidden is { } cached && cached.AccountId == accountId)
+            if (_hidden is { } cached && cached.ProfileId == profileId)
             {
                 return cached.Hidden;
             }
 
-            var loading = accounts.GetHiddenLibrariesAsync(accountId, ct);
-            _hidden = (accountId, loading);
+            var loading = profileAccess.GetHiddenLibrariesAsync(profileId, ct);
+            _hidden = (profileId, loading);
             return loading;
         }
     }

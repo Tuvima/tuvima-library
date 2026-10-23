@@ -5,12 +5,17 @@
     <AppText Typo="AppTypo.subtitle1">Media access</AppText>
     @foreach (var feature in Features.Where(feature => !(ViewStartsOff && feature.Id == "view")))
     {
-        <AppSwitchRow Value="@FeatureIds.Contains(feature.Id)" ValueChanged="@((bool value) => FeatureChanged.InvokeAsync((feature.Id, value)))" Label="@feature.Label" Description="@feature.Description" />
+        var held = OfferedFeatureIds is null || OfferedFeatureIds.Contains(feature.Id);
+        <AppSwitchRow Value="@FeatureIds.Contains(feature.Id)" ValueChanged="@((bool value) => FeatureChanged.InvokeAsync((feature.Id, value)))" Label="@feature.Label" Description="@feature.Description" Disabled="@(!held)" />
         @if (FeatureIds.Contains(feature.Id) && !LibrariesUnavailable)
         {
-            <AreaLibraryList Area="@feature.Id" Libraries="Libraries" HiddenIds="HiddenIds" PersonName="@PersonName" PrimaryName="@PrimaryName"
+            <AreaLibraryList Area="@feature.Id" Libraries="Libraries" HiddenIds="HiddenIds" PersonName="@PersonName"
                              ReadOnly="ReadOnly" Busy="LibrariesBusy" OnHiddenChanged="OnHiddenChanged" />
         }
+    }
+    @if (OfferedFeatureIds is not null && Features.Any(feature => !OfferedFeatureIds.Contains(feature.Id)))
+    {
+        <small data-testid="access-set-by-server-administrator">Set by the server administrator</small>
     }
     @if (ViewStartsOff)
     {
@@ -34,6 +39,8 @@
 
     /// <summary>A person outside the household starts with View off, so the switch is not offered here.</summary>
     [Parameter] public bool ViewStartsOff { get; set; }
+    /// <summary>When set, only these lanes are offered (a household administrator hands out only what their own profile holds); null offers all.</summary>
+    [Parameter] public IReadOnlySet<string>? OfferedFeatureIds { get; set; }
     [Parameter, EditorRequired] public IReadOnlySet<string> FeatureIds { get; set; } = new HashSet<string>();
     [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
 
@@ -52,9 +59,6 @@
 
     /// <summary>Who the ticks belong to ("Hidden from Sam").</summary>
     [Parameter] public string PersonName { get; set; } = string.Empty;
-
-    /// <summary>The household's main sign-in, named on libraries it hides ("Hidden by Alex").</summary>
-    [Parameter] public string? PrimaryName { get; set; }
 
     /// <summary>True on a phone: ticks are shown but disabled.</summary>
     [Parameter] public bool ReadOnly { get; set; }

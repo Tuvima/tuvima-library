@@ -109,6 +109,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAccessRepository>(sp => sp.GetRequiredService<AccountRepository>());
         services.AddSingleton<IAccountAccessMutationRepository>(sp => sp.GetRequiredService<AccountRepository>());
         services.AddSingleton<IHouseholdRepository, HouseholdRepository>();
+        services.AddSingleton<IProfileAccessRepository, ProfileAccessRepository>();
         services.AddSingleton<IApplicationRepository, ApplicationRepository>();
         services.AddSingleton<IIdentityRepository, IdentityRepository>();
         // The Vault (Videos spec WP9): the list of Vault libraries, per-profile Vault access and device-session unlocks (Vault mode uses the profile PIN),

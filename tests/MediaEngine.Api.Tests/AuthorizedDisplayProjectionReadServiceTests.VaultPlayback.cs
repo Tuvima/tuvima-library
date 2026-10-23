@@ -94,7 +94,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     // ── Adaptive-stream segments (the "keep awake on use" gap, Videos spec D33) ─────────────────
 
     private static RequestAuthority HlsGrantAuthority(Guid account, Guid session) =>
-        new(PrincipalKind.Human, true, account, VaultProfile, SessionId: session, AccountEnabled: true, GrantEnabled: true);
+        new(PrincipalKind.Human, true, account, VaultProfile, SessionId: session, AccountEnabled: true, ActiveProfileInUserHousehold: true);
 
     [Fact]
     public async Task Vault_FetchingASegmentOfAVaultVideo_KeepsTheUnlockedSessionAwake()
@@ -136,7 +136,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         // A paired app is never the person's own Dashboard session, even carrying the same session id.
         await resources.KeepVaultSessionAwakeAsync(
             new RequestAuthority(PrincipalKind.DelegatedUserClient, true, shape.Account, VaultProfile, Guid.NewGuid(), session, Guid.NewGuid(),
-                AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true),
+                AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true),
             shape.Secret.AssetId);
         await resources.KeepVaultSessionAwakeAsync(new RequestAuthority(PrincipalKind.Anonymous, false), shape.Secret.AssetId);
 

@@ -35,6 +35,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Batched write-back (all files, on a schedule, with ExifTool)](specs/batched-writeback.md) | Built, awaiting Local checks (v2; #416, #419, #420, #422, BW5 docs) |
 | [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21, change note 2026-10-22; EK1 and EK3 before plugin install WP19, EK2 with a 4-digit PIN after Backup and restore WP3) |
 | [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | Built, awaiting your Local checks (v8, 2026-10-22; [handoff](handoffs/2026-10-21-backup-and-restore.md) done; WP1 to WP6 built: #397, #405, #421, #424, #428, #431; checks L1 to L6 in [the batch list](validation/batch.md)) |
+| [Spec: Users, profiles and households](specs/users-profiles-households.md) | Built, awaiting your Local checks (v5, 2026-10-23; the profile holds the person and its access, a user is a sign-in; combined with Simpler access (D19); checks L0 to L4 in [the batch list](validation/batch.md); decision [0015](architecture/decisions/0015-profiles-hold-the-person.md)) |
 | [Spec: Right-sized pictures on every screen](specs/archive/right-sized-pictures.md) | Built (v1, archived 2026-10-22; awaiting Local checks L1-L4; features to consider later (WebP, F1-F3) in its section 13) |
 | [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
 | [Archive](specs/archive/README.md) | Built specs |
@@ -80,11 +81,12 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [0004 — `MediaEngine.Contracts` alone owns Engine↔Dashboard wire types](architecture/decisions/0004-contracts-own-the-wire.md) | Accepted |
 | [0005 — Local-first; no Tuvima-hosted account](architecture/decisions/0005-local-first.md) | Accepted |
 | [0006 — All-in-one management workspace retired; shared editor + Needs Review](architecture/decisions/0006-management-workspace-retired.md) | Accepted |
-| [0007 — Accounts own access; profiles own experience; no guest keys](architecture/decisions/0007-accounts-and-profiles-access.md) | Accepted |
+| [0007 — Accounts own access; profiles own experience; no guest keys](architecture/decisions/0007-accounts-and-profiles-access.md) | Replaced by 0015 (who owns access) |
 | [0008 — Public docs site in `docs/`; internal planning in `engineering/`](architecture/decisions/0008-public-docs-vs-engineering-docs.md) | Accepted |
 | [0009 — Open from the start; apps always allowed](architecture/decisions/0009-open-from-the-start.md) | Accepted |
 | [0010 — Missing helper tools: report them, hold the files, offer a checked download](architecture/decisions/0010-helper-tools-report-hold-offer.md) | Accepted |
 | [0011 — Personal activity is its own lasting record; one scope check decides who sees whose](architecture/decisions/0011-personal-activity-record-and-scopes.md) | Accepted |
+| [0015 — Profiles hold the person and their access; a user is a sign-in](architecture/decisions/0015-profiles-hold-the-person.md) | Accepted |
 
 ## Design
 

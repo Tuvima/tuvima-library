@@ -430,9 +430,8 @@ public sealed class UnmatchedRetryTests : IDisposable
         AccountId: Guid.NewGuid(),
         ActiveProfileId: Guid.NewGuid(),
         AccountEnabled: true,
-        GrantEnabled: true,
-        AccountIsAdministrator: true,
-        GrantAdminEnabled: true);
+        ActiveProfileInUserHousehold: true,
+        ActiveProfileIsServerAdministrator: true);
 
     private static RequestAuthority Member() => new(
         PrincipalKind.Human,
@@ -440,7 +439,7 @@ public sealed class UnmatchedRetryTests : IDisposable
         AccountId: Guid.NewGuid(),
         ActiveProfileId: Guid.NewGuid(),
         AccountEnabled: true,
-        GrantEnabled: true);
+        ActiveProfileInUserHousehold: true);
 
     private static LibraryFolderConfig Library(string id, string name, string kindKey) => new()
     {

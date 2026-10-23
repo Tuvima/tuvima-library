@@ -331,8 +331,7 @@ public sealed class ViewResourceAuthorizationTests
 
         var authority = Identity(caller) with
         {
-            AccountIsAdministrator = true,
-            GrantAdminEnabled = true,
+            ActiveProfileIsServerAdministrator = true,
         };
         var decision = await service.AuthorizeAsync(authority, new ViewResourceRequest(
             ViewScopeRequest.Shared, ViewResourceKind.FolderPolicy, null,
@@ -353,7 +352,7 @@ public sealed class ViewResourceAuthorizationTests
             new ViewScopeResolver(store), new ResourceStore(), evaluator);
         var authority = new RequestAuthority(PrincipalKind.DelegatedUserClient, true,
             Guid.NewGuid(), caller.Policy.ProfileId, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
 
         var decision = await service.AuthorizeAsync(authority,
             new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Search, null));
@@ -377,7 +376,7 @@ public sealed class ViewResourceAuthorizationTests
             new ViewResourceDescriptor(ViewResourceKind.Gallery, galleryId, caller.Policy.ProfileId, libraryId));
         var app = new RequestAuthority(PrincipalKind.DelegatedUserClient, true,
             Guid.NewGuid(), caller.Policy.ProfileId, ApplicationId: Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
 
         var read = await service.AuthorizeAsync(app,
             new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Asset, itemId));
@@ -457,7 +456,7 @@ public sealed class ViewResourceAuthorizationTests
 
     private static RequestAuthority Identity(ViewScopeStoreEntry state) =>
         new(PrincipalKind.Human, true, Guid.NewGuid(), state.Policy.ProfileId,
-            AccountEnabled: true, GrantEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true);
 
     private static ViewScopeStoreEntry State(bool access, bool include)
     {

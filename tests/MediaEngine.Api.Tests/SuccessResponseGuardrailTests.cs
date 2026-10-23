@@ -32,6 +32,7 @@ public sealed partial class SuccessResponseGuardrailTests
         "DownloadBackup",
         "ExportAccount",
         "ExportFolderJobLog",
+        "ExportHousehold",
         "ExportLogs",
         "ExportMyData",
         "GetArtworkVariant",

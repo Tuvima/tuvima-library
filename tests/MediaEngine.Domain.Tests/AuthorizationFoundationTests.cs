@@ -199,8 +199,8 @@ public sealed class AuthorizationFoundationTests
     {
         var authority = new RequestAuthority(
             PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true,
-            AccountIsAdministrator: true, GrantAdminEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: true);
 
         Assert.True(authority.IsEffectiveAdministrator);
         Assert.False((authority with { ActiveProfileIsRestricted = true }).IsEffectiveAdministrator);
@@ -226,8 +226,8 @@ public sealed class AuthorizationFoundationTests
         var profileId = Guid.NewGuid();
         var valid = new RequestAuthority(
             PrincipalKind.Human, true, accountId, profileId,
-            AccountEnabled: true, GrantEnabled: true,
-            AccountIsAdministrator: true, GrantAdminEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: true);
 
         Assert.True(valid.IsEffectiveAdministrator);
         Assert.True((valid with
@@ -250,7 +250,7 @@ public sealed class AuthorizationFoundationTests
         Assert.False((valid with { AccountId = Guid.Empty }).IsEffectiveAdministrator);
         Assert.False((valid with { ActiveProfileId = null }).IsEffectiveAdministrator);
         Assert.False((valid with { AccountEnabled = false }).IsEffectiveAdministrator);
-        Assert.False((valid with { GrantEnabled = false }).IsEffectiveAdministrator);
+        Assert.False((valid with { ActiveProfileInUserHousehold = false }).IsEffectiveAdministrator);
     }
 
     [Fact]

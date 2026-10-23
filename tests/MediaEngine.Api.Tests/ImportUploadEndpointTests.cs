@@ -51,14 +51,14 @@ public sealed class ImportUploadEndpointTests : IDisposable
     private static readonly IReadOnlyDictionary<string, RequestAuthority> Principals = new Dictionary<string, RequestAuthority>
     {
         ["admin"] = new(PrincipalKind.Human, true, Account, AdminProfile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true),
         ["other-admin"] = new(PrincipalKind.Human, true, Guid.NewGuid(), OtherAdminProfile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true),
         ["member"] = new(PrincipalKind.Human, true, Account, MemberProfile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true),
         // A paired app acting for an administrator's household member, and an application holding every permission: neither is a person at the Dashboard.
         ["paired-app"] = new(PrincipalKind.DelegatedUserClient, true, Account, MemberProfile, BuiltInApplicationIds.NativeClient, null, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true),
         ["service"] = new(PrincipalKind.ServiceApplication, true, null, null, Guid.NewGuid(),
             ApplicationEnabled: true, ApplicationIsAdministrator: true),
     };

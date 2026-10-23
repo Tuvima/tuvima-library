@@ -40,6 +40,14 @@ else
             {
                 <p class="households-tab__error" role="alert" data-households-error>@_error</p>
             }
+            @if (_needsPassword)
+            {
+                @* D10: a second household needs the server administrator's own sign-in to have an email and password first. *@
+                <div class="households-tab__set-password" data-households-set-password>
+                    <AppButton Label="Set an email and password" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
+                               OnClick="OpenSecurity" />
+                </div>
+            }
 
             @if (_adding)
             {
@@ -126,6 +134,7 @@ else
     private string _renameText = string.Empty;
     private string? _notice;
     private string? _error;
+    private bool _needsPassword;
     private bool _needsUnlock;
     private bool _unlocking;
     private bool _justUnlocked;
@@ -179,6 +188,7 @@ else
         _adding = false;
         _newName = string.Empty;
         _error = null;
+        _needsPassword = false;
     }
 
     private void BeginRename(HouseholdResponse household)
@@ -209,7 +219,7 @@ else
             var result = await Confirmed.RunAsync(() => Identity.CreateManagedHouseholdResultAsync(name));
             if (!result.Succeeded)
             {
-                return Refused(result.Failure, result.Message, AddCoreAsync);
+                return Refused(result.Failure, result.Message, result.Code, AddCoreAsync);
             }
 
             _adding = false;
@@ -233,7 +243,7 @@ else
             var result = await Confirmed.RunAsync(() => Identity.RenameManagedHouseholdResultAsync(household.Id, name));
             if (!result.Succeeded)
             {
-                return Refused(result.Failure, result.Message, () => RenameCoreAsync(household));
+                return Refused(result.Failure, result.Message, result.Code, () => RenameCoreAsync(household));
             }
 
             _renamingId = null;
@@ -263,7 +273,7 @@ else
             var result = await Confirmed.RunAsync(() => Identity.DeleteManagedHouseholdResultAsync(household.Id));
             if (!result.Succeeded)
             {
-                return Refused(result.Failure, result.Message, () => RemoveCoreAsync(household));
+                return Refused(result.Failure, result.Message, result.Code, () => RemoveCoreAsync(household));
             }
 
             _notice = $"{household.Name} was removed.";
@@ -282,6 +292,7 @@ else
         _busy = true;
         _error = null;
         _notice = null;
+        _needsPassword = false;
         try
         {
             if (await change())
@@ -297,7 +308,7 @@ else
 
     // A refusal: ask for the administrator PIN once if that is what is missing, otherwise say why in plain words. The Engine's own
     // sentence (a household that still holds people, a bad name) is shown as it is.
-    private bool Refused(DashboardAccessMutationFailure failure, string? message, Func<Task> retry)
+    private bool Refused(DashboardAccessMutationFailure failure, string? message, string? code, Func<Task> retry)
     {
         if (failure == DashboardAccessMutationFailure.Forbidden && !_justUnlocked)
         {
@@ -307,6 +318,8 @@ else
             return false;
         }
 
+        // D10: the Engine marks this refusal with a stable code, so the button shows whatever words the sentence uses.
+        _needsPassword = failure == DashboardAccessMutationFailure.Conflict && code == DashboardAccessMutationResult.SecureAdministratorsFirstCode;
         _error = !string.IsNullOrWhiteSpace(message)
             ? message
             : failure switch
@@ -323,10 +336,13 @@ else
         return false;
     }
 
+    private void OpenSecurity() => Nav.NavigateTo("/settings/security");
+
     private void ClearMessages()
     {
         _error = null;
         _notice = null;
+        _needsPassword = false;
     }
 
     private async Task UnlockAsync(string pin)

@@ -91,10 +91,10 @@ public sealed class DocumentFilingRepositoryTests : IDisposable
         var member = await CreatePerson(household: household, role: "StandardUser");
         var child = await CreatePerson(household: household, role: "RestrictedProfile");
         var outsider = await CreatePerson(household: Guid.NewGuid(), role: "StandardUser");
-        var adminAccount = MakeAccount(admin.ProfileId, household, householdAdmin: true);
-        MakeAccount(member.ProfileId, household, householdAdmin: false);
-        MakeAccount(child.ProfileId, household, householdAdmin: true);
-        MakeAccount(outsider.ProfileId, outsider.Household!.Value, householdAdmin: true);
+        MakeAccount(admin.ProfileId, householdAdmin: true);
+        MakeAccount(member.ProfileId, householdAdmin: false);
+        MakeAccount(child.ProfileId, householdAdmin: true);
+        MakeAccount(outsider.ProfileId, householdAdmin: true);
         var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
         var sharedDocument = await AddSharedDocument(shared.LibraryId, 's');
         var tag = (await _catalogue.CreateEntryAsync(admin.Viewer(), ViewCatalogueKind.Tag, "Household", null)).Id;
@@ -108,10 +108,24 @@ public sealed class DocumentFilingRepositoryTests : IDisposable
         Assert.True(subject.IsShared);
         Assert.Equal(byAdmin.Id, Assert.Single(await _filing.GetApplicableRulesAsync(subject)).Id);
 
-        // Demoted or disabled: the rule stops applying without being deleted.
+        // Demoted: the rule stops applying without being deleted.
         using (var connection = _database.CreateConnection())
         {
-            connection.Execute("UPDATE accounts SET household_admin = 0 WHERE id = @adminAccount;", new { adminAccount });
+            // The household administrator role is the profile's: taking it away stops the rule applying.
+            connection.Execute("UPDATE profiles SET is_household_admin = 0 WHERE id = @profileId;", new { profileId = admin.ProfileId });
+        }
+
+        Assert.Empty(await _filing.GetApplicableRulesAsync(subject));
+        // Back as an administrator it applies again; with its sign-in switched off it stops once more.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET is_household_admin = 1 WHERE id = @profileId;", new { profileId = admin.ProfileId });
+        }
+
+        Assert.Equal(byAdmin.Id, Assert.Single(await _filing.GetApplicableRulesAsync(subject)).Id);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE accounts SET is_enabled = 0 WHERE profile_id = @profileId;", new { profileId = admin.ProfileId });
         }
 
         Assert.Empty(await _filing.GetApplicableRulesAsync(subject));
@@ -641,16 +655,15 @@ public sealed class DocumentFilingRepositoryTests : IDisposable
         return new Person(profileId, space.Id, libraryId, household);
     }
 
-    private Guid MakeAccount(Guid profileId, Guid household, bool householdAdmin)
+    private Guid MakeAccount(Guid profileId, bool householdAdmin)
     {
         var account = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute("""
-            INSERT INTO accounts (id, is_enabled, is_administrator, authorization_version, created_at, updated_at, household_id, household_admin)
-            VALUES (@account, 1, 0, 1, @now, @now, @household, @householdAdmin);
-            INSERT INTO account_profile_grants (account_id, profile_id, is_default, is_enabled, admin_enabled, authorization_version, granted_at)
-            VALUES (@account, @profileId, 1, 1, 0, 1, @now);
-            """, new { account, profileId, household, householdAdmin = householdAdmin ? 1 : 0, now = DateTimeOffset.UtcNow });
+            INSERT INTO accounts (id, is_enabled, authorization_version, created_at, updated_at, profile_id)
+            VALUES (@account, 1, 1, @now, @now, @profileId);
+            UPDATE profiles SET is_household_admin = @householdAdmin WHERE id = @profileId;
+            """, new { account, profileId, householdAdmin = householdAdmin ? 1 : 0, now = DateTimeOffset.UtcNow });
         return account;
     }
 

@@ -973,7 +973,7 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
         new TestViewAuthorityResolver(new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), activeProfileId ?? Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, ActiveProfileIsRestricted: true)),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true, ActiveProfileIsRestricted: true)),
         SpoilerTestKit.Create(display, _db),
         new ProfileRepository(_db),
         new WaitingPersonalStateRepository(_db));

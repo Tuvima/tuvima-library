@@ -569,7 +569,7 @@ public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
     public async Task SharedLibraryItems_NeverAppear()
     {
         var alice = await CreatePerson(household: Guid.NewGuid());
-        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(alice.Authority.AccountHouseholdId!.Value);
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(alice.Authority.ActiveProfileHouseholdId!.Value);
         var sharedFolder = Directory.CreateDirectory(Path.Combine(_root, "shared-files")).FullName;
         var path = Path.Combine(sharedFolder, "family.jpg");
         await File.WriteAllBytesAsync(path, new byte[32]);
@@ -881,7 +881,7 @@ public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
         var photo = await AddPhoto(alice, "private");
         var pairedApp = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, AccountId: alice.Authority.AccountId, ActiveProfileId: alice.ProfileId,
-            ApplicationId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+            ApplicationId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
         var service = new RequestAuthority(
             PrincipalKind.ServiceApplication, true, ApplicationId: Guid.NewGuid(), ApplicationEnabled: true,
             ApplicationIsAdministrator: true);
@@ -908,7 +908,7 @@ public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
         await AddPhoto(alice, "private");
         var pairedApp = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, AccountId: alice.Authority.AccountId, ActiveProfileId: alice.ProfileId,
-            ApplicationId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+            ApplicationId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
         var service = new RequestAuthority(
             PrincipalKind.ServiceApplication, true, ApplicationId: Guid.NewGuid(), ApplicationEnabled: true);
         using var scope = _app.Services.CreateScope();
@@ -1049,10 +1049,10 @@ public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
         var upload = (await _spaces.GetSourcesAsync(space.Id)).Single(source => source.SourceKey == "builtin:browser-uploads");
         var authority = new RequestAuthority(
             PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: profileId, SessionId: Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true,
-            AccountIsAdministrator: serverAdmin, GrantAdminEnabled: serverAdmin,
+            AccountEnabled: true, ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: serverAdmin,
             ActiveProfileIsRestricted: role == "RestrictedProfile",
-            AccountHouseholdId: household, AccountIsHouseholdAdmin: householdAdmin);
+            ActiveProfileHouseholdId: household, ActiveProfileIsHouseholdAdministrator: householdAdmin);
         return new Person(profileId, space, upload, _storage.GetSourcePath(space, upload), authority);
     }
 

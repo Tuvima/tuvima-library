@@ -18,4 +18,7 @@ public enum HouseholdDeleteOutcome
 
     /// <summary>The household's Shared Library in View still holds shared photos or videos.</summary>
     HoldsSharedItems,
+
+    /// <summary>The household is the Library's own (the server administrator's original one), which is never removed.</summary>
+    IsDefaultHousehold,
 }

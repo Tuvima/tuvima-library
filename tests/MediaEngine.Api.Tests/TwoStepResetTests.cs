@@ -40,7 +40,8 @@ public sealed class TwoStepResetTests : IDisposable
             new ConfigurationAuthenticationPolicyProvider(_configuration),
             twoStepSecrets: new PlainProtector());
         _mutations = new AccountAccessMutationService(
-            accounts, identities, profiles, _configuration,
+            accounts,
+                        new ProfileAccessRepository(_database), identities, profiles, _configuration,
             new AllowDecisions(), new AllowEvaluator(),
             new NoOpInvalidation(), _audit, _firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
     }
@@ -85,7 +86,7 @@ public sealed class TwoStepResetTests : IDisposable
         var target = await TargetWithTwoStepAsync();
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _mutations.ResetTwoStepAsync(Actor(administrator: false), target));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _mutations.ResetTwoStepAsync(Actor(administrator: true) with { GrantAdminEnabled = false }, target));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _mutations.ResetTwoStepAsync(Actor(administrator: true) with { ActiveProfileIsServerAdministrator = false }, target));
         Assert.True(await _firstParty.IsTwoStepEnabledAsync(target));
         Assert.Empty(_audit.Events);
     }
@@ -112,9 +113,8 @@ public sealed class TwoStepResetTests : IDisposable
         ActiveProfileId: Guid.NewGuid(),
         SessionId: Guid.NewGuid(),
         AccountEnabled: true,
-        GrantEnabled: true,
-        AccountIsAdministrator: administrator,
-        GrantAdminEnabled: administrator);
+        ActiveProfileInUserHousehold: true,
+        ActiveProfileIsServerAdministrator: administrator);
 
     public void Dispose()
     {

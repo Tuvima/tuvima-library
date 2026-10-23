@@ -31,3 +31,9 @@
     .profile-detail__role { font-size: 1.15rem; }
     .profile-detail__badge { font-size: .95rem; }
 }
+
+.access-phone-note {
+    margin: 0 0 1rem;
+    color: var(--app-text-muted);
+    font-size: .9rem;
+}

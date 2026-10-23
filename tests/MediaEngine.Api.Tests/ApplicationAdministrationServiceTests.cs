@@ -147,7 +147,7 @@ public sealed class ApplicationAdministrationServiceTests
         var authority = principalKind switch
         {
             PrincipalKind.Human => Fixture.HumanAdministrator with { AccountEnabled = false },
-            PrincipalKind.DelegatedUserClient => Fixture.DelegatedAdministrator with { GrantEnabled = false },
+            PrincipalKind.DelegatedUserClient => Fixture.DelegatedAdministrator with { ActiveProfileInUserHousehold = false },
             PrincipalKind.ServiceApplication => Fixture.AdministratorApplication,
             _ => throw new ArgumentOutOfRangeException(nameof(principalKind)),
         };
@@ -766,9 +766,8 @@ public sealed class ApplicationAdministrationServiceTests
             ActiveProfileId: Guid.Parse("20000000-0000-0000-0000-000000000001"),
             SessionId: Guid.Parse("30000000-0000-0000-0000-000000000001"),
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountIsAdministrator: true,
-            GrantAdminEnabled: true);
+            ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: true);
 
         public static RequestAuthority DelegatedAdministrator { get; } = HumanAdministrator with
         {

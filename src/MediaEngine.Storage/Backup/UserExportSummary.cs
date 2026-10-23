@@ -1,4 +1,5 @@
 using System.Globalization;
+using MediaEngine.Domain.Entities;
 
 namespace MediaEngine.Storage.Backup;
 
@@ -9,62 +10,99 @@ namespace MediaEngine.Storage.Backup;
 public sealed record UserExportExternalLogin(string Provider, string Issuer, string Subject);
 
 /// <summary>A profile as the file states it, so an administrator can see the limits it carries before importing.</summary>
+/// <param name="Id">The profile's id in the file.</param>
 /// <param name="Name">The profile's name.</param>
-/// <param name="Role">The role stored in the file (Administrator, StandardUser or RestrictedProfile).</param>
+/// <param name="Role">The role stored in the file (Administrator, StandardUser or RestrictedProfile). An import never carries an administrator role.</param>
 /// <param name="ContentLimit">The highest rating the profile may see (G, PG, PG-13 or R); null when there is none.</param>
 /// <param name="AllowsUnrated">Whether unrated items stay visible although a content limit is set.</param>
-public sealed record UserExportProfile(string Name, string Role, string? ContentLimit, bool AllowsUnrated);
+/// <param name="SignInId">The id of the sign-in (user) that opens this profile in the file; null when none does.</param>
+/// <param name="Access">The features the profile could use in the file (read, watch, listen, view); an import applies them only when asked.</param>
+public sealed record UserExportProfile(
+    Guid Id,
+    string Name,
+    string Role,
+    string? ContentLimit,
+    bool AllowsUnrated,
+    Guid? SignInId,
+    IReadOnlyList<string> Access);
 
-/// <summary>
-/// What a user export says about itself, read from its data (never from its manifest, which a person could have edited). Built only by
-/// <see cref="UserExportReader.Read"/>, which refuses a file that does not hold exactly one user and nothing of anyone else.
-/// </summary>
-/// <param name="AccountId">The account.</param>
+/// <summary>A sign-in (user) a file carries.</summary>
+/// <param name="Id">The user's id in the file.</param>
 /// <param name="Email">The email the person signs in with.</param>
-/// <param name="HouseholdId">The household the account belongs to, when it belongs to one.</param>
-/// <param name="HouseholdName">The household's name, when the file holds the household.</param>
-/// <param name="HouseholdAdmin">Whether the person looked after their household.</param>
-/// <param name="ProfileIds">Every profile the account may use.</param>
-/// <param name="ProfileNames">Those profiles' names, in the same order.</param>
-/// <param name="Profiles">The same profiles with the role and content limit the file states.</param>
-/// <param name="CollectionIds">The collections the profiles built.</param>
+/// <param name="ProfileId">The profile it opens.</param>
 /// <param name="PasskeyIds">The passkeys' credential ids.</param>
 /// <param name="ExternalLogins">The outside sign-in links.</param>
-/// <param name="HasTwoStep">True when the file holds a two-step row.</param>
+/// <param name="HasTwoStep">True when the file holds a two-step row for it.</param>
 /// <param name="TwoStepSecretIsPortable">True when there is no two-step secret, or it was made readable for any computer.</param>
-/// <param name="PersonalItems">Rows of the person's own state and what they built (progress, bookmarks, favourites, collection items).</param>
-public sealed record UserExportSummary(
-    Guid AccountId,
+/// <param name="HasPassword">True when the file holds a password for it.</param>
+public sealed record UserExportSignIn(
+    Guid Id,
     string Email,
-    Guid? HouseholdId,
-    string? HouseholdName,
-    bool HouseholdAdmin,
-    IReadOnlyList<Guid> ProfileIds,
-    IReadOnlyList<string> ProfileNames,
-    IReadOnlyList<UserExportProfile> Profiles,
-    IReadOnlyList<Guid> CollectionIds,
+    Guid ProfileId,
     IReadOnlyList<byte[]> PasskeyIds,
     IReadOnlyList<UserExportExternalLogin> ExternalLogins,
     bool HasTwoStep,
     bool TwoStepSecretIsPortable,
-    int PersonalItems);
+    bool HasPassword)
+{
+    /// <summary>True when the person could sign in without the computer's trust: a password or a passkey travels with it.</summary>
+    public bool CanSignInAnywhere => HasPassword || PasskeyIds.Count > 0;
+}
 
 /// <summary>
-/// Checks that a <see cref="BackupExport"/> read from a file is exactly one user's export (backup and restore spec D19) and summarises it.
-/// A crafted file cannot smuggle in another account, another profile, or rows that belong to nobody in the file: every row of every
-/// table must prove, by the checks in <see cref="UserExportScope"/>, that it belongs to the one account or one of its profiles.
+/// What a user file says about itself, read from its data (never from its manifest, which a person could have edited). Built only by
+/// <see cref="UserExportReader.Read"/>, which refuses a file that holds anything but one profile with its sign-in, or one household's
+/// profiles with their sign-ins, and nothing of anyone else.
+/// </summary>
+/// <param name="Scope"><c>profile</c> (one profile and its sign-in) or <c>household</c> (every profile of a household).</param>
+/// <param name="HouseholdId">The household the profiles belonged to, when they belonged to one.</param>
+/// <param name="HouseholdName">The household's name, when the file holds the household.</param>
+/// <param name="Profiles">The profiles, in the order the file lists them.</param>
+/// <param name="SignIns">The sign-ins that open them (a profile may have none).</param>
+/// <param name="CollectionIds">The collections the profiles built.</param>
+/// <param name="PersonalItems">Rows of the people's own state and what they built (progress, bookmarks, favourites, collection items).</param>
+public sealed record UserExportSummary(
+    string Scope,
+    Guid? HouseholdId,
+    string? HouseholdName,
+    IReadOnlyList<UserExportProfile> Profiles,
+    IReadOnlyList<UserExportSignIn> SignIns,
+    IReadOnlyList<Guid> CollectionIds,
+    int PersonalItems)
+{
+    /// <summary>The scope word of a file that holds one profile.</summary>
+    public const string ProfileScope = "profile";
+
+    /// <summary>The scope word of a file that holds a household.</summary>
+    public const string HouseholdScope = "household";
+
+    /// <summary>The profiles' ids, in the file's order.</summary>
+    public IReadOnlyList<Guid> ProfileIds => Profiles.Select(profile => profile.Id).ToList();
+
+    /// <summary>The profiles' names, in the file's order.</summary>
+    public IReadOnlyList<string> ProfileNames => Profiles.Select(profile => profile.Name).ToList();
+
+    /// <summary>True when the file holds a two-step row for any sign-in.</summary>
+    public bool HasTwoStep => SignIns.Any(signIn => signIn.HasTwoStep);
+}
+
+/// <summary>
+/// Checks that a <see cref="BackupExport"/> read from a file is a user file (one profile with its sign-in, or one household) and
+/// summarises it. A crafted file cannot smuggle in another sign-in, another profile, or rows that belong to nobody in the file: every row
+/// of every table must prove, by the checks in <see cref="UserExportScope"/>, that it belongs to one of the file's sign-ins or profiles.
 /// </summary>
 public static class UserExportReader
 {
     /// <summary>
-    /// The summary of a user export. Throws <see cref="InvalidDataException"/> when the export is not one: wrong scope, a table a user
-    /// export never holds, no or several accounts, an account with no email, profiles that do not match the account's grants, or a row
-    /// that belongs to someone else.
+    /// The summary of a user file. Throws <see cref="InvalidDataException"/> when the export is not one: wrong scope, a table a user
+    /// file never holds, a sign-in with no email or no profile, more profiles than a household may hold, or a row that belongs to
+    /// someone else.
     /// </summary>
     public static UserExportSummary Read(BackupExport export)
     {
         ArgumentNullException.ThrowIfNull(export);
-        if (export.Contents.Scope.AccountId is not { } scopeAccount)
+        var scope = export.Contents.Scope;
+        if (!scope.IsUserFile)
         {
             throw NotAUserExport();
         }
@@ -87,82 +125,87 @@ public static class UserExportReader
             }
         }
 
-        var account = RowsOf(tables, "accounts") is [var onlyRow] ? onlyRow : throw NotAUserExport();
-        var accountsTable = tables["accounts"];
-        var accountId = GuidOf(Value(accountsTable, account, "id")) ?? throw NotAUserExport();
-        if (accountId != scopeAccount || accountId == Guid.Empty)
-        {
-            throw NotAUserExport();
-        }
-
-        var email = Value(accountsTable, account, "email") is BackupValue.Text { Value: var rawEmail } && !string.IsNullOrWhiteSpace(rawEmail)
-            ? rawEmail.Trim()
-            : throw NotAUserExport();
-
-        // The profiles are the account's grants, no more and no fewer.
-        var grantsTable = tables.GetValueOrDefault("account_profile_grants") ?? throw NotAUserExport();
-        var grantedProfiles = new List<Guid>();
-        var defaults = 0;
-        foreach (var row in grantsTable.Rows)
-        {
-            var profile = GuidOf(Value(grantsTable, row, "profile_id")) ?? throw NotAUserExport();
-            if (grantedProfiles.Contains(profile))
-            {
-                throw NotAUserExport();
-            }
-
-            grantedProfiles.Add(profile);
-            defaults += Value(grantsTable, row, "is_default") is BackupValue.Integer { Value: 1 } ? 1 : 0;
-        }
-
-        if (grantedProfiles.Count is 0 or > 8 || defaults != 1)
-        {
-            throw NotAUserExport();
-        }
-
+        // The profiles: at most a household's worth, each once.
         var profilesTable = tables.GetValueOrDefault("profiles") ?? throw NotAUserExport();
-        var names = new Dictionary<Guid, string>();
-        var details = new Dictionary<Guid, UserExportProfile>();
+        if (profilesTable.Rows.Count == 0 || profilesTable.Rows.Count > Household.MaximumProfiles)
+        {
+            throw NotAUserExport();
+        }
+
+        var profileRows = new List<(Guid Id, string Name, string Role, string? Limit, bool AllowsUnrated, Guid? Household)>();
+        var profileIds = new HashSet<Guid>();
         foreach (var row in profilesTable.Rows)
         {
             var id = GuidOf(Value(profilesTable, row, "id")) ?? throw NotAUserExport();
             var name = Value(profilesTable, row, "display_name") is BackupValue.Text { Value: var displayName } ? displayName : throw NotAUserExport();
-            if (!names.TryAdd(id, name))
+            if (id == Guid.Empty || !profileIds.Add(id))
             {
                 throw NotAUserExport();
             }
 
-            details[id] = new UserExportProfile(
+            Guid? household = Value(profilesTable, row, "household_id") is { } value and not BackupValue.NullValue
+                ? GuidOf(value) ?? throw NotAUserExport()
+                : null;
+            profileRows.Add((
+                id,
                 name,
                 Value(profilesTable, row, "role") is BackupValue.Text { Value: var role } ? role : "RestrictedProfile",
                 Value(profilesTable, row, "content_limit") is BackupValue.Text { Value: { Length: > 0 } limit } ? limit : null,
-                Value(profilesTable, row, "content_limit_allow_unrated") is BackupValue.Integer { Value: 1 });
+                Value(profilesTable, row, "content_limit_allow_unrated") is BackupValue.Integer { Value: 1 },
+                household));
         }
 
-        if (names.Count != grantedProfiles.Count || grantedProfiles.Any(id => !names.ContainsKey(id)))
+        // The sign-ins: each opens one of the profiles, and no two open the same one.
+        var accountsTable = tables.GetValueOrDefault("accounts");
+        var accountRows = new List<(Guid Id, string Email, Guid Profile)>();
+        var accountIds = new HashSet<Guid>();
+        var openedProfiles = new HashSet<Guid>();
+        var emails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in accountsTable?.Rows ?? [])
         {
-            throw NotAUserExport();
+            var id = GuidOf(Value(accountsTable!, row, "id")) ?? throw NotAUserExport();
+            var email = Value(accountsTable!, row, "email") is BackupValue.Text { Value: var rawEmail } && !string.IsNullOrWhiteSpace(rawEmail)
+                ? rawEmail.Trim()
+                : throw NotAUserExport();
+            var opened = GuidOf(Value(accountsTable!, row, "profile_id")) ?? throw NotAUserExport();
+            if (id == Guid.Empty || !accountIds.Add(id) || !profileIds.Contains(opened) || !openedProfiles.Add(opened) || !emails.Add(email))
+            {
+                throw NotAUserExport();
+            }
+
+            accountRows.Add((id, email, opened));
         }
 
-        CheckRows(tables, accountId, grantedProfiles.ToHashSet());
+        // The scope the file claims must match what it holds.
+        Guid? householdId;
+        string scopeWord;
+        if (scope.AccountId is { } scopeAccount)
+        {
+            if (accountRows.Count != 1 || accountRows[0].Id != scopeAccount || profileRows.Count != 1)
+            {
+                throw NotAUserExport();
+            }
 
-        // The default profile first, then the others by name, so the preview reads the same however the file was ordered.
-        var defaultProfile = grantsTable.Rows
-            .Where(row => Value(grantsTable, row, "is_default") is BackupValue.Integer { Value: 1 })
-            .Select(row => GuidOf(Value(grantsTable, row, "profile_id"))!.Value)
-            .Single();
-        var ordered = grantedProfiles
-            .OrderBy(id => id == defaultProfile ? 0 : 1)
-            .ThenBy(id => names[id], StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            scopeWord = UserExportSummary.ProfileScope;
+            householdId = profileRows[0].Household;
+        }
+        else
+        {
+            householdId = scope.HouseholdId;
+            if (householdId is null || profileRows.Any(profile => profile.Household != householdId))
+            {
+                throw NotAUserExport();
+            }
 
-        Guid? householdId = Value(accountsTable, account, "household_id") is { } household && household is not BackupValue.NullValue
-            ? GuidOf(household) ?? throw NotAUserExport()
-            : null;
+            scopeWord = UserExportSummary.HouseholdScope;
+        }
+
+        CheckRows(tables, accountIds, profileIds);
+
         string? householdName = null;
         if (tables.TryGetValue("households", out var householdsTable) && householdsTable.Rows.Count > 0)
         {
-            if (householdId is null || householdsTable.Rows.Count != 1)
+            if (householdId is null || householdsTable.Rows.Count != 1 || GuidOf(Value(householdsTable, householdsTable.Rows[0], "id")) != householdId)
             {
                 throw NotAUserExport();
             }
@@ -170,33 +213,62 @@ public static class UserExportReader
             householdName = Value(householdsTable, householdsTable.Rows[0], "name") is BackupValue.Text { Value: var nameText } ? nameText : throw NotAUserExport();
         }
 
-        var twoStepPortable = true;
-        var hasTwoStep = false;
-        if (tables.TryGetValue(UserExportScope.TwoStepTable, out var twoStep))
+        var access = new Dictionary<Guid, List<string>>();
+        if (tables.TryGetValue("profile_feature_grants", out var grantTable))
         {
-            hasTwoStep = twoStep.Rows.Count > 0;
-            twoStepPortable = twoStep.Rows.All(row => Value(twoStep, row, "secret_protected") is BackupValue.Portable);
-        }
-
-        var passkeys = new List<byte[]>();
-        if (tables.TryGetValue("account_passkeys", out var passkeyTable))
-        {
-            foreach (var row in passkeyTable.Rows)
+            foreach (var row in grantTable.Rows)
             {
-                passkeys.Add(Value(passkeyTable, row, "credential_id") is BackupValue.Blob blob ? blob.Value : throw NotAUserExport());
+                var profile = GuidOf(Value(grantTable, row, "profile_id")) ?? throw NotAUserExport();
+                var feature = TextOf(grantTable, row, "feature_id");
+                if (!access.TryGetValue(profile, out var features))
+                {
+                    access[profile] = features = [];
+                }
+
+                if (!features.Contains(feature, StringComparer.Ordinal))
+                {
+                    features.Add(feature);
+                }
             }
         }
 
-        var logins = new List<UserExportExternalLogin>();
-        if (tables.TryGetValue("account_external_logins", out var loginTable))
+        var signIns = new List<UserExportSignIn>();
+        foreach (var (id, email, opened) in accountRows)
         {
-            foreach (var row in loginTable.Rows)
+            var hasTwoStep = false;
+            var twoStepPortable = true;
+            if (tables.TryGetValue(UserExportScope.TwoStepTable, out var twoStep))
             {
-                logins.Add(new UserExportExternalLogin(
-                    TextOf(loginTable, row, "provider"),
-                    TextOf(loginTable, row, "issuer"),
-                    TextOf(loginTable, row, "subject")));
+                var mine = twoStep.Rows.Where(row => GuidOf(Value(twoStep, row, "account_id")) == id).ToList();
+                hasTwoStep = mine.Count > 0;
+                twoStepPortable = mine.All(row => Value(twoStep, row, "secret_protected") is BackupValue.Portable);
             }
+
+            var hasPassword = tables.TryGetValue("account_credentials", out var credentialTable)
+                && credentialTable.Rows.Any(row => GuidOf(Value(credentialTable, row, "account_id")) == id);
+
+            var passkeys = new List<byte[]>();
+            if (tables.TryGetValue("account_passkeys", out var passkeyTable))
+            {
+                foreach (var row in passkeyTable.Rows.Where(row => GuidOf(Value(passkeyTable, row, "account_id")) == id))
+                {
+                    passkeys.Add(Value(passkeyTable, row, "credential_id") is BackupValue.Blob blob ? blob.Value : throw NotAUserExport());
+                }
+            }
+
+            var logins = new List<UserExportExternalLogin>();
+            if (tables.TryGetValue("account_external_logins", out var loginTable))
+            {
+                foreach (var row in loginTable.Rows.Where(row => GuidOf(Value(loginTable, row, "account_id")) == id))
+                {
+                    logins.Add(new UserExportExternalLogin(
+                        TextOf(loginTable, row, "provider"),
+                        TextOf(loginTable, row, "issuer"),
+                        TextOf(loginTable, row, "subject")));
+                }
+            }
+
+            signIns.Add(new UserExportSignIn(id, email, opened, passkeys, logins, hasTwoStep, twoStepPortable, hasPassword));
         }
 
         var collections = new List<Guid>();
@@ -211,25 +283,21 @@ public static class UserExportReader
         var personalItems = tables.Values.Where(table => table.Kind == BackupDataKind.PersonalState).Sum(table => table.Rows.Count)
             + (tables.TryGetValue("collection_items", out var items) ? items.Rows.Count : 0);
 
-        return new UserExportSummary(
-            accountId,
-            email,
-            householdId,
-            householdName,
-            Value(accountsTable, account, "household_admin") is BackupValue.Integer { Value: 1 },
-            ordered,
-            ordered.Select(id => names[id]).ToList(),
-            ordered.Select(id => details[id]).ToList(),
-            collections,
-            passkeys,
-            logins,
-            hasTwoStep,
-            twoStepPortable,
-            personalItems);
+        var profiles = profileRows
+            .Select(profile => new UserExportProfile(
+                profile.Id,
+                profile.Name,
+                profile.Role,
+                profile.Limit,
+                profile.AllowsUnrated,
+                accountRows.Where(account => account.Profile == profile.Id).Select(account => (Guid?)account.Id).FirstOrDefault(),
+                access.TryGetValue(profile.Id, out var granted) ? granted : []))
+            .ToList();
+        return new UserExportSummary(scopeWord, householdId, householdName, profiles, signIns, collections, personalItems);
     }
 
-    /// <summary>Every row of every table proves it belongs to the one account or one of its profiles (see <see cref="UserRowCheck"/>).</summary>
-    private static void CheckRows(Dictionary<string, BackupExportTable> tables, Guid accountId, HashSet<Guid> profiles)
+    /// <summary>Every row of every table proves it belongs to one of the file's sign-ins or profiles (see <see cref="UserRowCheck"/>).</summary>
+    private static void CheckRows(Dictionary<string, BackupExportTable> tables, HashSet<Guid> accounts, HashSet<Guid> profiles)
     {
         foreach (var table in tables.Values)
         {
@@ -265,7 +333,7 @@ public static class UserExportReader
                     var value = row[index];
                     var proven = check switch
                     {
-                        UserRowCheck.AccountColumn => GuidOf(value) == accountId,
+                        UserRowCheck.AccountColumn => GuidOf(value) is { } account && accounts.Contains(account),
                         UserRowCheck.ProfileColumn { Nullable: true } when value is BackupValue.NullValue => true,
                         UserRowCheck.ProfileColumn => GuidOf(value) is { } profile && profiles.Contains(profile),
                         UserRowCheck.ParentRow => parentKeys!.Contains(KeyOf(value)),

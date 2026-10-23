@@ -65,7 +65,7 @@ internal sealed class LibraryMoveTestWorld : IDisposable
     /// <summary>The person confirming moves in these tests.</summary>
     public static LibraryMoveActor Actor { get; } = new(
         new RequestAuthority(PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(), SessionId: Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true),
         null,
         "Shy");
 

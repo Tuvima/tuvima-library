@@ -10,7 +10,7 @@ public sealed class PlaybackTelemetryReadService(
     IHttpContextAccessor http,
     IRequestAuthorityResolver authorities,
     IAuthorizationEvaluator evaluator,
-    IAccountRepository accounts,
+    IProfileAccessRepository profileAccess,
     IPlaybackTelemetryRepository repository)
 {
     public async Task<PlaybackTelemetryPageDto?> GetActiveAsync(
@@ -121,8 +121,9 @@ public sealed class PlaybackTelemetryReadService(
             return PlaybackTelemetryReadScope.Denied;
         }
 
-        var features = await accounts.GetFeatureGrantsAsync(accountId, ct).ConfigureAwait(false);
-        var hidden = await accounts.GetHiddenLibrariesAsync(accountId, ct).ConfigureAwait(false);
+        // Read access follows the profile being acted as.
+        var features = await profileAccess.GetFeatureGrantsAsync(profileId, ct).ConfigureAwait(false);
+        var hidden = await profileAccess.GetHiddenLibrariesAsync(profileId, ct).ConfigureAwait(false);
         return new(true, false, accountId, profileId, false, hidden, features);
     }
 

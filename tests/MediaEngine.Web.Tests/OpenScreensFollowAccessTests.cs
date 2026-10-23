@@ -192,7 +192,7 @@ public sealed class OpenScreensFollowAccessTests
     public async Task RemovingAPerson_ClosesThatAccountsScreens()
     {
         var f = new Fixture();
-        await f.Identity.DeleteManagedAccountResultAsync(f.AccountA);
+        await f.Identity.DeleteUserResultAsync(f.AccountA, confirmedProfileIds: []);
         Assert.Equal(["a1", "a2"], f.Closed());
     }
 
@@ -202,14 +202,6 @@ public sealed class OpenScreensFollowAccessTests
         var f = new Fixture();
         await f.Identity.DeleteManagedProfileResultAsync(f.ProfileA1);
         Assert.Equal(["a1"], f.Closed());
-    }
-
-    [Fact]
-    public async Task RevokingAProfileGrant_ClosesThatAccountAndProfileOnly()
-    {
-        var f = new Fixture();
-        await f.Identity.RevokeManagedProfileGrantResultAsync(f.AccountA, f.ProfileA2);
-        Assert.Equal(["a2"], f.Closed());
     }
 
     [Fact]
@@ -238,26 +230,10 @@ public sealed class OpenScreensFollowAccessTests
     }
 
     [Fact]
-    public async Task DisablingAnAccount_ClosesThatAccountsScreens()
-    {
-        var f = new Fixture(body: AccountResponse(isEnabled: false));
-        await f.Identity.UpdateManagedAccountResultAsync(f.AccountA, new UpdateManagedAccountRequest("a@example.test", IsEnabled: false, false));
-        Assert.Equal(["a1", "a2"], f.Closed());
-    }
-
-    [Fact]
-    public async Task EditingAnAccountThatStaysEnabled_ClosesNothing()
-    {
-        var f = new Fixture(body: AccountResponse(isEnabled: true));
-        await f.Identity.UpdateManagedAccountResultAsync(f.AccountA, new UpdateManagedAccountRequest("a@example.test", IsEnabled: true, false));
-        Assert.Empty(f.Closed());
-    }
-
-    [Fact]
     public async Task AFailedAction_ClosesNothing()
     {
         var f = new Fixture(status: HttpStatusCode.Forbidden);
-        await f.Identity.DeleteManagedAccountResultAsync(f.AccountA);
+        await f.Identity.DeleteUserResultAsync(f.AccountA, confirmedProfileIds: []);
         await f.Identity.RevokeSessionResultAsync(f.SessionB);
         Assert.Empty(f.Closed());
     }
@@ -285,9 +261,6 @@ public sealed class OpenScreensFollowAccessTests
             new Claim("tuvima:session_id", Guid.NewGuid().ToString("D")),
             new Claim(DashboardPrincipalFactory.ClientIngressClaim, ingress),
         ], "test"));
-
-    private static AccountAccessResponse AccountResponse(bool isEnabled) =>
-        new(Guid.NewGuid(), "a@example.test", isEnabled, false, 1, [], [], [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
 
     private static OpenScreen Screen(Guid account, string ingress, Guid? profile = null, Guid? session = null) =>
         new(Guid.NewGuid(), account, profile ?? Guid.NewGuid(), session ?? Guid.NewGuid(), OpenScreenRegistry.HashToken("token"), ingress);

@@ -8,6 +8,7 @@ using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -111,6 +112,7 @@ public sealed class CastKidsLimitEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(_paired.Authority));
         // The real checks: account feature and library grants, application permissions, and the profile's content limit.
         builder.Services.AddSingleton<IAccountRepository>(accounts);
+        builder.Services.AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database));
         builder.Services.AddSingleton<IApplicationRepository>(applications);
         builder.Services.AddSingleton<IPermissionRegistry, PermissionRegistry>();
         builder.Services.AddSingleton<IAuthorizationAuditWriter, DiscardingAuditWriter>();

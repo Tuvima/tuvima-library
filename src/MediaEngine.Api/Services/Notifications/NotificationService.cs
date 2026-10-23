@@ -301,9 +301,9 @@ internal sealed class NotificationService(
 
     private async Task<IReadOnlyList<NotificationRecipient>> AdministratorRecipientsAsync(CancellationToken ct)
     {
-        var all = await accounts.GetAllAsync(ct).ConfigureAwait(false);
+        var all = await accounts.GetEnabledServerAdministratorsAsync(ct).ConfigureAwait(false);
         return all
-            .Where(account => account is { IsAdministrator: true, IsEnabled: true, HasEmail: true })
+            .Where(account => account.HasEmail)
             .Select(account => new NotificationRecipient(account.Id, account.Email!))
             .ToList();
     }

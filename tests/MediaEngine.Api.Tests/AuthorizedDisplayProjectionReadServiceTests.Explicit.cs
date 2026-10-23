@@ -22,15 +22,23 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var limited = Guid.NewGuid();
         await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid>());
         SetContentLimit("R", allowUnrated: true);
-        var visibleToLimited = await AssertVisibleIdsMatchFullReadAsync(HumanContext(limited, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
+        var visibleToLimited = await AssertVisibleIdsMatchFullReadAsync(HumanContext(limited, ProfileOf(limited)));
 
         Assert.Contains(plain, visibleToLimited);
         Assert.DoesNotContain(marked, visibleToLimited);
 
         var owner = Guid.NewGuid();
-        await CreateHumanAsync(owner, EveryFeature, new HashSet<Guid>(), administrator: true);
+        // A profile has at most one user, so the owner signs in as a person of their own.
+        var ownerProfile = new MediaEngine.Domain.Aggregates.Profile
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Owner",
+            Role = MediaEngine.Domain.Enums.ProfileRole.StandardUser,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await CreateHumanAsync(owner, EveryFeature, new HashSet<Guid>(), administrator: true, ownProfile: ownerProfile);
         SetContentLimit(null, allowUnrated: false);
-        var visibleToOwner = await AssertVisibleIdsMatchFullReadAsync(HumanContext(owner, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
+        var visibleToOwner = await AssertVisibleIdsMatchFullReadAsync(HumanContext(owner, ownerProfile.Id));
 
         Assert.Contains(marked, visibleToOwner);
         Assert.Contains(plain, visibleToOwner);

@@ -2,7 +2,6 @@ using Dapper;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Authentication;
-using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -11,12 +10,12 @@ using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
 using Account = MediaEngine.Domain.Entities.Account;
-using AccountProfileGrant = MediaEngine.Domain.Entities.AccountProfileGrant;
+using Profile = MediaEngine.Domain.Aggregates.Profile;
 
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// "If these files move into library L, who can see them now but would not in L?" (simpler access D13), on real temp SQLite: the account
+/// "If these files move into library L, who can see them now but would not in L?" (simpler access D13), on real temp SQLite: the profile
 /// facts, the hidden libraries and the per-library file counts are real; only the libraries list is a hand-written loader.
 /// </summary>
 public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
@@ -31,6 +30,7 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_visibility_after_move_{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _database;
     private readonly AccountRepository _accounts;
+    private readonly ProfileAccessRepository _profileAccess;
     private readonly VisibilityAfterMoveReadService _service;
     private readonly Guid _edition = Guid.NewGuid();
 
@@ -41,6 +41,7 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
         _database.InitializeSchema();
         _database.RunStartupChecks();
         _accounts = new AccountRepository(_database);
+        _profileAccess = new ProfileAccessRepository(_database);
         var vaultLibraries = new VaultLibraryRepository(_database);
         var libraries = new LibrariesOnlyLoader(
             Library(Movies, "Movies", LibraryAreas.Watch),
@@ -49,8 +50,8 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
             Library(Kids, "Kids", LibraryAreas.Watch, ("kids-source", "/media/kids")),
             Library(Music, "Music", LibraryAreas.Listen));
         _service = new VisibilityAfterMoveReadService(
-            _accounts, new ProfileRepository(_database), new MediaAssetLibraryCountRepository(_database),
-            vaultLibraries, libraries, new LibraryVisibilityRule(_accounts, vaultLibraries));
+            _accounts, new ProfileRepository(_database), _profileAccess, new MediaAssetLibraryCountRepository(_database),
+            vaultLibraries, libraries, new LibraryVisibilityRule(_profileAccess, vaultLibraries));
         var work = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute("INSERT INTO works(id,media_type,work_kind) VALUES(@work,'Movies','child');", new { work });
@@ -69,19 +70,19 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     [Fact]
     public async Task WhenSamHasLecturesHidden_MovingFortyFilesFromMoviesIntoLectures_ReturnsSamWithForty()
     {
-        var sam = await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
+        var sam = await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
         var ids = AddAssets(Movies, 40);
 
         var result = await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: ids));
 
         var loss = Assert.Single(result.People!);
-        Assert.Equal((sam.Id, "Sam", 40), (loss.AccountId, loss.DisplayName, loss.FileCount));
+        Assert.Equal((sam.Id, "Sam", 40), (loss.ProfileId, loss.DisplayName, loss.FileCount));
     }
 
     [Fact]
     public async Task WhenNobodyHidesTheTarget_TheListIsEmpty()
     {
-        await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Kids]);
+        await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Kids]);
         var ids = AddAssets(Movies, 5);
 
         var result = await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: ids));
@@ -93,7 +94,7 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     [Fact]
     public async Task WhenSamLacksTheWatchArea_SamCannotSeeTheFilesNow_SoSamIsNotListed()
     {
-        await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Listen], hidden: [Lectures]);
+        await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Listen], hidden: [Lectures]);
         var ids = AddAssets(Movies, 3);
 
         var result = await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: ids));
@@ -104,7 +105,7 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     [Fact]
     public async Task WhenTheFilesAreHiddenFromSamNowAndStayHiddenInTheTarget_SamIsNotListed()
     {
-        await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Movies, Lectures]);
+        await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Movies, Lectures]);
         var ids = AddAssets(Movies, 3);
 
         Assert.Empty((await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: ids))).People!);
@@ -113,47 +114,54 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     [Fact]
     public async Task WhenTheTargetIsInAnAreaThePersonLacks_ThePersonLosesSightOfFilesTheySeeNow()
     {
-        var sam = await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: []);
+        var sam = await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: []);
         var ids = AddAssets(Movies, 4);
 
         var result = await _service.GetAsync(new VisibilityAfterMoveRequest(Music, AssetIds: ids));
 
         var loss = Assert.Single(result.People!);
-        Assert.Equal((sam.Id, 4), (loss.AccountId, loss.FileCount));
+        Assert.Equal((sam.Id, 4), (loss.ProfileId, loss.FileCount));
     }
 
     [Fact]
-    public async Task AHouseholdMemberInheritsThePrimarysHiddenLibraries_AndIsListedWithThePrimary()
+    public async Task EachProfileIsJudgedOnItsOwnHiddenLibraries_NotOnAnotherProfilesInTheSameHousehold()
     {
-        var primary = await CreateAccountAsync("primary@example.test", "Pat", [AccountFeatureId.Watch], hidden: [Lectures]);
-        var member = await CreateAccountAsync("member@example.test", "Mia", [], hidden: []);
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("UPDATE accounts SET grants_inherit_from_account_id=@primary WHERE id=@member;", new { primary = primary.Id, member = member.Id });
-        }
+        var pat = await CreateProfileAsync("primary@example.test", "Pat", [AccountFeatureId.Watch], hidden: [Lectures]);
+        var mia = await AddPersonAsync(pat, "Mia", [AccountFeatureId.Watch], hidden: []);
 
         var result = await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: AddAssets(Movies, 7)));
 
-        Assert.Equal(
-            new[] { (primary.Id, "Pat", 7), (member.Id, "Mia", 7) }.OrderBy(row => row.Item1),
-            result.People!.Select(row => (row.AccountId, row.DisplayName, row.FileCount)).OrderBy(row => row.AccountId));
+        var loss = Assert.Single(result.People!);
+        Assert.Equal((pat.Id, "Pat", 7), (loss.ProfileId, loss.DisplayName, loss.FileCount));
+        Assert.NotEqual(mia.Id, loss.ProfileId);
     }
 
     [Fact]
-    public async Task Administrators_AreNeverListed_EvenWithALibraryHiddenRow()
+    public async Task APersonWithoutASignIn_IsListedLikeAnyoneElse()
     {
-        await CreateAccountAsync("admin@example.test", "Ada", [AccountFeatureId.Watch], hidden: [Lectures], administrator: true);
+        var pat = await CreateProfileAsync("primary@example.test", "Pat", [AccountFeatureId.Listen], hidden: []);
+        var mia = await AddPersonAsync(pat, "Mia", [AccountFeatureId.Watch], hidden: [Lectures]);
+
+        var loss = Assert.Single((await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: AddAssets(Movies, 2)))).People!);
+
+        Assert.Equal((mia.Id, "Mia", 2), (loss.ProfileId, loss.DisplayName, loss.FileCount));
+    }
+
+    [Fact]
+    public async Task ServerAdministrators_AreNeverListed_EvenWithALibraryHiddenRow()
+    {
+        await CreateProfileAsync("admin@example.test", "Ada", [AccountFeatureId.Watch], hidden: [Lectures], administrator: true);
 
         Assert.Empty((await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: AddAssets(Movies, 2)))).People!);
     }
 
     [Fact]
-    public async Task ADisabledAccount_IsNotListed_EvenWhenItWouldLoseSight()
+    public async Task AProfileWhoseOnlySignInIsDisabled_IsNotListed_EvenWhenItWouldLoseSight()
     {
-        var sam = await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
+        var sam = await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
         using (var connection = _database.CreateConnection())
         {
-            connection.Execute("UPDATE accounts SET is_enabled = 0 WHERE id = @id;", new { id = sam.Id });
+            connection.Execute("UPDATE accounts SET is_enabled = 0 WHERE profile_id = @id;", new { id = sam.Id });
         }
 
         Assert.Empty((await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: AddAssets(Movies, 3)))).People!);
@@ -162,7 +170,7 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     [Fact]
     public async Task AFileAlreadyInTheTarget_IsNotCounted()
     {
-        await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
+        await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
         var ids = AddAssets(Lectures, 6).Concat(AddAssets(Movies, 2)).ToList();
 
         var loss = Assert.Single((await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: ids))).People!);
@@ -173,26 +181,12 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     [Fact]
     public async Task AFileInTheVault_IsNotSeenNow_SoItIsNotCounted()
     {
-        await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
+        await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
         var ids = AddAssets(Vault, 3).Concat(AddAssets(Movies, 1)).ToList();
 
         var loss = Assert.Single((await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: ids))).People!);
 
         Assert.Equal(1, loss.FileCount);
-    }
-
-    [Fact]
-    public async Task APersonWithNoProfile_IsNamedByTheirEmail()
-    {
-        var sam = await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("DELETE FROM account_profile_grants WHERE account_id=@id;", new { id = sam.Id });
-        }
-
-        var loss = Assert.Single((await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: AddAssets(Movies, 1)))).People!);
-
-        Assert.Equal("sam@example.test", loss.DisplayName);
     }
 
     [Fact]
@@ -216,20 +210,20 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     [Fact]
     public async Task AFolderByItsPath_CountsOnlyTheFilesInsideIt_AndNotASiblingWhoseNameStartsTheSame()
     {
-        var sam = await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
+        var sam = await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
         AddAsset(Kids, "/media/kids/a.mkv");
         AddAsset(Kids, "/media/kids/deeper/b.mkv");
         AddAsset(Kids, "/media/kids2/c.mkv");
 
         var loss = Assert.Single((await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, FolderPath: "/media/kids", LibraryId: Kids))).People!);
 
-        Assert.Equal((sam.Id, 2), (loss.AccountId, loss.FileCount));
+        Assert.Equal((sam.Id, 2), (loss.ProfileId, loss.FileCount));
     }
 
     [Fact]
     public async Task AFolderBySourceId_IsFoundFromTheLibrariesFolders()
     {
-        await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
+        await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
         AddAsset(Kids, "/media/kids/a.mkv");
         AddAsset(Kids, "/media/kids2/b.mkv");
 
@@ -301,36 +295,46 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
         return asset;
     }
 
-    private async Task<Account> CreateAccountAsync(
+    /// <summary>A person with a sign-in and a profile of their own (in a household of their own); a server administrator when asked.</summary>
+    private async Task<Profile> CreateProfileAsync(
         string email, string name, IEnumerable<AccountFeatureId> features, IEnumerable<Guid> hidden, bool administrator = false)
     {
-        var profileId = Guid.NewGuid();
+        var profile = new Profile { Id = Guid.NewGuid(), DisplayName = name, Role = ProfileRole.StandardUser, CreatedAt = Now };
         var account = new Account
         {
             Id = Guid.NewGuid(),
             Email = email,
             NormalizedEmail = email.ToUpperInvariant(),
             IsEnabled = true,
-            IsAdministrator = administrator,
             AuthorizationVersion = 1,
             CreatedAt = Now,
             UpdatedAt = Now,
         };
         await _accounts.CreateAccountAsync(
             account,
-            new AccountProfileGrant
-            {
-                AccountId = account.Id,
-                ProfileId = profileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = Now,
-            },
+            new TestGrant(account.Id, profile.Id, IsDefault: true, AdminEnabled: administrator),
             features.ToHashSet(),
             hidden.ToHashSet(),
-            newProfile: new Profile { Id = profileId, DisplayName = name, Role = ProfileRole.StandardUser, CreatedAt = Now });
-        return account;
+            newProfile: profile,
+            newHouseholdName: $"{name}'s home");
+        await _profileAccess.ReplaceAccessAsync(profile.Id, features.ToHashSet(), hidden.ToHashSet(), Now);
+        return profile;
+    }
+
+    /// <summary>A person in the same household as <paramref name="of"/>, without a sign-in of their own.</summary>
+    private async Task<Profile> AddPersonAsync(Profile of, string name, IEnumerable<AccountFeatureId> features, IEnumerable<Guid> hidden)
+    {
+        var household = (await new HouseholdRepository(_database).GetForAccountAsync(FindUser(of.Id)))!;
+        var person = new Profile { Id = Guid.NewGuid(), DisplayName = name, Role = ProfileRole.StandardUser, CreatedAt = Now };
+        await _accounts.CreateHouseholdPersonAsync(person, household.Id);
+        await _profileAccess.ReplaceAccessAsync(person.Id, features.ToHashSet(), hidden.ToHashSet(), Now);
+        return person;
+    }
+
+    private Guid FindUser(Guid profileId)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.ExecuteScalar<Guid>("SELECT id FROM accounts WHERE profile_id = @profileId;", new { profileId });
     }
 
     /// <summary>A configuration loader that holds only the libraries list; the library kinds are the built-in ones.</summary>

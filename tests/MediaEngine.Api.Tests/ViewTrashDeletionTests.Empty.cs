@@ -456,7 +456,7 @@ public sealed partial class ViewTrashDeletionTests
         var fingerprint = (await PlanAsync(alice)).Preview.Fingerprint;
         var pairedApp = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, AccountId: alice.Authority.AccountId, ActiveProfileId: alice.ProfileId,
-            ApplicationId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+            ApplicationId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
         var service = new RequestAuthority(
             PrincipalKind.ServiceApplication, true, ApplicationId: Guid.NewGuid(), ApplicationEnabled: true,
             ApplicationIsAdministrator: true);
@@ -482,7 +482,7 @@ public sealed partial class ViewTrashDeletionTests
         var photo = await AddPhoto(alice, "private");
         var pairedApp = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, AccountId: alice.Authority.AccountId, ActiveProfileId: alice.ProfileId,
-            ApplicationId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+            ApplicationId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
         using var scope = _app.Services.CreateScope();
 
         var outcome = await scope.ServiceProvider.GetRequiredService<ViewTrashDeletionService>()

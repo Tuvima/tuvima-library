@@ -697,44 +697,9 @@ public static class AuthenticationEndpoints
             {
                 return SwitchProfileFailure(ex);
             }
-        }).Produces<SessionValidationResponse>()
+        }).WithName(ProfilePendingMiddleware.SwitchProfileEndpoint).Produces<SessionValidationResponse>()
           .ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .RequireRateLimiting("authentication-session").RequireAuthorization(AuthPolicies.HumanSelfService);
-
-        // "Always open as": the profile this browser or device starts in after sign-in. Everything is scoped to the
-        // caller's own account and session, so a caller can never read or change another account's or device's choice.
-        group.MapGet("/device-profile", async (ClaimsPrincipal user, [FromServices] IFirstPartyIdentityService identity, CancellationToken ct) =>
-        {
-            try
-            {
-                var preferred = await identity.GetDeviceProfilePreferenceAsync(
-                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), ct).ConfigureAwait(false);
-                return Results.Ok(new DeviceProfilePreferenceResponse(preferred));
-            }
-            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
-        }).WithName("GetDeviceProfilePreference").Produces<DeviceProfilePreferenceResponse>().RequireAuthorization(AuthPolicies.HumanSelfService);
-
-        group.MapPut("/device-profile", async (SetDeviceProfilePreferenceRequest request, ClaimsPrincipal user, [FromServices] IFirstPartyIdentityService identity, CancellationToken ct) =>
-        {
-            try
-            {
-                await identity.SetDeviceProfilePreferenceAsync(
-                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), request.ProfileId, ct).ConfigureAwait(false);
-                return Results.NoContent();
-            }
-            catch (UnauthorizedAccessException) { return Results.Forbid(); }
-        }).WithName("SetDeviceProfilePreference").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
-
-        group.MapDelete("/device-profile", async (ClaimsPrincipal user, [FromServices] IFirstPartyIdentityService identity, CancellationToken ct) =>
-        {
-            try
-            {
-                await identity.ClearDeviceProfilePreferenceAsync(
-                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), ct).ConfigureAwait(false);
-                return Results.NoContent();
-            }
-            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
-        }).WithName("ClearDeviceProfilePreference").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
 
         // "Confirm it's you": a password or passkey proves the person is still there, which makes the session recent
         // for sensitive actions (change password, passkeys, linked accounts, recovery codes, signing out other devices).
@@ -898,7 +863,7 @@ public static class AuthenticationEndpoints
         AccountId = issued.Account.Id,
         ActiveProfileId = issued.ActiveProfile.Id,
         DisplayName = issued.ActiveProfile.DisplayName,
-        Authority = await projector.ProjectAsync(issued.Account.Id, issued.ActiveProfile.Id, issued.Session.Id, ct),
+        Authority = await projector.ProjectAsync(issued.Account.Id, issued.ActiveProfile.Id, issued.Session.Id, ct, issued.Session.ProfilePending),
         AuthenticationMethod = issued.Session.AuthenticationMethod,
         ExpiresAt = issued.Session.ExpiresAt,
         RecoveryCodes = issued.RecoveryCodes,
@@ -913,7 +878,7 @@ public static class AuthenticationEndpoints
         AccountId = result.Account.Id,
         ActiveProfileId = result.ActiveProfile.Id,
         DisplayName = result.ActiveProfile.DisplayName,
-        Authority = await projector.ProjectAsync(result.Account.Id, result.ActiveProfile.Id, result.Session.Id, ct),
+        Authority = await projector.ProjectAsync(result.Account.Id, result.ActiveProfile.Id, result.Session.Id, ct, result.Session.ProfilePending),
         AuthenticationMethod = result.Session.AuthenticationMethod,
         ExpiresAt = result.Session.ExpiresAt,
         ProfilePending = result.Session.ProfilePending,
@@ -1103,14 +1068,6 @@ public static class AuthenticationEndpoints
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         if (account is null || !account.IsEnabled)
-        {
-            return false;
-        }
-
-        var grants = (await accounts.GetGrantsAsync(accountId, ct).ConfigureAwait(false))
-            .Where(grant => grant.IsEnabled)
-            .ToArray();
-        if (grants.Length == 0)
         {
             return false;
         }

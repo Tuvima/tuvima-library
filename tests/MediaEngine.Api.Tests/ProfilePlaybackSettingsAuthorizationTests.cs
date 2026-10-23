@@ -34,6 +34,8 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
 
     private readonly Profile _householdOneAdultProfile = NewProfile("Adult one", ProfileRole.StandardUser);
     private readonly Profile _householdOneOtherProfile = NewProfile("Adult two", ProfileRole.StandardUser);
+    // A user opens a profile of its own, so the plain member is a different person from the household administrator.
+    private readonly Profile _householdOnePlainProfile = NewProfile("Adult three", ProfileRole.StandardUser);
     private readonly Profile _householdOneKidProfile = NewProfile("Kid", ProfileRole.RestrictedProfile);
     private readonly Profile _householdTwoProfile = NewProfile("Other house", ProfileRole.StandardUser);
     private readonly Profile _serverAdminProfile = NewProfile("Server admin", ProfileRole.StandardUser);
@@ -53,16 +55,17 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
         _settings = new UserPlaybackSettingsService(_database, _profileRepository);
 
         var decisions = new AccountAccessDecisionService(
-            _accounts,
-            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System),
-            new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)));
+            new ProfileAccessRepository(_database),
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
+            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         _services = new ServiceCollection()
             .AddSingleton<IRequestAuthorityResolver>(
-                new RequestAuthorityResolver(_accounts, new ApplicationRepository(_database), _profileRepository))
+                new RequestAuthorityResolver(_accounts, new ApplicationRepository(_database)))
             .AddSingleton<IAccountAccessDecisionService>(decisions)
             .AddSingleton<ISelfServiceAuthorizationService>(decisions)
             .AddSingleton<IProfileService>(new ProfileService(_profileRepository))
             .AddSingleton<IAccountRepository>(_accounts)
+            .AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database))
             .BuildServiceProvider();
 
         SeedAsync().GetAwaiter().GetResult();
@@ -71,9 +74,9 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
     [Fact]
     public async Task Self_MayReadAndSaveOwnSettings()
     {
-        var http = Caller(_householdOnePlain, _householdOneAdultProfile);
+        var http = Caller(_householdOnePlain, _householdOnePlainProfile);
 
-        Assert.Null(await ProfileEndpoints.AuthorizeProfileSettingsAsync(http, _householdOneAdultProfile.Id));
+        Assert.Null(await ProfileEndpoints.AuthorizeProfileSettingsAsync(http, _householdOnePlainProfile.Id));
     }
 
     [Fact]
@@ -112,7 +115,7 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
     [Fact]
     public async Task NonAdministrator_CannotManageAnotherProfileInTheSameHousehold()
     {
-        var http = Caller(_householdOnePlain, _householdOneAdultProfile);
+        var http = Caller(_householdOnePlain, _householdOnePlainProfile);
 
         await AssertForbiddenAsync(http, _householdOneOtherProfile.Id);
     }
@@ -136,9 +139,8 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
     [Fact]
     public async Task HouseholdAdministrator_WithPinProtectionLocked_IsForbidden()
     {
-        await _accounts.SetAdminProtectionAsync(new GrantAdminProtection
+        await new ProfileAccessRepository(_database).SetAdminProtectionAsync(new ProfileAdminProtection
         {
-            AccountId = _householdOneAdmin.Id,
             ProfileId = _householdOneAdultProfile.Id,
             IsEnabled = true,
             UnlockMode = "FixedDuration",
@@ -222,6 +224,7 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
         {
             (_householdOneAdultProfile, HouseholdOne),
             (_householdOneOtherProfile, HouseholdOne),
+            (_householdOnePlainProfile, HouseholdOne),
             (_householdOneKidProfile, HouseholdOne),
             (_householdTwoProfile, HouseholdTwo),
             (_serverAdminProfile, HouseholdOne),
@@ -230,14 +233,14 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
             await ProfileTestData.InsertAsync(_database, profile, household);
         }
 
-        _serverAdmin = await CreateAccountAsync(null, administrator: true, householdAdmin: false, _serverAdminProfile, adminGrant: true);
-        _householdOneAdmin = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: true, _householdOneAdultProfile, adminGrant: false);
-        _householdOnePlain = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: false, _householdOneAdultProfile, adminGrant: false);
-        _householdOneKidAdmin = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: true, _householdOneKidProfile, adminGrant: false);
+        _serverAdmin = await CreateAccountAsync(administrator: true, householdAdmin: false, _serverAdminProfile, adminGrant: true);
+        _householdOneAdmin = await CreateAccountAsync(administrator: false, householdAdmin: true, _householdOneAdultProfile, adminGrant: false);
+        _householdOnePlain = await CreateAccountAsync(administrator: false, householdAdmin: false, _householdOnePlainProfile, adminGrant: false);
+        _householdOneKidAdmin = await CreateAccountAsync(administrator: false, householdAdmin: true, _householdOneKidProfile, adminGrant: false);
     }
 
     private async Task<Account> CreateAccountAsync(
-        Guid? household, bool administrator, bool householdAdmin, Profile profile, bool adminGrant)
+        bool administrator, bool householdAdmin, Profile profile, bool adminGrant)
     {
         var id = Guid.NewGuid();
         var account = new Account
@@ -246,31 +249,20 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
             Email = $"{id:N}@example.com",
             NormalizedEmail = $"{id:N}@EXAMPLE.COM",
             IsEnabled = true,
-            IsAdministrator = administrator,
-            HouseholdId = household,
             AuthorizationVersion = 1,
             CreatedAt = Now,
             UpdatedAt = Now,
         };
-        if (householdAdmin)
-        {
-            account.MakeHouseholdAdmin();
-        }
-
         await _accounts.CreateAccountAsync(
             account,
-            new AccountProfileGrant
-            {
-                AccountId = id,
-                ProfileId = profile.Id,
-                IsDefault = true,
-                IsEnabled = true,
-                AdminEnabled = adminGrant,
-                AuthorizationVersion = 1,
-                GrantedAt = Now,
-            },
+            new TestGrant(id, profile.Id, IsDefault: true, AdminEnabled: adminGrant),
             AccountFeatureId.All.ToHashSet(),
             new HashSet<Guid>());
+        if (householdAdmin)
+        {
+            await new ProfileAccessRepository(_database).SetHouseholdAdministratorAsync(profile.Id, true, Now);
+        }
+
         return account;
     }
 

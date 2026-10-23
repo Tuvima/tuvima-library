@@ -69,4 +69,22 @@ public sealed class Profile
     /// profile can be without one, and only until the first administrator account is created.
     /// </summary>
     public Guid? HouseholdId { get; set; }
+
+    /// <summary>
+    /// True when this profile may look after the whole Library (settings, users, households). Held by the profile, not
+    /// the sign-in. Only profiles in the default household with a user that has an email and password qualify; changed
+    /// only through the profile access repository.
+    /// </summary>
+    public bool IsServerAdministrator { get; set; }
+
+    /// <summary>
+    /// True when this profile looks after its own household (its people, their PINs and access). A profile can hold it
+    /// only while a user is attached. Changed only through the profile access repository.
+    /// </summary>
+    public bool IsHouseholdAdministrator { get; set; }
+
+    /// <summary>
+    /// Raised on every change to what this profile may do, so open screens and sessions re-check. Always above zero.
+    /// </summary>
+    public long AuthorizationVersion { get; set; } = 1;
 }

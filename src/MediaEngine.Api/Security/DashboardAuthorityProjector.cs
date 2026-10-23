@@ -7,24 +7,26 @@ namespace MediaEngine.Api.Security;
 public sealed class DashboardAuthorityProjector(
     IAccountRepository accounts,
     IProfileRepository profiles,
+    IProfileAccessRepository profileAccess,
     IGrantAdminUnlockService unlocks)
 {
     public async Task<DashboardAuthorityResponse> ProjectAsync(
         Guid accountId,
         Guid profileId,
         Guid sessionId,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool profilePending = false)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
             ?? throw new UnauthorizedAccessException("Account is unavailable.");
-        var activeGrant = await accounts.GetGrantAsync(accountId, profileId, ct).ConfigureAwait(false)
-            ?? throw new UnauthorizedAccessException("Active profile grant is unavailable.");
-        if (!account.IsEnabled || !activeGrant.IsEnabled)
+        // The profile being acted as must be one of the user's own household; its roles and version are what the Dashboard shows.
+        var activeProfile = await accounts.GetActiveProfileAccessAsync(accountId, profileId, ct).ConfigureAwait(false)
+            ?? throw new UnauthorizedAccessException("Active profile is unavailable.");
+        if (!account.IsEnabled)
         {
-            throw new UnauthorizedAccessException("Account or active profile grant is disabled.");
+            throw new UnauthorizedAccessException("Account is disabled.");
         }
 
-        var activeProfile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
         var authority = new RequestAuthority(
             PrincipalKind.Human,
             true,
@@ -32,14 +34,7 @@ public sealed class DashboardAuthorityProjector(
             profileId,
             SessionId: sessionId,
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountAuthorizationVersion: account.AuthorizationVersion,
-            GrantAuthorizationVersion: activeGrant.AuthorizationVersion,
-            AccountIsAdministrator: account.IsAdministrator,
-            GrantAdminEnabled: activeGrant.AdminEnabled,
-            ActiveProfileIsRestricted: activeProfile?.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
-            AccountHouseholdId: account.HouseholdId,
-            AccountIsHouseholdAdmin: account.HouseholdAdmin);
+            AccountAuthorizationVersion: account.AuthorizationVersion).WithActiveProfile(activeProfile);
 
         GrantAdminUnlockState? unlock = authority.IsEffectiveAdministrator
             ? await unlocks.GetStateAsync(authority, ct).ConfigureAwait(false)
@@ -47,42 +42,31 @@ public sealed class DashboardAuthorityProjector(
         var surfaceUnlocked = authority.IsEffectiveAdministrator &&
             (unlock is null || !unlock.ProtectionEnabled || unlock.IsUnlocked);
 
-        var grants = new List<AccountProfileGrantDto>();
-        foreach (var grant in await accounts.GetGrantsAsync(accountId, ct).ConfigureAwait(false))
+        var grants = await HouseholdProfileProjection.MapAsync(accountId, accounts, profiles, profileAccess, ct).ConfigureAwait(false);
+
+        if (profilePending)
         {
-            if (!grant.IsEnabled)
-            {
-                continue;
-            }
-
-            var profile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
-            if (profile is null)
-            {
-                continue;
-            }
-
-            var protection = await accounts.GetAdminProtectionAsync(accountId, grant.ProfileId, ct)
-                .ConfigureAwait(false);
-            grants.Add(new AccountProfileGrantDto(
+            // Nobody is in use yet (spec D3): the session may list the household's profiles and choose one, and nothing else, so
+            // no roles, features or actions are shown until a profile is picked.
+            return new DashboardAuthorityResponse(
                 accountId,
-                grant.ProfileId,
-                profile.DisplayName,
-                profile.AvatarImagePath,
-                grant.IsDefault,
-                grant.IsEnabled,
-                grant.AdminEnabled,
-                new GrantAdminProtectionDto(
-                    protection?.IsEnabled == true,
-                    protection?.UnlockMode ?? AdminUnlockMode.FixedDuration.ToString(),
-                    protection?.UnlockMinutes,
-                    protection?.ProtectionVersion ?? 0),
-                grant.AuthorizationVersion,
-                grant.GrantedAt));
+                profileId,
+                true,
+                true,
+                account.AuthorizationVersion,
+                activeProfile.AuthorizationVersion,
+                false,
+                false,
+                null,
+                0,
+                grants,
+                [],
+                ["profile.switch"]);
         }
 
         var navigation = authority.IsEffectiveAdministrator
             ? AccountFeatureId.All.Select(feature => feature.Value).ToList()
-            : (await accounts.GetFeatureGrantsAsync(accountId, ct).ConfigureAwait(false))
+            : (await profileAccess.GetFeatureGrantsAsync(profileId, ct).ConfigureAwait(false))
                 .Select(feature => feature.Value)
                 .Order(StringComparer.Ordinal)
                 .ToList();
@@ -118,7 +102,7 @@ public sealed class DashboardAuthorityProjector(
             true,
             true,
             account.AuthorizationVersion,
-            activeGrant.AuthorizationVersion,
+            activeProfile.AuthorizationVersion,
             authority.IsEffectiveAdministrator,
             surfaceUnlocked,
             unlock?.ExpiresAt,

@@ -75,12 +75,12 @@ public sealed class AreaLibraryListTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ALibraryTheMainSignInHides_IsGreyedWithItsName_AndCannotBeTicked()
+    public void ALibraryHiddenFromTheAdministrator_AndFromThePerson_IsGreyed_AndCannotBeShown()
     {
-        var cut = RenderList("read", hidden: [], primaryHidden: [Books], primaryName: "Alex");
+        var cut = RenderList("read", hidden: [Books], hiddenFromYou: [Books]);
 
         var row = cut.Find($"[data-library-id='{Books}']");
-        Assert.Contains("Hidden by Alex", row.TextContent);
+        Assert.Contains("Hidden from you", row.TextContent);
         Assert.Contains("area-library-list__item--held", row.ClassName);
         Assert.True(Tick(cut, Books).HasAttribute("disabled"));
         Assert.False(Tick(cut, Books).HasAttribute("checked"));
@@ -91,16 +91,16 @@ public sealed class AreaLibraryListTests : AsyncBunitContext
     }
 
     [Fact]
-    public void APersonWhoFollowsThePrimary_SeesTheListReadOnly_WithWhoTheyFollow()
+    public void ALibraryHiddenFromTheAdministrator_ButStillVisibleToThePerson_CanBeHiddenFromThePerson()
     {
-        var cut = RenderList("read", hidden: [Comics], primaryName: "Alex", follows: true);
+        var cut = RenderList("read", hidden: [], hiddenFromYou: [Books]);
 
-        Assert.Contains("Follows Alex's access.", cut.Markup);
-        Assert.All(cut.FindAll("input"), input => Assert.True(input.HasAttribute("disabled")));
+        Assert.DoesNotContain("Hidden from you", cut.Find($"[data-library-id='{Books}']").TextContent);
+        Assert.False(Tick(cut, Books).HasAttribute("disabled"));
         Assert.True(Tick(cut, Books).HasAttribute("checked"));
-        Assert.False(Tick(cut, Comics).HasAttribute("checked"));
-        Tick(cut, Comics).Change(true);
-        Assert.Empty(_ticks);
+
+        Tick(cut, Books).Change(false);
+        Assert.Equal([(Books, true)], _ticks);
     }
 
     [Fact]
@@ -144,17 +144,15 @@ public sealed class AreaLibraryListTests : AsyncBunitContext
     private static AngleSharp.Dom.IElement Tick(IRenderedComponent<AreaLibraryList> cut, Guid id) =>
         cut.Find($"[data-library-id='{id}'] input");
 
-    private IRenderedComponent<AreaLibraryList> RenderList(string area, Guid[]? hidden = null, Guid[]? primaryHidden = null,
-        string? primaryName = null, bool follows = false, bool readOnly = false, bool accept = true)
+    private IRenderedComponent<AreaLibraryList> RenderList(string area, Guid[]? hidden = null, Guid[]? hiddenFromYou = null,
+        bool readOnly = false, bool accept = true)
     {
-        var picker = Picker.Select(library => primaryHidden?.Contains(library.Id) == true ? library with { HiddenByPrimary = true } : library).ToList();
+        var picker = Picker.Select(library => hiddenFromYou?.Contains(library.Id) == true ? library with { HiddenFromYou = true } : library).ToList();
         return Render<AreaLibraryList>(parameters => parameters
             .Add(list => list.Area, area)
             .Add(list => list.Libraries, picker)
             .Add(list => list.HiddenIds, (hidden ?? []).ToHashSet())
             .Add(list => list.PersonName, "Sam")
-            .Add(list => list.PrimaryName, primaryName)
-            .Add(list => list.FollowsPrimary, follows)
             .Add(list => list.ReadOnly, readOnly)
             .Add(list => list.OnHiddenChanged, (Func<Guid, bool, Task<bool>>)((id, isHidden) =>
             {

@@ -427,11 +427,11 @@ public static class ProfileEndpoints
     }
 
     /// <summary>
-    /// The people a caller's account may open: its granted profiles, and for anyone but a server administrator only those
-    /// in the account's own household (the same rule as switching person).
+    /// The people a caller's user may open: the profiles of the user's own household (<paramref name="household"/> is that list from
+    /// the data store, the same rule as switching person).
     /// </summary>
-    public static IReadOnlyList<Profile> ProfilesForCaller(Account? account, IEnumerable<Profile> profiles, IReadOnlySet<Guid> granted) =>
-        [.. profiles.Where(profile => granted.Contains(profile.Id) && account is not null && account.MaySwitchInto(profile.HouseholdId))];
+    public static IReadOnlyList<Profile> ProfilesForCaller(Account? account, IEnumerable<Profile> profiles, IReadOnlySet<Guid> household) =>
+        [.. profiles.Where(profile => account is not null && household.Contains(profile.Id))];
 
     private static SeriesMissingItemPreferenceDto ToSeriesMissingItemPreferenceDto(
         Guid profileId,
@@ -461,30 +461,25 @@ public static class ProfileEndpoints
 
         if (!authority.IsEffectiveHouseholdAdministrator
             || profile.HouseholdId is not { } household
-            || household != authority.AccountHouseholdId)
+            || household != authority.ActiveProfileHouseholdId)
         {
             return false;
         }
 
-        // Like other household actions: not a person an administrator (server or household) other than the caller
-        // signs in as, unless it is the caller's own active person.
+        // Like other household actions: not a person who is an administrator (server or household) other than the caller,
+        // unless it is the caller's own active person or the person their own sign-in opens.
         if (profile.Id == authority.ActiveProfileId)
         {
             return true;
         }
 
-        foreach (var account in (await accounts.GetAllAsync(ct))
-            .Where(account => account.HouseholdId == household && account.Id != authority.AccountId
-                              && (account.IsAdministrator || account.HouseholdAdmin)))
+        if (!profile.IsServerAdministrator && !profile.IsHouseholdAdministrator)
         {
-            if (await accounts.GetGrantAsync(account.Id, profile.Id, ct) is { IsEnabled: true } grant
-                && (grant.AdminEnabled || grant.IsDefault))
-            {
-                return false;
-            }
+            return true;
         }
 
-        return true;
+        return authority.AccountId is { } callerAccount
+            && (await accounts.GetByIdAsync(callerAccount, ct))?.ProfileId == profile.Id;
     }
 
     /// <summary>
@@ -607,7 +602,7 @@ public static class ProfileEndpoints
         var resolver = context.RequestServices.GetRequiredService<IRequestAuthorityResolver>();
         var authority = await resolver.ResolveAsync(context, context.RequestAborted);
         if (authority.PrincipalKind != PrincipalKind.Human ||
-            !authority.AccountEnabled || !authority.GrantEnabled ||
+            !authority.AccountEnabled || !authority.ActiveProfileInUserHousehold ||
             authority.AccountId is not { } accountId)
         {
             return false;

@@ -49,7 +49,9 @@ public sealed class AccountEmailOptionalSchemaTests : IDisposable
     private static void InsertAccount(SqliteConnection raw, string? email, string? normalizedEmail, string now)
     {
         using var command = raw.CreateCommand();
-        command.CommandText = "INSERT INTO accounts(id, email, normalized_email, created_at, updated_at) VALUES(@id, @email, @normalized, @now, @now);";
+        command.CommandText = "INSERT INTO profiles(id, display_name, avatar_color, role, created_at) VALUES(@profile, 'Person', '#000000', 'StandardUser', @now); " +
+            "INSERT INTO accounts(id, email, normalized_email, created_at, updated_at, profile_id) VALUES(@id, @email, @normalized, @now, @now, @profile);";
+        command.Parameters.AddWithValue("@profile", GuidSql.ToBlob(Guid.NewGuid()));
         command.Parameters.AddWithValue("@id", GuidSql.ToBlob(Guid.NewGuid()));
         command.Parameters.AddWithValue("@email", (object?)email ?? DBNull.Value);
         command.Parameters.AddWithValue("@normalized", (object?)normalizedEmail ?? DBNull.Value);

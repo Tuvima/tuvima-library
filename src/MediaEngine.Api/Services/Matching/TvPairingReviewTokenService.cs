@@ -58,9 +58,9 @@ public sealed class TvPairingReviewTokenService(IMemoryCache cache)
             out var parsedCredential) && parsedCredential != Guid.Empty ? parsedCredential : null;
         return actor.IsAuthenticated && (actor.PrincipalKind switch
         {
-            PrincipalKind.Human => actor.AccountEnabled && actor.GrantEnabled
+            PrincipalKind.Human => actor.AccountEnabled && actor.ActiveProfileInUserHousehold
                 && actor.AccountId.HasValue && actor.ActiveProfileId.HasValue && actor.SessionId.HasValue,
-            PrincipalKind.DelegatedUserClient => actor.AccountEnabled && actor.GrantEnabled && actor.ApplicationEnabled
+            PrincipalKind.DelegatedUserClient => actor.AccountEnabled && actor.ActiveProfileInUserHousehold && actor.ApplicationEnabled
                 && actor.AccountId.HasValue && actor.ActiveProfileId.HasValue
                 && actor.ApplicationId.HasValue && actor.DeviceId.HasValue,
             PrincipalKind.ServiceApplication => actor.ApplicationEnabled

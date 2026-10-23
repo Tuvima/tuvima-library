@@ -262,12 +262,18 @@ public static class BackupArchiveFormat
     private static void WriteContents(Utf8JsonWriter writer, BackupExportContents contents)
     {
         writer.WriteStartObject();
-        writer.WriteString("kind", contents.Scope.IsAccount ? UserExportScope.Kind : ContentsKind);
-        writer.WriteString("scope", contents.Scope.IsAccount ? "user" : contents.Scope.IsProfile ? "profile" : "library");
+        writer.WriteString("kind", contents.Scope.IsUserFile ? UserExportScope.Kind : ContentsKind);
+        writer.WriteString("scope", contents.Scope.IsAccount ? "user" : contents.Scope.IsHousehold ? "household" : contents.Scope.IsProfile ? "profile" : "library");
         if (contents.Scope.AccountId is { } accountId)
         {
             // The id only; the email is in the account row and the manifest, never repeated here.
             writer.WriteString("account_id", accountId.ToString("D", CultureInfo.InvariantCulture));
+        }
+
+        if (contents.Scope.HouseholdId is { } householdId)
+        {
+            // The id only; never the household's name.
+            writer.WriteString("household_id", householdId.ToString("D", CultureInfo.InvariantCulture));
         }
 
         if (contents.Scope.ProfileId is { } profileId)
@@ -800,6 +806,9 @@ public static class BackupArchiveFormat
             "user" when userExport => Guid.TryParse(OptionalString(root, "account_id"), out var accountId) && accountId != Guid.Empty
                 ? BackupScope.ForAccount(accountId)
                 : throw new InvalidDataException("A user export does not say which account it holds."),
+            "household" when userExport => Guid.TryParse(OptionalString(root, "household_id"), out var householdId) && householdId != Guid.Empty
+                ? BackupScope.ForHousehold(householdId)
+                : throw new InvalidDataException("A household export does not say which household it holds."),
             "library" when !userExport => BackupScope.WholeLibrary,
             "profile" when !userExport => Guid.TryParse(OptionalString(root, "profile_id"), out var profileId) && profileId != Guid.Empty
                 ? BackupScope.ForProfile(profileId)

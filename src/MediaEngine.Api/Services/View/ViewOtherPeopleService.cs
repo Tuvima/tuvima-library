@@ -127,10 +127,10 @@ public sealed class ViewOtherPeopleService(
             "SELECT household_id FROM profiles WHERE id = @activeProfile;", new { activeProfile }, cancellationToken: ct));
         // Personal-space views are only ever shown to the person whose photos were opened. The household's Shared
         // Library belongs to the household, so its views are also shown to the household's own administrator
-        // (a household administrator of another household has a different AccountHouseholdId, and a server
+        // (a household administrator of another household has a different ActiveProfileHouseholdId, and a server
         // administrator is not one unless they also look after that household).
         var includesSharedLibrary = caller.IsEffectiveHouseholdAdministrator
-            && household is not null && caller.AccountHouseholdId == household;
+            && household is not null && caller.ActiveProfileHouseholdId == household;
         // json_extract compares the household stored on the row, so an event is only ever shown to its own household.
         var rows = connection.Query<ViewRow>(new CommandDefinition("""
             SELECT e.id AS Id, e.occurred_at AS ViewedAt, e.subject_type AS SubjectType,

@@ -581,7 +581,7 @@ public sealed class DatabaseBackupServiceTests : IDisposable
         using var connection = database.CreateConnection();
         connection.Execute(
             """
-            INSERT INTO accounts(id, created_at, updated_at) VALUES(@account,@now,@now);
+            INSERT INTO accounts(id, created_at, updated_at, profile_id) VALUES(@account,@now,@now,(SELECT id FROM profiles LIMIT 1));
             INSERT INTO account_two_step(account_id, secret_protected, created_at) VALUES(@account,@secret,@now);
             """,
             new { account, secret = sealedSecret, now = Now });

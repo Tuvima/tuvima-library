@@ -6,7 +6,7 @@ namespace MediaEngine.Api.Services.Backups;
 
 /// <summary>What a checked backup file says about itself. It names no title and no profile.</summary>
 /// <param name="ManifestVersion">The manifest's <c>schema_version</c>.</param>
-/// <param name="DatabaseEpoch">The manifest's <c>database_epoch</c>, shown to the person; it is not used to decide anything.</param>
+/// <param name="DatabaseEpoch">The manifest's <c>database_epoch</c>, shown to the person. A backup from another data structure is refused before this is built.</param>
 /// <param name="CreatedAt">When the backup was made, when the manifest says.</param>
 /// <param name="Profiles">Profiles in the backup.</param>
 /// <param name="ItemsOfPersonalState">Rows of progress, bookmarks, favourites, choices and corrections.</param>
@@ -31,7 +31,7 @@ internal sealed record RestoreArchiveInfo(
 
 /// <summary>A checked user export: everything it holds, what it says about itself, and when it was made.</summary>
 /// <param name="Export">What the file holds.</param>
-/// <param name="Summary">The one user it holds.</param>
+/// <param name="Summary">The profile (with its sign-in) or the household it holds.</param>
 /// <param name="CreatedAt">When the manifest says it was made.</param>
 /// <param name="TwoStepLeftOut">True when the manifest says an administrator made the file and left the two-step secret out, so the person sets two-step up again.</param>
 internal sealed record ValidatedUserExport(BackupExport Export, UserExportSummary Summary, DateTimeOffset? CreatedAt, bool TwoStepLeftOut = false);
@@ -45,6 +45,12 @@ internal static class RestoreArchiveValidator
 {
     public const string OlderVersionMessage = "This backup is from an older version of the Library and can't be restored. Make a new backup with this version.";
     public const string DamagedMessage = "This backup file is damaged and can't be restored.";
+
+    /// <summary>What the user import says to a file made before the people model changed (users spec D11).</summary>
+    public const string UserExportOlderVersionMessage = "This file is from an older version of the Library and can't be imported. Export again with this version.";
+
+    /// <summary>The data structure a backup or user file must have been made with (a different one is refused, users spec D11).</summary>
+    private static readonly string CurrentEpoch = BackupManifestWriter.DatabaseEpoch;
 
     /// <summary>What every route into a restore says to a user export (backup and restore spec D19): it is one person, never the Library.</summary>
     public const string UserExportRefusedMessage = "This file is one user's data, not a backup of the Library. Use Import a user instead.";
@@ -182,14 +188,16 @@ internal static class RestoreArchiveValidator
                 throw new InvalidDataException(UserExportDamagedMessage, ex);
             }
 
-            var (createdAt, twoStepLeftOut) = ReadUserManifest(archive);
+            var (createdAt, twoStepLeftOut, manifestScope) = ReadUserManifest(archive);
             try
             {
                 var export = BackupArchiveFormat.ReadUserExport(archive);
                 var summary = UserExportReader.Read(export);
 
-                // The manifest is a claim, not proof: a file that says the secret was left out yet holds one is not a user export.
-                if (twoStepLeftOut && summary.HasTwoStep)
+                // The manifest is a claim, not proof: a file for one profile that says the secret was left out yet holds one (a household file
+                // keeps the exporter's own), or that names another scope than the data holds, is not a user export.
+                if ((twoStepLeftOut && summary.HasTwoStep && summary.Scope == UserExportSummary.ProfileScope)
+                    || !string.Equals(manifestScope, summary.Scope, StringComparison.Ordinal))
                 {
                     throw new InvalidDataException(NotAUserExportMessage);
                 }
@@ -207,7 +215,7 @@ internal static class RestoreArchiveValidator
         }
     }
 
-    private static (DateTimeOffset? CreatedAt, bool TwoStepLeftOut) ReadUserManifest(ZipArchive archive)
+    private static (DateTimeOffset? CreatedAt, bool TwoStepLeftOut, string Scope) ReadUserManifest(ZipArchive archive)
     {
         var manifestEntry = archive.GetEntry("manifest.json");
         if (manifestEntry is null || manifestEntry.Length > MaxManifestBytes || archive.GetEntry("database/library.db") is not null)
@@ -235,6 +243,18 @@ internal static class RestoreArchiveValidator
                 throw new InvalidDataException(NotAUserExportMessage);
             }
 
+            // A file made with another data structure is refused in one plain sentence, whatever else it says (D11).
+            if (CompareEpoch(OptionalString(root, "database_epoch")) != 0)
+            {
+                throw new InvalidDataException(UserExportOlderVersionMessage);
+            }
+
+            var scope = OptionalString(root, "scope");
+            if (scope is not (UserExportSummary.ProfileScope or UserExportSummary.HouseholdScope))
+            {
+                throw new InvalidDataException(NotAUserExportMessage);
+            }
+
             var twoStepLeftOut = false;
             if (root.TryGetProperty("two_step_left_out", out var left))
             {
@@ -249,7 +269,7 @@ internal static class RestoreArchiveValidator
             var createdAt = root.TryGetProperty("created_at", out var created) && created.ValueKind == JsonValueKind.String && created.TryGetDateTimeOffset(out var parsed)
                 ? parsed
                 : (DateTimeOffset?)null;
-            return (createdAt, twoStepLeftOut);
+            return (createdAt, twoStepLeftOut, scope);
         }
     }
 
@@ -309,6 +329,18 @@ internal static class RestoreArchiveValidator
                 throw new InvalidDataException("This backup was made by a different version of the Library and can't be restored.");
             }
 
+            // People moved onto their profiles in the current data structure (users spec D11): a backup from an earlier one is refused.
+            var epochOrder = CompareEpoch(OptionalString(root, "database_epoch"));
+            if (epochOrder < 0)
+            {
+                throw new InvalidDataException(OlderVersionMessage);
+            }
+
+            if (epochOrder > 0)
+            {
+                throw new InvalidDataException("This backup was made by a different version of the Library and can't be restored.");
+            }
+
             if (root.TryGetProperty("includes_secrets", out var includesSecrets) && includesSecrets.ValueKind == JsonValueKind.True)
             {
                 throw new InvalidDataException("Backups containing secrets cannot be restored.");
@@ -333,6 +365,32 @@ internal static class RestoreArchiveValidator
                 OptionalCount(root, "titles"),
                 OptionalCount(root, "titles_recognised_by_file_only"));
         }
+    }
+
+    /// <summary>
+    /// How a file's data structure compares with this build's: negative for an earlier one (or one that does not say), zero for the same,
+    /// positive for a later one. Epochs read <c>guid-blob-vNN-...</c>; anything else counts as earlier.
+    /// </summary>
+    private static int CompareEpoch(string? epoch)
+    {
+        if (string.Equals(epoch, CurrentEpoch, StringComparison.Ordinal))
+        {
+            return 0;
+        }
+
+        return EpochNumber(epoch) is { } found && EpochNumber(CurrentEpoch) is { } current && found > current ? 1 : -1;
+    }
+
+    private static int? EpochNumber(string? epoch)
+    {
+        const string prefix = "guid-blob-v";
+        if (epoch is null || !epoch.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var digits = new string(epoch.Skip(prefix.Length).TakeWhile(char.IsAsciiDigit).ToArray());
+        return int.TryParse(digits, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number) ? number : null;
     }
 
     private static string? OptionalString(JsonElement root, string name) =>

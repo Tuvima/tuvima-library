@@ -426,7 +426,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         AccountProfileGrantDto[] grants =
         [
             new(AccountId, ProfileId, "Test User", null, true, true, true,
-                new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow),
+                new ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow),
         ];
         _session.Set("token", AccountId, ProfileId, Guid.NewGuid(),
             new DashboardAuthorityResponse(AccountId, ProfileId, true, true, 1, 1, true, true, null, 1, grants, ["settings.administration"], []));

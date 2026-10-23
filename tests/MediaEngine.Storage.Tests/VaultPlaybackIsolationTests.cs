@@ -41,8 +41,8 @@ public sealed class VaultPlaybackIsolationTests : IDisposable
         connection.Execute(
             """
             INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@profile,'Viewer','#000000','StandardUser',@now);
-            INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at)
-            VALUES(@account,@email,@normalized,1,0,1,@now,@now);
+            INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id)
+            VALUES(@account,@email,@normalized,1,1,@now,@now,@profile);
             """,
             new { profile = _profile, account = _account, email = $"{_account:N}@example.test", normalized = $"{_account:N}@EXAMPLE.TEST", now = _now.ToString("O") });
     }

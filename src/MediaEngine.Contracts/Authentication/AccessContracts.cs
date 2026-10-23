@@ -2,43 +2,22 @@ using System.Text.Json.Serialization;
 
 namespace MediaEngine.Contracts.Authentication;
 
-public sealed record AccountAccessResponse(
+/// <summary>A profile a user delete would take with it, so the confirmation can name it (see <see cref="UserDeletionPreviewResponse"/>).</summary>
+public sealed record AccountDeletionProfileDto(
     [property: JsonPropertyName("id")] Guid Id,
-    [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("is_enabled")] bool IsEnabled,
-    [property: JsonPropertyName("is_administrator")] bool IsAdministrator,
-    [property: JsonPropertyName("authorization_version")] long AuthorizationVersion,
-    [property: JsonPropertyName("feature_grants")] IReadOnlyList<AccountFeatureGrantDto> FeatureGrants,
-    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid> HiddenLibraryIds,
-    [property: JsonPropertyName("profile_grants")] IReadOnlyList<AccountProfileGrantDto> ProfileGrants,
-    [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
-    [property: JsonPropertyName("updated_at")] DateTimeOffset UpdatedAt,
-    [property: JsonPropertyName("last_active_at")] DateTimeOffset? LastActiveAt,
-    [property: JsonPropertyName("household_id")] Guid? HouseholdId = null,
-    [property: JsonPropertyName("must_change_password")] bool MustChangePassword = false,
-    [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt = null,
-    [property: JsonPropertyName("has_two_step")] bool HasTwoStep = false,
-    [property: JsonPropertyName("grants_inherit_from_account_id")] Guid? GrantsInheritFromAccountId = null,
-    [property: JsonPropertyName("household_admin")] bool HouseholdAdmin = false);
-
-public sealed record SetHouseholdAdminRequest(
-    [property: JsonPropertyName("household_admin")] bool HouseholdAdmin);
-
-public sealed record AccountFeatureGrantDto(
-    [property: JsonPropertyName("feature")] string Feature,
-    [property: JsonPropertyName("allowed")] bool Allowed);
+    [property: JsonPropertyName("display_name")] string DisplayName);
 
 /// <summary>
 /// One library an administrator can hide from a person. <c>area</c> is <c>read</c>, <c>watch</c>, <c>listen</c> or <c>view</c>.
-/// <c>hidden_by_primary</c> is true only in a household administrator's view, when the household's main sign-in hides the library
-/// (it can't be shown again by the household administrator). A Vault library is never listed.
+/// <c>hidden_from_you</c> is true only in a household administrator's view, when the library is hidden from the administrator's own
+/// profile (they can hide it from others but never show it to anyone). A Vault library is never listed.
 /// </summary>
 public sealed record AccessLibraryOptionDto(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("display_name")] string DisplayName,
     [property: JsonPropertyName("category")] string? Category,
     [property: JsonPropertyName("area")] string Area,
-    [property: JsonPropertyName("hidden_by_primary")] bool HiddenByPrimary = false);
+    [property: JsonPropertyName("hidden_from_you")] bool HiddenFromYou = false);
 
 public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("id")] Guid Id,
@@ -51,14 +30,12 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
     [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
     [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false,
-    [property: JsonPropertyName("own_sign_in")] ManagedProfileSignInDto? OwnSignIn = null);
-
-/// <summary>A person's own sign-in as the profile page shows it. Never carries a password or a code.</summary>
-public sealed record ManagedProfileSignInDto(
-    [property: JsonPropertyName("account_id")] Guid AccountId,
-    [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("must_change_password")] bool MustChangePassword,
-    [property: JsonPropertyName("is_enabled")] bool IsEnabled);
+    [property: JsonPropertyName("is_server_admin")] bool IsServerAdmin = false,
+    [property: JsonPropertyName("is_household_admin")] bool IsHouseholdAdmin = false,
+    [property: JsonPropertyName("feature_ids")] IReadOnlyList<string>? FeatureIds = null,
+    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid>? HiddenLibraryIds = null,
+    [property: JsonPropertyName("user")] ManagedProfileUserDto? User = null,
+    [property: JsonPropertyName("access_version")] long AccessVersion = 0);
 
 /// <summary>
 /// Adds a person to a household. A child person is a restricted profile; the PIN is optional.
@@ -73,30 +50,6 @@ public sealed record AddHouseholdPersonRequest(
     [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
     [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
     [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false);
-
-/// <summary>
-/// Gives a person their own sign-in. An own sign-in always has a password: send <c>temporary_password</c> to choose the
-/// starting one, or <c>invite: true</c> (with no password) to get an invitation link for them to choose their own.
-/// <c>must_change_password</c> (on by default) makes the starting password temporary, to be replaced at first sign-in.
-/// </summary>
-public sealed record GiveOwnSignInRequest(
-    [property: JsonPropertyName("email")] string Email,
-    [property: JsonPropertyName("temporary_password")] string? TemporaryPassword = null,
-    [property: JsonPropertyName("must_change_password")] bool MustChangePassword = true,
-    [property: JsonPropertyName("invite")] bool Invite = false);
-
-/// <summary>The person's new own sign-in, with its invitation when one was chosen.</summary>
-public sealed record GiveOwnSignInResponse(
-    [property: JsonPropertyName("account_id")] Guid AccountId,
-    [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("invitation")] AccountInvitationResponse? Invitation,
-    [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt);
-
-public sealed record CreateManagedProfileRequest(
-    [property: JsonPropertyName("account_id")] Guid AccountId,
-    [property: JsonPropertyName("display_name")] string DisplayName,
-    [property: JsonPropertyName("avatar_color")] string? AvatarColor,
-    [property: JsonPropertyName("is_default")] bool IsDefault);
 
 /// <summary>
 /// Changes a person's name and look. <c>content_limit</c> left out keeps the current limit; <c>""</c> sets Everything; otherwise
@@ -117,25 +70,30 @@ public sealed record AccountProfileGrantDto(
     [property: JsonPropertyName("is_default")] bool IsDefault,
     [property: JsonPropertyName("is_enabled")] bool IsEnabled,
     [property: JsonPropertyName("admin_enabled")] bool AdminEnabled,
-    [property: JsonPropertyName("admin_protection")] GrantAdminProtectionDto AdminProtection,
+    [property: JsonPropertyName("admin_protection")] ProfileAdminProtectionResponse AdminProtection,
     [property: JsonPropertyName("authorization_version")] long AuthorizationVersion,
     [property: JsonPropertyName("granted_at")] DateTimeOffset GrantedAt,
     [property: JsonPropertyName("is_restricted")] bool IsRestricted = false);
 
-public sealed record GrantAdminProtectionDto(
+/// <summary>
+/// "Ask for my PIN on admin pages" for one profile (<c>GET /access/profiles/{id}/admin-protection</c>): whether it is on, how long an
+/// answer lasts (<c>unlock_mode</c> is FixedDuration, UntilProfileSwitch or LockOnLeave; <c>unlock_minutes</c> only for FixedDuration)
+/// and the version that changes whenever the setting does. The PIN asked for is the profile's own; it is never sent.
+/// </summary>
+public sealed record ProfileAdminProtectionResponse(
     [property: JsonPropertyName("enabled")] bool Enabled,
     [property: JsonPropertyName("unlock_mode")] string UnlockMode,
     [property: JsonPropertyName("unlock_minutes")] int? UnlockMinutes,
     [property: JsonPropertyName("protection_version")] long ProtectionVersion);
 
-public sealed record CreateManagedAccountRequest(
-    [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("is_administrator")] bool IsAdministrator,
-    [property: JsonPropertyName("profile_id")] Guid? ProfileId,
-    [property: JsonPropertyName("new_profile")] NewAccountProfileRequest? NewProfile,
-    [property: JsonPropertyName("feature_ids")] IReadOnlyList<string> FeatureIds,
-    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid> HiddenLibraryIds,
-    [property: JsonPropertyName("temporary_password")] string? TemporaryPassword = null);
+/// <summary>
+/// Switches the admin PIN question on or off for a profile that holds an administrator role (<c>PUT /access/profiles/{id}/admin-protection</c>).
+/// A person changes their own profile's; a server administrator any; a household administrator never another administrator's.
+/// </summary>
+public sealed record SetProfileAdminProtectionRequest(
+    [property: JsonPropertyName("enabled")] bool Enabled,
+    [property: JsonPropertyName("unlock_mode")] string UnlockMode,
+    [property: JsonPropertyName("unlock_minutes")] int? UnlockMinutes);
 
 /// <summary>
 /// An administrator sets a new password for a person. By default it is temporary and they must choose their own at next
@@ -148,28 +106,6 @@ public sealed record SetTemporaryPasswordRequest(
 /// <summary>An administrator changes the email a person signs in with.</summary>
 public sealed record ChangeAccountEmailRequest(
     [property: JsonPropertyName("email")] string Email);
-
-public sealed record NewAccountProfileRequest(
-    [property: JsonPropertyName("display_name")] string DisplayName,
-    [property: JsonPropertyName("avatar_color")] string? AvatarColor);
-
-public sealed record UpdateManagedAccountRequest(
-    [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("is_enabled")] bool IsEnabled,
-    [property: JsonPropertyName("is_administrator")] bool IsAdministrator);
-
-public sealed record ReplaceAccountAccessRequest(
-    [property: JsonPropertyName("feature_ids")] IReadOnlyList<string> FeatureIds,
-    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid> HiddenLibraryIds);
-
-public sealed record SetAccountProfileGrantAccessRequest(
-    [property: JsonPropertyName("is_default")] bool IsDefault,
-    [property: JsonPropertyName("admin_enabled")] bool AdminEnabled);
-
-public sealed record SetGrantAdminProtectionRequest(
-    [property: JsonPropertyName("enabled")] bool Enabled,
-    [property: JsonPropertyName("unlock_mode")] string UnlockMode,
-    [property: JsonPropertyName("unlock_minutes")] int? UnlockMinutes);
 
 public sealed record GrantAdminUnlockRequest(
     [property: JsonPropertyName("pin")] string Pin);
@@ -227,7 +163,7 @@ public sealed record AuthorizationAuditEntryResponse(
 
 /// <summary>
 /// One person's signed-in sessions as the Devices page shows them to an administrator. <c>account_label</c> is the email,
-/// or the person's name when the sign-in has no email; <c>profile_display_name</c> is set only for a person's own sign-in.
+/// or the person's name when the sign-in has no email; <c>profile_display_name</c> is the person the user opens.
 /// </summary>
 public sealed record ManagedAccountSessionsResponse(
     [property: JsonPropertyName("account_id")] Guid AccountId,

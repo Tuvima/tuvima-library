@@ -18,7 +18,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var owner = Guid.NewGuid();
         await CreateHumanAsync(owner, EveryFeature, new HashSet<Guid>(), administrator: true);
 
-        var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(owner, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
+        var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(owner, ProfileOf(owner)));
 
         Assert.Equal(shape.All.Order(), visible.Order());
     }
@@ -30,7 +30,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var account = Guid.NewGuid();
         await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { shape.LibraryB });
 
-        var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
+        var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, ProfileOf(account)));
 
         Assert.Equal(shape.InLibraryA.Order(), visible.Order());
         Assert.Contains(shape.InBothLibraries, visible);
@@ -44,7 +44,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var account = Guid.NewGuid();
         await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
 
-        var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
+        var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, ProfileOf(account)));
 
         Assert.Equal(shape.Movies.Order(), visible.Order());
     }
@@ -62,7 +62,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await CreateHumanAsync(account, EveryFeature, new HashSet<Guid>());
         SetContentLimit(limit, allowUnrated);
 
-        var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
+        var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, ProfileOf(account)));
 
         // The fixture holds rated works above the strictest limit, so a limit must hide something and keep something.
         Assert.NotEmpty(visible);
@@ -89,7 +89,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var account = Guid.NewGuid();
         await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { shape.LibraryB });
         var raw = new ReaderBackedProjection(new DisplayWorkProjectionReader(_database), new DisplayVisibleWorkReader(_database));
-        var service = CreateService(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId), raw);
+        var service = CreateService(HumanContext(account, ProfileOf(account)), raw);
 
         await service.LoadHomeCollectionsAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, CancellationToken.None);
 

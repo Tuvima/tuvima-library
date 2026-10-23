@@ -8,21 +8,18 @@
 {
     <div class="area-library-list" role="group" aria-label="@($"{AreaLabel} libraries")" data-area-libraries="@AreaKey">
         <small class="area-library-list__title">Libraries</small>
-        @if (FollowsPrimary)
-        {
-            <small class="area-library-list__note">Follows @PrimaryLabel's access.</small>
-        }
         @foreach (var library in _libraries)
         {
-            var heldByPrimary = library.HiddenByPrimary;
-            <div class="area-library-list__item@(heldByPrimary ? " area-library-list__item--held" : string.Empty)" @key="@($"{library.Id:N}-{_refresh}")" data-library-id="@library.Id">
-                <AppCheckbox Value="@(!heldByPrimary && !HiddenIds.Contains(library.Id))"
+            // A library hidden from the household administrator's own profile cannot be shown again by them (it can still be hidden).
+            var held = library.HiddenFromYou && HiddenIds.Contains(library.Id);
+            <div class="area-library-list__item@(held ? " area-library-list__item--held" : string.Empty)" @key="@($"{library.Id:N}-{_refresh}")" data-library-id="@library.Id">
+                <AppCheckbox Value="@(!HiddenIds.Contains(library.Id))"
                              ValueChanged="@((bool ticked) => ChangedAsync(library, ticked))"
-                             Disabled="@(heldByPrimary || FollowsPrimary || ReadOnly || Busy)"
+                             Disabled="@(held || ReadOnly || Busy)"
                              Label="@library.DisplayName">
-                    @if (heldByPrimary)
+                    @if (held)
                     {
-                        <small class="area-library-list__note">Hidden by @PrimaryLabel</small>
+                        <small class="area-library-list__note">Hidden from you</small>
                     }
                 </AppCheckbox>
             </div>
@@ -45,12 +42,6 @@
 
     /// <summary>Who the ticks belong to, as the toast names them ("Hidden from Sam").</summary>
     [Parameter] public string PersonName { get; set; } = string.Empty;
-
-    /// <summary>The household's main sign-in, named on libraries it hides and on a list that follows it.</summary>
-    [Parameter] public string? PrimaryName { get; set; }
-
-    /// <summary>True for a person who follows the main sign-in's access: the list is shown, never edited.</summary>
-    [Parameter] public bool FollowsPrimary { get; set; }
 
     /// <summary>True on a phone: ticks are shown but cannot be changed.</summary>
     [Parameter] public bool ReadOnly { get; set; }
@@ -75,14 +66,12 @@
         _ => Area,
     };
 
-    private string PrimaryLabel => string.IsNullOrWhiteSpace(PrimaryName) ? "the household's main sign-in" : PrimaryName;
-
     protected override void OnParametersSet() =>
         _libraries = Libraries.Where(library => string.Equals(library.Area, AreaKey, StringComparison.OrdinalIgnoreCase)).ToList();
 
     private async Task ChangedAsync(AccessLibraryOptionDto library, bool ticked)
     {
-        if (OnHiddenChanged is null || ReadOnly || FollowsPrimary || Busy || library.HiddenByPrimary)
+        if (OnHiddenChanged is null || ReadOnly || Busy || (library.HiddenFromYou && HiddenIds.Contains(library.Id)))
         {
             _refresh++;
             return;

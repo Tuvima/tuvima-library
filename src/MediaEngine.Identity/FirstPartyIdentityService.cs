@@ -73,9 +73,8 @@ public sealed class FirstPartyIdentityService(
             return null;
         }
 
-        var (profile, chooseProfile, profilePending) = await ResolveStartingProfileAsync(account.Id, deviceId, ct).ConfigureAwait(false);
-        var issued = (await IssueSessionAsync(account, profile, ThisComputerStamp, ThisComputerMethod, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false)) with { ChooseProfile = chooseProfile };
-        await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
+        var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false);
+        var issued = await IssueSignInSessionAsync(account, profile, ThisComputerStamp, ThisComputerMethod, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_this_computer", true, null, ct).ConfigureAwait(false);
         return issued;
     }
@@ -83,7 +82,7 @@ public sealed class FirstPartyIdentityService(
     public async Task<string?> GetThisComputerAccountNameAsync(CancellationToken ct = default)
     {
         var account = await FindThisComputerAccountAsync(ct).ConfigureAwait(false);
-        return account is null ? null : (await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false)).DisplayName;
+        return account is null ? null : (await OwnProfileAsync(account.Id, ct).ConfigureAwait(false)).DisplayName;
     }
 
     private async Task<Account?> FindThisComputerAccountAsync(CancellationToken ct) =>
@@ -130,15 +129,16 @@ public sealed class FirstPartyIdentityService(
             }
 
             var now = UtcNow;
-            var account = new Account { Id = Account.SeedAccountId, Email = hasEmail ? email!.Trim() : null, NormalizedEmail = normalizedEmail, IsEnabled = true, IsAdministrator = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now };
+            var account = new Account { Id = Account.SeedAccountId, Email = hasEmail ? email!.Trim() : null, NormalizedEmail = normalizedEmail, IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now, ProfileId = profile.Id };
             if (!withPassword)
             {
                 account.MarkThisComputerOnly();
             }
 
-            await accounts.CreateAccountAsync(account,
-                new AccountProfileGrant { AccountId = account.Id, ProfileId = profile.Id, IsDefault = true, IsEnabled = true, AdminEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
-                AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), ct).ConfigureAwait(false);
+            // The first start: the Owner profile becomes the server administrator's (in a household made for it) and starts with every feature.
+            await accounts.CreateUserAsync(account,
+                new NewUserPlacement(SetUpProfile: true, IsServerAdministrator: true, Features: AccountFeatureId.All.ToHashSet(), HiddenLibraries: new HashSet<Guid>()),
+                ct: ct).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(pin))
             {
                 await SetProfilePinAsync(profile.Id, pin, ct).ConfigureAwait(false);
@@ -155,7 +155,7 @@ public sealed class FirstPartyIdentityService(
             var credential = NewAccountCredential(account.Id, password!);
             await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
             var codes = await ReplaceRecoveryCodesAsync(account.Id, ct).ConfigureAwait(false);
-            var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+            var issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
             await AuditAsync(account.Id, profile.Id, issued.Session.Id, "administrator_bootstrap", true, null, ct).ConfigureAwait(false);
             return issued with { RecoveryCodes = codes };
         }
@@ -177,9 +177,8 @@ public sealed class FirstPartyIdentityService(
     public async Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Account '{accountId}' was not found.");
-        var (profile, chooseProfile, profilePending) = await ResolveStartingProfileAsync(account.Id, deviceId, ct).ConfigureAwait(false);
-        var issued = (await IssueSessionAsync(account, profile, $"external:{provider.Trim().ToLowerInvariant()}", "Oidc", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false)) with { ChooseProfile = chooseProfile };
-        await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
+        var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false);
+        var issued = await IssueSignInSessionAsync(account, profile, $"external:{provider.Trim().ToLowerInvariant()}", "Oidc", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_oidc", true, provider, ct).ConfigureAwait(false);
         return issued;
     }
@@ -187,9 +186,8 @@ public sealed class FirstPartyIdentityService(
     public async Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
-        var (profile, chooseProfile, profilePending) = await ResolveStartingProfileAsync(accountId, deviceId, ct).ConfigureAwait(false);
-        var issued = (await IssueSessionAsync(account, profile, "passkey", "Passkey", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false)) with { ChooseProfile = chooseProfile };
-        await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
+        var profile = await OwnProfileAsync(accountId, ct).ConfigureAwait(false);
+        var issued = await IssueSignInSessionAsync(account, profile, "passkey", "Passkey", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_passkey", true, null, ct).ConfigureAwait(false); return issued;
     }
 
@@ -272,8 +270,8 @@ public sealed class FirstPartyIdentityService(
         await identities.RevokeAccountSessionsAsync(accountId, UtcNow, "password_changed", null, ct).ConfigureAwait(false);
 
         var refreshed = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? account;
-        var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
-        var issued = await IssueSessionAsync(refreshed, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+        var profile = await OwnProfileAsync(accountId, ct).ConfigureAwait(false);
+        var issued = await IssueSignInSessionAsync(refreshed, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(accountId, profile.Id, issued.Session.Id, "temporary_password_changed", true, null, ct).ConfigureAwait(false);
         return issued;
     }
@@ -300,7 +298,7 @@ public sealed class FirstPartyIdentityService(
         }
 
         var credential = NewAccountCredential(account.Id, password); await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
-        var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false); var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+        var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false); var issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "invitation_accepted", true, null, ct).ConfigureAwait(false); return issued;
     }
 
@@ -494,7 +492,8 @@ public sealed class FirstPartyIdentityService(
         try { account = await accounts.GetByNormalizedEmailAsync(NormalizeEmail(email), ct).ConfigureAwait(false); }
         catch (ArgumentException) { account = null; }
         var credential = account is null ? null : await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false);
-        if (account is null || credential is null || !account.IsAdministrator)
+        if (account is null || credential is null
+            || await profiles.GetByIdAsync(account.ProfileId, ct).ConfigureAwait(false) is not { IsServerAdministrator: true })
         {
             throw new UnauthorizedAccessException("The local administrator information is invalid.");
         }
@@ -583,7 +582,7 @@ public sealed class FirstPartyIdentityService(
             }
         }
 
-        var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
+        var profile = await OwnProfileAsync(accountId, ct).ConfigureAwait(false);
         AccountCredential? credential = null;
         if (withPassword)
         {
@@ -850,57 +849,14 @@ public sealed class FirstPartyIdentityService(
         }
 
         await identities.UpdateAccountCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
-        var (profile, chooseProfile, profilePending) = await ResolveStartingProfileAsync(account.Id, challenge.DeviceId, ct).ConfigureAwait(false);
-        var issued = (await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", challenge.DeviceId, challenge.DeviceName, challenge.Client, currentIngress, ct).ConfigureAwait(false)) with { ChooseProfile = chooseProfile };
-        await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
+        var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false);
+        var issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", challenge.DeviceId, challenge.DeviceName, challenge.Client, currentIngress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password+TwoStep", ct).ConfigureAwait(false);
         return new AuthenticationAttemptResult(true, false, null, issued);
     }
 
-    public async Task<Guid?> GetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, CancellationToken ct = default)
-    {
-        var session = await OwnSessionAsync(accountId, sessionId, ct).ConfigureAwait(false);
-        var preferred = await identities.GetDeviceProfilePreferenceAsync(accountId, session.DeviceId, ct).ConfigureAwait(false);
-        return preferred is { } id && await accounts.HasProfileAccessAsync(accountId, id, ct).ConfigureAwait(false) &&
-            await MayUseInHouseholdAsync(accountId, id, ct).ConfigureAwait(false) ? id : null;
-    }
-
-    public async Task SetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, Guid profileId, CancellationToken ct = default)
-    {
-        var session = await OwnSessionAsync(accountId, sessionId, ct).ConfigureAwait(false);
-        if (!await accounts.HasProfileAccessAsync(accountId, profileId, ct).ConfigureAwait(false) ||
-            !await MayUseInHouseholdAsync(accountId, profileId, ct).ConfigureAwait(false))
-        {
-            throw new UnauthorizedAccessException("This account cannot use that profile.");
-        }
-
-        await identities.SetDeviceProfilePreferenceAsync(accountId, session.DeviceId, profileId, UtcNow, ct).ConfigureAwait(false);
-        await AuditAsync(accountId, profileId, sessionId, "device_profile_preference_set", true, profileId.ToString("D"), ct).ConfigureAwait(false);
-    }
-
-    public async Task<bool> ClearDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, CancellationToken ct = default)
-    {
-        var session = await OwnSessionAsync(accountId, sessionId, ct).ConfigureAwait(false);
-        var cleared = await identities.ClearDeviceProfilePreferenceAsync(accountId, session.DeviceId, ct).ConfigureAwait(false);
-        if (cleared)
-        {
-            await AuditAsync(accountId, null, sessionId, "device_profile_preference_cleared", true, null, ct).ConfigureAwait(false);
-        }
-
-        return cleared;
-    }
-
     public Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default) =>
         identities.GetProfileIdsWithPinAsync(profileIds, ct);
-
-    /// <summary>The caller's own live session; the device preference is always read and written through it, never by a device id the caller supplies.</summary>
-    private async Task<AuthSession> OwnSessionAsync(Guid accountId, Guid sessionId, CancellationToken ct)
-    {
-        var session = await identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
-        return session is not null && session.AccountId == accountId && session.IsActive(UtcNow)
-            ? session
-            : throw new UnauthorizedAccessException("The session is no longer valid.");
-    }
 
     public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => SetProfileSecretAsync(profileId, ProfileCredentialKind.ProfilePin, pin, ct);
 
@@ -912,12 +868,8 @@ public sealed class FirstPartyIdentityService(
             throw new UnauthorizedAccessException("This account cannot use that profile.");
         }
 
+        // Everyone, a server administrator included, switches only inside their own household (checked above by the data store).
         var target = await profiles.GetByIdAsync(targetProfileId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Profile '{targetProfileId}' was not found.");
-        // Beyond the grant, a member or household administrator switches only inside their own household.
-        if (!current.Account.MaySwitchInto(target.HouseholdId))
-        {
-            throw new UnauthorizedAccessException("This account cannot use that profile.");
-        }
 
         // Same rule as profile sign-in: only sessions made from outside the home count toward, or are
         // blocked by, the PIN lockout. A session's issuing place is checked on every request by the Dashboard.
@@ -1035,9 +987,8 @@ public sealed class FirstPartyIdentityService(
         }
 
         await identities.UpdateAccountCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
-        var (profile, chooseProfile, profilePending) = await ResolveStartingProfileAsync(account.Id, deviceId, ct).ConfigureAwait(false);
-        var issued = (await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false)) with { ChooseProfile = chooseProfile };
-        await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
+        var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false);
+        var issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password", ct).ConfigureAwait(false); return new(true, false, null, issued);
     }
 
@@ -1163,71 +1114,39 @@ public sealed class FirstPartyIdentityService(
     }
 
     /// <summary>
-    /// Picks the profile a new session starts in. A device that was set to "always open as" a person starts there;
-    /// when that person has a PIN the session starts in the default profile and the picker asks for the PIN instead,
-    /// so a PIN is never skipped. <c>Choose</c> is true when the person should see "Who's using Tuvima?".
+    /// The profile a user signs in as: the one it is attached to (users, profiles and households spec D3). Every sign-in (password,
+    /// two-step, passkey, outside sign-in, this computer, invitation) opens it, with no picker; from there the person switches to
+    /// other profiles of their own household.
     /// </summary>
-    private async Task<(Profile Profile, bool Choose, bool Pending)> ResolveStartingProfileAsync(Guid accountId, string deviceId, CancellationToken ct)
+    private async Task<Profile> OwnProfileAsync(Guid accountId, CancellationToken ct)
     {
-        var fallback = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
-        var granted = await accounts.GetProfileIdsAsync(accountId, ct).ConfigureAwait(false);
-        if (granted.Count <= 1)
+        if (await accounts.GetDefaultProfileIdAsync(accountId, ct).ConfigureAwait(false) is { } profileId &&
+            await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is { } profile)
         {
-            return (fallback, false, false);
-        }
-
-        var preferredId = await identities.GetDeviceProfilePreferenceAsync(accountId, Sanitize(deviceId, 100, "unknown"), ct).ConfigureAwait(false);
-        if (preferredId is { } id && granted.Contains(id) && await profiles.GetByIdAsync(id, ct).ConfigureAwait(false) is { } preferred &&
-            await MayUseInHouseholdAsync(accountId, id, ct).ConfigureAwait(false))
-        {
-            var hasPin = await identities.GetCredentialAsync(id, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is not null;
-            return hasPin ? (fallback, true, true) : (preferred, false, false);
-        }
-
-        return (fallback, true, false);
-    }
-
-    /// <summary>A remembered profile with a PIN leaves the session unfinished until the person picks someone (see <see cref="AuthSession.ProfilePending"/>).</summary>
-    private async Task MarkPendingAsync(SessionIssueResult issued, bool pending, CancellationToken ct)
-    {
-        if (pending)
-        {
-            await identities.MarkSessionProfilePendingAsync(issued.Session.Id, ct).ConfigureAwait(false);
-            issued.Session.ProfilePending = true;
-        }
-    }
-
-    /// <summary>
-    /// The default profile, or the first granted one. Anyone but a server administrator starts only in a person of their
-    /// own household, so a grant that reaches further is never a starting profile.
-    /// </summary>
-    private async Task<Profile> GetDefaultProfileAsync(Guid accountId, CancellationToken ct)
-    {
-        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var candidates = new List<Guid>();
-        if (await accounts.GetDefaultProfileIdAsync(accountId, ct).ConfigureAwait(false) is { } defaultId)
-        {
-            candidates.Add(defaultId);
-        }
-
-        candidates.AddRange(await accounts.GetProfileIdsAsync(accountId, ct).ConfigureAwait(false));
-        foreach (var id in candidates.Where(candidate => candidate != Guid.Empty))
-        {
-            if (await profiles.GetByIdAsync(id, ct).ConfigureAwait(false) is { } profile &&
-                (account is null || account.MaySwitchInto(profile.HouseholdId)))
-            {
-                return profile;
-            }
+            return profile;
         }
 
         throw new InvalidOperationException("The account has no available profile.");
     }
 
-    /// <summary>Whether the account may use the person under the household rule (a server administrator is not limited by it).</summary>
-    private async Task<bool> MayUseInHouseholdAsync(Guid accountId, Guid profileId, CancellationToken ct) =>
-        await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { } account &&
-        await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is { } profile &&
-        account.MaySwitchInto(profile.HouseholdId);
+    /// <summary>
+    /// An interactive sign-in (password, two-step, passkey, outside sign-in, invitation, this computer): the session opens on the person's
+    /// own profile but no profile is in use yet. It stays "choose a profile" (<see cref="AuthSession.ProfilePending"/>) until the person
+    /// picks one of their household's profiles, with its PIN when set (users, profiles and households spec D3). A session that must first
+    /// replace a temporary password is not marked: it can do nothing but change the password, and the session that follows is.
+    /// </summary>
+    private async Task<SessionIssueResult> IssueSignInSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
+    {
+        var issued = await IssueSessionAsync(account, profile, stamp, method, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+        if (account.MustChangePassword)
+        {
+            return issued;
+        }
+
+        await identities.MarkSessionProfilePendingAsync(issued.Session.Id, ct).ConfigureAwait(false);
+        issued.Session.ProfilePending = true;
+        return issued with { ChooseProfile = true };
+    }
 
     private async Task<SessionIssueResult> IssueSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
     {
@@ -1371,7 +1290,7 @@ public sealed class FirstPartyIdentityService(
     private async Task RejectPasswordMatchingAccountAsync(Guid accountId, string password, CancellationToken ct)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
-        var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
+        var profile = await OwnProfileAsync(accountId, ct).ConfigureAwait(false);
         RejectPasswordMatchingIdentity(password, account.Email, profile.DisplayName);
     }
     private static FrozenSet<string> LoadCommonPasswords()
