@@ -11,7 +11,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     private static readonly HashSet<AccountFeatureId> WatchOnly = [AccountFeatureId.Watch];
 
     private DefaultHttpContext SeedProfileContext(Guid account) =>
-        HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        HumanContext(account, ProfileOf(account));
 
     [Fact]
     public async Task ANewLibrary_IsVisibleToAnAccountWithItsArea_WithNoRowWrittenForIt()
@@ -29,7 +29,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(CatalogueResourceAccess.Allowed,
             await CreateResourceService(context).EvaluateAssetAsync(context, film.AssetId, ApplicationPermissionIds.PlaybackRead));
         using var connection = _database.CreateConnection();
-        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM account_library_hidden;"));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_library_hidden;"));
     }
 
     [Fact]
@@ -102,25 +102,22 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task AHouseholdMember_SeesNothingInALibraryTheAccountItInheritsFromHides()
+    public async Task AProfileInAHousehold_IsNotAffectedByALibraryHiddenFromAnotherProfileOfTheSameHousehold()
     {
+        var shownLibrary = Guid.NewGuid();
         var hiddenLibrary = Guid.NewGuid();
         var primary = Guid.NewGuid();
         var member = Guid.NewGuid();
         await CreateHumanAsync(primary, WatchOnly, new HashSet<Guid> { hiddenLibrary });
         await CreateHumanAsync(member, WatchOnly, new HashSet<Guid>());
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute(
-                "UPDATE accounts SET grants_inherit_from_account_id=@primary WHERE id=@member;",
-                new { primary, member });
-        }
+        var shown = await InsertOwnedWorkWithIdAsync(shownLibrary, "Shown film", "Movie");
+        var other = await InsertOwnedWorkWithIdAsync(hiddenLibrary, "Hidden film", "Movie");
 
-        var shown = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Shown film", "Movie");
-        await InsertOwnedWorkWithIdAsync(hiddenLibrary, "Hidden film", "Movie");
-        var service = CreateService(SeedProfileContext(member), RealReaders());
+        var primaryService = CreateService(SeedProfileContext(primary), RealReaders());
+        Assert.Equal([shown.WorkId], (await primaryService.LoadWorksAsync(default)).Select(row => row.WorkId).ToArray());
 
-        Assert.Equal([shown.WorkId], (await service.LoadWorksAsync(default)).Select(row => row.WorkId).ToArray());
+        var memberService = CreateService(SeedProfileContext(member), RealReaders());
+        Assert.Equal(new[] { shown.WorkId, other.WorkId }.Order(), (await memberService.LoadWorksAsync(default)).Select(row => row.WorkId).Order());
     }
 
     [Fact]

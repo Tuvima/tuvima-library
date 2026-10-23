@@ -300,11 +300,11 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
         await using var host = EndpointHost.Create(world);
         var route = new Dictionary<string, object> { ["profileId"] = world.KimProfile.Id };
 
-        var noFeatures = await host.InvokeAsync("/access/profiles/{profileId:guid}/access", "PUT", route, body: """{"library_ids":[]}""");
+        var noFeatures = await host.InvokeAsync("/access/profiles/{profileId:guid}/access", "PUT", route, body: """{"hidden_library_ids":[]}""");
         var noLibraries = await host.InvokeAsync("/access/profiles/{profileId:guid}/access", "PUT", route, body: """{"feature_ids":["read"]}""");
         var neither = await host.InvokeAsync("/access/profiles/{profileId:guid}/access", "PUT", route, body: "{}");
         var both = await host.InvokeAsync("/access/profiles/{profileId:guid}/access", "PUT", route,
-            body: """{"feature_ids":["read","watch"],"library_ids":[]}""");
+            body: """{"feature_ids":["read","watch"],"hidden_library_ids":[]}""");
 
         Assert.All(new[] { noFeatures, noLibraries, neither }, answer =>
         {

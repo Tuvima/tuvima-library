@@ -355,50 +355,60 @@ public sealed class UsersProfilesHouseholdsActionTests
     }
 
     [Fact]
-    public async Task AHouseholdAdministrator_AddsWhatTheyHold_AndKeepsTheGrantsTheyDoNotHold()
+    public async Task AHouseholdAdministrator_AddsFeaturesTheyHold_KeepsTheOnesTheyDoNot_HidesMoreLibraries_AndNeverShowsOneHiddenFromThem()
     {
         await using var world = await World.CreateAsync();
         var alexProfile = await DefaultProfileAsync(world, world.Alex);
-        var (held, notHeld) = AddCataloguedLibraries(world);
-        await world.Access.ReplaceAccessAsync(alexProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { held }, DateTimeOffset.UtcNow);
+        var (hiddenFromAlex, other) = AddCataloguedLibraries(world);
+        await world.Access.ReplaceAccessAsync(alexProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { hiddenFromAlex }, DateTimeOffset.UtcNow);
         await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid> { notHeld });
+            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid> { hiddenFromAlex });
 
-        // Alex does not hold View or the second library: adding Read and the first library keeps both, though the request omits them.
+        // Alex does not hold View: adding Read keeps View, though the request omits it. The library hidden from Alex stays hidden from Kim.
         await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { held });
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
 
         Assert.Equal(["read", "view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
-        Assert.Equal(new HashSet<Guid> { held, notHeld }, (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToHashSet());
+        Assert.Equal([hiddenFromAlex], (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToArray());
 
-        // Alex can still take back what Alex holds; what Alex does not hold stays.
+        // Alex can hide more from Kim, and show again what Alex can see, but not what is hidden from Alex.
+        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { other });
+        Assert.Equal(new HashSet<Guid> { hiddenFromAlex, other }, (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToHashSet());
+
         await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
             new HashSet<AccountFeatureId>(), new HashSet<Guid>());
 
         Assert.Equal(["view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
-        Assert.Equal([notHeld], (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToArray());
+        Assert.Equal([hiddenFromAlex], (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToArray());
+
+        // The server administrator is not held to that rule.
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid>());
+        Assert.Empty(await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id));
     }
 
     [Fact]
-    public async Task AHouseholdAdministrator_CannotAddAFeatureOrLibraryTheyLack_ButSendingTheCurrentGrantsBackIsFine()
+    public async Task AHouseholdAdministrator_CannotAddAFeatureTheyLack_ButSendingTheCurrentAccessBackIsFine()
     {
         await using var world = await World.CreateAsync();
         var alexProfile = await DefaultProfileAsync(world, world.Alex);
-        var (held, notHeld) = AddCataloguedLibraries(world);
-        await world.Access.ReplaceAccessAsync(alexProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { held }, DateTimeOffset.UtcNow);
+        var (_, other) = AddCataloguedLibraries(world);
+        await world.Access.ReplaceAccessAsync(alexProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), DateTimeOffset.UtcNow);
         await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid>());
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReplaceProfileAccessAsync(
             world.AlexAuthority, world.KimProfile.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Listen }, new HashSet<Guid>()));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReplaceProfileAccessAsync(
-            world.AlexAuthority, world.KimProfile.Id, new HashSet<AccountFeatureId>(), new HashSet<Guid> { notHeld }));
         await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid>());
+        // Hiding a library Alex can see is allowed.
+        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid> { other });
 
         Assert.Equal(["view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
-        Assert.Empty(await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id));
+        Assert.Equal([other], (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToArray());
     }
 
     private static (Guid First, Guid Second) AddCataloguedLibraries(World world)

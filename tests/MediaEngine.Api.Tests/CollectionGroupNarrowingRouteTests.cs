@@ -199,6 +199,7 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AllowAuthorizationEvaluator>();
         builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
         builder.Services.AddSingleton<IAccountRepository, AccountRepository>();
+        builder.Services.AddSingleton<IProfileAccessRepository, ProfileAccessRepository>();
         builder.Services.AddSingleton<IProfileRepository, ProfileRepository>();
         builder.Services.AddSingleton<ICollectionRepository, CollectionRepository>();
         builder.Services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();

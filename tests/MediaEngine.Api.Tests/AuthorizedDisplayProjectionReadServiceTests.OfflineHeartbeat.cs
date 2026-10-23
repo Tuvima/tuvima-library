@@ -283,7 +283,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     public async Task OfflinePutProgress_ForAnAssetOverTheContentLimit_IsDeniedByTheRouteBeforeAnyHistoryCanBeWritten()
     {
         var (account, asset) = await SeedHeartbeatAssetAsync();
-        var context = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(account, ProfileOf(account));
         SetAssetRating(asset, "R");
 
         SetContentLimit("PG");

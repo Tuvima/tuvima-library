@@ -1061,9 +1061,9 @@ Invitation codes made by an administrator (**Users and Sign-in > Users**). `id`,
 
 The features a profile may use: `profile_id` (references `profiles`, deleting the profile removes the rows) and `feature_id` (`read`, `watch`, `listen` or `view`, primary key together) and `granted_at`. Added by step `0046_profile_held_access`.
 
-### profile_library_grants
+### profile_library_hidden
 
-The libraries a profile may open: `profile_id` (references `profiles`) and `library_id` (primary key together) and `granted_at`. `library_id` has no foreign key, and the Vault can never be granted here.
+The libraries an administrator hid from a profile (simpler access D2, D11; the profile holds the access): one row per hidden library, `profile_id` (references `profiles`, deleting the profile removes its rows) and `library_id` (a 16-byte id, no foreign key; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A profile sees every library in the areas it has (`profile_feature_grants`) unless a row hides it, so a new library needs no row. Nothing is inherited from another profile. A Vault library is never listed and the repository refuses one. Server administrator profiles see every library whatever the rows say. Created by upgrade step `0046_profile_held_access`; it replaces both the earlier per-profile library grants and `account_library_hidden` (step 0045), which step `0048_drop_account_held_access` drops. Nothing was carried across.
 
 ### profile_admin_protections
 

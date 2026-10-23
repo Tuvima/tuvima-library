@@ -691,13 +691,13 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             app => app.MapDetailEndpoints(),
             services =>
             {
-                services.AddSingleton<IDisplayProjectionReadService>(CreateService(HumanContext(stranger, ProfileForLookups), RealReaders()));
+                services.AddSingleton<IDisplayProjectionReadService>(CreateService(HumanContext(stranger, ProfileOf(stranger)), RealReaders()));
                 foreach (var inferredOnly in new[] { typeof(MediaEngine.Api.Services.Details.DetailComposerService), typeof(MediaEngine.Api.Services.Details.ContributorReadiness), typeof(MediaEngine.Api.Services.Details.DetailUnmatchedStateService), typeof(MediaEngine.Domain.Contracts.ICanonicalValueRepository) })
                 {
                     services.AddSingleton(inferredOnly, _ => null!);
                 }
             },
-            "GetShowNextEpisodes", HumanContext(stranger, ProfileForLookups), "GET", new { id = world.Show }, $"?after={world.FirstAsset:D}");
+            "GetShowNextEpisodes", HumanContext(stranger, ProfileOf(stranger)), "GET", new { id = world.Show }, $"?after={world.FirstAsset:D}");
 
         Assert.Equal(StatusCodes.Status404NotFound, result.Status);
     }

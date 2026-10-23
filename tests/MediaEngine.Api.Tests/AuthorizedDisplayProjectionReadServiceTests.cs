@@ -233,7 +233,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         await CreateHumanAsync(accountId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
             new HashSet<Guid> { otherLibrary });
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var service = CreateService(context, new StubRawProjection(
             [
                 Work(allowedLibrary, "Book"),
@@ -325,7 +325,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         await InsertAssetForWorkAsync(workId, deniedAsset, deniedLibrary, "Denied edition", createWork: true);
         await InsertAssetForWorkAsync(workId, allowedAsset, allowedLibrary, "Allowed edition", createWork: false);
         await InsertAssetForWorkAsync(workId, secondAllowedAsset, allowedLibrary, "Second allowed edition", createWork: false);
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var service = CreateService(
             context,
             new CachedReaderProjection(new DisplayWorkProjectionReader(_database)));
@@ -370,7 +370,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                     INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed) VALUES(@profile,@azw,20,CURRENT_TIMESTAMP);
                     """, new { azw, epub, denied, profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
         }
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var assets = await CreateResourceService(context).GetAuthorizedAssetIdsForWorkAsync(
             context, workId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead);
         Assert.Equal([epub, azw], assets);
@@ -521,7 +521,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var allowedBook = await InsertOwnedWorkAsync(allowedLibrary, "Allowed book");
         var deniedBook = await InsertOwnedWorkAsync(deniedLibrary, "Denied book");
         var deniedMovie = await InsertOwnedWorkAsync(allowedLibrary, "Denied movie", "Movie");
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var service = CreateResourceService(context);
 
         Assert.Equal(CatalogueResourceAccess.Allowed,
@@ -547,7 +547,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var denied = await InsertOwnedWorkWithIdAsync(deniedLibrary, "Denied book");
         var allowedVariant = await InsertArtworkAsync(allowed.WorkId, "Work");
         var deniedVariant = await InsertArtworkAsync(denied.WorkId, "Work");
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var service = CreateResourceService(context);
 
         Assert.Equal(CatalogueResourceAccess.Allowed,
@@ -605,7 +605,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 new { bookCollectionId, movieCollectionId, bookRules, movieRules });
         }
 
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var service = CreateResourceService(context);
 
         Assert.Equal(CatalogueResourceAccess.Allowed,
@@ -649,7 +649,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
 
         var showArtwork = await InsertArtworkAsync(showId, "Work");
         var seasonArtwork = await InsertArtworkAsync(seasonId, "Work");
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var service = CreateResourceService(context);
 
         Assert.Equal(CatalogueResourceAccess.Allowed,
@@ -689,7 +689,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 """,
                 new { visiblePerson, hiddenPerson, supplementaryPerson, allowedAsset = allowed.AssetId, deniedAsset = denied.AssetId });
         }
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var service = CreateResourceService(context);
 
         Assert.Equal(CatalogueResourceAccess.Allowed,
@@ -750,7 +750,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                     entityAssetId = Guid.NewGuid(),
                 });
         }
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var service = CreateResourceService(context);
 
         Assert.Equal(CatalogueResourceAccess.Allowed,
@@ -801,7 +801,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                     allowedLibrary = allowedLibrary.ToString("D"),
                 });
         }
-        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(accountId, ProfileOf(accountId));
         var resources = CreateResourceService(context);
         var allowedAssets = await resources.GetAuthorizedAssetIdsForWorkAsync(
             context,
@@ -1313,7 +1313,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var denied = Work(deniedLibrary, "Book");
         await InsertAssetForWorkAsync(allowed.WorkId, allowed.AssetId, library, "Allowed", createWork: true);
         await InsertAssetForWorkAsync(denied.WorkId, denied.AssetId, Guid.Parse(denied.LibraryId!), "Denied", createWork: true);
-        var context = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(account, ProfileOf(account));
         using var services = new ServiceCollection()
             .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
             .AddSingleton(CreateService(context, new StubRawProjection([allowed, denied], [])))
@@ -1535,7 +1535,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                     (@asset, @first, 1, 'filename'), (@asset, @covered, 2, 'filename');
                 """, new { covered, first = combined.WorkId, asset = combined.AssetId });
         }
-        var context = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var context = HumanContext(account, ProfileOf(account));
         var resources = CreateResourceService(context);
         Assert.Equal([combined.AssetId], await resources.GetAuthorizedAssetIdsForWorkAsync(
             context, covered, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead));
@@ -1703,8 +1703,19 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         IReadOnlySet<AccountFeatureId> features,
         IReadOnlySet<Guid> hiddenLibraries,
         bool administrator = false,
-        MediaEngine.Domain.Aggregates.Profile? ownProfile = null) =>
-        _accounts.CreateAccountAsync(
+        MediaEngine.Domain.Aggregates.Profile? ownProfile = null)
+    {
+        // A profile has at most one sign-in: the second person in a test gets a profile of their own.
+        ownProfile ??= SeedProfileHasASignIn()
+            ? new MediaEngine.Domain.Aggregates.Profile
+            {
+                Id = Guid.NewGuid(),
+                DisplayName = $"Person {accountId:N}",
+                Role = MediaEngine.Domain.Enums.ProfileRole.StandardUser,
+                CreatedAt = DateTimeOffset.UtcNow,
+            }
+            : null;
+        return _accounts.CreateAccountAsync(
             new Account
             {
                 Id = accountId,
@@ -1719,6 +1730,22 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             features,
             hiddenLibraries,
             newProfile: ownProfile);
+    }
+
+    private bool SeedProfileHasASignIn()
+    {
+        using var connection = _database.CreateConnection();
+        return connection.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM accounts WHERE profile_id=@id;", new { id = MediaEngine.Domain.Aggregates.Profile.SeedProfileId }) > 0;
+    }
+
+    /// <summary>The profile a test person's sign-in opens.</summary>
+    private Guid ProfileOf(Guid accountId)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.ExecuteScalar<Guid?>("SELECT profile_id FROM accounts WHERE id=@accountId;", new { accountId })
+            ?? MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+    }
 
     /// <summary>An administrator hides one more library from the person's profile, as the person's page does (the others stay as they are).</summary>
     private async Task HideLibraryFromAsync(Guid accountId, Guid libraryId)

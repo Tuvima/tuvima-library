@@ -704,14 +704,15 @@ public sealed class HouseholdAdministratorTests
             {
                 StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Library data", Path = _configPath, AllowWrite = true }],
                 ViewStorage = new ViewStorageConfig { StorageLocationId = "media", RelativeRoot = "View" },
+                // The configuration allows one library of each of these kinds, so each library gets its own (all in the Read area).
                 Libraries = ids.Select((id, index) => new LibraryFolderConfig
                 {
                     Id = id.ToString("D"),
-                    Name = $"Books {index}",
-                    Category = "Books",
+                    Name = index == 0 ? "Books" : "Comics",
+                    Category = index == 0 ? "Books" : "Comics",
                     Kind = LibraryKinds.Catalogued,
-                    KindKey = "books",
-                    MediaTypes = ["Books"],
+                    KindKey = index == 0 ? "books" : "comics",
+                    MediaTypes = [index == 0 ? "Books" : "Comics"],
                     Area = LibraryAreas.Read,
                 }).ToList(),
             });

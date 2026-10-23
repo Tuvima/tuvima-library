@@ -85,6 +85,7 @@ public sealed class VisibilityAfterMoveEndpointTests
         // The other access routes are mapped too, so what they need to be built is registered empty; this test never calls them.
         builder.Services.AddScoped<ISelfServiceAuthorizationService>(_ => null!);
         builder.Services.AddScoped<IAccountRepository>(_ => null!);
+        builder.Services.AddScoped<IProfileAccessRepository>(_ => null!);
         builder.Services.AddScoped<IIdentityRepository>(_ => null!);
         builder.Services.AddScoped<IProfileRepository>(_ => null!);
         builder.Services.AddScoped<IAccountExternalLoginService>(_ => null!);
