@@ -436,7 +436,6 @@ public sealed class UsersProfilesHouseholdsActionTests
                 Presentation = LibraryPresentations.Catalogue,
                 MetadataPolicy = LibraryMetadataPolicies.LocalOnly,
                 MediaTypes = [mediaType],
-                Visibility = LibraryVisibility.Household,
                 Sources =
                 [
                     new LibrarySourceConfig

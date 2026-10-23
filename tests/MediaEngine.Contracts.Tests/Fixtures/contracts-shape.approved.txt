@@ -8266,13 +8266,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   MetadataPolicy: System.String | nullability=not-null | accessors=get,set
   MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   YoutubeLookup: System.Boolean | nullability=not-null | accessors=get,set
-  OkForLimitedProfiles: System.Boolean | nullability=not-null | accessors=get,set
   RecycleBin: System.Boolean | nullability=not-null | accessors=get,set
   Sources: System.Collections.Generic.List<MediaEngine.Contracts.Settings.LibrarySourceDto> | nullability=not-null | accessors=get,set
   PrimaryDestinationSourceId: System.String | nullability=nullable | accessors=get,set
-  OwnerProfileId: System.String | nullability=nullable | accessors=get,set
-  Visibility: System.String | nullability=not-null | accessors=get,set
-  AuthorizedProfileIds: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   AcceptedIntakeModes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   OrganizationPolicy: MediaEngine.Contracts.Settings.LibraryOrganizationPolicyDto | nullability=not-null | accessors=get,set
   Notes: System.String | nullability=nullable | accessors=get,set
@@ -8332,6 +8328,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrarySourceDto
   ManagementMode: System.String | nullability=not-null | accessors=get,set
   SourceType: System.String | nullability=not-null | accessors=get,set
   IncludeSubdirectories: System.Boolean | nullability=not-null | accessors=get,set
+  OkForLimitedProfiles: System.Boolean | nullability=not-null | accessors=get,set
   AccessMode: System.String | nullability=not-null | accessors=get,set
   ConversionState: System.String | nullability=not-null | accessors=get,set
   ConversionOperationId: System.String | nullability=nullable | accessors=get,set
@@ -8507,7 +8504,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PersonalLibraryPol
   AllowConnectedDeviceImport: System.Boolean | nullability=not-null | accessors=get,set
   AllowManagedStorage: System.Boolean | nullability=not-null | accessors=get,set
   AllowExistingFolderAttachment: System.Boolean | nullability=not-null | accessors=get,set
-  DefaultVisibility: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineConfiguration
   Pipelines: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.MediaTypePipeline> | nullability=not-null | accessors=get,set

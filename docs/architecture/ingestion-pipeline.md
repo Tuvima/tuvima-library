@@ -132,7 +132,7 @@ The polling fallback is started once at startup, and only when `Ingestion:PollIn
 
 ```json
 {
-  "schema_version": "7.0",
+  "schema_version": "8.0",
   "file_handling": { "duplicate_policy": "keep_one" },
   "libraries": [
     {
@@ -155,7 +155,6 @@ The polling fallback is started once at startup, and only when `Ingestion:PollIn
         "merge_state": "none"
       }],
       "primary_destination_source_id": "44444444-aaaa-4444-8444-444444444444",
-      "visibility": "shared",
       "accepted_intake_modes": ["incoming_folder", "browser_upload"],
       "organization_policy": { "mode": "tuvima_standard", "write_tags": true }
     }

@@ -91,4 +91,28 @@ public static class FolderFirstCheckPaths
         ArgumentException.ThrowIfNullOrEmpty(prefix);
         return prefix[..^1] + "0";
     }
+
+    /// <summary>
+    /// True when <paramref name="filePath"/> is inside the folder whose <see cref="Prefix"/> is <paramref name="prefix"/>: the same answer the
+    /// data store gives (<c>FolderPathSql.InFolder</c>) for a file path held in <c>media_assets.file_path_root</c>. Separators are compared as
+    /// <c>/</c>, so <c>/media/kids2/a.mkv</c> is not in <c>/media/kids</c> and a trailing separator on the folder changes nothing. Outside
+    /// Windows letter case matters; on Windows ASCII letters are compared without case.
+    /// </summary>
+    public static bool IsInFolder(string prefix, string? filePath) =>
+        IsInFolder(prefix, filePath, OperatingSystem.IsWindows());
+
+    /// <summary><see cref="IsInFolder(string, string?)"/> with the platform's case rule given, so both rules can be tested anywhere.</summary>
+    public static bool IsInFolder(string prefix, string? filePath, bool ignoreCase)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(prefix);
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return false;
+        }
+
+        var path = filePath.Replace('\\', '/');
+        return ignoreCase
+            ? Folded(path).StartsWith(Folded(prefix), StringComparison.Ordinal)
+            : path.StartsWith(prefix, StringComparison.Ordinal);
+    }
 }
