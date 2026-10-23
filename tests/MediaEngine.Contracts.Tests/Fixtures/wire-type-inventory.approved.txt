@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1240; api=0; web-client=54
+# scopes: contracts=1243; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1611,6 +1611,24 @@
   AvatarIcon: System.String | json=avatar_icon | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ContentLimit: System.String | json=content_limit | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ContentLimitAllowUnrated: System.Boolean? | json=content_limit_allow_unrated | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Authentication.VisibilityAfterMoveRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  TargetLibraryId: System.Guid | json=target_library_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceId: System.String | json=source_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FolderPath: System.String | json=folder_path | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LibraryId: System.Guid? | json=library_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AssetIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=asset_ids | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Authentication.VisibilityAfterMoveResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  People: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.VisibilityLossDto> | json=people | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Authentication.VisibilityLossDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  AccountId: System.Guid | json=account_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileCount: System.Int32 | json=file_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Backups.BackupDestinationDto
   kind=class | converter=default | number-handling=default | unmapped=default
