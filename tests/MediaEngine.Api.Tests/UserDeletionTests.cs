@@ -195,10 +195,38 @@ public sealed class UserDeletionTests
         await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, await ConfirmedAsync(world, world.Alex.Id));
 
         Assert.Null(preview.RefusedReason);
-        Assert.True(preview.HouseholdHasPersonalPhotos);
+        Assert.True(preview.HouseholdHasSharedPhotos);
+        Assert.False(preview.HouseholdHasPersonalPhotos);
         Assert.Null(await world.Households.GetByIdAsync(world.Household.Id));
         Assert.Null(await world.Accounts.GetByIdAsync(world.Alex.Id));
         Assert.Equal(0, await world.CountSharedPhotosAsync(world.Household.Id));
+    }
+
+    [Fact]
+    public async Task ARemovedHouseholdsLinkedSharedPhoto_IsNeverDeletedFromDisk_OnlyItsManagedCopiesAre()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+        await world.AddSharedPhotoWithFileAsync(world.Household.Id, "/media/originals/linked.jpg", managed: false);
+        await world.AddSharedPhotoWithFileAsync(world.Household.Id, "/data/view/shared/managed.jpg", managed: true);
+
+        await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, await ConfirmedAsync(world, world.Alex.Id));
+
+        Assert.Equal(0, await world.CountSharedPhotosAsync(world.Household.Id));
+        var handedOver = Assert.Single(world.Photos.Completed, plan => plan.ProfileId is null);
+        Assert.Equal("/data/view/shared/managed.jpg", Assert.Single(handedOver.FilesToDelete).FilePath);
+        Assert.DoesNotContain(world.Photos.Completed.SelectMany(plan => plan.FilesToDelete), file => file.FilePath.Contains("linked.jpg"));
+    }
+
+    [Fact]
+    public async Task APreviewForAHouseholdWithOnlyPersonalPhotos_DoesNotSayTheSharedLibraryHoldsAny()
+    {
+        await using var world = await World.CreateAsync(secondOwner: false);
+        world.Photos.ProfilesWithPhotos.Add(world.Mary.Id);
+
+        var preview = await world.Mutations.PreviewDeleteUserAsync(world.ServerAdmin, world.Alex.Id);
+
+        Assert.True(preview.HouseholdHasPersonalPhotos);
+        Assert.False(preview.HouseholdHasSharedPhotos);
     }
 
     [Fact]
@@ -751,6 +779,41 @@ public sealed class UserDeletionTests
                 INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
                 VALUES (@id, 'shared', @library, 'image', 'beach.jpg', 'image/jpeg', @now, @now);
                 """, new { id = Guid.NewGuid(), library = shared.LibraryId, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        /// <summary>Puts one shared photo with a file location in the household's Shared Library: a managed copy, or a linked original.</summary>
+        public async Task AddSharedPhotoWithFileAsync(Guid householdId, string path, bool managed)
+        {
+            var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(householdId);
+            var now = DateTimeOffset.UtcNow.ToString("O");
+            var itemId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var sourceId = Guid.NewGuid();
+            using var connection = _database.CreateConnection();
+            Dapper.SqlMapper.Execute(connection, """
+                INSERT INTO view_sources (id, scope_kind, library_id, source_type, name, storage_mode, relative_path, external_path, created_at, updated_at)
+                VALUES (@sourceId, 'shared', @library, 'folder', 'Source', @mode,
+                        CASE WHEN @mode = 'managed' THEN 'Shared' END, CASE WHEN @mode = 'linked' THEN '/media/originals' END, @now, @now);
+                INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+                VALUES (@itemId, 'shared', @library, 'image', 'photo.jpg', 'image/jpeg', @now, @now);
+                INSERT INTO local_files (id, content_hash, byte_size, mime_type, extension, created_at)
+                VALUES (@fileId, @hash, 10, 'image/jpeg', '.jpg', @now);
+                INSERT INTO local_item_files (item_id, file_id, role, position, added_at) VALUES (@itemId, @fileId, 'primary', 0, @now);
+                INSERT INTO local_file_sources (id, file_id, library_id, source_id, file_path, modified_at, indexed_at)
+                VALUES (@rowId, @fileId, @library, @sourceId, @path, @now, @now);
+                """,
+                new
+                {
+                    sourceId,
+                    itemId,
+                    fileId,
+                    rowId = Guid.NewGuid(),
+                    library = shared.LibraryId,
+                    path,
+                    now,
+                    mode = managed ? "managed" : "linked",
+                    hash = Guid.NewGuid().ToString("N"),
+                });
         }
 
         /// <summary>How many shared photos the household's Shared Library holds.</summary>

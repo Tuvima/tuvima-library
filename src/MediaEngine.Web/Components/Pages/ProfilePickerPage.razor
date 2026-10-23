@@ -271,13 +271,7 @@
             _isAdministrator = Session.Authority?.EffectiveAdministrator == true;
             _profiles = await Orchestrator.GetProfilesAsync();
             _active = await Orchestrator.GetActiveProfileAsync();
-            if (_profiles.Count == 1 && !WantsManage && !_profiles[0].HasPin)
-            {
-                // Nobody to choose between and no PIN to ask for: open the only profile (the Engine still needs to be told someone was picked).
-                await SwitchAsync(_profiles[0], null);
-                return;
-            }
-
+            // Nothing opens without a click (D3), even for a household of one: the only profile is shown pre-selected with "Continue as".
             _focusPreselected = !WantsManage;
             if (WantsManage && CanManage)
             {

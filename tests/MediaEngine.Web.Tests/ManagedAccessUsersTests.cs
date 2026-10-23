@@ -381,6 +381,33 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
+    public void DeleteSignIn_ForAHouseholdWhoseSharedLibraryHoldsPhotos_NamesTheSharedPhotosAndVideosToo()
+    {
+        _handler.RemovesHousehold("Household 2", "Pat", "Sam");
+        _handler.PreviewHasPhotos = true;
+        _handler.PreviewHasSharedPhotos = true;
+        var cut = RenderUsers();
+
+        OpenAction(cut, "Delete sign-in");
+
+        Assert.Equal(
+            "This is the last sign-in that can look after Household 2. Deleting it removes Household 2 and its profiles: Pat, Sam, with their progress, bookmarks, lists, photos and videos, and the household's shared photos and videos.",
+            cut.Find("[data-user-deletion] .app-alert").TextContent.Trim());
+    }
+
+    [Fact]
+    public void DeleteSignIn_ForAHouseholdWithNoSharedPhotos_DoesNotMentionSharedPhotos()
+    {
+        _handler.RemovesHousehold("Household 2", "Pat", "Sam");
+        _handler.PreviewHasPhotos = true;
+        var cut = RenderUsers();
+
+        OpenAction(cut, "Delete sign-in");
+
+        Assert.DoesNotContain("shared photos", cut.Find("[data-user-deletion] .app-alert").TextContent);
+    }
+
+    [Fact]
     public void DeleteSignIn_ForAHouseholdWithPhotos_SendsOnlyTheShownProfiles_NoPhotoChoice()
     {
         _handler.RemovesHousehold("Household 2", "Pat", "Sam");
@@ -582,6 +609,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         public string? PreviewDetail { get; set; }
         public string? PreviewRefusal { get; set; }
         public bool PreviewHasPhotos { get; set; }
+        public bool PreviewHasSharedPhotos { get; set; }
 
         /// <summary>The ids of the profiles the last preview listed, in order.</summary>
         public List<Guid> PreviewIds { get; } = [];
@@ -687,7 +715,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
             PreviewIds.AddRange(_householdProfiles.Select(_ => Guid.NewGuid()));
             return new UserDeletionPreviewResponse(UserId, Email, OwnerProfileName, _removedHousehold is not null, _removedHousehold,
                 _householdProfiles.Select((name, index) => new AccountDeletionProfileDto(PreviewIds[index], name)).ToList(),
-                PreviewRefusal, PreviewHasPhotos);
+                PreviewRefusal, PreviewHasPhotos, PreviewHasSharedPhotos);
         }
 
         private static HttpResponseMessage Problem(HttpStatusCode status, string? detail) =>

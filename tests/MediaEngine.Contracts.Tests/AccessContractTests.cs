@@ -245,13 +245,13 @@ public sealed class AccessContractTests
         var pat = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
         var json = JsonSerializer.Serialize(new UserDeletionPreviewResponse(
-            user, "pat@home.test", "Pat", true, "Household 2", [new AccountDeletionProfileDto(pat, "Pat")], null, true));
+            user, "pat@home.test", "Pat", true, "Household 2", [new AccountDeletionProfileDto(pat, "Pat")], null, true, true));
 
         Assert.Equal(
             "{\"user_id\":\"11111111-1111-1111-1111-111111111111\",\"email\":\"pat@home.test\",\"profile_name\":\"Pat\"," +
             "\"removes_household\":true,\"household_name\":\"Household 2\"," +
             "\"household_profiles\":[{\"id\":\"22222222-2222-2222-2222-222222222222\",\"display_name\":\"Pat\"}]," +
-            "\"refused_reason\":null,\"has_personal_photos\":true}",
+            "\"refused_reason\":null,\"has_personal_photos\":true,\"has_shared_photos\":true}",
             json);
         Assert.Equal("Pat", JsonSerializer.Deserialize<UserDeletionPreviewResponse>(json)!.HouseholdProfiles.Single().DisplayName);
     }

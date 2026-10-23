@@ -1542,6 +1542,7 @@
   HouseholdProfiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountDeletionProfileDto> | json=household_profiles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RefusedReason: System.String | json=refused_reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasPersonalPhotos: System.Boolean | json=has_personal_photos | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HasSharedPhotos: System.Boolean | json=has_shared_photos | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.UserSummaryResponse
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -457,7 +457,7 @@ public static class AccountEndpoints
                 preview.Plan.UserId, preview.Plan.Email, preview.Plan.ProfileName, preview.Plan.RemovesHousehold,
                 preview.Plan.RemovesHousehold ? preview.Plan.HouseholdName : null,
                 preview.Plan.HouseholdProfiles.Select(profile => new AccountDeletionProfileDto(profile.Id, profile.DisplayName)).ToList(),
-                preview.RefusedReason, preview.HouseholdHasPersonalPhotos));
+                preview.RefusedReason, preview.HouseholdHasPersonalPhotos, preview.HouseholdHasSharedPhotos));
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("PreviewUserDeletion")
            .Produces<UserDeletionPreviewResponse>();

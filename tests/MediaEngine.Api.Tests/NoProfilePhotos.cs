@@ -23,7 +23,14 @@ internal sealed class NoProfilePhotos : IProfilePhotoDisposer
         return Task.FromResult(new ProfilePhotoPlan([], null, profile.Id, ReportsPhotosMoved));
     }
 
-    public Task CompleteAsync(ProfilePhotoPlan plan, CancellationToken ct = default) => Task.CompletedTask;
+    /// <summary>Every plan whose files were handed over to be deleted from disk.</summary>
+    public List<ProfilePhotoPlan> Completed { get; } = [];
+
+    public Task CompleteAsync(ProfilePhotoPlan plan, CancellationToken ct = default)
+    {
+        Completed.Add(plan);
+        return Task.CompletedTask;
+    }
 
     /// <summary>The people reported as holding personal photos (none unless a test adds some).</summary>
     public HashSet<Guid> ProfilesWithPhotos { get; } = [];

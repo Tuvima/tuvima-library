@@ -433,8 +433,9 @@ public sealed class AccountAccessMutationService(
             await photoDisposer.CompleteAsync(photoPlan, ct).ConfigureAwait(false);
         }
 
-        // The removed household's Shared Library photos and videos went with it; their files follow.
-        if (outcome.SharedFilesToDelete is { Count: > 0 } sharedFiles)
+        // The removed household's Shared Library photos and videos went with it; their managed files follow. Linked or original
+        // sources are never deleted (the same rule as a profile's own files).
+        if (outcome.SharedFilesToDelete?.Where(file => file.IsManaged).ToList() is { Count: > 0 } sharedFiles)
         {
             await photoDisposer.CompleteAsync(new ProfilePhotoPlan(sharedFiles), ct).ConfigureAwait(false);
         }
@@ -520,7 +521,8 @@ public sealed class AccountAccessMutationService(
         return new UserDeletionPreview(
             plan,
             await UserDeletionRefusalAsync(actor, doomed, plan, ct).ConfigureAwait(false),
-            plan.RemovesHousehold && (plan.HouseholdHoldsSharedItems || await AnyPersonalPhotosAsync(plan.HouseholdProfiles, ct).ConfigureAwait(false)));
+            plan.RemovesHousehold && await AnyPersonalPhotosAsync(plan.HouseholdProfiles, ct).ConfigureAwait(false),
+            plan.RemovesHousehold && plan.HouseholdHoldsSharedItems);
     }
 
     public async Task<Profile> AddHouseholdPersonAsync(

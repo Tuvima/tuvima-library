@@ -1303,6 +1303,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.UserDe
   HouseholdProfiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountDeletionProfileDto> | nullability=not-null | accessors=get,init
   RefusedReason: System.String | nullability=nullable | accessors=get,init
   HasPersonalPhotos: System.Boolean | nullability=not-null | accessors=get,init
+  HasSharedPhotos: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.UserSummaryResponse
   Id: System.Guid | nullability=not-null | accessors=get,init

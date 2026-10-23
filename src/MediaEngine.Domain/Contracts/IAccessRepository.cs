@@ -196,9 +196,10 @@ public sealed record CreatedUser(Account User, MediaEngine.Domain.Aggregates.Pro
 /// <summary>
 /// What deleting a user would do, for the confirmation. <paramref name="RefusedReason"/> is one plain sentence when the delete
 /// would be refused (null when it is allowed); <paramref name="HouseholdHasPersonalPhotos"/> says a household removal would meet
-/// personal photos in its profiles.
+/// personal photos in its profiles, and <paramref name="HouseholdHasSharedPhotos"/> that the household's Shared Library holds some.
 /// </summary>
-public sealed record UserDeletionPreview(UserRemovalPlan Plan, string? RefusedReason, bool HouseholdHasPersonalPhotos);
+public sealed record UserDeletionPreview(
+    UserRemovalPlan Plan, string? RefusedReason, bool HouseholdHasPersonalPhotos, bool HouseholdHasSharedPhotos = false);
 
 public interface IAccountAccessMutationService
 {

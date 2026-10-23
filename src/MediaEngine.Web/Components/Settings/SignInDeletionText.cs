@@ -16,9 +16,11 @@ internal static class SignInDeletionText
         if (preview.RemovesHousehold)
         {
             var name = preview.HouseholdName ?? household ?? "this household";
+            // The household's Shared Library photos and videos go too (D18); say so only when it holds some.
+            var shared = preview.HasSharedPhotos ? ", and the household's shared photos and videos" : string.Empty;
             return $"This is the last sign-in that can look after {name}. Deleting it removes {name} and its profiles: "
                 + $"{string.Join(", ", preview.HouseholdProfiles.Select(profile => profile.DisplayName))}, "
-                + "with their progress, bookmarks, lists, photos and videos.";
+                + $"with their progress, bookmarks, lists, photos and videos{shared}.";
         }
 
         var person = string.IsNullOrWhiteSpace(profileName) ? "Their" : $"{profileName}'s";

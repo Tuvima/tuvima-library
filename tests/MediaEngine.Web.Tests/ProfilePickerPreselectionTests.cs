@@ -97,11 +97,17 @@ public sealed class ProfilePickerPreselectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ForAHouseholdOfOneWithoutAPin_ThePersonIsPickedForThem_SoNoOneIsLeftPending()
+    public void ForAHouseholdOfOneWithoutAPin_TheProfileIsPreSelectedButNothingOpensUntilTheyClick()
     {
-        OpenPickerSignedInAs(DadId, Profile(DadId, "Dad"));
+        var cut = OpenPickerSignedInAs(DadId, Profile(DadId, "Dad"));
 
-        Assert.Contains(_requests, request => request.Method == HttpMethod.Post && request.Path == "/auth/session/switch-profile");
+        Assert.Equal(["Dad"], PreSelectedNames(cut));
+        Assert.Contains("Continue as Dad", cut.Find(".who-button--primary").TextContent);
+        Assert.DoesNotContain(_requests, request => request.Path == "/auth/session/switch-profile");
+
+        cut.Find(".who-button--primary").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Method == HttpMethod.Post && request.Path == "/auth/session/switch-profile"));
     }
 
     private IRenderedComponent<ProfilePickerPage> OpenPickerSignedInAs(Guid ownProfile, params ProfileViewModel[] profiles)
@@ -109,14 +115,7 @@ public sealed class ProfilePickerPreselectionTests : AsyncBunitContext
         _profiles.AddRange(profiles);
         Setup(ownProfile);
         var cut = Render<ProfilePickerPage>();
-        if (profiles.Length > 1 || profiles[0].HasPin)
-        {
-            cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".who-card")));
-        }
-        else
-        {
-            cut.WaitForAssertion(() => Assert.Contains(_requests, request => request.Path == "/auth/session/switch-profile"));
-        }
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".who-card")));
 
         return cut;
     }
