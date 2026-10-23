@@ -140,4 +140,53 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var nextRequest = CreateService(SeedProfileContext(account), RealReaders());
         Assert.Empty(await nextRequest.LoadWorksAsync(default));
     }
+
+    [Fact]
+    public async Task AVaultCopyOfAFile_NeverReachesTheViewAllFormatFilter_ForANonAdministrator()
+    {
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var session = NewVaultSession(shape.Account);
+        await UnlockVaultAsync(session);
+        var scope = await CreateService(VaultContext(shape.Account, session), RealReaders()).LoadLibraryScopeAsync(default);
+        var work = Guid.NewGuid();
+        IReadOnlyDictionary<(Guid WorkId, Guid LibraryId), IReadOnlySet<string>> formats =
+            new Dictionary<(Guid WorkId, Guid LibraryId), IReadOnlySet<string>>
+            {
+                [(work, shape.NormalLibrary)] = new HashSet<string> { "hd" },
+                [(work, shape.VaultLibrary)] = new HashSet<string> { "4k" },
+            };
+
+        Assert.False(scope.Allows(shape.VaultLibrary));
+        Assert.True(scope.Allows(shape.NormalLibrary));
+        var seen = MediaEngine.Api.Services.Display.DisplayFormatReader.ForViewer(formats, new HashSet<Guid> { work }, scope);
+        Assert.Equal(["hd"], seen[work].Order());
+    }
+
+    [Fact]
+    public async Task TheLibraryScopeOfAnAdministrator_IsUnchangedByTheVault()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var scope = await CreateService(VaultContext(shape.Account, NewVaultSession(shape.Account)), RealReaders()).LoadLibraryScopeAsync(default);
+
+        Assert.True(scope.Allows(shape.VaultLibrary));
+        Assert.True(scope.Allows(shape.NormalLibrary));
+    }
+
+    [Fact]
+    public async Task Vault_AnAdministratorWithVaultUnlocked_StillOpensVaultFilesThroughTheVaultRules_NotTheLibraryRule()
+    {
+        // Administrators never went through a library grant for the Vault: the Vault branch of the catalogue rule (unlocked session
+        // and the Watch area) decides, and the administrator bypass of the library check is kept. The visibility rule changed neither.
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
+        var session = NewVaultSession(shape.Account);
+        await UnlockVaultAsync(session);
+        var context = VaultContext(shape.Account, session);
+        var service = CreateService(context, RealReaders());
+
+        Assert.Contains(shape.Secret.AssetId, (await service.LoadAuthorizedAssetsAsync(default)).Select(row => row.AssetId));
+        Assert.Equal(CatalogueResourceAccess.Allowed,
+            await CreateResourceService(context).EvaluateAssetAsync(context, shape.Secret.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Equal(CatalogueResourceAccess.Allowed,
+            await CreateResourceService(context).EvaluateAssetAsync(context, shape.Normal.AssetId, ApplicationPermissionIds.PlaybackRead));
+    }
 }

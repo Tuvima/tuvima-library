@@ -146,9 +146,22 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     public async Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct)
     {
         var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
-        return scope.IsValid
-            ? new DisplayLibraryScope(scope.HiddenLibraries)
-            : DisplayLibraryScope.Nothing;
+        if (!scope.IsValid)
+        {
+            return DisplayLibraryScope.Nothing;
+        }
+
+        // A Vault library is never part of this scope for anyone but an administrator (as before): its files never reach a shared
+        // list, such as the View-all format filter, through here.
+        if (scope.AllLibraries)
+        {
+            return new DisplayLibraryScope(scope.HiddenLibraries);
+        }
+
+        var vault = scope.Content.Vault.VaultLibraryIds
+            .Select(id => Guid.TryParse(id, out var parsed) ? parsed : Guid.Empty)
+            .Where(id => id != Guid.Empty);
+        return new DisplayLibraryScope(scope.HiddenLibraries.Union(vault).ToHashSet());
     }
 
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsAsync(CancellationToken ct) =>

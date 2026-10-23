@@ -197,7 +197,7 @@
                         <AppTextField @bind-Value="_profileName" Label="Profile name" FullWidth="true" />
                         <AppTextField @bind-Value="_profileColor" Label="Avatar color" HelpText="Use a color such as #7C4DFF." FullWidth="true" />
                     </section>
-                    <ManagedAccessUserPermissions ViewStartsOff="true" FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+                    <ManagedAccessUserPermissions ViewStartsOff="true" FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" LibrariesUnavailable="@(!_librariesLoaded)" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
                 }
             }
             else if (_mode == UserDrawerMode.Permissions && _editing is not null)
@@ -206,7 +206,7 @@
                 {
                     <AppAlert Severity="AppSeverity.Info">Administrator access overrides normal content restrictions while an administrator-enabled profile is active. These permissions remain editable for other profiles.</AppAlert>
                 }
-                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" LibrariesUnavailable="@(!_librariesLoaded)" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
             }
             else if (_mode == UserDrawerMode.Profiles && _editing is not null)
             {
@@ -256,7 +256,7 @@
                         </AppNativeSelect>
                     }
                 </section>
-                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" LibrariesUnavailable="@(!_librariesLoaded)" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
                 @if (_invitation is not null)
                 {
                     <InvitationShare Code="@_invitation.Code" ExpiresAt="@_invitation.ExpiresAt" PublicAddress="@_invitation.PublicAddress" />
@@ -308,6 +308,8 @@
     private List<AccountAccessResponse> _accounts = [];
     private List<ManagedProfileResponse> _profiles = [];
     private List<AccessLibraryOptionDto> _libraries = [];
+    // False when the Engine's library list could not be read: libraries are then left exactly as they are (an empty list is not "nothing hidden").
+    private bool _librariesLoaded = true;
     private AccountAccessResponse? _editing;
     private AccountInvitationResponse? _invitation;
     private UserDrawerMode _mode;
@@ -515,9 +517,24 @@
         _libraryIds.UnionWith(_libraries.Select(library => library.Id).Where(id => !account.HiddenLibraryIds.Contains(id)));
     }
 
-    // The unticked libraries are what the Engine stores: it saves the ones hidden from the person.
-    private Guid[] HiddenLibraryIds() =>
-        _libraries.Select(library => library.Id).Where(id => !_libraryIds.Contains(id)).Order().ToArray();
+    // The Engine stores the libraries hidden from the person. Start from what is hidden now, hide the ones unticked here and show the
+    // ones ticked, and never touch an id the list didn't show (or any id at all when the list could not be loaded).
+    private Guid[] HiddenLibraryIds(IEnumerable<Guid>? currentlyHidden)
+    {
+        var hidden = (currentlyHidden ?? []).ToHashSet();
+        if (_librariesLoaded)
+        {
+            foreach (var library in _libraries)
+            {
+                if (_libraryIds.Contains(library.Id))
+                    hidden.Remove(library.Id);
+                else
+                    hidden.Add(library.Id);
+            }
+        }
+
+        return hidden.Order().ToArray();
+    }
 
     private void ResetDrawer(UserDrawerMode mode)
     {
@@ -550,7 +567,7 @@
             {
                 var useTemporaryPassword = _signInMethod == TemporaryPasswordMethod;
                 var result = await Identity.CreateManagedAccountResultAsync(new(_email.Trim(), _administrator, null,
-                    new(_profileName.Trim(), _profileColor), _featureIds.Order().ToArray(), HiddenLibraryIds(),
+                    new(_profileName.Trim(), _profileColor), _featureIds.Order().ToArray(), HiddenLibraryIds(null),
                     useTemporaryPassword ? _temporaryPassword : null));
                 if (!IsCurrentMutation(generation))
                     return;
@@ -628,7 +645,7 @@
             ClearMessages();
             var label = EditingLabel;
             var result = await Identity.ReplaceManagedAccountAccessResultAsync(_editing.Id,
-                new(_featureIds.Order().ToArray(), HiddenLibraryIds()));
+                new(_featureIds.Order().ToArray(), HiddenLibraryIds(_editing.HiddenLibraryIds)));
             if (!IsCurrentMutation(generation))
                 return;
             if (result.Succeeded)
@@ -892,7 +909,7 @@
                 _invitation = result.Value;
                 var permissions = await Identity.ReplaceManagedAccountAccessResultAsync(
                     result.Value.AccountId,
-                    new(_featureIds.Order().ToArray(), HiddenLibraryIds()));
+                    new(_featureIds.Order().ToArray(), HiddenLibraryIds(null)));
                 if (!IsCurrentMutation(generation))
                     return;
                 _drawerMessage = permissions.Succeeded
@@ -955,7 +972,8 @@
             return;
         _accounts = accounts.Result;
         _profiles = profiles.Result;
-        _libraries = libraries.Result;
+        _librariesLoaded = libraries.Result is not null;
+        _libraries = libraries.Result ?? [];
     }
 
     private async Task ReloadKeepingEditing(long? generation = null)

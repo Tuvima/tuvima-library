@@ -142,6 +142,24 @@ public sealed class HouseholdAdministratorTests
     }
 
     [Fact]
+    public async Task AHiddenLibraryThatLeftTheConfiguration_DoesNotBlockASave_ButANewUnknownOneIsStillRefused()
+    {
+        await using var world = await World.CreateAsync();
+        var gone = Guid.NewGuid();
+        var owner = world.A.Owner;
+        var read = new HashSet<AccountFeatureId> { AccountFeatureId.Read };
+        await world.Accounts.ReplaceAccountAccessAsync(owner.Id, read, new HashSet<Guid> { gone }, DateTimeOffset.UtcNow);
+
+        // Saving the list the page loaded (which still names the stale id) works, and the stale row goes.
+        await world.Mutations.ReplaceAccessAsync(world.ServerAdmin, owner.Id, read, new HashSet<Guid> { gone });
+        Assert.Empty(await world.Accounts.GetHiddenLibrariesAsync(owner.Id));
+
+        // An id nobody stored for this account, that is not configured, is refused.
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            world.Mutations.ReplaceAccessAsync(world.ServerAdmin, owner.Id, read, new HashSet<Guid> { Guid.NewGuid() }));
+    }
+
+    [Fact]
     public async Task OnlyAServerAdministrator_DecidesWhoLooksAfterAHousehold()
     {
         await using var world = await World.CreateAsync();

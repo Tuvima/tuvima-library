@@ -14,7 +14,8 @@
 </section>
 <section class="access-user-permissions">
     <AppText Typo="AppTypo.subtitle1">Catalogued libraries</AppText>
-    @if (Libraries.Count == 0) { <small>No catalogued libraries are configured.</small> }
+    @if (LibrariesUnavailable) { <AppAlert Severity="AppSeverity.Error">The libraries could not be loaded, so their visibility can't be changed right now. Nothing about them is saved.</AppAlert> }
+    else if (Libraries.Count == 0) { <small>No catalogued libraries are configured.</small> }
     else
     {
         <div class="access-user-permissions__libraries">
@@ -40,6 +41,9 @@
     [Parameter, EditorRequired] public IReadOnlySet<string> FeatureIds { get; set; } = new HashSet<string>();
     [Parameter, EditorRequired] public IReadOnlySet<Guid> LibraryIds { get; set; } = new HashSet<Guid>();
     [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
+
+    /// <summary>True when the Engine's library list could not be read. The libraries are then left exactly as they are.</summary>
+    [Parameter] public bool LibrariesUnavailable { get; set; }
     [Parameter] public EventCallback<(string Id, bool Value)> FeatureChanged { get; set; }
     [Parameter] public EventCallback<(Guid Id, bool Value)> LibraryChanged { get; set; }
 

@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.Events;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Events;
@@ -30,6 +31,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
     private readonly ManualTimeProvider _clock = new(new DateTimeOffset(2026, 9, 9, 15, 0, 0, TimeSpan.Zero));
     private readonly Guid _accountId = Guid.NewGuid();
     private readonly Guid _libraryId = Guid.NewGuid();
+    private readonly string _configPath = Path.Combine(Path.GetTempPath(), $"tuvima_application_events_config_{Guid.NewGuid():N}");
 
     public ApplicationEventNativeAuthorityTests()
     {
@@ -216,9 +218,14 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
             consent,
             new HashSet<string>(StringComparer.Ordinal) { "library.item_added" },
             new HashSet<Guid> { _libraryId });
+        return new(NewAuthorizer(ConfiguredLibraries()), subscriber);
+    }
+
+    private ApplicationEventSubscriptionAuthorizer NewAuthorizer(IConfigurationLoader configuration)
+    {
         var permissions = new PermissionRegistry();
         var registry = new ApplicationEventRegistry(permissions);
-        var authorizer = new ApplicationEventSubscriptionAuthorizer(
+        return new ApplicationEventSubscriptionAuthorizer(
             new AllowAuthorizationEvaluator(),
             _accounts,
             _applications,
@@ -227,8 +234,8 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
             registry,
             new ApplicationEventDeliveryAuthorizer(_applications, permissions, registry),
             _clock,
-            new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)));
-        return new(authorizer, subscriber);
+            new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)),
+            configuration);
     }
 
     private StoredApplicationEvent Event() => new(
@@ -241,8 +248,51 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
         new("asset", Guid.NewGuid().ToString("D"), _libraryId, Profile.SeedProfileId, AccountFeatureId.Watch),
         "{}");
 
+    // One configured library in the Watch area, the one the fixture's events are about.
+    private ConfigurationDirectoryLoader ConfiguredLibraries(string area = "watch", params Guid[] extra)
+    {
+        // Written straight to the file: the test only needs the loader to read the libraries back, not the settings screen's validation.
+        Directory.CreateDirectory(_configPath);
+        File.WriteAllText(Path.Combine(_configPath, "libraries.json"), System.Text.Json.JsonSerializer.Serialize(new LibrariesConfiguration
+        {
+            Libraries =
+            [
+                new LibraryFolderConfig { Id = _libraryId.ToString("D"), Name = "Films", Category = "Movies", Kind = LibraryKinds.Catalogued, KindKey = "movies", Area = area, MediaTypes = ["Movies"] },
+                .. extra.Select(id => new LibraryFolderConfig { Id = id.ToString("D"), Name = "Other", Category = "Books", Kind = LibraryKinds.Catalogued, KindKey = "books", Area = "read", MediaTypes = ["Books"] }),
+            ],
+            StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Media", Path = Path.Combine(_configPath, "library"), AllowWrite = true }],
+        }));
+        return new ConfigurationDirectoryLoader(_configPath);
+    }
+
+    [Fact]
+    public async Task Subscribe_IsRefusedForAnUnknownLibrary_AndForALibraryInAnAreaTheAccountLacks_ButNotForOneItMaySee()
+    {
+        var otherLibrary = Guid.NewGuid();
+        var fixture = await CreateSubscriptionAsync();
+        var authority = fixture.Subscriber.Authority;
+        var types = new List<string> { "library.item_added" };
+        var configured = ConfiguredLibraries("watch", otherLibrary);
+        var subscription = NewAuthorizer(configured);
+
+        // The account has Watch only: the Watch library is fine, the unknown id and the Read library are refused.
+        Assert.True(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { _libraryId }, CancellationToken.None));
+        Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { Guid.NewGuid() }, CancellationToken.None));
+        Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { otherLibrary }, CancellationToken.None));
+        Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { _libraryId, otherLibrary }, CancellationToken.None));
+
+        // A library hidden from the account is refused too.
+        await _accounts.ReplaceAccountAccessAsync(_accountId, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { _libraryId }, _clock.GetUtcNow());
+        Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { _libraryId }, CancellationToken.None));
+    }
+
     public void Dispose()
     {
+        if (Directory.Exists(_configPath))
+        {
+            Directory.Delete(_configPath, recursive: true);
+        }
+
         _database.Dispose();
         TestTemp.ReleaseSqlitePool(_databasePath);
         if (File.Exists(_databasePath))

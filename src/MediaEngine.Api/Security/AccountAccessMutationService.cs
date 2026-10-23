@@ -8,6 +8,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Identity.Contracts;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Security;
 
@@ -24,7 +25,8 @@ public sealed class AccountAccessMutationService(
     IProfilePhotoDisposer photoDisposer,
     TimeProvider clock,
     IUsableAdministratorService usableAdministrators,
-    AuthenticationPolicyMutationGate mutationGate) : IAccountAccessMutationService
+    AuthenticationPolicyMutationGate mutationGate,
+    ILogger<AccountAccessMutationService>? logger = null) : IAccountAccessMutationService
 {
     /// <summary>What a person is told when a change would leave nobody able to sign in as a server administrator.</summary>
     public const string LastAdministratorMessage =
@@ -64,7 +66,7 @@ public sealed class AccountAccessMutationService(
         {
             throw new InvalidOperationException("Child profiles can't be administrators.");
         }
-        ValidateLibraries(command.HiddenLibraries);
+        var hiddenLibraries = await ValidateLibrariesAsync(command.HiddenLibraries, null, ct).ConfigureAwait(false);
 
         var now = clock.GetUtcNow();
         var email = NormalizeEmail(command.Email);
@@ -90,7 +92,7 @@ public sealed class AccountAccessMutationService(
             GrantedAt = now,
         };
         await accounts.CreateAccountAsync(
-            account, grant, command.Features, command.HiddenLibraries, ct, newProfile, actor.AccountId).ConfigureAwait(false);
+            account, grant, command.Features, hiddenLibraries, ct, newProfile, actor.AccountId).ConfigureAwait(false);
         if (!string.IsNullOrEmpty(command.TemporaryPassword))
         {
             try
@@ -889,7 +891,7 @@ public sealed class AccountAccessMutationService(
         {
             throw new KeyNotFoundException("Account not found.");
         }
-        ValidateLibraries(hiddenLibraries);
+        hiddenLibraries = await ValidateLibrariesAsync(hiddenLibraries, accountId, ct).ConfigureAwait(false);
         if (target.GrantsInheritFromAccountId is not null)
         {
             throw new InvalidOperationException("This person's access follows the household. Change it on the household's main sign-in.");
@@ -1244,7 +1246,9 @@ public sealed class AccountAccessMutationService(
     /// <summary>A temporary password lasts seven days, independent of the invitation lifetime.</summary>
     private DateTimeOffset TemporaryPasswordExpiry() => clock.GetUtcNow().Add(TemporaryPasswordPolicy.Lifetime);
 
-    private void ValidateLibraries(IReadOnlySet<Guid> libraryIds)
+    // A hidden library must be a configured catalogued library. A library that is already stored as hidden for this account but has since
+    // left the configuration is dropped quietly (so it can't block a save); a new unknown id from a client is still refused.
+    private async Task<IReadOnlySet<Guid>> ValidateLibrariesAsync(IReadOnlySet<Guid> libraryIds, Guid? accountId, CancellationToken ct)
     {
         var known = configuration.LoadLibraries().Libraries
             .Where(library => library.Kind == LibraryKinds.Catalogued)
@@ -1252,10 +1256,22 @@ public sealed class AccountAccessMutationService(
             .Where(id => id != Guid.Empty)
             .ToHashSet();
         var unknown = libraryIds.Where(id => !known.Contains(id)).ToArray();
-        if (unknown.Length > 0)
+        if (unknown.Length == 0)
         {
-            throw new ArgumentException($"Unknown catalogued library '{unknown[0]:D}'.");
+            return libraryIds;
         }
+
+        var stored = accountId is { } account
+            ? await accounts.GetHiddenLibrariesAsync(account, ct).ConfigureAwait(false)
+            : new HashSet<Guid>();
+        var refused = unknown.Where(id => !stored.Contains(id)).ToArray();
+        if (refused.Length > 0)
+        {
+            throw new ArgumentException($"Unknown catalogued library '{refused[0]:D}'.");
+        }
+
+        logger?.LogDebug("Dropped {Count} hidden librar(ies) that are no longer configured while saving access for account {AccountId}.", unknown.Length, accountId);
+        return libraryIds.Where(known.Contains).ToHashSet();
     }
 
     private async Task ChangedAsync(
