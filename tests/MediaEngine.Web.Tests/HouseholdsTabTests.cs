@@ -26,6 +26,8 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
     private readonly List<HouseholdResponse> _households = [];
     private HttpStatusCode _deleteStatus = HttpStatusCode.NoContent;
     private bool _passwordRequired;
+    private string? _passwordCode = "secure_administrators_first";
+    private string _passwordDetail = PasswordSentence;
     private bool _confirmRemoval = true;
     private int _confirmCount;
 
@@ -205,6 +207,40 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AddHousehold_OffersTheSetPasswordButtonForTheEnginesCode_WhateverTheSentenceSays()
+    {
+        UseSession(serverAdministrator: true);
+        _passwordRequired = true;
+        _passwordDetail = "Give yourself a password before adding another household.";
+        var cut = Render<HouseholdsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".households-tab__item").Count));
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add household").Click();
+        cut.Find("[data-households-add] input").Input("Lake house");
+        cut.FindAll("[data-households-add] button").Single(button => button.TextContent.Trim() == "Add").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(_passwordDetail, cut.Find("[data-households-error]").TextContent));
+        Assert.Equal("Set an email and password", cut.Find("[data-households-set-password] button").TextContent.Trim());
+    }
+
+    [Fact]
+    public void AddHousehold_RefusedWithTheSameWordsButNoCode_DoesNotOfferTheSetPasswordButton()
+    {
+        UseSession(serverAdministrator: true);
+        _passwordRequired = true;
+        _passwordCode = null;
+        var cut = Render<HouseholdsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".households-tab__item").Count));
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add household").Click();
+        cut.Find("[data-households-add] input").Input("Lake house");
+        cut.FindAll("[data-households-add] button").Single(button => button.TextContent.Trim() == "Add").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(PasswordSentence, cut.Find("[data-households-error]").TextContent));
+        Assert.Empty(cut.FindAll("[data-households-set-password]"));
+    }
+
+    [Fact]
     public void OtherRefusals_DoNotOfferTheSetPasswordButton()
     {
         UseSession(serverAdministrator: true);
@@ -256,7 +292,7 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
             {
                 return new HttpResponseMessage(HttpStatusCode.Conflict)
                 {
-                    Content = JsonContent.Create(new { title = "Conflict.", status = 409, detail = PasswordSentence }),
+                    Content = JsonContent.Create(new { title = "Conflict.", status = 409, detail = owner._passwordDetail, code = owner._passwordCode }),
                 };
             }
 

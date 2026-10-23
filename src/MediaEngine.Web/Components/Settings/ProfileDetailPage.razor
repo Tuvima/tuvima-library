@@ -13,6 +13,7 @@
 @inject NavigationManager Nav
 @inject IAppToastService Toasts
 @inject ILogger<ProfileDetailPage> Logger
+@inject DeviceContextService DeviceContext
 
 @* Settings > Profiles > one person: a short list of rows, the same for your own profile and (for administrators) anyone in the household. *@
 <div class="profile-detail" data-profile-section="detail">
@@ -145,6 +146,12 @@
                                                                    AdministratorHasPin="@(_active?.HasPin == true)" />
         }
 
+        @if (CanManage && _managedPerson is not null && DeviceContext.IsPhone)
+        {
+            @* A phone shows who is who; roles, access and Delete profile are changed on a computer or tablet. *@
+            <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
+        }
+
         @if (ShowRoles)
         {
             <div class="profile-detail__group" data-profile-section="roles">
@@ -158,7 +165,7 @@
                         <AppSwitchRow Label="Household administrator"
                                       Description="@(_householdRole.Reason ?? "Looks after this household's people and what they can open.")"
                                       Value="@_householdRole.On"
-                                      ValueChanged="@(on => SetRolesAsync(on, _serverRole.On))"
+                                      ValueChanged="@(on => SetRolesAsync(on, ServerRoleValue))"
                                       Disabled="@(!_householdRole.Enabled || _roleBusy)" />
                     </li>
                     @if (_serverRole.Visible)
@@ -342,9 +349,13 @@
     // The profile editor saves through administrator-only Engine actions; a member's rename/avatar route may come later.
     private bool CanEditDetails => IsAdministrator;
 
-    private bool ShowRoles => CanManage && _managedPerson is not null;
+    // Roles, access and Delete profile are changed on a computer or tablet; a phone only reads them.
+    private bool ShowRoles => CanManage && _managedPerson is not null && !DeviceContext.IsPhone;
 
-    private bool ShowAccess => CanManage && _managedPerson is not null;
+    private bool ShowAccess => CanManage && _managedPerson is not null && !DeviceContext.IsPhone;
+
+    // The server switch is not drawn for everyone; when it is hidden the person's current state is sent, never "off".
+    private bool ServerRoleValue => _serverRole.Visible ? _serverRole.On : _managedPerson?.IsServerAdmin == true;
 
     private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true || Session.HasNavigation("settings.administration");
 
@@ -434,7 +445,7 @@
 
     // Delete is offered only to someone who can manage people, and never for the profile in use, the last household administrator,
     // a server administrator (to a household administrator) or the household's only person.
-    private bool CanDelete => _managedPerson is { } person && _active is { } active && CanManage
+    private bool CanDelete => _managedPerson is { } person && _active is { } active && CanManage && !DeviceContext.IsPhone
         && ProfileRoleRules.CanDelete(person, active.Id, HouseholdPeople, IsServerAdministrator);
 
     private string DetailsStatus
@@ -784,6 +795,11 @@
 
     private void OpenDelete()
     {
+        if (!CanDelete)
+        {
+            return;
+        }
+
         _editorError = null;
         _startInDelete = true;
         _editorOpen = true;
@@ -849,7 +865,7 @@
 
     private async Task RemoveAsync(bool keepPhotos)
     {
-        if (_person is not { } profile || _editorSaving)
+        if (_person is not { } profile || _editorSaving || DeviceContext.IsPhone)
         {
             return;
         }

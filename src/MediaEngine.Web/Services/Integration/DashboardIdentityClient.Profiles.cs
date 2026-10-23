@@ -40,8 +40,8 @@ public sealed partial class DashboardIdentityClient
             }
 
             var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
-            var message = await ReadPlainMessageAsync(response, failure, ct, readAnyEngineSentence: true).ConfigureAwait(false);
-            return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, message: message);
+            var (message, code) = await ReadPlainProblemAsync(response, failure, ct, readAnyEngineSentence: true).ConfigureAwait(false);
+            return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, message: message, code: code);
         }
         catch (HttpRequestException)
         {

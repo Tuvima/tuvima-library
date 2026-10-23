@@ -199,6 +199,7 @@
     public string? AddFlag => Query.String("add");
 
     private List<ProfileViewModel> _profiles = [];
+    private List<ManagedProfileResponse> _managedPeople = [];
     private ProfileViewModel? _active;
     private Guid? _preferredId;
     private ProfileViewModel? _pending;
@@ -237,7 +238,12 @@
     // Adding is offered up to the household limit.
     private bool ShowAddTile => ProfileManageRules.CanAdd(CanManage, _profiles.Count);
 
-    private bool CanDeleteEditing => _editing is { } profile && ProfileManageRules.CanDelete(profile, _active?.Id, _profiles.Count);
+    // Delete follows the same rules as the profile page: never the profile in use, the household's last administrator or only person,
+    // and a server administrator's profile only to a server administrator. The Engine's own refusal still applies.
+    private bool CanDeleteEditing => _editing is { } profile
+        && _managedPeople.FirstOrDefault(person => person.Id == profile.Id) is { } person
+        && ProfileRoleRules.CanDelete(person, _active?.Id,
+            _managedPeople.Where(other => other.HouseholdId == person.HouseholdId).ToList(), _isAdministrator);
 
     private bool WantsManage => ManageFlag == "1" || AddFlag == "1";
 
@@ -264,6 +270,11 @@
 
             _preferredId = await Identity.GetDeviceProfilePreferenceAsync();
             _alwaysOpen = _preferredId is not null;
+            if (WantsManage && CanManage)
+            {
+                // Before the list shows, so nobody can tap a profile in the moment between loading and Manage profiles mode.
+                await LoadManagedPeopleAsync();
+            }
         }
         catch (Exception exception)
         {
@@ -445,6 +456,7 @@
         _error = null;
         if (await IsTelevisionAsync())
         {
+            await LoadManagedPeopleAsync();
             _managing = true;
             return;
         }
@@ -747,6 +759,20 @@
         return _householdId;
     }
 
+    // The roles and households behind each person, so Delete is offered by the same rules as on the profile page.
+    private async Task LoadManagedPeopleAsync()
+    {
+        try
+        {
+            _managedPeople = await Identity.GetManagedProfilesAsync();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the roles behind the profiles; Delete is not offered.");
+            _managedPeople = [];
+        }
+    }
+
     private async Task ReloadProfilesAsync()
     {
         try
@@ -764,5 +790,7 @@
             Logger.LogWarning(exception, "Could not refresh the profile list.");
             _error = "The list couldn't be refreshed. Reload the page to see the latest.";
         }
+
+        await LoadManagedPeopleAsync();
     }
 }

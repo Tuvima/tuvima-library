@@ -1,5 +1,3 @@
-using MediaEngine.Web.Models.ViewDTOs;
-
 namespace MediaEngine.Web.Components.Profiles;
 
 /// <summary>
@@ -15,11 +13,4 @@ public static class ProfileManageRules
 
     /// <summary>A household holds up to eight people.</summary>
     public static bool CanAdd(bool canManage, int profileCount) => canManage && profileCount < MaxProfiles;
-
-    /// <summary>
-    /// Delete is offered for anyone except the last profile, the original Owner profile and the profile that is open right now
-    /// (switch to someone else first).
-    /// </summary>
-    public static bool CanDelete(ProfileViewModel profile, Guid? activeProfileId, int profileCount) =>
-        profileCount > 1 && !profile.IsSeed && profile.Id != activeProfileId;
 }

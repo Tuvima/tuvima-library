@@ -68,6 +68,9 @@ public sealed class AccountEndpointContractTests
             // The older routes that reach the same actions keep the same rule.
             ("/access/accounts/{accountId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite),
             ("/access/accounts/{accountId:guid}/deletion-preview", "GET", ApplicationPermissionIds.IdentityUsersWrite),
+            // A sign-in is a user: only the server administrator gives or removes a person's own sign-in (D4).
+            ("/access/profiles/{profileId:guid}/own-sign-in", "POST", ApplicationPermissionIds.IdentityUsersWrite),
+            ("/access/accounts/{accountId:guid}/own-sign-in", "DELETE", ApplicationPermissionIds.IdentityUsersWrite),
         };
         foreach (var (route, method, permission) in users)
         {

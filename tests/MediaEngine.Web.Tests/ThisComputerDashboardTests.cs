@@ -44,8 +44,8 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         var form = RenderStage(available: true, mode: SetupSignInModes.ThisComputer);
 
         Assert.Contains("Display name", form.Markup);
-        Assert.DoesNotContain("Email", form.Markup.Replace("Add an email and password any time", string.Empty, StringComparison.Ordinal));
-        Assert.Contains("Add an email and password any time to use it away from home", form.Markup);
+        Assert.DoesNotContain("Email", form.Markup);
+        Assert.Equal(1, form.Markup.Split("You can add a password later.").Length - 1);
         Assert.DoesNotContain("Password", form.Markup);
         Assert.DoesNotContain("PIN", form.Markup);
     }

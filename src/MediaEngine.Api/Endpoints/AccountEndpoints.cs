@@ -541,7 +541,7 @@ public static class AccountEndpoints
 
             await mutations.RemoveOwnSignInAsync(await resolver.ResolveAsync(http, ct), accountId, ct);
             return Results.NoContent();
-        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("RemoveOwnSignIn").Produces(StatusCodes.Status204NoContent);
 
         group.MapPut("/{accountId:guid}/access", async (Guid accountId,
@@ -975,7 +975,7 @@ public static class AccountEndpoints
             return Results.Ok(new GiveOwnSignInResponse(given.Account.Id, given.Account.Email, invitation,
                 given.Account.TemporaryPasswordExpiresAt));
         })).RequireSecuredAccount()
-           .RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("GiveOwnSignIn").Produces<GiveOwnSignInResponse>();
 
         profiles.MapPut("/{profileId:guid}", async (Guid profileId,
@@ -1108,6 +1108,7 @@ public static class AccountEndpoints
         try { return await operation(); }
         catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
         catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
+        catch (SecureAdministratorsFirstException ex) { return ApiErrors.Conflict(HouseholdRules.SecureAdministratorsFirstCode, ex.Message); }
         catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
         catch (UnauthorizedAccessException ex) { return ApiErrors.Forbidden(ex.Message); }
     }

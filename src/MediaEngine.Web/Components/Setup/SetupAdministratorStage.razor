@@ -34,7 +34,7 @@
         <div class="setup-form-grid">
             <AppTextField Label="Display name" Value="@DisplayName" ValueChanged="DisplayNameChanged" />
         </div>
-        <small>Library opens straight away for anyone on your home network. Add an email and password any time to use it away from home. Your details stay on your Library server. You can add a password later. You'll need one before adding another household.</small>
+        <small>Library opens straight away for anyone on your home network. Your details stay on your Library server. You can add a password later. You'll need one before adding another household.</small>
         @if (!string.IsNullOrEmpty(Notice))
         {
             <AppAlert Tone="AppUiTone.Warning">@Notice</AppAlert>

@@ -1,6 +1,7 @@
 using MediaEngine.Api.Security;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -244,12 +245,12 @@ public sealed class UsersProfilesHouseholdsActionTests
         var householdsBefore = (await world.Households.ListSummariesAsync()).Count;
         var profilesBefore = (await world.Profiles.GetAllAsync()).Count;
 
-        var viaUser = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.CreateUserAsync(world.ServerAdmin,
+        var viaUser = await Assert.ThrowsAsync<SecureAdministratorsFirstException>(() => world.Mutations.CreateUserAsync(world.ServerAdmin,
             new CreateUserCommand("pat@example.com", null, new NewUserProfileCommand("Pat", null, null, "Household 3"), NewUserSignInMethod.Invitation)));
-        var viaHousehold = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Management.CreateAsync(world.ServerAdmin, "Household 3"));
-        var viaInvitation = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.IssueInvitationAsync(world.ServerAdmin,
+        var viaHousehold = await Assert.ThrowsAsync<SecureAdministratorsFirstException>(() => world.Management.CreateAsync(world.ServerAdmin, "Household 3"));
+        var viaInvitation = await Assert.ThrowsAsync<SecureAdministratorsFirstException>(() => world.Mutations.IssueInvitationAsync(world.ServerAdmin,
             new IssueAccountInvitationCommand("sue@example.com", [], null, "Sue")));
-        var viaOlderRoute = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.CreateAsync(world.ServerAdmin,
+        var viaOlderRoute = await Assert.ThrowsAsync<SecureAdministratorsFirstException>(() => world.Mutations.CreateAsync(world.ServerAdmin,
             new CreateAccountAccessCommand("older@example.com", IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Older", null), Features: new HashSet<AccountFeatureId>(),
                 Libraries: new HashSet<Guid>(), TemporaryPassword: null)));
@@ -369,6 +370,97 @@ public sealed class UsersProfilesHouseholdsActionTests
         // The server administrator is not held to that ceiling.
         await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid>());
+    }
+
+    [Fact]
+    public async Task AHouseholdAdministrator_AddsWhatTheyHold_AndKeepsTheGrantsTheyDoNotHold()
+    {
+        await using var world = await World.CreateAsync();
+        var alexProfile = await DefaultProfileAsync(world, world.Alex);
+        var (held, notHeld) = AddCataloguedLibraries(world);
+        await world.Access.ReplaceAccessAsync(alexProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { held }, DateTimeOffset.UtcNow);
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid> { notHeld });
+
+        // Alex does not hold View or the second library: adding Read and the first library keeps both, though the request omits them.
+        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { held });
+
+        Assert.Equal(["read", "view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
+        Assert.Equal(new HashSet<Guid> { held, notHeld }, (await world.Access.GetLibraryGrantsAsync(world.KimProfile.Id)).ToHashSet());
+
+        // Alex can still take back what Alex holds; what Alex does not hold stays.
+        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+
+        Assert.Equal(["view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
+        Assert.Equal([notHeld], (await world.Access.GetLibraryGrantsAsync(world.KimProfile.Id)).ToArray());
+    }
+
+    [Fact]
+    public async Task AHouseholdAdministrator_CannotAddAFeatureOrLibraryTheyLack_ButSendingTheCurrentGrantsBackIsFine()
+    {
+        await using var world = await World.CreateAsync();
+        var alexProfile = await DefaultProfileAsync(world, world.Alex);
+        var (held, notHeld) = AddCataloguedLibraries(world);
+        await world.Access.ReplaceAccessAsync(alexProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { held }, DateTimeOffset.UtcNow);
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid>());
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReplaceProfileAccessAsync(
+            world.AlexAuthority, world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Listen }, new HashSet<Guid>()));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReplaceProfileAccessAsync(
+            world.AlexAuthority, world.KimProfile.Id, new HashSet<AccountFeatureId>(), new HashSet<Guid> { notHeld }));
+        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid>());
+
+        Assert.Equal(["view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
+        Assert.Empty(await world.Access.GetLibraryGrantsAsync(world.KimProfile.Id));
+    }
+
+    private static (Guid First, Guid Second) AddCataloguedLibraries(World world)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "tuvima-grants-" + Guid.NewGuid().ToString("N"));
+        var config = world.Configuration.LoadLibraries();
+        config.StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Media", Path = root, AllowWrite = true }];
+        var ids = new List<Guid>();
+        foreach (var (name, kindKey, mediaType, area) in new[]
+        {
+            ("Recordings", "other_audio", "Music", LibraryAreas.Listen),
+            ("Loose books", "other_reading", "Books", LibraryAreas.Read),
+        })
+        {
+            var id = Guid.NewGuid();
+            ids.Add(id);
+            config.Libraries.Add(new LibraryFolderConfig
+            {
+                Id = id.ToString("D"),
+                Name = name,
+                Category = mediaType,
+                Kind = LibraryKinds.Catalogued,
+                KindKey = kindKey,
+                Area = area,
+                Presentation = LibraryPresentations.Catalogue,
+                MetadataPolicy = LibraryMetadataPolicies.LocalOnly,
+                MediaTypes = [mediaType],
+                Visibility = LibraryVisibility.Household,
+                Sources =
+                [
+                    new LibrarySourceConfig
+                    {
+                        Id = Guid.NewGuid().ToString("D"),
+                        Path = Path.Combine(root, kindKey),
+                        ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
+                        AccessMode = LibrarySourceAccessModes.ReadOnly,
+                    },
+                ],
+                OrganizationPolicy = new LibraryOrganizationPolicyConfig { Mode = LibraryOrganizationModes.KeepOriginalFolders, WriteTags = false },
+            });
+        }
+
+        world.Configuration.SaveLibraries(config);
+        return (ids[0], ids[1]);
     }
 
     [Fact]

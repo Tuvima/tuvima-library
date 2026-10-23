@@ -22,7 +22,7 @@ public sealed class DashboardAccessMutationTests
             Content = new StringContent("""{"errors":{"pin":["secret-pin"],"email":["invalid"]}}""", Encoding.UTF8, "application/problem+json"),
         });
 
-        var result = await client.CreateManagedAccountResultAsync(CreateAccountRequest());
+        var result = await client.SetTemporaryPasswordResultAsync(Guid.NewGuid(), TemporaryPasswordRequest());
 
         Assert.False(result.Succeeded);
         Assert.Equal(expected, result.Failure);
@@ -96,24 +96,18 @@ public sealed class DashboardAccessMutationTests
     }
 
     [Fact]
-    public async Task AccountGrantMutations_AcceptTheActualNoContentSuccessContract()
+    public async Task AccountGrantProtection_AcceptsTheActualNoContentSuccessContract()
     {
         var accountId = Guid.NewGuid();
         var profileId = Guid.NewGuid();
         var handler = new RecordingNoContentHandler();
         var client = new DashboardIdentityClient(new TestClientFactory(handler));
 
-        var access = await client.ReplaceManagedAccountAccessResultAsync(accountId, new ReplaceAccountAccessRequest(["read"], []));
-        var grant = await client.SetManagedProfileGrantResultAsync(accountId, profileId, new SetAccountProfileGrantAccessRequest(true, true));
         var protection = await client.SetGrantProtectionResultAsync(accountId, profileId, new SetGrantAdminProtectionRequest(true, "FixedDuration", 30));
 
-        Assert.True(access.Succeeded);
-        Assert.True(grant.Succeeded);
         Assert.True(protection.Succeeded);
         Assert.All(handler.Requests, request => Assert.Equal("application/json", request.ContentType));
         Assert.Equal([
-            $"/access/accounts/{accountId:D}/access",
-            $"/access/accounts/{accountId:D}/grants/{profileId:D}",
             $"/access/accounts/{accountId:D}/grants/{profileId:D}/admin-protection",
         ], handler.Paths);
     }
@@ -126,14 +120,14 @@ public sealed class DashboardAccessMutationTests
             Content = new StringContent("[]", Encoding.UTF8, "application/problem+json"),
         });
 
-        var result = await client.CreateManagedAccountResultAsync(CreateAccountRequest());
+        var result = await client.SetTemporaryPasswordResultAsync(Guid.NewGuid(), TemporaryPasswordRequest());
 
         Assert.Equal(DashboardAccessMutationFailure.Validation, result.Failure);
         Assert.Empty(result.ValidationFields!);
     }
 
-    private static CreateManagedAccountRequest CreateAccountRequest() =>
-        new("person@example.test", false, Guid.NewGuid(), null, [], []);
+    private static SetTemporaryPasswordRequest TemporaryPasswordRequest() =>
+        new("a long temporary password");
 
     private static DashboardIdentityClient Client(Func<HttpRequestMessage, HttpResponseMessage> response) =>
         new(new TestClientFactory(new DelegateHandler(response)));

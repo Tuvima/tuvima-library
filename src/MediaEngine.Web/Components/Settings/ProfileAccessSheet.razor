@@ -2,10 +2,11 @@
 @using MediaEngine.Contracts.Authentication
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
+@inject DeviceContextService DeviceContext
 @* The "Libraries and lanes" sheet on a person's profile page: which Libraries and which of Read / Watch / Listen / View this
    profile may use. It only gathers the choices and reports them; the page that opens it talks to the Engine, which refuses
    anything the administrator's own profile does not hold, and the reason it gives is shown here. *@
-@if (Open)
+@if (Open && !DeviceContext.IsPhone)
 {
     <div class="settings-sheet-backdrop" @onclick="CloseAsync">
         <div @ref="_root"
@@ -32,7 +33,7 @@
             }
             else
             {
-                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="Libraries" OfferedFeatureIds="OfferedFeatureIds"
+                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="Libraries" OfferedFeatureIds="OfferedFeatureIds" ReadOnlyLibraryCount="_readOnlyLibraryCount"
                                               FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
             }
 
@@ -49,6 +50,7 @@
 @code {
     private readonly HashSet<string> _featureIds = [];
     private readonly HashSet<Guid> _libraryIds = [];
+    private int _readOnlyLibraryCount;
     private ElementReference _root;
     private bool _wasOpen;
     private bool _wasLoading;
@@ -88,10 +90,23 @@
     {
         _featureIds.Clear();
         _libraryIds.Clear();
+        _readOnlyLibraryCount = 0;
         if (Person is { } person)
         {
+            // Only what this administrator holds can change. The rest is shown read-only and never sent: the Engine keeps it as it is.
+            // The server administrator (nothing narrowed) replaces the whole set as before.
             _featureIds.UnionWith(person.FeatureIds ?? []);
-            _libraryIds.UnionWith(person.LibraryIds ?? []);
+            var libraryIds = person.LibraryIds ?? [];
+            if (OfferedFeatureIds is null)
+            {
+                _libraryIds.UnionWith(libraryIds);
+            }
+            else
+            {
+                var offered = Libraries.Select(library => library.Id).ToHashSet();
+                _libraryIds.UnionWith(libraryIds.Where(offered.Contains));
+                _readOnlyLibraryCount = libraryIds.Count(id => !offered.Contains(id));
+            }
         }
     }
 
@@ -119,8 +134,11 @@
         }
     }
 
-    private Task SaveAsync() =>
-        OnSave.InvokeAsync(new ReplaceProfileAccessRequest(_featureIds.Order().ToArray(), _libraryIds.Order().ToArray()));
+    // Access is changed on a computer or tablet; a phone neither shows this sheet nor saves from it.
+    private Task SaveAsync() => DeviceContext.IsPhone ? Task.CompletedTask :
+        OnSave.InvokeAsync(new ReplaceProfileAccessRequest(
+            _featureIds.Where(feature => OfferedFeatureIds is null || OfferedFeatureIds.Contains(feature)).Order().ToArray(),
+            _libraryIds.Order().ToArray()));
 
     private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
 
@@ -134,7 +152,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!Open)
+        if (!Open || DeviceContext.IsPhone)
         {
             _focused = false;
             return;

@@ -635,6 +635,7 @@ public sealed class UserDeletionTests
         public ProfileAccessRepository Access { get; private set; } = null!;
         public ProfileRepository Profiles { get; private set; } = null!;
         public AccountAccessMutationService Mutations { get; private set; } = null!;
+        public ConfigurationDirectoryLoader Configuration => _configuration;
         public NoProfilePhotos Photos { get; } = new();
         public CapturingAudit Audit { get; } = new();
         public CapturingLogger<AccountAccessMutationService> Log { get; } = new();

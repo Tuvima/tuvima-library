@@ -4920,13 +4920,8 @@ input[type="reset"],
 @media (min-width: 641px) { .settings-sheet-backdrop { align-items: center; padding: 24px; } .settings-sheet { width: min(560px, 100%); padding-bottom: 22px; border-radius: 18px; } }
 @media (min-width: 1600px) { .settings-sheet { width: min(640px, 100%); gap: 22px; } }
 .sign-in-sheet__intro { margin: 0; color: var(--tl-text-muted); }
-.sign-in-sheet__password { display: grid; gap: 8px; justify-items: start; }
-.sign-in-sheet__rows { display: grid; margin: 0; padding: 0; list-style: none; overflow: hidden; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); }
-.sign-in-sheet__row + .sign-in-sheet__row { border-top: 1px solid var(--tl-border-subtle); }
 .sign-in-sheet__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .sign-in-sheet__spacer { flex: 1 1 auto; }
-.sign-in-sheet .access-invitation strong, .sign-in-sheet .access-invitation span, .sign-in-sheet .access-invitation code, .sign-in-sheet .access-invitation small { display: block; }
-.sign-in-sheet .access-invitation code { margin: .55rem 0; padding: .65rem; overflow-wrap: anywhere; border-radius: var(--app-radius-sm, 8px); background: rgb(0 0 0 / 28%); user-select: all; }
 @media (prefers-reduced-motion: reduce) { .settings-sheet-backdrop, .settings-sheet { animation: none; } }
 .invitation-qr {
     width: 11rem;

@@ -410,6 +410,25 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
         Assert.Equal(["read", "watch"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
     }
 
+    // ---- Passwords before a second household carry a code ----
+
+    [Fact]
+    public async Task AddingAHouseholdBeforeTheAdministratorsAreSecured_AnswersConflict_WithAStableCode()
+    {
+        const string route = "/access/households";
+        const string body = """{"name":"Household 3"}""";
+        await using var world = await World.CreateAsync();
+        world.StripServerAdministratorPassword();
+        await using var host = EndpointHost.Create(world);
+
+        var refused = await host.InvokeAsync(route, "POST", new Dictionary<string, object>(), body: body);
+
+        Assert.Equal(StatusCodes.Status409Conflict, refused.Status);
+        using var problem = System.Text.Json.JsonDocument.Parse(refused.Body);
+        Assert.Equal(HouseholdRules.SecureAdministratorsFirstCode, problem.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HouseholdRules.SecureAdministratorsFirst, problem.RootElement.GetProperty("detail").GetString());
+    }
+
     // ---- Helpers ----
 
     /// <summary>A person in the Library's own household whose user has an email and no password yet.</summary>
@@ -440,6 +459,7 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
             AccountEndpointContractTests.AddEndpointServices(builder.Services);
             builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedResolver(world.ServerAdmin));
             builder.Services.AddSingleton(world.Mutations);
+            builder.Services.AddSingleton(world.Management);
             builder.Services.AddSingleton<IAccountAccessMutationService>(world.Mutations);
             builder.Services.AddSingleton(new RecentSignInGuard(null!));
 

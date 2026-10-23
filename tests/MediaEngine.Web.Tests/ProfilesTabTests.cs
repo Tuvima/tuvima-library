@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
@@ -103,6 +104,23 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Assert.Single(cut.FindAll("button"), button => button.TextContent.Trim() == "Add household");
         Assert.Equal(2, cut.FindAll(".profiles-tab__row--add").Count);
         Assert.DoesNotContain(cut.FindAll("button, a"), control => control.TextContent.Contains("Switch", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void OnAPhone_ThePeopleAreReadOnly_WithNoAddHouseholdOrAddProfile_AndTheManageOnAComputerNote()
+    {
+        UsePhone();
+        Setup(serverAdministrator: true, householdAdministrator: false);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
+        Assert.Contains("Manage on a computer or tablet.", cut.Find("p[role='note']").TextContent);
+        Assert.Empty(cut.FindAll(".profiles-tab__row--add"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Add household", StringComparison.Ordinal));
+        Assert.Equal(2, cut.FindAll(".profiles-tab__edit").Count);
     }
 
     [Fact]
@@ -275,6 +293,13 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Assert.Contains("_managing = true;", picker, StringComparison.Ordinal);
         Assert.Contains("\"television\"", picker, StringComparison.Ordinal);
         Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", menu, StringComparison.Ordinal);
+    }
+
+    private void UsePhone()
+    {
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true)).GetAwaiter().GetResult();
+        Services.AddScoped(_ => device);
     }
 
     private void Setup(bool serverAdministrator, bool householdAdministrator)

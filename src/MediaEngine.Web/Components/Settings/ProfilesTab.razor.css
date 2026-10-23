@@ -22,3 +22,9 @@
     .profiles-tab__line { min-height: 72px; font-size: 1.15rem; }
     .profiles-tab__row-avatar { width: 48px; height: 48px; }
 }
+
+.access-phone-note {
+    margin: 0 0 1rem;
+    color: var(--app-text-muted);
+    font-size: .9rem;
+}

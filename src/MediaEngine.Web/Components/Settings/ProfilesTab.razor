@@ -9,6 +9,7 @@
 @inject ConfirmedActionRunner Confirmed
 @inject NavigationManager Nav
 @inject ILogger<ProfilesTab> Logger
+@inject DeviceContextService DeviceContext
 
 @* Settings > Personal > Profiles: the editing page for administrators. A household administrator sees the people in their own
    household; a server administrator sees every household. Each person opens on their own page. Switching profile is only done
@@ -24,7 +25,11 @@ else
 {
     <div class="profiles-tab" data-profile-section="overview">
         <section class="profiles-tab__people" aria-label="People">
-            @if (IsServerAdministrator)
+            @if (DeviceContext.IsPhone)
+            {
+                <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
+            }
+            @if (IsServerAdministrator && !DeviceContext.IsPhone)
             {
                 <div class="profiles-tab__toolbar">
                     <AppButton Label="Add household" StartIcon="@AppMaterialIcons.Outlined.Home" OnClick="OpenAddHousehold" />
@@ -145,7 +150,8 @@ else
     private bool IsAdministrator => Session.HasAction("household.manage") || IsServerAdministrator;
 
     // Add profile is for administrators, and never from inside a Kids (restricted) profile.
-    private bool CanManage => ProfileManageRules.CanManage(_active?.IsRestricted == true, IsAdministrator);
+    // A phone only reads the list; adding people is done on a computer or tablet.
+    private bool CanManage => ProfileManageRules.CanManage(_active?.IsRestricted == true, IsAdministrator) && !DeviceContext.IsPhone;
 
     private Guid? OwnHouseholdId => _managed.FirstOrDefault(person => person.Id == _active?.Id)?.HouseholdId;
 
@@ -251,7 +257,7 @@ else
     // Adding a household is a server-administrator action; the Households page takes the name.
     private void OpenAddHousehold()
     {
-        if (!IsServerAdministrator)
+        if (!IsServerAdministrator || DeviceContext.IsPhone)
         {
             return;
         }

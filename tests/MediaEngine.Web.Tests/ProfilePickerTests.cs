@@ -58,19 +58,6 @@ public sealed class ProfilePickerTests
     }
 
     [Fact]
-    public void PickerPage_ShowsTheEnginesRefusalsAsTheyAre_AndDeletePromisesTheSignInGoesToo()
-    {
-        var page = Read("src/MediaEngine.Web/Components/Pages/ProfilePickerPage.razor");
-        var sheet = Read("src/MediaEngine.Web/Components/Profiles/ProfileEditorSheet.razor");
-
-        // Adding past eight and removing the last household administrator are refused by the Engine in its own sentence.
-        Assert.Contains("_editorError = added.Message;", page, StringComparison.Ordinal);
-        Assert.Contains("DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation", page, StringComparison.Ordinal);
-        Assert.Contains("progress, bookmarks, lists and history", sheet, StringComparison.Ordinal);
-        Assert.Contains("Move to Shared", sheet, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void PickerPage_UsesTheNumberPad_AndKeepsTheSameSwitchRules()
     {
         var page = Read("src/MediaEngine.Web/Components/Pages/ProfilePickerPage.razor");

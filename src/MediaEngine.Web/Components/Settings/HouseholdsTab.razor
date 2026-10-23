@@ -219,7 +219,7 @@ else
             var result = await Confirmed.RunAsync(() => Identity.CreateManagedHouseholdResultAsync(name));
             if (!result.Succeeded)
             {
-                return Refused(result.Failure, result.Message, AddCoreAsync);
+                return Refused(result.Failure, result.Message, result.Code, AddCoreAsync);
             }
 
             _adding = false;
@@ -243,7 +243,7 @@ else
             var result = await Confirmed.RunAsync(() => Identity.RenameManagedHouseholdResultAsync(household.Id, name));
             if (!result.Succeeded)
             {
-                return Refused(result.Failure, result.Message, () => RenameCoreAsync(household));
+                return Refused(result.Failure, result.Message, result.Code, () => RenameCoreAsync(household));
             }
 
             _renamingId = null;
@@ -273,7 +273,7 @@ else
             var result = await Confirmed.RunAsync(() => Identity.DeleteManagedHouseholdResultAsync(household.Id));
             if (!result.Succeeded)
             {
-                return Refused(result.Failure, result.Message, () => RemoveCoreAsync(household));
+                return Refused(result.Failure, result.Message, result.Code, () => RemoveCoreAsync(household));
             }
 
             _notice = $"{household.Name} was removed.";
@@ -308,7 +308,7 @@ else
 
     // A refusal: ask for the administrator PIN once if that is what is missing, otherwise say why in plain words. The Engine's own
     // sentence (a household that still holds people, a bad name) is shown as it is.
-    private bool Refused(DashboardAccessMutationFailure failure, string? message, Func<Task> retry)
+    private bool Refused(DashboardAccessMutationFailure failure, string? message, string? code, Func<Task> retry)
     {
         if (failure == DashboardAccessMutationFailure.Forbidden && !_justUnlocked)
         {
@@ -318,7 +318,8 @@ else
             return false;
         }
 
-        _needsPassword = failure == DashboardAccessMutationFailure.Conflict && IsSecureAdministratorsFirst(message);
+        // D10: the Engine marks this refusal with a stable code, so the button shows whatever words the sentence uses.
+        _needsPassword = failure == DashboardAccessMutationFailure.Conflict && code == DashboardAccessMutationResult.SecureAdministratorsFirstCode;
         _error = !string.IsNullOrWhiteSpace(message)
             ? message
             : failure switch
@@ -334,12 +335,6 @@ else
             };
         return false;
     }
-
-    // The Engine's sentence for a second household while the server administrator has no email and password yet (D10).
-    internal const string SecureAdministratorsFirstStart = "Set an email and password";
-
-    private static bool IsSecureAdministratorsFirst(string? message) =>
-        message?.StartsWith(SecureAdministratorsFirstStart, StringComparison.Ordinal) == true;
 
     private void OpenSecurity() => Nav.NavigateTo("/settings/security");
 

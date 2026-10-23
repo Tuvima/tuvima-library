@@ -1376,7 +1376,7 @@ public sealed class AccountAccessMutationService(
                 throw new UnauthorizedAccessException("Only a server administrator can change a server administrator's access.");
             }
 
-            await RequireWithinHouseholdAccessAsync(actor, features, libraries, ct).ConfigureAwait(false);
+            (features, libraries) = await MergeHouseholdAccessAsync(actor, profileId, features, libraries, ct).ConfigureAwait(false);
         }
 
         // The profile's version goes up with the change, so its open sessions and paired apps check again.
@@ -1527,7 +1527,7 @@ public sealed class AccountAccessMutationService(
     {
         if (!await accounts.AreServerAdministratorsSecuredAsync(ct).ConfigureAwait(false))
         {
-            throw new InvalidOperationException(HouseholdRules.SecureAdministratorsFirst);
+            throw new SecureAdministratorsFirstException();
         }
     }
 
@@ -1918,6 +1918,44 @@ public sealed class AccountAccessMutationService(
             throw new UnauthorizedAccessException(
                 "A household administrator can only hand out the libraries and features the household already has.");
         }
+    }
+
+    /// <summary>
+    /// A household administrator changes only what they hold. Against the profile's current access, a request may add or remove a
+    /// feature or library only if the acting profile holds it; a grant the administrator does not hold is kept exactly as it is
+    /// (whether or not the request lists it), and the request cannot add one. Returns the access to save.
+    /// </summary>
+    private async Task<(IReadOnlySet<AccountFeatureId> Features, IReadOnlySet<Guid> Libraries)> MergeHouseholdAccessAsync(
+        RequestAuthority actor,
+        Guid profileId,
+        IReadOnlySet<AccountFeatureId> requestedFeatures,
+        IReadOnlySet<Guid> requestedLibraries,
+        CancellationToken ct)
+    {
+        var source = actor.ActiveProfileId;
+        var heldFeatures = source is { } featureSource
+            ? (await profileAccess.GetFeatureGrantsAsync(featureSource, ct).ConfigureAwait(false)).ToHashSet()
+            : [];
+        var heldLibraries = source is { } librarySource
+            ? (await profileAccess.GetLibraryGrantsAsync(librarySource, ct).ConfigureAwait(false)).ToHashSet()
+            : [];
+        var currentFeatures = (await profileAccess.GetFeatureGrantsAsync(profileId, ct).ConfigureAwait(false)).ToHashSet();
+        var currentLibraries = (await profileAccess.GetLibraryGrantsAsync(profileId, ct).ConfigureAwait(false)).ToHashSet();
+
+        if (requestedFeatures.Any(feature => !currentFeatures.Contains(feature) && !heldFeatures.Contains(feature)) ||
+            requestedLibraries.Any(library => !currentLibraries.Contains(library) && !heldLibraries.Contains(library)))
+        {
+            throw new UnauthorizedAccessException(
+                "A household administrator can only hand out the libraries and features the household already has.");
+        }
+
+        var features = requestedFeatures.Where(heldFeatures.Contains)
+            .Concat(currentFeatures.Where(feature => !heldFeatures.Contains(feature)))
+            .ToHashSet();
+        var libraries = requestedLibraries.Where(heldLibraries.Contains)
+            .Concat(currentLibraries.Where(library => !heldLibraries.Contains(library)))
+            .ToHashSet();
+        return (features, libraries);
     }
 
     /// <summary>

@@ -101,7 +101,7 @@ public sealed class UserTransferSecurityPageTests : AsyncBunitContext
     [Fact]
     public void ExportMyData_WhenTheEngineSaysWhy_ShowsThatSentenceAsItIs()
     {
-        _handler.FailWith = (HttpStatusCode.InternalServerError, "The file couldn't be made on this computer.");
+        _handler.FailWith = (HttpStatusCode.UnprocessableEntity, "The file couldn't be made on this computer.");
         var cut = RenderPage();
 
         cut.Find("[data-testid='export-my-data-button']").Click();
@@ -110,6 +110,19 @@ public sealed class UserTransferSecurityPageTests : AsyncBunitContext
             cut.Find("[data-testid='export-my-data-result']").TextContent.Trim()));
         Assert.Equal("alert", cut.Find("[data-testid='export-my-data-result']").GetAttribute("role"));
         Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "tuvimaDownloads.fromStream");
+    }
+
+    [Fact]
+    public void ExportMyData_AfterAServerError_NeverShowsTheErrorsText_OnlyThePlainSentence()
+    {
+        _handler.FailWith = (HttpStatusCode.InternalServerError, "System.IO.IOException at C:\\data\\export.zip");
+        var cut = RenderPage();
+
+        cut.Find("[data-testid='export-my-data-button']").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("The file couldn't be made. Try again.",
+            cut.Find("[data-testid='export-my-data-result']").TextContent.Trim()));
+        Assert.DoesNotContain("IOException", cut.Markup);
     }
 
     [Fact]

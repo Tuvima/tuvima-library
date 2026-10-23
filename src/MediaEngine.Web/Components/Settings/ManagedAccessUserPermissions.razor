@@ -3,9 +3,14 @@
 
 <section class="access-user-permissions">
     <AppText Typo="AppTypo.subtitle1">Media access</AppText>
-    @foreach (var feature in Features.Where(feature => !(ViewStartsOff && feature.Id == "view") && (OfferedFeatureIds is null || OfferedFeatureIds.Contains(feature.Id))))
+    @foreach (var feature in Features.Where(feature => !(ViewStartsOff && feature.Id == "view")))
     {
-        <AppSwitchRow Value="@FeatureIds.Contains(feature.Id)" ValueChanged="@((bool value) => FeatureChanged.InvokeAsync((feature.Id, value)))" Label="@feature.Label" Description="@feature.Description" />
+        var held = OfferedFeatureIds is null || OfferedFeatureIds.Contains(feature.Id);
+        <AppSwitchRow Value="@FeatureIds.Contains(feature.Id)" ValueChanged="@((bool value) => FeatureChanged.InvokeAsync((feature.Id, value)))" Label="@feature.Label" Description="@feature.Description" Disabled="@(!held)" />
+    }
+    @if (OfferedFeatureIds is not null && Features.Any(feature => !OfferedFeatureIds.Contains(feature.Id)))
+    {
+        <small data-testid="access-set-by-server-administrator">Set by the server administrator</small>
     }
     @if (ViewStartsOff)
     {
@@ -14,7 +19,7 @@
 </section>
 <section class="access-user-permissions">
     <AppText Typo="AppTypo.subtitle1">Catalogued libraries</AppText>
-    @if (Libraries.Count == 0) { <small>No catalogued libraries are configured.</small> }
+    @if (Libraries.Count == 0 && ReadOnlyLibraryCount == 0) { <small>No catalogued libraries are configured.</small> }
     else
     {
         <div class="access-user-permissions__libraries">
@@ -23,6 +28,10 @@
                 <AppCheckbox Value="@LibraryIds.Contains(library.Id)" ValueChanged="@((bool value) => LibraryChanged.InvokeAsync((library.Id, value)))" Label="@library.DisplayName" />
             }
         </div>
+        @if (ReadOnlyLibraryCount > 0)
+        {
+            <small data-testid="access-libraries-set-by-server-administrator">@ReadOnlyLibraryCount @(ReadOnlyLibraryCount == 1 ? "more library" : "more libraries"): set by the server administrator</small>
+        }
     }
 </section>
 
@@ -39,6 +48,8 @@
     [Parameter] public bool ViewStartsOff { get; set; }
     /// <summary>When set, only these lanes are offered (a household administrator hands out only what their own profile holds); null offers all.</summary>
     [Parameter] public IReadOnlySet<string>? OfferedFeatureIds { get; set; }
+    /// <summary>How many of the person's libraries the administrator does not hold; shown read-only and never sent as changes.</summary>
+    [Parameter] public int ReadOnlyLibraryCount { get; set; }
     [Parameter, EditorRequired] public IReadOnlySet<string> FeatureIds { get; set; } = new HashSet<string>();
     [Parameter, EditorRequired] public IReadOnlySet<Guid> LibraryIds { get; set; } = new HashSet<Guid>();
     [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];

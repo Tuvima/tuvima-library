@@ -4,6 +4,7 @@
 @inject DashboardIdentityClient Identity
 @inject ConfirmedActionRunner Confirmed
 @inject DashboardSessionAccessor Session
+@inject NavigationManager Nav
 @* Add a sign-in (server administrator only): for a profile that has none, or for a new person with their own profile. Who they are
    and what they may use is set on the profile afterwards, under Profiles. The Engine decides every refusal and its sentence is
    shown as it is. *@
@@ -17,6 +18,13 @@ else
     @if (!string.IsNullOrWhiteSpace(_error))
     {
         <AppAlert Severity="AppSeverity.Error" data-user-invite-error>@_error</AppAlert>
+    }
+    @if (_needsPassword)
+    {
+        @* D10: a second household needs the server administrator's own sign-in to have an email and password first. *@
+        <div data-user-invite-set-password>
+            <AppButton Label="Set an email and password" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="OpenSecurity" />
+        </div>
     }
     <section class="invite-form__section">
         <AppText Typo="AppTypo.subtitle1">Who is it for?</AppText>
@@ -105,6 +113,7 @@ else
     private string _method = InvitationMethod;
     private string _temporaryPassword = string.Empty;
     private string _error = string.Empty;
+    private bool _needsPassword;
     private bool _saving;
 
     // The profiles that have no sign-in yet, and the households a new person can join.
@@ -155,6 +164,8 @@ else
         return string.IsNullOrWhiteSpace(household) ? profile.DisplayName : $"{profile.DisplayName} · {household}";
     }
 
+    private void OpenSecurity() => Nav.NavigateTo("/settings/security");
+
     private async Task SubmitAsync()
     {
         // The Engine decides who may add a sign-in; this keeps the handler itself closed to anyone else.
@@ -162,6 +173,7 @@ else
             return;
         _saving = true;
         _error = string.Empty;
+        _needsPassword = false;
         try
         {
             var useTemporaryPassword = _method == TemporaryPasswordMethod;
@@ -182,6 +194,8 @@ else
             else
             {
                 _error = ManagedUserMessages.For(result.Failure, result.Message);
+                // The Engine marks this refusal with a stable code, so the button shows whatever words the sentence uses.
+                _needsPassword = result.NeedsSecuredAdministrators;
             }
         }
         finally

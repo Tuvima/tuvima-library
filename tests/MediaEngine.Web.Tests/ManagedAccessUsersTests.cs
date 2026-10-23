@@ -8,6 +8,7 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -196,6 +197,31 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AddASignIn_ForANewHousehold_OffersTheSetPasswordButtonForTheEnginesCode_WhateverTheSentenceSays()
+    {
+        _handler.CreateStatus = HttpStatusCode.Conflict;
+        _handler.CreateDetail = "Give yourself a password before adding another household.";
+        _handler.CreateCode = "secure_administrators_first";
+        var cut = RenderUsers();
+        OpenInvite(cut);
+        Click(cut, "A new person");
+        TypeInto(cut, "Name", "Sam");
+        cut.Find("select[aria-label='Household']").Change("new-household");
+        TypeInto(cut, "New household name", "Household 2");
+        TypeInto(cut, "Email", "sam@example.test");
+
+        Click(cut, "Add sign-in");
+
+        cut.WaitForAssertion(() => Assert.Equal(_handler.CreateDetail, cut.Find("[data-user-invite-error]").TextContent.Trim()));
+        var setPassword = cut.Find("[data-user-invite-set-password] button");
+        Assert.Equal("Set an email and password", setPassword.TextContent.Trim());
+
+        setPassword.Click();
+
+        Assert.EndsWith("/settings/security", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AddASignIn_WhenTheEngineRefuses_ShowsItsSentenceAsItIsAndKeepsTheForm()
     {
         _handler.CreateStatus = HttpStatusCode.Conflict;
@@ -211,6 +237,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         Click(cut, "Add sign-in");
 
         cut.WaitForAssertion(() => Assert.Equal(_handler.CreateDetail, cut.Find("[data-user-invite-error]").TextContent.Trim()));
+        Assert.Empty(cut.FindAll("[data-user-invite-set-password]"));
         Assert.NotEmpty(cut.FindAll("[data-user-invite]"));
         Assert.DoesNotContain(UsersHandler.InvitationCode, cut.Markup);
     }
@@ -559,6 +586,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
         public HttpStatusCode CreateStatus { get; set; } = HttpStatusCode.Created;
         public string? CreateDetail { get; set; }
+        public string? CreateCode { get; set; }
         public HttpStatusCode EmailStatus { get; set; } = HttpStatusCode.OK;
         public string? EmailDetail { get; set; }
         public HttpStatusCode PasswordStatus { get; set; } = HttpStatusCode.OK;
@@ -615,7 +643,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
             {
                 if (CreateStatus != HttpStatusCode.Created)
                 {
-                    return Problem(CreateStatus, CreateDetail);
+                    return new HttpResponseMessage(CreateStatus) { Content = JsonContent.Create(new { detail = CreateDetail, code = CreateCode }) };
                 }
 
                 var created = JsonSerializer.Deserialize<CreateUserRequest>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;

@@ -56,7 +56,7 @@ public sealed class HouseholdManagementService(
         // D10: a second household is added only once every server administrator has an email and a password (or passkey).
         if (!await accounts.AreServerAdministratorsSecuredAsync(ct).ConfigureAwait(false))
         {
-            throw new InvalidOperationException(HouseholdRules.SecureAdministratorsFirst);
+            throw new SecureAdministratorsFirstException();
         }
 
         var household = await households.CreateAsync(normalized, clock.GetUtcNow(), ct).ConfigureAwait(false);
