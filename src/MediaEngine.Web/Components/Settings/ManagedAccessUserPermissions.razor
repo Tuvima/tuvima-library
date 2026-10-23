@@ -3,7 +3,7 @@
 
 <section class="access-user-permissions">
     <AppText Typo="AppTypo.subtitle1">Media access</AppText>
-    @foreach (var feature in Features.Where(feature => !(ViewStartsOff && feature.Id == "view")))
+    @foreach (var feature in Features.Where(feature => !(ViewStartsOff && feature.Id == "view") && (OfferedFeatureIds is null || OfferedFeatureIds.Contains(feature.Id))))
     {
         <AppSwitchRow Value="@FeatureIds.Contains(feature.Id)" ValueChanged="@((bool value) => FeatureChanged.InvokeAsync((feature.Id, value)))" Label="@feature.Label" Description="@feature.Description" />
     }
@@ -37,6 +37,8 @@
 
     /// <summary>A person outside the household starts with View off, so the switch is not offered here.</summary>
     [Parameter] public bool ViewStartsOff { get; set; }
+    /// <summary>When set, only these lanes are offered (a household administrator hands out only what their own profile holds); null offers all.</summary>
+    [Parameter] public IReadOnlySet<string>? OfferedFeatureIds { get; set; }
     [Parameter, EditorRequired] public IReadOnlySet<string> FeatureIds { get; set; } = new HashSet<string>();
     [Parameter, EditorRequired] public IReadOnlySet<Guid> LibraryIds { get; set; } = new HashSet<Guid>();
     [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];

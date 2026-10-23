@@ -40,6 +40,14 @@ else
             {
                 <p class="households-tab__error" role="alert" data-households-error>@_error</p>
             }
+            @if (_needsPassword)
+            {
+                @* D10: a second household needs the server administrator's own sign-in to have an email and password first. *@
+                <div class="households-tab__set-password" data-households-set-password>
+                    <AppButton Label="Set an email and password" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
+                               OnClick="OpenSecurity" />
+                </div>
+            }
 
             @if (_adding)
             {
@@ -126,6 +134,7 @@ else
     private string _renameText = string.Empty;
     private string? _notice;
     private string? _error;
+    private bool _needsPassword;
     private bool _needsUnlock;
     private bool _unlocking;
     private bool _justUnlocked;
@@ -179,6 +188,7 @@ else
         _adding = false;
         _newName = string.Empty;
         _error = null;
+        _needsPassword = false;
     }
 
     private void BeginRename(HouseholdResponse household)
@@ -282,6 +292,7 @@ else
         _busy = true;
         _error = null;
         _notice = null;
+        _needsPassword = false;
         try
         {
             if (await change())
@@ -307,6 +318,7 @@ else
             return false;
         }
 
+        _needsPassword = failure == DashboardAccessMutationFailure.Conflict && IsSecureAdministratorsFirst(message);
         _error = !string.IsNullOrWhiteSpace(message)
             ? message
             : failure switch
@@ -323,10 +335,19 @@ else
         return false;
     }
 
+    // The Engine's sentence for a second household while the server administrator has no email and password yet (D10).
+    internal const string SecureAdministratorsFirstStart = "Set an email and password";
+
+    private static bool IsSecureAdministratorsFirst(string? message) =>
+        message?.StartsWith(SecureAdministratorsFirstStart, StringComparison.Ordinal) == true;
+
+    private void OpenSecurity() => Nav.NavigateTo("/settings/security");
+
     private void ClearMessages()
     {
         _error = null;
         _notice = null;
+        _needsPassword = false;
     }
 
     private async Task UnlockAsync(string pin)

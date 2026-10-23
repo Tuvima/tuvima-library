@@ -62,12 +62,23 @@ else
                                 <li class="profiles-tab__item" @key="person.Id" data-profile-id="@person.Id">
                                     <div class="profiles-tab__line">
                                         <span class="profiles-tab__row-avatar"><ProfileAvatar DisplayName="@person.DisplayName" ImageUrl="@person.AvatarImageUrl" Color="@person.AvatarColor" Icon="@person.AvatarIcon" /></span>
-                                        <span class="profiles-tab__row-name">@person.DisplayName</span>
+                                        <span class="profiles-tab__who">
+                                            <span class="profiles-tab__row-name">@person.DisplayName</span>
+                                            @* Read-only here: a sign-in is attached and removed by the server administrator in Users and Sign-in. *@
+                                            <small class="profiles-tab__signin" data-profile-signin="@person.Id">@SignInText(person.Id)</small>
+                                        </span>
                                         <span class="profiles-tab__badges">
                                             @if (person.Id == _active?.Id)
                                             {
                                                 <span class="profiles-tab__badge profiles-tab__badge--you">You</span>
-                                                <span class="profiles-tab__badge">Admin</span>
+                                            }
+                                            @if (Managed(person.Id)?.IsHouseholdAdmin == true)
+                                            {
+                                                <span class="profiles-tab__badge" data-role="household-administrator">Household administrator</span>
+                                            }
+                                            @if (Managed(person.Id)?.IsServerAdmin == true)
+                                            {
+                                                <span class="profiles-tab__badge" data-role="server-administrator">Server administrator</span>
                                             }
                                             @if (person.IsRestricted)
                                             {
@@ -94,11 +105,6 @@ else
                         </ul>
                         </SettingsSectionPanel>
                     </div>
-                }
-
-                @if (!IsServerAdministrator)
-                {
-                    <HouseholdUsersPanel Deleted="ReloadAsync" />
                 }
             }
         </section>
@@ -144,6 +150,10 @@ else
     private Guid? OwnHouseholdId => _managed.FirstOrDefault(person => person.Id == _active?.Id)?.HouseholdId;
 
     private IReadOnlyList<Household> Groups => BuildGroups();
+
+    private ManagedProfileResponse? Managed(Guid profileId) => _managed.FirstOrDefault(person => person.Id == profileId);
+
+    private string SignInText(Guid profileId) => Managed(profileId)?.User?.Email is { Length: > 0 } email ? email : "No sign-in";
 
     private static string AddLabel(Household group) => $"Add profile to {group.Title}";
 
@@ -239,10 +249,23 @@ else
     private void OpenProfile(Guid profileId) => Nav.NavigateTo($"/settings/profiles/{profileId:D}");
 
     // Adding a household is a server-administrator action; the Households page takes the name.
-    private void OpenAddHousehold() => Nav.NavigateTo($"{SettingsNav.RouteFor(SettingsSection.Profiles, SettingsNav.HouseholdsSubsection)}?add=1");
+    private void OpenAddHousehold()
+    {
+        if (!IsServerAdministrator)
+        {
+            return;
+        }
+
+        Nav.NavigateTo($"{SettingsNav.RouteFor(SettingsSection.Profiles, SettingsNav.HouseholdsSubsection)}?add=1");
+    }
 
     private void OpenAdd(Guid householdId)
     {
+        if (!CanManage)
+        {
+            return;
+        }
+
         _editorError = null;
         _addHouseholdId = householdId;
         _editorOpen = true;
@@ -265,7 +288,7 @@ else
 
     private async Task SaveAsync(ProfileEditorResult result)
     {
-        if (_editorSaving)
+        if (_editorSaving || !CanManage)
         {
             return;
         }

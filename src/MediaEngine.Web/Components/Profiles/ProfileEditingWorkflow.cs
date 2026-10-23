@@ -18,11 +18,11 @@ public sealed record ProfileEditOutcome(bool Done, string? Error = null, bool Ne
 public sealed class ProfileEditingWorkflow(DashboardIdentityClient identity, ConfirmedActionRunner confirmed)
 {
     /// <summary>
-    /// Shown when the Engine refuses a removal with a conflict. The usual cause is a person who still has their own sign-in,
-    /// so the message points there first; the Engine also refuses to remove the person in use and the Owner.
+    /// Shown when the Engine refuses a removal without giving its own sentence. The Engine refuses to remove the profile in use, a
+    /// server administrator's profile (for a household administrator) and a household's last household administrator.
     /// </summary>
     public const string RemoveBlockedMessage =
-        "This person can't be removed yet. Remove or move their sign-in first. You also can't remove the person you are using, or the Owner.";
+        "This person can't be removed. A household always keeps one household administrator, and you can't remove the person you are using or a server administrator.";
 
     public async Task<ProfileEditOutcome> SaveAsync(ProfileViewModel? editing, Guid? householdId, ProfileEditorResult result, bool afterUnlock = false)
     {
@@ -39,7 +39,8 @@ public sealed class ProfileEditingWorkflow(DashboardIdentityClient identity, Con
             return new ProfileEditOutcome(true);
         }
 
-        return removed.Failure == DashboardAccessMutationFailure.Conflict
+        // The Engine's own sentence for a refusal is shown as it is.
+        return removed.Failure is DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation
             ? new ProfileEditOutcome(false, string.IsNullOrWhiteSpace(removed.Message) ? RemoveBlockedMessage : removed.Message)
             : Fail(removed.Failure, afterUnlock);
     }
@@ -56,7 +57,10 @@ public sealed class ProfileEditingWorkflow(DashboardIdentityClient identity, Con
                 result.ContentLimit, result.ContentLimitAllowUnrated))).ConfigureAwait(false);
         if (!added.Succeeded || added.Value is null)
         {
-            return Fail(added.Failure, afterUnlock);
+            // A refusal such as the eight-person limit is shown in the Engine's own sentence.
+            return added.Failure is DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation && !string.IsNullOrWhiteSpace(added.Message)
+                ? new ProfileEditOutcome(false, added.Message)
+                : Fail(added.Failure, afterUnlock);
         }
 
         if (result.PhotoBytes is { } photo)

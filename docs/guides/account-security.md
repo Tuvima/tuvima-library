@@ -52,21 +52,24 @@ A person is looked after from their own page under **Settings → Profiles**, wh
 On a person's page:
 
 1. **Add profile** (on the Profiles list) adds someone to the household. Enter a name, switch on **Kids profile** for a restricted profile, and set an optional PIN that is asked before anyone switches into them. The household's sign-in can open them straight away; they do not have a sign-in of their own yet.
-2. **Sign-in** lets a person sign in with their own email. For someone without one it opens **Give own sign-in**: an email, a **Starting password** (**Generate** makes one) and the **Must change it at first sign-in** switch (on by default), or **Send an invitation link instead**. The new sign-in opens straight to that person without the profile picker, stays in the same household, and is never an administrator.
-3. Once a person has their own sign-in, the same **Sign-in** sheet offers **Change email** (administrators only), **Set a new password** (the same password and switch) and **Remove sign-in**. Removing it signs it out everywhere and unpairs its devices; the person stays in the household with everything they have saved, and the household's sign-in can still open them.
+2. **Sign-in** shows the person's sign-in email, or *No sign-in*. It is read only on the profile page: a server administrator adds, changes and removes sign-ins in **Settings → Users and Sign-in**. A sign-in opens its own profile, and the person can switch to others in their household.
+3. **Roles** and **Access** are set on the profile: **Household administrator** (and, for a server administrator, **Server administrator**) switches, and **Libraries and lanes** for Read, Watch, Listen and View and the Libraries they can open. A household administrator can give only what their own profile has.
 4. **Profile details** sets the PIN asked before anyone switches into that person (4 to 12 digits). A new PIN replaces the old one.
+5. **Delete profile** removes the person and everything personal in it, and their sign-in too. You choose whether their photos **Move to Shared** (the default) or are deleted.
 
-Library and lane access is not set per person. A person's own sign-in follows the household's main sign-in, so when you change the household's access it reaches them as well. If a household administrator turned on an administrator PIN, Tuvima asks for it the first time the Engine refuses a change.
+If a household administrator turned on an administrator PIN, Tuvima asks for it the first time the Engine refuses a change.
 
 ## Protect admin settings
 
-Admin access requires both an eligible account and an active profile grant with admin access.
+Administrator rights belong to the profile: a profile is a server administrator or a household administrator, and the settings only open while that profile is the one in use. The optional PIN lock is a setting on the profile too.
 
-1. Administrator roles belong to the profile. Open that person's page under **Settings → Profiles** and make sure only the intended profile is an administrator. A **PIN protection** group appears there.
-2. Make sure the profile has a PIN (**Profile details**). There is one PIN per profile; admin pages and Vault mode ask for that same PIN.
-3. Turn on **Ask for my PIN on admin pages** (it is off until you do) and choose how long an unlock lasts.
+1. Make sure the profile holds an administrator role (**Settings → Profiles**, the person's **Roles** group) and has a PIN (**Profile details**). There is one PIN per profile; admin pages and Vault mode ask for that same PIN.
+2. Open the person's page under **Settings → Profiles**. An **Administrator PIN** group appears there, on your own profile or, for a server administrator, on anyone's.
+3. Turn on **Ask for a PIN to open administrator settings** (it is off until you do) and choose how long an unlock lasts.
 
-The PIN lock protects settings after sign-in. It is separate from the account password. Switching profiles clears the active admin unlock. With the switch off, admin pages open without a PIN.
+For example, Mom is a household administrator and signs in as mom@home.com into her own profile. If she also needs server settings, she switches to Shy's profile, which asks for Shy's PIN when he has turned this on.
+
+The PIN lock protects settings after sign-in. It is separate from the sign-in password. Switching profiles clears the active admin unlock. With the switch off, admin pages open without a PIN.
 
 ## Manage your sign-in methods
 

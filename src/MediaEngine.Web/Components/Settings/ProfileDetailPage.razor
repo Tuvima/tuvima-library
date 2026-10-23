@@ -11,7 +11,6 @@
 @inject DashboardIdentityClient Identity
 @inject ConfirmedActionRunner Confirmed
 @inject NavigationManager Nav
-@inject IAppDialogService Dialogs
 @inject IAppToastService Toasts
 @inject ILogger<ProfileDetailPage> Logger
 
@@ -48,9 +47,13 @@
                     {
                         <li class="profile-detail__badge profile-detail__badge--you">You</li>
                     }
-                    @if (IsSelf && IsAdministrator)
+                    @if (_managedPerson?.IsHouseholdAdmin == true)
                     {
-                        <li class="profile-detail__badge">Admin</li>
+                        <li class="profile-detail__badge" data-role="household-administrator">Household administrator</li>
+                    }
+                    @if (_managedPerson?.IsServerAdmin == true)
+                    {
+                        <li class="profile-detail__badge" data-role="server-administrator">Server administrator</li>
                     }
                     @if (_person.IsRestricted)
                     {
@@ -82,12 +85,15 @@
                 <li class="profile-detail__item">
                     @if (IsSelf)
                     {
-                        @* Your own sign-in is looked after in Security (password, two-step codes); an administrator never edits it from here. *@
+                        @* Your own sign-in is looked after in Security (password, two-step codes). *@
                         <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="@SignInStatus" Href="/settings/security" />
                     }
                     else
                     {
-                        <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="@SignInStatus" Note="@SignInNote" OnClick="OpenSignIn" />
+                        @* Read-only: a sign-in is attached, changed and removed by the server administrator in Users and Sign-in. *@
+                        <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="@SignInStatus"
+                                        Note="Managed by the server administrator in Users and Sign-in."
+                                        Href="@(CanOpenUsers ? UsersRoute : null)" Disabled="@(!CanOpenUsers)" ShowChevron="@CanOpenUsers" />
                     }
                 </li>
                 <li class="profile-detail__item">
@@ -139,36 +145,55 @@
                                                                    AdministratorHasPin="@(_active?.HasPin == true)" />
         }
 
-        @if (ShowHouseholdAccess)
+        @if (ShowRoles)
         {
-            <div class="profile-detail__group" data-profile-section="household-access">
-            <SettingsSectionPanel Title="Household access">
+            <div class="profile-detail__group" data-profile-section="roles">
+            <SettingsSectionPanel Title="Roles">
+                @if (!string.IsNullOrWhiteSpace(_roleError))
+                {
+                    <p class="who-page__error" role="alert">@_roleError</p>
+                }
+                <ul class="profile-detail__list" role="list">
+                    <li class="profile-detail__item" data-role-switch="household-administrator">
+                        <AppSwitchRow Label="Household administrator"
+                                      Description="@(_householdRole.Reason ?? "Looks after this household's people and what they can open.")"
+                                      Value="@_householdRole.On"
+                                      ValueChanged="@(on => SetRolesAsync(on, _serverRole.On))"
+                                      Disabled="@(!_householdRole.Enabled || _roleBusy)" />
+                    </li>
+                    @if (_serverRole.Visible)
+                    {
+                        <li class="profile-detail__item" data-role-switch="server-administrator">
+                            <AppSwitchRow Label="Server administrator"
+                                          Description="@(_serverRole.Reason ?? "Looks after the whole Library: settings, users and every household.")"
+                                          Value="@_serverRole.On"
+                                          ValueChanged="@(on => SetRolesAsync(_householdRole.On, on))"
+                                          Disabled="@(!_serverRole.Enabled || _roleBusy)" />
+                        </li>
+                    }
+                </ul>
+            </SettingsSectionPanel>
+            </div>
+        }
+
+        @if (ShowAccess)
+        {
+            <div class="profile-detail__group" data-profile-section="access">
+            <SettingsSectionPanel Title="Access">
                 @if (!string.IsNullOrWhiteSpace(_accessMessage))
                 {
                     <p class="who-page__error" role="alert">@_accessMessage</p>
                 }
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item">
-                        @if (AccessFollowsHousehold)
+                        @if (_managedPerson is { IsServerAdmin: true })
                         {
-                            @* An own sign-in follows the household's main sign-in, so this is shown, not edited; the Engine refuses to change it here. *@
-                            <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes" Status="@AccessStatus"
-                                            Note="Follows the household's access. Change it on the household's main sign-in."
-                                            Href="@(CanOpenHouseholdSettings ? HouseholdAccessRoute : null)" Disabled="@(!CanOpenHouseholdSettings)" />
+                            <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes"
+                                            Status="Everything" Note="A server administrator can open everything." Disabled="true" ShowChevron="false" />
                         }
                         else
                         {
                             <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes" Status="@AccessStatus" OnClick="OpenAccess" />
-                        }
-                    </li>
-                    <li class="profile-detail__item">
-                        @if (_access is { HasTwoStep: false })
-                        {
-                            <SettingsNavRow Key="two-step" Icon="@AppMaterialIcons.Outlined.Key" Title="Two-step codes" Status="Off" Disabled="true" />
-                        }
-                        else
-                        {
-                            <SettingsNavRow Key="two-step" Icon="@AppMaterialIcons.Outlined.Key" Title="Two-step codes" Status="@(_access is null ? null : "On")" Note="Turn off if they lost their phone" ShowChevron="false" OnClick="ResetTwoStepAsync" />
                         }
                     </li>
                 </ul>
@@ -178,10 +203,11 @@
 
         @if (ShowPinProtection)
         {
-            @* "Ask for my PIN on admin pages": the profile's own PIN (one PIN per profile), asked for before this person opens
-               administrator settings. Off unless switched on, and only possible once the profile has a PIN. *@
+            @* "Ask for a PIN to open administrator settings": the profile's own PIN (one PIN per profile), asked for before this profile
+               opens administrator settings. Off unless switched on, and only possible once the profile has a PIN. Only on your own
+               profile, or by the server administrator. *@
             <div class="profile-detail__group" data-profile-section="pin-protection">
-            <SettingsSectionPanel Title="PIN protection">
+            <SettingsSectionPanel Title="Administrator PIN">
                 @if (!string.IsNullOrWhiteSpace(_protectionMessage))
                 {
                     <AppAlert Severity="AppSeverity.Success" Variant="AppVariant.Outlined" Dense="true">@_protectionMessage</AppAlert>
@@ -190,31 +216,24 @@
                 {
                     <p class="who-page__error" role="alert">@_protectionError</p>
                 }
-                @foreach (var grant in _adminGrants)
-                {
-                    <div class="profile-detail__protection" data-admin-protection="@grant.AccountId" @key="grant.AccountId">
-                        @if (_adminGrants.Count > 1)
-                        {
-                            <small class="profile-detail__protection-account">@grant.AccountLabel</small>
-                        }
-                        <AppSwitchRow Label="@(IsSelf ? "Ask for my PIN on admin pages" : "Ask for their PIN on admin pages")"
-                                      Description="@ProtectionDescription()"
-                                      Value="@grant.Grant.AdminProtection.Enabled"
-                                      ValueChanged="@(on => ToggleProtectionAsync(grant, on))"
-                                      Disabled="@_protectionBusy" />
-                        @if (grant.Grant.AdminProtection.Enabled)
-                        {
-                            <AppNativeSelect Value="@ProtectionOption(grant)" OnChange="@(value => ProtectionDurationChangedAsync(grant, value.Value?.ToString() ?? "FixedDuration:30"))"
-                                             Disabled="@_protectionBusy" aria-label="@($"How long the PIN unlocks admin pages for {PersonName}")">
-                                <option value="FixedDuration:15">For 15 minutes</option>
-                                <option value="FixedDuration:30">For 30 minutes</option>
-                                <option value="FixedDuration:60">For 1 hour</option>
-                                <option value="UntilProfileSwitch">Until profile switch</option>
-                                <option value="LockOnLeave">Lock when leaving settings</option>
-                            </AppNativeSelect>
-                        }
-                    </div>
-                }
+                <div class="profile-detail__protection" data-admin-protection="@ProfileId">
+                    <AppSwitchRow Label="Ask for a PIN to open administrator settings"
+                                  Description="@ProtectionDescription()"
+                                  Value="@(_protection?.Enabled == true)"
+                                  ValueChanged="@(on => ToggleProtectionAsync(on))"
+                                  Disabled="@_protectionBusy" />
+                    @if (_protection?.Enabled == true)
+                    {
+                        <AppNativeSelect Value="@ProtectionOption()" OnChange="@(value => ProtectionDurationChangedAsync(value.Value?.ToString() ?? "FixedDuration:30"))"
+                                         Disabled="@_protectionBusy" aria-label="@($"How long the PIN unlocks administrator settings for {PersonName}")">
+                            <option value="FixedDuration:15">For 15 minutes</option>
+                            <option value="FixedDuration:30">For 30 minutes</option>
+                            <option value="FixedDuration:60">For 1 hour</option>
+                            <option value="UntilProfileSwitch">Until profile switch</option>
+                            <option value="LockOnLeave">Lock when leaving settings</option>
+                        </AppNativeSelect>
+                    }
+                </div>
             </SettingsSectionPanel>
             </div>
         }
@@ -240,25 +259,12 @@
                     Saving="@_editorSaving"
                     Error="@_editorError"
                     CanDelete="@CanDelete"
+                    HasSignIn="@(_managedPerson is null ? null : _managedPerson.User is not null)"
+                    SignInEmail="@_managedPerson?.User?.Email"
                     StartInDelete="@_startInDelete"
                     OnSave="SaveEditorAsync"
                     OnDelete="DeleteAsync"
                     OnClose="CloseEditor" />
-
-@* Before the unlock dialog, so a PIN prompt raised from the sheet is drawn on top of it. *@
-<ProfileSignInSheet Open="@_signInOpen"
-                    PersonName="@(_person?.DisplayName ?? string.Empty)"
-                    SignIn="@OwnSignIn"
-                    CanChangeEmail="@IsAdministrator"
-                    Saving="@_signInSaving"
-                    Error="@_signInError"
-                    Issued="@_signInIssued"
-                    OnGive="GiveSignInAsync"
-                    OnInvite="InviteSignInAsync"
-                    OnSetPassword="SetSignInPasswordAsync"
-                    OnChangeEmail="ChangeSignInEmailAsync"
-                    OnRemove="RemoveSignInAsync"
-                    OnClose="CloseSignIn" />
 
 <ProfileAccessSheet Open="@_accessOpen"
                     PersonName="@(_person?.DisplayName ?? string.Empty)"
@@ -266,7 +272,8 @@
                     Saving="@_accessSaving"
                     Error="@_accessError"
                     Libraries="@_accessLibraries"
-                    Account="@_access"
+                    OfferedFeatureIds="@OfferedFeatureIds"
+                    Person="@_managedPerson"
                     OnSave="SaveAccessAsync"
                     OnClose="CloseAccess" />
 
@@ -289,20 +296,19 @@
     private bool _startInDelete;
     private bool _editorSaving;
     private string? _editorError;
-    private ProfileSignInWorkflow? _signInWorkflow;
-    private bool _signInOpen;
-    private bool _signInSaving;
-    private string? _signInError;
-    private SignInIssued? _signInIssued;
-    private AccountAccessResponse? _access;
+    private ManagedProfileResponse? _managedPerson;
     private List<AccessLibraryOptionDto> _accessLibraries = [];
     private bool _accessOpen;
     private bool _accessLoading;
     private bool _accessSaving;
     private string? _accessError;
     private string? _accessMessage;
-    private List<AdminGrantRow> _adminGrants = [];
-    private readonly Dictionary<Guid, string> _protectionOptions = [];
+    private RoleSwitchState _householdRole = RoleSwitchState.Hidden;
+    private RoleSwitchState _serverRole = RoleSwitchState.Hidden;
+    private bool _roleBusy;
+    private string? _roleError;
+    private GrantAdminProtectionDto? _protection;
+    private string? _protectionChoice;
     private bool _protectionBusy;
     private string? _protectionMessage;
     private string? _protectionError;
@@ -320,46 +326,53 @@
 
     private ProfileEditingWorkflow Workflow => _workflow ??= new ProfileEditingWorkflow(Identity, Confirmed);
 
-    private ProfileSignInWorkflow SignInWorkflow => _signInWorkflow ??= new ProfileSignInWorkflow(Identity, Confirmed);
+    // The sign-in is the user attached to this profile; it is shown here and changed in Users and Sign-in.
+    private string SignInStatus => _managedPerson?.User?.Email is { Length: > 0 } email
+        ? email
+        : IsSelf ? "Managed in Security" : "No sign-in";
 
-    // Only people in the administrator's household list carry sign-in details; your own page never offers the sheet.
-    private ManagedProfileSignInDto? OwnSignIn => _managed.FirstOrDefault(person => person.Id == ProfileId)?.OwnSignIn;
+    private const string UsersRoute = "/settings/access/users";
 
-    private string SignInStatus => IsSelf
-        ? OwnSignIn?.Email ?? "Managed in Security"
-        : OwnSignIn?.Email ?? "Switches from Who's watching";
+    // Users and Sign-in is a server-administrator page.
+    private bool CanOpenUsers => Session.HasNavigation("settings.administration");
 
-    private string? SignInNote => OwnSignIn is { MustChangePassword: true } ? "Must change password at first sign-in" : null;
-
-    // Their access is only theirs to manage when they have a sign-in of their own; your own access is never edited from here.
-    private bool ShowHouseholdAccess => IsAdministrator && !IsSelf && OwnSignIn is not null;
-
-    // A person's own sign-in follows the household's main sign-in (the Engine reads its access from there and refuses to change it
-    // on the own sign-in), so the access is shown read-only. Only an account that keeps its own access gets the editable sheet.
-    private bool AccessFollowsHousehold => _access is { GrantsInheritFromAccountId: not null };
-
-    private const string HouseholdAccessRoute = "/settings/access/users";
-
-    // Users & Access (where the main sign-in's access is changed) is a server-administrator page.
-    private bool CanOpenHouseholdSettings => Session.HasNavigation("settings.administration");
+    // Roles and access are looked after by administrators, and never from inside a Kids (restricted) profile.
+    private bool CanManage => _active is { } active && ProfileManageRules.CanManage(active.IsRestricted, IsAdministrator);
 
     // The profile editor saves through administrator-only Engine actions; a member's rename/avatar route may come later.
     private bool CanEditDetails => IsAdministrator;
+
+    private bool ShowRoles => CanManage && _managedPerson is not null;
+
+    private bool ShowAccess => CanManage && _managedPerson is not null;
+
+    private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true || Session.HasNavigation("settings.administration");
+
+    private Guid? OwnHouseholdId => _managed.FirstOrDefault(person => person.Id == _active?.Id)?.HouseholdId;
+
+    private IReadOnlyList<ManagedProfileResponse> HouseholdPeople => _managedPerson is null
+        ? []
+        : _managed.Where(person => person.HouseholdId == _managedPerson.HouseholdId).ToList();
+
+    // A household administrator hands out only what their own profile holds; a server administrator hands out everything.
+    private IReadOnlySet<string>? OfferedFeatureIds => IsServerAdministrator
+        ? null
+        : ManagedAccessUserPermissions.Features.Select(feature => feature.Id).Where(Session.HasNavigation).ToHashSet();
 
     private string? AccessStatus
     {
         get
         {
-            if (_access is null)
+            if (_managedPerson is not { } person)
             {
                 return null;
             }
 
             var lanes = ManagedAccessUserPermissions.Features
-                .Where(feature => _access.FeatureGrants.Any(grant => grant.Allowed && grant.Feature == feature.Id))
+                .Where(feature => person.FeatureIds?.Contains(feature.Id) == true)
                 .Select(feature => feature.Label)
                 .ToList();
-            var libraries = _access.LibraryGrants.Count(grant => grant.Allowed);
+            var libraries = person.LibraryIds?.Count ?? 0;
             var laneText = lanes.Count == 0 ? "No lanes" : string.Join(", ", lanes);
             return $"{laneText} · {libraries} {(libraries == 1 ? "library" : "libraries")}";
         }
@@ -373,15 +386,19 @@
     // The Activity page, already narrowed to this person. Your own page omits ?scope=, because Me is the default.
     private string ActivityLink => IsSelf ? SettingsNav.ActivityRoute : $"{SettingsNav.ActivityRoute}?scope=profile:{ProfileId:D}";
 
-    // PIN protection only has something to protect when an account lets this person open administrator settings.
-    private bool ShowPinProtection => IsAdministrator && _adminGrants.Count > 0;
+    // PIN protection only has something to protect on a profile that holds an administrator role and has a sign-in, and it is changed
+    // only on your own profile or by the server administrator.
+    private bool ShowPinProtection => _managedPerson is { User: not null } person
+        && (person.IsServerAdmin || person.IsHouseholdAdmin)
+        && (IsSelf || IsServerAdministrator)
+        && _protection is not null;
 
     private string ProtectionDescription() =>
         _person?.HasPin == true
-            ? $"Uses the profile PIN, the same one that protects the profile. Off unless you turn it on."
+            ? "Uses the profile PIN, the same one that protects the profile. Off unless you turn it on."
             : "Needs a PIN on this profile. Set one in Profile details first.";
 
-    private async Task ToggleProtectionAsync(AdminGrantRow row, bool on)
+    private async Task ToggleProtectionAsync(bool on)
     {
         if (on && _person?.HasPin != true)
         {
@@ -390,43 +407,35 @@
             return;
         }
 
-        await SaveProtectionAsync(row, on);
+        await SaveProtectionAsync(on);
     }
 
-    private async Task ProtectionDurationChangedAsync(AdminGrantRow row, string option)
+    private async Task ProtectionDurationChangedAsync(string option)
     {
-        _protectionOptions[row.AccountId] = option;
-        await SaveProtectionAsync(row, true);
+        _protectionChoice = option;
+        await SaveProtectionAsync(true);
     }
 
-    private string ProtectionOption(AdminGrantRow row) =>
-        _protectionOptions.TryGetValue(row.AccountId, out var chosen)
-            ? chosen
-            : row.Grant.AdminProtection.UnlockMode == "FixedDuration"
-                ? $"FixedDuration:{row.Grant.AdminProtection.UnlockMinutes ?? 30}"
-                : row.Grant.AdminProtection.UnlockMode;
-
-    private sealed record AdminGrantRow(Guid AccountId, string AccountLabel, AccountProfileGrantDto Grant);
+    private string ProtectionOption() =>
+        _protectionChoice ?? (_protection?.UnlockMode == "FixedDuration"
+            ? $"FixedDuration:{_protection.UnlockMinutes ?? 30}"
+            : _protection?.UnlockMode ?? "FixedDuration:30");
 
     private bool IsSelf => _active is not null && _active.Id == ProfileId;
 
-    private string RoleLabel => IsSelf && Session.Authority?.EffectiveAdministrator == true
-        ? "Administrator"
-        : _person?.IsRestricted == true ? "Kids profile" : "Profile";
-
-    private int HouseholdCount
+    private string RoleLabel => _managedPerson switch
     {
-        get
-        {
-            var household = _managed.FirstOrDefault(person => person.Id == ProfileId)?.HouseholdId;
-            return household is null ? _managed.Count : _managed.Count(person => person.HouseholdId == household);
-        }
-    }
+        { IsServerAdmin: true, IsHouseholdAdmin: true } => "Server administrator and household administrator",
+        { IsServerAdmin: true } => "Server administrator",
+        { IsHouseholdAdmin: true } => "Household administrator",
+        _ when IsSelf && Session.Authority?.EffectiveAdministrator == true => "Administrator",
+        _ => _person?.IsRestricted == true ? "Kids profile" : "Profile",
+    };
 
-    // Deleting is an administrator action, so it is only offered to someone who can manage people.
-    private bool CanDelete => _person is { } person && _active is { } active
-        && ProfileManageRules.CanManage(active.IsRestricted, IsAdministrator)
-        && ProfileManageRules.CanDelete(person, active.Id, HouseholdCount);
+    // Delete is offered only to someone who can manage people, and never for the profile in use, the last household administrator,
+    // a server administrator (to a household administrator) or the household's only person.
+    private bool CanDelete => _managedPerson is { } person && _active is { } active && CanManage
+        && ProfileRoleRules.CanDelete(person, active.Id, HouseholdPeople, IsServerAdministrator);
 
     private string DetailsStatus
     {
@@ -516,11 +525,12 @@
                 return;
             }
 
+            ApplyManaged();
             if (_person is not null)
             {
                 await NameChanged.InvokeAsync(_person.DisplayName);
                 await LoadSettingsAsync();
-                await LoadAccessAsync();
+                await LoadProtectionAsync();
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
@@ -580,53 +590,60 @@
         }
     }
 
-    private async Task LoadAccessAsync()
+    // The roles and access shown come from the managed list the Engine returned for this administrator.
+    private void ApplyManaged()
     {
-        _access = null;
-        _adminGrants = [];
-        if (!IsAdministrator)
+        _managedPerson = _managed.FirstOrDefault(person => person.Id == ProfileId);
+        if (_managedPerson is { } person && CanManage)
+        {
+            var household = HouseholdPeople;
+            _householdRole = ProfileRoleRules.HouseholdAdministrator(person, household, IsServerAdministrator);
+            _serverRole = ProfileRoleRules.ServerAdministrator(person, household, IsServerAdministrator, OwnHouseholdId);
+        }
+        else
+        {
+            _householdRole = RoleSwitchState.Hidden;
+            _serverRole = RoleSwitchState.Hidden;
+        }
+    }
+
+    // The profile's administrator PIN setting is read through the user attached to it (the Engine keeps it on the profile).
+    private async Task LoadProtectionAsync()
+    {
+        _protection = null;
+        _protectionChoice = null;
+        if (_managedPerson is not { User: { } user } person || !(person.IsServerAdmin || person.IsHouseholdAdmin) || !(IsSelf || IsServerAdministrator))
         {
             return;
         }
 
         try
         {
-            var accounts = await Identity.GetManagedAccountsAsync();
-            if (ShowHouseholdAccess && OwnSignIn is { } signIn)
-            {
-                _access = accounts.FirstOrDefault(account => account.Id == signIn.AccountId);
-            }
-
-            // Every account that lets this person open administrator settings, each with its own PIN protection.
-            _adminGrants = accounts
-                .SelectMany(account => account.ProfileGrants
-                    .Where(grant => grant.ProfileId == ProfileId && grant.AdminEnabled && !grant.IsRestricted)
-                    .Select(grant => new AdminGrantRow(account.Id, string.IsNullOrWhiteSpace(account.Email) ? "Account" : account.Email, grant)))
-                .ToList();
+            var account = await Identity.GetManagedAccountAsync(user.Id);
+            _protection = account?.ProfileGrants.FirstOrDefault(grant => grant.ProfileId == ProfileId)?.AdminProtection
+                ?? new GrantAdminProtectionDto(false, "FixedDuration", 30, 0);
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
-            Logger.LogWarning(exception, "Could not load this person's access.");
+            Logger.LogWarning(exception, "Could not load this profile's administrator PIN setting.");
         }
     }
 
     private async Task OpenAccess()
     {
+        if (!ShowAccess)
+        {
+            return;
+        }
+
         _accessError = null;
         _accessMessage = null;
         _accessLoading = true;
         _accessOpen = true;
         try
         {
-            // The list is what this administrator may hand out, so a Library the household lacks is never offered.
-            var libraries = Identity.GetAccessLibrariesAsync();
-            await LoadAccessAsync();
-            _accessLibraries = await libraries;
-            if (AccessFollowsHousehold)
-            {
-                // Found out only now that this access follows the household: there is nothing to edit here.
-                _accessOpen = false;
-            }
+            // The list is what this administrator may hand out, so a Library their own profile lacks is never offered.
+            _accessLibraries = await Identity.GetAccessLibrariesAsync();
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -648,9 +665,9 @@
         }
     }
 
-    private async Task SaveAccessAsync(ReplaceAccountAccessRequest request)
+    private async Task SaveAccessAsync(ReplaceProfileAccessRequest request)
     {
-        if (_accessSaving || AccessFollowsHousehold || OwnSignIn is not { } signIn)
+        if (_accessSaving || !ShowAccess)
         {
             return;
         }
@@ -659,14 +676,14 @@
         _accessError = null;
         try
         {
-            var result = await Identity.ReplaceManagedAccountAccessResultAsync(signIn.AccountId, request);
+            var result = await Confirmed.RunAsync(() => Identity.ReplaceProfileAccessResultAsync(ProfileId, request));
             if (!result.Succeeded)
             {
                 _accessError = AccessFailureMessage(result.Failure, result.Message);
                 return;
             }
 
-            await LoadAccessAsync();
+            await ReloadManagedAsync();
             _accessOpen = false;
             Toasts.Add($"Access for {PersonName} was saved.", AppSeverity.Success);
         }
@@ -676,9 +693,39 @@
         }
     }
 
-    private async Task SaveProtectionAsync(AdminGrantRow row, bool enabled)
+    // Turns the Household administrator / Server administrator switches into one roles change; both values are the wanted state.
+    private async Task SetRolesAsync(bool householdAdministrator, bool serverAdministrator)
     {
-        if (_protectionBusy)
+        if (_roleBusy || !ShowRoles)
+        {
+            return;
+        }
+
+        _roleBusy = true;
+        _roleError = null;
+        try
+        {
+            var result = await Confirmed.RunAsync(() => Identity.SetProfileRolesResultAsync(ProfileId,
+                new SetProfileRolesRequest(householdAdministrator, serverAdministrator)));
+            if (!result.Succeeded)
+            {
+                _roleError = AccessFailureMessage(result.Failure, result.Message);
+                return;
+            }
+
+            await ReloadManagedAsync();
+            await LoadProtectionAsync();
+            await RefreshPeopleAsync();
+        }
+        finally
+        {
+            _roleBusy = false;
+        }
+    }
+
+    private async Task SaveProtectionAsync(bool enabled)
+    {
+        if (_protectionBusy || _managedPerson is not { User: { } user })
         {
             return;
         }
@@ -688,12 +735,12 @@
         _protectionError = null;
         try
         {
-            var parts = ProtectionOption(row).Split(':', 2);
+            var parts = ProtectionOption().Split(':', 2);
             var unlockMode = parts[0];
             var unlockMinutes = unlockMode == "FixedDuration" && parts.Length == 2 && int.TryParse(parts[1], out var minutes)
                 ? minutes
-                : row.Grant.AdminProtection.UnlockMinutes;
-            var result = await Confirmed.RunAsync(() => Identity.SetGrantProtectionResultAsync(row.AccountId, ProfileId,
+                : _protection?.UnlockMinutes;
+            var result = await Confirmed.RunAsync(() => Identity.SetGrantProtectionResultAsync(user.Id, ProfileId,
                 new SetGrantAdminProtectionRequest(enabled, unlockMode, unlockMinutes)));
             if (!result.Succeeded)
             {
@@ -703,10 +750,10 @@
                 return;
             }
 
-            await LoadAccessAsync();
+            await LoadProtectionAsync();
             _protectionMessage = enabled
-                ? $"Admin pages now ask for {PersonName}'s PIN."
-                : $"Admin pages no longer ask for {PersonName}'s PIN.";
+                ? $"Administrator settings now ask for {PersonName}'s PIN."
+                : $"Administrator settings no longer ask for {PersonName}'s PIN.";
         }
         finally
         {
@@ -714,46 +761,17 @@
         }
     }
 
-    // For someone who lost their phone and their recovery codes. The Engine records who did this.
-    private async Task ResetTwoStepAsync()
-    {
-        if (OwnSignIn is not { } signIn)
-        {
-            return;
-        }
-
-        _accessMessage = null;
-        if (await Dialogs.ShowMessageBoxAsync($"Turn off two-step codes for {PersonName}?",
-                "They can sign in with just their password until they turn two-step codes on again. This is recorded in the activity log.",
-                yesText: "Turn off", cancelText: "Cancel") != true)
-        {
-            return;
-        }
-
-        var result = await Confirmed.RunAsync(() => Identity.ResetAccountTwoStepResultAsync(signIn.AccountId));
-        if (result.Succeeded && result.Value is not null)
-        {
-            _access = result.Value;
-            Toasts.Add($"Two-step codes are off for {PersonName}.", AppSeverity.Success);
-            return;
-        }
-
-        _accessMessage = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
-            ? "Nothing was changed. Confirm it's you to continue."
-            : AccessFailureMessage(result.Failure, result.Message);
-    }
-
-    // The Engine's own sentence for a conflict is shown as it is; the generic line is for a conflict with no reason given.
+    // The Engine's own sentence is shown as it is; the generic lines are for a refusal with no reason given.
     private static string AccessFailureMessage(DashboardAccessMutationFailure failure, string? engineMessage = null) => failure switch
     {
-        DashboardAccessMutationFailure.Validation or DashboardAccessMutationFailure.Forbidden
-            => "That wasn't saved. You can only give what your household has, and only to people in it.",
-        DashboardAccessMutationFailure.Conflict => string.IsNullOrWhiteSpace(engineMessage)
-            ? "This change conflicts with the current account state."
-            : engineMessage,
+        DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
         DashboardAccessMutationFailure.Unauthorized => "Your session has expired.",
-        DashboardAccessMutationFailure.NotFound => "This account no longer exists.",
         DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+        _ when !string.IsNullOrWhiteSpace(engineMessage) => engineMessage,
+        DashboardAccessMutationFailure.Validation or DashboardAccessMutationFailure.Forbidden
+            => "That wasn't saved. You can only give what your profile has, and only to people in your household.",
+        DashboardAccessMutationFailure.Conflict => "This change conflicts with the current state.",
+        DashboardAccessMutationFailure.NotFound => "This profile no longer exists.",
         _ => "The change could not be saved. Try again.",
     };
 
@@ -771,106 +789,18 @@
         _editorOpen = true;
     }
 
-    private void OpenSignIn()
-    {
-        _signInError = null;
-        _signInIssued = null;
-        _signInOpen = true;
-    }
-
-    private void CloseSignIn()
-    {
-        if (_signInSaving)
-        {
-            return;
-        }
-
-        _signInOpen = false;
-        _signInError = null;
-        _signInIssued = null;
-    }
-
     private string PersonName => _person?.DisplayName ?? "This person";
-
-    private Task GiveSignInAsync(SignInGiveChoice choice) =>
-        RunSignInAsync(afterUnlock => SignInWorkflow.GiveAsync(ProfileId, PersonName, choice.Email, choice.Password,
-            choice.MustChangePassword, invite: false, afterUnlock));
-
-    private Task InviteSignInAsync(SignInGiveChoice choice) =>
-        RunSignInAsync(afterUnlock => SignInWorkflow.GiveAsync(ProfileId, PersonName, choice.Email, null,
-            choice.MustChangePassword, invite: true, afterUnlock));
-
-    private Task SetSignInPasswordAsync(SignInPasswordChoice choice) =>
-        OwnSignIn is { } signIn
-            ? RunSignInAsync(afterUnlock => SignInWorkflow.SetPasswordAsync(signIn.AccountId, PersonName, choice.Password,
-                choice.MustChangePassword, afterUnlock))
-            : Task.CompletedTask;
-
-    private Task ChangeSignInEmailAsync(string email) =>
-        OwnSignIn is { } signIn
-            ? RunSignInAsync(afterUnlock => SignInWorkflow.ChangeEmailAsync(signIn.AccountId, PersonName, email, afterUnlock))
-            : Task.CompletedTask;
-
-    private Task RemoveSignInAsync() =>
-        OwnSignIn is { } signIn
-            ? RunSignInAsync(afterUnlock => SignInWorkflow.RemoveAsync(signIn.AccountId, PersonName, afterUnlock))
-            : Task.CompletedTask;
-
-    private async Task RunSignInAsync(Func<bool, Task<SignInOutcome>> action, bool afterUnlock = false)
-    {
-        if (_signInSaving)
-        {
-            return;
-        }
-
-        _signInSaving = true;
-        _signInError = null;
-        try
-        {
-            var outcome = await action(afterUnlock);
-            if (outcome.NeedsUnlock)
-            {
-                _needsUnlock = true;
-                _unlockError = null;
-                _afterUnlock = () => RunSignInAsync(action, afterUnlock: true);
-                return;
-            }
-
-            _signInError = outcome.Error;
-            if (!outcome.Done)
-            {
-                return;
-            }
-
-            _signInIssued = outcome.Issued;
-            if (outcome.Notice is not null)
-            {
-                _notice = outcome.Notice;
-            }
-
-            await ReloadManagedAsync();
-
-            // A password or invitation is shown once, so the sheet stays until Done; everything else closes it.
-            if (outcome.Issued is null)
-            {
-                _signInOpen = false;
-            }
-        }
-        finally
-        {
-            _signInSaving = false;
-        }
-    }
 
     private async Task ReloadManagedAsync()
     {
         try
         {
             _managed = await Identity.GetManagedProfilesAsync();
+            ApplyManaged();
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
-            Logger.LogWarning(exception, "Could not refresh the sign-in details.");
+            Logger.LogWarning(exception, "Could not refresh the profile details.");
             _notice = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
         }
     }

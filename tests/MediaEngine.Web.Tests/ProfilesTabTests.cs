@@ -27,6 +27,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     private readonly List<RequestRecord> _requests = [];
     private readonly List<AccountAccessResponse> _accounts = [];
     private DashboardAuthorityResponse? _authority;
+    private string? _addPersonDetail;
 
     public ProfilesTabTests()
     {
@@ -60,7 +61,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     {
         Setup(serverAdministrator: false, householdAdministrator: true);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 3, 1, DateTimeOffset.UtcNow));
-        _managed.AddRange([Person(OwnId, "Test User", false), Person(KidId, "Robin", true), Person(SamId, "Sam", false)]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(KidId, "Robin", true), Person(SamId, "Sam", false)]);
 
         var cut = Render<ProfilesTab>();
 
@@ -68,7 +69,8 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var rows = cut.FindAll(".profiles-tab__line");
         Assert.Contains("PIN", rows[2].TextContent);
         Assert.Contains("You", rows[0].TextContent);
-        Assert.Contains("Admin", rows[0].TextContent);
+        Assert.Contains("Household administrator", rows[0].TextContent);
+        Assert.DoesNotContain("Server administrator", rows[0].TextContent);
         Assert.Contains("Kids", rows[1].TextContent);
         Assert.DoesNotContain("You", rows[1].TextContent);
         Assert.Equal(["Home"], cut.FindAll(".profiles-tab__group .settings-section-card__title").Select(title => title.TextContent));
@@ -185,24 +187,81 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void DeletingAUserFromTheHouseholdPanel_RefreshesTheProfileList_SoTheirProfilesAreGone()
+    public void HouseholdAdministrator_HasNoUsersPanel_AndNoDeleteUserAction()
     {
         Setup(serverAdministrator: false, householdAdministrator: true);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 3, 2, DateTimeOffset.UtcNow));
-        _managed.AddRange([Person(OwnId, "Test User", false), Person(KidId, "Robin", true), Person(SamId, "Sam", false)]);
-        _accounts.Add(new AccountAccessResponse(Guid.NewGuid(), "sam@home.test", true, false, 1, [], [], [],
-            DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, null, HouseholdId: HouseholdId, HouseholdAdmin: false));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, email: "me@home.test"), Person(KidId, "Robin", true), Person(SamId, "Sam", false, email: "sam@home.test")]);
+
         var cut = Render<ProfilesTab>();
+
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Delete user sam@home.test']")));
+        Assert.DoesNotContain("Users in your household", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(cut.FindAll("button"), button => (button.GetAttribute("aria-label") ?? string.Empty).StartsWith("Delete user", StringComparison.Ordinal));
+        Assert.DoesNotContain(_requests, request => request.Path == "/access/accounts");
+    }
 
-        cut.Find("button[aria-label='Delete user sam@home.test']").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-user-deletion] button")));
-        cut.FindAll("[data-user-deletion] button").Single(button => button.TextContent.Trim() == "Delete user").Click();
+    [Fact]
+    public void EachPerson_ShowsTheirSignInEmailReadOnly_OrSaysTheyHaveNone()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 3, 2, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, email: "me@home.test"), Person(KidId, "Robin", true), Person(SamId, "Sam", false, email: "sam@home.test")]);
 
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
-        Assert.DoesNotContain("Sam", string.Concat(cut.FindAll(".profiles-tab__line").Select(line => line.TextContent)));
-        Assert.Contains(_requests, request => request.Method == HttpMethod.Delete && request.Path.StartsWith("/access/accounts/", StringComparison.Ordinal));
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
+        Assert.Equal("me@home.test", cut.Find($"[data-profile-signin='{OwnId}']").TextContent);
+        Assert.Equal("No sign-in", cut.Find($"[data-profile-signin='{KidId}']").TextContent);
+        Assert.Equal("sam@home.test", cut.Find($"[data-profile-signin='{SamId}']").TextContent);
+
+        // Read-only: no control on the row changes a sign-in.
+        var line = cut.Find($"[data-profile-id='{SamId}']");
+        Assert.Single(line.QuerySelectorAll("button"));
+        Assert.Equal("Edit", line.QuerySelector("button")!.TextContent.Trim());
+    }
+
+    [Fact]
+    public void ServerAdministrator_SeesTheRoleBadgesOfEveryHouseholdsPeople()
+    {
+        Setup(serverAdministrator: true, householdAdministrator: false);
+        _households.AddRange([
+            new HouseholdResponse(OtherHouseholdId, "Cabin", 1, 1, DateTimeOffset.UtcNow),
+            new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow),
+        ]);
+        _managed.AddRange([
+            Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, email: "me@home.test"),
+            Person(SamId, "Sam", false),
+            Person(AlexId, "Alex", false, OtherHouseholdId, householdAdmin: true, email: "alex@cabin.test")]);
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
+        var own = cut.Find($"[data-profile-id='{OwnId}']");
+        Assert.NotNull(own.QuerySelector("[data-role='server-administrator']"));
+        Assert.NotNull(own.QuerySelector("[data-role='household-administrator']"));
+        var alex = cut.Find($"[data-profile-id='{AlexId}']");
+        Assert.NotNull(alex.QuerySelector("[data-role='household-administrator']"));
+        Assert.Null(alex.QuerySelector("[data-role='server-administrator']"));
+        Assert.Null(cut.Find($"[data-profile-id='{SamId}']").QuerySelector("[data-role]"));
+    }
+
+    [Fact]
+    public void AddProfile_AtEight_IsRefusedWithTheEnginesSentence()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true, email: "me@home.test"));
+        _addPersonDetail = "A household holds up to 8 people.";
+
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".profiles-tab__row--add")));
+        cut.Find(".profiles-tab__row--add").Click();
+        cut.WaitForAssertion(() => Assert.Equal("Add profile", cut.Find("#profile-editor-title").TextContent));
+        cut.Find("input.profile-editor__name").Input("Sam");
+        cut.Find(".who-button--primary").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("A household holds up to 8 people.", cut.Find(".who-page__error").TextContent));
     }
 
     [Fact]
@@ -244,8 +303,11 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Services.AddScoped(_ => session);
     }
 
-    private static ManagedProfileResponse Person(Guid id, string name, bool restricted, Guid? household = null) =>
-        new(id, name, "#C9922E", null, DateTimeOffset.UtcNow.AddMinutes(id == OwnId ? -3 : 0), household ?? HouseholdId, restricted);
+    private static ManagedProfileResponse Person(Guid id, string name, bool restricted, Guid? household = null,
+        bool householdAdmin = false, bool serverAdmin = false, string? email = null) =>
+        new(id, name, "#C9922E", null, DateTimeOffset.UtcNow.AddMinutes(id == OwnId ? -3 : 0), household ?? HouseholdId, restricted,
+            IsServerAdmin: serverAdmin, IsHouseholdAdmin: householdAdmin,
+            User: email is null ? null : new ManagedProfileUserDto(Guid.NewGuid(), email));
 
     private static string GetRepoFile(params string[] parts)
     {
@@ -312,6 +374,11 @@ public sealed class ProfilesTabTests : AsyncBunitContext
                 owner._managed.RemoveAll(person => person.Id == SamId);
                 owner._accounts.Clear();
                 return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+
+            if (request.Method == HttpMethod.Post && path.EndsWith("/people", StringComparison.Ordinal) && owner._addPersonDetail is { } refusal)
+            {
+                return new HttpResponseMessage(HttpStatusCode.Conflict) { Content = JsonContent.Create(new { detail = refusal }) };
             }
 
             if (request.Method == HttpMethod.Post && path.EndsWith("/people", StringComparison.Ordinal))

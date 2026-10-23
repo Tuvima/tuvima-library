@@ -85,6 +85,50 @@ public sealed class ProfileQuickSwitchTests : AsyncBunitContext
     }
 
     [Fact]
+    public void FromAKidsProfile_AnotherProfileWithoutAPin_IsOfferedAndOpensWithoutAskingForOne()
+    {
+        var kid = Person("Sam", kids: true);
+        var mom = Person("Mom");
+        var dad = Person("Dad", pin: true);
+
+        var cut = RenderSwitcher(kid.Id, kid, mom, dad);
+
+        var items = cut.FindAll(".profile-switcher__item");
+        Assert.Equal(2, items.Count);
+        Assert.All(items, item => Assert.False(item.HasAttribute("disabled")));
+
+        // Switching is free unless the profile has a PIN (D13): Mom opens straight away, Dad asks.
+        cut.Find("button[aria-label='Switch to Mom']").Click();
+        Assert.Empty(cut.FindAll(".pin-pad"));
+    }
+
+    [Fact]
+    public void FromAKidsProfile_AProfileWithAPin_StillAsksForItsPin()
+    {
+        var kid = Person("Sam", kids: true);
+        var dad = Person("Dad", pin: true);
+
+        var cut = RenderSwitcher(kid.Id, kid, dad);
+        cut.Find("button[aria-label='Switch to Dad, needs a PIN']").Click();
+
+        Assert.NotEmpty(cut.FindAll(".pin-pad"));
+    }
+
+    [Fact]
+    public void Switcher_ListsOnlyTheProfilesTheShellGaveIt_SoAnotherHouseholdIsNeverOffered()
+    {
+        var me = Person("Maya");
+        var dad = Person("Dad");
+        var switcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavProfileSwitcher.razor"));
+
+        var cut = RenderSwitcher(me.Id, me, dad);
+
+        // The Engine's profile list is limited to the signed-in user's household; the switcher adds nothing to it.
+        Assert.Equal(["Dad"], cut.FindAll(".profile-switcher__name").Select(name => name.TextContent.Trim()));
+        Assert.DoesNotContain("GetManagedProfilesAsync", switcher, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AccountMenu_OffersTheSwitcherOnlyWithSeveralProfiles_AndKeepsTheFullPickerLink()
     {
         var menu = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));

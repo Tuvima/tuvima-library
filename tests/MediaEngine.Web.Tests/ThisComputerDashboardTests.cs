@@ -51,6 +51,17 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Setup_StartWithoutAPassword_SaysAPasswordIsNeededBeforeAnotherHousehold()
+    {
+        var choices = RenderStage(available: true, mode: string.Empty);
+        var form = RenderStage(available: true, mode: SetupSignInModes.ThisComputer);
+
+        const string note = "You can add a password later. You'll need one before adding another household.";
+        Assert.Contains(note, choices.Find(".setup-choice-card").TextContent, StringComparison.Ordinal);
+        Assert.Contains(note, form.Find("small").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Setup_SettingAPasswordNowKeepsTodaysForm()
     {
         var form = RenderStage(available: true, mode: SetupSignInModes.Password);
