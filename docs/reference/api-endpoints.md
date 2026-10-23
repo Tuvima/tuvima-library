@@ -419,7 +419,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | POST | `/library/unmatched/items/{assetId}/keep` | Keep as is: stops the file's retries and clears it from the count and filter | Effective administrator |
 | POST | `/library/unmatched/items/{assetId}/look-up-again` | Look up again: clears the kept mark and looks the file up now | Effective administrator |
 | GET | `/library/first-checks` | The folders whose first check is running or paused (Library setup D35, D61): `{ items: [{ library_id, source_id, path, state ("checking" or "paused"), tried, unmatched, total_files }] }`. A folder added to a library whose kind looks details up is checked before anything in it is renamed, moved or tagged; Vault folders never are | Effective administrator |
-| POST | `/library/first-checks/{sourceId}/keep-going` | Keep going on a paused folder: identification resumes, Unmatched files stay Unmatched and are looked up again later, and the matched files' held moves and tags are released to the next run. `204`, or `409` when the folder is not paused. Removing the folder is the existing folder removal, which drops its check | Effective administrator |
+| POST | `/library/first-checks/{sourceId}/keep-going` | Keep going on a paused folder, or as an override on one still being checked: identification resumes, Unmatched files stay Unmatched and are looked up again later, and the matched files' held moves and tags are released to the next run. `204`, or `409` when the folder is neither paused nor being checked. Removing the folder is the existing folder removal, which drops its check | Effective administrator |
 
 ---
 

@@ -34,9 +34,9 @@ public static class FolderFirstCheckEndpoints
             CancellationToken ct) =>
             await service.KeepGoingAsync(sourceId, ct)
                 ? Results.NoContent()
-                : ApiErrors.Conflict("That folder is not paused, so there is nothing to keep going."))
+                : ApiErrors.Conflict("That folder is not being checked, so there is nothing to keep going."))
         .WithName("KeepGoingOnPausedFolder")
-        .WithSummary("Keep going on a paused folder: identification resumes, Unmatched files stay Unmatched and are looked up again later, and matched files' held moves and tags are released to the next run.")
+        .WithSummary("Keep going on a paused folder (or one still being checked): identification resumes, Unmatched files stay Unmatched and are looked up again later, and matched files' held moves and tags are released to the next run.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status409Conflict);
 

@@ -51,10 +51,10 @@ public sealed class FolderFirstCheckRepositoryTests : IDisposable
     // ----- which files belong to a folder ---------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task AFile_CountsForTheFolderItIsIn_WhateverTheSeparatorsAndLetterCase()
+    public async Task AFile_CountsForTheFolderItIsIn_WhateverTheSeparators()
     {
-        await _checks.StartAsync(Library, SourceId, "D:\\Media\\Movies\\", Now);
-        var inside = AddAsset("d:/media/MOVIES/Dune (2021)/Dune.mkv");
+        await _checks.StartAsync(Library, SourceId, @"D:\Media\Movies\", Now);
+        var inside = AddAsset("D:/Media/Movies/Dune (2021)/Dune.mkv");
         var nested = AddAsset(@"D:\Media\Movies\Sub\Deeper\Heat.mkv");
 
         await _checks.RecordOutcomeAsync(inside, FolderFirstCheckOutcomes.Matched);
@@ -62,6 +62,49 @@ public sealed class FolderFirstCheckRepositoryTests : IDisposable
 
         var progress = await _checks.GetProgressAsync(SourceId, 50);
         Assert.Equal((2, 1, 2), (progress.Tried, progress.Unmatched, progress.TotalFiles));
+    }
+
+    [Fact]
+    public async Task ALetterCaseDifference_MatchesOnlyOnWindows_WhereTheEngineComparesSourcePathsWithoutCase()
+    {
+        await _checks.StartAsync(Library, SourceId, "D:/Media/Movies", Now);
+        var differsInCase = AddAsset("d:/media/MOVIES/Heat.mkv");
+
+        await _checks.RecordOutcomeAsync(differsInCase, FolderFirstCheckOutcomes.Matched);
+
+        Assert.Equal(OperatingSystem.IsWindows() ? 1 : 0, (await _checks.GetProgressAsync(SourceId, 50)).Tried);
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("//")]
+    public async Task AFolderAtTheRoot_HoldsTheFilesBelowIt_WithoutAnEmptyPrefixMatchingEverything(string root)
+    {
+        await _checks.StartAsync(Library, SourceId, root, Now);
+        var below = AddAsset("/Media/Heat.mkv");
+        var elsewhere = AddAsset("D:/Media/Heat.mkv");
+
+        await _checks.RecordOutcomeAsync(below, FolderFirstCheckOutcomes.Matched);
+        await _checks.RecordOutcomeAsync(elsewhere, FolderFirstCheckOutcomes.Matched);
+
+        Assert.Equal("/", Scalar<string>("SELECT path_prefix FROM folder_first_checks WHERE source_id = @SourceId;", new { SourceId }));
+        Assert.Equal(1, (await _checks.GetProgressAsync(SourceId, 50)).Tried);
+    }
+
+    [Fact]
+    public async Task TheFilesOfAFolder_AreFoundByARangeOnTheFoldedPathIndex_NotByScanningEveryAsset()
+    {
+        await _checks.StartAsync(Library, SourceId, Folder, Now);
+        using var connection = _database.CreateConnection();
+        var bounds = FolderFirstCheckRepository.LoadBounds(connection, SourceId)!;
+
+        var plan = string.Join(
+            "\n",
+            connection.Query<(long Id, long Parent, long Unused, string Detail)>(
+                $"EXPLAIN QUERY PLAN SELECT COUNT(*) FROM media_assets a WHERE {FolderPathSql.InFolderOfBounds("a.file_path_root")};",
+                FolderFirstCheckRepository.BoundsArgs(SourceId, bounds)).Select(step => step.Detail));
+
+        Assert.Contains("SEARCH a USING INDEX ix_media_assets_path_folded", plan, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -285,6 +328,112 @@ public sealed class FolderFirstCheckRepositoryTests : IDisposable
         Assert.Equal(open, Assert.Single(later).AssetId);
     }
 
+    [Fact]
+    public async Task APersonsOwnEdit_OfAnUnmatchedFile_IsClaimedAndWrittenAsNormal()
+    {
+        var edited = AddAsset("D:/Media/Music/Edited.flac");
+        var automatic = AddAsset("D:/Media/Music/Automatic.flac");
+        foreach (var asset in new[] { edited, automatic })
+        {
+            Execute("""
+                INSERT INTO unmatched_assets(asset_id,library_id,reason,first_unmatched_at,last_tried_at,next_retry_at,kept_as_is)
+                VALUES(@asset,'music','no_match','2026-10-22T09:00:00.0000000Z','2026-10-22T09:00:00.0000000Z',NULL,1);
+                """, new { asset });
+        }
+
+        // The pipeline asks for tags on its own; a person saves a field in Editing Mode.
+        await _intents.EnqueueAssetsAsync([automatic], "auto_match");
+        await _intents.EnqueueAssetsAsync([edited], "editor_commit");
+
+        Assert.Equal(1, (await _intents.GetCountsAsync()).Claimable);
+        var claimed = await _intents.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(1), DateTimeOffset.UtcNow.AddHours(1));
+        Assert.Equal(edited, Assert.Single(claimed).AssetId);
+    }
+
+    [Fact]
+    public async Task ARowHeldBackOnlyBecauseItsFileIsUnmatched_IsNotCountedAsWaiting_ButIsKept()
+    {
+        var kept = AddAsset("D:/Media/Music/Kept.flac");
+        var normal = AddAsset("D:/Media/Music/Normal.flac");
+        Execute("""
+            INSERT INTO unmatched_assets(asset_id,library_id,reason,first_unmatched_at,last_tried_at,next_retry_at,kept_as_is)
+            VALUES(@kept,'music','no_match','2026-10-22T09:00:00.0000000Z','2026-10-22T09:00:00.0000000Z',NULL,1);
+            """, new { kept });
+        await _intents.EnqueueAssetsAsync([kept, normal], "auto_match");
+
+        var counts = await _intents.GetCountsAsync();
+
+        Assert.Equal((1, 1), (counts.Waiting, counts.Claimable));
+        Assert.Equal(2, Scalar<int>("SELECT COUNT(*) FROM media_file_write_intents;"));
+    }
+
+    [Fact]
+    public async Task APausedFolder_AmongAFewThousandQueuedJobs_BlocksExactlyItsOwnFiles_BatchAfterBatch()
+    {
+        const int perFolder = 1500;
+        await _checks.StartAsync(Library, SourceId, Folder, Now);
+        var inside = new HashSet<Guid>();
+        var outside = new HashSet<Guid>();
+        using (var connection = _database.CreateConnection())
+        using (var transaction = connection.BeginTransaction())
+        {
+            for (var i = 0; i < perFolder; i++)
+            {
+                // Jobs of the paused folder are the oldest ones, so a claim has to look past all of them.
+                inside.Add(AddQueuedAsset(connection, transaction, $"D:/Media/Movies/Sub{i % 20}/File{i}.mkv", library: i % 2 == 0 ? Library : null));
+            }
+
+            for (var i = 0; i < perFolder; i++)
+            {
+                outside.Add(AddQueuedAsset(connection, transaction, i % 3 == 0 ? $"D:/Media/Movies2/File{i}.mkv" : $"D:/Media/Music/File{i}.flac", library: Library));
+            }
+
+            transaction.Commit();
+        }
+
+        await _checks.PauseAsync(SourceId, 50, 40, Now);
+
+        var claimed = new List<Guid>();
+        while (true)
+        {
+            var batch = await _jobs.LeaseNextAsync("worker", [IdentityJobState.Queued], 200, TimeSpan.FromMinutes(1));
+            if (batch.Count == 0)
+            {
+                break;
+            }
+
+            claimed.AddRange(batch.Select(job => job.EntityId));
+        }
+
+        Assert.Equal(perFolder, claimed.Count);
+        Assert.True(outside.SetEquals(claimed));
+        Assert.DoesNotContain(claimed, inside.Contains);
+
+        // Keep going lets the rest of the folder through.
+        Assert.True(await _checks.KeepGoingAsync(SourceId, Now));
+        var rest = await _jobs.LeaseNextAsync("worker", [IdentityJobState.Queued], 5000, TimeSpan.FromMinutes(1));
+        Assert.True(inside.SetEquals(rest.Select(job => job.EntityId)));
+    }
+
+    [Fact]
+    public async Task KeepGoing_ActsOnAFolderStillBeingChecked_WithItsLiveCounts_AndReleasesItsHeldRows()
+    {
+        await _checks.StartAsync(Library, SourceId, Folder, Now);
+        var matched = AddAsset("D:/Media/Movies/Heat.mkv");
+        var unmatched = AddAsset("D:/Media/Movies/Unknown.mkv");
+        await _intents.RequestFilingAsync(matched, held: true);
+        await _checks.RecordOutcomeAsync(matched, FolderFirstCheckOutcomes.Matched);
+        await _checks.RecordOutcomeAsync(unmatched, FolderFirstCheckOutcomes.Unmatched);
+
+        Assert.True(await _checks.KeepGoingAsync(SourceId, Now));
+
+        var check = (await _checks.GetAsync(SourceId))!;
+        Assert.Equal((FolderFirstCheckStates.KeptGoing, 2, 1), (check.State, check.Tried, check.Unmatched));
+        Assert.Equal("waiting", MoveStep(matched));
+        Assert.False(_checks.IsHeld(SourceId));
+        Assert.False(await _checks.KeepGoingAsync(SourceId, Now));
+    }
+
     // ----- ending a check and the held filing rows ------------------------------------------------------------------------------
 
     [Fact]
@@ -397,6 +546,19 @@ public sealed class FolderFirstCheckRepositoryTests : IDisposable
             INSERT INTO media_assets(id,edition_id,content_hash,file_path_root)
             VALUES(@asset,@edition,@hash,@path);
             """, new { asset, edition = _edition, hash = Guid.NewGuid().ToString("N"), path });
+        return asset;
+    }
+
+    private Guid AddQueuedAsset(Microsoft.Data.Sqlite.SqliteConnection connection, Microsoft.Data.Sqlite.SqliteTransaction transaction, string path, string? library)
+    {
+        var asset = Guid.NewGuid();
+        connection.Execute("""
+            INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,library_id) VALUES(@asset,@edition,@hash,@path,@library);
+            INSERT INTO identity_jobs(id,entity_id,entity_type,media_type,state,pass,created_at,updated_at)
+            VALUES(@job,@asset,'MediaAsset','Movies','Queued','Quick',@created,@created);
+            """,
+            new { asset, edition = _edition, hash = Guid.NewGuid().ToString("N"), path, library, job = Guid.NewGuid(), created = DateTimeOffset.UtcNow.ToString("O") },
+            transaction);
         return asset;
     }
 

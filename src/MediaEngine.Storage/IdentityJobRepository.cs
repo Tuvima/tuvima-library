@@ -115,14 +115,17 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
     /// first files did not match, and nothing more of it is identified until an administrator chooses. A folder that is only being
     /// checked is identified as normal. When no folder is paused the subquery finds no row in the small index and costs nothing.
     /// </summary>
-    private const string PausedFolderSql = """
+    private static readonly string PausedFolderSql = $"""
         EXISTS (
             SELECT 1
             FROM   folder_first_checks paused_check
-            JOIN   media_assets paused_asset ON paused_asset.id = identity_jobs.entity_id
             WHERE  paused_check.state = 'paused'
-              AND  substr(lower(replace(paused_asset.file_path_root, '\', '/')), 1, length(paused_check.path_key) + 1)
-                       = paused_check.path_key || '/')
+              AND  EXISTS (
+                       SELECT 1
+                       FROM   media_assets paused_asset
+                       WHERE  paused_asset.id = identity_jobs.entity_id
+                         AND  COALESCE(NULLIF(paused_asset.library_id, ''), paused_check.library_id) = paused_check.library_id
+                         AND  {FolderPathSql.InFolder("paused_asset.file_path_root", "paused_check")}))
         """;
 
     /// <summary>

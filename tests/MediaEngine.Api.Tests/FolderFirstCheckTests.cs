@@ -28,6 +28,7 @@ public sealed class FolderFirstCheckTests : IDisposable
     private static readonly DateTimeOffset Now = new(2026, 10, 22, 9, 0, 0, TimeSpan.Zero);
 
     private readonly LibraryMoveTestWorld _world = new(withFiles: true);
+    private readonly ManualClock _clock = new(Now);
     private readonly FolderFirstCheckSignal _signal = new();
     private readonly FolderFirstCheckRepository _checks;
     private readonly IdentityJobRepository _jobs;
@@ -43,7 +44,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         _jobs = new IdentityJobRepository(Files.Database, _signal);
         _unmatched = new UnmatchedAssetRepository(Files.Database);
         _organizer = Files.CreateFilingOrganizer(new FolderFirstCheckFilingHold(_checks));
-        _service = new FolderFirstCheckService(_checks, Files.Configuration, NullLogger<FolderFirstCheckService>.Instance);
+        _service = new FolderFirstCheckService(_checks, Files.Configuration, NullLogger<FolderFirstCheckService>.Instance, _clock);
         Files.WriteBack.PathOf = Files.StoredPath;
     }
 
@@ -64,7 +65,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
 
         await FinishAsync(songs.Take(50), matched: index => index % 5 >= 3);
-        var ended = await _service.EvaluateAsync(CancellationToken.None);
+        var ended = await EvaluateSettledAsync(_service);
 
         Assert.Equal(1, ended);
         var listed = Assert.Single(await _service.ListAsync(CancellationToken.None));
@@ -95,7 +96,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         var songs = await AddSongsAsync(80);
         await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
         await FinishAsync(songs.Take(50), matched: index => index % 5 >= 3);
-        await _service.EvaluateAsync(CancellationToken.None);
+        await EvaluateSettledAsync(_service);
         var matched = songs.Take(50).Where((_, index) => index % 5 >= 3).ToList();
         var unmatched = songs.Take(50).Where((_, index) => index % 5 < 3).ToList();
         var targets = new Dictionary<Guid, string>();
@@ -147,7 +148,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         // One file has not been looked at yet: a folder with fewer files than the check tries waits for all of them.
         Assert.Equal(0, await _service.EvaluateAsync(CancellationToken.None));
         await FinishAsync(songs.Skip(9), matched: _ => true);
-        Assert.Equal(1, await _service.EvaluateAsync(CancellationToken.None));
+        Assert.Equal(1, await EvaluateSettledAsync(_service));
 
         var check = (await _checks.GetAsync(ManagedSource))!;
         Assert.Equal((FolderFirstCheckStates.Passed, 10, 2), (check.State, check.Tried, check.Unmatched));
@@ -186,7 +187,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         Assert.Equal(0, await _service.EvaluateAsync(CancellationToken.None));
 
         Files.Execute("UPDATE media_operations SET status = 'completed';");
-        Assert.Equal(1, await _service.EvaluateAsync(CancellationToken.None));
+        Assert.Equal(1, await EvaluateSettledAsync(_service));
 
         var listed = Assert.Single(await _service.ListAsync(CancellationToken.None));
         Assert.Equal((FolderFirstCheckStates.Paused, 8, 7), (listed.Check.State, listed.Check.Tried, listed.Check.Unmatched));
@@ -199,7 +200,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
 
         await FinishAsync(songs, matched: index => index % 2 == 0);
-        await _service.EvaluateAsync(CancellationToken.None);
+        await EvaluateSettledAsync(_service);
 
         Assert.Equal(FolderFirstCheckStates.Passed, (await _checks.GetAsync(ManagedSource))!.State);
     }
@@ -213,7 +214,7 @@ public sealed class FolderFirstCheckTests : IDisposable
 
         // One of the first four is Unmatched: a quarter, over the 0.2 share. The other files have not been looked at.
         await FinishAsync(songs.Take(4), matched: index => index != 0);
-        await _service.EvaluateAsync(CancellationToken.None);
+        await EvaluateSettledAsync(_service);
 
         var check = (await _checks.GetAsync(ManagedSource))!;
         Assert.Equal((FolderFirstCheckStates.Paused, 4, 1), (check.State, check.Tried, check.Unmatched));
@@ -226,7 +227,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         await _checks.StartAsync(LibraryId, "as-is", Files.AsIs, Now);
 
         await FinishAsync(songs, matched: index => index >= 6);
-        await _service.EvaluateAsync(CancellationToken.None);
+        await EvaluateSettledAsync(_service);
 
         var listed = Assert.Single(await _service.ListAsync(CancellationToken.None));
         Assert.Equal(("as-is", FolderFirstCheckStates.Paused, 8, 6), (listed.Check.SourceId, listed.Check.State, listed.Check.Tried, listed.Check.Unmatched));
@@ -251,11 +252,104 @@ public sealed class FolderFirstCheckTests : IDisposable
         }
 
         await FinishAsync(songs.Skip(6), matched: _ => true);
-        await _service.EvaluateAsync(CancellationToken.None);
+        await EvaluateSettledAsync(_service);
 
         var check = (await _checks.GetAsync(ManagedSource))!;
         Assert.Equal((FolderFirstCheckStates.Paused, 8, 6), (check.State, check.Tried, check.Unmatched));
         Assert.Equal(UnmatchedReasons.NoYoutubeId, (await _unmatched.GetAsync(songs[0].Asset))!.Reason);
+    }
+
+    // ----- a check never stays open for good ------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AFolderWhereEveryLookupFailed_PassesOnceNothingIsWaitingAndIngestionHasSettled_AndLaterMatchesAreFiledNormally()
+    {
+        var songs = await AddSongsAsync(3);
+        await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
+        foreach (var song in songs)
+        {
+            await _jobs.UpdateStateAsync(song.Job, IdentityJobState.Failed, "provider down");
+        }
+
+        // The first look only notes that nothing is arriving; the folder is decided once that has held for a while.
+        Assert.Equal(0, await _service.EvaluateAsync(CancellationToken.None));
+        Assert.Equal(FolderFirstCheckStates.Checking, (await _checks.GetAsync(ManagedSource))!.State);
+        Assert.Equal(1, await EvaluateSettledAsync(_service));
+
+        var check = (await _checks.GetAsync(ManagedSource))!;
+        Assert.Equal((FolderFirstCheckStates.Passed, 0, 0), (check.State, check.Tried, check.Unmatched));
+        Assert.False(_checks.IsHeld(ManagedSource));
+        Assert.All(songs, song => Assert.True(File.Exists(song.OldPath)));
+
+        // A file that matches later is filed as in any other folder: it waits for the next run, not held.
+        await _jobs.UpdateStateAsync(songs[0].Job, IdentityJobState.RetailMatched);
+        await _organizer.TryAutoOrganizeAsync(songs[0].Asset);
+        Assert.Equal("waiting", MoveStep(songs[0].Asset));
+    }
+
+    [Fact]
+    public async Task AFolderWithNoFiles_StaysChecking_UntilFilesArrive()
+    {
+        await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
+
+        Assert.Equal(0, await EvaluateSettledAsync(_service));
+        Assert.Equal(0, await EvaluateSettledAsync(_service));
+
+        Assert.Equal(FolderFirstCheckStates.Checking, (await _checks.GetAsync(ManagedSource))!.State);
+    }
+
+    [Fact]
+    public async Task AFolderIsNotSettled_UntilNoFileOfItHasHadAnOpenIntakeForAWhile()
+    {
+        var songs = await AddSongsAsync(8);
+        await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
+        await FinishAsync(songs, matched: _ => false);
+        string OpenIntake() => Path.Combine(Files.Managed, "inbox", "coming.flac");
+
+        Assert.Equal(0, await _service.EvaluateAsync(CancellationToken.None));
+        _clock.Advance(TimeSpan.FromSeconds(20));
+        Assert.Equal(0, await _service.EvaluateAsync(CancellationToken.None));
+
+        // An intake opens (a scan still enqueueing): the wait starts again from the moment it has closed.
+        Files.Execute("""
+            INSERT INTO media_operations(id,operation_type,operation_kind,source_path,status,position_key,created_at,updated_at,idempotency_key)
+            VALUES(@id,'ingestion.file','ingestion',@path,'running',1,'2026-10-22T09:00:00Z','2026-10-22T09:00:00Z',@key);
+            """, new { id = Guid.NewGuid(), path = OpenIntake(), key = Guid.NewGuid().ToString("N") });
+        _clock.Advance(TimeSpan.FromSeconds(40));
+        Assert.Equal(0, await _service.EvaluateAsync(CancellationToken.None));
+        Files.Execute("UPDATE media_operations SET status = 'completed';");
+        Assert.Equal(0, await _service.EvaluateAsync(CancellationToken.None));
+        _clock.Advance(TimeSpan.FromSeconds(29));
+        Assert.Equal(0, await _service.EvaluateAsync(CancellationToken.None));
+
+        _clock.Advance(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, await _service.EvaluateAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task KeepGoing_AlsoActsOnAFolderThatIsStillChecking_AsAnAdministratorsOverride()
+    {
+        var songs = await AddSongsAsync(6);
+        await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
+        await FinishAsync(songs.Take(5), matched: index => index >= 2);
+        var targets = new Dictionary<Guid, string>();
+        foreach (var song in songs.Skip(2).Take(3))
+        {
+            targets[song.Asset] = await ExpectedPathAsync(song.Asset);
+        }
+
+        Assert.True(await _service.KeepGoingAsync(ManagedSource, CancellationToken.None));
+
+        var check = (await _checks.GetAsync(ManagedSource))!;
+        Assert.Equal((FolderFirstCheckStates.KeptGoing, 5, 2), (check.State, check.Tried, check.Unmatched));
+        Assert.False(_checks.IsHeld(ManagedSource));
+        Assert.All(songs.Skip(2).Take(3), song => Assert.Equal("waiting", MoveStep(song.Asset)));
+        // The file that was not looked at yet is identified as normal, and a finished check cannot be overridden twice.
+        Assert.Single(await _jobs.LeaseNextAsync("worker", [IdentityJobState.Queued], 100, TimeSpan.FromMinutes(1)));
+        Assert.False(await _service.KeepGoingAsync(ManagedSource, CancellationToken.None));
+
+        await Files.Scheduler.RunBatchAsync();
+        Assert.All(targets, target => Assert.True(File.Exists(target.Value)));
     }
 
     // ----- nothing is written into an Unmatched file, and held subtitles are exported when the hold ends ------------------------
@@ -312,7 +406,7 @@ public sealed class FolderFirstCheckTests : IDisposable
             new FolderFirstCheckFilingHold(_checks));
         var paths = new AssetPathService(Path.Combine(Files.Managed, ".library"), new LibraryStoragePolicy { SubtitleExport = true }, null);
         var exporter = new HeldSubtitleExporter(tracks, assets, export, paths, NullLogger<HeldSubtitleExporter>.Instance);
-        var service = new FolderFirstCheckService(_checks, Files.Configuration, NullLogger<FolderFirstCheckService>.Instance, heldSubtitles: exporter);
+        var service = new FolderFirstCheckService(_checks, Files.Configuration, NullLogger<FolderFirstCheckService>.Instance, _clock, exporter);
         await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
         var song = songs[^1];
         var download = MoveFileWorld.WriteFile(Path.Combine(Files.Managed, ".library"), "downloads/subtitle.vtt", "WEBVTT");
@@ -338,7 +432,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         if (pausedThenKeepGoing)
         {
             await FinishAsync(songs, matched: index => index >= 6);
-            await service.EvaluateAsync(CancellationToken.None);
+            await EvaluateSettledAsync(service);
             Assert.Equal(FolderFirstCheckStates.Paused, (await _checks.GetAsync(ManagedSource))!.State);
             Assert.False(File.Exists(sidecar));
             Assert.True(await service.KeepGoingAsync(ManagedSource, CancellationToken.None));
@@ -346,7 +440,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         else
         {
             await FinishAsync(songs, matched: _ => true);
-            Assert.Equal(1, await service.EvaluateAsync(CancellationToken.None));
+            Assert.Equal(1, await EvaluateSettledAsync(service));
         }
 
         // The hold ended: the subtitle is exported and remembered.
@@ -431,7 +525,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         var songs = await AddSongsAsync(80);
         await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
         await FinishAsync(songs.Take(50), matched: index => index % 5 >= 3);
-        await _service.EvaluateAsync(CancellationToken.None);
+        await EvaluateSettledAsync(_service);
         Assert.Equal(20, Files.Scalar<int>("SELECT COUNT(*) FROM media_file_write_intents WHERE move_step = 'held';"));
         var before = Config(Library("lib", "music", Source(ManagedSource, Files.Managed)));
         var after = Config(Library("lib", "music"));
@@ -453,7 +547,7 @@ public sealed class FolderFirstCheckTests : IDisposable
         var songs = await AddSongsAsync(8);
         await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
         await FinishAsync(songs, matched: index => index >= 6);
-        await _service.EvaluateAsync(CancellationToken.None);
+        await EvaluateSettledAsync(_service);
         Assert.Equal(FolderFirstCheckStates.Paused, (await _checks.GetAsync(ManagedSource))!.State);
 
         Assert.True(await _service.EndBecauseKindChangedAsync(ManagedSource, CancellationToken.None));
@@ -466,6 +560,26 @@ public sealed class FolderFirstCheckTests : IDisposable
     // ----- helpers -------------------------------------------------------------------------------------------------------------
 
     private sealed record Song(Guid Asset, Guid Job, string OldPath);
+
+    private sealed class ManualClock(DateTimeOffset start) : TimeProvider
+    {
+        private DateTimeOffset _now = start;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan by) => _now += by;
+    }
+
+    /// <summary>
+    /// Looks at the folders being checked, waits out the time ingestion must show no open intake (the Engine records no completion for a scan,
+    /// so a folder counts as settled only after it has stayed clear that long), and looks again. Returns how many checks ended in the two looks.
+    /// </summary>
+    private async Task<int> EvaluateSettledAsync(FolderFirstCheckService service)
+    {
+        var ended = await service.EvaluateAsync(CancellationToken.None);
+        _clock.Advance(FolderFirstCheckService.SettledFor + TimeSpan.FromSeconds(1));
+        return ended + await service.EvaluateAsync(CancellationToken.None);
+    }
 
     private sealed class FixedMonitor(IngestionOptions value) : Microsoft.Extensions.Options.IOptionsMonitor<IngestionOptions>
     {

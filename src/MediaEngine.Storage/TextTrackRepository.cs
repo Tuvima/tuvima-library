@@ -59,11 +59,16 @@ public sealed class TextTrackRepository : ITextTrackRepository
         return Task.FromResult<IReadOnlyList<TextTrack>>(rows.ToList());
     }
 
-    public Task<IReadOnlyList<TextTrack>> ListPreferredSubtitlesWithoutSidecarInFolderAsync(string folderPath, CancellationToken ct = default)
+    public Task<IReadOnlyList<TextTrack>> ListPreferredSubtitlesWithoutSidecarInFolderAsync(string sourceId, CancellationToken ct = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(folderPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceId);
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
+        if (FolderFirstCheckRepository.LoadBounds(conn, sourceId) is not { } bounds)
+        {
+            return Task.FromResult<IReadOnlyList<TextTrack>>([]);
+        }
+
         var rows = conn.Query<TextTrack>($"""
             SELECT {SelectColumns}
             FROM text_tracks
@@ -71,8 +76,8 @@ public sealed class TextTrackRepository : ITextTrackRepository
               AND asset_id NOT IN (SELECT asset_id FROM unmatched_assets)
               AND asset_id IN (
                   SELECT a.id FROM media_assets a
-                  WHERE substr(lower(replace(a.file_path_root, '\', '/')), 1, length(@pathKey) + 1) = @pathKey || '/');
-            """, new { pathKey = MediaEngine.Domain.Models.FolderFirstCheckPaths.Key(folderPath) });
+                  WHERE {FolderPathSql.InFolderOfBounds("a.file_path_root")});
+            """, FolderFirstCheckRepository.BoundsArgs(sourceId, bounds));
         return Task.FromResult<IReadOnlyList<TextTrack>>(rows.ToList());
     }
 

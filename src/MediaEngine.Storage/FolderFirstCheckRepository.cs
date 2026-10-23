@@ -9,8 +9,8 @@ namespace MediaEngine.Storage;
 
 /// <summary>
 /// SQLite state of the first check of a newly added folder (<c>folder_first_checks</c>, <c>folder_first_check_files</c>; Library setup spec
-/// D35, D61). Files are matched to a folder by path: a file is in the folder when its path, with every separator as <c>/</c> and ASCII
-/// letters lower-cased, starts with the folder's <c>path_key</c> and a <c>/</c>. Every call uses a short-lived connection; times are stored
+/// D35, D61). Files are matched to a folder by path: a file is in the folder when its path, with every separator as <c>/</c>,
+/// starts with the folder's <c>path_prefix</c> (see <see cref="FolderPathSql"/> for how case is treated). Every call uses a short-lived connection; times are stored
 /// as UTC ISO-8601 text.
 /// </summary>
 public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFirstCheckSignal? signal = null) : IFolderFirstCheckRepository
@@ -32,8 +32,7 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
         PathInFolder($"{assetAlias}.file_path_root", checkAlias);
 
     /// <summary>SQL that is true when the path held by the expression <paramref name="pathExpression"/> is in the folder of the check at <paramref name="checkAlias"/>.</summary>
-    internal static string PathInFolder(string pathExpression, string checkAlias) =>
-        $"substr(lower(replace({pathExpression}, '\\', '/')), 1, length({checkAlias}.path_key) + 1) = {checkAlias}.path_key || '/'";
+    internal static string PathInFolder(string pathExpression, string checkAlias) => FolderPathSql.InFolder(pathExpression, checkAlias);
 
     /// <summary>
     /// SQL that is true when the file at <paramref name="assetAlias"/> is in a folder whose files must not be touched: a check that is
@@ -51,12 +50,15 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ct.ThrowIfCancellationRequested();
 
+        var prefix = FolderFirstCheckPaths.Prefix(path);
+        var folded = FolderFirstCheckPaths.Folded(prefix);
         using var connection = db.CreateConnection();
         var started = connection.Execute("""
-            INSERT OR IGNORE INTO folder_first_checks (source_id, library_id, path, path_key, state, tried, unmatched, started_at)
-            VALUES (@sourceId, @libraryId, @path, @pathKey, 'checking', 0, 0, @now);
+            INSERT OR IGNORE INTO folder_first_checks
+                (source_id, library_id, path, path_prefix, path_prefix_folded, path_range_end_folded, state, tried, unmatched, started_at)
+            VALUES (@sourceId, @libraryId, @path, @prefix, @folded, @rangeEnd, 'checking', 0, 0, @now);
             """,
-            new { sourceId, libraryId, path, pathKey = FolderFirstCheckPaths.Key(path), now = Format(now) }) > 0;
+            new { sourceId, libraryId, path, prefix, folded, rangeEnd = FolderFirstCheckPaths.RangeEnd(folded), now = Format(now) }) > 0;
         return Task.FromResult(started);
     }
 
@@ -110,13 +112,14 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
             FROM (SELECT outcome FROM folder_first_check_files WHERE source_id = @sourceId ORDER BY seq LIMIT @firstFiles);
             """, new { sourceId, firstFiles = Math.Max(1, firstFiles) });
 
-        var waiting = connection.ExecuteScalar<int>($"""
+        // The files of the folder are found by a range on the folded-path index, so the folder's bounds are bound as values.
+        var bounds = LoadBounds(connection, sourceId);
+        var waiting = bounds is null ? 0 : connection.ExecuteScalar<int>($"""
             SELECT COUNT(*) FROM media_assets a
-            JOIN folder_first_checks c ON c.source_id = @sourceId
-            WHERE {FileInFolder("a", "c")}
-              AND NOT EXISTS (SELECT 1 FROM folder_first_check_files f WHERE f.source_id = c.source_id AND f.asset_id = a.id)
+            WHERE {FolderPathSql.InFolderOfBounds("a.file_path_root")}
+              AND NOT EXISTS (SELECT 1 FROM folder_first_check_files f WHERE f.source_id = @sourceId AND f.asset_id = a.id)
               AND EXISTS (SELECT 1 FROM identity_jobs j WHERE j.entity_id = a.id AND j.state IN {PreOutcomeStates});
-            """, new { sourceId });
+            """, BoundsArgs(sourceId, bounds));
 
         var settled = !connection.ExecuteScalar<bool>($"""
             SELECT EXISTS (
@@ -161,7 +164,7 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
                 SELECT a.id AS id,
                        (SELECT c.source_id FROM folder_first_checks c
                         WHERE c.state = 'checking' AND {FileInFolder("a", "c")}
-                        ORDER BY length(c.path_key) DESC LIMIT 1) AS source_id
+                        ORDER BY length(c.path_prefix) DESC LIMIT 1) AS source_id
                 FROM (SELECT id, file_path_root FROM media_assets WHERE id = @entityId
                       UNION
                       SELECT ma.id, ma.file_path_root FROM media_assets ma
@@ -173,7 +176,7 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
     }
 
     public Task<bool> PassAsync(string sourceId, int tried, int unmatched, DateTimeOffset now, CancellationToken ct = default) =>
-        EndAsync(sourceId, FolderFirstCheckStates.Checking, FolderFirstCheckStates.Passed, tried, unmatched, now, ct);
+        EndAsync(sourceId, [FolderFirstCheckStates.Checking], FolderFirstCheckStates.Passed, tried, unmatched, now, ct);
 
     public Task<bool> PauseAsync(string sourceId, int tried, int unmatched, DateTimeOffset now, CancellationToken ct = default)
     {
@@ -188,7 +191,8 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
     }
 
     public Task<bool> KeepGoingAsync(string sourceId, DateTimeOffset now, CancellationToken ct = default) =>
-        EndAsync(sourceId, FolderFirstCheckStates.Paused, FolderFirstCheckStates.KeptGoing, tried: null, unmatched: null, now, ct);
+        // An administrator may also override a check that is still running (it has not paused the folder, but they do not want to wait).
+        EndAsync(sourceId, [FolderFirstCheckStates.Checking, FolderFirstCheckStates.Paused], FolderFirstCheckStates.KeptGoing, tried: null, unmatched: null, now, ct);
 
     public Task<bool> DropAsync(string sourceId, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
@@ -199,8 +203,8 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
             connection.Execute($"""
                 DELETE FROM media_file_write_intents
                 WHERE target_kind = 'media_asset' AND move_step = 'held' AND move_origin = 'filing'
-                  AND asset_id IN (SELECT a.id FROM media_assets a JOIN folder_first_checks c ON c.source_id = @sourceId
-                                   WHERE {FileInFolder("a", "c")});
+                  AND EXISTS (SELECT 1 FROM media_assets a JOIN folder_first_checks c ON c.source_id = @sourceId
+                              WHERE a.id = media_file_write_intents.asset_id AND {FileInFolder("a", "c")});
                 """, new { sourceId }, transaction);
             return connection.Execute("DELETE FROM folder_first_checks WHERE source_id = @sourceId;", new { sourceId }, transaction) > 0;
         }, ct);
@@ -221,14 +225,21 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
     // Ends the check in one transaction: the state changes only from the expected one, the folder's held filing rows become waiting (the
     // row of a file that is Unmatched now is dropped instead: it stays where it is) and the per-file rows are no longer needed.
     private Task<bool> EndAsync(
-        string sourceId, string from, string to, int? tried, int? unmatched, DateTimeOffset now, CancellationToken ct) =>
+        string sourceId, string[] from, string to, int? tried, int? unmatched, DateTimeOffset now, CancellationToken ct) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             var changed = connection.Execute("""
                 UPDATE folder_first_checks
-                SET state = @to, tried = COALESCE(@tried, tried), unmatched = COALESCE(@unmatched, unmatched), ended_at = @now
-                WHERE source_id = @sourceId AND state = @from;
+                SET tried = CASE WHEN @tried IS NULL AND state = 'checking'
+                                 THEN (SELECT COUNT(*) FROM folder_first_check_files f WHERE f.source_id = folder_first_checks.source_id)
+                                 ELSE COALESCE(@tried, tried) END,
+                    unmatched = CASE WHEN @unmatched IS NULL AND state = 'checking'
+                                     THEN (SELECT COUNT(*) FROM folder_first_check_files f
+                                           WHERE f.source_id = folder_first_checks.source_id AND f.outcome = 'unmatched')
+                                     ELSE COALESCE(@unmatched, unmatched) END,
+                    state = @to, ended_at = @now
+                WHERE source_id = @sourceId AND state IN @from;
                 """, new { sourceId, from, to, tried, unmatched, now = Format(now) }, transaction) > 0;
             if (!changed)
             {
@@ -240,25 +251,38 @@ public sealed class FolderFirstCheckRepository(IDatabaseConnection db, FolderFir
                 DELETE FROM media_file_write_intents
                 WHERE target_kind = 'media_asset' AND move_step = 'held' AND move_origin = 'filing'
                   AND asset_id IN (SELECT asset_id FROM unmatched_assets)
-                  AND asset_id IN (SELECT a.id FROM media_assets a JOIN folder_first_checks c ON c.source_id = @sourceId
-                                   WHERE {FileInFolder("a", "c")});
+                  AND EXISTS (SELECT 1 FROM media_assets a JOIN folder_first_checks c ON c.source_id = @sourceId
+                              WHERE a.id = media_file_write_intents.asset_id AND {FileInFolder("a", "c")});
                 """, new { sourceId }, transaction);
             connection.Execute($"""
                 UPDATE media_file_write_intents
                 SET move_step = 'waiting', updated_at = @now
                 WHERE target_kind = 'media_asset' AND move_step = 'held' AND move_origin = 'filing'
-                  AND asset_id IN (SELECT a.id FROM media_assets a JOIN folder_first_checks c ON c.source_id = @sourceId
-                                   WHERE {FileInFolder("a", "c")});
+                  AND EXISTS (SELECT 1 FROM media_assets a JOIN folder_first_checks c ON c.source_id = @sourceId
+                              WHERE a.id = media_file_write_intents.asset_id AND {FileInFolder("a", "c")});
                 """, new { sourceId, now = Format(now) }, transaction);
             connection.Execute("DELETE FROM folder_first_check_files WHERE source_id = @sourceId;", new { sourceId }, transaction);
             return true;
         }, ct);
 
     private static int CountFiles(SqliteConnection connection, string sourceId) =>
-        connection.ExecuteScalar<int>($"""
-            SELECT COUNT(*) FROM media_assets a JOIN folder_first_checks c ON c.source_id = @sourceId
-            WHERE a.is_orphaned = 0 AND {FileInFolder("a", "c")};
-            """, new { sourceId });
+        LoadBounds(connection, sourceId) is { } bounds
+            ? connection.ExecuteScalar<int>($"""
+                SELECT COUNT(*) FROM media_assets a
+                WHERE a.is_orphaned = 0 AND {FolderPathSql.InFolderOfBounds("a.file_path_root")};
+                """, BoundsArgs(sourceId, bounds))
+            : 0;
+
+    /// <summary>The bounds of a folder's files as values (see <see cref="FolderPathSql.InFolderOfBounds"/>), or null when it has no check.</summary>
+    internal static FolderBounds? LoadBounds(SqliteConnection connection, string sourceId) =>
+        connection.QuerySingleOrDefault<FolderBounds>(
+            "SELECT path_prefix_folded AS Low, path_range_end_folded AS High, path_prefix AS Prefix FROM folder_first_checks WHERE source_id = @sourceId;",
+            new { sourceId });
+
+    internal static object BoundsArgs(string sourceId, FolderBounds bounds) =>
+        new { sourceId, folderLow = bounds.Low, folderHigh = bounds.High, folderPrefix = bounds.Prefix };
+
+    internal sealed record FolderBounds(string Low, string High, string Prefix);
 
     private static string Format(DateTimeOffset value) =>
         value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);

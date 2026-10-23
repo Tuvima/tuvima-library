@@ -40,8 +40,9 @@ public interface IFolderFirstCheckRepository
     Task<bool> PauseAsync(string sourceId, int tried, int unmatched, DateTimeOffset now, CancellationToken ct = default);
 
     /// <summary>
-    /// Keep going on a paused folder: the check ends as kept going, identification resumes and the held rows of files that are not Unmatched
-    /// become waiting. Returns false when the check was not paused.
+    /// Keep going: the check ends as kept going, identification resumes and the held rows of files that are not Unmatched become waiting. It acts
+    /// on a paused folder and, as an administrator's override, on one that is still checking (its counts are then the live ones). Returns false
+    /// when the check was neither.
     /// </summary>
     Task<bool> KeepGoingAsync(string sourceId, DateTimeOffset now, CancellationToken ct = default);
 

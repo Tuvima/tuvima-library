@@ -206,6 +206,7 @@ See "What a backup file holds" above. The restore screens come in the next step.
 | `collection_view_sources` | The gallery or rule feeding a person-built collection. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
 | `fictional_entity_user_overrides` | A person's name and description corrections for a fictional thing, found again by its Wikidata id. | `entity_id` (fictional thing) | none | all rows |
 | `narrative_root_user_overrides` | A person's name and description corrections for a universe (already keyed by its Wikidata id). | none | none | all rows |
+| `folder_first_checks` | The first check of each newly added folder: a pause waiting for an administrator's choice, and which folders have already passed, so a restore neither releases a paused folder nor starts the check again. | none | none | all rows |
 | `backup_restores` | Which backups were restored and when, with counts of what was put back and what is still waiting. | none | none | all rows |
 | `waiting_personal_state` | State from a restored backup that is still waiting for its title, kept with the time it started waiting, so a backup taken before it attaches does not lose it or restart its waiting period. | none | none | all rows |
 
@@ -336,7 +337,6 @@ None of these are kept.
 | `media_operations` | Media operation queue. |
 | `media_operation_events` | Media operation log. |
 | `media_file_write_intents` | Pending file write-back jobs. |
-| `folder_first_checks` | The first check of each newly added folder. |
 | `folder_first_check_files` | The files counted in a folder's first check. |
 | `file_write_runs` | When the file write-back schedule last ran. |
 | `encode_jobs` | Encode job queue. |

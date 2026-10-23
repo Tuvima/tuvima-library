@@ -76,6 +76,7 @@ public static partial class BackupTableClassification
         Config("collection_view_sources", "The gallery or rule feeding a person-built collection.", keepWhere: InPersonBuiltCollection),
         Config("fictional_entity_user_overrides", "A person's name and description corrections for a fictional thing, found again by its Wikidata id.", refs: [Fictional("entity_id")]),
         Config("narrative_root_user_overrides", "A person's name and description corrections for a universe (already keyed by its Wikidata id)."),
+        Config("folder_first_checks", "The first check of each newly added folder: a pause waiting for an administrator's choice, and which folders have already passed, so a restore neither releases a paused folder nor starts the check again."),
         Config("backup_restores", "Which backups were restored and when, with counts of what was put back and what is still waiting."),
         Config("waiting_personal_state", "State from a restored backup that is still waiting for its title, kept with the time it started waiting, so a backup taken before it attaches does not lose it or restart its waiting period."),
 
@@ -198,7 +199,6 @@ public static partial class BackupTableClassification
         Transient("media_operations", "Media operation queue."),
         Transient("media_operation_events", "Media operation log."),
         Transient("media_file_write_intents", "Pending file write-back jobs."),
-        Transient("folder_first_checks", "The first check of each newly added folder."),
         Transient("folder_first_check_files", "The files counted in a folder's first check."),
         Transient("file_write_runs", "When the file write-back schedule last ran."),
         Transient("encode_jobs", "Encode job queue."),

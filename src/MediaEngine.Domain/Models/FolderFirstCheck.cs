@@ -56,13 +56,21 @@ public sealed record FolderFirstCheckProgress(int Tried, int Unmatched, int Wait
 public static class FolderFirstCheckPaths
 {
     /// <summary>
-    /// The folder's path with every separator as <c>/</c>, no trailing separator and ASCII letters lower-cased. The data store lower-cases ASCII
-    /// only, so the key is made the same way; a file is in the folder when its path, made the same way, starts with this key and a <c>/</c>.
+    /// The folder as a prefix: every separator as <c>/</c> and exactly one <c>/</c> at the end, so a file is in the folder when its path, written
+    /// the same way, starts with the prefix. A root (<c>/</c>, <c>D:\</c>) keeps its single separator and never becomes an empty prefix that
+    /// would match every path. The letter case is kept: outside Windows paths differ by case.
     /// </summary>
-    public static string Key(string path)
+    public static string Prefix(string path)
     {
-        ArgumentNullException.ThrowIfNull(path);
-        var chars = path.Replace('\\', '/').TrimEnd('/').ToCharArray();
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return path.Replace('\\', '/').TrimEnd('/') + "/";
+    }
+
+    /// <summary>The prefix with ASCII letters lower-cased (the data store lower-cases ASCII only), for the case-insensitive range the index serves.</summary>
+    public static string Folded(string prefix)
+    {
+        ArgumentNullException.ThrowIfNull(prefix);
+        var chars = prefix.ToCharArray();
         for (var i = 0; i < chars.Length; i++)
         {
             if (chars[i] is >= 'A' and <= 'Z')
@@ -72,5 +80,15 @@ public static class FolderFirstCheckPaths
         }
 
         return new string(chars);
+    }
+
+    /// <summary>
+    /// The first string after every string that starts with <paramref name="prefix"/>: the prefix with its closing <c>/</c> replaced by the next
+    /// character, <c>0</c>. A path is under the prefix when it is at or above the prefix and below this end, which an index can answer.
+    /// </summary>
+    public static string RangeEnd(string prefix)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(prefix);
+        return prefix[..^1] + "0";
     }
 }

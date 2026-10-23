@@ -41,7 +41,11 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
 
     // Library writes nothing into a file it could not match, kept as it is or not (Library setup D64, D34): its tag requests stay pending
     // and are written once a lookup identifies the file and its Unmatched row goes. A row of a View item has no asset and is never held back.
-    private const string NoOpenUnmatchedRow = "NOT EXISTS (SELECT 1 FROM unmatched_assets um WHERE um.asset_id = i.asset_id)";
+    // The rule is for Library's own automatic writes: a tag write a person asked for with an explicit edit (Editing Mode) is written as normal.
+    private static readonly string NoOpenUnmatchedRow = $"""
+        (i.trigger IN ({string.Join(", ", MediaFileWriteTriggers.PersonsEdits.Select(trigger => $"'{trigger}'"))})
+         OR NOT EXISTS (SELECT 1 FROM unmatched_assets um WHERE um.asset_id = i.asset_id))
+        """;
 
     // The one statement every place that asks for a file write uses. A newer ask for a file already on the list (whatever state it is
     // in, including being written right now) bumps the generation and puts it back to pending, so the write that is in flight cannot
@@ -697,8 +701,12 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         var hidden = hiddenLibraryIds is { Count: > 0 };
         using var connection = database.CreateConnection();
         // A tag write for a file in a folder whose first check is running or paused is waiting, but cannot be claimed yet (Library setup D61).
+        // One held back only because its file is Unmatched is not counted as waiting, so a file kept as it is does not show as waiting for
+        // good; the row itself stays, and is written once the file is identified (D64).
         return Task.FromResult(connection.QuerySingle<FileWriteCounts>($"""
-            SELECT COALESCE(SUM(CASE WHEN i.status IN ('pending', 'writing') THEN 1 ELSE 0 END), 0) AS Waiting,
+            SELECT COALESCE(SUM(CASE WHEN i.status IN ('pending', 'writing')
+                                      AND ({NoOpenUnmatchedRow} OR {FolderFirstCheckRepository.FileInHeldFolder("ma")})
+                                     THEN 1 ELSE 0 END), 0) AS Waiting,
                    COALESCE(SUM(CASE WHEN i.status = 'failed' THEN 1 ELSE 0 END), 0) AS Failed,
                    COALESCE(SUM(CASE WHEN i.move_step IS NULL
                                       AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))

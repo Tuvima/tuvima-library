@@ -15,8 +15,8 @@ public sealed class HeldSubtitleExporter(
     AssetPathService assetPaths,
     ILogger<HeldSubtitleExporter> logger)
 {
-    /// <summary>Exports the folder's preferred subtitles that have no copy beside their file yet. Returns how many were exported.</summary>
-    public async Task<int> ExportForFolderAsync(string folderPath, CancellationToken ct)
+    /// <summary>Exports the preferred subtitles of the folder with first check <paramref name="sourceId"/> that have no copy beside their file yet. Returns how many were exported.</summary>
+    public async Task<int> ExportForFolderAsync(string sourceId, string folderPath, CancellationToken ct)
     {
         if (!assetPaths.ShouldKeepPreferredSubtitlesLocal)
         {
@@ -24,7 +24,7 @@ public sealed class HeldSubtitleExporter(
         }
 
         var exported = 0;
-        foreach (var track in await tracks.ListPreferredSubtitlesWithoutSidecarInFolderAsync(folderPath, ct).ConfigureAwait(false))
+        foreach (var track in await tracks.ListPreferredSubtitlesWithoutSidecarInFolderAsync(sourceId, ct).ConfigureAwait(false))
         {
             ct.ThrowIfCancellationRequested();
             var asset = await assets.FindByIdAsync(track.AssetId, ct).ConfigureAwait(false);

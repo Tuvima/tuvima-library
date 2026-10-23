@@ -20,7 +20,17 @@ public sealed class FolderFirstCheckService(
     TimeProvider? clock = null,
     HeldSubtitleExporter? heldSubtitles = null)
 {
+    /// <summary>
+    /// How long a folder's ingestion must have shown no open intake before it counts as settled. The Engine records no completion for the scan
+    /// of a new folder (the scan enqueues the files it finds and ends without a mark), so the only signal is that no file of the folder has an
+    /// open intake row; a scan that is still enqueueing could show none for a moment, so the state must hold across looks this far apart.
+    /// </summary>
+    public static readonly TimeSpan SettledFor = TimeSpan.FromSeconds(30);
+
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
+
+    // When each running check was first seen with no open intake; cleared when an open intake shows again or the check ends.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> _clearSince = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// True when a new folder in <paramref name="library"/> gets a first check: its kind looks details up (a plain kind is never Unmatched, D38)
@@ -157,20 +167,26 @@ public sealed class FolderFirstCheckService(
             ct.ThrowIfCancellationRequested();
             var progress = await checks.GetProgressAsync(check.SourceId, firstFiles, ct).ConfigureAwait(false);
 
+            var now = _clock.GetUtcNow();
+            var settled = IsSettled(check.SourceId, progress.IngestionSettled, now);
+
             // The first N files have outcomes, or every file the Engine knows has one and nothing more is arriving (a folder with fewer files).
+            // A folder with files where none reached an outcome (every lookup failed) ends too, once nothing is waiting and ingestion has settled:
+            // a failure is no evidence of the wrong kind, nothing matched so nothing moves, and files that match later are filed normally. A
+            // folder with no files stays checking (nothing is held) until files arrive.
             var reachedFiles = progress.Tried >= firstFiles;
-            var allDone = progress.Tried > 0 && progress.Waiting == 0 && progress.IngestionSettled;
+            var allDone = progress.Waiting == 0 && settled && (progress.Tried > 0 || progress.TotalFiles > 0);
             if (!reachedFiles && !allDone)
             {
                 continue;
             }
 
-            var now = _clock.GetUtcNow();
             if (FirstCheckLimits.ExceedsShare(progress.Unmatched, progress.Tried, settings.FirstCheckUnmatchedShare))
             {
                 if (await checks.PauseAsync(check.SourceId, progress.Tried, progress.Unmatched, now, ct).ConfigureAwait(false))
                 {
                     ended++;
+                    _clearSince.TryRemove(check.SourceId, out _);
                     logger.LogWarning(
                         "First check paused {Path}: {Unmatched} of {Tried} files did not match. Nothing in the folder was renamed, moved or tagged; an administrator chooses what happens next",
                         check.Path, progress.Unmatched, progress.Tried);
@@ -179,14 +195,27 @@ public sealed class FolderFirstCheckService(
             else if (await checks.PassAsync(check.SourceId, progress.Tried, progress.Unmatched, now, ct).ConfigureAwait(false))
             {
                 ended++;
+                _clearSince.TryRemove(check.SourceId, out _);
                 logger.LogInformation(
                     "First check passed for {Path}: {Unmatched} of {Tried} files did not match. Held moves and tags are released to the next run",
                     check.Path, progress.Unmatched, progress.Tried);
-                await ExportHeldSubtitlesAsync(check.Path, ct).ConfigureAwait(false);
+                await ExportHeldSubtitlesAsync(check.SourceId, check.Path, ct).ConfigureAwait(false);
             }
         }
 
         return ended;
+    }
+
+    // Ingestion has settled when no file of the folder has had an open intake for at least SettledFor.
+    private bool IsSettled(string sourceId, bool noOpenIntake, DateTimeOffset now)
+    {
+        if (!noOpenIntake)
+        {
+            _clearSince.TryRemove(sourceId, out _);
+            return false;
+        }
+
+        return now - _clearSince.GetOrAdd(sourceId, now) >= SettledFor;
     }
 
     /// <summary>The folders that are checking or paused, with their counts and totals.</summary>
@@ -194,8 +223,9 @@ public sealed class FolderFirstCheckService(
         await checks.ListOpenAsync(ct).ConfigureAwait(false);
 
     /// <summary>
-    /// Keep going on a paused folder: identification resumes for the rest of the folder, files that are Unmatched stay Unmatched (and are
-    /// looked up again later) and matched files' held moves and tags are released to the next run. Returns false when the folder is not paused.
+    /// Keep going: identification resumes for the rest of the folder, files that are Unmatched stay Unmatched (and are looked up again later)
+    /// and matched files' held moves and tags are released to the next run. It acts on a paused folder, and also on one that is still
+    /// checking, as an administrator's override. Returns false when the folder is neither.
     /// </summary>
     public async Task<bool> KeepGoingAsync(string sourceId, CancellationToken ct)
     {
@@ -203,10 +233,11 @@ public sealed class FolderFirstCheckService(
         var kept = await checks.KeepGoingAsync(sourceId, _clock.GetUtcNow(), ct).ConfigureAwait(false);
         if (kept)
         {
-            logger.LogInformation("An administrator chose Keep going for the paused folder {SourceId}: identification resumes", sourceId);
+            _clearSince.TryRemove(sourceId, out _);
+            logger.LogInformation("An administrator chose Keep going for the folder {SourceId}: identification resumes", sourceId);
             if (check is not null)
             {
-                await ExportHeldSubtitlesAsync(check.Path, ct).ConfigureAwait(false);
+                await ExportHeldSubtitlesAsync(sourceId, check.Path, ct).ConfigureAwait(false);
             }
         }
 
@@ -215,7 +246,7 @@ public sealed class FolderFirstCheckService(
 
     // The hold has ended: subtitles that were not exported beside their files while it lasted are exported now. A failure here is logged and
     // never undoes the release.
-    private async Task ExportHeldSubtitlesAsync(string folderPath, CancellationToken ct)
+    private async Task ExportHeldSubtitlesAsync(string sourceId, string folderPath, CancellationToken ct)
     {
         if (heldSubtitles is null)
         {
@@ -224,7 +255,7 @@ public sealed class FolderFirstCheckService(
 
         try
         {
-            await heldSubtitles.ExportForFolderAsync(folderPath, ct).ConfigureAwait(false);
+            await heldSubtitles.ExportForFolderAsync(sourceId, folderPath, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

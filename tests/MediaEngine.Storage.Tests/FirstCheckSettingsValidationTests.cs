@@ -91,11 +91,32 @@ public sealed class FirstCheckSettingsValidationTests
     }
 
     [Theory]
-    [InlineData(@"D:\Media\Movies\", "d:/media/movies")]
-    [InlineData("/mnt/Media/Films/", "/mnt/media/films")]
-    [InlineData("D:/Media/Ünïcode", "d:/media/Ünïcode")]
-    public void AFolderPath_IsComparedWithSeparatorsAndAsciiCaseFolded(string path, string expected)
+    [InlineData(@"D:\Media\Movies\", "D:/Media/Movies/", "d:/media/movies/", "d:/media/movies0")]
+    [InlineData("/mnt/Media/Films/", "/mnt/Media/Films/", "/mnt/media/films/", "/mnt/media/films0")]
+    [InlineData("D:/Media/Ünïcode", "D:/Media/Ünïcode/", "d:/media/Ünïcode/", "d:/media/Ünïcode0")]
+    public void AFolderPath_BecomesAPrefix_WithItsAsciiFoldedFormAndTheEndOfItsRange(string path, string prefix, string folded, string rangeEnd)
     {
-        Assert.Equal(expected, MediaEngine.Domain.Models.FolderFirstCheckPaths.Key(path));
+        var made = MediaEngine.Domain.Models.FolderFirstCheckPaths.Prefix(path);
+
+        Assert.Equal(prefix, made);
+        Assert.Equal(folded, MediaEngine.Domain.Models.FolderFirstCheckPaths.Folded(made));
+        Assert.Equal(rangeEnd, MediaEngine.Domain.Models.FolderFirstCheckPaths.RangeEnd(folded));
+    }
+
+    [Theory]
+    [InlineData("/", "/")]
+    [InlineData("//", "/")]
+    [InlineData(@"D:\", "D:/")]
+    public void ARootFolder_KeepsItsSingleSeparator_SoItsPrefixIsNeverEmpty(string path, string prefix)
+    {
+        Assert.Equal(prefix, MediaEngine.Domain.Models.FolderFirstCheckPaths.Prefix(path));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ABlankPath_HasNoPrefix(string path)
+    {
+        Assert.ThrowsAny<ArgumentException>(() => MediaEngine.Domain.Models.FolderFirstCheckPaths.Prefix(path));
     }
 }

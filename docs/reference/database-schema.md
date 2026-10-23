@@ -263,12 +263,13 @@ The first check of a newly added folder (Library setup spec D35, D61; added by u
 | `source_id` | TEXT | Primary key; the folder's stable ID in `libraries.json` |
 | `library_id` | TEXT | The library the folder belongs to |
 | `path` | TEXT | The folder as configured |
-| `path_key` | TEXT | The path with every separator as `/`, no trailing separator and ASCII letters lower-cased. A file is in the folder when `lower(replace(its path, '\', '/'))` starts with `path_key || '/'` |
+| `path_prefix` | TEXT | The path with every separator as `/` and exactly one `/` at the end (a root such as `/` or `D:/` keeps its one separator, so a prefix is never empty). Outside Windows a file must also start with it exactly, as the rest of the Engine compares source paths |
+| `path_prefix_folded` / `path_range_end_folded` | TEXT | The prefix with ASCII letters lower-cased, and the first string after every string that starts with it (the closing `/` replaced by `0`). A file is in the folder when `lower(replace(its path, '\', '/'))` is at or above the first and below the second, a range that `ix_media_assets_path_folded` answers |
 | `state` | TEXT | `checking` (nothing in the folder is touched), `passed`, `paused` (claims stop, nothing is touched) or `kept_going` (an administrator chose Keep going) |
 | `tried` / `unmatched` | INTEGER | Files with a final outcome among the first files, and how many of them are Unmatched. Live while checking is shown from `folder_first_check_files`; these hold the counts the check ended or paused on |
 | `started_at` / `ended_at` | TEXT | UTC; `ended_at` is null while checking or paused |
 
-Indexes: the partial `ix_folder_first_checks_held (state, path_key) WHERE state IN ('checking', 'paused')`, asked by every identity-job claim and file-write claim, and `ix_folder_first_checks_library (library_id)`.
+Indexes: the partial `ix_folder_first_checks_held (state, library_id) WHERE state IN ('checking', 'paused')`, asked by every identity-job claim and file-write claim, `ix_folder_first_checks_library (library_id)`, and `ix_media_assets_path_folded` on `media_assets (lower(replace(file_path_root, '\', '/')))` for the range lookup of a folder's files.
 
 ### folder_first_check_files
 
