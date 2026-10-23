@@ -7,13 +7,14 @@ namespace MediaEngine.Api.Services.Display;
 
 /// <summary>
 /// What a profile's visibility rules need to know about one visible (work, library) pair: which work, which library,
-/// which kind of media and what content rating it carries.
+/// which kind of media, what content rating it carries and which file stands for it (a marked folder is found by that file).
 /// </summary>
 public sealed class DisplayVisibleWorkRow
 {
     public Guid WorkId { get; set; }
     public string? LibraryId { get; set; }
     public string MediaType { get; set; } = string.Empty;
+    public Guid AssetId { get; set; }
     public string? ContentRating { get; set; }
 }
 
@@ -78,6 +79,7 @@ public sealed class DisplayVisibleWorkReader
                 LibraryId,
                 WorkId,
                 MediaType,
+                AssetId,
                 {rating} AS ContentRating
             FROM ranked_assets
             WHERE AssetRank = 1;

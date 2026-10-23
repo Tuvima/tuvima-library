@@ -7,10 +7,11 @@ namespace MediaEngine.Domain.Configuration;
 public sealed class LibrariesConfiguration
 {
     /// <summary>
-    /// The only supported file version. 7.0 replaced the per-folder role, intake and write-back fields with two folder
-    /// states (managed or as-is), one destination per library, and global duplicate handling. Older files are refused.
+    /// The only supported file version. 8.0 moved "Suitable for limited profiles" from the library to each folder and removed
+    /// the unused sharing fields (7.0 had replaced the per-folder role, intake and write-back fields with two folder states,
+    /// one destination per library, and global duplicate handling). Older files are refused.
     /// </summary>
-    public const string CurrentSchemaVersion = "7.0";
+    public const string CurrentSchemaVersion = "8.0";
 
     [JsonPropertyName("schema_version")]
     public string SchemaVersion { get; set; } = CurrentSchemaVersion;
@@ -104,9 +105,6 @@ public sealed class PersonalLibraryPolicyConfig
     [JsonPropertyName("allow_existing_folder_attachment")]
     public bool AllowExistingFolderAttachment { get; set; } = true;
 
-    [JsonPropertyName("default_visibility")]
-    public string DefaultVisibility { get; set; } = LibraryVisibility.Private;
-
     /// <summary>Most characters of embedded text stored per document; the rest is truncated.</summary>
     [JsonPropertyName("document_text_max_characters")]
     public int DocumentTextMaxCharacters { get; set; } = 1_000_000;
@@ -159,10 +157,6 @@ public sealed class LibraryFolderConfig
     [JsonPropertyName("youtube_lookup")]
     public bool YoutubeLookup { get; set; } = true;
 
-    /// <summary>Videos libraries only: saved videos have no ratings, so content-limited profiles see them only when this is on.</summary>
-    [JsonPropertyName("ok_for_limited_profiles")]
-    public bool OkForLimitedProfiles { get; set; }
-
     /// <summary>When on, deleting a title from disk moves its files to the recycle bin; they leave the disk only when the bin is emptied. On for Videos by default, off for the other types.</summary>
     [JsonPropertyName("recycle_bin")]
     public bool RecycleBin { get; set; }
@@ -177,15 +171,6 @@ public sealed class LibraryFolderConfig
     /// </summary>
     [JsonPropertyName("primary_destination_source_id")]
     public string? PrimaryDestinationSourceId { get; set; }
-
-    [JsonPropertyName("owner_profile_id")]
-    public string? OwnerProfileId { get; set; }
-
-    [JsonPropertyName("visibility")]
-    public string Visibility { get; set; } = LibraryVisibility.Household;
-
-    [JsonPropertyName("authorized_profile_ids")]
-    public List<string> AuthorizedProfileIds { get; set; } = [];
 
     [JsonPropertyName("accepted_intake_modes")]
     public List<string> AcceptedIntakeModes { get; set; } = [];
@@ -233,6 +218,13 @@ public sealed class LibrarySourceConfig
 
     [JsonPropertyName("include_subdirectories")]
     public bool IncludeSubdirectories { get; set; } = true;
+
+    /// <summary>
+    /// Unrated items from this folder are shown to profiles with a rating limit, whatever those profiles' "allow unrated" says.
+    /// Rated items still follow each profile's limit. Off by default; never offered for a Vault folder.
+    /// </summary>
+    [JsonPropertyName("ok_for_limited_profiles")]
+    public bool OkForLimitedProfiles { get; set; }
 
     /// <summary>Derived from <see cref="ManagementMode"/> whenever the file is saved: managed is writable, as-is is read-only.</summary>
     [JsonPropertyName("access_mode")]

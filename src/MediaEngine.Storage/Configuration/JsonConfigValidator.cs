@@ -441,10 +441,6 @@ public static class JsonConfigValidator
         else
         {
             AddNoUnmappedProperties(config.PersonalLibraryPolicy.UnmappedProperties, "personal_library_policy", errors);
-            if (!LibraryVisibility.IsValid(config.PersonalLibraryPolicy.DefaultVisibility))
-            {
-                errors.Add("personal_library_policy.default_visibility must be private, shared, or household.");
-            }
         }
 
         var ids = new HashSet<Guid>();
@@ -488,11 +484,6 @@ public static class JsonConfigValidator
                 errors.Add($"{prefix}.metadata_policy must be one of enriched, local_preferred, local_only, manual.");
             }
 
-            if (!LibraryVisibility.IsValid(library.Visibility))
-            {
-                errors.Add($"{prefix}.visibility must be private, shared, or household.");
-            }
-
             if (library.OrganizationPolicy is null)
             {
                 errors.Add($"{prefix}.organization_policy is required.");
@@ -503,7 +494,6 @@ public static class JsonConfigValidator
             }
 
             ValidateLibrarySemantics(library, prefix, errors, libraryKinds ?? LibraryKindsConfiguration.BuiltIn());
-            ValidateProfileIds(library, prefix, errors);
             var intakeModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var intakeMode in library.AcceptedIntakeModes)
             {
@@ -599,11 +589,6 @@ public static class JsonConfigValidator
             {
                 errors.Add($"{prefix}.catalogued libraries must use enriched metadata.");
             }
-
-            if (!string.IsNullOrWhiteSpace(library.OwnerProfileId))
-            {
-                errors.Add($"{prefix}.catalogued libraries cannot have an owner_profile_id.");
-            }
         }
         else if (library.Kind == LibraryKinds.Personal)
         {
@@ -620,43 +605,6 @@ public static class JsonConfigValidator
             if (!LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy))
             {
                 errors.Add($"{prefix}.personal libraries must use local_only or manual metadata.");
-            }
-
-            if (string.IsNullOrWhiteSpace(library.OwnerProfileId))
-            {
-                errors.Add($"{prefix}.owner_profile_id is required for personal libraries.");
-            }
-        }
-
-        if (library.Visibility == LibraryVisibility.Shared && library.AuthorizedProfileIds.Count == 0)
-        {
-            errors.Add($"{prefix}.authorized_profile_ids must contain at least one profile when visibility is shared.");
-        }
-
-        if (library.Visibility != LibraryVisibility.Shared && library.AuthorizedProfileIds.Count > 0)
-        {
-            errors.Add($"{prefix}.authorized_profile_ids is only valid when visibility is shared.");
-        }
-    }
-
-    private static void ValidateProfileIds(LibraryFolderConfig library, string prefix, List<string> errors)
-    {
-        if (!string.IsNullOrWhiteSpace(library.OwnerProfileId)
-            && (!Guid.TryParse(library.OwnerProfileId, out var ownerId) || ownerId == Guid.Empty))
-        {
-            errors.Add($"{prefix}.owner_profile_id must be a non-empty GUID.");
-        }
-
-        var authorizedIds = new HashSet<Guid>();
-        foreach (var value in library.AuthorizedProfileIds)
-        {
-            if (!Guid.TryParse(value, out var id) || id == Guid.Empty)
-            {
-                errors.Add($"{prefix}.authorized_profile_ids values must be non-empty GUIDs.");
-            }
-            else if (!authorizedIds.Add(id))
-            {
-                errors.Add($"{prefix}.authorized_profile_ids must not contain duplicates.");
             }
         }
     }
