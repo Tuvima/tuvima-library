@@ -649,6 +649,20 @@ public static class AccountEndpoints
         }).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersRead)
           .Produces<IReadOnlyList<AccessLibraryOptionDto>>();
 
+        // Who would stop seeing these files if they moved into a library (simpler access D13). Administrators only: it names other people.
+        access.MapPost("/visibility-after-move", async (VisibilityAfterMoveRequest request,
+            [FromServices] IVisibilityAfterMoveReadService service, CancellationToken ct) =>
+        {
+            var result = await service.GetAsync(request, ct);
+            return result.People is { } people
+                ? Results.Ok(new VisibilityAfterMoveResponse(people))
+                : ApiErrors.BadRequest(result.Refusal ?? "That can't be checked.");
+        }).RequireEffectiveAdministrator()
+          .WithName("GetVisibilityAfterMove")
+          .WithSummary("Which people can see the given files (a folder or up to 5,000 file ids) now but would not once they are in the target library. Counts files; never lists administrators.")
+          .Produces<VisibilityAfterMoveResponse>()
+          .ProducesProblem(StatusCodes.Status400BadRequest);
+
         var profiles = access.MapGroup("/profiles");
         profiles.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver,
             IProfileRepository repository, IAccountRepository accounts, CancellationToken ct) =>

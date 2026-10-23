@@ -1360,6 +1360,21 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Update
   ContentLimit: System.String | nullability=nullable | accessors=get,init
   ContentLimitAllowUnrated: System.Boolean? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.VisibilityAfterMoveRequest
+  TargetLibraryId: System.Guid | nullability=not-null | accessors=get,init
+  SourceId: System.String | nullability=nullable | accessors=get,init
+  FolderPath: System.String | nullability=nullable | accessors=get,init
+  LibraryId: System.Guid? | nullability=nullable | accessors=get,init
+  AssetIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.VisibilityAfterMoveResponse
+  People: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.VisibilityLossDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.VisibilityLossDto
+  AccountId: System.Guid | nullability=not-null | accessors=get,init
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationDto
   Id: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set

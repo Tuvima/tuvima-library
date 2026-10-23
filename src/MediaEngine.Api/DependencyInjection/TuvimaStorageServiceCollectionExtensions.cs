@@ -221,6 +221,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         // so their "nothing is ever held" default does not apply.
         services.AddSingleton<FolderFirstCheckSignal>();
         services.AddSingleton<IFolderFirstCheckRepository, FolderFirstCheckRepository>();
+        // Files per library for a folder or a list of files: the one grouped read behind "who would lose sight" (simpler access D13).
+        services.AddSingleton<IMediaAssetLibraryCountRepository, MediaAssetLibraryCountRepository>();
         services.AddSingleton<MediaEngine.Domain.Contracts.IFilingHold, FolderFirstCheckFilingHold>();
         services.AddSingleton<MediaEngine.Ingestion.Services.UnmatchedFileMarker>();
         services.AddSingleton<MediaEditorCommitRepository>();

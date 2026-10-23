@@ -14,6 +14,7 @@ public static class ApiReadServiceCollectionExtensions
     public static IServiceCollection AddApiReadServices(this IServiceCollection services)
     {
         services.AddSingleton<IActivityLogReadService, ActivityLogReadService>();
+        services.AddSingleton<IVisibilityAfterMoveReadService, VisibilityAfterMoveReadService>();
         services.AddSingleton<IIngestionPresentationReadService, IngestionPresentationReadService>();
         services.AddSingleton<JourneyReadService>();
         services.AddSingleton<IJourneyReadService>(sp => sp.GetRequiredService<JourneyReadService>());
