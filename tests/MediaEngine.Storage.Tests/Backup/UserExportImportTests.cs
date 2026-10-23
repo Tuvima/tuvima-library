@@ -176,7 +176,7 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     [Fact]
-    public void Export_NeverHoldsAProfilesAdministratorRoles_AndKeepsTheProfileASignInOpens()
+    public void Export_WritesAProfilesAdministratorRolesAsZero_AndKeepsTheProfileASignInOpens()
     {
         var source = NewStore();
         var maya = source.AddUser("maya@example.com", ["Maya"], administrator: true);
@@ -186,8 +186,9 @@ public sealed class UserExportImportTests : IDisposable
         var export = Export(source, maya);
 
         var profiles = Table(export, "profiles");
-        Assert.DoesNotContain("is_server_admin", profiles.Columns, StringComparer.OrdinalIgnoreCase);
-        Assert.DoesNotContain("is_household_admin", profiles.Columns, StringComparer.OrdinalIgnoreCase);
+        var profileRow = Assert.Single(profiles.Rows);
+        Assert.Equal(0L, Assert.IsType<BackupValue.Integer>(Value(profiles, profileRow, "is_server_admin")).Value);
+        Assert.Equal(0L, Assert.IsType<BackupValue.Integer>(Value(profiles, profileRow, "is_household_admin")).Value);
         var accounts = Table(export, "accounts");
         Assert.Equal(maya.Profiles[0], UserExportReader.GuidOf(Value(accounts, Assert.Single(accounts.Rows), "profile_id")));
     }
@@ -201,11 +202,18 @@ public sealed class UserExportImportTests : IDisposable
         source.Execute($"UPDATE accounts SET profile_id = {Blob(maya.Profiles[0])} WHERE id = {Blob(maya.Account)}");
         var export = Export(source, maya);
         var profiles = Table(export, "profiles");
+        var serverIndex = profiles.Columns.ToList().FindIndex(column => string.Equals(column, "is_server_admin", StringComparison.OrdinalIgnoreCase));
+        var householdIndex = profiles.Columns.ToList().FindIndex(column => string.Equals(column, "is_household_admin", StringComparison.OrdinalIgnoreCase));
         var crafted = profiles with
         {
-            Columns = [.. profiles.Columns, "is_server_admin", "is_household_admin"],
             Rows = profiles.Rows
-                .Select(row => (IReadOnlyList<BackupValue>)[.. row, BackupValue.FromInteger(1), BackupValue.FromInteger(1)])
+                .Select(row =>
+                {
+                    var values = row.ToList();
+                    values[serverIndex] = BackupValue.FromInteger(1);
+                    values[householdIndex] = BackupValue.FromInteger(1);
+                    return (IReadOnlyList<BackupValue>)values;
+                })
                 .ToList(),
         };
         export = export with { Tables = export.Tables.Select(table => ReferenceEquals(table, profiles) ? crafted : table).ToList() };

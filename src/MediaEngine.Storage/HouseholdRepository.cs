@@ -155,6 +155,12 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
                 return HouseholdDeleteOutcome.NotFound;
             }
 
+            // The Library's own household (the server administrator's original one) is never removed.
+            if (conn.ExecuteScalar<int>("SELECT is_default FROM households WHERE id = @householdId;", new { householdId }, tx) == 1)
+            {
+                return HouseholdDeleteOutcome.IsDefaultHousehold;
+            }
+
             if (conn.ExecuteScalar<int>("""
                 SELECT (SELECT COUNT(*) FROM accounts WHERE household_id = @householdId)
                      + (SELECT COUNT(*) FROM profiles WHERE household_id = @householdId);

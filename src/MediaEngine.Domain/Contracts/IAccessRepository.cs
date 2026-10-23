@@ -57,16 +57,26 @@ public interface IAccountAccessMutationRepository
         AccountInvitation invitation,
         CancellationToken ct = default,
         MediaEngine.Domain.Aggregates.Profile? newProfile = null);
+    /// <summary>
+    /// Creates a person for an existing sign-in. <paramref name="accessFromProfileId"/> is the profile of whoever is creating them: the
+    /// new person starts with that profile's Read/Watch/Listen/View access and libraries (View off and no libraries when it is in
+    /// another household). <see langword="null"/> gives every feature and no library. Never an administrator role.
+    /// </summary>
     Task CreateManagedProfileAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         AccountProfileGrant targetGrant,
-        CancellationToken ct = default);
-    /// <summary>Adds a person to a household, opened by the given sign-ins (none of them as default). Refused when the household is full.</summary>
+        CancellationToken ct = default,
+        Guid? accessFromProfileId = null);
+    /// <summary>
+    /// Adds a person to a household, opened by the given sign-ins (none of them as default). Refused when the household is full.
+    /// <paramref name="accessFromProfileId"/> works as in <see cref="CreateManagedProfileAsync"/>.
+    /// </summary>
     Task CreateHouseholdPersonAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         Guid householdId,
         IReadOnlyList<AccountProfileGrant> grants,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        Guid? accessFromProfileId = null);
     Task UpdateManagedProfileAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         CancellationToken ct = default);

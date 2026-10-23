@@ -95,7 +95,7 @@ public sealed class AccountEmailRequiredTests
                     core.Auth.InvitationLifetimeHours = 3;
                     configuration.SaveCore(core);
                     var invitation = await mutations.IssueInvitationAsync(actor, new IssueAccountInvitationCommand(
-                        "invited@example.com", [profileId], profileId));
+                        "invited@example.com", [], null, NewHouseholdPersonName: "Invited"));
                     Assert.InRange(invitation.ExpiresAt - DateTimeOffset.UtcNow,
                         TimeSpan.FromHours(2.9), TimeSpan.FromHours(3.1));
                     var invited = await identity.AcceptInvitationAsync(

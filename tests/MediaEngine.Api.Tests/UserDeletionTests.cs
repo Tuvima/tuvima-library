@@ -158,10 +158,21 @@ public sealed class UserDeletionTests
     public async Task WhenAnotherSignInWouldBeLeftWithNothingToOpen_NoPhotosAreMoved_AndNothingIsDeleted()
     {
         await using var world = await World.CreateAsync();
-        // Pia can open only Sam's profile.
+        // Pia can open only Sam's profile (a user has a profile of its own, which Pia gave up in favour of Sam's).
+        var piaProfile = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
+            new AddHouseholdPersonCommand(world.Sam.HouseholdId!.Value, "Pia", null, false, null));
         var pia = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
-            "pia@example.com", IsAdministrator: false, ProfileId: world.SamProfile.Id, NewProfile: null,
+            "pia@example.com", IsAdministrator: false, ProfileId: piaProfile.Id, NewProfile: null,
             Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+        await world.Mutations.UpsertGrantAsync(world.ServerAdmin, new AccountProfileGrant
+        {
+            AccountId = pia.Id,
+            ProfileId = world.SamProfile.Id,
+            IsDefault = true,
+            IsEnabled = true,
+            AuthorizationVersion = 1,
+        });
+        await world.Mutations.RevokeGrantAsync(world.ServerAdmin, pia.Id, piaProfile.Id);
 
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id));
         var profileRefused = await Assert.ThrowsAsync<InvalidOperationException>(

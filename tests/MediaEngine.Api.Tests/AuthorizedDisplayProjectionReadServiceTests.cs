@@ -1693,7 +1693,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         Guid accountId,
         IReadOnlySet<AccountFeatureId> features,
         IReadOnlySet<Guid> libraries,
-        bool administrator = false) =>
+        bool administrator = false,
+        MediaEngine.Domain.Aggregates.Profile? ownProfile = null) =>
         _accounts.CreateAccountAsync(
             new Account
             {
@@ -1709,7 +1710,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new AccountProfileGrant
             {
                 AccountId = accountId,
-                ProfileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
+                ProfileId = ownProfile?.Id ?? MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
                 IsDefault = true,
                 IsEnabled = true,
                 AdminEnabled = administrator,
@@ -1717,7 +1718,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 GrantedAt = DateTimeOffset.UtcNow,
             },
             features,
-            libraries);
+            libraries,
+            newProfile: ownProfile);
 
     private static DefaultHttpContext HumanContext(Guid accountId, Guid profileId) =>
         new()

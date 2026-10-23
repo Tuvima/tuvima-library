@@ -31,8 +31,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         var read = new ApplicationPermissionId(readId);
         var write = new ApplicationPermissionId(writeId);
         var ordinaryId = Guid.NewGuid();
-        await _accounts.CreateAccountAsync(Account(ordinaryId, administrator: false),
-            Grant(ordinaryId, administrator: false), AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
+        var ordinaryProfileId = await CreateAccountWithOwnProfileAsync(Account(ordinaryId, administrator: false), AccountFeatureId.All.ToHashSet());
         var application = await CreateApplicationAsync(ApplicationType.ServerIntegration, administrator: false);
         await _applications.ReplacePermissionsAsync(application.Id, new HashSet<ApplicationPermissionId> { read }, _clock.GetUtcNow());
         var handler = new AdministratorOrApplicationHandler(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)), CreateDecisions(), CreateEvaluator().Evaluator);
@@ -43,7 +42,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             await handler.HandleAsync(context);
             return context.HasSucceeded;
         }
-        Assert.False(await Allows(ContextWithAuthority(PrincipalKind.Human, ordinaryId, Profile.SeedProfileId), read));
+        Assert.False(await Allows(ContextWithAuthority(PrincipalKind.Human, ordinaryId, ordinaryProfileId), read));
         Assert.True(await Allows(service, read));
         Assert.False(await Allows(service, write));
         await _applications.ReplacePermissionsAsync(application.Id, new HashSet<ApplicationPermissionId> { write }, _clock.GetUtcNow());
@@ -83,13 +82,12 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     public async Task MetadataOperations_RejectOrdinaryAccountsAndUseLiveExactApplicationPermissions()
     {
         var ordinaryId = Guid.NewGuid();
-        await _accounts.CreateAccountAsync(Account(ordinaryId, administrator: false),
-            Grant(ordinaryId, administrator: false), AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
+        var ordinaryProfileId = await CreateAccountWithOwnProfileAsync(Account(ordinaryId, administrator: false), AccountFeatureId.All.ToHashSet());
         var application = await CreateApplicationAsync(ApplicationType.ServerIntegration, administrator: false);
         await _applications.ReplacePermissionsAsync(application.Id, new HashSet<ApplicationPermissionId> { ApplicationPermissionIds.MetadataRead }, _clock.GetUtcNow());
         var resolver = new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database));
         var handler = new AdministratorOrApplicationHandler(resolver, CreateDecisions(), CreateEvaluator().Evaluator);
-        var ordinary = ContextWithAuthority(PrincipalKind.Human, ordinaryId, Profile.SeedProfileId);
+        var ordinary = ContextWithAuthority(PrincipalKind.Human, ordinaryId, ordinaryProfileId);
         var service = ContextWithAuthority(PrincipalKind.ServiceApplication, Guid.Empty, Guid.Empty, application.Id);
 
         async Task<bool> Allows(HttpContext http, ApplicationPermissionId permission)
@@ -482,8 +480,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         var disabledId = Guid.NewGuid();
         var disabled = Account(disabledId, administrator: false);
         disabled.IsEnabled = false;
-        await _accounts.CreateAccountAsync(disabled, Grant(disabledId, administrator: false),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+        await CreateAccountWithOwnProfileAsync(disabled, new HashSet<AccountFeatureId>());
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             projector.ProjectAsync(disabledId, Profile.SeedProfileId, Guid.NewGuid()));
     }
@@ -605,6 +602,16 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             CreatedAt = _clock.GetUtcNow(),
             UpdatedAt = _clock.GetUtcNow(),
         };
+
+    /// <summary>Creates the account with a new person of its own to sign in as (a profile has at most one user); returns that profile's id.</summary>
+    private async Task<Guid> CreateAccountWithOwnProfileAsync(Account account, IReadOnlySet<AccountFeatureId> features)
+    {
+        var profile = new Profile { Id = Guid.NewGuid(), DisplayName = "Person", Role = ProfileRole.StandardUser, CreatedAt = _clock.GetUtcNow() };
+        var grant = Grant(account.Id, administrator: account.IsAdministrator);
+        grant.ProfileId = profile.Id;
+        await _accounts.CreateAccountAsync(account, grant, features, new HashSet<Guid>(), newProfile: profile);
+        return profile.Id;
+    }
 
     private AccountProfileGrant Grant(Guid accountId, bool administrator) =>
         new()

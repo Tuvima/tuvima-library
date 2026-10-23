@@ -53,7 +53,7 @@ public sealed class HouseholdAdministratorTests
 
         // Another household administrator in the same household is a peer: off limits.
         var peer = await mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
-            "peer@example.com", [world.A.Person.Id], null));
+            "peer@example.com", [(await world.AddPersonAsync(world.A)).Id], null));
         await mutations.SetHouseholdAdminAsync(world.ServerAdmin, peer.AccountId, true);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.SetTemporaryPasswordAsync(
             world.AdminOfA, peer.AccountId, "another long temporary password"));
@@ -99,7 +99,7 @@ public sealed class HouseholdAdministratorTests
 
         // A second adult in household A, who is not the household's main sign-in.
         var invitation = await mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
-            "second.adult@example.com", [world.A.Person.Id], null));
+            "second.adult@example.com", [(await world.AddPersonAsync(world.A)).Id], null));
         var secondAdult = (await world.Accounts.GetByIdAsync(invitation.AccountId))!;
         Assert.Equal(world.A.Household.Id, secondAdult.HouseholdId);
         Assert.False(secondAdult.HouseholdAdmin);
@@ -121,7 +121,7 @@ public sealed class HouseholdAdministratorTests
     {
         await using var world = await World.CreateAsync();
         var second = (await world.Accounts.GetByIdAsync((await world.Mutations.IssueInvitationAsync(world.ServerAdmin,
-            new IssueAccountInvitationCommand("second.adult@example.com", [world.A.Person.Id], null))).AccountId))!;
+            new IssueAccountInvitationCommand("second.adult@example.com", [(await world.AddPersonAsync(world.A)).Id], null))).AccountId))!;
         Assert.False(second.HouseholdAdmin);
 
         await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, second.Id, true);
@@ -161,7 +161,7 @@ public sealed class HouseholdAdministratorTests
     {
         await using var world = await World.CreateAsync();
         var invitation = await world.Mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
-            "second.adult@example.com", [world.A.Person.Id], null));
+            "second.adult@example.com", [(await world.AddPersonAsync(world.A)).Id], null));
 
         await world.Mutations.RemoveOwnSignInAsync(world.ServerAdmin, world.A.OwnSignIn.Id);
         // The household keeps an owner: the second adult is made one before the first goes.
@@ -171,6 +171,151 @@ public sealed class HouseholdAdministratorTests
         var household = (await world.Households.GetByIdAsync(world.A.Household.Id))!;
         Assert.Equal(invitation.AccountId, household.PrimaryAccountId);
     }
+
+    // ---- Profile-held access: every change is also written to the person (users, profiles and households wave UPH1b-1) ----
+
+    [Fact]
+    public async Task EveryWayOfMakingASignIn_PointsItAtItsOwnPerson_AndTheTwoSidesAgree()
+    {
+        await using var world = await World.CreateAsync();
+        var mutations = world.Mutations;
+
+        // The scene itself used a new person with a sign-in, a household person, and a person's own sign-in with a password.
+        AssertSidesAgree(world);
+        Assert.All(await world.Accounts.GetAllAsync(), account => Assert.NotNull(account.ProfileId));
+
+        // An invitation for a new person in the household, one that starts a household, and an own sign-in by invitation.
+        var spare = await mutations.AddHouseholdPersonAsync(world.ServerAdmin,
+            new AddHouseholdPersonCommand(world.A.Id, "Another", null, false, null));
+        var second = await mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "second.adult@example.com", [spare.Id], null));
+        var guest = await mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "guest@example.com", [], null, NewHouseholdPersonName: "Guest"));
+        var own = await mutations.GiveOwnSignInAsync(world.ServerAdmin,
+            new GiveOwnSignInCommand(world.A.Spare.Id, "spare.own@example.com", null, Invite: true));
+
+        Assert.Equal(spare.Id, (await world.Accounts.GetByIdAsync(second.AccountId))!.ProfileId);
+        Assert.Equal(world.A.Spare.Id, own.Account.ProfileId);
+        var guestPerson = Assert.Single(await world.Households.ListProfilesAsync((await world.Accounts.GetByIdAsync(guest.AccountId))!.HouseholdId!.Value));
+        Assert.Equal(guestPerson.Id, (await world.Accounts.GetByIdAsync(guest.AccountId))!.ProfileId);
+        AssertSidesAgree(world);
+    }
+
+    [Fact]
+    public async Task ASecondSignInOnAPersonWhoAlreadyHasOne_IsRefusedWithOnePlainSentence_ByEveryRoute()
+    {
+        await using var world = await World.CreateAsync();
+        var mutations = world.Mutations;
+        const string sentence = "That profile already has a sign-in.";
+
+        var create = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.CreateAsync(world.ServerAdmin,
+            new CreateAccountAccessCommand("again@example.com", false, world.A.Person.Id, null,
+                new HashSet<AccountFeatureId>(), new HashSet<Guid>())));
+        var invite = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.IssueInvitationAsync(world.ServerAdmin,
+            new IssueAccountInvitationCommand("again.too@example.com", [world.A.Person.Id], null)));
+
+        Assert.Equal(sentence, create.Message);
+        Assert.Equal(sentence, invite.Message);
+        Assert.Null(await world.Accounts.GetByNormalizedEmailAsync("AGAIN@EXAMPLE.COM"));
+        Assert.Null(await world.Accounts.GetByNormalizedEmailAsync("AGAIN.TOO@EXAMPLE.COM"));
+        AssertSidesAgree(world);
+    }
+
+    [Fact]
+    public async Task EveryAccessChange_IsWrittenToThePersonToo_AndRaisesTheirVersion()
+    {
+        await using var world = await World.CreateAsync();
+        var mutations = world.Mutations;
+        var access = new ProfileAccessRepository(world.Database);
+        var adults = await mutations.AddHouseholdPersonAsync(world.ServerAdmin, new AddHouseholdPersonCommand(world.A.Id, "Adult", null, false, null));
+        var second = (await world.Accounts.GetByIdAsync((await mutations.IssueInvitationAsync(world.ServerAdmin,
+            new IssueAccountInvitationCommand("second.adult@example.com", [adults.Id], null))).AccountId))!;
+        var version = (await access.GetAdminFlagsAsync(adults.Id))!.AuthorizationVersion;
+
+        await mutations.ReplaceAccessAsync(world.ServerAdmin, second.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid>());
+        Assert.Equal(new[] { "read", "watch" }, (await access.GetFeatureGrantsAsync(adults.Id)).Select(feature => feature.Value).Order());
+        var afterAccess = (await access.GetAdminFlagsAsync(adults.Id))!.AuthorizationVersion;
+        Assert.True(afterAccess > version);
+
+        await mutations.SetHouseholdAdminAsync(world.ServerAdmin, second.Id, true);
+        var promoted = (await access.GetAdminFlagsAsync(adults.Id))!;
+        Assert.True(promoted.IsHouseholdAdministrator);
+        Assert.True(promoted.AuthorizationVersion > afterAccess);
+
+        await mutations.SetHouseholdAdminAsync(world.ServerAdmin, second.Id, false);
+        Assert.False((await access.GetAdminFlagsAsync(adults.Id))!.IsHouseholdAdministrator);
+
+        // The person who owns the household gets the same: their profile is the household administrator.
+        var ownerProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value;
+        Assert.True((await access.GetAdminFlagsAsync(ownerProfile))!.IsHouseholdAdministrator);
+
+        // The own sign-in follows the household's main sign-in, so changing that reaches the person's profile as well.
+        await mutations.ReplaceAccessAsync(world.ServerAdmin, world.A.Owner.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
+        Assert.Equal(new[] { "listen" }, (await access.GetFeatureGrantsAsync(world.A.Person.Id)).Select(feature => feature.Value));
+        AssertSidesAgree(world);
+    }
+
+    [Fact]
+    public async Task APersonAdded_StartsWithTheAccessOfTheActorsPerson_OrOfTheHouseholdAdministratorForAnApp_AndNeverAnAdministrator()
+    {
+        await using var world = await World.CreateAsync();
+        var mutations = world.Mutations;
+        var access = new ProfileAccessRepository(world.Database);
+        var ownerProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value;
+        await access.ReplaceAccessAsync(ownerProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), DateTimeOffset.UtcNow);
+
+        // A household administrator adds a person: they start with what the administrator's own person holds.
+        var byAdmin = await mutations.AddHouseholdPersonAsync(world.AdminOfA, new AddHouseholdPersonCommand(world.A.Id, "By admin", null, false, null));
+        Assert.Equal(new[] { "read" }, (await access.GetFeatureGrantsAsync(byAdmin.Id)).Select(feature => feature.Value));
+
+        // An app has no person: the household's first household administrator is used.
+        var app = world.ServerAdmin with { PrincipalKind = PrincipalKind.ServiceApplication, AccountId = null, ActiveProfileId = null };
+        var byApp = await mutations.AddHouseholdPersonAsync(app, new AddHouseholdPersonCommand(world.A.Id, "By app", null, false, null));
+        Assert.Equal(new[] { "read" }, (await access.GetFeatureGrantsAsync(byApp.Id)).Select(feature => feature.Value));
+
+        // A server administrator from another household: the same features, never View, and no libraries.
+        var byServer = await mutations.AddHouseholdPersonAsync(world.ServerAdmin, new AddHouseholdPersonCommand(world.A.Id, "By server", null, false, null));
+        Assert.Equal(new[] { "read", "watch" }, (await access.GetFeatureGrantsAsync(byServer.Id)).Select(feature => feature.Value).Order());
+        Assert.Empty(await access.GetLibraryGrantsAsync(byServer.Id));
+
+        // A person created for a sign-in follows the same rule (only a server administrator may do this).
+        var created = await mutations.CreateProfileAsync(world.ServerAdmin, new CreateManagedProfileCommand(world.A.Owner.Id, "Created", null, false));
+        Assert.Equal(new[] { "read", "watch" }, (await access.GetFeatureGrantsAsync(created.Id)).Select(feature => feature.Value).Order());
+
+        foreach (var added in new[] { byAdmin, byApp, byServer, created })
+        {
+            var flags = (await access.GetAdminFlagsAsync(added.Id))!;
+            Assert.False(flags.IsServerAdministrator);
+            Assert.False(flags.IsHouseholdAdministrator);
+        }
+
+        AssertSidesAgree(world);
+    }
+
+    [Fact]
+    public async Task TheDefaultHousehold_IsTheServerAdministratorsOwn_AndCannotBeRemoved_WhileOthersCanBeWhenEmpty()
+    {
+        await using var world = await World.CreateAsync();
+        var households = new HouseholdManagementService(world.Households, world.Decisions, new AllowEvaluator(), new NoOpAudit(), TimeProvider.System);
+        var serverHousehold = (await world.Households.GetForAccountAsync(world.ServerAdminAccount.Id))!;
+        Assert.True(serverHousehold.IsDefault);
+        Assert.False(world.A.Household.IsDefault);
+        Assert.False(world.B.Household.IsDefault);
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => households.DeleteAsync(world.ServerAdmin, serverHousehold.Id));
+        Assert.Equal("This is the Library's own household and can't be removed.", refused.Message);
+        Assert.NotNull(await world.Households.GetByIdAsync(serverHousehold.Id));
+
+        var extra = await households.CreateAsync(world.ServerAdmin, "Extra");
+        Assert.False(extra.Household.IsDefault);
+        await households.DeleteAsync(world.ServerAdmin, extra.Household.Id);
+        Assert.Null(await world.Households.GetByIdAsync(extra.Household.Id));
+    }
+
+    private static void AssertSidesAgree(World world) =>
+        Assert.Empty(ProfileAccessConsistency.FindDifferences(world.Database));
 
     [Fact]
     public async Task HouseholdAdministrator_NeedsTheAdministratorUnlock_WhenTheirPinProtectionIsOn()
@@ -475,6 +620,10 @@ public sealed class HouseholdAdministratorTests
             new("set an ordinary password", (actor, place) =>
                 Mutations.SetTemporaryPasswordAsync(actor, place.OwnSignIn.Id, "another long ordinary password", mustChangePassword: false)),
         ];
+
+        /// <summary>A new person in the place with no sign-in yet (a user opens a profile of its own, so a second adult needs one).</summary>
+        public Task<Profile> AddPersonAsync(Place place) =>
+            Mutations.AddHouseholdPersonAsync(ServerAdmin, new AddHouseholdPersonCommand(place.Id, $"Extra {Next()}", null, false, null));
 
         private string Next() => (++_counter).ToString("D3", System.Globalization.CultureInfo.InvariantCulture);
 

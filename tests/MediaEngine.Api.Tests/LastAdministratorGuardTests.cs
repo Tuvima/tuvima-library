@@ -265,12 +265,38 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
     {
         var first = await CreateAdministratorAsync();
         await CreateAdministratorAsync();
-        var adminProfile = Assert.Single(await _accounts.GetGrantsAsync(first.Id)).ProfileId;
-        await _mutations.CreateProfileAsync(_actor, new CreateManagedProfileCommand(first.Id, "Other", "#778899", false));
+        // The person the administrator administers as is one they open, not the one they sign in as (a person with a sign-in
+        // is deleted by deleting the sign-in first).
+        var adminProfile = (await _mutations.AddHouseholdPersonAsync(_actor,
+            new AddHouseholdPersonCommand(first.HouseholdId!.Value, "Administration", null, false, null))).Id;
+        await _mutations.UpsertGrantAsync(_actor, new AccountProfileGrant
+        {
+            AccountId = first.Id,
+            ProfileId = adminProfile,
+            IsEnabled = true,
+            AdminEnabled = true,
+            AuthorizationVersion = 1,
+        });
 
         await _mutations.DeleteProfileAsync(_actor, adminProfile);
 
         Assert.Null(await _accounts.GetGrantAsync(first.Id, adminProfile));
+    }
+
+    [Fact]
+    public async Task DeletingThePersonAnAdministratorSignsInAs_IsRefusedUntilTheirSignInIsDeleted()
+    {
+        var first = await CreateAdministratorAsync();
+        await CreateAdministratorAsync();
+        var adminProfile = Assert.Single(await _accounts.GetGrantsAsync(first.Id)).ProfileId;
+        await _mutations.CreateProfileAsync(_actor, new CreateManagedProfileCommand(first.Id, "Other", "#778899", false));
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _mutations.DeleteProfileAsync(_actor, adminProfile));
+
+        Assert.Equal("This person has their own sign-in. Delete the sign-in first.", refused.Message);
+        Assert.NotNull(await _accounts.GetByIdAsync(first.Id));
+        Assert.NotNull(await _accounts.GetGrantAsync(first.Id, adminProfile));
     }
 
     // ---- Two changes at once ----

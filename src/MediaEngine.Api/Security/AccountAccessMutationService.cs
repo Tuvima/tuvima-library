@@ -662,7 +662,9 @@ public sealed class AccountAccessMutationService(
 
         var targetGrant = NewProfileGrant(
             command.AccountId, profile.Id, command.IsDefault, now);
-        await accounts.CreateManagedProfileAsync(profile, targetGrant, ct).ConfigureAwait(false);
+        var targetHousehold = (await accounts.GetByIdAsync(command.AccountId, ct).ConfigureAwait(false))?.HouseholdId;
+        await accounts.CreateManagedProfileAsync(
+            profile, targetGrant, ct, await AccessSourceProfileAsync(actor, targetHousehold, ct).ConfigureAwait(false)).ConfigureAwait(false);
         await ChangedAsync(actor, "profile.created", "profile", profile.Id.ToString("D"),
             command.AccountId, profile.Id, ct).ConfigureAwait(false);
         return profile;
@@ -702,7 +704,9 @@ public sealed class AccountAccessMutationService(
             CreatedAt = now,
         };
         var grants = openers.Select(account => NewProfileGrant(account.Id, profile.Id, false, now)).ToArray();
-        await accounts.CreateHouseholdPersonAsync(profile, command.HouseholdId, grants, ct).ConfigureAwait(false);
+        await accounts.CreateHouseholdPersonAsync(
+            profile, command.HouseholdId, grants, ct,
+            await AccessSourceProfileAsync(actor, command.HouseholdId, ct).ConfigureAwait(false)).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(command.Pin))
         {
             try
@@ -879,6 +883,29 @@ public sealed class AccountAccessMutationService(
         await accounts.DeleteAccountAsync(accountId, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "household.own_sign_in_removed", "account", accountId.ToString("D"),
             accountId, null, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The profile a new person (one without a sign-in of their own) takes their starting access from: the profile of the person
+    /// adding them. An application or service caller has none, so the household's first household-administrator profile is used;
+    /// with none of those, <see langword="null"/> (every feature, no library).
+    /// </summary>
+    private async Task<Guid?> AccessSourceProfileAsync(RequestAuthority actor, Guid? householdId, CancellationToken ct)
+    {
+        if (actor.PrincipalKind == PrincipalKind.Human && actor.ActiveProfileId is { } active)
+        {
+            return active;
+        }
+
+        if (householdId is not { } household)
+        {
+            return null;
+        }
+
+        return (await profiles.GetAllAsync(ct).ConfigureAwait(false))
+            .Where(profile => profile.HouseholdId == household && profile.IsHouseholdAdministrator)
+            .OrderBy(profile => profile.CreatedAt)
+            .FirstOrDefault()?.Id;
     }
 
     /// <summary>

@@ -86,6 +86,11 @@ public sealed class UserExportScopeGuardrailTests
                     problems.Add($"'{entry.Table}' excludes '{column}', which is not a column of that table.");
                 }
 
+                foreach (var column in (entry.ZeroedColumns ?? []).Where(column => !columns.Contains(column)))
+                {
+                    problems.Add($"'{entry.Table}' zeroes '{column}', which is not a column of that table.");
+                }
+
                 if (entry.Checks.Count == 0)
                 {
                     problems.Add($"'{entry.Table}' has no row check, so a crafted file could put anyone's rows in it.");

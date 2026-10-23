@@ -36,18 +36,24 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             InsertAccount(conn, tx, account);
         }, ct);
 
-    public Task<bool> UpdateAsync(Account account, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = db.CreateConnection();
-        return Task.FromResult(conn.Execute("""
-            UPDATE accounts SET email = @Email, normalized_email = @NormalizedEmail,
-                is_enabled = @IsEnabled, is_administrator = @IsAdministrator,
-                this_computer_only = @ThisComputerOnly,
-                authorization_version = authorization_version + 1, updated_at = @UpdatedAt
-            WHERE id = @Id;
-            """, Parameters(account)) > 0);
-    }
+    public Task<bool> UpdateAsync(Account account, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((conn, tx, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var changed = conn.Execute("""
+                UPDATE accounts SET email = @Email, normalized_email = @NormalizedEmail,
+                    is_enabled = @IsEnabled, is_administrator = @IsAdministrator,
+                    this_computer_only = @ThisComputerOnly,
+                    authorization_version = authorization_version + 1, updated_at = @UpdatedAt
+                WHERE id = @Id;
+                """, Parameters(account), tx) > 0;
+            if (changed)
+            {
+                SyncProfileFromAccount(conn, tx, account.Id);
+            }
+
+            return changed;
+        }, ct);
 
     public Task<bool> SetTemporaryPasswordStateAsync(Guid accountId, bool mustChangePassword, DateTimeOffset? expiresAt, DateTimeOffset changedAt, CancellationToken ct = default)
     {
@@ -95,17 +101,24 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 grant.AuthorizationVersion,
                 GrantedAt = grant.GrantedAt.ToString("O"),
             }, transaction);
+            SyncProfileFromAccount(conn, transaction, grant.AccountId);
         }, ct);
     }
 
-    public Task<bool> RevokeProfileAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = db.CreateConnection();
-        return Task.FromResult(conn.Execute(
-            "DELETE FROM account_profile_grants WHERE account_id = @accountId AND profile_id = @profileId;",
-            new { accountId, profileId }) > 0);
-    }
+    public Task<bool> RevokeProfileAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((conn, tx, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var removed = conn.Execute(
+                "DELETE FROM account_profile_grants WHERE account_id = @accountId AND profile_id = @profileId;",
+                new { accountId, profileId }, tx) > 0;
+            if (removed)
+            {
+                SyncProfileFromAccount(conn, tx, accountId);
+            }
+
+            return removed;
+        }, ct);
 
     public Task<bool> HasProfileAccessAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
     {
@@ -269,6 +282,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
 
         conn.Execute("UPDATE accounts SET email=@Email,normalized_email=@NormalizedEmail,is_enabled=@IsEnabled,is_administrator=@IsAdministrator,authorization_version=authorization_version+1,updated_at=@UpdatedAt WHERE id=@Id;", Parameters(account), tx);
+        SyncProfileFromAccount(conn, tx, account.Id);
     }, ct);
 
     public Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default) =>
@@ -336,6 +350,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
 
         // People whose access followed this account follow the household's next main sign-in instead.
+        var followers = connection.Query<Guid>(
+            "SELECT id FROM accounts WHERE grants_inherit_from_account_id=@accountId;", new { accountId }, transaction).ToList();
         connection.Execute("""
             UPDATE accounts SET grants_inherit_from_account_id=(
                 SELECT other.id FROM accounts other
@@ -354,6 +370,11 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             WHERE primary_account_id=@accountId;
             """, new { accountId }, transaction);
         connection.Execute("DELETE FROM accounts WHERE id=@accountId;", new { accountId }, transaction);
+        // Their profiles now hold the access of the sign-in they follow next (or none), the same as the account side.
+        foreach (var follower in followers)
+        {
+            SyncProfileFromAccount(connection, transaction, follower);
+        }
     }
 
     public Task<IReadOnlyList<AccountProfileGrant>> GetGrantsAsync(Guid accountId, CancellationToken ct = default)
@@ -453,19 +474,15 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             {
                 throw new KeyNotFoundException("Profile not found.");
             }
-            if (account.ProfileId is { } attachedProfile && attachedProfile != initialGrant.ProfileId)
-            {
-                throw new InvalidOperationException("A sign-in can only be attached to the profile it opens.");
-            }
+            // Every user opens its own profile: the profile it signs in as. A profile has at most one user.
+            AttachToSignInProfile(connection, transaction, account, initialGrant.ProfileId);
 
             InsertAccount(connection, transaction, account);
             InsertGrant(connection, transaction, initialGrant);
             ReplaceAccess(connection, transaction, account.Id, features, libraries, account.UpdatedAt);
             EnsureHouseholdPrimary(connection, transaction, account.Id);
-            if (account.ProfileId is not null)
-            {
-                MirrorAccessOntoProfile(connection, transaction, account);
-            }
+            // The profile now holds the same roles and access (a brand-new profile has no open sessions to re-check).
+            SyncProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
         }, ct);
 
     public Task CreateInvitedAccountAsync(
@@ -514,6 +531,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 InsertProfileRow(connection, transaction, newProfile, account.HouseholdId.Value);
             }
 
+            // The invited user opens the invitation's default profile, and a profile has at most one user.
+            AttachToSignInProfile(connection, transaction, account, grants.Single(grant => grant.IsDefault && grant.IsEnabled).ProfileId);
             InsertAccount(connection, transaction, account);
             foreach (var grant in grants)
             {
@@ -534,12 +553,14 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             }, transaction);
             // Someone invited from outside starts a household of their own and looks after it.
             EnsureHouseholdPrimary(connection, transaction, account.Id);
+            SyncProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
         }, ct);
 
     public Task CreateManagedProfileAsync(
         Profile profile,
         AccountProfileGrant targetGrant,
-        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
+        CancellationToken ct = default,
+        Guid? accessFromProfileId = null) => db.ExecuteWriteAsync((connection, transaction, token) =>
     {
         token.ThrowIfCancellationRequested();
         if (targetGrant.ProfileId != profile.Id || !targetGrant.IsEnabled || targetGrant.AdminEnabled)
@@ -567,6 +588,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             new { householdId, targetGrant.AccountId }, transaction);
         RequireRoom(connection, transaction, householdId);
         InsertProfileRow(connection, transaction, profile, householdId);
+        GiveNewProfileAccess(connection, transaction, profile.Id, householdId, accessFromProfileId, profile.CreatedAt);
         if (targetGrant.IsDefault)
         {
             connection.Execute("""
@@ -587,7 +609,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         Profile profile,
         Guid householdId,
         IReadOnlyList<AccountProfileGrant> grants,
-        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
+        CancellationToken ct = default,
+        Guid? accessFromProfileId = null) => db.ExecuteWriteAsync((connection, transaction, token) =>
     {
         token.ThrowIfCancellationRequested();
         if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id=@householdId;",
@@ -604,6 +627,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
         RequireRoom(connection, transaction, householdId);
         InsertProfileRow(connection, transaction, profile, householdId);
+        GiveNewProfileAccess(connection, transaction, profile.Id, householdId, accessFromProfileId, profile.CreatedAt);
         foreach (var grant in grants)
         {
             InsertGrantRow(connection, transaction, grant);
@@ -648,7 +672,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     /// <summary>
     /// Removes a profile and everything personal it left behind, in the caller's transaction (if anything fails, all of it is
     /// undone). Tables that point at a profile through a foreign key go with the profile row. The tables below have no foreign
-    /// key, so they are cleared by hand. What stays: audit and approval history (<c>application_events</c>,
+    /// key, so they are cleared by hand. What stays: audit and approval history (the application event outbox,
     /// <c>approval_records</c>, <c>authorization_audit_events</c>, <c>identity_audit_events</c>), the library activity log
     /// (<c>system_activity</c>, apart from the person's Trash-emptied entries), and the reserved View storage label
     /// (<c>view_storage_labels</c>). A guardrail test lists every table with a profile column and no foreign key, so a new one
@@ -656,6 +680,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     /// </summary>
     private static void DeleteProfileRows(SqliteConnection connection, SqliteTransaction transaction, Guid profileId)
     {
+        // Backstop for every delete path: the sign-in is deleted first (that is what DeleteAccountWithOwnProfilesAsync does).
+        RequireNoLinkedSignIn(connection, transaction, profileId);
         // The share records and file locations of the person's photos are released first (their files are handled by the caller).
         ProfilePersonalMediaRepository.ReleaseForRemoval(connection, transaction, profileId);
         connection.Execute("""
@@ -820,6 +846,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new KeyNotFoundException("Profile not found.");
         }
 
+        RequireNoLinkedSignIn(connection, transaction, profileId);
         if (connection.ExecuteScalar<int>("""
                 SELECT COUNT(*) FROM accounts a
                 JOIN account_profile_grants target ON target.account_id=a.id
@@ -832,6 +859,22 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
 
         RequireNotFinalAdministratorProfile(connection, transaction, profileId);
+    }
+
+    /// <summary>What a person is told when they try to delete a profile that still has its own sign-in.</summary>
+    internal const string ProfileHasSignInMessage = "This person has their own sign-in. Delete the sign-in first.";
+
+    /// <summary>
+    /// A profile with a sign-in attached cannot be deleted by itself: removing the profile row would also remove the sign-in
+    /// (the data store cascades) without the hand-overs <c>DeleteAccountRows</c> does (the household's primary sign-in, the
+    /// people whose access follows it). The sign-in is deleted first, which then takes its own profiles with it.
+    /// </summary>
+    private static void RequireNoLinkedSignIn(System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, Guid profileId)
+    {
+        if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM accounts WHERE profile_id=@profileId;", new { profileId }, transaction) > 0)
+        {
+            throw new InvalidOperationException(ProfileHasSignInMessage);
+        }
     }
 
     /// <summary>Backstop: the last profile an administrator can sign in with cannot be deleted.</summary>
@@ -920,6 +963,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             connection.Execute("""
                 UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now WHERE id=@id;
                 """, new { id = grant.AccountId, now = Iso(grant.GrantedAt) }, transaction);
+            SyncProfileFromAccount(connection, transaction, grant.AccountId);
         }, ct);
 
     public Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
@@ -956,6 +1000,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
                 WHERE id=@accountId;
                 """, new { accountId, now = Iso(DateTimeOffset.UtcNow) }, transaction);
+            SyncProfileFromAccount(connection, transaction, accountId);
         }, ct);
 
     public Task<Guid?> GetHouseholdPrimaryAccountIdAsync(Guid householdId, CancellationToken ct = default)
@@ -995,6 +1040,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                     new { accountId, household = account.HouseholdId.Value }, transaction);
             }
 
+            SyncProfileFromAccount(connection, transaction, accountId);
             return changed > 0;
         }, ct);
 
@@ -1008,6 +1054,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
                 WHERE id=@accountId;
                 """, new { accountId, now = Iso(changedAt) }, transaction);
+            // The profile it signs in as, and the profiles of the people whose access follows this sign-in, hold the same access.
+            SyncProfileFromAccount(connection, transaction, accountId);
         }, ct);
     public Task SetAdminProtectionAsync(GrantAdminProtection protection, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
@@ -1037,6 +1085,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 WHERE account_id=@AccountId AND profile_id=@ProfileId;
                 DELETE FROM grant_admin_unlocks WHERE account_id=@AccountId AND profile_id=@ProfileId;
                 """, protection, transaction);
+            SyncProtectionOntoProfile(connection, transaction, protection.AccountId, protection.ProfileId);
         }, ct);
 
     public Task<bool> HasEnabledAdminProtectionAsync(Guid profileId, CancellationToken ct = default)
@@ -1203,28 +1252,162 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     }
 
     /// <summary>
-    /// Writes the profile side of a new sign-in that names its profile: the profile takes the account's administrator roles and its
-    /// Read/Watch/Listen/View and library access (the same rows just written), and a server administrator's household becomes the
-    /// default household when there is none yet. The account side stays what authority reads until the Engine switches over.
+    /// Makes the sign-in open its own profile: the profile it signs in as (<paramref name="profileId"/>, the initial default grant). A
+    /// profile has at most one user, so a profile that already has another sign-in is refused. Sets <see cref="Account.ProfileId"/>.
     /// </summary>
-    private static void MirrorAccessOntoProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account)
+    private static void AttachToSignInProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account, Guid profileId)
     {
-        var profileId = account.ProfileId!.Value;
-        c.Execute("""
-            UPDATE profiles
-            SET is_server_admin=@server,
-                is_household_admin=(SELECT household_admin FROM accounts WHERE id=@accountId)
-            WHERE id=@profileId;
-            DELETE FROM profile_feature_grants WHERE profile_id=@profileId;
-            DELETE FROM profile_library_grants WHERE profile_id=@profileId;
-            INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at)
-                SELECT @profileId,feature_id,granted_at FROM account_feature_grants WHERE account_id=@accountId;
-            INSERT INTO profile_library_grants(profile_id,library_id,granted_at)
-                SELECT @profileId,library_id,granted_at FROM account_library_grants WHERE account_id=@accountId;
-            """, new { profileId, accountId = account.Id, server = account.IsAdministrator ? 1 : 0 }, tx);
-        if (account.IsAdministrator && HouseholdOfProfile(c, tx, profileId) is { } householdId)
+        if (account.ProfileId is { } named && named != profileId)
         {
-            ProfileAccessRepository.MarkDefaultHouseholdIfNone(c, tx, householdId);
+            throw new InvalidOperationException("A sign-in can only be attached to the profile it opens.");
+        }
+
+        if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM accounts WHERE profile_id=@profileId AND id<>@accountId;",
+                new { profileId, accountId = account.Id }, tx) > 0)
+        {
+            throw new InvalidOperationException(ProfileAlreadyHasSignInMessage);
+        }
+
+        account.ProfileId = profileId;
+    }
+
+    /// <summary>What a person is told when a profile that already has a sign-in is given a second one.</summary>
+    internal const string ProfileAlreadyHasSignInMessage = "That profile already has a sign-in.";
+
+    /// <summary>
+    /// Brings the profile a sign-in opens (<c>accounts.profile_id</c>) in line with the account side, in the caller's transaction:
+    /// <list type="bullet">
+    /// <item>server administrator: the account is an administrator and has administrator access switched on for its own profile;</item>
+    /// <item>household administrator: the account is one;</item>
+    /// <item>Read/Watch/Listen/View and library access: what the account holds, or what the main sign-in it follows holds;</item>
+    /// <item>a server administrator's household becomes the default household when there is none yet.</item>
+    /// </list>
+    /// The profile's authorization version goes up (unless <paramref name="bumpVersion"/> is off for a profile made in this same
+    /// step). The people whose access follows this sign-in are brought in line too. Does nothing for a sign-in with no profile.
+    /// This recomputes everything from the account side, so it can be called after any account-side access write.
+    /// </summary>
+    internal static void SyncProfileFromAccount(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, bool bumpVersion = true, bool includeFollowers = true)
+    {
+        var account = c.QueryFirstOrDefault<SyncRow>("""
+            SELECT a.profile_id AS ProfileId, a.is_administrator AS IsAdministrator, a.household_admin AS HouseholdAdmin,
+                   COALESCE(a.grants_inherit_from_account_id, a.id) AS AccessAccountId,
+                   EXISTS(SELECT 1 FROM account_profile_grants g
+                          WHERE g.account_id=a.id AND g.profile_id=a.profile_id AND g.is_enabled=1 AND g.admin_enabled=1) AS OwnGrantAdmin
+            FROM accounts a WHERE a.id=@accountId;
+            """, new { accountId }, tx);
+        if (account?.ProfileId is { } profileId)
+        {
+            var server = account.IsAdministrator && account.OwnGrantAdmin;
+            c.Execute("""
+                UPDATE profiles
+                SET is_server_admin=@server, is_household_admin=@household, authorization_version=authorization_version+@bump
+                WHERE id=@profileId;
+                DELETE FROM profile_feature_grants WHERE profile_id=@profileId;
+                DELETE FROM profile_library_grants WHERE profile_id=@profileId;
+                INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at)
+                    SELECT @profileId,feature_id,granted_at FROM account_feature_grants WHERE account_id=@accessAccountId;
+                INSERT INTO profile_library_grants(profile_id,library_id,granted_at)
+                    SELECT @profileId,library_id,granted_at FROM account_library_grants WHERE account_id=@accessAccountId;
+                """, new
+            {
+                profileId,
+                accessAccountId = account.AccessAccountId,
+                server = server ? 1 : 0,
+                household = account.HouseholdAdmin ? 1 : 0,
+                bump = bumpVersion ? 1 : 0,
+            }, tx);
+            if (server && HouseholdOfProfile(c, tx, profileId) is { } householdId)
+            {
+                ProfileAccessRepository.MarkDefaultHouseholdIfNone(c, tx, householdId);
+            }
+        }
+
+        if (!includeFollowers)
+        {
+            return;
+        }
+
+        foreach (var follower in c.Query<Guid>(
+                     "SELECT id FROM accounts WHERE grants_inherit_from_account_id=@accountId;", new { accountId }, tx).ToList())
+        {
+            SyncProfileFromAccount(c, tx, follower, bumpVersion: true, includeFollowers: false);
+        }
+    }
+
+    private sealed class SyncRow
+    {
+        public Guid? ProfileId { get; set; }
+        public bool IsAdministrator { get; set; }
+        public bool HouseholdAdmin { get; set; }
+        public Guid AccessAccountId { get; set; }
+        public bool OwnGrantAdmin { get; set; }
+    }
+
+    /// <summary>
+    /// Copies a sign-in's "ask for my PIN on admin pages" question onto the profile it signs in as, and clears that profile's earlier
+    /// unlocks. Only the sign-in's own profile counts: it is the only profile a sign-in can be a server administrator on.
+    /// </summary>
+    private static void SyncProtectionOntoProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, Guid profileId)
+    {
+        if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM accounts WHERE id=@accountId AND profile_id=@profileId;", new { accountId, profileId }, tx) == 0)
+        {
+            return;
+        }
+
+        c.Execute("""
+            INSERT INTO profile_admin_protections(profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at)
+                SELECT profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at
+                FROM grant_admin_protections WHERE account_id=@accountId AND profile_id=@profileId
+            ON CONFLICT(profile_id) DO UPDATE SET
+                is_enabled=excluded.is_enabled,unlock_mode=excluded.unlock_mode,unlock_minutes=excluded.unlock_minutes,
+                protection_version=excluded.protection_version,updated_at=excluded.updated_at;
+            DELETE FROM profile_admin_unlocks WHERE profile_id=@profileId;
+            UPDATE profiles SET authorization_version=authorization_version+1 WHERE id=@profileId;
+            """, new { accountId, profileId }, tx);
+    }
+
+    /// <summary>
+    /// A person added without a sign-in starts with the Read/Watch/Listen/View access and libraries of the profile of whoever
+    /// added them (<paramref name="sourceProfileId"/>); with no such profile they start with every feature and no library. Someone
+    /// outside the adder's household starts with View off and no library. A source profile that does not exist gives nothing. Never an
+    /// administrator role.
+    /// </summary>
+    private static void GiveNewProfileAccess(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId, Guid householdId, Guid? sourceProfileId, DateTimeOffset at)
+    {
+        List<string> features;
+        List<Guid> libraries = [];
+        if (sourceProfileId is not { } source)
+        {
+            features = AccountFeatureId.All.Select(feature => feature.Value).ToList();
+        }
+        else if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id=@source;", new { source }, tx) == 0)
+        {
+            features = [];
+        }
+        else
+        {
+            var sameHousehold = HouseholdOfProfile(c, tx, source) == householdId;
+            features = c.Query<string>("SELECT feature_id FROM profile_feature_grants WHERE profile_id=@source;", new { source }, tx)
+                .Where(feature => sameHousehold || !string.Equals(feature, AccountFeatureId.View.Value, StringComparison.Ordinal))
+                .ToList();
+            if (sameHousehold)
+            {
+                libraries = c.Query<Guid>("SELECT library_id FROM profile_library_grants WHERE profile_id=@source;", new { source }, tx).ToList();
+            }
+        }
+
+        foreach (var feature in features)
+        {
+            c.Execute("INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,@feature,@at);",
+                new { profileId, feature, at = Iso(at) }, tx);
+        }
+
+        foreach (var libraryId in libraries)
+        {
+            c.Execute("INSERT INTO profile_library_grants(profile_id,library_id,granted_at) VALUES(@profileId,@libraryId,@at);",
+                new { profileId, libraryId, at = Iso(at) }, tx);
         }
     }
 

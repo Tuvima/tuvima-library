@@ -201,10 +201,11 @@ public sealed class SecureAccountAndRecentSignInTests : IDisposable
         var issued = await _service.BootstrapThisComputerAdministratorAsync(null, "Owner", "device", "Browser", "Dashboard");
         var now = DateTimeOffset.UtcNow;
         var otherId = Guid.NewGuid();
+        var otherProfile = new MediaEngine.Domain.Aggregates.Profile { Id = Guid.NewGuid(), DisplayName = "Other", CreatedAt = now };
         await _accounts.CreateAccountAsync(
             new Account { Id = otherId, Email = "taken@example.com", NormalizedEmail = "TAKEN@EXAMPLE.COM", IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now },
-            new AccountProfileGrant { AccountId = otherId, ProfileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+            new AccountProfileGrant { AccountId = otherId, ProfileId = otherProfile.Id, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: otherProfile);
 
         var taken = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _service.SecureThisComputerAccountAsync(issued.Account.Id, Password, hasPasskey: false, "device", "Browser", "Dashboard", email: "TAKEN@example.com"));

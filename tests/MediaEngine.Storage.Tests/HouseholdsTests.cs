@@ -144,13 +144,15 @@ public sealed class HouseholdsTests : IDisposable
             NewInvitation(crossed.Id)));
         Assert.Null(await fixture.Accounts.GetByIdAsync(crossed.Id));
 
+        var memberProfile = NewProfile("Member");
+        await fixture.Accounts.CreateManagedProfileAsync(memberProfile, Grant(admin.Id, memberProfile.Id));
         var member = NewAccount("member@example.com");
         await fixture.Accounts.CreateInvitedAccountAsync(member,
-            [Grant(member.Id, Profile.SeedProfileId, isDefault: true)], NewInvitation(member.Id));
+            [Grant(member.Id, memberProfile.Id, isDefault: true)], NewInvitation(member.Id));
         Assert.Equal(adminHousehold.Id, (await fixture.Households.GetForAccountAsync(member.Id))!.Id);
 
         // Fill the admin household to eight, then a ninth person invited by another route is refused too.
-        for (var index = 0; index < 7; index++)
+        for (var index = 0; index < 6; index++)
         {
             var profile = NewProfile($"Person {index}");
             await fixture.Accounts.CreateManagedProfileAsync(profile, Grant(admin.Id, profile.Id));

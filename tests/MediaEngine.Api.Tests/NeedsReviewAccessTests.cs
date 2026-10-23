@@ -38,6 +38,8 @@ public sealed class NeedsReviewAccessTests : IDisposable
     private readonly AccountRepository _accounts;
     private readonly ApplicationRepository _applications;
     private readonly ManualTimeProvider _clock = new(new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero));
+    // Each user opens a profile of its own (a profile has at most one user); this remembers which.
+    private readonly Dictionary<Guid, Guid> _signInProfiles = [];
 
     public NeedsReviewAccessTests()
     {
@@ -197,7 +199,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     {
         var serverAdmin = await CreateAccountAsync(administrator: true);
 
-        var projected = await Projector().ProjectAsync(serverAdmin, Profile.SeedProfileId, Guid.NewGuid());
+        var projected = await Projector().ProjectAsync(serverAdmin, SignInProfile(serverAdmin), Guid.NewGuid());
 
         Assert.True(projected.EffectiveAdministrator);
         Assert.Contains("settings.administration", projected.NavigationCapabilities);
@@ -209,7 +211,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
         var householdAdmin = await CreateAccountAsync(administrator: false);
         await _accounts.SetHouseholdAdminAsync(householdAdmin, true, _clock.GetUtcNow());
 
-        var projected = await Projector().ProjectAsync(householdAdmin, Profile.SeedProfileId, Guid.NewGuid());
+        var projected = await Projector().ProjectAsync(householdAdmin, SignInProfile(householdAdmin), Guid.NewGuid());
 
         Assert.False(projected.EffectiveAdministrator);
         Assert.Contains("household.manage", projected.ActionCapabilities);
@@ -320,9 +322,13 @@ public sealed class NeedsReviewAccessTests : IDisposable
         return routes;
     }
 
+    private Guid SignInProfile(Guid accountId) => _signInProfiles[accountId];
+
     private async Task<Guid> CreateAccountAsync(bool administrator)
     {
         var id = Guid.NewGuid();
+        var profile = new Profile { Id = Guid.NewGuid(), DisplayName = "Person", Role = ProfileRole.StandardUser, CreatedAt = _clock.GetUtcNow() };
+        _signInProfiles[id] = profile.Id;
         await _accounts.CreateAccountAsync(
             new Account
             {
@@ -338,7 +344,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
             new AccountProfileGrant
             {
                 AccountId = id,
-                ProfileId = Profile.SeedProfileId,
+                ProfileId = profile.Id,
                 IsDefault = true,
                 IsEnabled = true,
                 AdminEnabled = administrator,
@@ -346,7 +352,8 @@ public sealed class NeedsReviewAccessTests : IDisposable
                 GrantedAt = _clock.GetUtcNow(),
             },
             AccountFeatureId.All.ToHashSet(),
-            new HashSet<Guid>());
+            new HashSet<Guid>(),
+            newProfile: profile);
         return id;
     }
 
@@ -369,17 +376,17 @@ public sealed class NeedsReviewAccessTests : IDisposable
         return application;
     }
 
-    private static DefaultHttpContext ContextFor(Guid accountId, Guid? profileId = null) =>
-        ContextWithClaims(PrincipalKind.Human, accountId, profileId ?? Profile.SeedProfileId, null);
+    private DefaultHttpContext ContextFor(Guid accountId, Guid? profileId = null) =>
+        ContextWithClaims(PrincipalKind.Human, accountId, profileId ?? SignInProfile(accountId), null);
 
     private static DefaultHttpContext AppContext(MediaEngine.Domain.Entities.Application application) =>
         ContextWithClaims(PrincipalKind.ServiceApplication, Guid.Empty, Guid.Empty, application.Id);
 
-    private static DefaultHttpContext DelegatedContext(
+    private DefaultHttpContext DelegatedContext(
         MediaEngine.Domain.Entities.Application application, Guid accountId, Guid? profileId = null)
     {
         var http = ContextWithClaims(
-            PrincipalKind.DelegatedUserClient, accountId, profileId ?? Profile.SeedProfileId, application.Id);
+            PrincipalKind.DelegatedUserClient, accountId, profileId ?? SignInProfile(accountId), application.Id);
         // The person consented to both review scopes, so only the person's own standing decides.
         ((ClaimsIdentity)http.User.Identity!).AddClaims(
         [

@@ -34,11 +34,13 @@ public abstract record UserRowCheck
 /// </param>
 /// <param name="ExcludedColumns">Nullable columns written as NULL because they point at someone else (another account or profile).</param>
 /// <param name="Checks">What every row of the table must satisfy when a file is read back, so a crafted file cannot write another person's rows.</param>
+/// <param name="ZeroedColumns">NOT NULL columns whose real value is never read: every row is written with 0 (an administrator role, for example).</param>
 public sealed record UserExportTable(
     string Table,
     string Filter,
     IReadOnlyList<string> ExcludedColumns,
-    IReadOnlyList<UserRowCheck> Checks);
+    IReadOnlyList<UserRowCheck> Checks,
+    IReadOnlyList<string>? ZeroedColumns = null);
 
 /// <summary>
 /// What one user's export holds, as one explicit map (backup and restore spec D19). A user export holds one account, every profile in that
@@ -163,7 +165,8 @@ public static class UserExportScope
             // The profiles the account may use, and only this account's grants to them.
             new("account_profile_grants", "account_id = {account}", [],
                 [new UserRowCheck.AccountColumn("account_id"), new UserRowCheck.ProfileColumn("profile_id")]),
-            new("profiles", "id IN (" + InProfiles + ")", ["is_server_admin", "is_household_admin"], [new UserRowCheck.ProfileColumn("id")]),
+            // The administrator roles are NOT NULL, so they are written as 0 rather than left out; an import forces them to 0 as well.
+            new("profiles", "id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("id")], ["is_server_admin", "is_household_admin"]),
             new("profile_credentials", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_grid_preferences", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_notice_dismissals", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),

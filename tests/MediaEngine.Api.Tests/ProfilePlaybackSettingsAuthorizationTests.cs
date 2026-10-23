@@ -34,6 +34,8 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
 
     private readonly Profile _householdOneAdultProfile = NewProfile("Adult one", ProfileRole.StandardUser);
     private readonly Profile _householdOneOtherProfile = NewProfile("Adult two", ProfileRole.StandardUser);
+    // A user opens a profile of its own, so the plain member is a different person from the household administrator.
+    private readonly Profile _householdOnePlainProfile = NewProfile("Adult three", ProfileRole.StandardUser);
     private readonly Profile _householdOneKidProfile = NewProfile("Kid", ProfileRole.RestrictedProfile);
     private readonly Profile _householdTwoProfile = NewProfile("Other house", ProfileRole.StandardUser);
     private readonly Profile _serverAdminProfile = NewProfile("Server admin", ProfileRole.StandardUser);
@@ -70,9 +72,9 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
     [Fact]
     public async Task Self_MayReadAndSaveOwnSettings()
     {
-        var http = Caller(_householdOnePlain, _householdOneAdultProfile);
+        var http = Caller(_householdOnePlain, _householdOnePlainProfile);
 
-        Assert.Null(await ProfileEndpoints.AuthorizeProfileSettingsAsync(http, _householdOneAdultProfile.Id));
+        Assert.Null(await ProfileEndpoints.AuthorizeProfileSettingsAsync(http, _householdOnePlainProfile.Id));
     }
 
     [Fact]
@@ -111,7 +113,7 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
     [Fact]
     public async Task NonAdministrator_CannotManageAnotherProfileInTheSameHousehold()
     {
-        var http = Caller(_householdOnePlain, _householdOneAdultProfile);
+        var http = Caller(_householdOnePlain, _householdOnePlainProfile);
 
         await AssertForbiddenAsync(http, _householdOneOtherProfile.Id);
     }
@@ -221,6 +223,7 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
         {
             (_householdOneAdultProfile, HouseholdOne),
             (_householdOneOtherProfile, HouseholdOne),
+            (_householdOnePlainProfile, HouseholdOne),
             (_householdOneKidProfile, HouseholdOne),
             (_householdTwoProfile, HouseholdTwo),
             (_serverAdminProfile, HouseholdOne),
@@ -231,7 +234,7 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
 
         _serverAdmin = await CreateAccountAsync(null, administrator: true, householdAdmin: false, _serverAdminProfile, adminGrant: true);
         _householdOneAdmin = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: true, _householdOneAdultProfile, adminGrant: false);
-        _householdOnePlain = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: false, _householdOneAdultProfile, adminGrant: false);
+        _householdOnePlain = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: false, _householdOnePlainProfile, adminGrant: false);
         _householdOneKidAdmin = await CreateAccountAsync(HouseholdOne, administrator: false, householdAdmin: true, _householdOneKidProfile, adminGrant: false);
     }
 

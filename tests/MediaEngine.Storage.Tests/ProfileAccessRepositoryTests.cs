@@ -154,6 +154,24 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task TheFirstSaveOfTheAdminPinQuestion_StartsAtVersionOne_WhateverVersionTheCallerSends()
+    {
+        var profileId = InsertProfile();
+
+        await _access.SetAdminProtectionAsync(new ProfileAdminProtection
+        {
+            ProfileId = profileId,
+            IsEnabled = true,
+            UnlockMode = "FixedDuration",
+            UnlockMinutes = 15,
+            ProtectionVersion = 9,
+            UpdatedAt = _now,
+        });
+
+        Assert.Equal(1, (await _access.GetAdminProtectionAsync(profileId))!.ProtectionVersion);
+    }
+
+    [Fact]
     public async Task AnAdminUnlock_IsClearedBySession_AndGoesWithItsSession()
     {
         var profileId = InsertProfile();

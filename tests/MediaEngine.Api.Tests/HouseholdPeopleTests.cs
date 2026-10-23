@@ -185,9 +185,11 @@ public sealed class HouseholdPeopleTests
         var invitation = await mutations.IssueInvitationAsync(actor, new IssueAccountInvitationCommand(
             "guest@example.com", [], null, NewHouseholdPersonName: "Guest"));
         var guestHousehold = (await households.GetForAccountAsync(invitation.AccountId))!;
-        var guestPerson = Assert.Single(await households.ListProfilesAsync(guestHousehold.Id));
+        // The guest's own person has the guest's sign-in already, so a friend of theirs gets the own sign-in.
+        var guestFriend = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(guestHousehold.Id, "Friend", null, false, null));
         var guestSignIn = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(guestPerson.Id, "guest.own@example.com", null, Invite: true));
+            new GiveOwnSignInCommand(guestFriend.Id, "guest.own@example.com", null, Invite: true));
 
         // The new sign-in lands in the person's household, not the household of whoever asked.
         Assert.Equal(guestHousehold.Id, guestSignIn.Account.HouseholdId);
@@ -240,8 +242,11 @@ public sealed class HouseholdPeopleTests
         var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
         var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read);
         var household = (await households.GetForAccountAsync(owner.Id))!;
+        // A user opens a profile of its own: the spouse is a person of the household first, then gets a sign-in.
+        var spouseProfile = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Spouse", null, false, null));
         var spouse = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
-            "spouse@example.com", false, Assert.Single(await accounts.GetGrantsAsync(owner.Id)).ProfileId, null,
+            "spouse@example.com", false, spouseProfile.Id, null,
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>()));
         var mary = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));

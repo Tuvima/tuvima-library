@@ -263,8 +263,9 @@ public sealed class ManagedSessionServiceTests
         /// <summary>A second household administrator in the owner's household (a second main sign-in).</summary>
         public async Task<Account> AddHouseholdAdministratorPeerAsync()
         {
-            var ownerGrant = (await _accounts.GetGrantsAsync(Owner.Id)).First();
             var now = DateTimeOffset.UtcNow;
+            // A user opens a profile of its own: the peer is a person in the owner's household.
+            var peerProfile = new Profile { Id = Guid.NewGuid(), DisplayName = "Peer", Role = MediaEngine.Domain.Enums.ProfileRole.StandardUser, CreatedAt = now };
             var peer = new Account
             {
                 Id = Guid.NewGuid(),
@@ -280,13 +281,13 @@ public sealed class ManagedSessionServiceTests
                 new AccountProfileGrant
                 {
                     AccountId = peer.Id,
-                    ProfileId = ownerGrant.ProfileId,
+                    ProfileId = peerProfile.Id,
                     IsDefault = true,
                     IsEnabled = true,
                     AuthorizationVersion = 1,
                     GrantedAt = now,
                 },
-                new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+                new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: peerProfile);
             await _mutations.SetHouseholdAdminAsync(_setupActor, peer.Id, true);
             return (await _accounts.GetByIdAsync(peer.Id))!;
         }

@@ -252,7 +252,7 @@ public sealed class PersonalStateBackupRepository
 
             var filter = UserExportScope.FilterFor(entry, accountId, profiles);
             var predicate = string.IsNullOrWhiteSpace(rule.KeepWhere) ? filter : "(" + rule.KeepWhere + ") AND (" + filter + ")";
-            tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, predicate, portableValues, ref dropped, ref withheld, ref keptMachineBound, ct, entry.ExcludedColumns));
+            tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, predicate, portableValues, ref dropped, ref withheld, ref keptMachineBound, ct, entry.ExcludedColumns, entry.ZeroedColumns));
         }
 
         var configuration = tables.Where(table => table.Kind == BackupDataKind.Configuration).ToList();
@@ -311,9 +311,12 @@ public sealed class PersonalStateBackupRepository
         ref int withheld,
         ref int keptMachineBound,
         CancellationToken ct,
-        IReadOnlyList<string>? alsoExcluded = null)
+        IReadOnlyList<string>? alsoExcluded = null,
+        IReadOnlyList<string>? alsoZeroed = null)
     {
         var excluded = new HashSet<string>(rule.ExcludedColumns.Concat(alsoExcluded ?? []), StringComparer.OrdinalIgnoreCase);
+        // A zeroed column is never read either: its value is written as 0 (a NOT NULL role flag that must not travel).
+        var zeroed = new HashSet<string>(alsoZeroed ?? [], StringComparer.OrdinalIgnoreCase);
 
         // An excluded column is never read. One that may be NULL (and has no default) stays in the column list as NULL;
         // any other is left out of the list, so a restore uses the table's own default.
@@ -381,7 +384,7 @@ public sealed class PersonalStateBackupRepository
         }
 
         command.CommandText =
-            $"SELECT {string.Join(", ", columns.Select(column => excluded.Contains(column) ? "NULL AS " + Quote(column) : Quote(column)))} FROM {Quote(rule.Table)}" +
+            $"SELECT {string.Join(", ", columns.Select(column => excluded.Contains(column) ? "NULL AS " + Quote(column) : zeroed.Contains(column) ? "0 AS " + Quote(column) : Quote(column)))} FROM {Quote(rule.Table)}" +
             (where.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", where));
 
         var rows = new List<IReadOnlyList<BackupValue>>();

@@ -23,6 +23,7 @@ public sealed class HouseholdManagementService(
 
     public const string NotEmptyMessage = "This household still has people or sign-ins, so it can't be removed. Nothing was changed.";
     public const string HoldsSharedItemsMessage = "This household still has shared photos in View. Remove them first.";
+    public const string DefaultHouseholdMessage = "This is the Library's own household and can't be removed.";
 
     public async Task<IReadOnlyList<HouseholdSummary>> ListAsync(RequestAuthority actor, CancellationToken ct = default)
     {
@@ -83,6 +84,8 @@ public sealed class HouseholdManagementService(
                 throw new InvalidOperationException(NotEmptyMessage);
             case HouseholdDeleteOutcome.HoldsSharedItems:
                 throw new InvalidOperationException(HoldsSharedItemsMessage);
+            case HouseholdDeleteOutcome.IsDefaultHousehold:
+                throw new InvalidOperationException(DefaultHouseholdMessage);
             default:
                 throw new UnreachableException($"Unhandled household delete outcome: {outcome}.");
         }
