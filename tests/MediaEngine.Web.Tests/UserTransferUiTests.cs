@@ -247,7 +247,7 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
 
         OpenMenu(cut, "No email");
 
-        Assert.Contains(cut.FindAll("[role='menu'] button"), button => button.TextContent.Trim() == "Account details");
+        Assert.Contains(cut.FindAll("[role='menu'] button"), button => button.TextContent.Trim() == "Change email");
         Assert.DoesNotContain(cut.FindAll("[role='menu'] button"), button => button.TextContent.Trim() == "Export");
     }
 
@@ -451,7 +451,7 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ImportAUser_OnSuccess_OpensThePermissionsEditorForTheNewAccount()
+    public void ImportAUser_OnSuccess_ListsTheNewSignInAndPointsToTheirProfileForAccess()
     {
         var cut = RenderUsers();
         ChooseFile(cut);
@@ -459,9 +459,9 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Permissions · sam@example.test", cut.Markup, StringComparison.Ordinal);
-            Assert.Contains("sam@example.test was added. Choose what they can see.", cut.Markup, StringComparison.Ordinal);
-            Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Save permissions");
+            Assert.Contains("sam@example.test was added. Choose what they can see on their profile, under Profiles.", cut.Find("[data-testid='access-notice']").TextContent, StringComparison.Ordinal);
+            Assert.Empty(cut.FindAll("[data-testid='user-import']"));
+            Assert.Contains("Sam", cut.Find(".access-users").TextContent, StringComparison.Ordinal);
         });
         Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/accounts/import/{_handler.OperationId:D}");
     }
@@ -565,6 +565,7 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
 
         private readonly Guid _ownerProfile = Guid.NewGuid();
         private readonly Guid _importedProfile = Guid.NewGuid();
+        private readonly Guid _household = Guid.NewGuid();
         private bool _imported;
 
         public Guid OwnerId { get; } = Guid.NewGuid();
@@ -585,15 +586,20 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
             var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
             Requests.Add(new(request.Method, path, body));
 
-            if (request.Method == HttpMethod.Get && path == "/access/accounts")
+            if (request.Method == HttpMethod.Get && path == "/access/users")
             {
-                return Json(_imported ? new[] { Account(OwnerId, OwnerEmail, _ownerProfile, "Owner"), Account(ImportedAccountId, "sam@example.test", _importedProfile, "Sam") }
-                    : [Account(OwnerId, OwnerEmail, _ownerProfile, "Owner")]);
+                return Json(_imported ? new[] { User(OwnerId, OwnerEmail, _ownerProfile, "Owner"), User(ImportedAccountId, "sam@example.test", _importedProfile, "Sam") }
+                    : [User(OwnerId, OwnerEmail, _ownerProfile, "Owner")]);
             }
 
             if (request.Method == HttpMethod.Get && path == "/access/profiles")
             {
                 return Json(new[] { new ManagedProfileResponse(_ownerProfile, "Owner", "#7C4DFF", null, DateTimeOffset.UtcNow) });
+            }
+
+            if (request.Method == HttpMethod.Get && path == "/access/households")
+            {
+                return Json(new[] { new HouseholdResponse(_household, "Home", 1, 1, DateTimeOffset.UtcNow) });
             }
 
             if (request.Method == HttpMethod.Get && path == "/access/libraries")
@@ -645,11 +651,8 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
             return new HttpResponseMessage(HttpStatusCode.NoContent);
         }
 
-        private AccountAccessResponse Account(Guid id, string? email, Guid profileId, string profileName) => new(
-            id, email, true, id == OwnerId, 1,
-            id == OwnerId ? [new("read", true), new("watch", true), new("listen", true), new("view", true)] : [],
-            [], [new(id, profileId, profileName, null, true, true, true, new GrantAdminProtectionDto(false, "FixedDuration", 30, 1), 1, DateTimeOffset.UtcNow)],
-            DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(-2));
+        private UserSummaryResponse User(Guid id, string? email, Guid profileId, string profileName) =>
+            new(id, email, profileId, profileName, _household, "Home", true, false, true, false);
 
         private static HttpResponseMessage ConfirmItsYou() => new(HttpStatusCode.Forbidden)
         {

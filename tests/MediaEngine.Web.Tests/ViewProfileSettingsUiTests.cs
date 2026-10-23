@@ -14,7 +14,8 @@ public sealed class ViewProfileSettingsUiTests
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceExisting", view, StringComparison.Ordinal);
         Assert.Contains("Show in Photos timeline", view, StringComparison.Ordinal);
         Assert.Contains("Shared Library access, contribution submission and review", view, StringComparison.Ordinal);
-        Assert.Contains("ManagedAccessUserPermissions", users, StringComparison.Ordinal);
+        // What a person may use (including View) is set on their profile, not on the sign-in.
+        Assert.DoesNotContain("ManagedAccessUserPermissions", users, StringComparison.Ordinal);
         Assert.DoesNotContain("MudSwitch", users, StringComparison.Ordinal);
         Assert.DoesNotContain("quota", users, StringComparison.OrdinalIgnoreCase);
     }

@@ -54,7 +54,7 @@ For a person with their own sign-in, the **Household access** group on their pro
 
 ## Someone from outside your household
 
-A server administrator can invite someone who is not part of an existing household. Choose **Invite someone outside your household** under **Users and Sign-in → Users**. They start a household of their own and become its household administrator, with only what you give them.
+A server administrator can add someone who is not part of an existing household. Choose **Add a sign-in** under **Users and Sign-in → Users**, then **A new person**, set their household to **A new household** and give it a name. They start a household of their own and look after it. Once they are in, give them only what they need on their profile under **Settings → Profiles**.
 
 ## The profile picker
 

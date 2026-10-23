@@ -18,7 +18,7 @@
 .access-users__header,
 .access-users__row {
     display: grid;
-    grid-template-columns: minmax(13rem, 1.25fr) minmax(16rem, 1.7fr) 7rem 10rem 3rem;
+    grid-template-columns: minmax(14rem, 1.6fr) minmax(8rem, 1fr) minmax(8rem, 1fr) 3rem;
     align-items: center;
     gap: 1rem;
 }
@@ -40,8 +40,16 @@
 
 .access-users__identity,
 .access-users__identity > div,
-.access-grant__heading > div {
+.access-users__profile,
+.access-users__household {
     min-width: 0;
+}
+
+.access-users__profile,
+.access-users__household {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .access-users__identity strong {
@@ -51,69 +59,11 @@
     white-space: nowrap;
 }
 
-.access-users__badges,
-.access-profile-chips {
+.access-users__badges {
     display: flex;
     flex-wrap: wrap;
     gap: .35rem;
     margin-top: .35rem;
-}
-
-.access-profile-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: .35rem;
-    max-width: 12rem;
-    padding: .2rem .55rem .2rem .25rem;
-    border: 1px solid var(--app-border);
-    border-radius: 999px;
-    font-size: .78rem;
-}
-
-.access-profile-chip > span:nth-child(2) {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.access-profile-chip__avatar {
-    display: inline-grid;
-    flex: 0 0 auto;
-    width: 1.65rem;
-    height: 1.65rem;
-    place-items: center;
-    border-radius: 50%;
-    color: white;
-    background: var(--app-accent, #8852FC);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 800;
-}
-
-.access-status {
-    display: inline-flex;
-    align-items: center;
-    gap: .4rem;
-    font-size: .82rem;
-}
-
-.access-status::before {
-    width: .5rem;
-    height: .5rem;
-    border-radius: 50%;
-    content: "";
-}
-
-.access-status--enabled::before {
-    background: var(--app-success, #22c55e);
-}
-
-.access-status--disabled::before {
-    background: var(--app-text-muted);
-}
-
-.access-users__last-active {
-    color: var(--app-text-muted);
-    font-size: .82rem;
 }
 
 .access-users__actions {
@@ -191,20 +141,16 @@
     overflow-y: auto;
 }
 
-.access-drawer__footer {
-    position: sticky;
-    bottom: 0;
+.access-form-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: .75rem;
-    min-height: 5rem;
-    padding: 1rem 1.25rem;
+    padding-top: 1rem;
     border-top: 1px solid var(--app-border);
-    background: var(--app-surface);
 }
 
-.access-form-section,
-.access-grant {
+.access-form-section {
     display: grid;
     gap: .75rem;
 }
@@ -214,38 +160,9 @@
     border-top: 1px solid var(--app-border);
 }
 
-.access-form-section small,
-.access-grant small {
+.access-form-section small {
     display: block;
     color: var(--app-text-muted);
-}
-
-.access-grant {
-    padding: 1rem;
-    border: 1px solid var(--app-border);
-    border-radius: var(--app-radius-md);
-    background: color-mix(in srgb, var(--app-surface) 92%, white 2%);
-}
-
-.access-grant__heading {
-    display: flex;
-    align-items: center;
-    gap: .75rem;
-}
-
-.access-native-input {
-    min-height: 2.5rem;
-    padding: .5rem .7rem;
-    border: 1px solid var(--app-border);
-    border-radius: var(--app-radius-sm);
-    color: inherit;
-    background: transparent;
-}
-
-.access-permission-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .25rem .75rem;
 }
 
 .access-invitation strong,
@@ -270,18 +187,17 @@
     }
 
     .access-users__row {
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
         gap: .65rem 1rem;
     }
 
-    .access-profile-chips,
-    .access-users__last-active {
-        grid-column: 1 / -1;
+    .access-users__identity {
+        grid-column: 1 / 3;
     }
 
     .access-users__actions {
         grid-row: 1;
-        grid-column: 2;
+        grid-column: 3;
     }
 }
 
@@ -295,13 +211,8 @@
         padding: 1rem;
     }
 
-    .access-drawer__header,
-    .access-drawer__footer {
+    .access-drawer__header {
         padding-inline: 1rem;
-    }
-
-    .access-permission-list {
-        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -309,15 +220,4 @@
     margin: 0 0 1rem;
     color: var(--app-text-muted);
     font-size: .9rem;
-}
-
-.access-phone-card__value {
-    display: grid;
-    justify-items: end;
-    gap: .15rem;
-}
-
-.access-phone-card__value small {
-    color: var(--app-text-muted);
-    font-size: .82rem;
 }

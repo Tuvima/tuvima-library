@@ -67,8 +67,10 @@ public sealed class SettingsServerAdministrationTests
         var users = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor");
         var applications = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor");
 
-        Assert.Contains("Last active", users, StringComparison.Ordinal);
-        Assert.Contains("Profile access", users, StringComparison.Ordinal);
+        // A sign-in row says which profile it opens and its household; it has no activity column and no access editing.
+        Assert.Contains("Opens profile", users, StringComparison.Ordinal);
+        Assert.DoesNotContain("Last active", users, StringComparison.Ordinal);
+        Assert.DoesNotContain("Profile access", users, StringComparison.Ordinal);
         Assert.DoesNotContain("Manage profiles", users, StringComparison.Ordinal);
         Assert.DoesNotContain("pending invite", users, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Copy this credential now", applications, StringComparison.Ordinal);
