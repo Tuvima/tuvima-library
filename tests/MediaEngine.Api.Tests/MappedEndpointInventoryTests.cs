@@ -230,6 +230,30 @@ public sealed class MappedEndpointInventoryTests
     }
 
     [Fact]
+    public async Task ImportUploadRoutes_AreForAdministratorsSignedInAsAPerson_AndNothingElseUnderThatPrefix()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        var uploads = inventory.Endpoints
+            .Where(endpoint => endpoint.Pattern == "/imports/uploads" || endpoint.Pattern.StartsWith("/imports/uploads/", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Equal(
+            ["CancelImportUpload", "CompleteImportUpload", "GetImportUploadStatus", "PutImportUploadPiece", "StartImportUpload"],
+            uploads.Select(endpoint => endpoint.Name!).Order(StringComparer.Ordinal));
+        foreach (var route in uploads)
+        {
+            // The effective administrator rule (surface unlock included): no application and no service credential alone.
+            route.RequiresNamedPolicy(AuthPolicies.Administrator);
+            Assert.False(route.AllowsAnonymousEndpoint);
+        }
+
+        Assert.Equal("PUT", Assert.Single(inventory.Require("/imports/uploads/{uploadId:guid}/pieces/{index:int}").Methods));
+        Assert.Equal(ImportUploadEndpoints.PieceEndpointName, inventory.Require("/imports/uploads/{uploadId:guid}/pieces/{index:int}").Name);
+    }
+
+    [Fact]
     public async Task ProductionEndpointInventory_RecordsExplicitPublicExemptionAllowlist()
     {
         await using var app = BuildEndpointOnlyApplication();

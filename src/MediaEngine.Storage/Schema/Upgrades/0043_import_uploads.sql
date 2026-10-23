@@ -5,7 +5,7 @@
 -- import_upload_pieces holds one row per piece received; recording a piece twice changes nothing, which keeps a resent piece harmless.
 CREATE TABLE import_uploads (
     id                 BLOB NOT NULL PRIMARY KEY,
-    created_by         BLOB NOT NULL,        -- the signed-in person's profile id, or the application id for an application caller
+    created_by         BLOB NOT NULL,        -- the administrator's profile id
     kind_key           TEXT NOT NULL,        -- the library kind the file was dropped on (movies, music, ...)
     library_id         TEXT,                 -- the library named for a kind that has several; null means the kind's own
     type_label         TEXT NOT NULL,        -- the Import folder type the kind maps to (Movies, TV, Music, ...)

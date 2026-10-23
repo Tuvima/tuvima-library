@@ -326,6 +326,15 @@ builder.Services.AddScoped<ICollectionPersonalMediaClient>(services => services.
 builder.Services.AddHttpClient("EngineApi", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
     .AddHttpMessageHandler<ViewProfileAssertionHandler>();
+// Resumable uploads into the Import folder (Library setup D44): the same sign-in handlers, but each piece has its own five-minute limit
+// (set per call by the relay) instead of the shared 100 seconds. No retry handler: a piece body is streamed once and sent again by the browser.
+builder.Services.AddHttpClient(ImportUploadRelayEndpoint.EngineClientName, client =>
+    {
+        ConfigureEngineClient(client);
+        client.Timeout = Timeout.InfiniteTimeSpan;
+    })
+    .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
+    .AddHttpMessageHandler<ViewProfileAssertionHandler>();
 // Artwork requests are already authorized at the same-origin Dashboard route.
 // Forward only the server-held service credential so a shelf of images does not
 // repeat user-session validation and a SQLite lookup for every image.
@@ -593,6 +602,7 @@ app.MapMethods("/engine-image/{**enginePath}", [HttpMethods.Get, HttpMethods.Hea
     .RequireAuthorization();
 
 app.MapEngineBookProxy();
+app.MapImportUploadRelay();
 app.MapViewMediaProxy();
 
 app.MapDashboardAuthenticationEndpoints(registeredExternalProviders);

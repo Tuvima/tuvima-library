@@ -261,7 +261,7 @@ The resumable uploads of big files into the Import folder (Library setup spec D4
 | Column | Type | Notes |
 |---|---|---|
 | `id` | BLOB | Primary key; the upload id the Dashboard sends with every call |
-| `created_by` | BLOB | The signed-in person's profile id, or the application id for an application caller. Only that caller can read, send to, complete or cancel the upload |
+| `created_by` | BLOB | The administrator's profile id. Only that administrator can read, send to, complete or cancel the upload |
 | `kind_key` | TEXT | The library kind the file was dropped on (`movies`, `music`, `other_videos`, ...) |
 | `library_id` | TEXT | The library named for a kind that has several; null means the kind's own (nullable) |
 | `type_label` | TEXT | The Import folder type the kind maps to (`Movies`, `TV`, `Music`, ...) |

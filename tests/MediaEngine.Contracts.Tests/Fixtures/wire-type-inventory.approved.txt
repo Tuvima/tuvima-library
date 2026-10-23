@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1234; api=0; web-client=54
+# scopes: contracts=1238; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3594,6 +3594,42 @@
   Results: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.UniversalSearchResultDto> | json=results | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TotalCount: System.Int32 | json=totalCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SeeAllRoute: System.String | json=seeAllRoute | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Imports.ImportUploadCompleteResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  UploadId: System.Guid | json=upload_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Renamed: System.Boolean | json=renamed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DestinationPath: System.String | json=destination_path | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"upload_id":"11111111-2222-3333-4444-555555555555","file_name":"sample","renamed":true,"destination_path":"sample"}
+
+[contracts] MediaEngine.Contracts.Imports.ImportUploadStartRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  KindKey: System.String | json=kind_key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LibraryId: System.String | json=library_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TotalBytes: System.Int64 | json=total_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind_key":"sample","library_id":"sample","file_name":"sample","total_bytes":7}
+
+[contracts] MediaEngine.Contracts.Imports.ImportUploadStartResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  UploadId: System.Guid | json=upload_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PieceBytes: System.Int64 | json=piece_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PieceCount: System.Int32 | json=piece_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TotalBytes: System.Int64 | json=total_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"upload_id":"11111111-2222-3333-4444-555555555555","piece_bytes":7,"piece_count":7,"total_bytes":7}
+
+[contracts] MediaEngine.Contracts.Imports.ImportUploadStatusResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  UploadId: System.Guid | json=upload_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  State: System.String | json=state | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TotalBytes: System.Int64 | json=total_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PieceBytes: System.Int64 | json=piece_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PieceCount: System.Int32 | json=piece_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ReceivedPieces: System.Collections.Generic.List<System.Int32> | json=received_pieces | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ReceivedBytes: System.Int64 | json=received_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"upload_id":"11111111-2222-3333-4444-555555555555","state":"sample","file_name":"sample","total_bytes":7,"piece_bytes":7,"piece_count":7,"received_pieces":[],"received_bytes":7}
 
 [contracts] MediaEngine.Contracts.Ingestion.ActivityHistorySummaryDto
   kind=class | converter=default | number-handling=default | unmapped=default
