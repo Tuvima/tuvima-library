@@ -109,6 +109,7 @@ These failed during full runs on 2026-10-23 and passed when re-run alone:
 - `tests/MediaEngine.Web.Tests/VaultExperienceTests.cs:525`: `LockingNsfwMode_WipesTheSearchBoxAndTheRecentSearches`;
 - `tests/MediaEngine.Web.Tests/UiShellRenderTests.cs`: `MainLayoutInvalidatesChangedBookmarkLeasesWhileSuccessfulReplayDismissesAndRestoresFocus` (around line 416) and `PhoneMenu_LinksToMyLibraryAndTheDockTabIsSelectedThereAndOnItsGrids` (bUnit `UnknownEventHandlerIdException`);
 - `MatchStepTests.ChoosingATakenEntry` (seen earlier).
+- `tests/MediaEngine.Web.Tests/DetailRouteHostLoadingTests.cs:225`: `ALoadedPageNeverStartsInEditingModeAndOffersEditOnlyInTheMoreMenu` (`Assert.Single()` found nothing; once under load, passed alone). This one covers editing-mode gating, so check that it isn't a real ordering bug before treating it as timing.
 
 **How to fix them:**
 - For the OCR tests, inject a clock or time provider, or use a generous time limit that can be configured.
