@@ -1,6 +1,6 @@
 # Spec: Users, profiles and households
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Security model](../../docs/architecture/security.md) · [ADR 0007 Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md) (replaced by this spec) · [Backup and restore](backup-and-restore.md) D19, D20 · [Open from the start](archive/open-from-the-start.md) · [Profiles and setup redesign](archive/profiles-setup-redesign.md)
+> **Status:** Draft · **Version:** 2 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Security model](../../docs/architecture/security.md) · [ADR 0007 Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md) (replaced by this spec) · [Backup and restore](backup-and-restore.md) D19, D20 · [Open from the start](archive/open-from-the-start.md) · [Profiles and setup redesign](archive/profiles-setup-redesign.md)
 
 ## 1. Goal
 
@@ -57,7 +57,14 @@ What happens:
 - **D7. Household administrators delete profiles in their own household**, including another household administrator's profile, but a household always keeps at least one household administrator profile. Deleting one profile never affects another. Deleting a profile removes its user too (a sign-in without a profile cannot exist).
 - **D8. Deleting a profile leaves nothing personal behind**: history, progress, bookmarks, lists, waiting restore items, personal activity, reader state, prepared offline copies and its picture file; photos move to Shared unless the person deleting chooses Delete. Security and audit history and the photo-folder name reservation are kept.
 - **D9. Restores and imports target a user you choose.** A profile (or the profiles of a household) from a backup or a user export can be restored under any user and household the administrator picks; a changed email is never a reason to refuse.
-- **D10. Passwords before a second household.** With one household the Library may be used without passwords (today's "Start without a password"). Adding or inviting a second household requires the server administrator's user to have an email and a password (or passkey) first.
+- **D10. Passwords before a second household.** With one household the Library may be used without passwords (today's "Start without a password"). Adding or inviting a second household requires every server administrator's user to have an email and a password (or passkey) first.
+- **D11. Start fresh (Shy, 2026-10-23, Q1).** Nothing existing is carried over: a new data store epoch, set the Library up again. Backups and user exports made before this change are refused in one plain sentence.
+- **D12. One household per user (Q2).** A sign-in reaches only its own household's profiles.
+- **D13. Switching is free unless a profile has a PIN (Q3).** Like Netflix: any profile of the household can switch to any other, Kids included; a profile with a PIN asks for it. Most people will not set one.
+- **D14. At most eight profiles per household (Q4).**
+- **D15. A household administrator always has a user (Q5).** A profile can be made a household administrator only when a user is attached to it. Deleting the user of a household administrator who is not the last one leaves the profile as an ordinary member (an administrator without a sign-in cannot exist). Deleting the user of the last household administrator of a non-default household removes the household (D6). Household administrators can make another profile of their household an administrator when it has a user.
+- **D16. Export my data (Q6).** Exports your own profile; a household administrator can also export the whole household; the server administrator can export anything.
+- **D17. Several server administrators (Q7).** More than one profile can be a server administrator, but only profiles in the default household with a user that has an email and password (for example mom@home.com \ Mom). The Library always keeps at least one. The server administrator is really "shy@tuvima.com \ Shy": the sign-in and its profile together.
 
 ## 5. UI behaviour
 
@@ -80,7 +87,7 @@ What happens:
 
 - Roles, library and feature access move from the user to the profile; the user keeps only sign-in material and the one profile it opens.
 - Existing two-step, passkeys and outside sign-ins stay on the user.
-- Pre-release: this is a reset (a new data store epoch); existing Libraries are set up again and restored from a backup. Backups and user exports made before the change are refused in plain words (as D9 of the backup spec does for older backups). **(See Q1.)**
+- Pre-release: this is a reset (a new data store epoch, D11); existing Libraries are set up again. Backups and user exports made before the change are refused in plain words.
 
 ## 7. Work packets (draft; finalised when Locked)
 
@@ -119,11 +126,4 @@ What happens:
 ## 9. Risks and open questions
 
 - **Risks:** this changes who is allowed to do what across the whole Library (security review required on every packet); a reset of existing test Libraries; paired apps must follow the profile's access without re-pairing.
-- **Open questions:**
-  - **Q1. Reset or carry over?** Pre-release, a reset (set the Library up again, restore a backup) is simplest and safest. Carrying over today's users and their access into profiles is possible but adds conversion code that the project rules ask us not to write. Recommendation: reset, with backups made today restorable under the new model if practical, otherwise refused in plain words.
-  - **Q2. Can one user open more than one household?** Recommendation: no; a user belongs to one household (its profile's).
-  - **Q3. Can a Kids profile's sign-in switch to an adult profile?** Recommendation: yes, but only with that profile's PIN; profiles without a PIN can be opened by anyone in the household, as today.
-  - **Q4. How many profiles?** Today: at most eight per sign-in. Recommendation: at most eight profiles per household.
-  - **Q5. D6 when the last household administrator has no sign-in at all** (Household 2's administrator profile exists but no user is attached to it, while other members have sign-ins). Recommendation: the household is removed only when its last household-administrator *sign-in* is deleted; a household whose administrator profile has no sign-in keeps working, and a member with a sign-in can still switch into the administrator profile (with its PIN).
-  - **Q6. "Export my data"**: exports your own profile, or every profile of your household when you are its administrator? Recommendation: your own profile; a household administrator can also export the whole household; the server administrator anything.
-  - **Q7. Server administrator role**: one profile only (Shy's), or can a second profile be made a server administrator? Recommendation: allow more than one, but the last one can never be removed.
+- **Open questions:** none. Q1 to Q7 answered by Shy on 2026-10-23 (D11 to D17).
