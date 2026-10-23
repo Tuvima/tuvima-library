@@ -388,7 +388,9 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         connection.Execute("""
             UPDATE accounts SET grants_inherit_from_account_id=(
                 SELECT other.id FROM accounts other
-                WHERE other.household_id=accounts.household_id AND other.id<>@accountId
+                WHERE (SELECT po.household_id FROM profiles po WHERE po.id=other.profile_id)
+                    = (SELECT pa.household_id FROM profiles pa WHERE pa.id=accounts.profile_id)
+                  AND other.id<>@accountId
                   AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
                 ORDER BY other.created_at LIMIT 1)
             WHERE grants_inherit_from_account_id=@accountId;
@@ -1314,8 +1316,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
     }
 
+    // Creation-time bookkeeping (household size, joining a household): the household of the profile the sign-in opens. The written
+    // accounts.household_id column answers only for a sign-in that has no profile yet; no access decision reads it.
     private static Guid? HouseholdOfAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId) =>
-        c.QueryFirstOrDefault<Guid?>("SELECT household_id FROM accounts WHERE id=@accountId;", new { accountId }, tx);
+        c.QueryFirstOrDefault<Guid?>(
+            "SELECT COALESCE(p.household_id, a.household_id) FROM accounts a LEFT JOIN profiles p ON p.id=a.profile_id WHERE a.id=@accountId;",
+            new { accountId }, tx);
 
     private static Guid? HouseholdOfProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId) =>
         c.QueryFirstOrDefault<Guid?>("SELECT household_id FROM profiles WHERE id=@profileId;", new { profileId }, tx);

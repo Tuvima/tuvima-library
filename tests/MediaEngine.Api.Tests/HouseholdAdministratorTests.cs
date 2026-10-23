@@ -509,6 +509,53 @@ public sealed class HouseholdAdministratorTests
     }
 
     [Fact]
+    public async Task AKidsProfile_CannotBeMadeAHouseholdAdministrator()
+    {
+        await using var world = await World.CreateAsync();
+        // A household's main sign-in whose person is a Kids profile (and not yet a household administrator).
+        var main = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
+            "kids.main@example.com", IsAdministrator: false, ProfileId: null,
+            NewProfile: new NewAccountProfileCommand("Little One", "#445566"),
+            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>()));
+        var kidsProfile = (await world.Accounts.GetByIdAsync(main.Id))!.ProfileId!.Value;
+        using (var connection = world.Database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET role = 'RestrictedProfile', is_household_admin = 0 WHERE id = @id;", new { id = kidsProfile });
+        }
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, main.Id, true));
+
+        Assert.Contains("Kids profile", refused.Message, StringComparison.Ordinal);
+        var flags = (await new ProfileAccessRepository(world.Database).GetAdminFlagsAsync(kidsProfile))!;
+        Assert.False(flags.IsHouseholdAdministrator);
+    }
+
+    [Fact]
+    public async Task ASignInsHouseholdAdministratorFlag_IsItsOwnProfilesRole_NotTheAccountColumn()
+    {
+        await using var world = await World.CreateAsync();
+        // A household's main sign-in: only the role on its own profile counts, whatever the account's own column says.
+        var main = world.A.Owner.Id;
+        var profileId = (await world.Accounts.GetByIdAsync(main))!.ProfileId!.Value;
+        using (var connection = world.Database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET is_household_admin = 1 WHERE id = @id;", new { id = profileId });
+            connection.Execute("UPDATE accounts SET household_admin = 0 WHERE id = @id;", new { id = main });
+        }
+
+        Assert.True((await world.Accounts.GetByIdAsync(main))!.HouseholdAdmin);
+
+        using (var connection = world.Database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET is_household_admin = 0 WHERE id = @id;", new { id = profileId });
+            connection.Execute("UPDATE accounts SET household_admin = 1 WHERE id = @id;", new { id = main });
+        }
+
+        Assert.False((await world.Accounts.GetByIdAsync(main))!.HouseholdAdmin);
+    }
+
+    [Fact]
     public async Task AdminPagesPin_CannotBeTurnedOn_WithoutAProfilePin_ButCanAlwaysBeTurnedOff()
     {
         await using var world = await World.CreateAsync();

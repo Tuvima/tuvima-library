@@ -1347,6 +1347,11 @@ public sealed class AccountAccessMutationService(
             throw new InvalidOperationException("A household administrator needs a profile. Attach this sign-in to one first.");
         }
 
+        if (isHouseholdAdmin && ownProfile is { Role: ProfileRole.RestrictedProfile })
+        {
+            throw new InvalidOperationException("A Kids profile can't look after a household.");
+        }
+
         if (ownProfile is not null)
         {
             await profileAccess.SetHouseholdAdministratorAsync(ownProfile.Id, isHouseholdAdmin, clock.GetUtcNow(), ct).ConfigureAwait(false);

@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Security;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
@@ -216,6 +217,13 @@ public sealed class ManagedSessionServiceTests
 
             world.Owner = await world.CreateMainAsync("owner@example.com", "Owner", isAdministrator: false);
             var household = (await households.GetForAccountAsync(world.Owner.Id))!;
+            // A Kids profile can't look after a household, so the main sign-in's person is a standard one before being promoted.
+            using (var connection = world._database.CreateConnection())
+            {
+                connection.Execute("UPDATE profiles SET role = 'StandardUser' WHERE id = (SELECT profile_id FROM accounts WHERE id = @id);",
+                    new { id = world.Owner.Id });
+            }
+
             await world._mutations.SetHouseholdAdminAsync(world._setupActor, world.Owner.Id, true);
             var maryPerson = await world._mutations.AddHouseholdPersonAsync(world._setupActor,
                 new AddHouseholdPersonCommand(household.Id, "Mary", null, IsChild: false, Pin: null));

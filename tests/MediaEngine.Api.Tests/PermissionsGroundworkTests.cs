@@ -839,6 +839,12 @@ public sealed class PermissionsGroundworkTests
                 "other.admin.in.a@example.com", IsAdministrator: false, ProfileId: A.Kid.Id, NewProfile: null,
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
                 Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+            // A Kids profile can't look after a household, so the person becomes a standard one before being promoted.
+            using (var connection = _database.CreateConnection())
+            {
+                connection.Execute("UPDATE profiles SET role = 'StandardUser' WHERE id = @id;", new { id = A.Kid.Id });
+            }
+
             await Mutations.SetHouseholdAdminAsync(ServerAdmin, otherAdmin.Id, true);
             Assert.Equal(A.Id, (await Accounts.GetByIdAsync(serverInA.Id))!.HouseholdId);
             Assert.Equal(A.Id, (await Accounts.GetByIdAsync(otherAdmin.Id))!.HouseholdId);
