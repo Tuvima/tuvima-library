@@ -6,10 +6,10 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
-using Account = MediaEngine.Domain.Entities.Account;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
+using Account = MediaEngine.Domain.Entities.Account;
 using Profile = MediaEngine.Domain.Aggregates.Profile;
 
 namespace MediaEngine.Api.Tests;
