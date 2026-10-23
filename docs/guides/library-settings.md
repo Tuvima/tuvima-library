@@ -11,14 +11,38 @@ status: current
 
 Use Settings in Tuvima Library to add folders and check background work. This five-minute guide helps you choose safe [sources](../reference/glossary.md#library-folder) and find the right admin page.
 
-## Choose how a folder is handled
+## Find your way around Libraries
 
-Libraries is **Settings > Libraries**, in three levels: Watch, Listen, Read and View, then the types in each (Books, Audiobooks, Movies, TV Shows, Music, Comics, Videos, Photos, Personal videos and Documents), with the Import folder as an extra entry. There is no separate Library settings page.
+Libraries is **Settings > Libraries**, in three levels. Each has its own address, so Back and a reload keep your place, and the page title above it shows where you are.
 
-1. Open **Settings > Libraries** with admin access and choose **+ Add folder** (on the front door, on a group's page, or **Add Folder** on a type's page). A short three-step dialog opens: **What is it?**, **Folder**, then **How**. Opening it from a type's page skips the first step.
-   - **What is it?** Pick Watch, Listen, Read or View, then the kind. The (i) beside each kind says what belongs there. Choosing View takes you to View's own add-folder form.
-2. In the **Folder** step, pick the folder.
-   - The address bar shows the folder as clickable names. Click a name to go there, or the small arrow after it to jump to a folder inside it. Click the empty end of the bar to type or paste a full path instead, then press Enter (Esc puts the names back).
+1. **The front door** has a card for each area you can set up: **Watch**, **Listen**, **Read** and **View**. A card shows the kinds inside it, a count line ("3 folders · 1,284 titles", or "Nothing added yet") and a health icon: a green tick, or an amber warning with the folders at fault in a tooltip. Under the cards is a row for the [Import folder](#import-folder) (it reads "Set" or "Not set"). A thin **Vault** strip appears at the end only while Vault mode is on for you and your profile may use it; otherwise there is no card and no hint. A one-line icon guide sits at the bottom.
+2. **A group page** (for example Watch) lists the kinds in that area. Each row has the library's name, a **Metadata** column, its folder and title counts, and its status. The Metadata column shows a small icon for each online source the kind looks details up from (hover or focus an icon to see what it supplies), or a muted "files as-is" icon when nothing is looked up. An amber count means files could not be matched yet, and a short **Paused** note means a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
+3. **A type page** (for example Movies) is the folder table for that kind, with **Add Folder** and the other actions below.
+
+The kinds are:
+
+| Area | Kinds | Looks details up? |
+|---|---|---|
+| Watch | Movies, TV Shows, YouTube | Yes |
+| Watch | Videos | No: courses, talks and downloads, shown by folder layout and file name |
+| Listen | Music, Audiobooks | Yes |
+| Listen | Other audio | No: recordings and lectures, shown by folder and the tags inside the files |
+| Read | Books, Comics | Yes |
+| Read | Other reading | No: loose books and documents, shown by folder and the details inside the files |
+| View | Photos, Personal videos, Documents | No (Documents are read on your computer with text recognition) |
+
+A kind that looks details up has its icon tile in its area's colour; a kind that does not has a quiet grey tile. The tooltip never relies on colour alone: the Metadata icons say the same thing. Photos, Personal videos and Documents keep their folders on View's own pages, reached from the View group page. On a phone the cards, rows and counts are read-only, with a note to use a desktop or tablet to change folders.
+
+## Add a folder
+
+Open **Settings > Libraries** with admin access and choose **+ Add folder**: on the front door, on a group's page, or **Add Folder** on a type's page. A short dialog opens. Nothing is created until the last step, **Back** keeps what you chose, and **Cancel** at any step creates nothing.
+
+1. **What is it?** Pick Watch, Listen, Read or View (Vault joins them only when it may be shown), then the kind. Each kind is a card with its coloured or grey tile and an (i) that says what belongs there. Opened from a group page, this step starts on that group; opened from a type page, the step is skipped.
+   - Choosing a View kind takes you to View's own add-folder form, which keeps View's settings in one place. (First-run setup is the exception; see below.)
+   - Choosing the Vault goes straight to the folder step; see [The Vault](../explanation/vault.md).
+2. **Library** (only for Videos, Other audio and Other reading). These kinds can hold several libraries, each with a name you choose ("Lectures", "Family recordings"), up to five per kind. Pick an existing library or **New custom library** and type its name. Each named library is its own row on the group page and its own tab when you browse. The other kinds are one library each.
+3. **Folder.** Pick the folder.
+   - The address bar shows the folder as clickable names, like Windows Explorer. Click a name to go there, or the small arrow after it to jump to a folder inside it. Click the empty end of the bar to type or paste a full path instead, then press Enter (Esc puts the names back).
    - Single-click a folder to select it, and double-click to open it.
    - Use **Back**, **Forward**, **Up** and the folder search to find a folder by name.
    - **Selected path** shows what you picked, with a copy button.
@@ -26,10 +50,17 @@ Libraries is **Settings > Libraries**, in three levels: Watch, Listen, Read and 
    - A Watch folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) gets a hint with **Add to View instead**. Nothing is saved until the last step.
    - Paths are shown as the server sees them. On Docker that means paths inside the container, such as `/library`, not paths on your computer.
    - If a path does not exist, the picker says so in plain words.
-   - Choosing the YouTube kind looks videos up on YouTube by their ID; the Videos (Other videos) kind never looks anything up. There is no YouTube switch: the kind decides. Removing a Videos folder never touches the files.
-   - Every folder row has a **Suitable for limited profiles** switch (not on a Vault folder). Unrated items from that folder, such as saved videos or audiobooks with no rating, are then shown to profiles with a rating limit, whatever their "allow unrated" setting says; rated items still follow each profile's limit, and only a blank rating, NR, Not Rated or Unrated counts as unrated. Without the switch, a limited profile sees an unrated item only if that profile allows unrated. It saves straight away.
-   - Every library type has a **Recycle bin** switch (on for Videos). With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
-3. In the **How** step, if the folder already has files, choose **Read-only** (recommended), **Merge into your managed folder**, or **Let Library manage it**. An empty folder only asks whether new media should go there. **Add folder** saves it; the dialog then offers **Go to** the type or **Add another**.
+4. **How.** If the folder already has files, choose **Read-only** (recommended), **Merge into your managed folder**, or **Let Library manage it**. An empty folder only asks whether new media should go there. **Add folder** saves it; the dialog then offers **Go to** the kind or **Add another**.
+
+The kind decides what is looked up. Choosing YouTube looks videos up on YouTube by their ID (only the ID is sent); the Videos, Other audio and Other reading kinds never look anything up and never contact an outside service. There is no YouTube switch. Removing a folder never touches the files.
+
+Every folder row has a **Suitable for limited profiles** switch (not on a Vault folder). Unrated items from that folder, such as saved videos or audiobooks with no rating, are then shown to profiles with a rating limit, whatever their "allow unrated" setting says; rated items still follow each profile's limit, and only a blank rating, NR, Not Rated or Unrated counts as unrated. Without the switch, a limited profile sees an unrated item only if that profile allows unrated. It saves straight away.
+
+Every library has a **Recycle bin** switch (on for Videos). With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
+
+First-run setup asks the same thing in its own words, "What do you have?": tick Watch, Listen, Read or View, then add a folder for each with this same dialog. The Vault is never offered there. View folders can be added once the administrator is signed in, to the household's shared library (the default) or to the administrator's own space; until then View says to add them after setup, in **Settings > Libraries > View**. **Skip for now** still defers the step.
+
+## Choose how a folder is handled
 
 Every folder is handled one of two ways:
 
@@ -38,9 +69,54 @@ Every folder is handled one of two ways:
 
 Each type has one **New media goes here** folder: the managed folder that receives new files. The first managed folder you add becomes it; use a managed folder's row menu to make another the place for new media. There is no priority order.
 
-The folder list is a table with Folder, New media and Files columns. Each folder's icon shows how Library treats it: a plain folder for Managed (full access) and a folder with a lock for Read-only; hover it for the words. The row menu offers Make this the place for new media, Organise files now, Merge into, Switch to Read-only or Managed, Label and Remove folder. Removing a folder never deletes files.
+The folder list is a table with Folder, New media and Files columns. Each folder's icon shows how Library treats it: a plain folder for Managed (full access) and a folder with a lock for Read-only; hover it for the words. The row menu offers Make this the place for new media, Organise files now, Merge into, Change what this folder is, Switch to Read-only or Managed, Label and Remove folder. Removing a folder never deletes files.
 
 Keep music album folders intact. Tuvima uses tags or fingerprints to identify music before moving it.
+
+### The first check of a new folder
+
+A folder that you add to a kind that looks details up gets a first check before Library changes anything in it. While the first files are identified (50 by default, or all of them if there are fewer) the row reads "Checking the first files…", and in a Managed folder **nothing is renamed, moved or tagged yet**; files still appear in Library straight away.
+
+- If most of those files match, the check passes. In a Managed folder the moves and tags that were held are queued together and done in the next run (see [When changes reach your files](#when-changes-reach-your-files)).
+- If more than half do not match, the folder is paused. Its row shows an amber line, "Most files in this folder aren't matching: 212 of 300. This is often the wrong kind or the wrong folder.", and the library's row on the group page shows a **Paused** note. Nothing has been touched, so every choice leaves your files exactly as they were: **Keep going** carries on and leaves the files that do not match as Unmatched (they are tried again later), [**Change what this folder is**](#change-what-this-folder-is) picks a better kind, and **Remove the folder** takes it out of Library without touching the files.
+
+Plain kinds (Videos, Other audio, Other reading), the Vault and folders that were already there never get a first check. The first check appears for administrators and not in first-run setup. How many files are checked, and what share may fail, are settings.
+
+## Unmatched files
+
+A file Library cannot match stays exactly where it is and is marked **Unmatched**. It is tried again on its own, by default every 7 days and whenever a provider is turned on or updated, and nobody has to do anything.
+
+- **Where they live.** Unmatched files never appear in the Watch, Listen or Read lanes, on Home, in shelves or in collections, because Library does not know what they are. Each library tab in a lane has an **Unmatched** filter. Anyone who can see that library can use it to browse and play those files, listed flat under their file names and the tags inside the files. A profile with a content limit follows its usual "allow unrated" setting for them.
+- **Search.** Search shows Unmatched files in a separate **Unmatched** group, found by file name and tags, never mixed into the matched results.
+- **Retry now and Keep all as they are.** A library with Unmatched files shows an amber count on its row, with **Retry now** (look them up again now) and **Keep all as they are** (it asks first). Only administrators can use them.
+- **Keep as is.** On one Unmatched file's page, an administrator can choose **Keep as is** from the "..." menu (it asks first). Library stops retrying that file, and it stays under the Unmatched filter, marked **Kept**, and is not counted in the Unmatched count. **Look up again** clears the mark and tries again. A file that really belongs in the lanes as it is should go into Videos, Other audio or Other reading instead.
+- **When a match arrives.** If a file is identified later and filed, its watching progress, bookmarks and other personal state go with it.
+
+Items the Engine found but is unsure about are different: they wait in [Review](resolving-reviews.md) for a person to choose.
+
+## Change what this folder is
+
+If a folder is the wrong kind (home videos added as Movies, recordings added as Music), you can change it without removing and adding it again.
+
+**Where to find it.** Open the folder's "..." menu on its type page and choose **Change what this folder is…**. A folder that has paused on its first check offers the same choice beside **Keep going** and **Remove the folder**. It is not offered while a job is running on the folder, for Vault folders, in first-run setup, or where folders are read-only (phones and portrait tablets).
+
+**Same area only.** The dialog first asks "What is this folder?" and offers the other kinds of the folder's own area: from Movies you can pick TV Shows, YouTube or Videos, never a Listen kind, and never the kind it already is. The cards show the same coloured or grey tile, Metadata icons and (i) as elsewhere. A kind that holds several named libraries also asks which library, or **New custom library**; the new library is created only when you confirm.
+
+**What changes, before anything moves.** The next step lists the impact in plain lines, worked out by the Engine, and nothing is sent until you press **Change folder**:
+
+- **Files moved and re-filed.** "N files will move to Videos." In a Managed folder their files are re-filed into the new kind's folder pattern in the next run, not at once, because different kinds never share one folder root (a Movies folder mixed with home videos confuses other apps too).
+- **Details dropped for a plain kind.** Changing to Videos, Other audio or Other reading removes the details Library looked up online for these files (titles, descriptions, artwork and outside ids). They then show as they are, by file name and the tags inside the files. Your own edits, watching progress, ratings and bookmarks stay.
+- **The first check again for a lookup kind.** Changing to a kind that looks things up identifies the files again under that kind and runs [the first check](#the-first-check-of-a-new-folder) as if the folder were new: nothing is re-filed until it passes, and if most do not match, it pauses with the usual choices.
+- **Other apps lose the files.** For a Managed folder: other apps that point at these files (another player, a playlist, a backup) will lose them when they move.
+- **Who will not see the files.** "Sam won't see these 40 files." names each profile who has the library the files move into hidden (up to five names, then "and N others"). If Library could not check this, it says so and you can still go on. See [Who sees a library](#who-sees-a-library).
+
+If the Engine refuses the change, the dialog shows its one sentence and only **Close**. Press **Cancel** at any point to leave everything as it was.
+
+**Read-only folders move nothing.** A Read-only folder changes kind without a single file being moved or renamed; only the library it belongs to, what is looked up and what is shown change. Dropped details and the first check still apply as above.
+
+**While it runs.** The folder's row shows the job's progress and message the way Convert and Merge do, with Pause, Resume and Cancel. If it finishes with problems (for example two titles that both carry your own artwork or details, which Library will not merge for you), the row says which; fix them in Editing Mode and start again, or change back.
+
+**Changing back.** You can change a folder back to the kind it was at any time. Details dropped for a plain kind are not restored: changing back to a lookup kind identifies the files again, and your own edits were never touched.
 
 ## Who sees a library
 
@@ -63,14 +139,16 @@ The panel shows:
 - **3 files couldn't be written**, with the list of files and the reason for each.
 - **Write now** (administrators, on a desktop) starts a run at once. Phones show the status only.
 
-If ExifTool is missing, the panel says **Photos, videos and PDFs in View are waiting for ExifTool**, with a link to **Settings > Tools and requirements**. With **Update tags inside files** (or write-back) turned off, nothing is queued and the schedule is hidden.
+If ExifTool is missing, the panel says **Photos, videos and PDFs in View are waiting for ExifTool**, with a link to **Settings > Tools and requirements**. With **Update tags inside files** (or write-back) turned off, no tags are queued and the schedule is hidden; filing moves still wait for their run.
 
 - A file that is busy, on an unplugged drive or read-only stays on the list for the next run.
 - A file that can't hold tags is **kept in Library only** and is not retried.
 - Restarting the Engine loses nothing. The list is kept.
 - A file you copy out of Library before the next run may not carry the latest tags yet. This is the accepted cost of batching.
 
-**Moving a title** to another library moves its file straight away, so folders always match Library. Only its tags wait for the run. A move interrupted by a crash or power cut is finished or undone at the next start, so the file is never in two places or in none. If the drive is unplugged, the move waits until the drive is back. See [how libraries and intake work](../architecture/library-model-and-intake.md).
+**Filing moves wait too.** When Library files a file on its own (a newly identified file going into its folder's pattern, a file leaving the Import folder, or a folder re-filed after [Change what this folder is](#change-what-this-folder-is)), the move joins the same list and is done in the next run, before that run's tags; **Write now** does it at once. Until then the file stays where it is and stays playable. If a file is in use when its turn comes (being played, or held by another program), it is left untouched and tried again in a later run. A new Managed folder queues nothing until its [first check](#the-first-check-of-a-new-folder) passes.
+
+**Moving a title** yourself to another library, in Editing Mode, moves its file straight away, so folders always match Library. Only its tags wait for the run. A move interrupted by a crash or power cut is finished or undone at the next start, so the file is never in two places or in none. If the drive is unplugged, the move waits until the drive is back. See [how libraries and intake work](../architecture/library-model-and-intake.md).
 
 If a file was edited in another app after its write was queued, Library reads it again first. Your own locked fields still win.
 
@@ -114,7 +192,7 @@ If the file is no longer on disk, **Add back** removes the row and nothing is sc
 
 ## Import folder
 
-The **Import folder** is the seventh entry in the Libraries list. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
+The **Import folder** is the row under the group cards on the Libraries front door. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
 
 ### Add files by dropping them
 

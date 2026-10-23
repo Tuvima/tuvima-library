@@ -89,6 +89,8 @@ Approved scope: the Videos packets (V0 to V6) were approved by Shy on 2026-10-13
 
 **Add folder (Settings > Libraries).** After picking a folder the person sees two cards: *Videos (Watch): downloads, courses, saved channels. Organised into series and episodes.* and *Photos and personal videos (View): phone memories, home movies. Shown in galleries with your photos.* If the folder looks like phone footage, the second card is highlighted with "This looks like footage from a phone." The Videos choice then shows one switch, "Look up YouTube details (contacts YouTube, sends only video IDs)", on by default; it can be changed any time in the library's settings. Managed / As-is, "New media goes here" and the Import folder behave as for other types; the Import folder gets a `Videos` subfolder.
 
+> **Amendment note (library setup WP10, 2026-10-23):** this two-card step and the YouTube switch are replaced by the Add folder wizard (What is it? / Library / Folder / How) and its kind cards, where the kind decides the lookup and plain kinds can be named custom libraries; see D53 here and [Simpler library setup](library-setup-groups.md) D6, D23 and D51.
+
 **Watch.** A new shelf "Videos". Series cards use the existing group-tile rules; standalone videos are plain video tiles. Series page: cover, description, "How we identified this", sections, episode list with progress rings, Resume, Up Next, mark watched. Standalone page: like a movie page without cast or rating. Playback uses the existing Watch player (resume, chapters, subtitles, fallback streaming) unchanged.
 
 | Situation | What the person sees |
