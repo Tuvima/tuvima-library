@@ -70,6 +70,21 @@ public sealed class MaintenanceSettings
     [JsonPropertyName("unmatched_retry_days")]
     public int UnmatchedRetryDays { get; set; } = UnmatchedRetryLimits.DefaultDays;
 
+    /// <summary>
+    /// How many files of a newly added folder must reach a final identification outcome (matched, unmatched or needs review) before
+    /// the first check decides whether the folder is the right kind and place (Library setup spec D35). A folder with fewer files is
+    /// decided once all of them have, and its ingestion has settled.
+    /// </summary>
+    [JsonPropertyName("first_check_files")]
+    public int FirstCheckFiles { get; set; } = FirstCheckLimits.DefaultFiles;
+
+    /// <summary>
+    /// The share of those files that may be Unmatched before the folder pauses (Library setup spec D35): more than this share pauses
+    /// it. Above 0 and below 1; 0.5 means more than half.
+    /// </summary>
+    [JsonPropertyName("first_check_unmatched_share")]
+    public double FirstCheckUnmatchedShare { get; set; } = FirstCheckLimits.DefaultUnmatchedShare;
+
     /// <summary>Auto re-tag sweep parameters.</summary>
     [JsonPropertyName("retag_sweep")]
     public RetagSweepSettings RetagSweep { get; set; } = new();
@@ -106,6 +121,26 @@ public static class MissingFileRetentionLimits
 
     /// <summary>The longest waiting period.</summary>
     public const int MaxDays = 3650;
+}
+
+/// <summary>The limits of <see cref="MaintenanceSettings.FirstCheckFiles"/> and <see cref="MaintenanceSettings.FirstCheckUnmatchedShare"/>.</summary>
+public static class FirstCheckLimits
+{
+    /// <summary>The files tried before a new folder is judged when nothing is configured.</summary>
+    public const int DefaultFiles = 50;
+
+    /// <summary>The fewest files a first check may be set to try.</summary>
+    public const int MinFiles = 1;
+
+    /// <summary>The share of Unmatched files above which a new folder pauses when nothing is configured: more than half.</summary>
+    public const double DefaultUnmatchedShare = 0.5;
+
+    /// <summary>True when <paramref name="share"/> is above 0 and below 1.</summary>
+    public static bool IsValidShare(double share) => share > 0 && share < 1;
+
+    /// <summary>True when <paramref name="unmatched"/> of <paramref name="tried"/> files is more than <paramref name="share"/> (a setting outside the limits uses the default).</summary>
+    public static bool ExceedsShare(int unmatched, int tried, double share) =>
+        tried > 0 && unmatched > (IsValidShare(share) ? share : DefaultUnmatchedShare) * tried;
 }
 
 /// <summary>The limits of <see cref="MaintenanceSettings.UnmatchedRetryDays"/>.</summary>

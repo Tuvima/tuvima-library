@@ -17,7 +17,8 @@ public sealed class TextTrackExportService(
     ILibraryFolderResolver libraryFolderResolver,
     ISourceMutationPolicyGate mutationPolicyGate,
     IConfigurationLoader configurationLoader,
-    ILogger<TextTrackExportService> logger) : ITextTrackExportService
+    ILogger<TextTrackExportService> logger,
+    IFilingHold? filingHold = null) : ITextTrackExportService
 {
     public Task<string?> ExportPreferredSubtitleAsync(
         MediaAsset asset,
@@ -35,6 +36,16 @@ public sealed class TextTrackExportService(
         {
             logger.LogDebug(
                 "Subtitle export skipped for asset {AssetId}; its media path is not governed by a configured source",
+                asset.Id);
+            return Task.FromResult<string?>(null);
+        }
+
+        // A folder whose first check is running or paused changes nothing on disk (Library setup D61); the export is made when the hold ends
+        // (HeldSubtitleExporter).
+        if (filingHold?.IsHeld(resolvedSource.Library.Id, resolvedSource.Source.Id, asset.FilePathRoot) == true)
+        {
+            logger.LogInformation(
+                "Subtitle export held for asset {AssetId}: its folder has not passed its first check, so nothing is written beside the file yet",
                 asset.Id);
             return Task.FromResult<string?>(null);
         }

@@ -471,6 +471,12 @@ public sealed partial class EngineApiClient
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
             "POST /library/unmatched/items/{assetId}/look-up-again", $"/library/unmatched/items/{assetId:D}/look-up-again", null, ct: ct);
 
+    public Task<MediaEngine.Contracts.Library.FolderFirstChecksDto?> GetFirstChecksAsync(CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Library.FolderFirstChecksDto>("GET /library/first-checks", "/library/first-checks", ct: ct);
+
+    public Task<bool> KeepGoingAsync(string sourceId, CancellationToken ct = default) =>
+        PostAsync<object?>("POST /library/first-checks/{sourceId}/keep-going", $"/library/first-checks/{Uri.EscapeDataString(sourceId)}/keep-going", null, ct: ct);
+
     public async Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default) =>
         await GetAsync<List<LibraryKindDto>>("GET /settings/library-kinds", "/settings/library-kinds", ct: ct);
 

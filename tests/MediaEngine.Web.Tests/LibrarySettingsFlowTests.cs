@@ -82,6 +82,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     // What the library actions for Unmatched files were asked, and how many files the Engine says they changed.
     private readonly List<(string Action, string LibraryId)> _unmatchedActions = [];
     private int _unmatchedAffected = 3;
+    // The folders Keep going was chosen for; the Engine drops the first check line once it has accepted that.
+    private readonly List<string> _keptGoing = [];
 
     private static LibrariesConfigurationDto BuildConfiguration() => new()
     {
@@ -139,6 +141,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             {
                 _unmatchedActions.Add(("keep", (string)args![0]!));
                 return Task.FromResult<MediaEngine.Contracts.Library.UnmatchedActionResultDto?>(new() { Affected = _unmatchedAffected });
+            });
+            stub.SetHandler(nameof(IEngineApiClient.KeepGoingAsync), args =>
+            {
+                _keptGoing.Add((string)args![0]!);
+                foreach (var source in _configuration.Libraries.SelectMany(library => library.Sources).Where(source => source.Id == (string)args[0]!))
+                {
+                    source.FirstCheck = null;
+                }
+
+                return Task.FromResult(true);
             });
             stub.SetHandler(nameof(IEngineApiClient.MutateLibraryAsync), args =>
             {
@@ -947,7 +959,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.All(groups, group => Assert.Single(group.QuerySelectorAll("[role=radio]")));
         Assert.Empty(cut.FindAll(".folder-table__row [role=status]"));
         Assert.Single(cut.FindAll("[role=status]"));
-        Assert.Empty(cut.Find("[role=status]").TextContent.Trim());
+        Assert.Empty(cut.Find(".sr-only[role=status]").TextContent.Trim());
         Assert.All(cut.FindAll(".folder-table__none"), none => Assert.Equal("img", none.GetAttribute("role")));
     }
 
@@ -1317,6 +1329,98 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal([("keep", MoviesId)], _unmatchedActions));
         toasts.WaitForAssertion(() => Assert.Contains("3 files", toasts.Markup));
+    }
+
+    // The first check of a newly added folder (Library setup D35): checking is a quiet line; a paused folder says why and offers Keep going or Remove.
+    private static MediaEngine.Contracts.Library.FolderFirstCheckDto FirstCheck(string state, int tried = 50, int unmatched = 30) =>
+        new() { State = state, Tried = tried, Unmatched = unmatched, TotalFiles = 300 };
+
+    [Fact]
+    public void APausedFolderSaysMostFilesArentMatchingWithItsNumbers_AndOffersKeepGoingAndRemoveTheFolder()
+    {
+        _configuration.Libraries[0].Sources[1].FirstCheck = FirstCheck("paused");
+
+        var cut = Open("Movies");
+
+        var line = Assert.Single(cut.FindAll("[data-first-check=paused]"));
+        Assert.Contains("Most files in this folder aren't matching: 30 of 50. This is often the wrong kind or the wrong folder.", Text(line));
+        Assert.Contains("folder-table__status--warning", line.ClassList);
+        Assert.Equal(["Keep going", "Remove the folder"], line.QuerySelectorAll("button").Select(Text).ToArray());
+        Assert.Equal("D:\\Plex\\Movies", line.ParentElement!.QuerySelector(".folder-table__path")!.TextContent);
+        // Only that folder's row has it; the status is also in the live region for screen readers.
+        Assert.Single(cut.FindAll("[data-first-check]"));
+        Assert.Contains("is paused: most of its files aren't matching", cut.Find(".sr-only[role=status]").TextContent);
+    }
+
+    [Fact]
+    public void KeepGoingCallsTheEngineForThatFolder_SaysSoInAToast_AndDropsThePausedLine()
+    {
+        _configuration.Libraries[0].Sources[1].FirstCheck = FirstCheck("paused");
+        var toasts = Render<AppToastHost>();
+        var cut = Open("Movies");
+
+        cut.FindAll("[data-first-check=paused] button").Single(button => Text(button) == "Keep going").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(["movies-plex"], _keptGoing));
+        toasts.WaitForAssertion(() => Assert.Contains("Carrying on with", toasts.Markup));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-first-check]")));
+    }
+
+    [Fact]
+    public void RemoveTheFolderAsksFirstAsTheRowMenuDoes_AndCancellingRemovesNothing()
+    {
+        _configuration.Libraries[0].Sources[1].FirstCheck = FirstCheck("paused");
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+
+        cut.FindAll("[data-first-check=paused] button").Single(button => Text(button) == "Remove the folder").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Remove this folder?", dialogs.Markup));
+        Assert.Contains("Your files stay on disk.", dialogs.Markup);
+        dialogs.FindAll("button").Single(button => Text(button) == "Keep").Click();
+        Assert.Equal(0, _saves);
+        Assert.Equal(3, cut.FindAll(".folder-table__row").Count);
+
+        cut.FindAll("[data-first-check=paused] button").Single(button => Text(button) == "Remove the folder").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Remove this folder?", dialogs.Markup));
+        dialogs.FindAll("button").Single(button => Text(button) == "Remove").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".folder-table__row").Count));
+        Assert.DoesNotContain(_lastLibrary!.Sources, source => source.Id == "movies-plex");
+        Assert.Empty(_keptGoing);
+    }
+
+    [Fact]
+    public void AFolderStillBeingCheckedShowsAQuietCheckingLine_WithNoButtons()
+    {
+        _configuration.Libraries[0].Sources[0].FirstCheck = FirstCheck("checking", tried: 3, unmatched: 1);
+
+        var cut = Open("Movies");
+
+        var line = Assert.Single(cut.FindAll("[data-first-check=checking]"));
+        Assert.Equal("Checking the first files…", Text(line));
+        Assert.DoesNotContain("folder-table__status--warning", line.ClassList);
+        Assert.Empty(line.QuerySelectorAll("button"));
+    }
+
+    [Fact]
+    public void AFolderWithNoCheckRunningShowsNothingExtra()
+    {
+        var cut = Open("Movies");
+
+        Assert.Empty(cut.FindAll("[data-first-check]"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Keep going" or "Remove the folder");
+    }
+
+    [Fact]
+    public void FirstRunSetupDrawsNoFirstCheckLines()
+    {
+        _configuration.Libraries[0].Sources[0].FirstCheck = FirstCheck("paused");
+
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        cut.WaitForElement(".folder-table");
+
+        Assert.Empty(cut.FindAll("[data-first-check]"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Keep going" or "Remove the folder");
     }
 
     // In setup's type list a kind with several named libraries counts the folders of all of them, and the first kind shown has folders in any of them.

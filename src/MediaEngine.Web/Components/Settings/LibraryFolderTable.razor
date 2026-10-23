@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
@@ -56,6 +57,29 @@
                     @if (!string.IsNullOrWhiteSpace(issue))
                     {
                         <span class="folder-table__status folder-table__status--warning">@issue</span>
+                    }
+                    @if (OnKeepGoing.HasDelegate && source.FirstCheck is { } firstCheck)
+                    {
+                        @* The first check of a folder added just now (Library setup D35): checking is only a status; a paused folder says why and offers
+                           the two ways out that exist here. The Engine sends it to administrators only, never in first-run setup. *@
+                        if (firstCheck.State == "paused")
+                        {
+                            <span class="folder-table__status folder-table__status--warning" data-first-check="paused">
+                                @PausedText(firstCheck)
+                                <AppButton Label="Keep going" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
+                                           Disabled="@Busy"
+                                           aria-label="@($"Keep going with {name}")"
+                                           OnClick="@(() => OnKeepGoing.InvokeAsync(source))" />
+                                <AppButton Label="Remove the folder" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+                                           Disabled="@(ReadOnly || Busy)"
+                                           aria-label="@($"Remove the folder {name}")"
+                                           OnClick="@(() => OnRemove.InvokeAsync(source))" />
+                            </span>
+                        }
+                        else if (firstCheck.State == "checking")
+                        {
+                            <span class="folder-table__status" data-first-check="checking">Checking the first files…</span>
+                        }
                     }
                 </div>
             </div>
@@ -137,6 +161,8 @@
     [Parameter] public EventCallback<LibrarySourceDto> OnSetDestination { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnLabel { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnRemove { get; set; }
+    /// <summary>Raised by Keep going on a folder whose first check is paused. Without a handler (first-run setup) no first-check line is drawn.</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnKeepGoing { get; set; }
     /// <summary>The latest folder job for each folder (by folder id): progress while it runs, how it went afterwards.</summary>
     [Parameter] public IReadOnlyDictionary<string, FolderJobStatusDto>? Jobs { get; set; }
     /// <summary>Raised when Pause, Resume or Cancel is chosen on a folder's job.</summary>
@@ -155,6 +181,10 @@
     public static string FilesText(LibraryFolderDto library, LibrarySourceDto source) => !IsManaged(source)
         ? "Not touched"
         : library.OrganizationPolicy.WriteTags ? "Named + tagged" : "Named";
+
+    /// <summary>What a paused folder's amber line says (Library setup D35). Shared with tests so the wording has one owner.</summary>
+    public static string PausedText(FolderFirstCheckDto check) =>
+        $"Most files in this folder aren't matching: {check.Unmatched} of {check.Tried}. This is often the wrong kind or the wrong folder.";
 
     /// <summary>True once the Merge into menu item exists; the Import folder panel shows its Merge hint only then.</summary>
     public static bool HasMergeAction => true;
@@ -243,6 +273,11 @@
         if (IsMerging(source))
         {
             return $"Merging {name}";
+        }
+
+        if (OnKeepGoing.HasDelegate && source.FirstCheck is { State: "paused" })
+        {
+            return $"{name} is paused: most of its files aren't matching";
         }
 
         return IsMerged(source) ? $"{name}: {MergedText(source)}" : string.Empty;
