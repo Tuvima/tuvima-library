@@ -224,6 +224,12 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/unmatched/libraries/{libraryId}/keep — Keep all Unmatched as they are for one library (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> KeepAllUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default);
 
+    /// <summary>GET /library/first-checks — the folders whose first check is running or paused (administrators); null when the Engine refused or could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.FolderFirstChecksDto?> GetFirstChecksAsync(CancellationToken ct = default);
+
+    /// <summary>POST /library/first-checks/{sourceId}/keep-going — Keep going on a paused folder (administrators); true when the Engine accepted it, false when it refused (the folder is not being checked) or could not be read.</summary>
+    Task<bool> KeepGoingAsync(string sourceId, CancellationToken ct = default);
+
     /// <summary>PUT /settings/libraries — replace schema 4 library, storage-root, and incoming-source configuration.</summary>
     Task<LibrariesConfigurationDto?> UpdateLibrariesAsync(UpdateLibrariesRequest request, CancellationToken ct = default);
 

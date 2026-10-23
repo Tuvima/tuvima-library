@@ -791,6 +791,28 @@
         await SaveAsync(library, "Folder removed.");
     }
 
+    // Keep going on a paused folder (Library setup D35): identification resumes, files that do not match stay Unmatched and are tried again
+    // later. The question was answered by the paused line itself, so it does not ask again; the rows are read again to drop the line.
+    private async Task KeepGoingAsync(LibrarySourceDto source)
+    {
+        if (_saving) return;
+        // Busy while the request runs, so a double click sends one.
+        _saving = true;
+        try
+        {
+            if (!await ApiClient.KeepGoingAsync(source.Id))
+            {
+                _notice = ApiClient.LastError ?? "That could not be done. Try again in a moment.";
+                return;
+            }
+
+            Snackbar.Add($"Carrying on with {source.DisplayName()}. Files that don't match stay as they are and are tried again later.", AppSeverity.Success);
+            await ReloadConfigurationAsync();
+            await Changed.InvokeAsync();
+        }
+        finally { _saving = false; }
+    }
+
     private async Task SetOkForLimitedProfilesAsync(LibraryFolderDto source, bool value)
     {
         var library = Clone(source);
@@ -991,6 +1013,7 @@
                                 OnSetDestination="SetDestinationAsync"
                                 OnLabel="LabelFolderAsync"
                                 OnRemove="RemoveFolderAsync"
+                                OnKeepGoing="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
                                 Jobs="@_jobs"
                                 OnJobControl="ControlJobAsync"
                                 OnOrganiseNow="OrganiseNowAsync"
