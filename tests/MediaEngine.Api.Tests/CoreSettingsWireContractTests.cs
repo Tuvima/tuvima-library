@@ -178,7 +178,7 @@ public sealed class CoreSettingsWireContractTests
         var storage = SettingsContractMapper.ToStorage(request);
         var contract = SettingsContractMapper.ToContract(storage);
 
-        Assert.Equal("7.0", storage.SchemaVersion);
+        Assert.Equal("8.0", storage.SchemaVersion);
         Assert.Equal("keep_both", storage.FileHandling.DuplicatePolicy);
         Assert.Equal("keep_both", contract.FileHandling.DuplicatePolicy);
         Assert.Equal(@"D:\Media", storage.StorageLocations.Single().Path);

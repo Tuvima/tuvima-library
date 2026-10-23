@@ -1675,7 +1675,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             configuration);
     }
 
-    private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context)
+    private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context, IConfigurationLoader? configuration = null)
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var decisions = new AccountAccessDecisionService(
@@ -1694,7 +1694,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 _applications,
                 new PermissionRegistry(),
                 new AuthorizationAuditWriter(_accounts),
-                accessor));
+                accessor),
+            configuration);
     }
 
     private Task CreateHumanAsync(

@@ -132,7 +132,7 @@ The polling fallback is started once at startup, and only when `Ingestion:PollIn
 
 ```json
 {
-  "schema_version": "7.0",
+  "schema_version": "8.0",
   "file_handling": { "duplicate_policy": "keep_one" },
   "libraries": [
     {

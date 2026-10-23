@@ -367,6 +367,49 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
+    public void LoadLibraries_RefusesTheOlderSevenPointZeroFormatWithAPlainMessage()
+    {
+        using var temp = TempConfig.Create();
+        new ConfigurationDirectoryLoader(temp.Path).SaveLibraries(CreateValidCataloguedLibrary());
+        var path = System.IO.Path.Combine(temp.Path, "libraries.json");
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\"8.0\"", "\"7.0\"", StringComparison.Ordinal));
+        File.Delete(path + ".bak");
+
+        var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(temp.Path).LoadLibraries());
+
+        Assert.Contains("older 7.0 format", ex.Message);
+        Assert.Contains("fresh default", ex.Message);
+    }
+
+    [Fact]
+    public void LoadLibraries_AcceptsSuitableForLimitedProfilesOnAFolder_AndRoundTripsIt()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Sources[0].OkForLimitedProfiles = true;
+
+        loader.SaveLibraries(config);
+
+        Assert.True(loader.LoadLibraries().Libraries[0].Sources[0].OkForLimitedProfiles);
+        Assert.Contains("\"ok_for_limited_profiles\": true", File.ReadAllText(System.IO.Path.Combine(temp.Path, "libraries.json")));
+    }
+
+    [Fact]
+    public void LoadLibraries_RejectsTheOldLibraryLevelSuitableForLimitedProfilesAsUnsupported()
+    {
+        using var temp = TempConfig.Create();
+        new ConfigurationDirectoryLoader(temp.Path).SaveLibraries(CreateValidCataloguedLibrary());
+        var path = System.IO.Path.Combine(temp.Path, "libraries.json");
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\"youtube_lookup\"", "\"ok_for_limited_profiles\": true, \"youtube_lookup\"", StringComparison.Ordinal));
+        File.Delete(path + ".bak");
+
+        var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(temp.Path).LoadLibraries());
+
+        Assert.Contains("ok_for_limited_profiles is not supported", ex.Message);
+    }
+
+    [Fact]
     public void SaveLibraries_RejectsADuplicatePolicyThatIsNotKeepOneOrKeepBoth()
     {
         using var temp = TempConfig.Create();
@@ -526,7 +569,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             Assert.DoesNotContain("\"role\"", json, StringComparison.Ordinal);
             Assert.DoesNotContain("preserve_originals", json, StringComparison.Ordinal);
             var parsed = System.Text.Json.JsonSerializer.Deserialize<LibrariesConfiguration>(json)!;
-            Assert.Equal("7.0", parsed.SchemaVersion);
+            Assert.Equal("8.0", parsed.SchemaVersion);
             Assert.Equal(LibraryDuplicatePolicies.KeepOne, parsed.FileHandling.DuplicatePolicy);
             Assert.NotEmpty(parsed.Libraries);
             Assert.All(parsed.Libraries, library => Assert.NotNull(library.PrimaryDestination));
