@@ -549,6 +549,7 @@ export function cancel(fileId, token) {
 
     run?.controller.abort();
     const uploadId = run?.uploadId ?? null;
+    if (uploadId) claimed.delete(uploadId);
     runs.delete(fileId);
     files.delete(fileId);
     if (uploadId) deleteAtEngine(uploadId, token);
@@ -556,6 +557,9 @@ export function cancel(fileId, token) {
 
 /** Forgets a file the person dismissed or that was refused (nothing is kept at the Engine for it). */
 export function forget(fileId) {
+    // Release the upload so choosing the same file again in this tab resumes it rather than starting over.
+    const uploadId = runs.get(fileId)?.uploadId;
+    if (uploadId) claimed.delete(uploadId);
     runs.delete(fileId);
     files.delete(fileId);
 }

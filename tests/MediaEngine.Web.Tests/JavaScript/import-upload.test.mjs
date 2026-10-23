@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { uploadFile, savePending, findPending, removePending, cancelUpload, choose, begin, cancel } = await import(new URL('../../../src/MediaEngine.Web/wwwroot/js/import-upload.js', import.meta.url).href);
+const { uploadFile, savePending, findPending, removePending, cancelUpload, choose, begin, cancel, forget } = await import(new URL('../../../src/MediaEngine.Web/wwwroot/js/import-upload.js', import.meta.url).href);
 
 // A stand-in file: only its name, size and slice are used.
 function fakeFile(name, size) {
@@ -354,4 +354,28 @@ test('two identical files dropped together never share one remembered upload', a
     assert.equal(targets.size, 2, 'each file has its own upload');
     assert.ok(targets.has('remembered'), 'one of them carried on the remembered upload');
     assert.ok([...targets].some(id => id.startsWith('fresh-')), 'the other started its own');
+});
+
+test('a failed upload that is dismissed resumes when the same file is chosen again in the same tab', async () => {
+    const relay = fakeRelay();
+    let down = true;
+    const fetchFn = async (url, init) => {
+        if (down && init.method === 'PUT') throw new TypeError('network down');
+        return relay.fetchFn(url, init);
+    };
+    const browser = fakeBrowser({ fetchFn });
+
+    const first = browser.pick(fakeFile('film.mkv', 30));
+    begin(first.id, 'movies', null, 'T', browser.dotnet);
+    await browser.until(() => browser.calls.some(call => call[0] === 'OnUploadFinished'));
+    assert.equal(browser.calls.find(call => call[0] === 'OnUploadFinished')[2].state, 'failed');
+
+    forget(first.id);
+    down = false;
+    const again = browser.pick(fakeFile('film.mkv', 30));
+    begin(again.id, 'movies', null, 'T', browser.dotnet);
+    await browser.until(() => browser.calls.filter(call => call[0] === 'OnUploadFinished').length === 2);
+
+    assert.equal(browser.calls.filter(call => call[0] === 'OnUploadFinished')[1][2].state, 'completed');
+    assert.equal(relay.state.starts, 1, 'the second choice carried on the first upload instead of starting another');
 });

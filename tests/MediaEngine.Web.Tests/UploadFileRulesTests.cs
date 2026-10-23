@@ -65,7 +65,7 @@ public sealed class UploadFileRulesTests
     [Theory]
     [InlineData("no_import_folder", "ignored", "Set an Import folder first.", "/settings/libraries/import")]
     [InlineData("vault_not_available", "ignored", "Adding files to the Vault by drag and drop isn't available yet.", null)]
-    [InlineData("too_large", "That is too big.", "That is too big.", null)]
+    [InlineData("some_new_reason", "That is too big.", "That is too big.", null)]
     [InlineData("no_managed_destination", "No folder yet.", "No folder yet.", "/settings/libraries/watch/movies")]
     [InlineData(null, null, "This file could not be added.", null)]
     public void EachRefusalReasonHasOnePlainMessage_AndALinkWhenThereIsAFix(string? code, string? said, string text, string? href)

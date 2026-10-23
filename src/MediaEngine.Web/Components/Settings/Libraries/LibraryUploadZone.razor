@@ -433,6 +433,7 @@ else
         {
             row.State = UploadRowState.Failed;
             row.Message = "Adding files is not ready yet. Reload the page and try again.";
+            State.Touch();
             return;
         }
 
