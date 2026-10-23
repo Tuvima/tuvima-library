@@ -25,6 +25,7 @@ public sealed class FolderKindChangeService
     private readonly IVaultLibraryRepository _vaultLibraries;
     private readonly IMediaAssetRepository _assets;
     private readonly IMediaOperationRepository _operations;
+    private readonly IFolderOrganiseLogRepository _ledger;
     private readonly IVisibilityAfterMoveReadService _visibility;
     private readonly FolderJobService _jobs;
     private readonly IFolderKindChangeRepository _changes;
@@ -37,6 +38,7 @@ public sealed class FolderKindChangeService
         IVaultLibraryRepository vaultLibraries,
         IMediaAssetRepository assets,
         IMediaOperationRepository operations,
+        IFolderOrganiseLogRepository ledger,
         IVisibilityAfterMoveReadService visibility,
         FolderJobService jobs,
         IFolderKindChangeRepository changes,
@@ -48,6 +50,7 @@ public sealed class FolderKindChangeService
         _vaultLibraries = vaultLibraries;
         _assets = assets;
         _operations = operations;
+        _ledger = ledger;
         _visibility = visibility;
         _jobs = jobs;
         _changes = changes;
@@ -70,7 +73,7 @@ public sealed class FolderKindChangeService
             ToLibraryId = context.ToLibrary.Id,
             ToLibraryName = context.ToLibrary.Name,
             FileCount = context.Files.Count,
-            Moves = context.FileMayMove ? context.Files.Count : 0,
+            FilesToRefile = context.FileMayMove ? context.Files.Count : 0,
             DropsDetails = context.TargetIsPlain && context.FromLooksUp,
             StartsFirstCheck = context.StartsFirstCheck,
             OtherAppsWarning = context.Source.IsManaged,
@@ -100,8 +103,11 @@ public sealed class FolderKindChangeService
         return response;
     }
 
-    /// <summary>Writes the plan and queues the job. A folder with a job open for it is refused, so there is never a second change at once.</summary>
-    public async Task<FolderJobStatusDto> StartAsync(string sourceIdText, FolderKindChangeRequest request, CancellationToken ct)
+    /// <summary>
+    /// Writes the plan and queues the job. A folder with a job open for it is refused, so there is never a second change at once.
+    /// <paramref name="startedByProfileId"/> is the administrator's profile, named in the activity entry.
+    /// </summary>
+    public async Task<FolderJobStatusDto> StartAsync(string sourceIdText, FolderKindChangeRequest request, CancellationToken ct, Guid? startedByProfileId = null)
     {
         await LibraryMutationEndpoints.WriteGate.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -121,7 +127,9 @@ public sealed class FolderKindChangeService
                 context.TargetMediaType.ToString(),
                 context.TargetIsPlain,
                 context.StartsFirstCheck,
-                DateTimeOffset.UtcNow), ct).ConfigureAwait(false);
+                DateTimeOffset.UtcNow,
+                StartedByProfileId: startedByProfileId,
+                RepairsOperationId: context.RepairsOperationId), ct).ConfigureAwait(false);
 
             await _tracker.EnsureQueuedAsync(new MediaOperation
             {
@@ -211,24 +219,33 @@ public sealed class FolderKindChangeService
 
         var toLibrary = ChooseLibrary(libraries, vaultIds, toKind, request.LibraryId);
 
-        // The same kind is refused, unless an earlier change of this folder into this library was stopped half way: the folder is already in
-        // the library but some of its files are still registered in the old one, and starting the change again finishes them.
-        var fromLibrary = holder;
-        if (string.Equals(toKind.Key, fromKind.Key, StringComparison.Ordinal))
+        // An earlier change of this folder that was stopped (cancelled, or finished with files not changed) leaves files still in the old
+        // library or marked failed. Starting the same kind again finishes them; a different kind waits until they are done, so no file is
+        // left behind in a library the folder has left.
+        var stopped = await StoppedChangeAsync(sourceId, holder, libraries, vaultIds, ct).ConfigureAwait(false);
+        var sameKind = string.Equals(toKind.Key, fromKind.Key, StringComparison.Ordinal);
+        if (stopped is not null && !(sameKind && ReferenceEquals(toLibrary, holder)))
         {
-            var stopped = ReferenceEquals(toLibrary, holder) ? await StoppedChangeAsync(sourceId, holder, libraries, vaultIds, ct).ConfigureAwait(false) : null;
+            throw new FolderJobException(
+                $"An earlier change of this folder was not finished. Start it again as {fromKind.Label} first, then change it to {toKind.Label}.");
+        }
+
+        var fromLibrary = holder;
+        if (sameKind)
+        {
             if (stopped is null)
             {
                 throw new FolderJobException($"This folder already is {toKind.Label}.");
             }
 
-            fromLibrary = stopped;
-            fromKind = kinds.FirstOrDefault(kind => string.Equals(kind.Key, stopped.KindKey, StringComparison.Ordinal)) ?? fromKind;
+            fromLibrary = stopped.From;
+            fromKind = kinds.FirstOrDefault(kind => string.Equals(kind.Key, stopped.From.KindKey, StringComparison.Ordinal)) ?? fromKind;
         }
 
-        // The files still to change: those not registered in the new library yet.
+        // The files still to change: those not registered in the new library yet, and those an earlier change of this folder could not change.
+        var failedBefore = stopped?.FailedPaths ?? [];
         var files = (await FolderFilesAsync(source, fromLibrary, toLibrary, ct).ConfigureAwait(false))
-            .Where(file => !string.Equals(file.LibraryId, toLibrary.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(file => !string.Equals(file.LibraryId, toLibrary.Id, StringComparison.OrdinalIgnoreCase) || failedBefore.Contains(file.FilePath))
             .ToList();
         var mode = LibraryKindLookupPolicy.For(toLibrary, kinds).Mode;
         var fromMode = LibraryKindLookupPolicy.For(fromLibrary, kinds).Mode;
@@ -244,7 +261,8 @@ public sealed class FolderKindChangeService
             FromLooksUp: fromMode != LibraryLookupMode.Plain,
             StartsFirstCheck: FolderFirstCheckService.NeedsFirstCheck(toLibrary, kinds, vaultIds),
             FileMayMove: source.IsManaged && source.IsWritable,
-            Files: files);
+            Files: files,
+            RepairsOperationId: stopped?.OperationId);
     }
 
     // The library the folder goes into: the kind's own, or (for a kind that holds several named libraries) the one named by id.
@@ -275,9 +293,9 @@ public sealed class FolderKindChangeService
             : $"There is more than one {kind.Label} library. Choose which one the folder goes into.");
     }
 
-    // The library the folder came from, when the latest change of this folder into this library was stopped (cancelled or failed) after the folder
-    // moved and files are still registered in the old library; otherwise null.
-    private async Task<LibraryFolderConfig?> StoppedChangeAsync(
+    // The latest change of this folder into this library, when it was stopped (cancelled, or finished with files not changed) after the folder moved
+    // and files are still registered in the old library or were logged as failed; otherwise null.
+    private async Task<StoppedChange?> StoppedChangeAsync(
         Guid sourceId, LibraryFolderConfig holder, LibrariesConfiguration libraries, IReadOnlySet<string> vaultIds, CancellationToken ct)
     {
         var plan = await _changes.GetLatestPlanAsync(sourceId, ct).ConfigureAwait(false);
@@ -293,15 +311,12 @@ public sealed class FolderKindChangeService
         }
 
         var old = libraries.Libraries.FirstOrDefault(library =>
-            string.Equals(library.Id, plan.FromLibraryId, StringComparison.OrdinalIgnoreCase) && !IsVault(library, vaultIds));
-        if (old is null)
-        {
-            return null;
-        }
-
-        var strays = await FolderFilesAsync(
-            holder.Sources.First(source => Guid.TryParse(source.Id, out var id) && id == sourceId), old, holder, ct).ConfigureAwait(false);
-        return strays.Any(file => !string.Equals(file.LibraryId, holder.Id, StringComparison.OrdinalIgnoreCase)) ? old : null;
+            string.Equals(library.Id, plan.FromLibraryId, StringComparison.OrdinalIgnoreCase) && !IsVault(library, vaultIds)) ?? holder;
+        var source = holder.Sources.First(candidate => Guid.TryParse(candidate.Id, out var id) && id == sourceId);
+        var failed = await FolderKindChangeRunner.FailedPathsAsync(_ledger, plan.OperationId, ct).ConfigureAwait(false);
+        var strays = (await FolderFilesAsync(source, old, holder, ct).ConfigureAwait(false))
+            .Any(file => !string.Equals(file.LibraryId, holder.Id, StringComparison.OrdinalIgnoreCase));
+        return strays || failed.Count > 0 ? new StoppedChange(old, plan.OperationId, failed) : null;
     }
 
     // The folder's files the data store holds that this change owns: registered in the library the folder came from, in the one it goes into,
@@ -328,5 +343,8 @@ public sealed class FolderKindChangeService
         bool FromLooksUp,
         bool StartsFirstCheck,
         bool FileMayMove,
-        IReadOnlyList<MediaAssetFileRef> Files);
+        IReadOnlyList<MediaAssetFileRef> Files,
+        Guid? RepairsOperationId);
+
+    private sealed record StoppedChange(LibraryFolderConfig From, Guid OperationId, HashSet<string> FailedPaths);
 }

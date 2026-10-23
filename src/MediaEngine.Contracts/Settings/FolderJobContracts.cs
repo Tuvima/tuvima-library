@@ -347,9 +347,12 @@ public sealed class FolderKindChangePreviewResponse
     [JsonPropertyName("file_count")]
     public int FileCount { get; set; }
 
-    /// <summary>How many files will be re-filed into the new kind's naming pattern in the next batch; 0 for a Read-only folder, where nothing moves.</summary>
-    [JsonPropertyName("moves")]
-    public int Moves { get; set; }
+    /// <summary>
+    /// How many files are queued to be re-filed into the new kind's naming pattern in the next batch; 0 for a Read-only folder, where nothing moves.
+    /// It is the files the batch will look at, not a promise that each moves: one already at its planned path stays where it is.
+    /// </summary>
+    [JsonPropertyName("files_to_refile")]
+    public int FilesToRefile { get; set; }
 
     /// <summary>True when the new kind is plain and the folder's kind now looks details up, so the details looked up for its files are dropped (D69).</summary>
     [JsonPropertyName("drops_details")]

@@ -127,11 +127,14 @@ public static class FolderJobEndpoints
             string sourceId,
             [FromBody] FolderKindChangeRequest request,
             FolderKindChangeService changes,
+            IRequestAuthorityResolver authorities,
+            HttpContext http,
             CancellationToken ct) =>
         {
             try
             {
-                return Results.Ok(await changes.StartAsync(sourceId, request, ct));
+                var authority = await authorities.ResolveAsync(http, ct);
+                return Results.Ok(await changes.StartAsync(sourceId, request, ct, authority.ActiveProfileId));
             }
             catch (FolderJobException exception)
             {

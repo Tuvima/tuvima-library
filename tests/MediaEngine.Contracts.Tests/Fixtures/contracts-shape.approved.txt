@@ -8159,7 +8159,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderKindChangePr
   ToLibraryId: System.String | nullability=not-null | accessors=get,set
   ToLibraryName: System.String | nullability=not-null | accessors=get,set
   FileCount: System.Int32 | nullability=not-null | accessors=get,set
-  Moves: System.Int32 | nullability=not-null | accessors=get,set
+  FilesToRefile: System.Int32 | nullability=not-null | accessors=get,set
   DropsDetails: System.Boolean | nullability=not-null | accessors=get,set
   StartsFirstCheck: System.Boolean | nullability=not-null | accessors=get,set
   OtherAppsWarning: System.Boolean | nullability=not-null | accessors=get,set

@@ -288,31 +288,43 @@ folder jobs; the folder row shows the job's state). The folder row carries no ex
 - **Once, first.** The folder's `sources[]` entry moves to the target library in `libraries.json` (its management mode and access are
   unchanged; the old library stays even if it is left with no folders). Its old first check and the filing moves held for it end
   (`FolderFirstCheckService.EndBecauseKindChangedAsync`), and a target that looks details up starts a new first check
-  (`StartForKindChangeAsync`, D35, D61). `config_applied_at` on the plan records that this is done, so it is never repeated.
+  (`StartForKindChangeAsync`, D35, D61). The old check ends only after the libraries file has been saved, so a failed save leaves the
+  old check and its held moves in place. `config_applied_at` on the plan records that this is done, so it is never repeated; a repair
+  skips it (the folder is already in its library).
 - **Each file, recorded in the ledger, safe to repeat.**
   1. If the file's Work has a different media type, it is placed again the way ingestion places a new file:
      `HierarchyResolver.ResolveAsync` finds or makes the new Work and its parents (from the file's own canonical values),
      the file's Edition moves under it, the file's media type is recorded as a current claim, what people did with the old
      title (`WorkPersonalStateMerge.Carry`: plays, hearts, saves, bookmarks, queue places, collections, tags) and the details they
-     set on it (locked and manual claims) go to the new one, and the old title and any parent it leaves empty are removed
-     (`LibraryItemDeletionRepository.DeleteWorksCore`). With the same media type (Music to Other audio, Other videos to YouTube) the
-     Work stays where it is. Asset-keyed state (watch progress) never moves because the asset row stays.
-  2. `media_assets.library_id` becomes the target library.
-  3. A plain target drops the details looked up for the file and its Work (D69): claims from providers, bridge ids, the Wikidata id,
+     set on it (locked and manual claims) go to the new one (whose values are worked out again), and the old title is removed
+     (`LibraryItemDeletionRepository.DeleteWorksCore`, leaf only). The places it leaves empty go through the move's rule
+     (`WorkHierarchyMaintenanceService.CleanupEmptyParentsCore`): a show, season, album or series that someone saved, reacted to,
+     collected, tagged, or gave their own artwork or details stays. A title whose last file this is and that holds artwork or details a
+     person made (which no move carries) refuses the placement with a plain reason, as a move into an existing title does, and the file
+     stays as it was. With the same media type (Music to Other audio, Other videos to YouTube) the Work stays where it is.
+     Asset-keyed state (watch progress) never moves because the asset row stays.
+  2. A plain target drops the details looked up for the file and its Work (D69): claims from providers, bridge ids, the Wikidata id,
      external identifiers and provider artwork links. Claims from the file itself (tags, file name) and a person's own edits stay;
      the canonical values of the keys that lost claims are worked out again from the claims that remain (`ScoringHelper`), so the file
      shows by its file name and embedded tags and a refile plan still has a name to take. A YouTube target reads the file again so the
      video-ID lookup runs under the new library. Any other lookup kind queues a new `Quick` identity job with the new media type, the
-     way the Unmatched retry does.
-  4. In a Managed, writable folder the file's filing into the new kind's pattern is queued (`IFilingQueue.RequestFilingAsync`), held
+     way the Unmatched retry does (once: a job a cut-short attempt already queued is not queued again).
+  3. In a Managed, writable folder the file's filing into the new kind's pattern is queued (`IFilingQueue.RequestFilingAsync`), held
      while the first check runs. Filing waits for the batch (D62) and the file stays playable until then (D63); a file in use goes
      to the retry batch as it does today. A Read-only folder changes kind with nothing queued and nothing moved.
+  4. Last, `media_assets.library_id` becomes the target library, so a file that failed on any step above is still wholly what it was.
+     A file that fails is logged `failed` and the job carries on; it retries those files when it resumes. A job that ends with any
+     failed file ends as failed ("Finished, but N files were not changed ..."), not as a success, and starting the same kind again
+     (the repair) retries exactly the files logged as failed and those still in the old library. A different kind is refused until
+     that is done.
 - **Re-filing template.** The refile planner takes its naming template from the file's media type (`AutoOrganizeService.PlanRefileAsync`),
   not from the kind's `naming_template`. A change that keeps the media type therefore finds a file already fitting (nothing moves);
   a change that re-places the file uses the new media type's template. The kind's `naming_template` is not yet read by the organiser.
-- **Activity.** One `FolderKindChanged` entry when the job finishes: "{folder} changed from {old kind} to {new kind}: {n} files".
-- **Not covered.** Details dropped from a file's Work do not reach parents it shares with other files (an album, a show); a parent a
-  placement leaves empty is removed, but personal state attached to that parent is not carried. A file whose canonical values hold no
+- **Activity.** One `FolderKindChanged` entry when the job finishes, naming the administrator who started it (`started_by_profile_id`):
+  "{folder} changed from {old kind} to {new kind}: {n} files".
+- **Preview.** `files_to_refile` is the number of files queued for the batch's re-filing pass (0 for a Read-only folder); the batch
+  moves only those not already at their planned path.
+- **Not covered.** Details dropped from a file's Work do not reach parents it shares with other files (an album, a show). A file whose canonical values hold no
   show, album or series folder is placed under a stand-alone Work of the new type until identification fills it in.
 - **Known limits.** These are recorded, not fixed:
   - `AutoOrganizeService` still moves files out of a managed folder that is not the

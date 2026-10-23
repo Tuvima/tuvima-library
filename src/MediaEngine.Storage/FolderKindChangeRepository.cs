@@ -27,6 +27,10 @@ public sealed class FolderKindChangeRepository(
     private static readonly string[] LocalArtworkSources = ["embedded", "folder", "user_upload"];
 
     // Placement and bookkeeping keys that belong to the old place, never to the details a person set: they do not follow a file to a new title.
+    /// <summary>Why a file is not placed again: its title holds artwork or details a person made, which are not carried to another title.</summary>
+    public const string UserDetailsReason =
+        "You changed the artwork or details of this title yourself, so its last file can't be placed under another kind. Nothing was changed.";
+
     private static readonly string[] KeysThatStayWithThePlace =
         [.. PlacementNumbers.Keys, MetadataFieldConstants.MediaTypeField, "identity_revision"];
 
@@ -39,10 +43,10 @@ public sealed class FolderKindChangeRepository(
             """
             INSERT OR IGNORE INTO folder_kind_changes
                 (operation_id, source_id, from_library_id, to_library_id, from_kind_key, to_kind_key, target_media_type,
-                 target_is_plain, starts_first_check, created_at, config_applied_at)
+                 target_is_plain, starts_first_check, started_by_profile_id, repairs_operation_id, created_at, config_applied_at)
             VALUES
                 (@operationId, @sourceId, @fromLibraryId, @toLibraryId, @fromKindKey, @toKindKey, @targetMediaType,
-                 @targetIsPlain, @startsFirstCheck, @createdAt, @configAppliedAt);
+                 @targetIsPlain, @startsFirstCheck, @startedByProfileId, @repairsOperationId, @createdAt, @configAppliedAt);
             """,
             new
             {
@@ -55,6 +59,8 @@ public sealed class FolderKindChangeRepository(
                 targetMediaType = plan.TargetMediaType,
                 targetIsPlain = plan.TargetIsPlain ? 1 : 0,
                 startsFirstCheck = plan.StartsFirstCheck ? 1 : 0,
+                startedByProfileId = GuidSql.ToDb(plan.StartedByProfileId),
+                repairsOperationId = GuidSql.ToDb(plan.RepairsOperationId),
                 createdAt = plan.CreatedAt.ToString("O", CultureInfo.InvariantCulture),
                 configAppliedAt = plan.ConfigAppliedAt?.ToString("O", CultureInfo.InvariantCulture),
             });
@@ -75,8 +81,9 @@ public sealed class FolderKindChangeRepository(
             $"""
             SELECT operation_id AS OperationId, source_id AS SourceId, from_library_id AS FromLibraryId, to_library_id AS ToLibraryId,
                    from_kind_key AS FromKindKey, to_kind_key AS ToKindKey, target_media_type AS TargetMediaType,
-                   target_is_plain AS TargetIsPlain, starts_first_check AS StartsFirstCheck, created_at AS CreatedAt,
-                   config_applied_at AS ConfigAppliedAt
+                   target_is_plain AS TargetIsPlain, starts_first_check AS StartsFirstCheck,
+                   started_by_profile_id AS StartedByProfileId, repairs_operation_id AS RepairsOperationId,
+                   created_at AS CreatedAt, config_applied_at AS ConfigAppliedAt
             FROM folder_kind_changes
             {where};
             """,
@@ -89,7 +96,9 @@ public sealed class FolderKindChangeRepository(
                 DateTimeOffset.Parse(row.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
                 row.ConfigAppliedAt is null
                     ? null
-                    : DateTimeOffset.Parse(row.ConfigAppliedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)));
+                    : DateTimeOffset.Parse(row.ConfigAppliedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                row.StartedByProfileId,
+                row.RepairsOperationId));
     }
 
     public Task<bool> MarkConfigAppliedAsync(Guid operationId, DateTimeOffset at, CancellationToken ct = default)
@@ -125,6 +134,16 @@ public sealed class FolderKindChangeRepository(
         if (string.Equals(placement.WorkMediaType, typeName, StringComparison.OrdinalIgnoreCase))
         {
             return new AssetReplacement(false, placement.WorkId, []);
+        }
+
+        // A title the person made their own is refused before anything is created (the same check runs again inside the move).
+        using (var read = db.CreateConnection())
+        {
+            var onlyFile = read.ExecuteScalar<long>("SELECT COUNT(*) FROM editions WHERE work_id = @id;", new { id = placement.WorkId }) == 1;
+            if (onlyFile && HoldsPersonalWorkDetails(read, null, placement.WorkId))
+            {
+                throw new InvalidOperationException(UserDetailsReason);
+            }
         }
 
         // The same resolution ingestion makes for a new file: the show, album or series folder is found or made, then the Work under it.
@@ -188,6 +207,12 @@ public sealed class FolderKindChangeRepository(
         }
 
         var oldWorkId = placement.WorkId;
+        if (connection.ExecuteScalar<long>("SELECT COUNT(*) FROM editions WHERE work_id = @id;", new { id = oldWorkId }, transaction) == 1
+            && HoldsPersonalWorkDetails(connection, transaction, oldWorkId))
+        {
+            throw new InvalidOperationException(UserDetailsReason);
+        }
+
         connection.Execute(
             "UPDATE editions SET work_id = @newWorkId, placement_unmatched = 0 WHERE id = @editionId;",
             new { newWorkId, editionId = placement.EditionId },
@@ -208,7 +233,7 @@ public sealed class FolderKindChangeRepository(
             // The old title goes, so what people did with it and the details they set on it go to the file's new title first.
             CarryPersonalDetails(connection, transaction, oldWorkId, newWorkId);
             WorkPersonalStateMerge.Carry(connection, transaction, oldWorkId, newWorkId);
-            RemoveEmptyChain(connection, transaction, oldWorkId, ownedFiles);
+            RemoveEmptyLeaf(connection, transaction, oldWorkId, ownedFiles);
         }
 
         return new AssetReplacement(true, newWorkId, ownedFiles);
@@ -241,37 +266,47 @@ public sealed class FolderKindChangeRepository(
             transaction);
     }
 
-    // Removes the title the file left, and each parent (album, season, show, series folder) that is left with nothing in it.
-    private static void RemoveEmptyChain(SqliteConnection connection, SqliteTransaction transaction, Guid startWorkId, List<string> ownedFiles)
+    // Removes the title the file left (its people's state was carried to the new title first), then sweeps the places that are left empty with the
+    // rule every move uses: a show, season, album or series someone saved, reacted to, collected, tagged or gave their own artwork or details stays.
+    private static void RemoveEmptyLeaf(SqliteConnection connection, SqliteTransaction transaction, Guid workId, List<string> ownedFiles)
     {
-        Guid? current = startWorkId;
-        while (current is { } workId)
+        var removable = connection.ExecuteScalar<long>(
+            """
+            -- readiness: counts what still hangs under the title by id, whatever its readiness
+            SELECT EXISTS (SELECT 1 FROM works w WHERE w.id = @workId)
+               AND NOT EXISTS (SELECT 1 FROM editions e WHERE e.work_id = @workId)
+               AND NOT EXISTS (SELECT 1 FROM works c WHERE c.parent_work_id = @workId);
+            """,
+            new { workId },
+            transaction) == 1;
+        if (removable)
         {
-            var row = connection.QueryFirstOrDefault<ParentRow>(
-                "SELECT parent_work_id AS ParentWorkId FROM works WHERE id = @workId;",
-                new { workId },
-                transaction);
-            if (row is null
-                || connection.ExecuteScalar<long>("SELECT COUNT(*) FROM editions WHERE work_id = @workId;", new { workId }, transaction) > 0
-                || connection.ExecuteScalar<long>(
-                    "-- readiness: counts what still hangs under the title by id, whatever its readiness\nSELECT COUNT(*) FROM works WHERE parent_work_id = @workId;",
-                    new { workId },
-                    transaction) > 0)
-            {
-                return;
-            }
-
             ownedFiles.AddRange(LibraryItemDeletionRepository.DeleteWorksCore(connection, transaction, [workId]).TuvimaOwnedFiles);
-            current = row.ParentWorkId;
         }
+
+        WorkHierarchyMaintenanceService.CleanupEmptyParentsCore(connection, transaction);
     }
+
+    // The details a person made on a title that go with it when it is removed and that no move carries: their own artwork and the details they
+    // typed on the title. Where the last file of such a title would move out, the change is refused (as a move into an existing title is).
+    private static bool HoldsPersonalWorkDetails(SqliteConnection connection, SqliteTransaction? transaction, Guid workId) =>
+        connection.ExecuteScalar<long>(
+            """
+            -- readiness: looks at one title by id, whatever its readiness
+            SELECT COALESCE(NULLIF(w.display_overrides_json, ''), '{}') NOT IN ('{}', 'null')
+                OR EXISTS (SELECT 1 FROM entity_assets ea WHERE ea.entity_id = w.id AND COALESCE(ea.is_user_override, 0) = 1)
+                OR EXISTS (SELECT 1 FROM entity_artwork_links link WHERE link.entity_id = w.id AND COALESCE(link.is_user_override, 0) = 1)
+            FROM works w WHERE w.id = @workId;
+            """,
+            new { workId },
+            transaction) == 1;
 
     private async Task RemoveIfEmptyAsync(Guid workId)
     {
         await db.ExecuteWriteAsync((connection, transaction, _) =>
         {
             var owned = new List<string>();
-            RemoveEmptyChain(connection, transaction, workId, owned);
+            RemoveEmptyLeaf(connection, transaction, workId, owned);
         }).ConfigureAwait(false);
     }
 
@@ -367,6 +402,8 @@ public sealed class FolderKindChangeRepository(
         public string TargetMediaType { get; set; } = string.Empty;
         public long TargetIsPlain { get; set; }
         public long StartsFirstCheck { get; set; }
+        public Guid? StartedByProfileId { get; set; }
+        public Guid? RepairsOperationId { get; set; }
         public string CreatedAt { get; set; } = string.Empty;
         public string? ConfigAppliedAt { get; set; }
     }

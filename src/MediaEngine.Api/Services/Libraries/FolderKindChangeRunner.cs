@@ -114,25 +114,34 @@ public sealed class FolderKindChangeRunner
         var fileMayMove = source.IsManaged && source.IsWritable;
         var mediaType = Enum.Parse<MediaType>(plan.TargetMediaType, ignoreCase: true);
 
-        // 2. The folder's files, minus those a stopped run already finished.
+        // 2. The folder's files, minus those a stopped run already finished. A file logged as failed is not finished: it is tried again.
+        var failedBefore = plan.RepairsOperationId is { } repairing
+            ? await FailedPathsAsync(_ledger, repairing, ct).ConfigureAwait(false)
+            : [];
         var files = (await _assets.ListFilesUnderAsync(source.Path, ct).ConfigureAwait(false))
             .Where(file => string.IsNullOrWhiteSpace(file.LibraryId)
                 || string.Equals(file.LibraryId, plan.FromLibraryId, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(file.LibraryId, plan.ToLibraryId, StringComparison.OrdinalIgnoreCase))
             .ToList();
+        var failedHere = await FailedPathsAsync(_ledger, operationId, ct).ConfigureAwait(false);
         var finished = await _ledger.GetFinishedPathsAsync(operationId, ct).ConfigureAwait(false);
+        finished.ExceptWith(failedHere);
         var unfinished = (await _ledger.ListUnfinishedAsync(operationId, ct).ConfigureAwait(false)).Select(entry => entry.OldPath).ToHashSet(StringComparer.Ordinal);
-        // The files this job owns: those not in the new library yet, those it already did, and those it was part way through when it stopped.
-        // A file already registered in the new library by an earlier, stopped change is not done a second time.
+        // The files this job owns: those not in the new library yet, those an earlier change of the folder could not change, those it already did,
+        // and those it was part way through when it stopped. A file already changed by an earlier, stopped change is not done a second time.
         files = [.. files.Where(file => finished.Contains(file.FilePath)
             || unfinished.Contains(file.FilePath)
+            || failedBefore.Contains(file.FilePath)
+            || failedHere.Contains(file.FilePath)
             || !string.Equals(file.LibraryId, plan.ToLibraryId, StringComparison.OrdinalIgnoreCase))];
         var work = files.Where(file => !finished.Contains(file.FilePath)).ToList();
         var total = files.Count;
         var completed = Math.Max(0, total - work.Count);
-        var failed = (await _ledger.CountByOutcomeAsync(operationId, ct).ConfigureAwait(false)).GetValueOrDefault(FolderOrganiseOutcomes.Failed);
-        var progress = Stopwatch.StartNew();
+        var failed = 0;
+
         await host.ReportProgressAsync(new FolderOrganiseProgress(total, completed, failed, null), ct).ConfigureAwait(false);
+
+        var progress = Stopwatch.StartNew();
 
         // 3. The pass.
         foreach (var file in work)
@@ -145,6 +154,9 @@ public sealed class FolderKindChangeRunner
             }
 
             // The intent is written before the file is touched; the steps are safe to repeat, so a restart simply does the file again.
+            // When an earlier attempt was cut short, when it began is kept so its identity job is not queued a second time.
+            var earlier = await _ledger.GetAsync(operationId, file.FilePath, ct).ConfigureAwait(false);
+            var earlierAttemptAt = earlier is { Outcome: FolderOrganiseOutcomes.Moving } ? earlier.At : (DateTimeOffset?)null;
             await _ledger.UpsertAsync(
                 new FolderOrganiseLogEntry(operationId, sourceId, file.FilePath, file.FilePath, FolderOrganiseOutcomes.Moving, DateTimeOffset.UtcNow),
                 ct).ConfigureAwait(false);
@@ -152,7 +164,7 @@ public sealed class FolderKindChangeRunner
             string detail;
             try
             {
-                detail = await ChangeFileAsync(plan, target, mode, mediaType, fileMayMove, sourceId, file, ct).ConfigureAwait(false);
+                detail = await ChangeFileAsync(plan, target, mode, mediaType, fileMayMove, sourceId, file, earlierAttemptAt, ct).ConfigureAwait(false);
                 outcome = FolderOrganiseOutcomes.KindChanged;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -160,13 +172,17 @@ public sealed class FolderKindChangeRunner
                 _logger.LogWarning(ex, "Changing what {Path} is failed; the rest of the folder carries on", file.FilePath);
                 outcome = FolderOrganiseOutcomes.Failed;
                 detail = $"This file could not be changed: {ex.Message}";
-                failed++;
             }
 
             await _ledger.UpsertAsync(
                 new FolderOrganiseLogEntry(operationId, sourceId, file.FilePath, file.FilePath, outcome, DateTimeOffset.UtcNow, detail),
                 ct).ConfigureAwait(false);
             completed++;
+            if (outcome == FolderOrganiseOutcomes.Failed)
+            {
+                failed++;
+            }
+
             if (progress.Elapsed >= _timing.ProgressInterval)
             {
                 progress.Restart();
@@ -181,7 +197,7 @@ public sealed class FolderKindChangeRunner
             Stop = FolderOrganiseStop.Finished,
             Total = total,
             Completed = completed,
-            Failed = failed,
+            Failed = outcomes.GetValueOrDefault(FolderOrganiseOutcomes.Failed),
             Outcomes = outcomes,
         };
     }
@@ -193,17 +209,15 @@ public sealed class FolderKindChangeRunner
         var plan = await _changes.GetPlanAsync(operationId, ct).ConfigureAwait(false);
         var kinds = _kinds.GetKinds();
         var changed = result.Count(FolderOrganiseOutcomes.KindChanged);
-        var parts = new List<string>
-        {
-            $"{changed.ToString("N0", CultureInfo.InvariantCulture)} {(changed == 1 ? "file" : "files")} changed"
-            + (plan is null ? string.Empty : $" from {KindLabel(kinds, plan.FromKindKey)} to {KindLabel(kinds, plan.ToKindKey)}"),
-        };
+        var summary = $"{changed.ToString("N0", CultureInfo.InvariantCulture)} {(changed == 1 ? "file" : "files")} changed"
+            + (plan is null ? string.Empty : $" from {KindLabel(kinds, plan.FromKindKey)} to {KindLabel(kinds, plan.ToKindKey)}");
         if (result.Failed > 0)
         {
-            parts.Add($"{result.Failed.ToString("N0", CultureInfo.InvariantCulture)} could not be changed - see log");
+            var left = result.Failed.ToString("N0", CultureInfo.InvariantCulture);
+            return $"Finished, but {left} {(result.Failed == 1 ? "file was" : "files were")} not changed ({summary}). See the log, then start the change again to retry {(result.Failed == 1 ? "it" : "them")}.";
         }
 
-        return string.Join(", ", parts) + ".";
+        return summary + ".";
     }
 
     // ----- step 1 ------------------------------------------------------------------------------------------------------------------
@@ -221,28 +235,34 @@ public sealed class FolderKindChangeRunner
                 return false;
             }
 
-            var current = libraries.Libraries.First(library => library.Sources.Contains(source));
-            if (!ReferenceEquals(current, target))
+            // Finishing an earlier change: the folder is already in its library and its checks are settled, so only the files are done again.
+            if (plan.RepairsOperationId is null)
             {
-                // Its old check (and the moves held for it) ends before the folder changes library; a repeat after a stop finds the folder
-                // already moved, so it never ends the check it started.
-                await _firstChecks.EndBecauseKindChangedAsync(plan.SourceId.ToString("D"), ct).ConfigureAwait(false);
-                current.Sources.Remove(source);
-                target.Sources.Add(source);
-                try
+                var current = libraries.Libraries.First(library => library.Sources.Contains(source));
+                if (!ReferenceEquals(current, target))
                 {
-                    _configuration.SaveLibraries(libraries);
+                    current.Sources.Remove(source);
+                    target.Sources.Add(source);
+                    try
+                    {
+                        _configuration.SaveLibraries(libraries);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                    {
+                        // The folder is still where it was, with its first check and the moves held for it: nothing was touched.
+                        _logger.LogError(ex, "The folder {Path} could not be moved to library {LibraryId}", source.Path, target.Id);
+                        throw;
+                    }
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-                {
-                    _logger.LogError(ex, "The folder {Path} could not be moved to library {LibraryId}", source.Path, target.Id);
-                    throw;
-                }
-            }
 
-            if (plan.StartsFirstCheck)
-            {
-                await _firstChecks.StartForKindChangeAsync(target.Id, source, ct).ConfigureAwait(false);
+                // Its old check (and the moves held for it) ends only once the folder is saved in its new library. A repeat after a stop in between
+                // simply ends it (there is nothing yet to lose: no file has been changed) and starts the new one.
+                await _firstChecks.EndBecauseKindChangedAsync(plan.SourceId.ToString("D"), ct).ConfigureAwait(false);
+                if (plan.StartsFirstCheck)
+                {
+                    await _firstChecks.StartForKindChangeAsync(target.Id, source, ct).ConfigureAwait(false);
+                }
+
             }
 
             await _changes.MarkConfigAppliedAsync(plan.OperationId, DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
@@ -264,6 +284,7 @@ public sealed class FolderKindChangeRunner
         bool fileMayMove,
         Guid sourceId,
         MediaAssetFileRef file,
+        DateTimeOffset? earlierAttemptAt,
         CancellationToken ct)
     {
         var placement = await _changes.GetPlacementAsync(file.AssetId, ct).ConfigureAwait(false);
@@ -283,27 +304,20 @@ public sealed class FolderKindChangeRunner
             _ownedFiles.Remove(replaced.OwnedFilesToRemove);
             if (replaced.Replaced)
             {
+                // The details a person set on the old title came along; the new title's values are worked out from them.
+                await _rescorer.RescoreAsync(replaced.WorkId, ct).ConfigureAwait(false);
                 notes.Add($"placed as {mediaType}");
             }
         }
 
-        // The file now belongs to the new library, so every reader and worker takes the new kind's rules from here on.
-        await _assets.SetLibraryIdAsync(file.AssetId, target.Id, ct).ConfigureAwait(false);
-
+        var queuedIdentity = false;
         switch (mode)
         {
             case LibraryLookupMode.Plain:
                 // A plain kind shows a file as it is (D69): the details looked up for it go, and the cascade is worked out again from the
                 // claims the file itself and the person left.
-                var dropped = await _changes.DropProviderDetailsAsync(file.AssetId, ct).ConfigureAwait(false);
-                foreach (var entityId in dropped.EntityIds)
-                {
-                    await _rescorer.RescoreAsync(entityId, ct).ConfigureAwait(false);
-                }
-
-                // A plain kind never has Unmatched files (D38).
-                await _unmatched.ClearAsync(file.AssetId, ct).ConfigureAwait(false);
-                notes.Add(dropped.ClaimsDropped > 0 ? "looked-up details dropped" : "no looked-up details to drop");
+                var dropped = await DropDetailsAsync(file.AssetId, ct).ConfigureAwait(false);
+                notes.Add(dropped > 0 ? "looked-up details dropped" : "no looked-up details to drop");
                 break;
 
             case LibraryLookupMode.YouTube:
@@ -313,7 +327,15 @@ public sealed class FolderKindChangeRunner
                 break;
 
             default:
-                // The normal identification, as the Unmatched retry queues it: a new job for the file with the new media type.
+                // The normal identification, as the Unmatched retry queues it: a new job for the file with the new media type. A job an
+                // earlier, cut-short attempt already queued is not queued again.
+                var latest = await _identityJobs.GetByEntityAsync(file.AssetId, ct).ConfigureAwait(false);
+                if (earlierAttemptAt is { } since && latest is not null && latest.CreatedAt >= since)
+                {
+                    notes.Add("already queued to be identified again");
+                    break;
+                }
+
                 await _identityJobs.CreateAsync(new IdentityJob
                 {
                     EntityId = file.AssetId,
@@ -321,7 +343,7 @@ public sealed class FolderKindChangeRunner
                     MediaType = mediaType.ToString(),
                     Pass = "Quick",
                 }, ct).ConfigureAwait(false);
-                _signal?.Signal(IdentityPipelineSignalKind.Retail);
+                queuedIdentity = true;
                 notes.Add("queued to be identified again");
                 break;
         }
@@ -334,7 +356,56 @@ public sealed class FolderKindChangeRunner
             notes.Add(held ? "filing held until the first check passes" : "filing waits for the next batch");
         }
 
+        // The file joins the new library last: until every step above has worked, a file that failed is still in the old library, never
+        // half changed, and the job (or a new start) does it again.
+        await _assets.SetLibraryIdAsync(file.AssetId, target.Id, ct).ConfigureAwait(false);
+        if (queuedIdentity)
+        {
+            // Told only now, so the lookup never sees the file in the library it has left.
+            _signal?.Signal(IdentityPipelineSignalKind.Retail);
+        }
+
+        if (mode == LibraryLookupMode.Plain)
+        {
+            // A lookup that was already running for the file may have written details while the library changed; they go too.
+            await DropDetailsAsync(file.AssetId, ct).ConfigureAwait(false);
+            // A plain kind never has Unmatched files (D38).
+            await _unmatched.ClearAsync(file.AssetId, ct).ConfigureAwait(false);
+        }
+
         return $"Now in {target.Name}: {string.Join("; ", notes)}.";
+    }
+
+    // Drops the details looked up for the file and works out the values of what is left again. Returns how many claims went.
+    private async Task<int> DropDetailsAsync(Guid assetId, CancellationToken ct)
+    {
+        var dropped = await _changes.DropProviderDetailsAsync(assetId, ct).ConfigureAwait(false);
+        foreach (var entityId in dropped.EntityIds)
+        {
+            await _rescorer.RescoreAsync(entityId, ct).ConfigureAwait(false);
+        }
+
+        return dropped.ClaimsDropped;
+    }
+
+    /// <summary>The files whose latest line in the job's ledger says they could not be changed.</summary>
+    internal static async Task<HashSet<string>> FailedPathsAsync(IFolderOrganiseLogRepository ledger, Guid operationId, CancellationToken ct)
+    {
+        const int Page = 1000;
+        var failed = new HashSet<string>(StringComparer.Ordinal);
+        for (var offset = 0; ; offset += Page)
+        {
+            var entries = await ledger.ListAsync(operationId, offset, Page, ct).ConfigureAwait(false);
+            foreach (var entry in entries.Where(entry => entry.Outcome == FolderOrganiseOutcomes.Failed))
+            {
+                failed.Add(entry.OldPath);
+            }
+
+            if (entries.Count < Page)
+            {
+                return failed;
+            }
+        }
     }
 
     // ----- helpers -----------------------------------------------------------------------------------------------------------------
@@ -357,6 +428,7 @@ public sealed class FolderKindChangeRunner
             CollectionName = folder,
             EntityId = plan.SourceId,
             EntityType = "LibrarySource",
+            ProfileId = plan.StartedByProfileId,
             ChangesJson = System.Text.Json.JsonSerializer.Serialize(new
             {
                 from_kind = plan.FromKindKey,

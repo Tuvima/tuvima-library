@@ -169,6 +169,91 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task A_saved_and_hearted_show_whose_last_episode_moves_out_keeps_its_save_its_reaction_and_its_collection_entry_while_the_empty_season_goes()
+    {
+        var (assetId, episode) = await IngestAsync(MediaType.TV, new Dictionary<string, string>
+        {
+            ["title"] = "Pilot",
+            ["show_name"] = "Some Show",
+            [MetadataFieldConstants.SeasonNumber] = "1",
+            [MetadataFieldConstants.EpisodeNumber] = "1",
+        });
+        var person = Profile.SeedProfileId;
+        Guid show;
+        Guid season;
+        using (var seed = _db.CreateConnection())
+        {
+            season = seed.ExecuteScalar<Guid>("SELECT parent_work_id FROM works WHERE id = @episode;", new { episode });
+            show = seed.ExecuteScalar<Guid>("SELECT parent_work_id FROM works WHERE id = @season;", new { season });
+            seed.Execute("""
+                INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'TvShow', @show, '2026-10-01T00:00:00Z');
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'TvShow', @show, 'Love', '2026-10-01T00:00:00Z');
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, membership_mode, owner_kind, audience)
+                VALUES (@collection, 'Favourites', 'Custom', 'library', 'materialized', 'Manual', 'Library', 'Everyone');
+                INSERT INTO collection_items (id, collection_id, work_id, sort_order) VALUES (@item, @collection, @show, 1);
+                """, new { person, show, collection = Guid.NewGuid(), item = Guid.NewGuid() });
+        }
+
+        var result = await _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.Videos, Hints(assetId), FilePath);
+
+        using var conn = _db.CreateConnection();
+        Assert.True(result.Replaced);
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id IN (@episode, @season);", new { episode, season }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id = @show;", new { show }));
+        Assert.Equal(show, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id = @person;", new { person }));
+        Assert.Equal("Love", conn.ExecuteScalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @show;", new { show }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM collection_items WHERE work_id = @show;", new { show }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM collections;"));
+    }
+
+    [Fact]
+    public async Task A_leaf_with_artwork_a_person_uploaded_is_not_placed_again_and_nothing_changes()
+    {
+        var (assetId, work) = await IngestAsync(MediaType.Movies);
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override)
+                VALUES (@id, @work, 'Work', 'CoverArt', 'user_upload', 1);
+                """, new { id = Guid.NewGuid(), work });
+        }
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.Videos, Hints(assetId), FilePath));
+
+        Assert.Equal(FolderKindChangeRepository.UserDetailsReason, refused.Message);
+        using var conn = _db.CreateConnection();
+        Assert.Equal(work, conn.ExecuteScalar<Guid>("SELECT work_id FROM editions WHERE id = (SELECT edition_id FROM media_assets WHERE id = @assetId);", new { assetId }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works;"));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets WHERE entity_id = @work AND is_user_override = 1;", new { work }));
+    }
+
+    [Fact]
+    public async Task A_leaf_with_details_a_person_typed_is_not_placed_again_unless_another_file_keeps_the_title()
+    {
+        var (assetId, work) = await IngestAsync(MediaType.Movies);
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("UPDATE works SET display_overrides_json = '{\"genre\":\"Drama\"}' WHERE id = @work;", new { work });
+        }
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.Videos, Hints(assetId), FilePath));
+
+        // With a second file still in the title, the title (and what the person typed on it) stays, so the one file can go.
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("INSERT INTO editions (id, work_id) VALUES (@id, @work);", new { id = Guid.NewGuid(), work });
+        }
+
+        var result = await _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.Videos, Hints(assetId), FilePath);
+
+        Assert.True(result.Replaced);
+        using var conn = _db.CreateConnection();
+        Assert.Equal("""{"genre":"Drama"}""", conn.ExecuteScalar<string>("SELECT display_overrides_json FROM works WHERE id = @work;", new { work }));
+    }
+
+    [Fact]
     public async Task An_episode_placed_as_TV_from_Movies_gets_its_show_and_season_from_the_hints()
     {
         var (assetId, movieWork) = await IngestAsync(MediaType.Movies);
@@ -297,7 +382,8 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
         var sourceId = Guid.NewGuid();
         var plan = new FolderKindChangePlan(
             operationId, sourceId, "library-from", "library-to", "movies", "other_videos", "Videos",
-            TargetIsPlain: true, StartsFirstCheck: false, DateTimeOffset.Parse("2026-10-23T10:00:00Z"));
+            TargetIsPlain: true, StartsFirstCheck: false, DateTimeOffset.Parse("2026-10-23T10:00:00Z"),
+            StartedByProfileId: Guid.NewGuid(), RepairsOperationId: Guid.NewGuid());
 
         await _repository.SavePlanAsync(plan);
         await _repository.SavePlanAsync(plan with { ToLibraryId = "someone-else" });

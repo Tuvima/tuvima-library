@@ -364,6 +364,8 @@ public sealed class DatabaseStartupSafetyTests
             ("media_operations", "entity_id"),
             ("folder_kind_changes", "operation_id"),
             ("folder_kind_changes", "source_id"),
+            ("folder_kind_changes", "started_by_profile_id"),
+            ("folder_kind_changes", "repairs_operation_id"),
             ("folder_organise_log", "operation_id"),
             ("folder_organise_log", "source_id"),
             ("media_operation_events", "id"),

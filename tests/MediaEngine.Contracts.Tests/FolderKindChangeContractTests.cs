@@ -29,7 +29,7 @@ public sealed class FolderKindChangeContractTests
             ToLibraryId = "library-b",
             ToLibraryName = "Home videos",
             FileCount = 12,
-            Moves = 12,
+            FilesToRefile = 12,
             DropsDetails = true,
             StartsFirstCheck = false,
             OtherAppsWarning = true,
@@ -41,7 +41,7 @@ public sealed class FolderKindChangeContractTests
         var roundTrip = JsonSerializer.Deserialize<FolderKindChangePreviewResponse>(json)!;
 
         Assert.Contains("\"file_count\":12", json, StringComparison.Ordinal);
-        Assert.Contains("\"moves\":12", json, StringComparison.Ordinal);
+        Assert.Contains("\"files_to_refile\":12", json, StringComparison.Ordinal);
         Assert.Contains("\"drops_details\":true", json, StringComparison.Ordinal);
         Assert.Contains("\"starts_first_check\":false", json, StringComparison.Ordinal);
         Assert.Contains("\"other_apps_warning\":true", json, StringComparison.Ordinal);

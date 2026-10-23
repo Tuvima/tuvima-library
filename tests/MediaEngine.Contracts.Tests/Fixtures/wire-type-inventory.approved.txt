@@ -9619,14 +9619,14 @@
   ToLibraryId: System.String | json=to_library_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ToLibraryName: System.String | json=to_library_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileCount: System.Int32 | json=file_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Moves: System.Int32 | json=moves | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FilesToRefile: System.Int32 | json=files_to_refile | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DropsDetails: System.Boolean | json=drops_details | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   StartsFirstCheck: System.Boolean | json=starts_first_check | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OtherAppsWarning: System.Boolean | json=other_apps_warning | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   VisibilityLoss: System.Collections.Generic.List<MediaEngine.Contracts.Authentication.VisibilityLossDto> | json=visibility_loss | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   VisibilityLossChecked: System.Boolean | json=visibility_loss_checked | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   VisibilityMessage: System.String | json=visibility_message | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"source_id":"sample","from_kind_label":"sample","to_kind_key":"sample","to_kind_label":"sample","to_library_id":"sample","to_library_name":"sample","file_count":7,"moves":7,"drops_details":true,"starts_first_check":true,"other_apps_warning":true,"visibility_loss":[],"visibility_loss_checked":true,"visibility_message":"sample"}
+  sample={"source_id":"sample","from_kind_label":"sample","to_kind_key":"sample","to_kind_label":"sample","to_library_id":"sample","to_library_name":"sample","file_count":7,"files_to_refile":7,"drops_details":true,"starts_first_check":true,"other_apps_warning":true,"visibility_loss":[],"visibility_loss_checked":true,"visibility_message":"sample"}
 
 [contracts] MediaEngine.Contracts.Settings.FolderKindChangeRequest
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -169,6 +169,16 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
         var merging = operation.OperationType == MediaOperationType.MergeFolder;
         switch (result.Stop)
         {
+            case FolderOrganiseStop.Finished when operation.OperationType == MediaOperationType.ChangeFolderKind && result.Failed > 0:
+                // Files that could not be changed are not a plain success: the job says so, and starting the change again retries them.
+                await _operations.RecordProgressAsync(
+                    operation.Id, result.Total, result.Completed, result.Failed, 100, ct: ct).ConfigureAwait(false);
+                await _operations.MarkFailedTerminalAsync(
+                    operation.Id,
+                    await RequireKindChangeRunner().CompletionMessageAsync(operation.Id, result, ct).ConfigureAwait(false),
+                    ct).ConfigureAwait(false);
+                break;
+
             case FolderOrganiseStop.Finished:
                 await _operations.RecordProgressAsync(
                     operation.Id, result.Total, result.Completed, result.Failed, 100, ct: ct).ConfigureAwait(false);

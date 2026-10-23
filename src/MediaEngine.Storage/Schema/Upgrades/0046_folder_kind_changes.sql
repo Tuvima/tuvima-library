@@ -14,6 +14,8 @@ CREATE TABLE folder_kind_changes (
     target_media_type TEXT NOT NULL,
     target_is_plain   INTEGER NOT NULL CHECK (target_is_plain IN (0, 1)),
     starts_first_check INTEGER NOT NULL CHECK (starts_first_check IN (0, 1)),
+    started_by_profile_id BLOB,                -- the administrator's profile that started the change (nullable); the activity entry names them
+    repairs_operation_id BLOB,                 -- the earlier change of this folder whose failed files this one retries (nullable)
     created_at        TEXT NOT NULL,           -- ISO 8601 UTC
     config_applied_at TEXT                     -- ISO 8601 UTC; null until the folder has moved to the new library
 );

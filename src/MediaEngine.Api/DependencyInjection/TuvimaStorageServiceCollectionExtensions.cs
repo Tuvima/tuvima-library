@@ -87,8 +87,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ExcludedFileService>();
         services.AddSingleton<FolderJobService>();
         services.AddSingleton<IEntityRescorer, ClaimRescorer>();
-        // The files Tuvima wrote for a title that a placement removed; also registered by the library-move module, so only added when it is not there yet.
-        services.TryAddSingleton<MediaEngine.Api.Services.Libraries.Moves.MoveOwnedFileCleaner>();
+        // Removes the files Tuvima wrote for a title that a library move or a change of kind merged away. Registered here only, so every composition has it.
+        services.AddSingleton<MediaEngine.Api.Services.Libraries.Moves.MoveOwnedFileCleaner>();
         services.AddSingleton<FolderKindChangeRunner>();
         services.AddSingleton<FolderKindChangeService>();
         services.AddSingleton<ServerFolderBrowserService>();
