@@ -117,6 +117,10 @@ A Needs Review reason for a file that arrived in a managed folder through a fold
 
 ## H
 
+### Hidden library
+
+A library an administrator unticked for one person in the **Libraries** list under an area on that person's page. Everyone with the area sees every other library, including new ones, unless it is hidden from them; administrators always see everything. The Vault is never in the list.
+
 ### Household
 
 The people who live together and the sign-ins that open them. A household holds up to 8 people (profiles), and each sign-in opens only people from its own household. The first household is created when the owner finishes setup. Someone invited from outside starts a household of their own.
@@ -279,6 +283,10 @@ modified/summarized status attached to text shown in the Dashboard.
 ### Staging
 
 The safe on-disk and database holding state between file discovery and final organization. Staging is not the same as browse visibility.
+
+### Suitable for limited profiles
+
+A switch on a library folder. Unrated items from a ticked folder are shown to profiles with a rating limit, whatever their "allow unrated" setting says; rated items always follow each profile's limit. Only a blank rating, NR, Not Rated or Unrated counts as unrated. Off by default, and not offered for a Vault folder.
 
 ## T
 

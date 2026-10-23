@@ -75,7 +75,7 @@ or hosting option that trusts forwarded headers from every address.
 ## Check account access
 
 1. Under **Settings → Manage → Users and Sign-in → Sign-in Methods**, choose the sign-in methods you want to allow.
-2. In **Users and Sign-in → Users**, grant the intended account only the profiles, features, and libraries it should reach.
+2. In **Users and Sign-in → Users**, open the intended person's profile and give it only the areas (Read, Watch, Listen, View) and libraries it should reach.
 3. If you started Tuvima on your computer without a password, add a password or passkey before you use an outside address. That no-password account works from any device that reaches the server, with administrator rights (see [Account security](account-security.md)).
 4. Test with that account from the remote device.
 
