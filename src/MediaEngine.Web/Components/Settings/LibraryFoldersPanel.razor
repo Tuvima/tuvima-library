@@ -504,6 +504,14 @@
         await AfterFollowUpAsync(await AddService.MergeIntoAsync(Scope, library, source));
     }
 
+    // Row menu "Change what this folder is" (and the paused first-check line): the dialog asks what the folder is instead, shows the impact and queues the job.
+    private async Task ChangeKindAsync(LibrarySourceDto source)
+    {
+        var library = LibraryHolding(source);
+        if (library is null || _configuration is null || _saving || Embedded || ReadOnly) return;
+        await AfterFollowUpAsync(await AddService.ChangeKindAsync(Scope, Kinds, _configuration, library, source));
+    }
+
     // A follow-up that queued a job reloads the folders and starts watching the job; anything it has to say stays on screen.
     private async Task AfterFollowUpAsync(FolderFollowUp followUp)
     {
@@ -1028,7 +1036,8 @@
                                 Jobs="@_jobs"
                                 OnJobControl="ControlJobAsync"
                                 OnOrganiseNow="OrganiseNowAsync"
-                                OnMerge="MergeIntoAsync" />
+                                OnMerge="MergeIntoAsync"
+                                OnChangeKind="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, ChangeKindAsync))" />
             if (!library.Sources.Any(IsManaged))
             {
                 <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>

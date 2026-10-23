@@ -1,0 +1,313 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient Api
+@inject LibraryFolderAddService AddService
+@inject ILogger<ChangeFolderKindDialog> Logger
+
+@* "Change what this folder is" (Library setup D40(c), D60): what is the folder instead (the kinds of its own area), then the plain
+   impact worked out by the Engine before anything moves. Nothing is changed until "Change folder" is pressed. A new library for the
+   chosen kind is made when the person goes on to the impact, because the Engine can only count and check visibility against a library
+   that exists; nothing else is sent before the button. *@
+<AppDialogShell Title="Change what this folder is" Size="Large" OnClose="@(() => Leave())">
+    <ChildContent>
+        <div class="add-wizard__options">
+            <p class="add-wizard__lead"><code class="add-wizard__path" title="@Source.Path">@Source.Path</code></p>
+            @if (_step == Step.Kind)
+            {
+                <h3 class="add-wizard__question" id="change-kind-question">What is this folder?</h3>
+                @if (OfferedKinds.Count == 0)
+                {
+                    <p class="add-wizard__lead" data-no-kinds>There is no other kind of folder to change this one into.</p>
+                }
+                else
+                {
+                    <LibraryKindCards Kinds="@OfferedKinds"
+                                      Label="What is this folder?"
+                                      SelectedKey="@_kind?.Key"
+                                      ShowMetadata="true"
+                                      Catalogue="@_catalogue"
+                                      OnChoose="@(EventCallback.Factory.Create<LibraryTypeOption>(this, Choose))" />
+                    @if (_kind is { AllowsMultiple: true } plain)
+                    {
+                        <LibraryChoiceOptions Libraries="@Held(plain)"
+                                              FallbackName="@plain.Label"
+                                              CanAddLibrary="@(Held(plain).Count < plain.MaxLibraries)"
+                                              LimitText="@($"{plain.MaxLibraries} is the most {plain.PluralLabel} libraries you can keep.")"
+                                              Choice="@_libraryChoice"
+                                              ChoiceChanged="@((string? value) => _libraryChoice = value)"
+                                              NewLibraryName="@_newLibraryName"
+                                              NewLibraryNameChanged="@((string value) => _newLibraryName = value)"
+                                              HeadingId="change-kind-library" />
+                    }
+                }
+                @if (_error is not null)
+                {
+                    <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+                }
+            }
+            else if (_loading)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="Counting what would change" />
+            }
+            else if (_refusal is not null)
+            {
+                <AppAlert Tone="AppUiTone.Warning"><span data-refusal>@_refusal</span></AppAlert>
+            }
+            else if (_preview is not null)
+            {
+                @foreach (var line in ImpactLines(_preview))
+                {
+                    <p class="add-wizard__lead" data-impact="@line.Key">@line.Text</p>
+                }
+                @if (_error is not null)
+                {
+                    <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+                }
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar Align="AppHorizontalAlignment.End">
+            @if (_step == Step.Kind)
+            {
+                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Leave())" />
+                <AppButton Label="Next" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Loading="@_creating" Disabled="@(!CanLeaveKindStep || _creating)" OnClick="NextAsync" />
+            }
+            else if (_preview is null)
+            {
+                @* A refusal, or a question the Engine did not answer: nothing can be confirmed, so there is only Close. *@
+                <AppButton Label="Close" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Leave())" />
+            }
+            else
+            {
+                <AppButton Label="Back" ButtonStyle="AppButtonStyle.Text" Disabled="@_starting" OnClick="@(() => _step = Step.Kind)" />
+                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_starting" OnClick="@(() => Leave())" />
+                <AppButton Label="Change folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Loading="@_starting" Disabled="@_starting" OnClick="ChangeAsync" />
+            }
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    /// <summary>What the dialog hands back when it closes: the kind the folder is changing to (null when nothing was started) and the name of a library it created on the way (null when none).</summary>
+    public sealed record Outcome(string? StartedKindLabel, string? CreatedLibraryName);
+
+    private enum Step { Kind, Impact }
+
+    private const int MostNamesShown = 5;
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public LibrarySourceDto Source { get; set; } = default!;
+    /// <summary>The library the folder is in now: its kind says what the folder is, and its area decides which kinds are offered.</summary>
+    [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+
+    private Step _step = Step.Kind;
+    private LibraryTypeOption? _kind;
+    private string? _libraryChoice;
+    private string _newLibraryName = string.Empty;
+    private LibrariesConfigurationDto? _configuration;
+    private IReadOnlyList<ProviderCatalogueDto>? _catalogue;
+    private FolderKindChangePreviewResponse? _preview;
+    private FolderKindChangeRequest? _request;
+    private string? _refusal;
+    private string? _error;
+    private string? _createdLibraryName;
+    private bool _creating;
+    private bool _loading;
+    private bool _starting;
+
+    private LibrariesConfigurationDto Current => _configuration ?? Configuration;
+
+    private string Area => Kinds.Find(Library.KindKey)?.Area ?? Library.Area;
+
+    // The kinds of the folder's own area, minus the one it is now and any Vault kind (the Vault has its own screens).
+    private IReadOnlyList<LibraryTypeOption> OfferedKinds => string.Equals(Area, LibraryGroupCatalog.VaultKey, StringComparison.OrdinalIgnoreCase)
+        ? []
+        : [.. (Kinds.TryGetGroup(Area)?.TypeKeys ?? [])
+            .Select(Kinds.Find)
+            .OfType<LibraryTypeOption>()
+            .Where(kind => !string.Equals(kind.Key, Library.KindKey, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(kind.Area, LibraryGroupCatalog.VaultKey, StringComparison.OrdinalIgnoreCase))];
+
+    private bool CanLeaveKindStep => _kind is not null
+        && (!_kind.AllowsMultiple
+            || (_libraryChoice == LibraryChoiceOptions.NewChoice ? !string.IsNullOrWhiteSpace(_newLibraryName) : Held(_kind).Any(library => library.Id == _libraryChoice)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _catalogue = await Api.GetProviderCatalogueAsync();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            Logger.LogWarning(ex, "The provider catalogue could not be read for the change-kind dialog; providers show by name");
+        }
+    }
+
+    private IReadOnlyList<LibraryFolderDto> Held(LibraryTypeOption kind) => LibraryRollup.LibrariesOf(Current, kind);
+
+    // Choosing a kind that holds several libraries opens on its first library, or on a new one named for the kind when it has none yet.
+    private void Choose(LibraryTypeOption kind)
+    {
+        if (_kind?.Key == kind.Key) return;
+        _kind = kind;
+        _error = null;
+        _newLibraryName = string.Empty;
+        if (!kind.AllowsMultiple)
+        {
+            _libraryChoice = null;
+            return;
+        }
+
+        var held = Held(kind);
+        _libraryChoice = held.FirstOrDefault()?.Id ?? (held.Count < kind.MaxLibraries ? LibraryChoiceOptions.NewChoice : null);
+        if (_libraryChoice == LibraryChoiceOptions.NewChoice && held.Count == 0)
+        {
+            _newLibraryName = kind.Label;
+        }
+    }
+
+    // Step 1 to the impact. A library the kind does not have yet (a new custom library, or the first of a kind that holds one) is made first,
+    // through the same save the Add folder wizard uses, so the Engine has a library to count and check against.
+    private async Task NextAsync()
+    {
+        if (_kind is null || _creating) return;
+        _error = null;
+        var libraryId = _kind.AllowsMultiple && _libraryChoice != LibraryChoiceOptions.NewChoice ? _libraryChoice : null;
+        var needsLibrary = _kind.AllowsMultiple ? _libraryChoice == LibraryChoiceOptions.NewChoice : Held(_kind).Count == 0;
+        if (needsLibrary)
+        {
+            _creating = true;
+            try
+            {
+                var created = await AddService.CreateLibraryAsync(FolderAddScope.Settings, _kind, _newLibraryName, Current);
+                if (created is null)
+                {
+                    _error = Api.LastError ?? $"Library couldn't create the {(_kind.AllowsMultiple ? _newLibraryName.Trim() : _kind.Label)} library, so nothing was changed.";
+                    return;
+                }
+
+                _configuration = created.Configuration;
+                _createdLibraryName = created.Library.Name;
+                libraryId = created.Library.Id;
+                _libraryChoice = libraryId;
+            }
+            finally { _creating = false; }
+        }
+
+        _request = new FolderKindChangeRequest { KindKey = _kind.Key, LibraryId = libraryId };
+        await LoadImpactAsync();
+    }
+
+    private async Task LoadImpactAsync()
+    {
+        _step = Step.Impact;
+        _loading = true;
+        _preview = null;
+        _refusal = null;
+        _error = null;
+        try
+        {
+            var answer = await Api.PreviewFolderKindChangeAsync(Source.Id, _request!);
+            if (answer.Succeeded)
+            {
+                _preview = answer.Value;
+            }
+            else
+            {
+                // A refusal is the Engine's own sentence; anything else means the question was not answered, which is never "nothing to worry about".
+                _refusal = answer.Refusal ?? answer.Failure ?? "Library couldn't work out what this change would do.";
+            }
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task ChangeAsync()
+    {
+        if (_request is null || _preview is null || _starting) return;
+        _starting = true;
+        _error = null;
+        try
+        {
+            var answer = await Api.ChangeFolderKindAsync(Source.Id, _request);
+            if (!answer.Succeeded)
+            {
+                _error = answer.Refusal ?? answer.Failure ?? "Library could not start changing this folder.";
+                return;
+            }
+
+            Dialog.Close(AppDialogResult.Ok(new Outcome(_preview.ToKindLabel, _createdLibraryName)));
+        }
+        finally { _starting = false; }
+    }
+
+    // Leaving without changing anything. A library made on the way stays (it is empty), so the host is told to read the libraries again.
+    private void Leave()
+    {
+        if (_createdLibraryName is null)
+        {
+            Dialog.Cancel();
+            return;
+        }
+
+        Dialog.Close(AppDialogResult.Ok(new Outcome(null, _createdLibraryName)));
+    }
+
+    private static string Files(int count) => count == 1 ? "1 file" : $"{count:N0} files";
+
+    /// <summary>The impact as plain lines, each with a key the tests and screen readers can find it by. A line that does not apply is left out.</summary>
+    private static IEnumerable<(string Key, string Text)> ImpactLines(FolderKindChangePreviewResponse preview)
+    {
+        var kind = preview.ToKindLabel;
+        var named = !string.IsNullOrWhiteSpace(preview.ToLibraryName) && !string.Equals(preview.ToLibraryName, kind, StringComparison.OrdinalIgnoreCase)
+            ? $"{kind} ({preview.ToLibraryName})"
+            : kind;
+        yield return ("move", $"{Files(preview.FileCount)} will move to {named}.");
+        if (preview.FilesToRefile > 0)
+        {
+            yield return ("refile", $"Their files will be re-filed into {kind}'s folder pattern in the next batch.");
+        }
+
+        if (preview.DropsDetails)
+        {
+            yield return ("drops-details", "Details Library looked up online for these files will be removed. They'll show as they are, by file name and tags. Your own edits, progress and ratings stay.");
+        }
+
+        if (preview.StartsFirstCheck)
+        {
+            yield return ("first-check", $"Library will check the first files under {kind} first. Nothing is re-filed until that check passes.");
+        }
+
+        if (preview.OtherAppsWarning)
+        {
+            yield return ("other-apps", "Other apps that point at these files (another player, a playlist, a backup) will lose them when they move.");
+        }
+
+        if (!preview.VisibilityLossChecked)
+        {
+            yield return ("visibility-unchecked", "Library couldn't check who will still see these files.");
+            yield break;
+        }
+
+        // Only the name and the count are read: who is meant is the Engine's business, and the id may be an account or a profile.
+        foreach (var person in preview.VisibilityLoss.Take(MostNamesShown))
+        {
+            yield return ("visibility", person.FileCount == 1
+                ? $"{person.DisplayName} won't see this file."
+                : $"{person.DisplayName} won't see these {person.FileCount:N0} files.");
+        }
+
+        if (preview.VisibilityLoss.Count > MostNamesShown)
+        {
+            var others = preview.VisibilityLoss.Count - MostNamesShown;
+            yield return ("visibility-more", $"and {others:N0} {(others == 1 ? "other" : "others")}");
+        }
+    }
+}

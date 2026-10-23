@@ -74,6 +74,13 @@
                                            Disabled="@(ReadOnly || Busy)"
                                            aria-label="@($"Remove the folder {name}")"
                                            OnClick="@(() => OnRemove.InvokeAsync(source))" />
+                                @if (OnChangeKind.HasDelegate && !IsVault(Library))
+                                {
+                                    <AppButton Label="Change what this folder is" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
+                                               Disabled="@(ReadOnly || Busy)"
+                                               aria-label="@($"Change what {name} is")"
+                                               OnClick="@(() => OnChangeKind.InvokeAsync(source))" />
+                                }
                             </span>
                         }
                         else if (firstCheck.State == "checking")
@@ -137,6 +144,10 @@
                         {
                             <AppMenuItem Label="Merge into…" Icon="@AppMaterialIcons.Outlined.ArrowForward" OnClick="@(() => OnMerge.InvokeAsync(source))" />
                         }
+                        @if (CanChangeKind(source, job))
+                        {
+                            <AppMenuItem Label="Change what this folder is…" Icon="@AppMaterialIcons.Outlined.Category" OnClick="@(() => OnChangeKind.InvokeAsync(source))" />
+                        }
                         <AppMenuItem Label="@(managed ? "Switch to Read-only" : "Switch to Managed")" Icon="@(managed ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)" Disabled="@IsMerging(source)" OnClick="@(() => OnChangeHandling.InvokeAsync(source))" />
                         <AppMenuItem Label="Label" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnLabel.InvokeAsync(source))" />
                         <AppMenuItem Label="Remove folder" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => OnRemove.InvokeAsync(source))" />
@@ -171,6 +182,9 @@
     [Parameter] public EventCallback<LibrarySourceDto> OnOrganiseNow { get; set; }
     /// <summary>Raised from the row menu to merge a folder, once, into one of the type's managed folders.</summary>
     [Parameter] public EventCallback<LibrarySourceDto> OnMerge { get; set; }
+
+    /// <summary>Raised from the row menu, or the paused first-check line, to change what a folder is (Library setup D40(c)). Without a handler (first-run setup) neither is offered.</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnChangeKind { get; set; }
 
     /// <summary>One press of Pause, Resume or Cancel on a folder's job.</summary>
     public sealed record FolderJobControl(LibrarySourceDto Source, FolderJobStatusDto Job, string Action);
@@ -209,10 +223,25 @@
             && string.Equals(candidate.MergeState, "none", StringComparison.OrdinalIgnoreCase))
         .ToList();
 
+    /// <summary>
+    /// Whether Change what this folder is is offered in the row menu: nothing is running on the folder (the gate Merge into uses), it has not been merged
+    /// away, and it is not a Vault folder. Shared with tests so the rule has one owner.
+    /// </summary>
+    public static bool CanChangeKindOf(LibraryFolderDto library, LibrarySourceDto source, bool jobOpen) =>
+        !jobOpen
+        && !IsConverting(source)
+        && string.Equals(source.MergeState, "none", StringComparison.OrdinalIgnoreCase)
+        && !IsVault(library);
+
+    private static bool IsVault(LibraryFolderDto library) => string.Equals(library.Area, LibraryGroupCatalog.VaultKey, StringComparison.OrdinalIgnoreCase);
+
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
     private static bool IsConverting(LibrarySourceDto source) => string.Equals(source.ConversionState, "converting", StringComparison.OrdinalIgnoreCase);
     private static bool IsMerging(LibrarySourceDto source) => string.Equals(source.MergeState, "merging", StringComparison.OrdinalIgnoreCase);
     private static bool IsMerged(LibrarySourceDto source) => string.Equals(source.MergeState, "merged", StringComparison.OrdinalIgnoreCase);
+
+    private bool CanChangeKind(LibrarySourceDto source, FolderJobStatusDto? job) =>
+        OnChangeKind.HasDelegate && CanChangeKindOf(Library, source, job is not null && FolderJobFormat.IsOpen(job));
 
     private bool CanMerge(LibrarySourceDto source, FolderJobStatusDto? job) =>
         CanMergeInto(Library, source, job is not null && FolderJobFormat.IsOpen(job));

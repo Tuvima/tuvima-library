@@ -291,6 +291,53 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         return new FolderFollowUp(true, null);
     }
 
+    /// <summary>A library made on its own, with the configuration saved with it.</summary>
+    public sealed record CreatedLibrary(LibrariesConfigurationDto Configuration, LibraryFolderDto Library);
+
+    /// <summary>
+    /// Makes a library of a kind with no folder yet, through the same save the Add folder wizard uses (a new library named for the kind, or by the
+    /// person for a kind that holds several). Null when the Engine refused it; <see cref="IEngineApiClient.LastError"/> then says why.
+    /// </summary>
+    public async Task<CreatedLibrary?> CreateLibraryAsync(FolderAddScope scope, LibraryTypeOption type, string? name, LibrariesConfigurationDto baseline)
+    {
+        var library = NewLibrary(type, type.AllowsMultiple ? name : null);
+        ApplyKindLookup(library, type);
+        var saved = await SaveLibraryAsync(scope, baseline, library);
+        var held = saved?.Libraries.FirstOrDefault(item => item.Id == library.Id);
+        return saved is null || held is null ? null : new CreatedLibrary(saved, held);
+    }
+
+    // "Change what this folder is": choose the new kind and library, read the impact, then queue the change. The dialog does the Engine calls so
+    // a refusal or a failure stays on screen; the follow-up says whether the host should read the folders again (a job was queued, or a library was made).
+    public async Task<FolderFollowUp> ChangeKindAsync(FolderAddScope scope, LibraryKindCatalog kinds, LibrariesConfigurationDto configuration, LibraryFolderDto library, LibrarySourceDto source)
+    {
+        if (scope.Embedded)
+        {
+            return new FolderFollowUp(false, null);
+        }
+
+        var parameters = new AppDialogParameters<ChangeFolderKindDialog>
+        {
+            { component => component.Source, source },
+            { component => component.Library, library },
+            { component => component.Kinds, kinds },
+            { component => component.Configuration, configuration },
+        };
+        var dialog = await dialogs.ShowAsync<ChangeFolderKindDialog>(string.Empty, parameters, SheetOptions());
+        if (await dialog.Result is not { Canceled: false, Data: ChangeFolderKindDialog.Outcome outcome })
+        {
+            return new FolderFollowUp(false, null);
+        }
+
+        if (outcome.StartedKindLabel is null)
+        {
+            return new FolderFollowUp(true, $"The {outcome.CreatedLibraryName} library was created and has no folders yet.");
+        }
+
+        toasts.Add($"Library is changing {source.DisplayName()} to {outcome.StartedKindLabel}. You can keep using Library meanwhile.", AppSeverity.Success);
+        return new FolderFollowUp(true, null);
+    }
+
     private static AppDialogOptions SheetOptions() => new()
     {
         MaxWidth = AppMaxWidth.Medium,
