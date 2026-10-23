@@ -27,9 +27,9 @@ public sealed class FolderKindChangeRepository(
     private static readonly string[] LocalArtworkSources = ["embedded", "folder", "user_upload"];
 
     // Placement and bookkeeping keys that belong to the old place, never to the details a person set: they do not follow a file to a new title.
-    /// <summary>Why a file is not placed again: its title holds artwork or details a person made, which are not carried to another title.</summary>
+    /// <summary>Why a file is not placed again: it and the title it would join both hold artwork or details a person made, and one cannot be carried over the other.</summary>
     public const string UserDetailsReason =
-        "You changed the artwork or details of this title yourself, so its last file can't be placed under another kind. Nothing was changed.";
+        "This file and an existing title both have your own artwork or details, so the file was not changed.";
 
     private static readonly string[] KeysThatStayWithThePlace =
         [.. PlacementNumbers.Keys, MetadataFieldConstants.MediaTypeField, "identity_revision"];
@@ -136,16 +136,6 @@ public sealed class FolderKindChangeRepository(
             return new AssetReplacement(false, placement.WorkId, []);
         }
 
-        // A title the person made their own is refused before anything is created (the same check runs again inside the move).
-        using (var read = db.CreateConnection())
-        {
-            var onlyFile = read.ExecuteScalar<long>("SELECT COUNT(*) FROM editions WHERE work_id = @id;", new { id = placement.WorkId }) == 1;
-            if (onlyFile && HoldsPersonalWorkDetails(read, null, placement.WorkId))
-            {
-                throw new InvalidOperationException(UserDetailsReason);
-            }
-        }
-
         // The same resolution ingestion makes for a new file: the show, album or series folder is found or made, then the Work under it.
         var resolved = await resolver.ResolveAsync(mediaType, metadata, sourceFilePath, ct).ConfigureAwait(false);
         try
@@ -207,10 +197,12 @@ public sealed class FolderKindChangeRepository(
         }
 
         var oldWorkId = placement.WorkId;
-        if (connection.ExecuteScalar<long>("SELECT COUNT(*) FROM editions WHERE work_id = @id;", new { id = oldWorkId }, transaction) == 1
-            && HoldsPersonalWorkDetails(connection, transaction, oldWorkId))
+        // The last file of a title a person made their own: their artwork and details follow it to the title it joins, unless that title has its own.
+        var lastFile = connection.ExecuteScalar<long>("SELECT COUNT(*) FROM editions WHERE work_id = @id;", new { id = oldWorkId }, transaction) == 1;
+        var carriesOverrides = lastFile && HoldsPersonalWorkDetails(connection, transaction, oldWorkId);
+        if (carriesOverrides && HoldsPersonalWorkDetails(connection, transaction, newWorkId))
         {
-            throw new InvalidOperationException(UserDetailsReason);
+            throw new UserDetailsClashException(UserDetailsReason);
         }
 
         connection.Execute(
@@ -232,6 +224,11 @@ public sealed class FolderKindChangeRepository(
         {
             // The old title goes, so what people did with it and the details they set on it go to the file's new title first.
             CarryPersonalDetails(connection, transaction, oldWorkId, newWorkId);
+            if (carriesOverrides)
+            {
+                CarryOverrides(connection, transaction, oldWorkId, newWorkId);
+            }
+
             WorkPersonalStateMerge.Carry(connection, transaction, oldWorkId, newWorkId);
             RemoveEmptyLeaf(connection, transaction, oldWorkId, ownedFiles);
         }
@@ -266,6 +263,21 @@ public sealed class FolderKindChangeRepository(
             transaction);
     }
 
+    // The person's own artwork (the link rows and records; the uploaded files stay where they are) and the details they typed move to the new
+    // title, which has none of its own, before the old title is removed.
+    private static void CarryOverrides(SqliteConnection connection, SqliteTransaction transaction, Guid oldWorkId, Guid newWorkId) =>
+        connection.Execute(
+            """
+            UPDATE OR IGNORE entity_assets SET entity_id = @newWorkId WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1;
+            UPDATE OR IGNORE entity_artwork_links SET entity_id = @newWorkId WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1;
+            UPDATE works
+            SET display_overrides_json = (SELECT old.display_overrides_json FROM works old WHERE old.id = @oldWorkId)
+            WHERE id = @newWorkId
+              AND COALESCE(NULLIF(display_overrides_json, ''), '{}') IN ('{}', 'null');
+            """,
+            new { oldWorkId, newWorkId },
+            transaction);
+
     // Removes the title the file left (its people's state was carried to the new title first), then sweeps the places that are left empty with the
     // rule every move uses: a show, season, album or series someone saved, reacted to, collected, tagged or gave their own artwork or details stays.
     private static void RemoveEmptyLeaf(SqliteConnection connection, SqliteTransaction transaction, Guid workId, List<string> ownedFiles)
@@ -287,8 +299,7 @@ public sealed class FolderKindChangeRepository(
         WorkHierarchyMaintenanceService.CleanupEmptyParentsCore(connection, transaction);
     }
 
-    // The details a person made on a title that go with it when it is removed and that no move carries: their own artwork and the details they
-    // typed on the title. Where the last file of such a title would move out, the change is refused (as a move into an existing title is).
+    // The artwork a person uploaded or chose and the details they typed on a title.
     private static bool HoldsPersonalWorkDetails(SqliteConnection connection, SqliteTransaction? transaction, Guid workId) =>
         connection.ExecuteScalar<long>(
             """

@@ -207,42 +207,83 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task A_leaf_with_artwork_a_person_uploaded_is_not_placed_again_and_nothing_changes()
+    public async Task A_leaf_with_uploaded_artwork_and_typed_details_keeps_both_on_the_freshly_made_work_and_the_uploaded_file_stays()
     {
-        var (assetId, work) = await IngestAsync(MediaType.Movies);
-        using (var seed = _db.CreateConnection())
+        var (assetId, old) = await IngestAsync(MediaType.Movies);
+        var upload = Path.Combine(Path.GetTempPath(), $"tuvima_kindchange_upload_{Guid.NewGuid():N}.jpg");
+        File.WriteAllText(upload, "uploaded picture");
+        var artwork = Guid.NewGuid();
+        var link = Guid.NewGuid();
+        try
         {
-            seed.Execute("""
-                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override)
-                VALUES (@id, @work, 'Work', 'CoverArt', 'user_upload', 1);
-                """, new { id = Guid.NewGuid(), work });
+            using (var seed = _db.CreateConnection())
+            {
+                seed.Execute("""
+                    INSERT INTO artwork_assets (id, content_hash, original_path, source_provider) VALUES (@artwork, 'uploaded', @upload, 'user_upload');
+                    INSERT INTO entity_artwork_links (id, entity_id, entity_type, artwork_asset_id, role, is_user_override) VALUES (@link, @old, 'Work', @artwork, 'Primary', 1);
+                    INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, local_image_path, source_provider, is_user_override)
+                    VALUES (@asset, @old, 'Work', 'CoverArt', @upload, 'user_upload', 1);
+                    UPDATE works SET display_overrides_json = '{"genre":"Drama"}' WHERE id = @old;
+                    """, new { artwork, link, old, upload, asset = Guid.NewGuid() });
+            }
+
+            var result = await _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.Videos, Hints(assetId), FilePath);
+
+            Assert.True(result.Replaced);
+            Assert.NotEqual(old, result.WorkId);
+            using var conn = _db.CreateConnection();
+            Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id = @old;", new { old }));
+            Assert.Equal("""{"genre":"Drama"}""", conn.ExecuteScalar<string>("SELECT display_overrides_json FROM works WHERE id = @id;", new { id = result.WorkId }));
+            Assert.Equal(result.WorkId, conn.ExecuteScalar<Guid>("SELECT entity_id FROM entity_artwork_links WHERE id = @link;", new { link }));
+            Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM artwork_assets WHERE id = @artwork;", new { artwork }));
+            Assert.Equal(result.WorkId, conn.ExecuteScalar<Guid>("SELECT entity_id FROM entity_assets WHERE source_provider = 'user_upload';"));
+            Assert.True(File.Exists(upload));
+            Assert.Empty(result.OwnedFilesToRemove);
         }
-
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.Videos, Hints(assetId), FilePath));
-
-        Assert.Equal(FolderKindChangeRepository.UserDetailsReason, refused.Message);
-        using var conn = _db.CreateConnection();
-        Assert.Equal(work, conn.ExecuteScalar<Guid>("SELECT work_id FROM editions WHERE id = (SELECT edition_id FROM media_assets WHERE id = @assetId);", new { assetId }));
-        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works;"));
-        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets WHERE entity_id = @work AND is_user_override = 1;", new { work }));
+        finally
+        {
+            File.Delete(upload);
+        }
     }
 
     [Fact]
-    public async Task A_leaf_with_details_a_person_typed_is_not_placed_again_unless_another_file_keeps_the_title()
+    public async Task A_leaf_with_a_persons_artwork_joining_a_title_that_has_its_own_is_refused_and_nothing_changes()
+    {
+        // An episode that already exists and carries typed details, and a movie file that would join it.
+        var episodeHints = new Dictionary<string, string>
+        {
+            ["show_name"] = "Some Show",
+            [MetadataFieldConstants.SeasonNumber] = "1",
+            [MetadataFieldConstants.EpisodeNumber] = "1",
+        };
+        var (_, episode) = await IngestAsync(MediaType.TV, new Dictionary<string, string>(episodeHints) { ["title"] = "Pilot" });
+        var (assetId, movie) = await IngestAsync(MediaType.Movies);
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                UPDATE works SET display_overrides_json = '{"genre":"Comedy"}' WHERE id = @episode;
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override)
+                VALUES (@asset, @movie, 'Work', 'CoverArt', 'user_upload', 1);
+                """, new { episode, movie, asset = Guid.NewGuid() });
+        }
+
+        var refused = await Assert.ThrowsAsync<UserDetailsClashException>(() =>
+            _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.TV, episodeHints, FilePath));
+
+        Assert.Equal(FolderKindChangeRepository.UserDetailsReason, refused.Message);
+        using var conn = _db.CreateConnection();
+        Assert.Equal(movie, conn.ExecuteScalar<Guid>("SELECT work_id FROM editions WHERE id = (SELECT edition_id FROM media_assets WHERE id = @assetId);", new { assetId }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets WHERE entity_id = @movie AND is_user_override = 1;", new { movie }));
+        Assert.Equal("""{"genre":"Comedy"}""", conn.ExecuteScalar<string>("SELECT display_overrides_json FROM works WHERE id = @episode;", new { episode }));
+    }
+
+    [Fact]
+    public async Task A_title_with_typed_details_that_still_has_another_file_keeps_them_when_one_file_is_placed_again()
     {
         var (assetId, work) = await IngestAsync(MediaType.Movies);
         using (var seed = _db.CreateConnection())
         {
             seed.Execute("UPDATE works SET display_overrides_json = '{\"genre\":\"Drama\"}' WHERE id = @work;", new { work });
-        }
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _repository.ReplaceUnderMediaTypeAsync(assetId, MediaType.Videos, Hints(assetId), FilePath));
-
-        // With a second file still in the title, the title (and what the person typed on it) stays, so the one file can go.
-        using (var seed = _db.CreateConnection())
-        {
             seed.Execute("INSERT INTO editions (id, work_id) VALUES (@id, @work);", new { id = Guid.NewGuid(), work });
         }
 
@@ -251,6 +292,7 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
         Assert.True(result.Replaced);
         using var conn = _db.CreateConnection();
         Assert.Equal("""{"genre":"Drama"}""", conn.ExecuteScalar<string>("SELECT display_overrides_json FROM works WHERE id = @work;", new { work }));
+        Assert.True(string.IsNullOrEmpty(conn.ExecuteScalar<string?>("SELECT display_overrides_json FROM works WHERE id = @id;", new { id = result.WorkId })));
     }
 
     [Fact]

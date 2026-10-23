@@ -299,9 +299,12 @@ folder jobs; the folder row shows the job's state). The folder row carries no ex
      set on it (locked and manual claims) go to the new one (whose values are worked out again), and the old title is removed
      (`LibraryItemDeletionRepository.DeleteWorksCore`, leaf only). The places it leaves empty go through the move's rule
      (`WorkHierarchyMaintenanceService.CleanupEmptyParentsCore`): a show, season, album or series that someone saved, reacted to,
-     collected, tagged, or gave their own artwork or details stays. A title whose last file this is and that holds artwork or details a
-     person made (which no move carries) refuses the placement with a plain reason, as a move into an existing title does, and the file
-     stays as it was. With the same media type (Music to Other audio, Other videos to YouTube) the Work stays where it is.
+     collected, tagged, or gave their own artwork or details stays. When this is the last file of a title that holds artwork a person
+     uploaded or chose, or details they typed, those follow it: the artwork link rows and records are re-pointed (the uploaded files stay
+     where they are) and `display_overrides_json` is copied, before the old title is removed. If the title it joins already has its own
+     such artwork or details, the file is left exactly as it was and logged `kind_change_refused`; that is final for the job (a resume does
+     not retry it), the job ends as "Finished, but N files were not changed: they and an existing title both have your own artwork or
+     details", and starting the same kind again looks at it once more and refuses it once more. With the same media type (Music to Other audio, Other videos to YouTube) the Work stays where it is.
      Asset-keyed state (watch progress) never moves because the asset row stays.
   2. A plain target drops the details looked up for the file and its Work (D69): claims from providers, bridge ids, the Wikidata id,
      external identifiers and provider artwork links. Claims from the file itself (tags, file name) and a person's own edits stay;

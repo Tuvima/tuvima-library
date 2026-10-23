@@ -57,6 +57,9 @@ public static class FolderOrganiseOutcomes
     /// <summary>Change what this folder is: the file moved to the new kind's library and was identified again (or its looked-up details were dropped) under it; any filing waits for the batch.</summary>
     public const string KindChanged = "kind_changed";
 
+    /// <summary>Change what this folder is: the file was left as it was because it and the title it would join both hold artwork or details a person made. Final: a resumed job does not try it again; starting the change again reports it again.</summary>
+    public const string KindChangeRefused = "kind_change_refused";
+
     public static bool IsFinal(string outcome) => !string.Equals(outcome, Moving, StringComparison.Ordinal);
 
     /// <summary>

@@ -36,3 +36,10 @@ public sealed record AssetReplacement(bool Replaced, Guid WorkId, IReadOnlyList<
 /// provider artwork links were dropped, and how many claims went. Claims from the file itself and a person's own edits are never dropped.
 /// </summary>
 public sealed record DroppedProviderDetails(IReadOnlyList<Guid> EntityIds, int ClaimsDropped);
+
+/// <summary>
+/// A file is not placed again because its title and the title it would join both hold artwork or details a person made, and one cannot be
+/// carried over the other (Library setup D69). Nothing was changed. The job reports the file and starting the change again refuses it again
+/// without looping.
+/// </summary>
+public sealed class UserDetailsClashException(string message) : InvalidOperationException(message);

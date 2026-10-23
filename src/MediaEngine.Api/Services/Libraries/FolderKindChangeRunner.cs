@@ -167,6 +167,12 @@ public sealed class FolderKindChangeRunner
                 detail = await ChangeFileAsync(plan, target, mode, mediaType, fileMayMove, sourceId, file, earlierAttemptAt, ct).ConfigureAwait(false);
                 outcome = FolderOrganiseOutcomes.KindChanged;
             }
+            catch (UserDetailsClashException ex)
+            {
+                // Not an error to retry: the file is left exactly as it was and the job reports it.
+                outcome = FolderOrganiseOutcomes.KindChangeRefused;
+                detail = ex.Message;
+            }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Changing what {Path} is failed; the rest of the folder carries on", file.FilePath);
@@ -178,7 +184,7 @@ public sealed class FolderKindChangeRunner
                 new FolderOrganiseLogEntry(operationId, sourceId, file.FilePath, file.FilePath, outcome, DateTimeOffset.UtcNow, detail),
                 ct).ConfigureAwait(false);
             completed++;
-            if (outcome == FolderOrganiseOutcomes.Failed)
+            if (outcome is FolderOrganiseOutcomes.Failed or FolderOrganiseOutcomes.KindChangeRefused)
             {
                 failed++;
             }
@@ -197,7 +203,7 @@ public sealed class FolderKindChangeRunner
             Stop = FolderOrganiseStop.Finished,
             Total = total,
             Completed = completed,
-            Failed = outcomes.GetValueOrDefault(FolderOrganiseOutcomes.Failed),
+            Failed = outcomes.GetValueOrDefault(FolderOrganiseOutcomes.Failed) + outcomes.GetValueOrDefault(FolderOrganiseOutcomes.KindChangeRefused),
             Outcomes = outcomes,
         };
     }
@@ -214,7 +220,15 @@ public sealed class FolderKindChangeRunner
         if (result.Failed > 0)
         {
             var left = result.Failed.ToString("N0", CultureInfo.InvariantCulture);
-            return $"Finished, but {left} {(result.Failed == 1 ? "file was" : "files were")} not changed ({summary}). See the log, then start the change again to retry {(result.Failed == 1 ? "it" : "them")}.";
+            var were = result.Failed == 1 ? "file was" : "files were";
+            var refused = result.Count(FolderOrganiseOutcomes.KindChangeRefused);
+            if (refused == result.Failed)
+            {
+                return $"Finished, but {left} {were} not changed: {(refused == 1 ? "it and an existing title both have" : "they and an existing title both have")} your own artwork or details. ({summary}.)";
+            }
+
+            var clash = refused > 0 ? $" {refused.ToString("N0", CultureInfo.InvariantCulture)} of them and an existing title both have your own artwork or details." : string.Empty;
+            return $"Finished, but {left} {were} not changed ({summary}).{clash} See the log, then start the change again to retry {(result.Failed == 1 ? "it" : "them")}.";
         }
 
         return summary + ".";

@@ -387,6 +387,48 @@ public sealed class FolderKindChangeTests : IDisposable
     }
 
     [Fact]
+    public async Task A_file_and_an_existing_title_that_both_hold_a_persons_own_details_is_refused_counted_in_the_message_and_never_retried_in_a_loop()
+    {
+        var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: false);
+        var file = _w.AddFile(folder, "film.mkv", MediaType.Movies, "A film");
+        var hints = new Dictionary<string, string>
+        {
+            ["show_name"] = "Some Show",
+            [MetadataFieldConstants.SeasonNumber] = "1",
+            [MetadataFieldConstants.EpisodeNumber] = "1",
+        };
+        var episode = (await new HierarchyResolver(new WorkRepository(_w.Database)).ResolveAsync(MediaType.TV, hints)).WorkId;
+        _w.Execute("""
+            UPDATE works SET display_overrides_json = '{"genre":"Comedy"}' WHERE id = @episode;
+            INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override) VALUES (@asset, @work, 'Work', 'CoverArt', 'user_upload', 1);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                (@file, 'show_name', 'Some Show', '2026-01-01'), (@file, 'season_number', '1', '2026-01-01'), (@file, 'episode_number', '1', '2026-01-01');
+            """, new { episode, asset = Guid.NewGuid(), work = file.WorkId, file = file.AssetId });
+
+        var status = await _w.Service.StartAsync(folder.Id, new() { KindKey = "tv" }, default);
+        var operationId = Guid.Parse(status.OperationId);
+        await _w.RunWorkerUntilFinishedAsync(status.OperationId);
+
+        var done = await _w.Jobs.GetAsync(operationId, default);
+        Assert.Equal("failed", done!.State);
+        Assert.StartsWith("Finished, but 1 file was not changed: it and an existing title both have your own artwork or details.", done.Message, StringComparison.Ordinal);
+        Assert.Equal("kind_change_refused", (await _w.Ledger.GetAsync(operationId, file.Path))!.Outcome);
+        Assert.Equal(_w.MoviesLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = file.AssetId }));
+        Assert.Equal(file.WorkId, _w.Scalar<Guid>("SELECT e.work_id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @id;", new { id = file.AssetId }));
+        Assert.Equal(1, _w.FlakyChanges.ReplaceCalls);
+
+        // Resuming the same job does not try it again.
+        await _w.Runner.RunAsync(operationId, Guid.Parse(folder.Id), new ScriptedHost(allowFiles: 10), default);
+        Assert.Equal(1, _w.FlakyChanges.ReplaceCalls);
+
+        // Starting the same kind again looks at it once more, refuses it once more, and ends.
+        var again = await _w.Service.StartAsync(folder.Id, new() { KindKey = "tv" }, default);
+        await _w.RunWorkerUntilFinishedAsync(again.OperationId);
+        Assert.Equal(2, _w.FlakyChanges.ReplaceCalls);
+        Assert.Equal("failed", (await _w.Jobs.GetAsync(Guid.Parse(again.OperationId), default))!.State);
+    }
+
+    [Fact]
     public async Task A_folder_whose_new_library_cannot_be_saved_keeps_its_first_check_and_is_not_marked_applied()
     {
         var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: true);
@@ -752,6 +794,8 @@ public sealed class FolderKindChangeTests : IDisposable
     {
         public int ReplaceFailures { get; set; }
 
+        public int ReplaceCalls { get; private set; }
+
         public Task SavePlanAsync(FolderKindChangePlan plan, CancellationToken ct = default) => inner.SavePlanAsync(plan, ct);
 
         public Task<FolderKindChangePlan?> GetPlanAsync(Guid operationId, CancellationToken ct = default) => inner.GetPlanAsync(operationId, ct);
@@ -764,7 +808,7 @@ public sealed class FolderKindChangeTests : IDisposable
 
         public Task<AssetReplacement> ReplaceUnderMediaTypeAsync(
             Guid assetId, MediaType mediaType, IReadOnlyDictionary<string, string> metadata, string? sourceFilePath, CancellationToken ct = default) =>
-            ReplaceFailures-- > 0
+            ++ReplaceCalls > 0 && ReplaceFailures-- > 0
                 ? throw new IOException("The data store is busy.")
                 : inner.ReplaceUnderMediaTypeAsync(assetId, mediaType, metadata, sourceFilePath, ct);
 
