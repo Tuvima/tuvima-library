@@ -156,15 +156,19 @@ public sealed class ImportUploadService
                         $"The {destination.TypeLabel} folder can't take files right now. {destination.Reason}".TrimEnd());
         }
 
-        // A Vault library is never a destination for a dropped file: the answer is the same as for a kind with no folder, so it
-        // never confirms that a Vault exists.
-        if (destination.Library is null
-            || await _vault.IsVaultLibraryAsync(destination.Library.Id, ct).ConfigureAwait(false))
+        if (destination.Library is null)
         {
             return Refuse<ImportUploadStartResponse>(
                 ImportUploadRefusalKind.Conflict,
                 ImportUploadRefusalCodes.NoManagedDestination,
                 $"{destination.TypeLabel} has no folder Library manages yet, so there is nowhere to file this. Set one up first.");
+        }
+
+        // Dropping files onto the Vault is deferred to the Vault sections spec, with the rest of the Vault extras (spec D57). Until then
+        // a Vault library is refused, and the reason says so plainly.
+        if (await _vault.IsVaultLibraryAsync(destination.Library.Id, ct).ConfigureAwait(false))
+        {
+            return VaultRefusal();
         }
 
         string? libraryId = null;
@@ -174,17 +178,24 @@ public sealed class ImportUploadService
                 string.Equals(library.Id, request.LibraryId.Trim(), StringComparison.OrdinalIgnoreCase)
                 && library.PrimaryDestination is not null
                 && (string.IsNullOrEmpty(library.KindKey) || string.Equals(library.KindKey, kind.Key, StringComparison.OrdinalIgnoreCase)));
-            if (named is null || await _vault.IsVaultLibraryAsync(named.Id, ct).ConfigureAwait(false))
+            if (named is null)
             {
                 return Refuse<ImportUploadStartResponse>(ImportUploadRefusalKind.BadRequest, ImportUploadRefusalCodes.UnknownLibrary, "That library isn't one this kind of file can be added to.");
+            }
+
+            // Deferred to the Vault sections spec (D57), as above.
+            if (await _vault.IsVaultLibraryAsync(named.Id, ct).ConfigureAwait(false))
+            {
+                return VaultRefusal();
             }
 
             libraryId = named.Id;
         }
 
-        // The Import folder's own drive holds the file while it arrives, plus whatever other open uploads still have to send.
-        var outstanding = await _uploads.SumOutstandingBytesAsync(ct).ConfigureAwait(false);
-        var required = request.TotalBytes + outstanding + Math.Max(0, _options.Value.UploadFreeSpaceBufferBytes);
+        // The Import folder's own drive holds the file while it arrives. Every open upload's working file was set aside at its full
+        // size when it started, so the drive's free space already leaves those out: only this file is still to be counted, never the
+        // other uploads' unsent bytes a second time.
+        var required = request.TotalBytes + Math.Max(0, _options.Value.UploadFreeSpaceBufferBytes);
         if (_availableBytes(root!) is { } free && free < required)
         {
             return Refuse<ImportUploadStartResponse>(
@@ -196,7 +207,12 @@ public sealed class ImportUploadService
         var pieceBytes = PieceBytes(maintenance);
         var pieceCount = checked((int)((request.TotalBytes + pieceBytes - 1) / pieceBytes));
         var folder = Path.Combine(root!, ImportFolderRules.SubfolderFor(destination.TypeLabel));
-        if (!PathSafety.TryNormalizePath(folder, out var destinationFolder, out _) || !PathSafety.IsContainedBy(destinationFolder!, root!))
+        var workingFolder = Path.Combine(root!, ImportFolderRules.WorkingFolderName, UploadsFolderName);
+        // Judged by where links and junctions lead: a sub-folder or the working folder that points out of the Import folder is refused
+        // (the final move must be a rename on the Import folder's own drive).
+        if (!PathSafety.TryNormalizePath(folder, out var destinationFolder, out _)
+            || !ImportUploadPaths.IsInside(destinationFolder!, root!)
+            || !ImportUploadPaths.IsInside(workingFolder, root!))
         {
             return Refuse<ImportUploadStartResponse>(ImportUploadRefusalKind.Conflict, ImportUploadRefusalCodes.DestinationUnavailable, "The Import folder can't take files right now.");
         }
@@ -290,21 +306,33 @@ public sealed class ImportUploadService
         try
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, stopToken);
-            var alreadyReceived = (await _uploads.ListPiecesAsync(uploadId, ct).ConfigureAwait(false)).Contains(index);
-            if (alreadyReceived)
-            {
-                // The piece is on disk already: read the request out so the connection stays usable, and change nothing.
-                await body.CopyToAsync(Stream.Null, linked.Token).ConfigureAwait(false);
-            }
-            else
-            {
-                var outcome = await WriteToWorkingFileAsync(upload, index, expected, body, linked.Token).ConfigureAwait(false);
-                if (outcome is not null)
-                {
-                    return BadPiece(outcome);
-                }
 
-                await _uploads.RecordPieceAsync(uploadId, index, _time.GetUtcNow(), ct).ConfigureAwait(false);
+            // Two copies of the same piece arriving at once are written one after the other: the second waits, then finds the piece
+            // already received and changes nothing.
+            var pieceLock = gate.PieceLock(index);
+            await pieceLock.WaitAsync(linked.Token).ConfigureAwait(false);
+            try
+            {
+                var alreadyReceived = (await _uploads.ListPiecesAsync(uploadId, ct).ConfigureAwait(false)).Contains(index);
+                if (alreadyReceived)
+                {
+                    // The piece is on disk already: read the request out so the connection stays usable, and change nothing.
+                    await body.CopyToAsync(Stream.Null, linked.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    var outcome = await WriteToWorkingFileAsync(upload, index, expected, body, linked.Token).ConfigureAwait(false);
+                    if (outcome is not null)
+                    {
+                        return BadPiece(outcome);
+                    }
+
+                    await _uploads.RecordPieceAsync(uploadId, index, _time.GetUtcNow(), ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                pieceLock.Release();
             }
         }
         catch (OperationCanceledException) when (stopToken.IsCancellationRequested && !ct.IsCancellationRequested)
@@ -373,34 +401,86 @@ public sealed class ImportUploadService
 
             await gate.CloseWritersAsync().ConfigureAwait(false);
 
-            var working = new FileInfo(upload.WorkingPath);
-            if (!working.Exists || working.Length != upload.TotalBytes)
+            // From here the upload is either settled for good (completed, or cancelled because it can never succeed) or opened again
+            // so the client can ask for Complete once more. It is never left closed to pieces and still open in the data store.
+            var settled = false;
+            string? movedTo = null;
+            try
             {
-                return Refuse<ImportUploadCompleteResponse>(
-                    ImportUploadRefusalKind.Conflict,
-                    ImportUploadRefusalCodes.SizeMismatch,
-                    "The file that arrived is not the size that was promised, so it was not saved.");
-            }
+                // Integrity rests on the piece count: every piece has a fixed place and an exact length, and one is only recorded once
+                // all its bytes are on disk. All of them recorded plus the promised size therefore means the file is whole; there is
+                // no checksum to compare against, because the browser sends none.
+                var working = new FileInfo(upload.WorkingPath);
+                if (!working.Exists || working.Length != upload.TotalBytes)
+                {
+                    // The working file was changed or removed from outside, so it can never be right: cancel it for good.
+                    await AbandonAsync(upload, ct).ConfigureAwait(false);
+                    settled = true;
+                    return Refuse<ImportUploadCompleteResponse>(
+                        ImportUploadRefusalKind.Conflict,
+                        ImportUploadRefusalCodes.SizeMismatch,
+                        "The file that arrived is not the size that was promised, so it was not saved. Start the upload again.");
+                }
 
-            if (!StillInsideImportFolder(upload))
+                if (!StillInsideImportFolder(upload))
+                {
+                    // The Import folder was moved or re-pointed: the destination this upload promised is gone, so it can never succeed.
+                    await AbandonAsync(upload, ct).ConfigureAwait(false);
+                    settled = true;
+                    return Refuse<ImportUploadCompleteResponse>(
+                        ImportUploadRefusalKind.Conflict,
+                        ImportUploadRefusalCodes.DestinationUnavailable,
+                        "The Import folder was changed while this file was uploading, so it was not saved. Start the upload again.");
+                }
+
+                try
+                {
+                    Directory.CreateDirectory(upload.DestinationFolder);
+                    movedTo = MoveIntoPlace(upload);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Nothing was moved and the file is still whole: a busy or full drive can clear, so the client may ask again.
+                    _logger.LogWarning(ex, "Upload {UploadId} could not be moved into {Folder}; it stays open to be completed again", uploadId, upload.DestinationFolder);
+                    return Refuse<ImportUploadCompleteResponse>(
+                        ImportUploadRefusalKind.Conflict,
+                        ImportUploadRefusalCodes.DestinationUnavailable,
+                        "The file could not be moved into the Import folder right now. Try finishing the upload again in a moment.");
+                }
+
+                if (!await _uploads.CloseAsync(uploadId, ImportUpload.CompletedState, movedTo, _time.GetUtcNow(), ct).ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException($"Upload {uploadId} was closed by something else while it was being completed.");
+                }
+
+                settled = true;
+                await QueueForFilingAsync(upload, movedTo, ct).ConfigureAwait(false);
+                _gates.TryRemove(uploadId, out _);
+                _logger.LogInformation("Upload {UploadId} completed: {FileName} is in the {Kind} Import folder", uploadId, Path.GetFileName(movedTo), upload.KindKey);
+                return ImportUploadResult<ImportUploadCompleteResponse>.Ok(ToCompleteResponse(upload, movedTo));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException && !settled)
             {
+                // Something unexpected (the data store, say) failed before the upload was settled. The caller gets a plain refusal
+                // and can try again; the file goes back to its working place first if it had already been moved.
+                _logger.LogError(ex, "Completing upload {UploadId} failed; it stays open to be completed again", uploadId);
+                if (movedTo is not null)
+                {
+                    MoveBack(movedTo, upload.WorkingPath);
+                }
+
                 return Refuse<ImportUploadCompleteResponse>(
                     ImportUploadRefusalKind.Conflict,
                     ImportUploadRefusalCodes.DestinationUnavailable,
-                    "The Import folder was changed while this file was uploading, so it was not saved. Start the upload again.");
+                    "The file could not be saved right now. Try finishing the upload again in a moment.");
             }
-
-            Directory.CreateDirectory(upload.DestinationFolder);
-            var finalPath = MoveIntoPlace(upload);
-            if (!await _uploads.CloseAsync(uploadId, ImportUpload.CompletedState, finalPath, _time.GetUtcNow(), ct).ConfigureAwait(false))
+            finally
             {
-                throw new InvalidOperationException($"Upload {uploadId} was closed by something else while it was being completed.");
+                if (!settled)
+                {
+                    gate.Reopen();
+                }
             }
-
-            await QueueForFilingAsync(upload, finalPath, ct).ConfigureAwait(false);
-            _gates.TryRemove(uploadId, out _);
-            _logger.LogInformation("Upload {UploadId} completed: {FileName} is in the {Kind} Import folder", uploadId, Path.GetFileName(finalPath), upload.KindKey);
-            return ImportUploadResult<ImportUploadCompleteResponse>.Ok(ToCompleteResponse(upload, finalPath));
         }
         finally
         {
@@ -465,6 +545,36 @@ public sealed class ImportUploadService
     /// <summary>The path of the hidden working file for an upload id inside an Import folder.</summary>
     public static string WorkingPathFor(string importRoot, Guid uploadId) =>
         Path.Combine(importRoot, ImportFolderRules.WorkingFolderName, UploadsFolderName, uploadId.ToString("N", CultureInfo.InvariantCulture) + WorkingFileExtension);
+
+    // Cancels an upload that can never be completed. The caller holds the upload's exclusive lock and has stopped its writers.
+    private async Task AbandonAsync(ImportUpload upload, CancellationToken ct)
+    {
+        try
+        {
+            DeleteWorkingFile(upload.WorkingPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Already logged by DeleteWorkingFile; the upload is closed regardless and the sweep removes a stray file later.
+            _logger.LogDebug(ex, "The working file of upload {UploadId} is left for the sweep", upload.Id);
+        }
+
+        await _uploads.CloseAsync(upload.Id, ImportUpload.CancelledState, null, _time.GetUtcNow(), ct).ConfigureAwait(false);
+        _gates.TryRemove(upload.Id, out _);
+    }
+
+    private void MoveBack(string movedTo, string workingPath)
+    {
+        try
+        {
+            File.Move(movedTo, workingPath, overwrite: false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The file stays in the Import folder, where the normal scan files it; the upload then fails its size check and is cancelled.
+            _logger.LogWarning(ex, "Could not put {File} back after a failed completion", Path.GetFileName(movedTo));
+        }
+    }
 
     private async Task<ImportUpload?> CancelCoreAsync(Guid uploadId, CancellationToken ct)
     {
@@ -593,9 +703,9 @@ public sealed class ImportUploadService
         _importFolders.GetImportPath() is { } root
         && PathSafety.TryNormalizeRoot(root, out var normalizedRoot, out _)
         && PathSafety.TryNormalizePath(upload.DestinationFolder, out var folder, out _)
-        && PathSafety.IsContainedBy(folder!, normalizedRoot!)
+        && ImportUploadPaths.IsInside(folder!, normalizedRoot!)
         && PathSafety.TryNormalizePath(upload.WorkingPath, out var working, out _)
-        && PathSafety.IsContainedBy(working!, Path.Combine(normalizedRoot!, ImportFolderRules.WorkingFolderName));
+        && ImportUploadPaths.IsInside(working!, Path.Combine(normalizedRoot!, ImportFolderRules.WorkingFolderName));
 
     private async Task QueueForFilingAsync(ImportUpload upload, string finalPath, CancellationToken ct)
     {
@@ -611,9 +721,10 @@ public sealed class ImportUploadService
                 },
                 ct).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or FileNotFoundException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // The file is safely in the Import folder, which the Engine watches and scans, so it is still found and filed.
+            // The upload is already complete and the file is safely in the Import folder, which the Engine watches and scans, so it is
+            // still found and filed. A failure to queue it must not turn a finished upload into an error.
             _logger.LogWarning(ex, "Could not queue {File} for filing straight away; the Import folder scan will pick it up", Path.GetFileName(finalPath));
         }
     }
@@ -727,6 +838,12 @@ public sealed class ImportUploadService
             ImportUploadRefusalKind.Conflict,
             ImportUploadRefusalCodes.UploadClosed,
             upload.State == ImportUpload.CompletedState ? "This upload is already complete." : "This upload was cancelled, or is no longer open.");
+
+    private static ImportUploadResult<ImportUploadStartResponse> VaultRefusal() =>
+        Refuse<ImportUploadStartResponse>(
+            ImportUploadRefusalKind.Conflict,
+            ImportUploadRefusalCodes.VaultNotAvailable,
+            "Adding files to the Vault by drag and drop isn't available yet.");
 
     private static ImportUploadResult<ImportUploadStatusResponse> BadPiece(string message) =>
         Refuse<ImportUploadStatusResponse>(ImportUploadRefusalKind.BadRequest, ImportUploadRefusalCodes.InvalidPiece, message);

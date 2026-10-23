@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+
 namespace MediaEngine.Ingestion.Services.ImportUploads;
 
 /// <summary>
@@ -9,6 +12,9 @@ public static class ImportUploadFileNames
 {
     /// <summary>The longest name accepted, in characters. A little under the usual 255 so a number can be added for a unique name.</summary>
     public const int MaxLength = 200;
+
+    /// <summary>The longest name accepted, in UTF-8 bytes (file systems limit names in bytes, and 240 leaves room for " (9999)" before the usual 255).</summary>
+    public const int MaxUtf8Bytes = 240;
 
     private static readonly char[] ForbiddenCharacters = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
@@ -35,7 +41,17 @@ public static class ImportUploadFileNames
             return false;
         }
 
-        if (fileName.IndexOfAny(ForbiddenCharacters) >= 0 || fileName.Any(char.IsControl))
+        if (Encoding.UTF8.GetByteCount(fileName) > MaxUtf8Bytes)
+        {
+            problem = "The file name is too long.";
+            return false;
+        }
+
+        // Format characters (such as U+202E, which flips the order the rest of the name is shown in) can make "movie.exe" look like
+        // another name, so they are refused along with the control characters.
+        if (fileName.IndexOfAny(ForbiddenCharacters) >= 0
+            || fileName.Any(char.IsControl)
+            || fileName.EnumerateRunes().Any(rune => Rune.GetUnicodeCategory(rune) == UnicodeCategory.Format))
         {
             problem = "The file name has characters a file name cannot hold, or path parts. Send the name only.";
             return false;

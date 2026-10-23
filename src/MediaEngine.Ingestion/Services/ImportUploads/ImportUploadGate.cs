@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace MediaEngine.Ingestion.Services.ImportUploads;
 
 /// <summary>
@@ -8,13 +10,17 @@ namespace MediaEngine.Ingestion.Services.ImportUploads;
 internal sealed class ImportUploadGate
 {
     private readonly object _sync = new();
-    private readonly CancellationTokenSource _stop = new();
+    private CancellationTokenSource _stop = new();
+    private readonly ConcurrentDictionary<int, SemaphoreSlim> _pieceLocks = new();
     private int _writers;
     private bool _closing;
     private TaskCompletionSource? _drained;
 
     /// <summary>Held by complete, cancel and the sweep, one at a time, for this upload.</summary>
     public SemaphoreSlim Exclusive { get; } = new(1, 1);
+
+    /// <summary>One lock per piece, so two copies of the same piece arriving at once are written one after the other, never both at the same place in the file.</summary>
+    public SemaphoreSlim PieceLock(int index) => _pieceLocks.GetOrAdd(index, static _ => new SemaphoreSlim(1, 1));
 
     /// <summary>Takes a writer slot. False once the upload is closing: no more pieces are accepted. The token fires when the writers are told to stop.</summary>
     public bool TryEnterWriter(out CancellationToken stopToken)
@@ -67,5 +73,19 @@ internal sealed class ImportUploadGate
 
         await _stop.CancelAsync().ConfigureAwait(false);
         await wait.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Accepts pieces again after <see cref="CloseWritersAsync"/> when the upload was not finished or cancelled (a complete that could not
+    /// go through and can be tried again). The writers were already told to stop, so nothing is in flight; the stop signal is replaced.
+    /// </summary>
+    public void Reopen()
+    {
+        lock (_sync)
+        {
+            _stop.Dispose();
+            _stop = new CancellationTokenSource();
+            _closing = false;
+        }
     }
 }

@@ -74,14 +74,19 @@ public sealed class ImportUploadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Start_ForAVaultLibrary_AnswersLikeAKindWithNoFolder_AndNeverConfirmsTheVault()
+    public async Task Start_ForAVaultLibrary_IsRefusedWithAPlainReasonThatItIsNotAvailableYet()
     {
         var service = NewService(vault: new VaultHookStub(isVault: true));
 
-        var result = await service.StartAsync(Owner, Request("film.mkv", MiB));
+        var kindsLibrary = await service.StartAsync(Owner, Request("film.mkv", MiB));
+        var namedLibrary = await service.StartAsync(Owner, Request("film.mkv", MiB, libraryId: ImportFolderHarness.MoviesLibraryId));
 
-        Assert.Equal(ImportUploadRefusalCodes.NoManagedDestination, result.Refusal?.Code);
-        Assert.DoesNotContain("vault", result.Refusal!.Message, StringComparison.OrdinalIgnoreCase);
+        foreach (var result in new[] { kindsLibrary, namedLibrary })
+        {
+            Assert.Equal(ImportUploadRefusalCodes.VaultNotAvailable, result.Refusal?.Code);
+            Assert.Equal("Adding files to the Vault by drag and drop isn't available yet.", result.Refusal!.Message);
+        }
+
         AssertNothingCreated();
     }
 
@@ -113,17 +118,19 @@ public sealed class ImportUploadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Start_CountsTheSpaceOtherOpenUploadsStillNeed()
+    public async Task Start_CountsAnOpenUploadsSpaceOnce_BecauseItsWorkingFileIsAlreadySetAside()
     {
-        // Room for one 5 MiB file but not two.
-        var service = NewService(availableBytes: _ => 8 * MiB);
+        // An 8 MiB drive: what the drive reports free is what is left after the working files already set aside.
+        var service = NewService(availableBytes: _ => 8 * MiB - WorkingFiles().Sum(file => new FileInfo(file).Length));
 
         var first = await service.StartAsync(Owner, Request("one.mkv", 5 * MiB));
-        var second = await service.StartAsync(Owner, Request("two.mkv", 5 * MiB));
+        var fitsInTheRest = await service.StartAsync(Owner, Request("two.mkv", 2 * MiB));
+        var tooBigForTheRest = await service.StartAsync(Owner, Request("three.mkv", 2 * MiB));
 
         Assert.True(first.Succeeded);
-        Assert.Equal(ImportUploadRefusalCodes.NotEnoughSpace, second.Refusal?.Code);
-        Assert.Equal(1, CountRows("import_uploads"));
+        Assert.True(fitsInTheRest.Succeeded, fitsInTheRest.Refusal?.Message);
+        Assert.Equal(ImportUploadRefusalCodes.NotEnoughSpace, tooBigForTheRest.Refusal?.Code);
+        Assert.Equal(2, CountRows("import_uploads"));
     }
 
     [Fact]
@@ -159,6 +166,174 @@ public sealed class ImportUploadServiceTests : IDisposable
 
         Assert.Equal(ImportUploadRefusalCodes.InvalidFileName, result.Refusal?.Code);
         AssertNothingCreated();
+    }
+
+    [Fact]
+    public async Task Start_WithANameTooLongInUtf8Bytes_OrWithFormatCharacters_IsRefused_AndNothingIsCreated()
+    {
+        var service = NewService();
+        var names = new[]
+        {
+            // 123 characters but 242 bytes: under the character limit, over the byte limit.
+            new string('\u00e9', 119) + ".mkv",
+            string.Concat(Enumerable.Repeat("\U0001F3AC", 70)) + ".mkv",
+            "film\u202Evkm.exe",
+            "film\u200B.mkv",
+            "\u2066film.mkv",
+        };
+
+        foreach (var name in names)
+        {
+            var result = await service.StartAsync(Owner, Request(name, MiB));
+            Assert.Equal(ImportUploadRefusalCodes.InvalidFileName, result.Refusal?.Code);
+        }
+
+        AssertNothingCreated();
+        // The same length in bytes, built from one-byte characters, is fine.
+        Assert.True((await service.StartAsync(Owner, Request(new string('a', ImportUploadFileNames.MaxLength - 4) + ".mkv", MiB))).Succeeded);
+    }
+
+    [Fact]
+    public async Task Start_WhenTheKindsSubfolderLeadsOutOfTheImportFolderThroughALink_IsRefused_AndNothingIsCreated()
+    {
+        var outside = Path.Combine(_h.Root, "elsewhere");
+        Directory.CreateDirectory(outside);
+        var movies = Path.Combine(_h.ImportDir, "Movies");
+        if (Directory.Exists(movies))
+        {
+            Directory.Delete(movies, recursive: true);
+        }
+        Directory.CreateSymbolicLink(movies, outside);
+        var service = NewService();
+
+        var result = await service.StartAsync(Owner, Request("film.mkv", MiB));
+
+        Assert.Equal(ImportUploadRefusalCodes.DestinationUnavailable, result.Refusal?.Code);
+        Assert.Equal(0, CountRows("import_uploads"));
+        Assert.Empty(WorkingFiles());
+        Assert.Empty(Directory.EnumerateFileSystemEntries(outside));
+    }
+
+    [Fact]
+    public async Task Complete_WhenTheKindsSubfolderWasPointedOutOfTheImportFolderMeanwhile_CancelsTheUploadWithAReason()
+    {
+        var service = NewService();
+        var content = Content(MiB);
+        var upload = await StartAsync(service, "Film.mkv", content.Length);
+        await SendPieceAsync(service, upload, content, 0);
+        var outside = Path.Combine(_h.Root, "elsewhere");
+        Directory.CreateDirectory(outside);
+        var movies = Path.Combine(_h.ImportDir, "Movies");
+        if (Directory.Exists(movies))
+        {
+            Directory.Delete(movies, recursive: true);
+        }
+        Directory.CreateSymbolicLink(movies, outside);
+
+        var result = await service.CompleteAsync(Owner, upload.UploadId);
+
+        Assert.Equal(ImportUploadRefusalCodes.DestinationUnavailable, result.Refusal?.Code);
+        Assert.Equal(ImportUploadStates.Cancelled, (await service.GetStatusAsync(Owner, upload.UploadId)).Value?.State);
+        Assert.Empty(WorkingFiles());
+        Assert.Empty(Directory.EnumerateFileSystemEntries(outside));
+    }
+
+    [Fact]
+    public async Task Complete_WhenTheFileIsNotTheSizePromised_CancelsTheUploadWithAReason_NotAFailure()
+    {
+        var service = NewService();
+        var content = Content(2 * MiB);
+        var upload = await StartAsync(service, "Film.mkv", content.Length);
+        await SendPieceAsync(service, upload, content, 0);
+        await SendPieceAsync(service, upload, content, 1);
+        await using (var working = new FileStream(Assert.Single(WorkingFiles()), FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+        {
+            working.SetLength(MiB);
+        }
+
+        var result = await service.CompleteAsync(Owner, upload.UploadId);
+
+        Assert.Equal(ImportUploadRefusalCodes.SizeMismatch, result.Refusal?.Code);
+        Assert.Equal(ImportUploadStates.Cancelled, (await service.GetStatusAsync(Owner, upload.UploadId)).Value?.State);
+        Assert.Empty(WorkingFiles());
+        Assert.Empty(_h.FilesUnder(Path.Combine(_h.ImportDir, "Movies")));
+        Assert.Empty(_engine.Requests);
+    }
+
+    [Fact]
+    public async Task Complete_WhenTheImportFolderWasRemovedMeanwhile_CancelsTheUploadWithAReason()
+    {
+        var service = NewService();
+        var content = Content(MiB);
+        var upload = await StartAsync(service, "Film.mkv", content.Length);
+        await SendPieceAsync(service, upload, content, 0);
+        _h.Config.Libraries.StorageLocations.Clear();
+
+        var result = await service.CompleteAsync(Owner, upload.UploadId);
+
+        Assert.Equal(ImportUploadRefusalCodes.DestinationUnavailable, result.Refusal?.Code);
+        Assert.Equal(ImportUploadStates.Cancelled, (await service.GetStatusAsync(Owner, upload.UploadId)).Value?.State);
+        Assert.Empty(WorkingFiles());
+    }
+
+    [Fact]
+    public async Task Complete_WhenTheMoveFails_LeavesTheUploadOpen_AndCompleteWorksOnceTheCauseIsGone()
+    {
+        var service = NewService();
+        var content = Content(2 * MiB);
+        var upload = await StartAsync(service, "Film.mkv", content.Length);
+        await SendPieceAsync(service, upload, content, 0);
+        // A plain file where the kind's folder should be: the folder cannot be created, so the move cannot happen.
+        var movies = Path.Combine(_h.ImportDir, "Movies");
+        if (Directory.Exists(movies))
+        {
+            Directory.Delete(movies, recursive: true);
+        }
+        await File.WriteAllTextAsync(movies, "in the way");
+        await SendPieceAsync(service, upload, content, 1);
+
+        var refused = await service.CompleteAsync(Owner, upload.UploadId);
+
+        Assert.Equal(ImportUploadRefusalCodes.DestinationUnavailable, refused.Refusal?.Code);
+        var status = (await service.GetStatusAsync(Owner, upload.UploadId)).Value!;
+        Assert.Equal(ImportUploadStates.Open, status.State);
+        Assert.Equal([0, 1], status.ReceivedPieces);
+        Assert.Single(WorkingFiles());
+        Assert.Empty(_engine.Requests);
+
+        // The upload accepts pieces again (a re-sent piece is harmless) and Complete can be asked once more.
+        Assert.True((await SendPieceAsync(service, upload, content, 1)).Succeeded);
+        File.Delete(movies);
+        Directory.CreateDirectory(movies);
+        var done = await service.CompleteAsync(Owner, upload.UploadId);
+
+        Assert.Equal(content, await File.ReadAllBytesAsync(done.Value!.DestinationPath));
+        Assert.Empty(WorkingFiles());
+        Assert.Single(_engine.Requests);
+    }
+
+    [Fact]
+    public async Task TwoCopiesOfTheSamePieceArrivingAtOnce_AreWrittenOneAfterTheOther_NotBothAtOnce()
+    {
+        var service = NewService();
+        var first = Content(MiB);
+        var upload = await StartAsync(service, "Film.mkv", MiB);
+        await using var slow = new GatedStream(first);
+        var firstCopy = service.WritePieceAsync(Owner, upload.UploadId, 0, MiB, slow);
+        await slow.ReadStarted.WaitAsync(TimeSpan.FromSeconds(10));
+
+        var secondCopy = service.WritePieceAsync(Owner, upload.UploadId, 0, MiB, new MemoryStream(new byte[MiB]));
+        await Task.Delay(300);
+        var secondRanAlongside = secondCopy.IsCompleted;
+        slow.Release();
+        var firstResult = await firstCopy.WaitAsync(TimeSpan.FromSeconds(10));
+        var secondResult = await secondCopy.WaitAsync(TimeSpan.FromSeconds(10));
+        var done = await service.CompleteAsync(Owner, upload.UploadId);
+
+        Assert.False(secondRanAlongside);
+        Assert.True(firstResult.Succeeded);
+        Assert.True(secondResult.Succeeded);
+        Assert.Equal(first, await File.ReadAllBytesAsync(done.Value!.DestinationPath));
     }
 
     [Fact]
@@ -549,6 +724,43 @@ public sealed class ImportUploadServiceTests : IDisposable
         public override DateTimeOffset GetUtcNow() => _now;
 
         public void Advance(TimeSpan by) => _now += by;
+    }
+
+    /// <summary>A request body that waits, once reading starts, until it is released, as a slow connection does.</summary>
+    private sealed class GatedStream(byte[] data) : Stream
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly MemoryStream _inner = new(data);
+
+        public Task ReadStarted => _started.Task;
+
+        public void Release() => _release.TrySetResult();
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            _started.TrySetResult();
+            await _release.Task.WaitAsync(cancellationToken);
+            return await _inner.ReadAsync(buffer, cancellationToken);
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     /// <summary>A request body that delivers a few bytes and then waits, as a slow connection does, until the read is cancelled.</summary>

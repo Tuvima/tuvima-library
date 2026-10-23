@@ -113,6 +113,12 @@ public static class ImportUploadRefusalCodes
     /// <summary>The kind has no Managed folder to file into (or its library is not one files can be added to this way).</summary>
     public const string NoManagedDestination = "no_managed_destination";
 
+    /// <summary>
+    /// The kind's library is a Vault, and adding files to the Vault by dropping them is not available yet (Library setup spec D57
+    /// defers it with the rest of the Vault extras).
+    /// </summary>
+    public const string VaultNotAvailable = "vault_not_available";
+
     /// <summary>The Import folder or the kind's Managed folder cannot be reached, is not writable, or is read-only.</summary>
     public const string DestinationUnavailable = "destination_unavailable";
 

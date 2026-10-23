@@ -68,6 +68,7 @@ public sealed class ImportUploadContractTests
         Assert.Equal(["open", "completed", "cancelled"], new[] { ImportUploadStates.Open, ImportUploadStates.Completed, ImportUploadStates.Cancelled });
         Assert.Equal("no_import_folder", ImportUploadRefusalCodes.NoImportFolder);
         Assert.Equal("no_managed_destination", ImportUploadRefusalCodes.NoManagedDestination);
+        Assert.Equal("vault_not_available", ImportUploadRefusalCodes.VaultNotAvailable);
         Assert.Equal("destination_unavailable", ImportUploadRefusalCodes.DestinationUnavailable);
         Assert.Equal("not_enough_space", ImportUploadRefusalCodes.NotEnoughSpace);
         Assert.Equal("too_large", ImportUploadRefusalCodes.TooLarge);
