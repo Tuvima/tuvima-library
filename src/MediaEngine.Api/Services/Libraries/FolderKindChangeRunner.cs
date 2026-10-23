@@ -117,11 +117,10 @@ public sealed class FolderKindChangeRunner
         // 2. The folder's files, minus those this job already finished. A run takes up every file of the folder an earlier run, of this or any
         // earlier change, left unfinished (failed, or cut short): a file is never left half changed because the run that finds it is of another kind.
         var unfinished = await UnfinishedPathsAsync(_changes, _ledger, sourceId, ct).ConfigureAwait(false);
+        // A file registered in a library the folder has never been part of (a folder inside it that belongs to another library) is that library's.
+        var own = await OwnLibraryIdsAsync(_changes, sourceId, plan.FromLibraryId, plan.ToLibraryId, ct).ConfigureAwait(false);
         var files = (await _assets.ListFilesUnderAsync(source.Path, ct).ConfigureAwait(false))
-            .Where(file => string.IsNullOrWhiteSpace(file.LibraryId)
-                || string.Equals(file.LibraryId, plan.FromLibraryId, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(file.LibraryId, plan.ToLibraryId, StringComparison.OrdinalIgnoreCase)
-                || unfinished.Contains(file.FilePath))
+            .Where(file => string.IsNullOrWhiteSpace(file.LibraryId) || own.Contains(file.LibraryId))
             .ToList();
         var finished = await _ledger.GetFinishedPathsAsync(operationId, ct).ConfigureAwait(false);
         finished.ExceptWith(unfinished);
@@ -140,6 +139,7 @@ public sealed class FolderKindChangeRunner
         var progress = Stopwatch.StartNew();
 
         // 3. The pass.
+        var pass = new PassState();
         foreach (var file in work)
         {
             ct.ThrowIfCancellationRequested();
@@ -161,7 +161,7 @@ public sealed class FolderKindChangeRunner
             string detail;
             try
             {
-                detail = await ChangeFileAsync(plan, target, mode, mediaType, fileMayMove, sourceId, file, earlierAttemptAt, resuming, ct).ConfigureAwait(false);
+                detail = await ChangeFileAsync(plan, target, mode, mediaType, fileMayMove, sourceId, file, earlierAttemptAt, resuming, pass, ct).ConfigureAwait(false);
                 outcome = FolderOrganiseOutcomes.KindChanged;
             }
             catch (UserDetailsClashException ex)
@@ -191,6 +191,12 @@ public sealed class FolderKindChangeRunner
                 progress.Restart();
                 await host.ReportProgressAsync(new FolderOrganiseProgress(total, completed, failed, file.FilePath), ct).ConfigureAwait(false);
             }
+        }
+
+        if (pass.NeedsTidy)
+        {
+            // The empty places a stopped placement left are removed once, after the whole pass.
+            await _changes.TidyEmptyPlacesAsync(ct).ConfigureAwait(false);
         }
 
         var outcomes = await _ledger.CountByOutcomeAsync(operationId, ct).ConfigureAwait(false);
@@ -294,6 +300,7 @@ public sealed class FolderKindChangeRunner
         MediaAssetFileRef file,
         DateTimeOffset? earlierAttemptAt,
         bool resuming,
+        PassState pass,
         CancellationToken ct)
     {
         var placement = await _changes.GetPlacementAsync(file.AssetId, ct).ConfigureAwait(false);
@@ -321,7 +328,7 @@ public sealed class FolderKindChangeRunner
         }
         else if (resuming)
         {
-            await _changes.TidyEmptyPlacesAsync(ct).ConfigureAwait(false);
+            pass.NeedsTidy = true;
         }
 
         // The title's values are always worked out from the claims it has: the details a person set on the old title came along, and a stop
@@ -332,7 +339,7 @@ public sealed class FolderKindChangeRunner
         // and the YouTube kind reads it again (the lookup runs on the video ID, under the library its folder is now in).
         if (mode == LibraryLookupMode.Plain)
         {
-            var dropped = await DropDetailsAsync(file.AssetId, ct).ConfigureAwait(false);
+            var dropped = await DropDetailsAsync(file.AssetId, [file.AssetId, workId], ct).ConfigureAwait(false);
             notes.Add(dropped > 0 ? "looked-up details dropped" : "no looked-up details to drop");
         }
         else if (mode == LibraryLookupMode.YouTube)
@@ -350,7 +357,7 @@ public sealed class FolderKindChangeRunner
         {
             case LibraryLookupMode.Plain:
                 // A lookup that was already running for the file may have written details while the library changed; they go too.
-                await DropDetailsAsync(file.AssetId, ct).ConfigureAwait(false);
+                await DropDetailsAsync(file.AssetId, [], ct).ConfigureAwait(false);
                 // A plain kind never has Unmatched files (D38).
                 await _unmatched.ClearAsync(file.AssetId, ct).ConfigureAwait(false);
                 break;
@@ -362,6 +369,14 @@ public sealed class FolderKindChangeRunner
                 // The normal identification, as the Unmatched retry queues it: a new job for the file with the new media type. A job an
                 // earlier, cut-short attempt already queued is not queued again.
                 var latest = await _identityJobs.GetByEntityAsync(file.AssetId, ct).ConfigureAwait(false);
+                if (latest is not null && IsUnfinished(latest.State) && !string.Equals(latest.MediaType, mediaType.ToString(), StringComparison.OrdinalIgnoreCase))
+                {
+                    // A job still waiting under another media type (an earlier change was stopped here) is closed, so only the one wanted now is open.
+                    await _identityJobs.UpdateStateAsync(
+                        latest.Id, IdentityJobState.Failed, $"Replaced: the file changed kind and is looked up as {mediaType}.", ct).ConfigureAwait(false);
+                    latest = null;
+                }
+
                 if (earlierAttemptAt is { } since && latest is not null && latest.CreatedAt >= since)
                 {
                     notes.Add("already queued to be identified again");
@@ -391,11 +406,14 @@ public sealed class FolderKindChangeRunner
         return $"Now in {target.Name}: {string.Join("; ", notes)}.";
     }
 
-    // Drops the details looked up for the file and works out the values of what is left again. Returns how many claims went.
-    private async Task<int> DropDetailsAsync(Guid assetId, CancellationToken ct)
+    // Drops the details looked up for the file and works out the values of what is left again, for the titles the drop touched and for the
+    // ones named (a repeat after a stop right after the drop finds nothing left to drop, yet the values still need working out). Returns how
+    // many claims went.
+    private async Task<int> DropDetailsAsync(Guid assetId, IReadOnlyList<Guid> alsoRescore, CancellationToken ct)
     {
         var dropped = await _changes.DropProviderDetailsAsync(assetId, ct).ConfigureAwait(false);
-        foreach (var entityId in dropped.EntityIds)
+        _ownedFiles.Remove(dropped.OwnedFilesToRemove ?? []);
+        foreach (var entityId in dropped.EntityIds.Concat(alsoRescore).Distinct())
         {
             await _rescorer.RescoreAsync(entityId, ct).ConfigureAwait(false);
         }
@@ -433,6 +451,31 @@ public sealed class FolderKindChangeRunner
         }
 
         return [.. latest.Where(pair => pair.Value.Outcome is not (FolderOrganiseOutcomes.KindChanged or FolderOrganiseOutcomes.KindChangeRefused)).Select(pair => pair.Key)];
+    }
+
+    /// <summary>The libraries this folder has been in or out of across all of its changes, with the ones named: the files registered in them are the folder's.</summary>
+    internal static async Task<HashSet<string>> OwnLibraryIdsAsync(
+        IFolderKindChangeRepository changes, Guid sourceId, string fromLibraryId, string toLibraryId, CancellationToken ct)
+    {
+        var own = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { fromLibraryId, toLibraryId };
+        foreach (var operationId in await changes.ListPlanOperationIdsAsync(sourceId, ct).ConfigureAwait(false))
+        {
+            if (await changes.GetPlanAsync(operationId, ct).ConfigureAwait(false) is { } earlier)
+            {
+                own.Add(earlier.FromLibraryId);
+                own.Add(earlier.ToLibraryId);
+            }
+        }
+
+        return own;
+    }
+
+    private static bool IsUnfinished(string state) => state is not (nameof(IdentityJobState.Ready) or nameof(IdentityJobState.ReadyWithoutUniverse)
+        or nameof(IdentityJobState.Failed) or nameof(IdentityJobState.RetailNoMatch) or nameof(IdentityJobState.QidNoMatch) or nameof(IdentityJobState.QidNeedsReview));
+
+    private sealed class PassState
+    {
+        public bool NeedsTidy { get; set; }
     }
 
     /// <summary>The plain sentences of the files left as they were because they and the title they would join both hold a person's own details.</summary>

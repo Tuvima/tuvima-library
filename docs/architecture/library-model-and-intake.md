@@ -277,7 +277,9 @@ and `POST .../change-kind` (`{kind_key, library_id?}`, administrators only) shar
 folder or target, an unknown kind, the folder's current kind (unless an earlier change of the folder was cancelled or failed half way,
 when starting it again finishes the rest), a kind from another area, a library that is not a library of that kind, and a folder with
 any folder job already open. A new named library (Other videos, Other audio, Other reading allow up to five) is created first through
-the normal library action; the Engine never creates one here, and a kind with no library yet is refused with a plain message.
+the normal library action; the Engine never creates one here. A blank `library_id` means the same in the preview and the start: the one
+library of a kind that has exactly one; a kind that holds several named libraries is refused by the start ("Choose which ... library", it
+never quietly picks the single one that exists; the preview treats it as a new library); a kind with none is refused ("Create it first").
 
 The start writes the plan to `folder_kind_changes` (one row per job, before anything changes) and queues one `media_operations` row
 (`change_folder_kind`, the same `folder_jobs` queue, one job at a time). `FolderOrganiseJobWorker` runs it with
@@ -318,7 +320,10 @@ folder jobs; the folder row shows the job's state). The folder row carries no ex
      the canonical values of the keys that lost claims are worked out again from the claims that remain (`ScoringHelper`), so the file
      shows by its file name and embedded tags and a refile plan still has a name to take. A YouTube target reads the file again so the
      video-ID lookup runs under the new library. Any other lookup kind queues a new `Quick` identity job with the new media type, the
-     way the Unmatched retry does (once: a job a cut-short attempt already queued is not queued again).
+     way the Unmatched retry does (once: a job a cut-short attempt already queued is not queued again, and a job still waiting under another
+     media type, left by an earlier stopped change, is closed first so only the one wanted now is open). Picture files cached for the
+     dropped provider pictures (or the looked-up copies that gave way to a person's own) are queued for removal when nothing else uses
+     them, only inside the data folder, as the delete paths do.
   3. In a Managed, writable folder the file's filing into the new kind's pattern is queued (`IFilingQueue.RequestFilingAsync`), held
      while the first check runs. Filing waits for the batch (D62) and the file stays playable until then (D63); a file in use goes
      to the retry batch as it does today. A Read-only folder changes kind with nothing queued and nothing moved.
@@ -328,9 +333,10 @@ folder jobs; the folder row shows the job's state). The folder row carries no ex
      the job and the filing request live in three repositories and cannot share one transaction. A file that fails is logged `failed` and
      the job carries on. Every step can be repeated, and every run picks up every file of the folder whose latest ledger line, in this or
      any earlier change of the folder, is not a finished one (failed, or cut short while moving): a resume, a repair (the same kind), a
-     change back and a new change after another all finish them first, whatever library the file is in. A file already under a work of the
+     change back and a new change after another all finish them first, whatever library the file is in, except a file inside a nested folder that is registered to another library, which belongs to that library
+     (only the libraries the folder has been in or out of across its changes count). A file already under a work of the
      media type is left where it is (the places a stopped placement left empty are removed), the looked-up details are dropped only if
-     any are left, the new title's values are always worked out again, and a queued identity job or filing request is never doubled. A job that ends with any
+     any are left, the new title's values (and the file's own) are always worked out again, the places left empty are tidied once at the end of a run, and a queued identity job or filing request is never doubled. A job that ends with any
      failed file ends as failed ("Finished, but N files were not changed ..."), not as a success, and starting the same kind again
      (the repair) retries exactly the files logged as failed and those still in the old library. A different kind is refused until
      that is done.

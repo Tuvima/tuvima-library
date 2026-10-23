@@ -259,7 +259,7 @@ public sealed class FolderKindChangeService
 
         var repairs = finishing ? stopped : null;
         // The files still to change: those not registered in the new library yet, and those an earlier change of this folder left unfinished.
-        var files = (await FolderFilesAsync(source, fromLibrary, toLibrary, unfinished, ct).ConfigureAwait(false))
+        var files = (await FolderFilesAsync(source, fromLibrary, toLibrary, ct).ConfigureAwait(false))
             .Where(file => !string.Equals(file.LibraryId, toLibrary.Id, StringComparison.OrdinalIgnoreCase) || unfinished.Contains(file.FilePath))
             .ToList();
         var mode = LibraryKindLookupPolicy.For(toLibrary, kinds).Mode;
@@ -316,14 +316,16 @@ public sealed class FolderKindChangeService
             }, true);
         }
 
-        if (ofKind.Count == 1)
+        // The preview and the start mean the same by a missing library: a kind with one library means that library; a kind that holds several named
+        // libraries means none in particular, so starting never quietly picks one (the preview calls it a new library).
+        if (ofKind.Count == 1 && !kind.AllowsMultiple)
         {
             return (ofKind[0], false);
         }
 
         throw new FolderJobException(ofKind.Count == 0
             ? $"There is no {kind.Label} library yet. Create it first, then choose it."
-            : $"There is more than one {kind.Label} library. Choose which one the folder goes into.");
+            : $"Choose which {kind.Label} library the folder goes into.");
     }
 
     // The latest change of this folder into this library, when it was stopped (cancelled, or finished with files not changed) after the folder moved
@@ -346,21 +348,23 @@ public sealed class FolderKindChangeService
         var old = libraries.Libraries.FirstOrDefault(library =>
             string.Equals(library.Id, plan.FromLibraryId, StringComparison.OrdinalIgnoreCase) && !IsVault(library, vaultIds)) ?? holder;
         var source = holder.Sources.First(candidate => Guid.TryParse(candidate.Id, out var id) && id == sourceId);
-        var strays = (await FolderFilesAsync(source, old, holder, unfinished, ct).ConfigureAwait(false))
-            .Any(file => !string.Equals(file.LibraryId, holder.Id, StringComparison.OrdinalIgnoreCase));
+        var own = (await FolderFilesAsync(source, old, holder, ct).ConfigureAwait(false));
+        var strays = own.Any(file => !string.Equals(file.LibraryId, holder.Id, StringComparison.OrdinalIgnoreCase));
+        var unfinishedHere = own.Any(file => unfinished.Contains(file.FilePath));
         var refused = await FolderKindChangeRunner.RefusedDetailsAsync(_ledger, plan.OperationId, ct).ConfigureAwait(false);
-        return strays || unfinished.Count > 0 ? new StoppedChange(old, plan.OperationId, refused) : null;
+        return strays || unfinishedHere ? new StoppedChange(old, plan.OperationId, refused) : null;
     }
 
-    // The folder's files the data store holds that this change owns: registered in the library the folder came from, in the one it goes into,
-    // or in none yet. A file registered in some other library (a folder inside this one that belongs to it) is that library's.
+    // The folder's files the data store holds that this change owns: registered in a library the folder has been in or out of (across all its
+    // changes), or in none yet. A file registered in some other library (a folder inside this one that belongs to it) is that library's.
     private async Task<IReadOnlyList<MediaAssetFileRef>> FolderFilesAsync(
-        LibrarySourceConfig source, LibraryFolderConfig from, LibraryFolderConfig to, HashSet<string> unfinished, CancellationToken ct) =>
-        [.. (await _assets.ListFilesUnderAsync(source.Path, ct).ConfigureAwait(false))
-            .Where(file => string.IsNullOrWhiteSpace(file.LibraryId)
-                || unfinished.Contains(file.FilePath)
-                || string.Equals(file.LibraryId, from.Id, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(file.LibraryId, to.Id, StringComparison.OrdinalIgnoreCase))];
+        LibrarySourceConfig source, LibraryFolderConfig from, LibraryFolderConfig to, CancellationToken ct)
+    {
+        var sourceId = Guid.TryParse(source.Id, out var id) ? id : Guid.Empty;
+        var own = await FolderKindChangeRunner.OwnLibraryIdsAsync(_changes, sourceId, from.Id, to.Id, ct).ConfigureAwait(false);
+        return [.. (await _assets.ListFilesUnderAsync(source.Path, ct).ConfigureAwait(false))
+            .Where(file => string.IsNullOrWhiteSpace(file.LibraryId) || own.Contains(file.LibraryId))];
+    }
 
     private static string KindLabelOf(IReadOnlyList<LibraryKindDefinition> kinds, string key) =>
         kinds.FirstOrDefault(kind => string.Equals(kind.Key, key, StringComparison.Ordinal))?.Label ?? key;

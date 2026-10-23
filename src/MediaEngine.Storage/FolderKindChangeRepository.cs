@@ -236,14 +236,14 @@ public sealed class FolderKindChangeRepository(
             CarryPersonalDetails(connection, transaction, oldWorkId, newWorkId);
             if (carriesOverrides)
             {
-                CarryOverrides(connection, transaction, oldWorkId, newWorkId);
+                ownedFiles.AddRange(CarryOverrides(connection, transaction, oldWorkId, newWorkId));
             }
 
             WorkPersonalStateMerge.Carry(connection, transaction, oldWorkId, newWorkId);
             RemoveEmptyLeaf(connection, transaction, oldWorkId, ownedFiles);
         }
 
-        return new AssetReplacement(true, newWorkId, ownedFiles);
+        return new AssetReplacement(true, newWorkId, UnreferencedAmong(connection, transaction, ownedFiles));
     }
 
     // Details a person set on the old title (their locked claims and manual ones) follow the file; the numbers that say where it sat in
@@ -273,25 +273,32 @@ public sealed class FolderKindChangeRepository(
             transaction);
     }
 
+    // The looked-up copies on the new title (@newWorkId) of pictures the person owns on the old one (@oldWorkId): the same picture in the same place.
+    private const string LookedUpCopyOfMineSql =
+        """
+        entity_id = @newWorkId AND COALESCE(is_user_override, 0) = 0 AND image_url IS NOT NULL AND length(trim(image_url)) > 0
+          AND EXISTS (SELECT 1 FROM entity_assets mine
+                      WHERE mine.entity_id = @oldWorkId AND COALESCE(mine.is_user_override, 0) = 1
+                        AND mine.asset_type = entity_assets.asset_type AND mine.image_url = entity_assets.image_url COLLATE NOCASE)
+        """;
+
     // The person's own artwork (the link rows and records; the uploaded files stay where they are) and the details they typed move to the new
     // title, which has none of its own, before the old title is removed. The new title may hold a looked-up copy of the same picture in the
     // same place (the table allows one): the person's own picture takes its place, and is preferred if the copy was. The person's preferred
     // picture takes its slot: the new title's looked-up preferred picture for it is let go, so one is preferred.
-    private static void CarryOverrides(SqliteConnection connection, SqliteTransaction transaction, Guid oldWorkId, Guid newWorkId)
+    // Returns the cached image files of the looked-up copies that gave way (for the caller to remove once nothing points at them).
+    private static List<string> CarryOverrides(SqliteConnection connection, SqliteTransaction transaction, Guid oldWorkId, Guid newWorkId)
     {
+        var copies = ImageFilesOf(connection, transaction, LookedUpCopyOfMineSql, new { oldWorkId, newWorkId });
         connection.Execute(
-            """
+            $$"""
             UPDATE entity_assets SET is_preferred = 1
             WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1
               AND EXISTS (SELECT 1 FROM entity_assets there
                           WHERE there.entity_id = @newWorkId AND COALESCE(there.is_user_override, 0) = 0 AND there.is_preferred = 1
                             AND there.asset_type = entity_assets.asset_type AND there.image_url IS NOT NULL AND length(trim(there.image_url)) > 0
                             AND there.image_url = entity_assets.image_url COLLATE NOCASE);
-            DELETE FROM entity_assets
-            WHERE entity_id = @newWorkId AND COALESCE(is_user_override, 0) = 0 AND image_url IS NOT NULL AND length(trim(image_url)) > 0
-              AND EXISTS (SELECT 1 FROM entity_assets mine
-                          WHERE mine.entity_id = @oldWorkId AND COALESCE(mine.is_user_override, 0) = 1
-                            AND mine.asset_type = entity_assets.asset_type AND mine.image_url = entity_assets.image_url COLLATE NOCASE);
+            DELETE FROM entity_assets WHERE {{LookedUpCopyOfMineSql}};
             UPDATE entity_artwork_links SET is_preferred = 1
             WHERE entity_id = @oldWorkId AND COALESCE(is_user_override, 0) = 1
               AND EXISTS (SELECT 1 FROM entity_artwork_links there
@@ -319,6 +326,35 @@ public sealed class FolderKindChangeRepository(
             """,
             new { oldWorkId, newWorkId },
             transaction);
+        return copies;
+    }
+
+    // The cached image files of the entity_assets rows that match the condition (every size of each picture).
+    private static List<string> ImageFilesOf(SqliteConnection connection, SqliteTransaction transaction, string whereSql, object args) =>
+        [.. connection.Query<string>(
+            $$"""
+            SELECT p FROM (
+                SELECT local_image_path AS p FROM entity_assets WHERE {{whereSql}}
+                UNION SELECT local_image_path_t FROM entity_assets WHERE {{whereSql}}
+                UNION SELECT local_image_path_s FROM entity_assets WHERE {{whereSql}}
+                UNION SELECT local_image_path_m FROM entity_assets WHERE {{whereSql}}
+                UNION SELECT local_image_path_l FROM entity_assets WHERE {{whereSql}}
+            ) WHERE p IS NOT NULL AND p <> '';
+            """,
+            args,
+            transaction)];
+
+    // Of the files, those no row points at any more (a picture may be shared): the ones the caller may remove.
+    private static List<string> UnreferencedAmong(SqliteConnection connection, SqliteTransaction transaction, IEnumerable<string> files)
+    {
+        var distinct = files.Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (distinct.Count == 0)
+        {
+            return [];
+        }
+
+        var referenced = AssetFileReferences.LoadReferencedPaths(connection, transaction);
+        return [.. distinct.Where(path => !AssetFileReferences.IsReferenced(referenced, path))];
     }
 
     // What a title is called in a message: its own title, else its file's, else the file's name.
@@ -441,6 +477,8 @@ public sealed class FolderKindChangeRepository(
             transaction);
 
         // Provider artwork: a picture the file carried, its folder holds, or a person chose stays.
+        const string ProviderPictureSql = "entity_id IN @blobs AND is_user_override = 0 AND source_provider IS NOT NULL AND source_provider NOT IN @local";
+        var cachedFiles = ImageFilesOf(connection, transaction, ProviderPictureSql, new { blobs, local = LocalArtworkSources });
         connection.Execute(
             """
             DELETE FROM entity_artwork_links
@@ -455,7 +493,7 @@ public sealed class FolderKindChangeRepository(
             new { blobs, local = LocalArtworkSources },
             transaction);
 
-        return new DroppedProviderDetails([.. affected.Select(pair => pair.EntityId).Distinct()], dropped);
+        return new DroppedProviderDetails([.. affected.Select(pair => pair.EntityId).Distinct()], dropped, UnreferencedAmong(connection, transaction, cachedFiles));
     }
 
     // ----- reads -----------------------------------------------------------------------------------------------------------------

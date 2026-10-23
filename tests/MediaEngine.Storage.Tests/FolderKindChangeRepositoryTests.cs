@@ -375,8 +375,17 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
     public async Task Tidying_removes_the_empty_places_a_stopped_placement_left_but_keeps_one_a_person_saved()
     {
         var (assetId, episode) = await IngestAsync(MediaType.TV, new Dictionary<string, string>(EpisodeHints()) { ["title"] = "Pilot" });
+        var person = Profile.SeedProfileId;
+        Guid season;
+        Guid show;
         using (var seed = _db.CreateConnection())
         {
+            season = seed.ExecuteScalar<Guid>("SELECT parent_work_id FROM works WHERE id = @episode;", new { episode });
+            show = seed.ExecuteScalar<Guid>("SELECT parent_work_id FROM works WHERE id = @season;", new { season });
+            // A person saved the show; the season is only a place.
+            seed.Execute(
+                "INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'TvShow', @show, '2026-10-01T00:00:00Z');",
+                new { person, show });
             // The episode's edition went elsewhere and the episode was never removed (a stop between the two).
             seed.Execute("UPDATE editions SET work_id = @other WHERE id = (SELECT edition_id FROM media_assets WHERE id = @assetId);",
                 new { other = IngestStandaloneWork(), assetId });
@@ -386,7 +395,9 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
         await _repository.TidyEmptyPlacesAsync();
 
         using var conn = _db.CreateConnection();
-        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE media_type = 'TV';"));
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id = @season;", new { season }));
+        Assert.Equal([show], conn.Query<Guid>("SELECT id FROM works WHERE media_type = 'TV';").ToList());
+        Assert.Equal(show, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id = @person;", new { person }));
     }
 
     [Fact]
@@ -518,6 +529,27 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
             new[] { embeddedArt, chosenArt },
             conn.Query<Guid>("SELECT artwork_asset_id FROM entity_artwork_links WHERE entity_id = @work;", new { work }).ToArray());
         Assert.Equal(["user_upload"], conn.Query<string>("SELECT source_provider FROM entity_assets WHERE entity_id = @work;", new { work }).ToList());
+    }
+
+    [Fact]
+    public async Task Dropping_provider_pictures_names_their_cached_image_files_but_never_the_ones_a_person_or_the_file_still_uses()
+    {
+        var (assetId, work) = await IngestAsync(MediaType.Movies);
+        SeedProviders();
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override, local_image_path, local_image_path_t) VALUES
+                    (@a1, @work, 'Work', 'CoverArt', 'tmdb', 0, '/data/images/cover-tmdb.jpg', '/data/images/cover-tmdb-t.jpg'),
+                    (@a2, @work, 'Work', 'Banner', 'user_upload', 1, '/data/images/banner-mine.jpg', NULL);
+                """, new { work, a1 = Guid.NewGuid(), a2 = Guid.NewGuid() });
+        }
+
+        var dropped = await _repository.DropProviderDetailsAsync(assetId);
+
+        Assert.Equivalent(new[] { "/data/images/cover-tmdb.jpg", "/data/images/cover-tmdb-t.jpg" }, dropped.OwnedFilesToRemove);
+        using var conn = _db.CreateConnection();
+        Assert.Equal(["/data/images/banner-mine.jpg"], conn.Query<string>("SELECT local_image_path FROM entity_assets WHERE entity_id = @work;", new { work }).ToList());
     }
 
     [Fact]

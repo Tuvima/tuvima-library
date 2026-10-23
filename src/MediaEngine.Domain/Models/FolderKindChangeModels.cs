@@ -35,7 +35,7 @@ public sealed record AssetReplacement(bool Replaced, Guid WorkId, IReadOnlyList<
 /// What dropping the details looked up for one file removed (Library setup D69): the entities whose looked-up claims, outside ids and
 /// provider artwork links were dropped, and how many claims went. Claims from the file itself and a person's own edits are never dropped.
 /// </summary>
-public sealed record DroppedProviderDetails(IReadOnlyList<Guid> EntityIds, int ClaimsDropped);
+public sealed record DroppedProviderDetails(IReadOnlyList<Guid> EntityIds, int ClaimsDropped, IReadOnlyList<string>? OwnedFilesToRemove = null);
 
 /// <summary>
 /// A file is not placed again because its title and the title it would join both hold artwork or details a person made, and one cannot be
