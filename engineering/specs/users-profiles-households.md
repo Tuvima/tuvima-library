@@ -1,6 +1,6 @@
 # Spec: Users, profiles and households
 
-> **Status:** Draft · **Version:** 2 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Security model](../../docs/architecture/security.md) · [ADR 0007 Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md) (replaced by this spec) · [Backup and restore](backup-and-restore.md) D19, D20 · [Open from the start](archive/open-from-the-start.md) · [Profiles and setup redesign](archive/profiles-setup-redesign.md)
+> **Status:** In progress (Locked by Shy 2026-10-23) · **Version:** 3 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Security model](../../docs/architecture/security.md) · [ADR 0007 Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md) (replaced by this spec) · [Backup and restore](backup-and-restore.md) D19, D20 · [Open from the start](archive/open-from-the-start.md) · [Profiles and setup redesign](archive/profiles-setup-redesign.md)
 
 ## 1. Goal
 
@@ -57,7 +57,7 @@ What happens:
 - **D7. Household administrators delete profiles in their own household**, including another household administrator's profile, but a household always keeps at least one household administrator profile. Deleting one profile never affects another. Deleting a profile removes its user too (a sign-in without a profile cannot exist).
 - **D8. Deleting a profile leaves nothing personal behind**: history, progress, bookmarks, lists, waiting restore items, personal activity, reader state, prepared offline copies and its picture file; photos move to Shared unless the person deleting chooses Delete. Security and audit history and the photo-folder name reservation are kept.
 - **D9. Restores and imports target a user you choose.** A profile (or the profiles of a household) from a backup or a user export can be restored under any user and household the administrator picks; a changed email is never a reason to refuse.
-- **D10. Passwords before a second household.** With one household the Library may be used without passwords (today's "Start without a password"). Adding or inviting a second household requires every server administrator's user to have an email and a password (or passkey) first.
+- **D10. Passwords before a second household.** With one household the Library may be used without passwords (today's "Start without a password"). Adding or inviting a second household requires every server administrator's user to have an email and a password (or passkey) first. The very first server administrator may still start without a password at setup, as long as there is one household (Shy, 2026-10-23).
 - **D11. Start fresh (Shy, 2026-10-23, Q1).** Nothing existing is carried over: a new data store epoch, set the Library up again. Backups and user exports made before this change are refused in one plain sentence.
 - **D12. One household per user (Q2).** A sign-in reaches only its own household's profiles.
 - **D13. Switching is free unless a profile has a PIN (Q3).** Like Netflix: any profile of the household can switch to any other, Kids included; a profile with a PIN asks for it. Most people will not set one.
