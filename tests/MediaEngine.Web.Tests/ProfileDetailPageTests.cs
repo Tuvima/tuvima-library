@@ -325,6 +325,20 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void LibrariesAndLanes_ForAnInheritingOwnSignIn_WhenTheLibraryListFails_ShowsTheSharedErrorWithRetry()
+    {
+        SamWithSignIn(inherits: true);
+        _accounts.Add(MainAccess());
+        _librariesFail = true;
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='household-access'] .app-error-state")));
+        Assert.Contains("Retry", cut.Find("[data-profile-section='household-access'] .app-error-state").TextContent);
+        Assert.Empty(cut.FindAll("[data-area-libraries]"));
+    }
+
+    [Fact]
     public async Task LibrariesAndLanes_OnAPhone_ShowsTheTicksButDisablesThem()
     {
         var device = new DeviceContextService(EngineApiClientStub.CreateDefault());

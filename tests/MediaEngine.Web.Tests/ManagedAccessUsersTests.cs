@@ -8,6 +8,7 @@ using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -59,7 +60,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
         Assert.Equal([_handler.Library.Id], payload.HiddenLibraryIds);
         Assert.Equal(["listen", "read", "view", "watch"], payload.FeatureIds.Order());
-        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Hidden from owner@example.test"));
+        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Hidden from Owner"));
     }
 
     [Fact]
@@ -77,7 +78,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
         var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
         Assert.Empty(payload.HiddenLibraryIds);
-        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Shown to owner@example.test"));
+        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Shown to Owner"));
     }
 
     [Fact]
@@ -94,6 +95,56 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         // Switching Read off takes its list away.
         cut.Find("input[aria-label='Read']").Change(false);
         Assert.Empty(cut.FindAll("[data-area-libraries='read']"));
+    }
+
+    [Fact]
+    public void Permissions_ATickCarriesTheSavedLanes_AndSaveThenCarriesThePendingLanesWithTheTickedHiddenSet()
+    {
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".area-library-list input")));
+
+        // A lane switched off but not saved yet, then a tick.
+        cut.Find("input[aria-label='Watch']").Change(false);
+        cut.Find($".area-library-list [data-library-id='{_handler.Library.Id}'] input").Change(false);
+
+        cut.WaitForAssertion(() => Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal)));
+        var tick = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(
+            Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal)).Body, JsonOptions)!;
+        Assert.Equal(["listen", "read", "view", "watch"], tick.FeatureIds.Order());
+        Assert.Equal([_handler.Library.Id], tick.HiddenLibraryIds);
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, _handler.Requests.Count(request => request.Path.EndsWith("/access", StringComparison.Ordinal))));
+        var save = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(
+            _handler.Requests.Last(request => request.Path.EndsWith("/access", StringComparison.Ordinal)).Body, JsonOptions)!;
+        Assert.Equal(["listen", "read", "view"], save.FeatureIds.Order());
+        Assert.Equal([_handler.Library.Id], save.HiddenLibraryIds);
+    }
+
+    [Fact]
+    public async Task Permissions_WhileATickIsSaving_SaveAndTheTicksAreDisabled()
+    {
+        _handler.AccessGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _handler.AccessStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".area-library-list input")));
+
+        var pending = cut.Find($".area-library-list [data-library-id='{_handler.Library.Id}'] input")
+            .ChangeAsync(new ChangeEventArgs { Value = false });
+        await _handler.AccessStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").HasAttribute("disabled"));
+            Assert.All(cut.FindAll(".area-library-list input"), input => Assert.True(input.HasAttribute("disabled")));
+        });
+
+        _handler.AccessGate.SetResult();
+        await pending;
+        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").HasAttribute("disabled")));
     }
 
     [Fact]

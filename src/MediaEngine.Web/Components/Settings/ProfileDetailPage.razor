@@ -156,7 +156,11 @@
                             <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes" Status="@AccessStatus"
                                             Note="Follows the household's access. Change it on the household's main sign-in."
                                             Href="@(CanOpenHouseholdSettings ? HouseholdAccessRoute : null)" Disabled="@(!CanOpenHouseholdSettings)" />
-                            @if (!_accessLibrariesUnavailable && _access is not null)
+                            @if (_accessLibrariesUnavailable && _access is not null && _access.FeatureGrants.Any(grant => grant.Allowed))
+                            {
+                                <AppErrorState Compact="true" Title="Libraries not loaded" Message="The libraries could not be loaded, so what this person can see can't be shown right now. Try again." Retry="RetryLibrariesAsync" />
+                            }
+                            else if (_access is not null)
                             {
                                 @* The same Libraries lists, read only: what the main sign-in's access gives this person, with nothing to tick. *@
                                 @foreach (var feature in ManagedAccessUserPermissions.Features.Where(feature => _access.FeatureGrants.Any(grant => grant.Allowed && grant.Feature == feature.Id)))
@@ -720,6 +724,8 @@
 
         _accessSaving = true;
         _accessError = null;
+        // Draw the busy state now, so the ticks read as disabled while this save is in flight.
+        StateHasChanged();
         try
         {
             var lanes = _access.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature).Order().ToArray();

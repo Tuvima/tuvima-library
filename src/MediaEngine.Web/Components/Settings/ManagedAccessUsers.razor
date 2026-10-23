@@ -1027,6 +1027,8 @@
         try
         {
             ClearMessages();
+            // Draw the busy state now, so the ticks and "Save permissions" read as disabled while this save is in flight.
+            StateHasChanged();
             var account = _editing;
             var next = _hiddenIds.ToHashSet();
             if (hidden)
@@ -1046,7 +1048,8 @@
             _hiddenIds.Clear();
             _hiddenIds.UnionWith(next);
             ReplaceAccount(account with { HiddenLibraryIds = next.Order().ToArray() });
-            Toasts.Add(hidden ? $"Hidden from {AccountLabel(account)}" : $"Shown to {AccountLabel(account)}", AppSeverity.Success);
+            var person = PersonLabel(account);
+            Toasts.Add(hidden ? $"Hidden from {person}" : $"Shown to {person}", AppSeverity.Success);
             return true;
         }
         finally
@@ -1086,6 +1089,13 @@
     }
 
     private void ToggleActions(Guid id) => _actionAccountId = _actionAccountId == id ? null : id;
+    // The person the account opens by default, else the email: "Hidden from Sam".
+    private static string PersonLabel(AccountAccessResponse account)
+    {
+        var name = account.ProfileGrants.FirstOrDefault(grant => grant.IsDefault)?.DisplayName;
+        return string.IsNullOrWhiteSpace(name) ? AccountLabel(account) : name;
+    }
+
     private static string AccountLabel(AccountAccessResponse account) => string.IsNullOrWhiteSpace(account.Email) ? "No email" : account.Email;
     private static string Initials(string value) => string.Concat(value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => char.ToUpperInvariant(part[0])));
     private void ClearMessages() => _error = _drawerMessage = string.Empty;
