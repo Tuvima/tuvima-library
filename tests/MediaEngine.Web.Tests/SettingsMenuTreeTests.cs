@@ -97,8 +97,8 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         var ingestion = Flatten(groups).Single(row => row.Label == "Library and Ingestion");
         Assert.Equal(MediaSectionAttentionLevel.Waiting, ingestion.Attention);
-        Assert.Equal("3", ingestion.Meta);
-        Assert.True(ingestion.MetaIsNotification);
+        Assert.Null(ingestion.Meta);
+        Assert.False(ingestion.MetaIsNotification);
         Assert.DoesNotContain(Flatten(groups), row => row.Label == "Recently Added");
         Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Tools and requirements").EffectiveAttention);
     }

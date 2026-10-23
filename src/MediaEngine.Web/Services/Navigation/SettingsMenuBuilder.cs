@@ -93,12 +93,11 @@ public static class SettingsMenuBuilder
     private static MediaSectionNavigationItem BuildItem(SettingsMenuNode node, SettingsMenuContext context)
     {
         // Needs Review is reached from the Library and Ingestion page (Recently Added is no longer a menu row), so that
-        // row carries the count and the amber "waiting" shading;
+        // row carries the amber "waiting" shading;
         // Local AI and Plugins show red with "Broken" while something switched on cannot work (Local AI: an AI feature is on and
         // the tools are missing); Tools and requirements shows red with what is missing, and Security shows red with "No password"
         // until the account is secured; a parent shows its most urgent child's level. Phones show plain rows.
         var showReview = node is { Section: SettingsSection.Ingestion, Subsection: null } && context.ReviewCount > 0;
-        var count = showReview ? DisplayFormat.FormatCount(context.ReviewCount) : null;
         var localAiOff = node is { Section: SettingsSection.LocalAi, Subsection: null } && context.LocalAiBlocked && context.AiFeaturesOn && !context.IsMobile;
         var pluginsBroken = node is { Section: SettingsSection.Plugins, Subsection: null } && context.PluginsBroken && !context.IsMobile;
         var integrationsBroken = node is { Section: SettingsSection.Access, Subsection: "applications" } && context.IntegrationsBroken && !context.IsMobile;
@@ -111,16 +110,11 @@ public static class SettingsMenuBuilder
             node.Label,
             node.Route,
             node.Icon,
-            Meta: count,
             // Libraries has its own pages below it (a group such as /settings/libraries/watch, then a type), so its row stays lit there.
             Exact: node is not { Section: SettingsSection.Libraries, Subsection: null },
             Children: node.Children.Count == 0
                 ? null
                 : node.Children.Select(child => BuildItem(child, context)).ToList(),
-            MetaIsNotification: showReview,
-            MetaAriaLabel: showReview
-                ? $"{count} item{(context.ReviewCount == 1 ? "" : "s")} need review"
-                : null,
             // On a phone the row has no red shading, so it keeps the plain dot.
             AttentionDot: node is { Section: SettingsSection.Security, Subsection: null } && context.SecurityNeedsAttention && !securityRed,
             Attention: localAiOff || pluginsBroken || integrationsBroken || toolsMissing || securityRed

@@ -633,7 +633,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         Assert.Equal(MediaSectionAttentionLevel.Blocked, rows.Single(row => row.Label == "Local AI").Attention);
         Assert.Equal("Broken", rows.Single(row => row.Label == "Local AI").AttentionLabel);
         Assert.Equal(MediaSectionAttentionLevel.Waiting, rows.Single(row => row.Label == "Library and Ingestion").Attention);
-        Assert.Equal("3", rows.Single(row => row.Label == "Library and Ingestion").Meta);
+        Assert.Null(rows.Single(row => row.Label == "Library and Ingestion").Meta);
         Assert.Equal(MediaSectionAttentionLevel.None, rows.Single(row => row.Label == "Tools and requirements").EffectiveAttention);
     }
 
