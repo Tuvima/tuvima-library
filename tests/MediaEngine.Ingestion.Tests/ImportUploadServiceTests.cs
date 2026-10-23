@@ -91,17 +91,38 @@ public sealed class ImportUploadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Start_AboveTheMaximumUploadSize_IsRefusedBeforeAnythingIsCreated()
+    public async Task Start_AboveTheWarningSize_AsksForConfirmation_WithTheFolderPath_AndCreatesNothing()
     {
-        _h.Config.Maintenance = new MaintenanceSettings { UploadPieceBytes = MiB, MaxUploadBytes = 10 * MiB };
+        _h.Config.Maintenance = new MaintenanceSettings { UploadPieceBytes = MiB, LargeUploadWarningBytes = 10 * MiB };
         var service = NewService();
 
-        var atTheLimit = await service.StartAsync(Owner, Request("a.mkv", 10 * MiB));
+        var atTheSize = await service.StartAsync(Owner, Request("a.mkv", 10 * MiB));
+        await service.CancelAsync(Owner, atTheSize.Value!.UploadId);
+        var rowsBefore = CountRows("import_uploads");
         var above = await service.StartAsync(Owner, Request("b.mkv", 10 * MiB + 1));
 
-        Assert.True(atTheLimit.Succeeded);
-        Assert.Equal(ImportUploadRefusalCodes.TooLarge, above.Refusal?.Code);
-        Assert.Equal(ImportUploadRefusalKind.TooLarge, above.Refusal?.Kind);
+        Assert.True(atTheSize.Succeeded);
+        Assert.Equal(ImportUploadRefusalCodes.LargeUploadNeedsConfirm, above.Refusal?.Code);
+        Assert.Equal(ImportUploadRefusalKind.Conflict, above.Refusal?.Kind);
+        Assert.Equal(Path.Combine(_h.ImportDir, "Movies"), above.Refusal?.ImportFolderPath);
+        Assert.Contains("copying straight into the Import folder on the server is more reliable", above.Refusal!.Message, StringComparison.Ordinal);
+        Assert.Equal(rowsBefore, CountRows("import_uploads"));
+        Assert.Empty(WorkingFiles());
+    }
+
+    [Fact]
+    public async Task Start_AboveTheWarningSize_WhenConfirmed_Starts_ButStillNeedsRoomOnTheDrive()
+    {
+        _h.Config.Maintenance = new MaintenanceSettings { UploadPieceBytes = MiB, LargeUploadWarningBytes = 10 * MiB };
+        var roomy = NewService();
+        var tight = NewService(availableBytes: _ => 1_000);
+
+        var confirmed = await roomy.StartAsync(Owner, Request("b.mkv", 12 * MiB, confirmLarge: true));
+        var noRoom = await tight.StartAsync(Owner, Request("c.mkv", 12 * MiB, confirmLarge: true));
+
+        Assert.True(confirmed.Succeeded, confirmed.Refusal?.Message);
+        Assert.Equal(12, confirmed.Value!.PieceCount);
+        Assert.Equal(ImportUploadRefusalCodes.NotEnoughSpace, noRoom.Refusal?.Code);
         Assert.Equal(1, CountRows("import_uploads"));
     }
 
@@ -220,7 +241,7 @@ public sealed class ImportUploadServiceTests : IDisposable
     {
         var service = NewService();
 
-        // A joiner is not a direction control, and emoji names (a family, a flag) are built with it.
+        // A joiner is not a direction control, and emoji sequences (the family and profession emoji) are built with it.
         var result = await service.StartAsync(Owner, Request("\U0001F468\u200D\U0001F469 home movie.mkv", MiB));
 
         Assert.True(result.Succeeded, result.Refusal?.Message);
@@ -624,12 +645,13 @@ public sealed class ImportUploadServiceTests : IDisposable
             time: time,
             availableBytes: availableBytes ?? (_ => long.MaxValue));
 
-    private static ImportUploadStartRequest Request(string name, long size, string kind = "movies", string? libraryId = null) => new()
+    private static ImportUploadStartRequest Request(string name, long size, string kind = "movies", string? libraryId = null, bool confirmLarge = false) => new()
     {
         KindKey = kind,
         FileName = name,
         TotalBytes = size,
         LibraryId = libraryId,
+        ConfirmLarge = confirmLarge,
     };
 
     private static async Task<ImportUploadStartResponse> StartAsync(ImportUploadService service, string name, long size)

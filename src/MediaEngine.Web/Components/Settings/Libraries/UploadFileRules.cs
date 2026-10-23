@@ -1,3 +1,5 @@
+using MediaEngine.Contracts.Imports;
+
 namespace MediaEngine.Web.Components.Settings;
 
 /// <summary>What a file looks like it is, judged only by its extension and the type the browser reports (the Engine checks the real file later).</summary>
@@ -174,6 +176,8 @@ public static class UploadRefusalMessages
     public const string VaultNotAvailable = "Adding files to the Vault by drag and drop isn't available yet.";
     public const string Unreachable = "The Library could not be reached. Try again in a moment.";
     public const string Fallback = "This file could not be added.";
+    /// <summary>The code the Dashboard's own relay gives when it cannot reach the Engine (not one of the Engine's codes).</summary>
+    public const string EngineUnreachableCode = "engine_unreachable";
     public const string ImportAddress = "/settings/libraries/import";
 
     /// <summary>The words to show, the link address (or null) and the link's words.</summary>
@@ -182,11 +186,11 @@ public static class UploadRefusalMessages
         var message = string.IsNullOrWhiteSpace(serverMessage) ? Fallback : serverMessage.Trim();
         return code switch
         {
-            "no_import_folder" => (SetImportFolder, ImportAddress, "Set the Import folder"),
-            "destination_unavailable" => (message, ImportAddress, "Check the Import folder"),
-            "no_managed_destination" => (message, kindAddress, kindAddress is null ? null : "Set up a folder"),
-            "vault_not_available" => (VaultNotAvailable, null, null),
-            "engine_unreachable" => (Unreachable, null, null),
+            ImportUploadRefusalCodes.NoImportFolder => (SetImportFolder, ImportAddress, "Set the Import folder"),
+            ImportUploadRefusalCodes.DestinationUnavailable => (message, ImportAddress, "Check the Import folder"),
+            ImportUploadRefusalCodes.NoManagedDestination => (message, kindAddress, kindAddress is null ? null : "Set up a folder"),
+            ImportUploadRefusalCodes.VaultNotAvailable => (VaultNotAvailable, null, null),
+            EngineUnreachableCode => (Unreachable, null, null),
             _ => (message, null, null),
         };
     }

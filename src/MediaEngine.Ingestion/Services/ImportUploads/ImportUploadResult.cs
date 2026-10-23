@@ -12,15 +12,12 @@ public enum ImportUploadRefusalKind
     /// <summary>The Library's state does not allow it (no Import folder, no destination, the upload is closed).</summary>
     Conflict,
 
-    /// <summary>The file is above the configured limit.</summary>
-    TooLarge,
-
     /// <summary>The drive has no room.</summary>
     InsufficientStorage,
 }
 
 /// <summary>A refused upload call: a stable <see cref="Code"/> (one of <c>ImportUploadRefusalCodes</c>), words a person can read, and the kind of problem.</summary>
-public sealed record ImportUploadRefusal(ImportUploadRefusalKind Kind, string Code, string Message);
+public sealed record ImportUploadRefusal(ImportUploadRefusalKind Kind, string Code, string Message, string? ImportFolderPath = null);
 
 /// <summary>Either the answer to an upload call or the reason it was refused.</summary>
 public sealed class ImportUploadResult<T>
@@ -39,6 +36,6 @@ public sealed class ImportUploadResult<T>
 
     public static ImportUploadResult<T> Ok(T value) => new(value, null);
 
-    public static ImportUploadResult<T> Refused(ImportUploadRefusalKind kind, string code, string message) =>
-        new(default, new ImportUploadRefusal(kind, code, message));
+    public static ImportUploadResult<T> Refused(ImportUploadRefusalKind kind, string code, string message, string? importFolderPath = null) =>
+        new(default, new ImportUploadRefusal(kind, code, message, importFolderPath));
 }

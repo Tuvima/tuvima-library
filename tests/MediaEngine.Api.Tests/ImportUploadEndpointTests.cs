@@ -154,6 +154,28 @@ public sealed class ImportUploadEndpointTests : IDisposable
         Assert.Equal(0, CountUploadRows());
     }
 
+    [Fact]
+    public async Task Start_AboveTheWarningSize_AnswersAConfirmationRefusalWithTheFolderPath_AndGoesAheadOnceConfirmed()
+    {
+        _config.SaveMaintenance(new MaintenanceSettings { UploadPieceBytes = MiB, LargeUploadWarningBytes = 2 * MiB });
+        await using var app = await StartAsync();
+        using var client = app.CreateClient("admin");
+        var size = 3 * MiB;
+
+        using var asked = await client.PostAsync("/imports/uploads", Json($$"""{"kind_key":"movies","file_name":"Big.mkv","total_bytes":{{size}}}"""));
+
+        Assert.Equal(HttpStatusCode.Conflict, asked.StatusCode);
+        using var body = JsonDocument.Parse(await asked.Content.ReadAsStringAsync());
+        Assert.Equal(ImportUploadRefusalCodes.LargeUploadNeedsConfirm, body.RootElement.GetProperty("code").GetString());
+        Assert.Equal(Path.Combine(_importDir, "Movies"), body.RootElement.GetProperty("import_folder_path").GetString());
+        Assert.Equal(0, CountUploadRows());
+
+        using var confirmed = await client.PostAsync("/imports/uploads", Json($$"""{"kind_key":"movies","file_name":"Big.mkv","total_bytes":{{size}},"confirm_large":true}"""));
+
+        Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
+        Assert.Equal(1, CountUploadRows());
+    }
+
     [Theory]
     [InlineData("member")]
     [InlineData("paired-app")]

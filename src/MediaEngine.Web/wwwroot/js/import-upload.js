@@ -34,9 +34,9 @@ function writePending(storage, entries) {
     }
 }
 
-/** Remembers an unfinished upload (by name and size, which is how a file picked again is matched). */
+/** Remembers an unfinished upload (by name and size, which is how a file picked again is matched). One entry per name and size: a new start replaces the old one. */
 export function savePending(storage, entry) {
-    const others = readPending(storage).filter(item => item.uploadId !== entry.uploadId);
+    const others = readPending(storage).filter(item => item.uploadId !== entry.uploadId && !(item.name === entry.name && item.size === entry.size));
     writePending(storage, [...others, entry]);
 }
 
@@ -56,10 +56,10 @@ const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function readProblem(response) {
     try {
         const body = await response.json();
-        return { code: body?.code ?? null, message: body?.detail ?? body?.title ?? null };
+        return { code: body?.code ?? null, message: body?.detail ?? body?.title ?? null, importFolderPath: body?.import_folder_path ?? null };
     } catch (error) {
         console.warn(`import-upload: the answer (${response.status}) was not a readable problem body`, error);
-        return { code: null, message: null };
+        return { code: null, message: null, importFolderPath: null };
     }
 }
 
@@ -76,7 +76,9 @@ class UploadStopped extends Error {
  *   { state: 'refused', code, message, status }   the start was refused; nothing was sent
  *   { state: 'cancelled' }
  *   { state: 'failed', uploadId, message }        the connection stayed down; the upload can be resumed
- * options: { fetchFn, base, token, kindKey, libraryId, resumeUploadId, signal, concurrency, retries, backoffMs, sleep, onStarted, onProgress }
+ *   (a refusal for a file above the warning size has code 'large_upload_needs_confirm' and importFolderPath; send again with confirmLarge)
+ * options: { fetchFn, base, token, kindKey, libraryId, confirmLarge, resumeUploadId, signal, concurrency, retries, backoffMs, sleep, onStarted, onProgress, onStale }
+ * onStale(uploadId) is called when the remembered upload can no longer be resumed (the Engine does not have it, or it is closed), so it can be forgotten.
  */
 export async function uploadFile(file, options) {
     const fetchFn = options.fetchFn ?? ((...args) => fetch(...args));
@@ -125,11 +127,14 @@ export async function uploadFile(file, options) {
         }
 
         if (!response.ok) {
+            // 404 (gone) or any other answer: this upload cannot be carried on, so it must not be offered again.
+            options.onStale?.(uploadId);
             return null;
         }
 
         const status = await response.json();
         if (status.state !== 'open' || status.total_bytes !== file.size || status.file_name !== file.name) {
+            options.onStale?.(uploadId);
             return null;
         }
 
@@ -138,6 +143,9 @@ export async function uploadFile(file, options) {
 
     async function start() {
         const body = { kind_key: options.kindKey, file_name: file.name, total_bytes: file.size };
+        if (options.confirmLarge) {
+            body.confirm_large = true;
+        }
         if (options.libraryId) {
             body.library_id = options.libraryId;
         }
@@ -153,7 +161,7 @@ export async function uploadFile(file, options) {
 
         if (!response.ok) {
             const problem = await readProblem(response);
-            throw new UploadStopped({ state: 'refused', code: problem.code, message: problem.message, status: response.status });
+            throw new UploadStopped({ state: 'refused', code: problem.code, message: problem.message, status: response.status, importFolderPath: problem.importFolderPath });
         }
 
         return toUpload(await response.json());
@@ -331,6 +339,8 @@ export async function cancelUpload(uploadId, options = {}) {
 
 const files = new Map();
 const runs = new Map();
+// Upload ids that a running file is using, so two identical files dropped together never share one upload.
+const claimed = new Set();
 const zones = new WeakMap();
 let nextId = 1;
 
@@ -418,8 +428,17 @@ export function choose(dotnet) {
     input.click();
 }
 
-/** Sends a file already described to the page. kindKey and libraryId were chosen by the person (or by the page they are on). */
-export async function begin(fileId, kindKey, libraryId, token, dotnet) {
+/**
+ * Starts sending a file already described to the page, and returns at once: the upload goes on in this module while the person moves
+ * around the Dashboard, and its progress and end are reported to the page's upload state (dotnet) as they happen.
+ * kindKey and libraryId were chosen by the person (or by the page they are on); confirmLarge answers the large-upload warning.
+ */
+export function begin(fileId, kindKey, libraryId, token, dotnet, confirmLarge = false) {
+    runUpload(fileId, kindKey, libraryId, token, dotnet, confirmLarge === true)
+        .catch(error => console.warn('import-upload: an upload stopped unexpectedly', error));
+}
+
+async function runUpload(fileId, kindKey, libraryId, token, dotnet, confirmLarge) {
     const file = files.get(fileId);
     if (!file) {
         await tell(dotnet, 'OnUploadFinished', fileId, { state: 'failed', message: 'The file is no longer available. Choose it again.', closed: true });
@@ -427,18 +446,38 @@ export async function begin(fileId, kindKey, libraryId, token, dotnet) {
     }
 
     const controller = new AbortController();
-    const run = { controller, uploadId: runs.get(fileId)?.uploadId ?? null };
+    const run = { controller, uploadId: runs.get(fileId)?.uploadId ?? null, token, cancelRequested: false };
     runs.set(fileId, run);
     const pending = findPending(storage(), file.name, file.size);
+    // Taken before anything is awaited, so a second identical file starting in the same moment finds it taken.
+    let resumeId = run.uploadId;
+    if (!resumeId && pending && !claimed.has(pending.uploadId)) {
+        resumeId = pending.uploadId;
+        claimed.add(resumeId);
+    }
+
     let lastReport = 0;
     const outcome = await uploadFile(file, {
         token,
         kindKey,
         libraryId,
-        resumeUploadId: run.uploadId ?? pending?.uploadId ?? null,
+        confirmLarge,
+        resumeUploadId: resumeId,
         signal: controller.signal,
+        onStale: uploadId => {
+            removePending(storage(), uploadId);
+            claimed.delete(uploadId);
+        },
         onStarted: uploadId => {
             run.uploadId = uploadId;
+            claimed.add(uploadId);
+            if (run.cancelRequested) {
+                // Cancel was pressed while the start was still on its way: now that there is an id, delete what it created.
+                controller.abort();
+                deleteAtEngine(uploadId, run.token);
+                return;
+            }
+
             savePending(storage(), { uploadId, name: file.name, size: file.size, kindKey, libraryId: libraryId ?? null });
         },
         onProgress: (sent, total) => {
@@ -449,15 +488,15 @@ export async function begin(fileId, kindKey, libraryId, token, dotnet) {
         },
     });
 
-    if (run.suspended) {
-        // The page was left: the Engine keeps the pieces it has and this browser remembers the upload, so choosing the file again resumes it.
-        runs.delete(fileId);
-        files.delete(fileId);
-        return;
+    if (outcome.state !== 'failed' || outcome.closed === true) {
+        if (run.uploadId) claimed.delete(run.uploadId);
+        if (resumeId) claimed.delete(resumeId);
     }
 
     if (outcome.state === 'cancelled') {
         // Cancel already deleted the partial file and removed the row.
+        runs.delete(fileId);
+        files.delete(fileId);
         return;
     }
 
@@ -467,7 +506,16 @@ export async function begin(fileId, kindKey, libraryId, token, dotnet) {
         return;
     }
 
+    if (outcome.state === 'refused' && outcome.code === 'large_upload_needs_confirm') {
+        // Nothing was created; the file is kept so Upload anyway can send it with the person's confirmation.
+        runs.delete(fileId);
+        await tell(dotnet, 'OnUploadFinished', fileId, outcome);
+        return;
+    }
+
+    // Finished, refused or closed: whatever this browser remembered about the file is now out of date.
     if (run.uploadId) removePending(storage(), run.uploadId);
+    if (pending && !claimed.has(pending.uploadId)) removePending(storage(), pending.uploadId);
     runs.delete(fileId);
     files.delete(fileId);
     await tell(dotnet, 'OnUploadFinished', fileId, outcome);
@@ -482,29 +530,28 @@ async function tell(dotnet, method, ...args) {
     }
 }
 
-/** Stops sending a file because the page was left, without deleting anything: the upload can be resumed later. */
-export function suspend(fileId) {
-    const run = runs.get(fileId);
-    if (!run) return;
-    run.suspended = true;
-    run.controller.abort();
+function deleteAtEngine(uploadId, token) {
+    cancelUpload(uploadId, { token })
+        .then(() => removePending(storage(), uploadId))
+        .catch(error => console.warn('import-upload: the Library could not be asked to delete the partial file; the sweep removes it after a day', error));
 }
 
 /** Stops a running upload (or drops a failed one) and deletes its partial file at the Engine. */
-export async function cancel(fileId, token) {
+export function cancel(fileId, token) {
     const run = runs.get(fileId);
+    if (run && run.uploadId === null) {
+        // The start is still on its way: let it answer so the upload it creates can be deleted (see onStarted).
+        run.cancelRequested = true;
+        run.token = token;
+        files.delete(fileId);
+        return;
+    }
+
     run?.controller.abort();
     const uploadId = run?.uploadId ?? null;
     runs.delete(fileId);
     files.delete(fileId);
-    if (!uploadId) return;
-    try {
-        await cancelUpload(uploadId, { token });
-    } catch (error) {
-        console.warn('import-upload: the Library could not be asked to delete the partial file; the sweep removes it after a day', error);
-    }
-
-    removePending(storage(), uploadId);
+    if (uploadId) deleteAtEngine(uploadId, token);
 }
 
 /** Forgets a file the person dismissed or that was refused (nothing is kept at the Engine for it). */

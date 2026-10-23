@@ -3610,7 +3610,8 @@
   LibraryId: System.String | json=library_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TotalBytes: System.Int64 | json=total_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"kind_key":"sample","library_id":"sample","file_name":"sample","total_bytes":7}
+  ConfirmLarge: System.Boolean | json=confirm_large | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind_key":"sample","library_id":"sample","file_name":"sample","total_bytes":7,"confirm_large":true}
 
 [contracts] MediaEngine.Contracts.Imports.ImportUploadStartResponse
   kind=class | converter=default | number-handling=default | unmapped=default

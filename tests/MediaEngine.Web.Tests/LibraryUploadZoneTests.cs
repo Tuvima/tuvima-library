@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Settings;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
@@ -59,6 +60,12 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         _dialogs = Render<AppDialogHost>();
     }
 
+    private ImportUploadState State => Services.GetRequiredService<ImportUploadState>();
+
+    // The browser telling the session's upload state how a file went, as the real module does.
+    private async Task Finish(IRenderedComponent<LibraryUploadZone> cut, string id, UploadOutcome outcome) =>
+        await cut.InvokeAsync(() => State.OnUploadFinished(id, outcome));
+
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
     private static UploadFileItem File(string id, string name, long size = 5_000_000, string type = "") =>
@@ -91,7 +98,7 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         await Choose(cut, File("f1", "song.mp3"));
         Assert.Equal([("music", (string?)null)], Begins().Select(call => (call.Kind, call.Library)));
 
-        await cut.InvokeAsync(() => cut.Instance.OnUploadFinished("f1", new UploadOutcome { State = "refused", Code = "no_import_folder", Message = "Set an Import folder first." }));
+        await Finish(cut, "f1", new UploadOutcome { State = "refused", Code = "no_import_folder", Message = "Set an Import folder first." });
 
         var row = cut.Find(".upload-row");
         Assert.Contains("Set an Import folder first.", Text(row));
@@ -102,7 +109,6 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("too_large", "This file is larger than the 50 GB the Library accepts in one upload. Copy it straight into the Import folder on the server instead.", "larger than the 50 GB")]
     [InlineData("not_enough_space", "There isn't enough room in the Import folder for this file.", "isn't enough room")]
     [InlineData("drag_and_drop_off", "An administrator turned off adding files by dropping them here.", "turned off")]
     [InlineData("vault_not_available", "whatever the Engine said", "Adding files to the Vault by drag and drop isn't available yet.")]
@@ -111,7 +117,7 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         var cut = RenderZone(Kind("movies"));
         await Choose(cut, File("f1", "film.mkv"));
 
-        await cut.InvokeAsync(() => cut.Instance.OnUploadFinished("f1", new UploadOutcome { State = "refused", Code = code, Message = engineSaid }));
+        await Finish(cut, "f1", new UploadOutcome { State = "refused", Code = code, Message = engineSaid });
 
         Assert.Contains(expected, Text(cut.Find(".upload-row")));
         Assert.Single(_module.Invocations["begin"]);
@@ -123,7 +129,7 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         var cut = RenderZone(Kind("movies"));
         await Choose(cut, File("f1", "film.mkv"));
 
-        await cut.InvokeAsync(() => cut.Instance.OnUploadFinished("f1", new UploadOutcome { State = "refused", Code = "no_managed_destination", Message = "Movies has no folder Library manages yet." }));
+        await Finish(cut, "f1", new UploadOutcome { State = "refused", Code = "no_managed_destination", Message = "Movies has no folder Library manages yet." });
 
         Assert.Equal("/settings/libraries/watch/movies", cut.Find(".upload-row a").GetAttribute("href"));
     }
@@ -138,13 +144,13 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
 
         Assert.Equal("music", Begins().Single().Kind);
         Assert.Empty(_dialogs.FindAll(".upload-dialog"));
-        await cut.InvokeAsync(() => cut.Instance.OnUploadProgress("f1", 5_000_000, 10_000_000));
+        await cut.InvokeAsync(() => State.OnUploadProgress("f1", 5_000_000, 10_000_000));
         var bar = cut.Find(".upload-row [role=progressbar]");
         Assert.Equal("50", bar.GetAttribute("aria-valuenow"));
         Assert.Contains("of", Text(cut.Find(".upload-row__detail")));
         Assert.NotNull(cut.Find(".upload-row button[aria-label='Cancel adding song.mp3']"));
 
-        await cut.InvokeAsync(() => cut.Instance.OnUploadFinished("f1", new UploadOutcome { State = "completed", FileName = "song (1).mp3", Renamed = true }));
+        await Finish(cut, "f1", new UploadOutcome { State = "completed", FileName = "song (1).mp3", Renamed = true });
 
         var detail = Text(cut.Find(".upload-row__detail"));
         Assert.Contains("Added to the Import folder. It will be filed on the next run.", detail);
@@ -264,7 +270,7 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
     {
         var cut = RenderZone(Kind("movies"));
         await Choose(cut, File("f1", "film.mkv"));
-        await cut.InvokeAsync(() => cut.Instance.OnUploadProgress("f1", 1_000_000, 5_000_000));
+        await cut.InvokeAsync(() => State.OnUploadProgress("f1", 1_000_000, 5_000_000));
 
         cut.Find(".upload-row button[aria-label='Cancel adding film.mkv']").Click();
 
@@ -278,7 +284,7 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
     {
         var cut = RenderZone(Kind("movies"));
         await Choose(cut, File("f1", "film.mkv"));
-        await cut.InvokeAsync(() => cut.Instance.OnUploadFinished("f1", new UploadOutcome { State = "failed", Message = "The connection to the Library kept dropping." }));
+        await Finish(cut, "f1", new UploadOutcome { State = "failed", Message = "The connection to the Library kept dropping." });
 
         cut.Find(".upload-row button[aria-label='Try adding film.mkv again']").Click();
 
@@ -355,5 +361,105 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         typePage.WaitForElement(".library-folders__add");
 
         Assert.Contains(typePage.FindAll(".library-folders__detail-actions button"), button => Text(button) == "Add files");
+    }
+
+    private static UploadOutcome Large(string path = "E:\\Import\\Movies") => new()
+    {
+        State = "refused",
+        Code = "large_upload_needs_confirm",
+        Message = "Large uploads can fail.",
+        ImportFolderPath = path,
+    };
+
+    // 7. A file above the warning size shows one amber box per drop (Library setup D44); nothing is sent until the person agrees.
+    [Fact]
+    public async Task LargeFilesOfOneDrop_ShareOneWarningBox_WithThePathAndCopyPath_AndNothingIsListedAsFailed()
+    {
+        var cut = RenderZone(Kind("movies"));
+        await Choose(cut, File("f1", "big-1.mkv", 60_000_000_000), File("f2", "big-2.mkv", 70_000_000_000), File("f3", "small.mkv", 5_000_000));
+
+        await Finish(cut, "f1", Large());
+        await Finish(cut, "f2", Large());
+
+        var box = Assert.Single(cut.FindAll("[data-upload-warning]"));
+        Assert.Contains("Large uploads can fail. For files this size, copying straight into the Import folder on the server is more reliable.", Text(box));
+        Assert.Contains("big-1.mkv", Text(box));
+        Assert.Contains("big-2.mkv", Text(box));
+        Assert.DoesNotContain("small.mkv", Text(box));
+        Assert.Equal("E:\\Import\\Movies", Text(box.QuerySelector("code")!));
+        Assert.Single(box.QuerySelectorAll("code"));
+        // The small file is an ordinary row; the large ones are not listed as failed or refused.
+        Assert.Equal(["small.mkv"], cut.FindAll(".upload-row").Select(row => row.GetAttribute("data-file")));
+
+        box.QuerySelectorAll("button").Single(button => Text(button) == "Copy path").Click();
+        JSInterop.VerifyInvoke("navigator.clipboard.writeText");
+        Assert.Equal("E:\\Import\\Movies", JSInterop.Invocations["navigator.clipboard.writeText"].Single().Arguments[0]);
+        Assert.Equal(3, _module.Invocations["begin"].Count);
+    }
+
+    [Fact]
+    public async Task UploadAnyway_SendsTheLargeFilesAgainWithConfirmation_AndTheBoxGoes()
+    {
+        var cut = RenderZone(Kind("movies"));
+        await Choose(cut, File("f1", "big-1.mkv", 60_000_000_000), File("f2", "big-2.mkv", 70_000_000_000));
+        await Finish(cut, "f1", Large());
+        await Finish(cut, "f2", Large());
+        Assert.All(_module.Invocations["begin"], call => Assert.Equal(false, call.Arguments[5]));
+
+        cut.FindAll("[data-upload-warning] button").Single(button => Text(button) == "Upload anyway").Click();
+
+        Assert.Empty(cut.FindAll("[data-upload-warning]"));
+        var again = _module.Invocations["begin"].Skip(2).ToList();
+        Assert.Equal(["f1", "f2"], again.Select(call => (string)call.Arguments[0]!));
+        Assert.All(again, call => Assert.Equal(true, call.Arguments[5]));
+        Assert.Equal(2, cut.FindAll(".upload-row").Count);
+    }
+
+    [Fact]
+    public async Task CancelOnTheWarning_DropsJustThoseFiles_AndTheOthersCarryOn()
+    {
+        var cut = RenderZone(Kind("movies"));
+        await Choose(cut, File("f1", "big.mkv", 60_000_000_000), File("f2", "small.mkv", 5_000_000));
+        await Finish(cut, "f1", Large());
+
+        cut.FindAll("[data-upload-warning] button").Single(button => Text(button) == "Cancel").Click();
+
+        Assert.Empty(cut.FindAll("[data-upload-warning]"));
+        Assert.Equal(["small.mkv"], cut.FindAll(".upload-row").Select(row => row.GetAttribute("data-file")));
+        Assert.Equal("f1", Assert.Single(_module.Invocations["forget"]).Arguments[0]);
+        Assert.Empty(_module.Invocations["cancel"]);
+    }
+
+    // Uploads keep going while the person moves around: the list lives in the session's upload state, not in the page.
+    [Fact]
+    public async Task TheProgressList_ReappearsOnAnotherLibrariesPage_AndLeavingAPageDoesNotStopTheUpload()
+    {
+        var first = RenderZone(Kind("movies"));
+        await Choose(first, File("f1", "film.mkv", 10_000_000));
+        await first.InvokeAsync(() => State.OnUploadProgress("f1", 4_000_000, 10_000_000));
+
+        await first.Instance.DisposeAsync();
+        var second = RenderZone(group: LibraryKindsTestData.Catalog.TryGetGroup("watch"));
+
+        Assert.Equal("film.mkv", second.Find(".upload-row").GetAttribute("data-file"));
+        Assert.Equal("40", second.Find(".upload-row [role=progressbar]").GetAttribute("aria-valuenow"));
+        Assert.Empty(_module.Invocations["cancel"]);
+        // A result that arrives while the other page is shown lands in the same list.
+        await Finish(second, "f1", new UploadOutcome { State = "completed", FileName = "film.mkv" });
+        Assert.Equal("done", second.Find(".upload-row").GetAttribute("data-state"));
+    }
+
+    [Fact]
+    public async Task ADeviceReportedLate_ShowsTheDropHint_AndListensForDrops()
+    {
+        var cut = RenderZone(Kind("movies"));
+        cut.WaitForAssertion(() => Assert.Single(_module.Invocations["attach"]));
+        Assert.Empty(cut.FindAll(".upload-zone__hint"));
+
+        await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+
+        cut.WaitForElement(".upload-zone__hint");
+        cut.WaitForAssertion(() => Assert.Equal(true, _module.Invocations["attach"].Last().Arguments[2]));
+        Assert.NotEmpty(_module.Invocations["detach"]);
     }
 }

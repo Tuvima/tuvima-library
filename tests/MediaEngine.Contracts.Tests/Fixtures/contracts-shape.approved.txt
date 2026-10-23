@@ -3004,6 +3004,7 @@ MediaEngine.Contracts.Imports.MediaEngine.Contracts.Imports.ImportUploadStartReq
   LibraryId: System.String | nullability=nullable | accessors=get,init
   FileName: System.String | nullability=not-null | accessors=get,init
   TotalBytes: System.Int64 | nullability=not-null | accessors=get,init
+  ConfirmLarge: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Imports.MediaEngine.Contracts.Imports.ImportUploadStartResponse
   UploadId: System.Guid | nullability=not-null | accessors=get,init

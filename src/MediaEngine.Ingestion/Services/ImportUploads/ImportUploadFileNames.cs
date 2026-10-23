@@ -51,7 +51,7 @@ public static class ImportUploadFileNames
 
         // Format characters (such as U+202E, which flips the order the rest of the name is shown in) can make "movie.exe" look like
         // another name, so they are refused along with the control characters. The zero-width joiner is the one exception: it is not a
-        // direction control, and emoji names (a family, a flag) are built with it.
+        // direction control, and emoji sequences (the family and profession emoji) are built with it.
         if (fileName.IndexOfAny(ForbiddenCharacters) >= 0
             || fileName.Any(char.IsControl)
             || fileName.EnumerateRunes().Any(rune => Rune.GetUnicodeCategory(rune) == UnicodeCategory.Format && rune.Value != ZeroWidthJoiner))

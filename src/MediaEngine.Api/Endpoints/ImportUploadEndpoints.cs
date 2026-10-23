@@ -48,7 +48,6 @@ public static class ImportUploadEndpoints
         .Produces<ImportUploadStartResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status409Conflict)
-        .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
         .ProducesProblem(StatusCodes.Status507InsufficientStorage);
 
         group.MapGet("/{uploadId:guid}", async (
@@ -184,14 +183,14 @@ public static class ImportUploadEndpoints
                     ImportUploadRefusalKind.BadRequest => StatusCodes.Status400BadRequest,
                     ImportUploadRefusalKind.NotFound => StatusCodes.Status404NotFound,
                     ImportUploadRefusalKind.Conflict => StatusCodes.Status409Conflict,
-                    ImportUploadRefusalKind.TooLarge => StatusCodes.Status413PayloadTooLarge,
                     _ => StatusCodes.Status507InsufficientStorage,
                 },
                 refusal.Code,
-                refusal.Message)
+                refusal.Message,
+                refusal.ImportFolderPath)
             : Results.Ok(result.Value);
 
-    private static IResult Problem(int statusCode, string code, string message) =>
+    private static IResult Problem(int statusCode, string code, string message, string? importFolderPath = null) =>
         Results.Problem(
             detail: message,
             statusCode: statusCode,
@@ -203,5 +202,16 @@ public static class ImportUploadEndpoints
                 StatusCodes.Status507InsufficientStorage => "Insufficient disk space.",
                 _ => "Invalid request.",
             },
-            extensions: new Dictionary<string, object?> { ["code"] = code });
+            extensions: ProblemExtensions(code, importFolderPath));
+
+    private static Dictionary<string, object?> ProblemExtensions(string code, string? importFolderPath)
+    {
+        var extensions = new Dictionary<string, object?> { ["code"] = code };
+        if (importFolderPath is not null)
+        {
+            extensions[ImportUploadRefusalCodes.ImportFolderPathProperty] = importFolderPath;
+        }
+
+        return extensions;
+    }
 }

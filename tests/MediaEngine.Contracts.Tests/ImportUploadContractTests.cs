@@ -12,12 +12,23 @@ public sealed class ImportUploadContractTests
         var json = JsonSerializer.Serialize(new ImportUploadStartRequest { KindKey = "movies", FileName = "Film.mkv", TotalBytes = 5_000_000_000 });
         var roundTrip = JsonSerializer.Deserialize<ImportUploadStartRequest>(json)!;
 
-        Assert.Equal(["kind_key", "library_id", "file_name", "total_bytes"], PropertyNames(json));
+        Assert.Equal(["kind_key", "library_id", "file_name", "total_bytes", "confirm_large"], PropertyNames(json));
+        Assert.Contains("\"confirm_large\":false", json, StringComparison.Ordinal);
         Assert.Contains("\"library_id\":null", json, StringComparison.Ordinal);
         Assert.Equal("movies", roundTrip.KindKey);
         Assert.Null(roundTrip.LibraryId);
         Assert.Equal("Film.mkv", roundTrip.FileName);
         Assert.Equal(5_000_000_000, roundTrip.TotalBytes);
+    }
+
+    [Fact]
+    public void ConfirmLarge_IsOffUnlessTheRequestSaysSo_AndReadsBackWhenSet()
+    {
+        var plain = JsonSerializer.Deserialize<ImportUploadStartRequest>("""{"kind_key":"movies","file_name":"a.mkv","total_bytes":1}""")!;
+        var confirmed = JsonSerializer.Deserialize<ImportUploadStartRequest>("""{"kind_key":"movies","file_name":"a.mkv","total_bytes":1,"confirm_large":true}""")!;
+
+        Assert.False(plain.ConfirmLarge);
+        Assert.True(confirmed.ConfirmLarge);
     }
 
     [Fact]
@@ -71,7 +82,8 @@ public sealed class ImportUploadContractTests
         Assert.Equal("vault_not_available", ImportUploadRefusalCodes.VaultNotAvailable);
         Assert.Equal("destination_unavailable", ImportUploadRefusalCodes.DestinationUnavailable);
         Assert.Equal("not_enough_space", ImportUploadRefusalCodes.NotEnoughSpace);
-        Assert.Equal("too_large", ImportUploadRefusalCodes.TooLarge);
+        Assert.Equal("large_upload_needs_confirm", ImportUploadRefusalCodes.LargeUploadNeedsConfirm);
+        Assert.Equal("import_folder_path", ImportUploadRefusalCodes.ImportFolderPathProperty);
         Assert.Equal("drag_and_drop_off", ImportUploadRefusalCodes.DragAndDropOff);
         Assert.Equal("unknown_kind", ImportUploadRefusalCodes.UnknownKind);
         Assert.Equal("unknown_library", ImportUploadRefusalCodes.UnknownLibrary);

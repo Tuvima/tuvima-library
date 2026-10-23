@@ -102,7 +102,7 @@ public sealed class ImportUploadRelayTests
 
     [Theory]
     [InlineData(409, """{"title":"Conflict.","status":409,"detail":"Set an Import folder first.","code":"no_import_folder"}""")]
-    [InlineData(413, """{"title":"Upload too large.","status":413,"detail":"Too big.","code":"too_large"}""")]
+    [InlineData(409, """{"title":"Conflict.","status":409,"detail":"Large uploads can fail.","code":"large_upload_needs_confirm","import_folder_path":"E:\\Import\\Movies"}""")]
     [InlineData(403, """{"title":"Access denied.","status":403,"detail":"Only an administrator can add files this way."}""")]
     [InlineData(404, """{"title":"Not found.","status":404,"code":"upload_not_found"}""")]
     [InlineData(507, """{"title":"Insufficient disk space.","status":507,"code":"not_enough_space"}""")]

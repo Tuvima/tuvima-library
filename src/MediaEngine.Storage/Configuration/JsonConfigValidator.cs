@@ -64,7 +64,7 @@ public static class JsonConfigValidator
                 }
 
                 AddRange(errors, maintenance.UploadPieceBytes, "upload_piece_bytes", ImportUploadLimits.MinPieceBytes, ImportUploadLimits.MaxPieceBytes);
-                AddRange(errors, maintenance.MaxUploadBytes, "max_upload_bytes", ImportUploadLimits.MinMaxUploadBytes, ImportUploadLimits.MaxMaxUploadBytes);
+                AddRange(errors, maintenance.LargeUploadWarningBytes, "large_upload_warning_bytes", ImportUploadLimits.MinLargeUploadWarningBytes, ImportUploadLimits.MaxLargeUploadWarningBytes);
                 AddRange(errors, maintenance.UploadAbandonHours, "upload_abandon_hours", ImportUploadLimits.MinAbandonHours, ImportUploadLimits.MaxAbandonHours);
                 AddPositive(errors, maintenance.MaxTransactionLogEntries, "max_transaction_log_entries");
                 AddPositive(errors, maintenance.WeeklySyncIntervalDays, "weekly_sync_interval_days");

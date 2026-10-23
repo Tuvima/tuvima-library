@@ -22,6 +22,13 @@ public sealed class ImportUploadStartRequest
 
     [JsonPropertyName("total_bytes")]
     public long TotalBytes { get; init; }
+
+    /// <summary>
+    /// True when the person has seen the large-upload warning and chose to upload anyway. Without it, a file above
+    /// <c>large_upload_warning_bytes</c> is refused with <see cref="ImportUploadRefusalCodes.LargeUploadNeedsConfirm"/>.
+    /// </summary>
+    [JsonPropertyName("confirm_large")]
+    public bool ConfirmLarge { get; init; }
 }
 
 /// <summary>
@@ -125,8 +132,14 @@ public static class ImportUploadRefusalCodes
     /// <summary>The drive does not have room for the file.</summary>
     public const string NotEnoughSpace = "not_enough_space";
 
-    /// <summary>The file is above <c>max_upload_bytes</c>.</summary>
-    public const string TooLarge = "too_large";
+    /// <summary>
+    /// The file is above <c>large_upload_warning_bytes</c> and the person has not confirmed yet. The problem body carries
+    /// <see cref="ImportFolderPathProperty"/> so the warning can show where to copy the file instead. Nothing has been created.
+    /// </summary>
+    public const string LargeUploadNeedsConfirm = "large_upload_needs_confirm";
+
+    /// <summary>The name of the extra property on a large-upload refusal: the kind's Import sub-folder as the Engine sees it (administrators only).</summary>
+    public const string ImportFolderPathProperty = "import_folder_path";
 
     /// <summary>An administrator turned off drag and drop (<c>allow_drag_and_drop</c>).</summary>
     public const string DragAndDropOff = "drag_and_drop_off";

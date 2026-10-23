@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { uploadFile, savePending, findPending, removePending, cancelUpload } = await import(new URL('../../../src/MediaEngine.Web/wwwroot/js/import-upload.js', import.meta.url).href);
+const { uploadFile, savePending, findPending, removePending, cancelUpload, choose, begin, cancel } = await import(new URL('../../../src/MediaEngine.Web/wwwroot/js/import-upload.js', import.meta.url).href);
 
 // A stand-in file: only its name, size and slice are used.
 function fakeFile(name, size) {
@@ -108,7 +108,7 @@ test('a refused start sends nothing and says why', async () => {
 
     const outcome = await uploadFile(fakeFile('a.mkv', 25), { ...quiet, fetchFn: relay.fetchFn, kindKey: 'movies' });
 
-    assert.deepEqual(outcome, { state: 'refused', code: 'no_import_folder', message: 'Set an Import folder first.', status: 409 });
+    assert.deepEqual(outcome, { state: 'refused', code: 'no_import_folder', message: 'Set an Import folder first.', status: 409, importFolderPath: null });
     assert.deepEqual(relay.state.puts, []);
     assert.equal(relay.state.calls.length, 1);
 });
@@ -201,4 +201,157 @@ test('unfinished uploads are remembered by name and size, and a storage that fai
     assert.equal(findPending(broken, 'a.mkv', 30), null);
     savePending(broken, { uploadId: 'u3', name: 'c', size: 1 });
     assert.ok(warnings.length >= 2);
+});
+
+test('a new start for the same name and size replaces the remembered one', () => {
+    const data = new Map();
+    const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+
+    savePending(storage, { uploadId: 'old', name: 'Lecture.mp4', size: 30, kindKey: 'other_videos', libraryId: 'lib-1' });
+    savePending(storage, { uploadId: 'new', name: 'Lecture.mp4', size: 30, kindKey: 'movies', libraryId: null });
+
+    assert.equal(JSON.parse(data.get('tuvima.import-uploads.pending')).length, 1);
+    assert.equal(findPending(storage, 'Lecture.mp4', 30).uploadId, 'new');
+});
+
+test('a remembered upload the Engine says is gone is forgotten, not offered again', async () => {
+    const relay = fakeRelay();
+    const stale = [];
+    const fetchFn = (url, init) => (init.method === 'GET' && !relay.state.upload ? Promise.resolve(json(404, { code: 'upload_not_found' })) : relay.fetchFn(url, init));
+
+    await uploadFile(fakeFile('a.mkv', 20), { ...quiet, fetchFn, kindKey: 'movies', resumeUploadId: 'gone', onStale: id => stale.push(id) });
+
+    assert.deepEqual(stale, ['gone']);
+});
+
+test('a remembered upload that is closed or for another file is forgotten', async () => {
+    const relay = fakeRelay();
+    relay.state.upload = { id: 'u1', total: 99, body: { file_name: 'a.mkv', total_bytes: 99 } };
+    const stale = [];
+
+    await uploadFile(fakeFile('a.mkv', 20), { ...quiet, fetchFn: relay.fetchFn, kindKey: 'movies', resumeUploadId: 'u1', onStale: id => stale.push(id) });
+
+    assert.deepEqual(stale, ['u1']);
+});
+
+test('a file above the warning size is refused with the folder path until the person confirms, then goes ahead', async () => {
+    const asked = [];
+    const fetchFn = async (url, init) => {
+        if (init.method === 'POST' && url === '/import-uploads/') {
+            const body = JSON.parse(init.body);
+            asked.push(body.confirm_large === true);
+            if (!body.confirm_large) return json(409, { code: 'large_upload_needs_confirm', detail: 'Large uploads can fail.', import_folder_path: '/import/Movies' });
+        }
+
+        return fakeRelay().fetchFn(url, init);
+    };
+
+    const refused = await uploadFile(fakeFile('big.mkv', 20), { ...quiet, fetchFn, kindKey: 'movies' });
+    assert.equal(refused.state, 'refused');
+    assert.equal(refused.code, 'large_upload_needs_confirm');
+    assert.equal(refused.importFolderPath, '/import/Movies');
+
+    const relay = fakeRelay();
+    const confirmedBodies = [];
+    const confirmedFetch = (url, init) => { if (init.method === 'POST' && url === '/import-uploads/') confirmedBodies.push(JSON.parse(init.body)); return relay.fetchFn(url, init); };
+    const confirmed = await uploadFile(fakeFile('big.mkv', 20), { ...quiet, fetchFn: confirmedFetch, kindKey: 'movies', confirmLarge: true });
+    assert.equal(confirmed.state, 'completed');
+    assert.equal(confirmedBodies[0].confirm_large, true);
+    assert.deepEqual(asked, [false]);
+});
+
+// The page side, with a stand-in browser: a chooser whose files the test supplies, local storage, and a Dashboard relay.
+function fakeBrowser({ fetchFn }) {
+    const data = new Map();
+    const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+    const input = { files: [], click() {}, addEventListener(type, handler) { this.handler = handler; } };
+    globalThis.localStorage = storage;
+    globalThis.document = { createElement: () => input };
+    globalThis.fetch = fetchFn;
+    const calls = [];
+    const waiters = [];
+    const dotnet = {
+        invokeMethodAsync(method, ...args) {
+            calls.push([method, ...args]);
+            waiters.splice(0).forEach(resolve => resolve());
+            return Promise.resolve();
+        },
+    };
+    const until = async predicate => { while (!predicate()) await new Promise(resolve => { waiters.push(resolve); setTimeout(resolve, 5); }); };
+    const pick = file => { choose(dotnet); input.files = [file]; input.handler(); return calls.filter(call => call[0] === 'OnFilesChosen').at(-1)[1][0]; };
+    return { storage, dotnet, calls, until, pick };
+}
+
+test('a refused start forgets the remembered upload, so the same file asks the kind again instead of failing for good', async () => {
+    const browser = fakeBrowser({ fetchFn: async () => json(400, { code: 'unknown_library', detail: "That library isn't one this kind of file can be added to." }) });
+    savePending(browser.storage, { uploadId: 'stale', name: 'Lecture.mp4', size: 30, kindKey: 'other_videos', libraryId: 'deleted-library' });
+
+    const item = browser.pick(fakeFile('Lecture.mp4', 30));
+    assert.equal(item.resumeKind, 'other_videos');
+    begin(item.id, 'other_videos', 'deleted-library', 'T', browser.dotnet);
+    await browser.until(() => browser.calls.some(call => call[0] === 'OnUploadFinished'));
+
+    assert.equal(browser.calls.find(call => call[0] === 'OnUploadFinished')[2].code, 'unknown_library');
+    assert.equal(findPending(browser.storage, 'Lecture.mp4', 30), null);
+    // Choosing it again no longer remembers a kind or library.
+    assert.equal(browser.pick(fakeFile('Lecture.mp4', 30)).resumeKind, null);
+});
+
+test('cancelling while the start is still on its way deletes the upload once the start returns an id', async () => {
+    const relay = fakeRelay();
+    let releaseStart;
+    const startGate = new Promise(resolve => { releaseStart = resolve; });
+    const deleted = [];
+    const fetchFn = async (url, init) => {
+        if (init.method === 'POST' && url === '/import-uploads/') await startGate;
+        if (init.method === 'DELETE') { deleted.push(url); return json(200, {}); }
+        return relay.fetchFn(url, init);
+    };
+    const browser = fakeBrowser({ fetchFn });
+
+    const item = browser.pick(fakeFile('film.mkv', 30));
+    begin(item.id, 'movies', null, 'T', browser.dotnet);
+    cancel(item.id, 'T');
+    assert.deepEqual(deleted, []);
+    releaseStart();
+    await browser.until(() => deleted.length > 0);
+
+    assert.deepEqual(deleted, ['/import-uploads/u1']);
+    assert.deepEqual(relay.state.puts, []);
+});
+
+test('two identical files dropped together never share one remembered upload', async () => {
+    const held = new Map([['remembered', new Set()]]);
+    let next = 0;
+    const piecesSentTo = [];
+    const fetchFn = async (url, init) => {
+        const piece = /import-uploads\/([^/]+)\/pieces\/(\d+)$/.exec(url);
+        const status = /import-uploads\/([^/]+)$/.exec(url);
+        if (init.method === 'POST' && url === '/import-uploads/') {
+            const id = `fresh-${++next}`;
+            held.set(id, new Set());
+            return json(200, { upload_id: id, piece_bytes: 10, piece_count: 3, total_bytes: 30 });
+        }
+
+        if (init.method === 'GET' && status) {
+            return json(200, { upload_id: status[1], state: 'open', file_name: 'a.mkv', total_bytes: 30, piece_bytes: 10, piece_count: 3, received_pieces: [...held.get(status[1])] });
+        }
+
+        if (init.method === 'PUT' && piece) { piecesSentTo.push(piece[1]); held.get(piece[1]).add(Number(piece[2])); return json(200, {}); }
+        if (url.endsWith('/complete')) return json(200, { file_name: 'a.mkv', renamed: false, destination_path: '/x' });
+        throw new Error(`unexpected ${init.method} ${url}`);
+    };
+    const browser = fakeBrowser({ fetchFn });
+    savePending(browser.storage, { uploadId: 'remembered', name: 'a.mkv', size: 30, kindKey: 'movies', libraryId: null });
+
+    const first = browser.pick(fakeFile('a.mkv', 30));
+    const second = browser.pick(fakeFile('a.mkv', 30));
+    begin(first.id, 'movies', null, 'T', browser.dotnet);
+    begin(second.id, 'movies', null, 'T', browser.dotnet);
+    await browser.until(() => browser.calls.filter(call => call[0] === 'OnUploadFinished').length === 2);
+
+    const targets = new Set(piecesSentTo);
+    assert.equal(targets.size, 2, 'each file has its own upload');
+    assert.ok(targets.has('remembered'), 'one of them carried on the remembered upload');
+    assert.ok([...targets].some(id => id.startsWith('fresh-')), 'the other started its own');
 });

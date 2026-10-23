@@ -96,14 +96,6 @@ public sealed class ImportUploadService
             return Refuse<ImportUploadStartResponse>(ImportUploadRefusalKind.BadRequest, ImportUploadRefusalCodes.InvalidSize, "The file is empty.");
         }
 
-        if (request.TotalBytes > maintenance.MaxUploadBytes)
-        {
-            return Refuse<ImportUploadStartResponse>(
-                ImportUploadRefusalKind.TooLarge,
-                ImportUploadRefusalCodes.TooLarge,
-                $"This file is larger than the {FormatBytes(maintenance.MaxUploadBytes)} the Library accepts in one upload. Copy it straight into the Import folder on the server instead.");
-        }
-
         var libraries = _configuration.LoadLibraries();
         if (!libraries.PersonalLibraryPolicy.AllowDragAndDrop)
         {
@@ -215,6 +207,17 @@ public sealed class ImportUploadService
             || !ImportUploadPaths.IsInside(workingFolder, root!))
         {
             return Refuse<ImportUploadStartResponse>(ImportUploadRefusalKind.Conflict, ImportUploadRefusalCodes.DestinationUnavailable, "The Import folder can't take files right now.");
+        }
+
+        // Above the warning size the person is told first that copying straight into the Import folder is more reliable. It is a warning,
+        // not a cap: with confirmation the start goes on (the room checks above still apply). Nothing has been created yet.
+        if (request.TotalBytes > maintenance.LargeUploadWarningBytes && !request.ConfirmLarge)
+        {
+            return ImportUploadResult<ImportUploadStartResponse>.Refused(
+                ImportUploadRefusalKind.Conflict,
+                ImportUploadRefusalCodes.LargeUploadNeedsConfirm,
+                "Large uploads can fail. For files this size, copying straight into the Import folder on the server is more reliable.",
+                destinationFolder);
         }
 
         var id = Guid.NewGuid();
@@ -821,11 +824,6 @@ public sealed class ImportUploadService
 
     private static long PieceBytes(MaintenanceSettings maintenance) =>
         Math.Clamp(maintenance.UploadPieceBytes, ImportUploadLimits.MinPieceBytes, ImportUploadLimits.MaxPieceBytes);
-
-    private static string FormatBytes(long bytes) =>
-        bytes >= 1024L * 1024 * 1024
-            ? string.Create(CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024 * 1024):0.#} GB")
-            : string.Create(CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024):0.#} MB");
 
     private static ImportUploadResult<T> Refuse<T>(ImportUploadRefusalKind kind, string code, string message) =>
         ImportUploadResult<T>.Refused(kind, code, message);
