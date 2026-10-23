@@ -381,7 +381,19 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database, IC
                 if (connection.ExecuteScalar<int>(
                         "SELECT EXISTS (SELECT 1 FROM editions WHERE work_id = @sourceWorkId);", new { sourceWorkId }, transaction) == 0)
                 {
-                    WorkPersonalStateMerge.Carry(connection, transaction, sourceWorkId, emptied.First().TargetWorkId);
+                    // Editions that went to several works: the state follows the one that received the most (a tie goes to the first).
+                    var target = emptied.GroupBy(row => row.TargetWorkId)
+                        .Select((group, index) => (Target: group.Key, Count: group.Select(row => row.ExpectedEditionId).Distinct().Count(), Index: index))
+                        .OrderByDescending(entry => entry.Count).ThenBy(entry => entry.Index)
+                        .First().Target;
+                    WorkPersonalStateMerge.Carry(connection, transaction, sourceWorkId, target);
+                    // The survivor kept its own save or reaction where it had one; no copy is left behind on the work that goes.
+                    connection.Execute(
+                        """
+                        DELETE FROM profile_saved_items WHERE entity_id = @sourceWorkId;
+                        DELETE FROM profile_reactions WHERE entity_id = @sourceWorkId;
+                        """,
+                        new { sourceWorkId }, transaction);
                 }
             }
 

@@ -103,13 +103,6 @@
                     }
                 </div>
             }
-            @if (Item.IsKept)
-            {
-                @* A file kept as it is stays under the Unmatched filter, marked Kept (Library setup spec D65). *@
-                <div class="media-tile-group-indicators">
-                    <span class="media-tile-group-kind"><span>Kept</span></span>
-                </div>
-            }
             @if (ShowsAlbumTrackCount)
             {
                 @* An album is one tile however many songs it holds; the count is the only hint of that. *@
@@ -151,7 +144,16 @@
             {
                 <span class="media-tile-caption__year">@CompactIdentityYear</span>
             }
+            @if (Item.IsKept)
+            {
+                <span class="media-tile-caption__year">Kept</span>
+            }
         </div>
+    }
+    else if (Item.IsKept)
+    {
+        @* A file kept as it is stays under the Unmatched filter, marked Kept in the card's own text, under its title (Library setup spec D65). *@
+        <div class="media-tile-caption"><span class="media-tile-caption__year">Kept</span></div>
     }
 
     @if (CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption))

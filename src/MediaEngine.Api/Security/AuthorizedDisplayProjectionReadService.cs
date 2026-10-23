@@ -31,6 +31,49 @@ internal sealed class AuthorizedDisplayProjectionReadService(
 
     private IUnmatchedAssetRepository Unmatched => _unmatched ??= new UnmatchedAssetRepository(database);
 
+    // This service lives for one request, so what it learns about Unmatched files is kept for that request only and invalidated by
+    // nothing: the lane reads of one request (works, journey, favourites, collections) look the same works up once, not once per read.
+    // Reads run side by side, hence the lock.
+    private readonly object _unmatchedLock = new();
+    private readonly HashSet<Guid> _unmatchedAsked = [];
+    private readonly Dictionary<Guid, List<UnmatchedWorkLibrary>> _unmatchedByWork = [];
+
+    private async Task<List<UnmatchedWorkLibrary>> UnmatchedFilesOfAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct)
+    {
+        List<Guid> missing;
+        lock (_unmatchedLock)
+        {
+            missing = workIds.Where(id => !_unmatchedAsked.Contains(id)).Distinct().ToList();
+        }
+
+        if (missing.Count > 0)
+        {
+            var found = await Unmatched.ListWorkLibrariesAsync(missing, ct).ConfigureAwait(false);
+            lock (_unmatchedLock)
+            {
+                foreach (var entry in found)
+                {
+                    if (!_unmatchedByWork.TryGetValue(entry.WorkId, out var list))
+                    {
+                        _unmatchedByWork[entry.WorkId] = list = [];
+                    }
+
+                    if (!list.Contains(entry))
+                    {
+                        list.Add(entry);
+                    }
+                }
+
+                _unmatchedAsked.UnionWith(missing);
+            }
+        }
+
+        lock (_unmatchedLock)
+        {
+            return workIds.Distinct().SelectMany(id => _unmatchedByWork.TryGetValue(id, out var list) ? list : []).ToList();
+        }
+    }
+
     private ContentLimitPolicy ContentLimits => _contentLimits ??= new(
         new ProfileContentLimitRepository(database),
         new VaultAccessResolver(new VaultLibraryRepository(database), new NsfwAccessRepository(database), clock ?? TimeProvider.System),
@@ -88,7 +131,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return rows;
         }
 
-        var unmatchedOnly = (await Unmatched.ListWorkLibrariesAsync(rows.Select(workId).Distinct().ToList(), ct).ConfigureAwait(false))
+        var unmatchedOnly = (await UnmatchedFilesOfAsync(rows.Select(workId).Distinct().ToList(), ct).ConfigureAwait(false))
             .Where(entry => entry.EveryFileUnmatched)
             .Select(entry => (entry.WorkId, entry.LibraryId))
             .ToHashSet();
@@ -246,7 +289,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         if (scope.Content.Vault.VaultLibraryIds.Count == 0)
         {
             // A favourite whose files are all Unmatched is not part of the lanes either (D64): only those need the visible-work check.
-            var unmatchedOnly = (await Unmatched.ListWorkLibrariesAsync(favorites, ct).ConfigureAwait(false))
+            var unmatchedOnly = (await UnmatchedFilesOfAsync(favorites, ct).ConfigureAwait(false))
                 .Where(entry => entry.EveryFileUnmatched)
                 .Select(entry => entry.WorkId)
                 .ToHashSet();

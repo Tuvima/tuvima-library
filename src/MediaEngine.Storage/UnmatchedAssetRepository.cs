@@ -126,22 +126,33 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
             return Task.FromResult<IReadOnlyList<UnmatchedWorkLibrary>>([]);
         }
 
-        // The library is the file's own, upper case, the way the browse projection reports it; a file counts once per work even when
-        // the work lists it twice.
+        // Starts from the small set (the Unmatched files) to find the (work, library) pairs that have one, then counts the files of just
+        // those pairs. The library is the file's own, upper case, the way the browse projection reports it; a file counts once per work even
+        // when the work lists it twice; and only files the lanes could show count (not staging or quarantine paths).
+        var visiblePath = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var rows = connection.Query<WorkLibraryRow>(
-            """
-            SELECT woa.work_id AS WorkId,
-                   UPPER(COALESCE(ma.library_id, '')) AS LibraryId,
+            $"""
+            WITH pairs AS (
+                SELECT DISTINCT woa.work_id AS work_id, UPPER(COALESCE(ma.library_id, '')) AS library_id
+                FROM unmatched_assets u
+                JOIN media_assets ma ON ma.id = u.asset_id
+                JOIN work_owned_assets woa ON woa.asset_id = u.asset_id
+                WHERE ma.status = 'Normal' AND ma.is_orphaned = 0
+                  AND {visiblePath}
+                  AND woa.work_id IN (SELECT unhex(value) FROM json_each(@workIds))
+            )
+            SELECT p.work_id AS WorkId,
+                   p.library_id AS LibraryId,
                    COUNT(DISTINCT ma.id) AS Files,
-                   COUNT(DISTINCT u.asset_id) AS UnmatchedFiles,
-                   COUNT(DISTINCT CASE WHEN u.kept_as_is = 1 THEN u.asset_id END) AS KeptFiles
-            FROM work_owned_assets woa
-            JOIN media_assets ma ON ma.id = woa.asset_id
-            LEFT JOIN unmatched_assets u ON u.asset_id = ma.id
+                   COUNT(DISTINCT un.asset_id) AS UnmatchedFiles,
+                   COUNT(DISTINCT CASE WHEN un.kept_as_is = 1 THEN un.asset_id END) AS KeptFiles
+            FROM pairs p
+            JOIN work_owned_assets woa ON woa.work_id = p.work_id
+            JOIN media_assets ma ON ma.id = woa.asset_id AND UPPER(COALESCE(ma.library_id, '')) = p.library_id
+            LEFT JOIN unmatched_assets un ON un.asset_id = ma.id
             WHERE ma.status = 'Normal' AND ma.is_orphaned = 0
-              AND woa.work_id IN (SELECT unhex(value) FROM json_each(@workIds))
-            GROUP BY woa.work_id, UPPER(COALESCE(ma.library_id, ''))
-            HAVING COUNT(DISTINCT u.asset_id) > 0;
+              AND {visiblePath}
+            GROUP BY p.work_id, p.library_id;
             """,
             new { workIds = GuidSql.ToJsonHexArray(workIds.Distinct()) });
         return Task.FromResult<IReadOnlyList<UnmatchedWorkLibrary>>(rows

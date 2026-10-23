@@ -1,4 +1,6 @@
 using Dapper;
+using MediaEngine.Api.Endpoints;
+using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Display;
@@ -7,7 +9,11 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Services;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace MediaEngine.Api.Tests;
 
@@ -407,6 +413,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         // The identity job leaving the no-match state is what removes the Unmatched row.
         Assert.True(await new UnmatchedAssetRepository(_database).ClearAsync(world.Unmatched.AssetId));
 
+        // The next request: a read service keeps what it learned about Unmatched files for the one request it serves.
+        composer = CreateGridComposer(world.Context);
         var home = await composer.BuildHomeAsync(true, ProfileForLookups);
         var movies = await composer.BuildBrowseAsync("watch", "Movie", "all", null, 0, 48, true, ProfileForLookups);
         var continueWatching = await composer.BuildContinueAsync("watch", 20, true, default, null, ProfileForLookups);
@@ -484,5 +492,256 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.Equal(1, counts[MoviesLibrary.ToString("D")]);
         Assert.Equal(2, filter.TotalCount);
+    }
+
+    // Personal state, playback and the detail page -------------------------------------------------------------------
+
+    // A route table over the real authorized display projection, called the way a request would be, without the middleware.
+    private async Task<(int Status, string Body)> CallAsync(
+        Action<IEndpointRouteBuilder> map,
+        Action<IServiceCollection> services,
+        string endpointName,
+        DefaultHttpContext user,
+        string method,
+        object? routeValues = null,
+        string query = "")
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
+        builder.Services.AddAuthorization();
+        builder.Services.AddSingleton<IRequestAuthorityResolver>(Authorities());
+        services(builder.Services);
+        var app = builder.Build();
+        map(app);
+        _routeApps.Add(app);
+        var route = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>()
+            .Single(endpoint => endpoint.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName == endpointName);
+        await using var scope = app.Services.CreateAsyncScope();
+        var context = new DefaultHttpContext { User = user.User, RequestServices = scope.ServiceProvider };
+        context.Request.Method = method;
+        context.Request.QueryString = new QueryString(query);
+        if (routeValues is not null)
+        {
+            foreach (var property in routeValues.GetType().GetProperties())
+            {
+                context.Request.RouteValues[property.Name] = property.GetValue(routeValues)?.ToString();
+            }
+        }
+
+        context.Response.Body = new MemoryStream();
+        await route.RequestDelegate!(context);
+        context.Response.Body.Position = 0;
+        return (context.Response.StatusCode, await new StreamReader(context.Response.Body).ReadToEndAsync());
+    }
+
+    private void ProfileStateServices(IServiceCollection services, DefaultHttpContext context)
+    {
+        var display = CreateService(context, RealReaders());
+        var activity = new MediaEngine.Storage.PersonalActivityRepository(_database);
+        services.AddSingleton<IDisplayProjectionReadService>(display);
+        services.AddSingleton<MediaEngine.Domain.Contracts.IProfileStateRepository>(new ProfileStateRepository(_database));
+        services.AddSingleton(new ProfileStateAccessService(display, CreateGridCatalog(), new ProfileRepository(_database)));
+        services.AddSingleton(new MediaEngine.Api.Services.Activity.PersonalActivityRecorder(
+            activity,
+            new VaultLibraryRepository(_database),
+            new MediaEngine.Api.Services.Activity.PersonalActivityArtworkService(
+                new WorkRepository(_database), new EntityAssetRepository(_database), activity,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Api.Services.Activity.PersonalActivityArtworkService>.Instance),
+            TimeProvider.System,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Api.Services.Activity.PersonalActivityRecorder>.Instance));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AProfileThatOpensAnUnmatchedFilmFromTheFilter_CanSaveAndLikeIt_WhileMyListAndLikedKeepLeavingItOut(bool kept)
+    {
+        var world = await SeedUnmatchedFilmWorldAsync(administrator: false, kept);
+        // The seed already saved and liked both films for the lists; start the Unmatched film clean so the writes are the ones under test.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("DELETE FROM profile_saved_items WHERE entity_id = @film; DELETE FROM profile_reactions WHERE entity_id = @film;", new { film = world.Unmatched.WorkId });
+        }
+
+        void Services(IServiceCollection services) => ProfileStateServices(services, world.Context);
+        void Map(IEndpointRouteBuilder app) => app.MapProfileStateEndpoints();
+        var film = new { entityKind = "Movie", entityId = world.Unmatched.WorkId };
+
+        var save = await CallAsync(Map, Services, "SaveProfileItem", world.Context, "PUT", film);
+        var like = await CallAsync(Map, Services, "SetProfileReaction", world.Context, "PUT", new { film.entityKind, film.entityId, reaction = "Like" });
+        var savedState = await CallAsync(Map, Services, "GetSavedProfileItem", world.Context, "GET", film);
+        var savedList = await CallAsync(Map, Services, "GetSavedProfileItems", world.Context, "GET");
+        var reactionList = await CallAsync(Map, Services, "GetProfileReactions", world.Context, "GET");
+
+        Assert.Equal(StatusCodes.Status200OK, save.Status);
+        Assert.Equal(StatusCodes.Status200OK, like.Status);
+        Assert.Equal(StatusCodes.Status200OK, savedState.Status);
+        Assert.Contains(world.Unmatched.WorkId.ToString("D"), savedState.Body, StringComparison.OrdinalIgnoreCase);
+        // The rows are written, but the lists still leave an Unmatched film out (D64).
+        using var verify = _database.CreateConnection();
+        Assert.Equal(1, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @film;", new { film = world.Unmatched.WorkId }));
+        Assert.Equal(1, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_reactions WHERE entity_id = @film;", new { film = world.Unmatched.WorkId }));
+        Assert.DoesNotContain(world.Unmatched.WorkId.ToString("D"), savedList.Body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(world.Unmatched.WorkId.ToString("D"), reactionList.Body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(world.Identified.WorkId.ToString("D"), savedList.Body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AProfileWithoutAccessToTheLibrary_CannotSaveOrLikeItsUnmatchedFilm()
+    {
+        var account = Guid.NewGuid();
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { ShowsLibrary });
+        var film = await InsertOwnedWorkWithIdAsync(MoviesLibrary, UnmatchedFilm, "Movie");
+        await MarkUnmatchedAsync(film.AssetId, MoviesLibrary, keep: false);
+        var context = HumanContext(account, ProfileForLookups);
+
+        var save = await CallAsync(
+            app => app.MapProfileStateEndpoints(), services => ProfileStateServices(services, context),
+            "SaveProfileItem", context, "PUT", new { entityKind = "Movie", entityId = film.WorkId });
+
+        Assert.Equal(StatusCodes.Status404NotFound, save.Status);
+        using var verify = _database.CreateConnection();
+        Assert.Equal(0, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @film;", new { film = film.WorkId }));
+    }
+
+    // Up Next and the companion are playing, not browsing: they follow Unmatched episodes too ------------------------
+
+    private async Task<(Guid Show, DefaultHttpContext Context, Guid FirstAsset, Guid SecondAsset, Guid ThirdAsset)> SeedThreeEpisodeShowAsync(int unmatchedEpisode)
+    {
+        var account = Guid.NewGuid();
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { ShowsLibrary });
+        var show = Guid.NewGuid();
+        var assets = new List<Guid>();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@show, 'TV', 'parent', 'accepted');" +
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@show, 'title', 'Up Next Show', CURRENT_TIMESTAMP);",
+                new { show });
+            for (var number = 1; number <= 3; number++)
+            {
+                var (work, edition, asset) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+                assets.Add(asset);
+                connection.Execute(
+                    """
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, curator_state) VALUES (@work, 'TV', 'child', @show, @number, 'accepted');
+                    INSERT INTO editions (id, work_id) VALUES (@edition, @work);
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)
+                    VALUES (@asset, @edition, @hash, @path, CURRENT_TIMESTAMP, @library);
+                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                    VALUES (@asset, 'title', @title, CURRENT_TIMESTAMP), (@asset, 'season_number', '1', CURRENT_TIMESTAMP), (@asset, 'episode_number', @numberText, CURRENT_TIMESTAMP);
+                    """,
+                    new { work, show, number, numberText = number.ToString(), edition, asset, title = $"Episode {number}", hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", library = ShowsLibrary.ToString("D") });
+                if (number == unmatchedEpisode)
+                {
+                    var now = DateTimeOffset.UtcNow;
+                    new UnmatchedAssetRepository(_database).MarkUnmatchedAsync(asset, ShowsLibrary.ToString("D"), UnmatchedReasons.NoMatch, now, now.AddDays(7)).GetAwaiter().GetResult();
+                }
+            }
+        }
+
+        return (show, HumanContext(account, ProfileForLookups), assets[0], assets[1], assets[2]);
+    }
+
+    private async Task<string> NextEpisodesBodyAsync(Guid show, DefaultHttpContext context, Guid after)
+    {
+        var result = await CallAsync(
+            app => app.MapDetailEndpoints(),
+            services =>
+            {
+                services.AddSingleton<IDisplayProjectionReadService>(CreateService(context, RealReaders()));
+                foreach (var inferredOnly in new[] { typeof(MediaEngine.Api.Services.Details.DetailComposerService), typeof(MediaEngine.Api.Services.Details.ContributorReadiness), typeof(MediaEngine.Api.Services.Details.DetailUnmatchedStateService), typeof(MediaEngine.Domain.Contracts.ICanonicalValueRepository) })
+                {
+                    services.AddSingleton(inferredOnly, _ => null!);
+                }
+            },
+            "GetShowNextEpisodes", context, "GET", new { id = show }, $"?after={after:D}");
+        Assert.Equal(StatusCodes.Status200OK, result.Status);
+        return result.Body;
+    }
+
+    [Fact]
+    public async Task UpNext_AfterAnUnmatchedEpisode_StillWorks()
+    {
+        var world = await SeedThreeEpisodeShowAsync(unmatchedEpisode: 1);
+
+        var body = await NextEpisodesBodyAsync(world.Show, world.Context, world.FirstAsset);
+
+        Assert.Contains(world.SecondAsset.ToString("D"), body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(world.ThirdAsset.ToString("D"), body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task UpNext_AfterAnIdentifiedEpisode_DoesNotSkipItsUnmatchedSiblings()
+    {
+        var world = await SeedThreeEpisodeShowAsync(unmatchedEpisode: 2);
+
+        var body = await NextEpisodesBodyAsync(world.Show, world.Context, world.FirstAsset);
+
+        Assert.Contains(world.SecondAsset.ToString("D"), body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task UpNext_StillAppliesTheProfilesLibraryAccess()
+    {
+        var world = await SeedThreeEpisodeShowAsync(unmatchedEpisode: 2);
+        var stranger = Guid.NewGuid();
+        await CreateHumanAsync(stranger, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+
+        var result = await CallAsync(
+            app => app.MapDetailEndpoints(),
+            services =>
+            {
+                services.AddSingleton<IDisplayProjectionReadService>(CreateService(HumanContext(stranger, ProfileForLookups), RealReaders()));
+                foreach (var inferredOnly in new[] { typeof(MediaEngine.Api.Services.Details.DetailComposerService), typeof(MediaEngine.Api.Services.Details.ContributorReadiness), typeof(MediaEngine.Api.Services.Details.DetailUnmatchedStateService), typeof(MediaEngine.Domain.Contracts.ICanonicalValueRepository) })
+                {
+                    services.AddSingleton(inferredOnly, _ => null!);
+                }
+            },
+            "GetShowNextEpisodes", HumanContext(stranger, ProfileForLookups), "GET", new { id = world.Show }, $"?after={world.FirstAsset:D}");
+
+        Assert.Equal(StatusCodes.Status404NotFound, result.Status);
+    }
+
+    [Fact]
+    public async Task AMatchedShowsDetailRead_ListsItsUnmatchedEpisodes_ByDesign()
+    {
+        var world = await SeedThreeEpisodeShowAsync(unmatchedEpisode: 2);
+        var service = CreateService(world.Context, RealReaders());
+
+        var detail = await service.LoadDetailWorksAsync(world.Show, default);
+        var lanes = await service.LoadWorksAsync(default);
+
+        // The show's own page keeps the Unmatched episode (it plays from there); the lanes do not.
+        Assert.Equal(3, detail.Count);
+        Assert.Equal(2, lanes.Count);
+        Assert.Contains(world.SecondAsset, detail.Select(row => row.AssetId));
+        Assert.DoesNotContain(world.SecondAsset, lanes.Select(row => row.AssetId));
+    }
+
+    [Fact]
+    public async Task OneRequest_LooksTheUnmatchedFilesOfTheSameWorksUpOnce()
+    {
+        var world = await SeedUnmatchedFilmWorldAsync(administrator: true, kept: false);
+        var counting = new CountingDatabase(_database);
+        var service = new AuthorizedDisplayProjectionReadService(
+            RealReaders(),
+            new HttpContextAccessor { HttpContext = world.Context },
+            Authorities(),
+            _accounts,
+            new AuthorizationEvaluator(
+                new AccountAccessDecisionService(_accounts, new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System)),
+                _applications,
+                new PermissionRegistry(),
+                new AuthorizationAuditWriter(_accounts),
+                new HttpContextAccessor { HttpContext = world.Context }),
+            counting);
+
+        await service.LoadWorksAsync(default);
+        var afterFirst = counting.Opened;
+        await service.LoadWorksAsync(default);
+        await service.LoadWorkLibraryRowsAsync(default);
+
+        // The second and third reads open no connection to ask about Unmatched files again.
+        Assert.True(counting.Opened - afterFirst <= 0, $"{counting.Opened - afterFirst} extra connections");
     }
 }

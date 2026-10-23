@@ -291,8 +291,10 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
             DELETE FROM profile_saved_items WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
             UPDATE OR IGNORE profile_reactions SET entity_kind = 'TvShow', entity_id = @showWorkId WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
             DELETE FROM profile_reactions WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            DELETE FROM profile_saved_items WHERE entity_id = @workId;
+            DELETE FROM profile_reactions WHERE entity_id = @workId;
             """,
-            new { replacementWorkId, showWorkId }, transaction);
+            new { workId, replacementWorkId, showWorkId }, transaction);
 
         foreach (var statement in new[]
                  {

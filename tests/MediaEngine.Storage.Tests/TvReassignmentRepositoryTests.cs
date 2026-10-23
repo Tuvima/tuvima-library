@@ -158,6 +158,9 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
         Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_saved_items WHERE profile_id = @person;", new { person }));
         Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_reactions WHERE profile_id = @person;", new { person }));
         Assert.Equal("Like", conn.ExecuteScalar<string>("SELECT reaction FROM profile_reactions WHERE profile_id = @person;", new { person }));
+        // Nothing is left pointing at the movie work that went.
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @movie;", new { movie = second.WorkId }));
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_reactions WHERE entity_id = @movie;", new { movie = second.WorkId }));
     }
 
     [Fact]
