@@ -51,7 +51,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     public void PresetAndManualPermissionSelection_ExposeCustomAndUnavailableStates()
     {
         var cut = RenderApplications();
-        ButtonNamed(cut, "New application").Click();
+        ButtonNamed(cut, "New integration").Click();
 
         Assert.True(PermissionCheckbox(cut, "Unavailable camera access").HasAttribute("disabled"));
         cut.WaitForElement("select[aria-label='Permission preset']").Change("media-player");
@@ -292,7 +292,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     public void CreateApplication_UsesSelectedPresetAndContinuesToCredentialSetup()
     {
         var cut = RenderApplications();
-        ButtonNamed(cut, "New application").Click();
+        ButtonNamed(cut, "New integration").Click();
         ApplicationNameField(cut).Input("Kitchen display");
         ButtonNamed(cut, "Create application").Click();
 
@@ -312,7 +312,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         _handler.BindingStatus = HttpStatusCode.Conflict;
         var cut = RenderApplications();
-        var newApplication = ButtonNamed(cut, "New application");
+        var newApplication = ButtonNamed(cut, "New integration");
         await cut.InvokeAsync(() => newApplication.Click());
         var nameField = ApplicationNameField(cut);
         await cut.InvokeAsync(() => nameField.Input("Kitchen display"));
@@ -344,13 +344,13 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             .Single(button => button.TextContent.Trim() == "Generate credential").HasAttribute("disabled")));
 
         cut.WaitForElement("button[aria-label='Close application drawer']").Click();
-        ButtonNamed(cut, "New application").Click();
+        ButtonNamed(cut, "New integration").Click();
         _handler.CredentialGate.SetResult();
         await pending;
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("New application", cut.Markup);
+            Assert.Contains("New integration", cut.Markup);
             Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
         });
         Assert.Single(_handler.Requests,
@@ -768,13 +768,12 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 
         var cut = RenderApplications();
 
-        Assert.NotEmpty(cut.FindAll(".app-table-shell--cards"));
-        Assert.Equal("Living room", cut.WaitForElement("td[data-card-role='title']").TextContent.Trim());
-        Assert.Equal("User Client", cut.WaitForElement("td[data-card-role='subtitle']").TextContent.Trim());
-        Assert.Contains("Disabled", cut.WaitForElement("td[data-card-role='value']").TextContent);
+        var card = cut.WaitForElement("article[aria-label='Living room']");
+        Assert.Contains("User Client", card.TextContent);
+        Assert.Contains("Disabled", card.TextContent);
         Assert.Contains("Manage on a computer or tablet", cut.WaitForElement("p[role='note']").TextContent);
         Assert.Empty(cut.FindAll("button[aria-label^='Actions for']"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("New application"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Manage") || button.TextContent.Contains("New integration"));
     }
 
     [Fact]
@@ -782,9 +781,29 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         var cut = RenderApplications();
 
-        Assert.Empty(cut.FindAll(".app-table-shell--cards"));
+        cut.WaitForElement("article[aria-label='Living room']");
         Assert.NotEmpty(cut.FindAll("button[aria-label='Actions for Living room']"));
         Assert.DoesNotContain("Manage on a computer or tablet", cut.Markup);
+    }
+
+    [Fact]
+    public void Integrations_ShowSummaryTabsAndFilterBySearchAndStatus()
+    {
+        var cut = RenderApplications();
+
+        cut.WaitForElement("article[aria-label='Living room']");
+        Assert.Contains("integrations", cut.WaitForElement("ul[aria-label='Integration summary']").TextContent);
+        Assert.Contains("Applications", cut.Markup);
+        Assert.Contains("Webhooks", cut.Markup);
+
+        cut.Find("input[type='search'], input[type='text']").Input("zzz-nothing");
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("No integrations match", cut.Markup);
+            Assert.Empty(cut.FindAll("article[aria-label='Living room']"));
+        });
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Clear filters").Click();
+        cut.WaitForElement("article[aria-label='Living room']");
     }
 
     private async Task UsePhoneAsync()
@@ -803,9 +822,8 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 
     private static void OpenEdit(IRenderedComponent<ManagedAccessApplications> cut)
     {
-        cut.WaitForElement("button[aria-label='Actions for Living room']").Click();
-        cut.WaitForAssertion(() => cut.FindAll("button")
-            .Single(button => button.TextContent.Trim() == "Edit application")
+        cut.WaitForAssertion(() => cut.FindAll("article[aria-label='Living room'] button")
+            .Single(button => button.TextContent.Trim() == "Manage")
             .Click());
         cut.WaitForAssertion(() => Assert.Contains("Credentials", cut.Markup));
     }

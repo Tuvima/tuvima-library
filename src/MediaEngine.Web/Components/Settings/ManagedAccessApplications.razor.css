@@ -1,18 +1,4 @@
-.access-toolbar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
 .access-notice { margin-bottom: 1rem; }
-.access-applications { overflow: visible; border: 1px solid var(--app-border); border-radius: var(--app-radius-lg); }
-.access-applications__header, .access-applications__row { display: grid; grid-template-columns: minmax(12rem, 1.3fr) 9rem 7rem 10rem 7rem 3rem; align-items: center; gap: 1rem; }
-.access-applications__header { padding: .7rem 1rem; color: var(--app-text-muted); font-size: var(--tl-font-size-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.access-applications__row { min-height: 4.75rem; padding: .85rem 1rem; border-top: 1px solid var(--app-border); }
-.access-applications__row strong, .access-applications__row small { display: block; }
-.access-applications__row small { color: var(--app-text-muted); }
-.access-applications__actions { position: relative; justify-self: end; }
-.access-status { display: inline-flex; align-items: center; gap: .4rem; font-size: .82rem; }
-.access-status::before { width: .5rem; height: .5rem; border-radius: 50%; content: ""; }
-.access-status--enabled::before { background: var(--app-success, #22c55e); }
-.access-status--disabled::before { background: var(--app-text-muted); }
-.access-action-menu { position: absolute; z-index: 20; top: calc(100% + .25rem); right: 0; display: grid; width: 13rem; padding: .35rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); box-shadow: 0 .8rem 2.25rem rgb(0 0 0 / 32%); }
-.access-action-menu ::deep .app-button { justify-content: flex-start; }
 .access-drawer { border-left: 1px solid var(--app-border); background: var(--app-surface); }
 .access-drawer-host ::deep .tl-drawer.access-drawer { width: min(580px, 100%) !important; max-width: 100%; overflow: hidden; }
 .access-drawer__shell { display: flex; flex-direction: column; height: 100dvh; min-height: 0; }
@@ -31,9 +17,10 @@
 .access-credential-issue { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: .75rem; }
 .access-credential-secret strong, .access-credential-secret code { display: block; }
 .access-credential-secret code { margin-top: .6rem; padding: .65rem; overflow-wrap: anywhere; border-radius: var(--app-radius-sm); background: rgb(0 0 0 / 28%); user-select: all; }
-@media (max-width: 1050px) { .access-applications__header { display: none; } .access-applications__row { grid-template-columns: minmax(0, 1fr) auto auto; gap: .65rem; } .access-applications__row > div:nth-child(4) { grid-column: 1 / -1; } .access-applications__actions { grid-column: 3; grid-row: 1; } }
 @media (max-width: 640px) { .access-drawer__body { padding: 1rem; } .access-drawer__header, .access-drawer__footer { padding-inline: 1rem; } .access-credential-row, .access-credential-issue { grid-template-columns: minmax(0, 1fr); } }
 
 .access-phone-note { margin: 0 0 1rem; color: var(--app-text-muted); font-size: .9rem; }
-.access-phone-card__value { display: grid; justify-items: end; gap: .15rem; }
-.access-phone-card__value small { color: var(--app-text-muted); font-size: .82rem; }
+
+.access-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.access-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: 0; color: var(--app-text-muted); font-size: .82rem; }
+.access-card__failure { display: flex; align-items: center; gap: .35rem; margin: 0; color: var(--app-error, #ef4444); font-size: .82rem; }
