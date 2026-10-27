@@ -75,4 +75,4 @@
     color: var(--tl-text-primary);
     font-size: 18px;
 }
-.settings-plugin-breadcrumb { display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem; color: var(--app-text-muted); }
+.settings-plugin-breadcrumb { display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem; }

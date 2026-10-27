@@ -108,6 +108,28 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Configure_ShowsAccess_Needs_Activity_UpdateNote_AndTheRemovalPreview()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true)];
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
+
+        cut.Find("[data-state-card=plugin]").QuerySelectorAll("button")
+            .First(button => button.TextContent.Trim() == "Configure").Click();
+
+        var sections = cut.WaitForElement("[data-testid=plugin-detail-sections]");
+        foreach (var label in new[] { "Access", "Needs and needed by", "Activity", "Update note", "Removing this plugin" })
+        {
+            Assert.NotNull(sections.QuerySelector($"section[aria-label='{label}']"));
+        }
+
+        Assert.Contains("Who can use it", sections.TextContent);
+        Assert.Contains("Nothing else depends on it.", sections.TextContent);
+        Assert.Contains("Nothing has run yet.", sections.TextContent);
+        Assert.Contains(sections.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Check now");
+    }
+
+    [Fact]
     public void Search_MatchesNameAndCapabilityText_AndNarrowsTheList()
     {
         var music = Plugin("m", "MusicBrainz", enabled: true);
