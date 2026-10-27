@@ -102,7 +102,7 @@ public sealed class EditSessionService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Edit session check failed for {Kind} change {ChangeId}.", change.Kind, change.Id);
+            logger.LogWarning(ex, "Edit session check failed for a change on item {EntityId}.", change.EntityId);
             return EditSessionReasons.SaveFailed;
         }
     }
@@ -128,7 +128,7 @@ public sealed class EditSessionService(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Edit session could not save {Kind} change {ChangeId}; undoing the rest of the unit.", change.Kind, change.Id);
+                logger.LogWarning(ex, "Edit session could not save a change on item {EntityId}; undoing the rest of the unit.", change.EntityId);
                 outcomes[change.Id] = Result(change, EditSessionChangeStatuses.Failed, ReasonFor(ex));
                 dataSaved = false;
                 break;
@@ -159,7 +159,7 @@ public sealed class EditSessionService(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Edit session could not move files for change {ChangeId}; the data changes stay saved.", move.Id);
+                    logger.LogWarning(ex, "Edit session could not move files for item {EntityId}; the data changes stay saved.", move.EntityId);
                     outcomes[move.Id] = Result(move, EditSessionChangeStatuses.Failed, ReasonFor(ex));
                 }
             }
@@ -187,7 +187,7 @@ public sealed class EditSessionService(
             catch (Exception ex)
             {
                 // The undo itself failed, so this change stays saved. Say so rather than claim it was put back.
-                logger.LogError(ex, "Edit session could not undo {Kind} change {ChangeId}.", entry.Change.Kind, entry.Change.Id);
+                logger.LogError(ex, "Edit session could not undo a change on item {EntityId}.", entry.Change.EntityId);
                 outcomes[entry.Change.Id] = Result(entry.Change, EditSessionChangeStatuses.Failed, EditSessionReasons.SaveFailed);
             }
         }
