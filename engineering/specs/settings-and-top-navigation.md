@@ -1,6 +1,6 @@
 # Spec: Settings and top navigation fixes
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Users, profiles and households](users-profiles-households.md) · [Universe (companion, section 4A)](universe.md) · [Presentation rules](../../docs/product/presentation-rules.md)
+> **Status:** Built · **Version:** 2 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Users, profiles and households](users-profiles-households.md) · [Universe (companion, section 4A)](universe.md) · [Presentation rules](../../docs/product/presentation-rules.md)
 
 Covers bug-log items F11, F27, F28, F36, F63 and F66 (group 5, "Settings and top navigation"). Draft for discussion; nothing here is approved or built.
 

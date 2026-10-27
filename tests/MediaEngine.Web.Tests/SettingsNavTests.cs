@@ -182,7 +182,7 @@ public sealed class SettingsNavTests
     [Fact]
     public void SummaryFirstSections_UseRootRoutesWithoutRequiringSubsections()
     {
-        Assert.Equal(["households"], SettingsNav.GetSubsections(SettingsSection.Profiles).Select(item => item.Slug));
+        Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Profiles));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Playback));
         Assert.Equal(["logs"], SettingsNav.GetSubsections(SettingsSection.AdminOverview).Select(item => item.Slug));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Review));
@@ -348,13 +348,13 @@ public sealed class SettingsNavTests
         Assert.Equal(["Users and Sign-in", "System"], Labels(groups, "manage"));
         Assert.Equal(["Local AI", "Integrations", "Plugins", "Developer Tools"], Labels(groups, "developer"));
 
-        Assert.Equal(["Households"], ChildLabels(groups, "Profiles"));
+        Assert.Empty(ChildLabels(groups, "Profiles"));
         Assert.Equal(["Playback", "Listening", "Reading"], ChildLabels(groups, "Preferences"));
         Assert.Equal(["Libraries", "Metadata Providers"], ChildLabels(groups, "Library and Ingestion"));
         Assert.Equal(["Ingestion Flow"], ChildLabels(groups, "Metadata Providers"));
         Assert.Equal(["Local Network", "Remote Access", "Advanced"], ChildLabels(groups, "Network and Remote Access"));
         Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"], ChildLabels(groups, "Streaming"));
-        Assert.Equal(["Sign-in Methods"], ChildLabels(groups, "Users and Sign-in"));
+        Assert.Equal(["Sign-in Methods", "Households"], ChildLabels(groups, "Users and Sign-in"));
         Assert.Equal(["Tools and requirements", "Logs", "Notifications", "Backup and recovery"], ChildLabels(groups, "System"));
         Assert.Equal(["Status", "Model and hardware", "Budget", "Usage"], ChildLabels(groups, "Local AI"));
         Assert.Empty(ChildLabels(groups, "Plugins"));
@@ -367,9 +367,9 @@ public sealed class SettingsNavTests
             Assert.DoesNotContain(gone, allLabels);
         }
 
-        // Households lives only under Profiles; Users and Sign-in and Server no longer carry one.
+        // Households lives only under Users and Sign-in; Profiles no longer carries one.
         var householdsRows = SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)).Where(node => node.Label == "Households").ToArray();
-        Assert.Equal("/settings/profiles/households", Assert.Single(householdsRows).Route);
+        Assert.Equal("/settings/access/households", Assert.Single(householdsRows).Route);
     }
 
     [Fact]
@@ -557,13 +557,15 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void ServerAdministrator_SeesProfilesWithItsHouseholdsPage()
+    public void ServerAdministrator_SeesHouseholdsUnderUsersAndSignIn_AndProfilesHasNone()
     {
         var groups = SettingsNav.FilteredMenuGroups(true);
 
-        Assert.Equal(["Households"], ChildLabels(groups, "Profiles"));
+        Assert.Empty(ChildLabels(groups, "Profiles"));
+        Assert.Contains("Households", ChildLabels(groups, "Users and Sign-in"));
         Assert.Equal("/settings/profiles", SettingsNav.RouteFor(SettingsSection.Profiles));
-        Assert.Equal("/settings/profiles/households", SettingsNav.RouteFor(SettingsSection.Profiles, "households"));
+        Assert.Equal("/settings/access/households", SettingsNav.RouteFor(SettingsSection.Access, "households"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => SettingsNav.RouteFor(SettingsSection.Profiles, "households"));
     }
 
     [Fact]
@@ -671,10 +673,11 @@ public sealed class SettingsNavTests
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id));
         Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, "household"));
-        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, "households"));
+        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, "households"));
         Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "extra"));
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Profiles, "household"));
-        Assert.Equal("households", SettingsNav.ResolveSubsection(SettingsSection.Profiles, "households")?.Slug);
+        Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Profiles, "households"));
+        Assert.Equal("households", SettingsNav.ResolveSubsection(SettingsSection.Access, "households")?.Slug);
     }
 
     [Fact]
@@ -686,7 +689,7 @@ public sealed class SettingsNavTests
         Assert.Contains("_activeSection == SettingsSection.Profiles && Guid.TryParse(Subsection, out _)", settingsSource, StringComparison.Ordinal);
         Assert.Contains("$\"/settings/profiles/{_activeSubsection}\"", settingsSource, StringComparison.Ordinal);
         Assert.Contains("- Profiles - Library", settingsSource, StringComparison.Ordinal);
-        // A non-id subsection still goes through the normal lookup, which only knows Households for Profiles and so ends at /not-found otherwise.
+        // A non-id subsection still goes through the normal lookup, which knows no subsection for Profiles and so ends at /not-found otherwise.
         Assert.Contains("<HouseholdsTab />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("SettingsNav.ResolveSubsection(_activeSection, Subsection)", settingsSource, StringComparison.Ordinal);
     }
@@ -792,7 +795,7 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void ServerAdministrator_HasNoHouseholdsUnderUsersAndSignIn_AndThereIsNoMyHouseholdTab()
+    public void ServerAdministrator_HasHouseholdsUnderUsersAndSignIn_AndThereIsNoMyHouseholdTab()
     {
         var personalLabels = SettingsNav.Flatten(SettingsNav.FilteredMenuGroups(true).Single(group => group.Key == "personal").Nodes)
             .Select(node => node.Label)
@@ -800,7 +803,7 @@ public sealed class SettingsNavTests
 
         Assert.DoesNotContain("My household", personalLabels);
         Assert.DoesNotContain(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "household");
-        Assert.DoesNotContain(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Label.Contains("Household", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "households" && subsection.Label == "Households");
         Assert.Contains(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "users" && subsection.Label == "Users");
         Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, "household"));
         // The old address still resolves, to the Users tab.
