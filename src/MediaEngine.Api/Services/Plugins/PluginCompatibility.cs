@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 
@@ -80,7 +81,14 @@ public static class PluginCompatibility
             }
         }
 
-        return PluginNetworkRules.Validate(manifest.Permissions, manifest.Network);
+        if (PluginNetworkRules.Validate(manifest.Permissions, manifest.Network) is { } networkProblem)
+        {
+            return networkProblem;
+        }
+
+        return PluginDeclarationRules.Validate(manifest.Declaration).FirstOrDefault() is { } declarationProblem
+            ? $"Plugin manifest declaration is not valid: {declarationProblem}"
+            : null;
     }
 
     /// <summary>

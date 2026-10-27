@@ -5,6 +5,8 @@ namespace MediaEngine.Api.Tests;
 
 public sealed class ApprovalStatementBuilderTests
 {
+    private static readonly string[] AccessLines = ["Can be used by administrators", "Vault items: Allowed (local only)"];
+
     [Theory]
     [InlineData("media.read", "Reads your media files")]
     [InlineData("network.http", "Connects to the internet")]
@@ -46,6 +48,8 @@ public sealed class ApprovalStatementBuilderTests
                 "Needs somethingelse",
                 "Uses Local AI: write text (careful)",
                 "Uses Local AI: write text (quick)",
+                "Can be used by administrators",
+                "Vault items: Allowed (local only)",
                 "Runs as: Official built-in",
             ],
             statement.CanDo);
@@ -61,7 +65,7 @@ public sealed class ApprovalStatementBuilderTests
     {
         var manifest = new PluginManifest { Id = "p", Name = "P", AiPermissions = [new PluginAiPermission { Role = role }] };
 
-        Assert.Equal([line, "Runs as: Official built-in"], ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Official).CanDo);
+        Assert.Equal([line, "Can be used by administrators", "Vault items: Allowed (local only)", "Runs as: Official built-in"], ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Official).CanDo);
     }
 
     [Fact]
@@ -82,7 +86,7 @@ public sealed class ApprovalStatementBuilderTests
         var statement = ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Official);
 
         Assert.Equal(
-            ["Uses Local AI: write text (long)", "Uses Local AI: write text (quick)", "Runs as: Official built-in"],
+            ["Uses Local AI: write text (long)", "Uses Local AI: write text (quick)", "Can be used by administrators", "Vault items: Allowed (local only)", "Runs as: Official built-in"],
             statement.CanDo);
     }
 
@@ -113,7 +117,7 @@ public sealed class ApprovalStatementBuilderTests
     {
         var statement = ApprovalStatementBuilder.ForPlugin(new PluginManifest { Id = "p", Name = "P", Kind = kind }, PluginTrustLevel.Official);
 
-        Assert.Equal([line], statement.CanDo);
+        Assert.Equal([.. AccessLines, line], statement.CanDo);
     }
 
     [Fact]
@@ -143,7 +147,7 @@ public sealed class ApprovalStatementBuilderTests
 
         var statement = ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Community);
 
-        Assert.Equal(["Keeps its own keys and logins: API token, Account login", "Runs as: Official built-in"], statement.CanDo);
+        Assert.Equal(["Keeps its own keys and logins: API token, Account login", "Can be used by administrators", "Vault items: Allowed (local only)", "Runs as: Official built-in"], statement.CanDo);
     }
 
     [Theory]
@@ -196,6 +200,8 @@ public sealed class ApprovalStatementBuilderTests
                 "Reads your media files",
                 "Contacts www.wikidata.org: Item IDs of Universes in your Library",
                 "Contacts *.fandom.com: Requests for a wiki's page list",
+                "Can be used by administrators",
+                "Vault items: Only if the section's online lookup is on",
                 "Runs as: Official built-in",
             ],
             statement.CanDo);

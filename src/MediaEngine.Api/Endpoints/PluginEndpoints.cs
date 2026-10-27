@@ -848,6 +848,13 @@ internal static class PluginEndpoints
         }).ToList(),
         DeclaredSecrets = registration.Manifest.Secrets.Count,
         ConfiguredSecrets = configuredSecrets,
+        Access = PluginAccessMapper.Map(
+            registration.Manifest.Declaration,
+            registration.Manifest.Network.Select(destination => (destination.Host, (string?)destination.Sends)).ToList(),
+            registration.Manifest.Secrets.Count > 0,
+            PluginAccessMapper.MediaLabelsFor(PluginCategories.ResolveMediaTypes(registration.Manifest.MediaTypes)),
+            registration.Manifest.MediaTypes,
+            registration.Manifest.Category),
         Settings = registration.Settings.ToDictionary(
             setting => setting.Key,
             setting => setting.Value,

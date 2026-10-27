@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MediaEngine.Domain.Configuration;
 
 namespace MediaEngine.Plugins;
 
@@ -117,6 +118,19 @@ public sealed record PluginManifest
 
     [JsonPropertyName("settings_schema")]
     public JsonElement? SettingsSchema { get; init; }
+
+    /// <summary>
+    /// The shared declaration block (Plugin architecture spec PA1): who may use the plugin, what it requires, how heavy it is,
+    /// what it stores and how it fails. Absent means administrators only with every other default. Read through
+    /// <see cref="PluginDeclarationRules.Resolve"/>.
+    /// </summary>
+    [JsonPropertyName("declaration")]
+    public PluginDeclaration? Declaration { get; init; }
+
+    /// <summary>The declaration with every default filled in. Nothing is sent out when the manifest lists no network destinations.</summary>
+    [JsonIgnore]
+    public ResolvedPluginDeclaration ResolvedDeclaration =>
+        PluginDeclarationRules.Resolve(Declaration, Network.Count > 0, MediaTypes, Category);
 }
 
 /// <summary>How a plugin runs. <see cref="Official"/> and <see cref="Declarative"/> run in this version of the Library.</summary>

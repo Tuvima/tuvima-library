@@ -98,6 +98,18 @@ public sealed class ProviderCapabilityCatalogue(IConfigurationLoader loader, Pro
             .Select(host => host!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList(),
+        Access = PluginAccessMapper.Map(
+            source.Config.Declaration,
+            source.Config.Endpoints.Values
+                .Select(address => Uri.TryCreate(address, UriKind.Absolute, out var uri) ? uri.Host : null)
+                .Where(host => host is not null)
+                .Select(host => (host!, (string?)null))
+                .DistinctBy(destination => destination.Item1, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            source.Config.RequiresApiKey,
+            source.Pairs.Select(pair => ProviderCapabilityPhrases.MediaLabel(pair.Media)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            source.Pairs.Select(pair => pair.Media),
+            "metadata"),
     };
 
     private List<Source> Load() => loader.LoadAllProviders()

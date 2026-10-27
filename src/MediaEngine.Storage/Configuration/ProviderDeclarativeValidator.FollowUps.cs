@@ -31,6 +31,7 @@ internal static partial class ProviderDeclarativeValidator
         ValidateStrategyClaimRules(provider.SearchStrategies, errors);
         ValidateTextTrack(provider, errors);
         ValidateApiAndFlows(provider, errors);
+        errors.AddRange(PluginDeclarationRules.Validate(provider.Declaration).Select(problem => $"declaration: {problem}"));
     }
 
     // -- follow-ups ---------------------------------------------------------------------------

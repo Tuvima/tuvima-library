@@ -6929,6 +6929,35 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.DiscoverUniverseLore
   UniverseQid: System.String | nullability=not-null | accessors=get,init
   Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Plugins.PluginLoreSourceCandidateDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginAccessDto
+  Audience: System.String | nullability=not-null | accessors=get,set
+  AudienceIsDefault: System.Boolean | nullability=not-null | accessors=get,set
+  WorksOn: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  LimitedToLibraryIds: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  VaultUse: System.String | nullability=not-null | accessors=get,set
+  VaultWords: System.String | nullability=not-null | accessors=get,set
+  DataLeaving: System.String | nullability=not-null | accessors=get,set
+  WeightClass: System.String | nullability=not-null | accessors=get,set
+  TellMeOnFailure: System.Boolean | nullability=not-null | accessors=get,set
+  Changelog: System.String | nullability=nullable | accessors=get,set
+  Languages: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Requires: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginRequirementDto> | nullability=not-null | accessors=get,set
+  SavedOutput: System.String | nullability=nullable | accessors=get,set
+  KeepsRecords: System.Boolean | nullability=not-null | accessors=get,set
+  OnRemoval: System.String | nullability=not-null | accessors=get,set
+  DisplaySlots: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Actions: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginActionDto> | nullability=not-null | accessors=get,set
+  TextTrack: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginActionDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Slot: System.String | nullability=not-null | accessors=get,set
+  Audience: System.String | nullability=not-null | accessors=get,set
+  Priority: System.Int32 | nullability=not-null | accessors=get,set
+  Edits: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginAiPermissionDto
   Role: System.String | nullability=not-null | accessors=get,set
   MaxTokens: System.Int32 | nullability=not-null | accessors=get,set
@@ -7149,6 +7178,12 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalImpactR
   WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   Keeps: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRequirementDto
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Id: System.String | nullability=not-null | accessors=get,set
+  VersionRange: System.String | nullability=nullable | accessors=get,set
+  Optional: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSavedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   saved: System.Boolean | nullability=not-null | accessors=get,init
@@ -7190,6 +7225,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSourceDto
   MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   Supplies: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   SendsDataTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Access: MediaEngine.Contracts.Plugins.PluginAccessDto | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSourceImpactDto
   Name: System.String | nullability=not-null | accessors=get,set
@@ -7229,6 +7265,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   SendsDataTo: System.String | nullability=nullable | accessors=get,set
   NetworkDestinations: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNetworkDestinationDto> | nullability=not-null | accessors=get,set
+  Access: MediaEngine.Contracts.Plugins.PluginAccessDto | nullability=not-null | accessors=get,set
   Settings: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=not-null | accessors=get,set
   SettingsSchema: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
   ManifestPath: System.String | nullability=nullable | accessors=get,set

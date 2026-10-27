@@ -852,6 +852,63 @@
       },
       "additionalProperties": true
     },
+    "declaration": {
+      "type": "object",
+      "description": "The shared plugin declaration block (Plugin architecture spec PA1): who may use the source, what it requires, how heavy it is, what it stores and how it fails.",
+      "properties": {
+        "audience": { "enum": ["administrators", "adults", "everyone"] },
+        "vault": { "enum": ["never", "own_source"] },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "id"],
+            "properties": {
+              "kind": { "enum": ["plugin", "local_ai", "tool", "source", "host_service"] },
+              "id": { "type": "string", "minLength": 1 },
+              "version_range": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-\\d+\\.\\d+\\.\\d+)?$" },
+              "optional": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "weight_class": { "enum": ["light", "medium", "heavy"] },
+        "stores": {
+          "type": "object",
+          "properties": {
+            "records": { "type": "boolean" },
+            "saved_output": { "type": ["string", "null"] },
+            "on_removal": { "enum": ["keep", "remove"] }
+          },
+          "additionalProperties": false
+        },
+        "on_failure": { "enum": ["skip_and_retry", "skip"] },
+        "notify": { "enum": ["quiet", "tell_me"] },
+        "changelog": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "languages": { "type": "array", "items": { "type": "string", "minLength": 2 } },
+        "display_slots": { "type": "array", "items": { "enum": ["home_hero", "home_hero_candidates", "item_hero", "item_section", "tile_badge", "player_toolbar", "player_panel", "item_menu", "settings_overview"] } },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "label"],
+            "properties": {
+              "id": { "type": "string" },
+              "kind": { "enum": ["find_lyrics", "find_subtitles", "rescan_skip_markers", "refresh_details", "refresh_lore"] },
+              "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+              "slot": { "enum": ["item_menu", "player_overflow", "player_core", "panel"] },
+              "audience": { "enum": ["administrators", "adults", "everyone"] },
+              "priority": { "type": "integer", "minimum": 0, "maximum": 100 },
+              "edits": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "text_track": { "enum": ["lyrics", "subtitles"] },
+        "credential_scopes": { "type": "object", "additionalProperties": { "enum": ["household", "personal"] } }
+      },
+      "additionalProperties": false
+    },
     "onboarding": {
       "type": "object",
       "required": ["classification", "supported_lanes", "skip_consequences", "credentials"],
