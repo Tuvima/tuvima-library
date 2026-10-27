@@ -1,6 +1,6 @@
 # Spec: Plugins and Integrations screens (one look, plus a wizard for new integrations)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [Developer tools](developer-tools.md) (D-A, D-B, D-D, D-W, WP1, WP31) · [Design system](../design/design-system.md) · bug log entries F73 (Plugins revamp), F70 (icons on buttons and toggles), F69 (Library area page, shares the search and filter row), F46 (shared list spacing), F26 (menus)
+> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy; built the same day) · **Related docs:** [Product overview](../product/overview.md) · [Developer tools](developer-tools.md) (D-A, D-B, D-D, D-W, WP1, WP31) · [Design system](../design/design-system.md) · bug log entries F73 (Plugins revamp), F70 (icons on buttons and toggles), F69 (Library area page, shares the search and filter row), F46 (shared list spacing), F26 (menus)
 
 ## 1. Goal
 
