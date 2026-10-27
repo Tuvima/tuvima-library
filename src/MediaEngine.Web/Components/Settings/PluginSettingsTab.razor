@@ -253,6 +253,7 @@ else
             <AppCountTabs Tabs="@CategoryTabs()" Selected="@_categoryTab" AriaLabel="Plugin categories"
                           SelectedChanged="@(key => Narrow(() => _categoryTab = key))" />
             var visible = VisiblePlugins();
+            _page = Math.Clamp(_page, 1, Math.Max(1, (int)Math.Ceiling(visible.Count / (double)PageSize)));
             @if (visible.Count == 0)
             {
                 <AppEmptyState Title="No plugins match" Message="Nothing installed fits that search or filter.">
@@ -403,6 +404,14 @@ else
     {
         SelectPlugin(plugin.Id);
         await BeginDeleteAsync(plugin);
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaEditorScrollTo", "#plugin-details-panel");
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is nothing left to scroll.
+        }
     }
 
     // A plugin that cannot work here cannot be switched on; once it is on, switching off is always allowed.
@@ -427,6 +436,7 @@ else
     };
 
     private RenderFragment AdvancedPluginPanel() => @<text>
+        <span id="plugin-details-panel"></span>
         <AppCard Title="Plugin details" Description="Check one plugin's health and jobs, review what it can access, or remove it.">
             <AppSelect Label="Plugin" Value="@_selectedPluginId" ValueChanged="@SelectPluginValue" Options="@PluginOptions" />
         </AppCard>
@@ -636,6 +646,10 @@ else
         if (match is null)
             return;
 
+        // The card must be on screen: drop any filter and open the page that holds it.
+        ClearFilters();
+        var position = VisiblePlugins().FindIndex(plugin => plugin.Id == match.Id);
+        _page = position < 0 ? 1 : (position / PageSize) + 1;
         _selectedPluginId = match.Id;
         _configurePluginId = match.Id;
         _scrollToFocused = true;
