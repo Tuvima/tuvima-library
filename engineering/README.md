@@ -32,6 +32,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Built (v30; Waves 1 to 3 merged 2026-10-22, Vault in #374; awaiting Local checks in `validation/batch.md`). Open follow-ups: Vault tile in the Add folder wizard (library setup WP6), per-section Vault permissions and a Vault per media type (D54), PHASH licence check, StashDB terms check (D55d). Stays here until they are done. |
 | [Spec: Smoother first-run setup](specs/first-run-setup-flow.md) | Locked (v2, 2026-10-27; setup hand-off after creating the administrator, one honest tools summary, calm log for a missing AI runtime; bugs F1, F2, F5) |
 | [Spec: Simpler access (areas, ratings, untick a library, folder checkbox)](specs/simpler-access.md) | Built, awaiting your Local checks (v3, 2026-10-23; all packets merged; access now on profiles per Users, profiles and households) |
+| [Spec: TV artwork, cast and matching](specs/tv-artwork-cast-and-matching.md) | Locked (v1, 2026-10-27; not yet built; run Local check L1 before WP2 and WP3) |
 | [Spec: Vault sections and Move to Vault](specs/vault-sections-and-move.md) | Locked (v4, 2026-10-22; not yet built; start with the central access service, WP0) |
 | [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/delete-groups.md) | Locked (v7, 2026-10-21) |
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
