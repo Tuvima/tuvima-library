@@ -66,6 +66,7 @@ else
                         <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">@ConfiguredPlugin.LoadError</AppAlert>
                     }
                     @PluginSettingsPanel(ConfiguredPlugin)
+                    @PluginDetailSections(ConfiguredPlugin)
                     <AppButton Label="Back to plugins" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(ConfiguredPlugin.Id))" />
                 </AppCard>
             }
@@ -176,7 +177,15 @@ else
         return StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id)).Word;
     }
 
-    private bool NeedsAttention(PluginSummaryResponse plugin) => WordOf(plugin) is HealthWord.NeedsAttention or HealthWord.Broken;
+    // Dependencies that are off, missing or the wrong version, by plugin id. The Plugin architecture build fills this from the
+    // Engine; until then no card waits for anything.
+    private readonly Dictionary<string, IReadOnlyList<string>> _waitingFor = new(StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyList<string> WaitingFor(PluginSummaryResponse plugin) =>
+        _waitingFor.TryGetValue(plugin.Id, out var names) ? names : [];
+
+    private bool NeedsAttention(PluginSummaryResponse plugin) =>
+        WordOf(plugin) is HealthWord.NeedsAttention or HealthWord.Broken || WaitingFor(plugin).Count > 0;
 
     private bool MatchesSearch(PluginSummaryResponse plugin)
     {
@@ -363,7 +372,11 @@ else
                 }
             </Badges>
             <Warning>
-                @if (MissingToolText(plugin, state.Word) is { } missing)
+                @if (WaitingFor(plugin) is { Count: > 0 } waiting)
+                {
+                    <AppWarningStrip Text="@($"Waiting for {string.Join(" and ", waiting)}")" />
+                }
+                else if (MissingToolText(plugin, state.Word) is { } missing)
                 {
                     <AppWarningStrip Text="@missing" OnClick="@(() => Navigation.NavigateTo(SettingsNav.RouteFor(SettingsSection.Tools)))" />
                 }
@@ -532,6 +545,86 @@ else
             }
         }
     </div>;
+
+    // The plugin detail page: who can use the plugin, what it needs, what it did, and what removing it would do. The lists the
+    // Plugin architecture build supplies (libraries a plugin is limited to, what depends on it, the update note) show their
+    // labelled place now, with an honest "nothing yet" line.
+    private RenderFragment PluginDetailSections(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body" data-testid="plugin-detail-sections">
+        <section class="settings-plugin-detail-section" aria-label="Access">
+            <AppText Typo="AppTypo.subtitle1">Access</AppText>
+            <AppTable Class="settings-plugin-job-table">
+                <tbody>
+                    <tr><td>Who can use it</td><td>Everyone who can use this Library</td></tr>
+                    <tr><td>Works on</td><td>@(plugin.MediaTypes.Count == 0 ? "All kinds of media" : string.Join(", ", plugin.MediaTypes.Select(ToTitle)))</td></tr>
+                    <tr><td>Vault items</td><td>Not used on Vault items</td></tr>
+                    <tr><td>What leaves this machine</td><td>@(string.IsNullOrWhiteSpace(plugin.SendsDataTo) ? "Nothing" : plugin.SendsDataTo)</td></tr>
+                    <tr>
+                        <td>Limited to</td>
+                        <td>All libraries
+                            @if (!DeviceContext.IsMobile)
+                            {
+                                <AppButton Label="Change" Size="AppControlSize.Compact" Disabled="true" />
+                            }
+                        </td>
+                    </tr>
+                </tbody>
+            </AppTable>
+        </section>
+        <section class="settings-plugin-detail-section" aria-label="Needs and needed by">
+            <AppText Typo="AppTypo.subtitle1">Needs</AppText>
+            @if (plugin.ToolRequirements.Count == 0 && WaitingFor(plugin).Count == 0)
+            {
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">It does not need anything else.</AppText>
+            }
+            else
+            {
+                <ul>
+                    @foreach (var name in WaitingFor(plugin)) { <li>@name (waiting)</li> }
+                    @foreach (var requirement in plugin.ToolRequirements) { <li>@ToTitle(string.IsNullOrWhiteSpace(requirement.ExecutableName) ? requirement.Id : requirement.ExecutableName)</li> }
+                </ul>
+            }
+            <AppText Typo="AppTypo.subtitle1">Needed by</AppText>
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Nothing else depends on it.</AppText>
+        </section>
+        <section class="settings-plugin-detail-section" aria-label="Activity">
+            <AppText Typo="AppTypo.subtitle1">Activity</AppText>
+            <AppActionBar Align="AppHorizontalAlignment.Start">
+                <AppButton Label="Check now" StartIcon="@AppMaterialIcons.Outlined.HealthAndSafety" Size="AppControlSize.Compact" OnClick="@(() => CheckNowAsync(plugin))" />
+            </AppActionBar>
+            @if (_health.TryGetValue(plugin.Id, out var health))
+            {
+                <AppAlert Tone="@HealthTone(health.Status)">@health.Status</AppAlert>
+            }
+            @if (_jobs.TryGetValue(plugin.Id, out var jobs) && jobs.Count > 0)
+            {
+                <ul data-testid="plugin-activity">
+                    @foreach (var job in jobs.Take(5))
+                    {
+                        <li>@job.OperationType: @job.Status@(string.IsNullOrWhiteSpace(job.ResultSummary) ? null : $" - {job.ResultSummary}")</li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Nothing has run yet.</AppText>
+            }
+        </section>
+        <section class="settings-plugin-detail-section" aria-label="Update note">
+            <AppText Typo="AppTypo.subtitle1">Version @plugin.Version</AppText>
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">No update note for this version.</AppText>
+        </section>
+        <section class="settings-plugin-detail-section" aria-label="Removing this plugin">
+            <AppText Typo="AppTypo.subtitle1">Removing this plugin</AppText>
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">See what removing it would clean up before you confirm. What it already added to your Library is kept.</AppText>
+            @DangerPanel(plugin)
+        </section>
+    </div>;
+
+    private async Task CheckNowAsync(PluginSummaryResponse plugin)
+    {
+        await CheckHealthAsync(plugin);
+        await LoadJobsAsync(plugin);
+    }
 
     private RenderFragment PluginHealthJobsPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
         <AppActionBar Align="AppHorizontalAlignment.Start">
