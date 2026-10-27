@@ -19,7 +19,13 @@ You can list built-in and dynamic plugins, enable or disable them, edit settings
 
 ## Open plugin settings
 
-Open **Settings > Plugins**. It is one page: the installed plugins come first, then **Available plugins**, then the details for one plugin (health and jobs, capabilities, and the danger zone). From there you can change settings, run health checks, view jobs, and check the plugin directory.
+Open **Settings > Developer > Plugins**. It is one page: a title with the **Upload plugin** button, a summary strip (how many plugins are installed, switched on and need attention), a search box with **Status**, **Media** and **Sort** filters and an **Official Tuvima** switch, category tabs with counts (All, Metadata, Media processing, Services, Utilities), and a grid of plugin cards. Under the grid it says "Showing 11 of 11 plugins", with page buttons when there are more than 12. **Available plugins** and the details for one plugin (health and jobs, capabilities, and the danger zone) follow below. On a phone the page is read-only.
+
+Each card has the plugin's switch, **Configure** (it opens the plugin's settings with a breadcrumb and a back link) and a "..." menu with **Check health**, **View what it can access** and, where allowed, **Remove**. A plugin that needs a tool the Library cannot find shows a warning strip ("Requires Comskip or FFmpeg. Install it for full functionality."); press it to open Tools and requirements.
+
+## Upload a plugin
+
+Press **Upload plugin** (desktop only, administrators only) and choose a zip file. The dialog warns "Only upload plugins you trust. A plugin can read and change your library." Only JSON-only plugins can be uploaded: the zip may hold `plugin.json` plus plain notes (`.md`, `.txt`) and pictures (`.png`), and nothing that could run code. The Library checks the file is really what its name says, reads `plugin.json` strictly (a repeated or capitalised field name is refused), and refuses a plugin whose id is already installed. An uploaded plugin is **Private** and arrives switched **off**; switching it on shows the usual approval step. Every upload, accepted or refused, is written to the activity log. Plugins that run code still need a signature and cannot be uploaded.
 
 Built-in plugins ship as part of Tuvima. You can disable them, but cannot delete them or edit their files. Dynamic plugins have their own folder and manifest.
 

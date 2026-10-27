@@ -54,7 +54,9 @@ Local AI is the engine room: it runs the models and keeps the machine fair. The 
 
 ## Integrations
 
-**Integrations** is for software outside the Library: applications with keys, and webhooks.
+**Integrations** is for software outside the Library: applications with keys, and webhooks. The page matches Plugins: a summary strip (integrations, active, need attention), a search box with **Status** and **Access** filters, **All / Applications / Webhooks** tabs with counts, and a card for each integration. A card shows its kind, a status label (Enabled, Disabled, Needs attention), its access (Read only, Playback control, Library management, Custom access), how many keys are active, the next key expiry and when it was last used. A failing webhook shows "Delivery failed" and the time of the last attempt in red. **Manage** opens the integration; the "..." menu has **Disable** or **Enable**, **Revoke keys** and **Delete**.
+
+**New integration** opens a three-step page: **Application** (Application or Webhook, a name, and for a webhook the address to send events to), **Access** (choose Read only, Playback control, Library management or Custom; permission groups expand to list what they hold; an Access summary says things like "No write access" and "Sensitive permissions excluded"; a webhook chooses **Events** here instead) and **Review and create** (the key's expiry, then Create). Nothing is saved until Create, and Cancel asks "Discard this integration?" if you entered anything. The key is shown once with a Copy button; it cannot be shown again.
 
 - **One event list.** Webhooks, plugin subscriptions and notification routing all read the same list of events, so a new event appears everywhere at once. Notification events carry only a generic title unless "include details" is on.
 - **Keys.** A new key suggests an expiry of one year (you can pick 90 days or never). A key nobody has used for 90 days, or one that expires within 14 days, shows **Needs attention**.
