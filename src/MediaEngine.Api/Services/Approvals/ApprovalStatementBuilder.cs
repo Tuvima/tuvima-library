@@ -144,7 +144,7 @@ internal static class ApprovalStatementBuilder
             lines.Add($"{KeepsOwnKeysAndLogins}: {string.Join(", ", labels)}");
         }
 
-        lines.AddRange(AccessLines(manifest.Declaration, manifest.Network.Count > 0, manifest.MediaTypes, manifest.Category));
+        lines.AddRange(AccessLines(manifest.Declaration, manifest.Network.Count > 0, manifest.MediaTypes, manifest.Category, manifest.ToolRequirements));
         lines.AddRange(ProgramLines(manifest));
 
         lines.Add($"{RunsAs}: {PluginKindName(manifest.Kind)}");
@@ -157,7 +157,12 @@ internal static class ApprovalStatementBuilder
     /// working on Vault items, adds an action or a display slot, or needs something new is asked about again. A declaration that
     /// states nothing still gets its lines ("administrators"), so adding a statement later is a visible change.
     /// </summary>
-    internal static IEnumerable<string> AccessLines(PluginDeclaration? declaration, bool sendsDataOut, IEnumerable<string>? mediaTypes, string? category)
+    internal static IEnumerable<string> AccessLines(
+        PluginDeclaration? declaration,
+        bool sendsDataOut,
+        IEnumerable<string>? mediaTypes,
+        string? category,
+        IReadOnlyList<PluginToolRequirement>? toolRequirements = null)
     {
         var resolved = PluginDeclarationRules.Resolve(declaration, sendsDataOut, mediaTypes, category);
         yield return $"Can be used by {PluginDeclarationRules.AudienceWords(resolved.Audience)}";
@@ -165,13 +170,32 @@ internal static class ApprovalStatementBuilder
 
         foreach (var requirement in declaration?.Requires ?? [])
         {
-            if (string.Equals(requirement.Kind, "tool", StringComparison.OrdinalIgnoreCase))
+            // A tool the manifest also lists in tool_requirements is already described by its "Needs FFmpeg" line.
+            if (string.Equals(requirement.Kind, "tool", StringComparison.OrdinalIgnoreCase)
+                && (toolRequirements ?? []).Any(tool => string.Equals(tool.Id, requirement.Id, StringComparison.OrdinalIgnoreCase)))
             {
-                continue; // Tools are already described by "Needs FFmpeg" lines.
+                continue;
             }
 
             var range = string.IsNullOrWhiteSpace(requirement.VersionRange) ? "" : $" {requirement.VersionRange}";
             yield return $"{(requirement.Optional ? "Works better with" : "Needs")} {RequirementKindName(requirement.Kind)} {requirement.Id}{range}";
+        }
+
+        // How heavy it is, how it fails and what removal does are part of what is approved too (D13).
+        yield return $"Weight: {PluginDeclarationRules.WeightWord(resolved.WeightClass)}";
+        yield return resolved.RetryOnFailure ? "When it fails: skipped and retried later" : "When it fails: skipped";
+        yield return resolved.TellMeOnFailure ? "Failures raise a notification" : "Failures are quiet";
+        if (declaration?.Stores is { } stores)
+        {
+            if (stores.Records)
+            {
+                yield return "Keeps its own records in the Library";
+            }
+
+            if (!string.IsNullOrWhiteSpace(stores.SavedOutput))
+            {
+                yield return $"Saves {stores.SavedOutput.Trim()} in the Library; removal {(resolved.RemoveOutputOnRemoval ? "removes" : "keeps")} them by default";
+            }
         }
 
         foreach (var slot in (declaration?.DisplaySlots ?? []).Select(slot => slot.Trim().ToLowerInvariant()).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
@@ -182,7 +206,9 @@ internal static class ApprovalStatementBuilder
         foreach (var action in declaration?.Actions ?? [])
         {
             var audience = PluginDeclarationRules.ActionAudience(action, resolved.Audience);
-            yield return $"Adds the action '{action.Label}' ({action.Kind.Replace('_', ' ')}) for {PluginDeclarationRules.AudienceWords(audience)}";
+            var slot = (action.Slot ?? "item_menu").Trim().ToLowerInvariant().Replace('_', ' ');
+            var effect = PluginDeclarationRules.ActionEdits(action) ? "changes things, desktop only" : "read only";
+            yield return $"Adds the action '{action.Label.Trim()}' ({action.Kind.Trim().ToLowerInvariant().Replace('_', ' ')}, {slot}, {effect}) for {PluginDeclarationRules.AudienceWords(audience)}";
         }
 
         if (declaration?.TextTrack is { } track)

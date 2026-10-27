@@ -85,7 +85,7 @@ public sealed class PluginDeclarationTests
         Assert.Contains("Can be used by adults", lines);
         Assert.Contains("Vault items: Allowed (local only)", lines);
         // An action can narrow its item's audience but never widen it.
-        Assert.Contains("Adds the action 'Look up lyrics' (find lyrics) for adults", lines);
+        Assert.Contains("Adds the action 'Look up lyrics' (find lyrics, item menu, read only) for adults", lines);
     }
 
     [Theory]
@@ -121,5 +121,55 @@ public sealed class PluginDeclarationTests
         Assert.False(access.Actions[0].Edits);
         Assert.True(access.Actions[1].Edits);
         Assert.Equal("Nothing leaves this machine", access.DataLeaving);
+    }
+
+    [Fact]
+    public void ChangingAnActionsSlotOrEditsFlag_ChangesTheApprovalFingerprint()
+    {
+        string Hash(string action) => ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForPlugin(
+            Manifest($$"""{ "actions": [{ "id": "refresh", "kind": "refresh_details", "label": "Refresh"{{action}} }] }"""), PluginTrustLevel.Official));
+
+        var original = Hash("");
+        Assert.NotEqual(original, Hash(", \"slot\": \"player_overflow\""));
+        Assert.NotEqual(original, Hash(", \"edits\": false"));
+    }
+
+    [Fact]
+    public void ChangingWeightNotifyFailureOrRemovalDefault_ChangesTheApprovalFingerprint()
+    {
+        string Hash(string declaration) => ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForPlugin(Manifest(declaration), PluginTrustLevel.Official));
+
+        var original = Hash("{}");
+        Assert.NotEqual(original, Hash("""{ "weight_class": "heavy" }"""));
+        Assert.NotEqual(original, Hash("""{ "notify": "tell_me" }"""));
+        Assert.NotEqual(original, Hash("""{ "on_failure": "skip" }"""));
+        Assert.NotEqual(original, Hash("""{ "stores": { "saved_output": "skip markers", "on_removal": "remove" } }"""));
+    }
+
+    [Fact]
+    public void AToolRequirementNotInTheToolList_IsStillApproved()
+    {
+        var lines = ApprovalStatementBuilder.PluginAllowedTo(Manifest("""{ "requires": [{ "kind": "tool", "id": "sneaky" }] }"""));
+
+        Assert.Contains("Needs tool sneaky", lines);
+    }
+
+    [Fact]
+    public void APluginCanNeverBeTheVaultsOwnSource()
+    {
+        var problem = PluginCompatibility.ValidateManifest(Manifest("""{ "vault": "own_source" }"""));
+
+        Assert.NotNull(problem);
+        Assert.Contains("own_source", problem);
+    }
+
+    [Fact]
+    public void NullListsAndEntriesInAHostileDeclaration_DoNotCrashReadingOrApproval()
+    {
+        var manifest = Manifest("""{ "requires": null, "actions": [null, { "id": "x", "kind": null, "label": null }], "languages": null, "display_slots": [null], "credential_scopes": null }""");
+
+        _ = ApprovalStatementBuilder.PluginAllowedTo(manifest).ToList();
+        _ = PluginAccessMapper.Map(manifest.Declaration, [], false, [], null, null);
+        Assert.NotNull(PluginCompatibility.ValidateManifest(manifest));
     }
 }

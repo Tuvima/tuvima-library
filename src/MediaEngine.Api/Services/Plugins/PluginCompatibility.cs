@@ -86,6 +86,12 @@ public static class PluginCompatibility
             return networkProblem;
         }
 
+        // Only a metadata source file that ships with the Library may be the Vault's own source; a plugin never is.
+        if (string.Equals(manifest.Declaration?.Vault?.Trim(), "own_source", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Plugin manifest declaration is not valid: 'vault' cannot be own_source for a plugin.";
+        }
+
         return PluginDeclarationRules.Validate(manifest.Declaration).FirstOrDefault() is { } declarationProblem
             ? $"Plugin manifest declaration is not valid: {declarationProblem}"
             : null;

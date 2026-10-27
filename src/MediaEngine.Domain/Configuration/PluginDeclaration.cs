@@ -21,7 +21,11 @@ public sealed class PluginDeclaration
 
     /// <summary>What the item needs before it can work (other plugins, Local AI abilities, tools, sources, host services).</summary>
     [JsonPropertyName("requires")]
-    public List<PluginRequirement> Requires { get; set; } = [];
+    public List<PluginRequirement> Requires
+    {
+        get;
+        set => field = value?.Where(item => item is not null).ToList() ?? [];
+    } = [];
 
     /// <summary><c>light</c> (default), <c>medium</c> or <c>heavy</c>. Heavy items run when the machine is idle, after ingestion, one at a time.</summary>
     [JsonPropertyName("weight_class")]
@@ -45,15 +49,27 @@ public sealed class PluginDeclaration
 
     /// <summary>Language codes the item supports (<c>en</c>, <c>fr</c>, ...); empty means it is not language-specific.</summary>
     [JsonPropertyName("languages")]
-    public List<string> Languages { get; set; } = [];
+    public List<string> Languages
+    {
+        get;
+        set => field = value?.Where(item => item is not null).ToList() ?? [];
+    } = [];
 
     /// <summary>The Library surfaces the item contributes data to, from <see cref="PluginDeclarationRules.DisplaySlots"/>.</summary>
     [JsonPropertyName("display_slots")]
-    public List<string> DisplaySlots { get; set; } = [];
+    public List<string> DisplaySlots
+    {
+        get;
+        set => field = value?.Where(item => item is not null).ToList() ?? [];
+    } = [];
 
     /// <summary>The actions the item offers to people (look up lyrics, find subtitles, re-scan skip markers), bound to what it supplies, never to its name.</summary>
     [JsonPropertyName("actions")]
-    public List<PluginActionDeclaration> Actions { get; set; } = [];
+    public List<PluginActionDeclaration> Actions
+    {
+        get;
+        set => field = value?.Where(item => item is not null).ToList() ?? [];
+    } = [];
 
     /// <summary>When the item supplies a text track: <c>lyrics</c> or <c>subtitles</c>. The Library saves it and does any writeback; the item never writes to a person's folders.</summary>
     [JsonPropertyName("text_track")]
@@ -61,7 +77,11 @@ public sealed class PluginDeclaration
 
     /// <summary>Secrets the item reads, split into household and personal ones (name to scope).</summary>
     [JsonPropertyName("credential_scopes")]
-    public Dictionary<string, string> CredentialScopes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> CredentialScopes
+    {
+        get;
+        set => field = value ?? new(StringComparer.OrdinalIgnoreCase);
+    } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>One thing an item needs, and whether it is required or only improves results.</summary>
@@ -69,11 +89,19 @@ public sealed class PluginRequirement
 {
     /// <summary><c>plugin</c>, <c>local_ai</c>, <c>tool</c>, <c>source</c> or <c>host_service</c>.</summary>
     [JsonPropertyName("kind")]
-    public string Kind { get; set; } = "";
+    public string Kind
+    {
+        get;
+        set => field = value ?? "";
+    } = "";
 
     /// <summary>The plugin id, AI ability, tool id, source name or host service name.</summary>
     [JsonPropertyName("id")]
-    public string Id { get; set; } = "";
+    public string Id
+    {
+        get;
+        set => field = value ?? "";
+    } = "";
 
     /// <summary>For a plugin: the versions that work, as <c>1.0.0</c> (this or newer) or <c>1.0.0-2.0.0</c> (inclusive range). Absent means any.</summary>
     [JsonPropertyName("version_range")]
@@ -105,15 +133,27 @@ public sealed class PluginActionDeclaration
 {
     /// <summary>A stable id, lower-case words and hyphens, unique within the item (for example <c>find-lyrics</c>).</summary>
     [JsonPropertyName("id")]
-    public string Id { get; set; } = "";
+    public string Id
+    {
+        get;
+        set => field = value ?? "";
+    } = "";
 
     /// <summary>What it does, from <see cref="PluginDeclarationRules.ActionKinds"/>. The button appears only when a switched-on item supplies this kind.</summary>
     [JsonPropertyName("kind")]
-    public string Kind { get; set; } = "";
+    public string Kind
+    {
+        get;
+        set => field = value ?? "";
+    } = "";
 
     /// <summary>The words on the button or menu row (1 to 40 characters).</summary>
     [JsonPropertyName("label")]
-    public string Label { get; set; } = "";
+    public string Label
+    {
+        get;
+        set => field = value ?? "";
+    } = "";
 
     /// <summary>Where it shows: <c>item_menu</c> (default), <c>player_overflow</c>, <c>player_core</c> (only for a Library-defined kind) or <c>panel</c>.</summary>
     [JsonPropertyName("slot")]
