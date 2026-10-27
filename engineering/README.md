@@ -23,6 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
+| [Spec: Links to outside sources (TheTVDB links, linked people, person-page links)](specs/outside-source-links.md) | Locked (v2, 2026-10-27; not yet built; WP1 live-address check runs locally first) |
 | [Spec: Plugins and Integrations screens (one look, Upload plugin, new-integration wizard)](specs/plugins-and-integrations-screens.md) | Locked (v1, 2026-10-27; not yet built; community plugins, directory installs and code-running uploads stay parked) |
 | [Spec: Music player, queue, lyrics and Songs list (song lengths, queue layout, lyrics origin and lookup, plugin audience)](specs/music-player-and-queue.md) | Locked (v1, 2026-10-27; not yet built) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | Built, awaiting your Local checks (v3; all waves built 2026-10-21; WP8 waits for the first community plugin; checks in [the batch list](validation/batch.md); handoff: [waves 4–8](handoffs/2026-10-20-developer-tools-waves-4-to-8.md)) |
