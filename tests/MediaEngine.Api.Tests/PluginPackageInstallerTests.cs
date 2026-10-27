@@ -417,6 +417,48 @@ public sealed class PluginPackageInstallerTests : IDisposable
         await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync(new byte[(64 * 1024 * 1024) + 1]));
     }
 
+    [Theory]
+    // The parser-differential attack: the upload check reads capitals and the last repeated name, the loader does not.
+    [InlineData("""{ "id": "acme.up", "name": "x", "version": "1.0.0", "kind": "official", "entry_assembly": "payload.png", "entry_type": "Evil.P", "Kind": "declarative", "ENTRY_ASSEMBLY": null, "Entry_Type": null }""")]
+    [InlineData("""{ "id": "acme.up", "name": "x", "version": "1.0.0", "kind": "official", "kind": "declarative" }""")]
+    [InlineData("""{ "id": "acme.up", "name": "x", "version": "1.0.0", "kind": "declarative", "entry_assembly": null }""")]
+    [InlineData("""{ "id": "acme.up", "name": "x", "version": "1.0.0", "kind": "declarative", "service": null }""")]
+    [InlineData("""{ "id": "acme.up", "name": "x", "version": "1.0.0", "Kind": "declarative" }""")]
+    public async Task AnUploadedManifest_ThatReadsDifferentlyToTheLoader_IsRefused_AndNeverLoaded(string manifestJson)
+    {
+        var (installer, catalog) = Build(Listing("x.y", "1.0.0", Package("x.y", "1.0.0")), Package("x.y", "1.0.0"));
+
+        await Assert.ThrowsAsync<PluginInstallException>(() =>
+            installer.UploadAsync(Package("acme.up", "1.0.0", manifestJson: manifestJson, binary: ("payload.png", [0x4D, 0x5A, 0x90, 0x00]))));
+
+        Assert.Null(catalog.Get("acme.up"));
+        Assert.False(Directory.Exists(Path.Combine(catalog.PluginRoot, "acme.up")));
+    }
+
+    [Theory]
+    [InlineData("tool.png", new byte[] { 0x4D, 0x5A, 0x90, 0x00, 0x03 })]
+    [InlineData("notes.txt", new byte[] { 0x4D, 0x5A, 0x00, 0x03 })]
+    [InlineData("notes.md", new byte[] { 0x7F, 0x45, 0x4C, 0x46, 0x00 })]
+    public async Task AnUploadedFile_ThatIsNotWhatItsNameSays_IsRefused(string name, byte[] data)
+    {
+        var (installer, catalog) = Build(Listing("x.y", "1.0.0", Package("x.y", "1.0.0")), Package("x.y", "1.0.0"));
+
+        var ex = await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync(Package("acme.up", "1.0.0", binary: (name, data))));
+
+        Assert.Contains("could run code", ex.Message, StringComparison.Ordinal);
+        Assert.Null(catalog.Get("acme.up"));
+    }
+
+    [Fact]
+    public async Task AnUploadedPicture_WithTheRealPngSignature_IsAccepted()
+    {
+        var (installer, catalog) = Build(Listing("x.y", "1.0.0", Package("x.y", "1.0.0")), Package("x.y", "1.0.0"));
+
+        await installer.UploadAsync(Package("acme.up", "1.0.0", binary: ("icon.png", [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00])));
+
+        Assert.NotNull(catalog.Get("acme.up"));
+    }
+
     // ── Support ──────────────────────────────────────────────────────────────
 
     private (PluginPackageInstaller Installer, PluginCatalog Catalog) Build(string listing, byte[] package, IReadOnlyList<string>? trustedKeys = null)
@@ -460,7 +502,7 @@ public sealed class PluginPackageInstallerTests : IDisposable
     private string Sign(byte[] package) =>
         Convert.ToBase64String(_signingKey.SignData(package, HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation));
 
-    private static byte[] Package(string id, string version, string kind = "declarative", string[]? permissions = null, string? extra = null, string? rawEntry = null)
+    private static byte[] Package(string id, string version, string kind = "declarative", string[]? permissions = null, string? extra = null, string? rawEntry = null, string? manifestJson = null, (string Name, byte[] Data)? binary = null)
     {
         using var stream = new MemoryStream();
         using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
@@ -469,6 +511,11 @@ public sealed class PluginPackageInstallerTests : IDisposable
             using (var writer = new StreamWriter(manifest.Open()))
             {
                 var perms = string.Join(", ", WithAi(permissions).Select(permission => $"\"{permission}\""));
+                if (manifestJson is not null)
+                {
+                    writer.Write(manifestJson);
+                }
+                else
                 writer.Write($$"""{ "id": "{{id}}", "name": "One", "version": "{{version}}", "kind": "{{kind}}", "permissions": [ {{perms}} ], "ai_permissions": [{ "role": "text_fast" }], "declarative": { "ai_steps": [{ "key": "s", "name": "S", "role": "text_fast", "prompt": "p" }] } }""");
             }
 
@@ -482,6 +529,12 @@ public sealed class PluginPackageInstallerTests : IDisposable
             {
                 using var writer = new StreamWriter(zip.CreateEntry(rawEntry).Open());
                 writer.Write("bad");
+            }
+
+            if (binary is { } file)
+            {
+                using var entry = zip.CreateEntry(file.Name).Open();
+                entry.Write(file.Data);
             }
         }
 

@@ -182,6 +182,16 @@ internal static class PluginEndpoints
             }
             catch (PluginInstallException ex)
             {
+                // A refused upload is the entry worth reading later, so it is logged too.
+                var refusedBy = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+                await activity.LogAsync(new SystemActivityEntry
+                {
+                    OccurredAt = DateTimeOffset.UtcNow,
+                    ActionType = SystemActionType.PluginUploaded,
+                    EntityType = "Plugin",
+                    ProfileId = refusedBy.ActiveProfileId,
+                    Detail = $"A plugin upload was refused: {ex.Message}",
+                }, ct).ConfigureAwait(false);
                 return ApiErrors.BadRequest(ex.Message);
             }
         })
