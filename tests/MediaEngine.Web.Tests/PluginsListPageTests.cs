@@ -89,6 +89,25 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Configure_OpensTheDetailWithABreadcrumb_AMenuAndABackLink_AndBackClosesIt()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true), Plugin("b", "Beta", enabled: false)];
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-state-card=plugin]").Count));
+
+        cut.FindAll("[data-state-card=plugin]")[0].QuerySelectorAll("button")
+            .First(button => button.TextContent.Trim() == "Configure").Click();
+
+        var detail = cut.WaitForElement(".settings-plugin-configure-panel");
+        Assert.Contains("Configure Alpha", detail.TextContent);
+        Assert.NotNull(detail.QuerySelector("nav[aria-label='Breadcrumb'] [aria-current='page']"));
+        Assert.NotNull(detail.QuerySelector("button[aria-label='More actions for Alpha']"));
+
+        detail.QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Back to plugins").Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".settings-plugin-configure-panel")));
+    }
+
+    [Fact]
     public void Search_MatchesNameAndCapabilityText_AndNarrowsTheList()
     {
         var music = Plugin("m", "MusicBrainz", enabled: true);
