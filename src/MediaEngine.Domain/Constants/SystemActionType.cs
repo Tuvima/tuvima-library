@@ -8,6 +8,9 @@ namespace MediaEngine.Domain.Constants;
 /// </summary>
 public static class SystemActionType
 {
+    /// <summary>An administrator uploaded a plugin package; it was added as a Private plugin, switched off.</summary>
+    public const string PluginUploaded = "PluginUploaded";
+
     /// <summary>A file was ingested into the library.</summary>
     public const string FileIngested = "FileIngested";
 

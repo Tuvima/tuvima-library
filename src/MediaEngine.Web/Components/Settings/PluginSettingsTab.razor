@@ -95,6 +95,14 @@ else
     private const int PageSize = 12;
     private static readonly AppCountTab[] NoTabs = [];
 
+    private bool _uploadOpen;
+
+    private async Task UploadedAsync(string message)
+    {
+        Snackbar.Add(message, AppSeverity.Success);
+        await ReloadAsync();
+    }
+
     private string? _search;
     private string _statusFilter = "all";
     private string _mediaFilter = "all";
@@ -223,7 +231,15 @@ else
     }
 
     private RenderFragment PluginsListPage() => @<div class="settings-plugin-page">
-        <AppListPageHeader Title="Plugins" Subtitle="Manage extensions and integrations" />
+        <AppListPageHeader Title="Plugins" Subtitle="Manage extensions and integrations">
+            <Actions>
+                @if (!DeviceContext.IsMobile)
+                {
+                    <AppButton Label="Upload plugin" StartIcon="@AppMaterialIcons.Outlined.UploadFile" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => _uploadOpen = true)" />
+                }
+            </Actions>
+        </AppListPageHeader>
+        <PluginUploadDialog Open="@_uploadOpen" OnClosed="@(() => { _uploadOpen = false; })" OnUploaded="@UploadedAsync" />
         <AppSummaryStrip AriaLabel="Plugin summary" Items="@SummaryItems()" />
         @if (_plugins.Count == 0)
         {
