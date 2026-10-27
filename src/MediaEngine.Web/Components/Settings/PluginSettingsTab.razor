@@ -43,12 +43,30 @@ else
         {
             @if (ConfiguredPlugin is not null)
             {
-                <AppCard Title="@($"Configure {ConfiguredPlugin.Name}")" Description="@ConfiguredPlugin.Description" Class="settings-plugin-configure-panel">
+                <AppCard Class="settings-plugin-configure-panel">
+                    <nav class="settings-plugin-breadcrumb" aria-label="Breadcrumb">
+                        <AppButton Label="Plugins" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(ConfiguredPlugin.Id))" />
+                        <span aria-hidden="true">/</span>
+                        <span aria-current="page">@ConfiguredPlugin.Name</span>
+                    </nav>
+                    <div class="settings-plugin-detail-header">
+                        <span class="settings-plugin-detail-header__icon"><AppMaterialIcon Icon="@PluginIcon(ConfiguredPlugin)" /></span>
+                        <div class="settings-plugin-detail-header__copy">
+                            <strong class="settings-plugin-detail-header__title">Configure @ConfiguredPlugin.Name</strong>
+                            <span class="settings-plugin-detail-header__description">@ConfiguredPlugin.Description</span>
+                        </div>
+                        <AppStatusBadge Text="@(ConfiguredPlugin.Enabled ? "Enabled" : "Disabled")" Tone="@(ConfiguredPlugin.Enabled ? AppUiTone.Success : AppUiTone.Neutral)" />
+                        @if (!DeviceContext.IsMobile)
+                        {
+                            <AppRowMenu AriaLabel="@($"More actions for {ConfiguredPlugin.Name}")" Items="@PluginMenuItems(ConfiguredPlugin)" />
+                        }
+                    </div>
                     @if (!string.IsNullOrWhiteSpace(ConfiguredPlugin.LoadError))
                     {
                         <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">@ConfiguredPlugin.LoadError</AppAlert>
                     }
                     @PluginSettingsPanel(ConfiguredPlugin)
+                    <AppButton Label="Back to plugins" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(ConfiguredPlugin.Id))" />
                 </AppCard>
             }
             <MetadataSourcesPanel />
