@@ -1,6 +1,6 @@
 # Spec: Music player, queue, lyrics and Songs list
 
-> **Status:** Locked (Shy, 2026-10-27) · **Version:** 1 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Design system](../design/design-system.md) · bug log items F44, F52, F53, F54, F55, F56, F57, F64, F65 (also touches F45, F46, F48)
+> **Status:** Locked (Shy, 2026-10-27) · **Version:** 2 (replaces v1, same day; nothing was built on v1) · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Design system](../design/design-system.md) · bug log items F44, F52, F53, F54, F55, F56, F57, F64, F65 (also touches F45, F46, F48)
 
 ## 1. Goal
 
@@ -52,6 +52,8 @@ Make the music player and the Songs list feel finished: song lengths are right, 
 - **D6.** Lyrics lookup and import live inside the lyrics panel and are open to anyone using the player (Shy, 2026-10-27: lyrics are not an admin function). They use the Engine actions that already exist. The pop-up editor link is removed from the player. Reason: one place to understand lyrics, and no dependency on the F49 decision.
 - **D5b.** (Shy, 2026-10-27) The failure message for a queue move is styled as a proper inline notice (warning icon, soft background, short text, dismiss after a few seconds or on the next action), using the shared notice style, not plain grey text.
 - **D6b.** (Shy, 2026-10-27) Who may use a lyrics (or any) source is declared by the plugin itself: each provider's details state whether it can be used by any profile or by administrators only. The Engine checks that declaration instead of a fixed rule. Lyrics (LRCLIB) declares "any profile". Only integrated plugins are affected (community plugins stay parked). Shown in the plugin's details as a plain label with an info tooltip.
+- **D6c. (v2, from the plugin architecture review)** Lyrics lookup is not tied to LRCLIB by name: it asks whichever lyrics sources are switched on and available to that person, read from each plugin's declared audience (LRCLIB: everyone). A new lyrics plugin works with no Dashboard change. The Lyrics button itself is never hidden (D6d). See the plugin architecture v2 draft (C4, C21, PA7). Reason: Extensibility.
+- **D6d. (v2, Shy 2026-10-27, wording from the plugin architecture spec C21/PA7)** The Lyrics button is a core player button and always shows. If the song has no lyrics, pressing it asks the switched-on lyrics sources to find them ("Looking for lyrics…"). If nothing is found it says so; if no lyrics source is switched on it says "No lyrics source is switched on", with a link to Plugins for administrators. Found lyrics are kept in the Library's own folder; with writeback on they are also written beside the song as a .lrc file or into the file's tags, following the existing writeback rules (built under PA7, not here). Plugin actions elsewhere in the player live in the "..." overflow menu, never as loose buttons. This replaces the earlier hide rule.
 - **D7.** The desktop lyrics card gets a close button using the same shared close control as the phone sheet.
 - **D8.** Delete leaves the Songs list columns and moves into the row's "..." menu, behind the same confirmation as today. Add to queue shows on hover only.
 
@@ -64,10 +66,13 @@ Make the music player and the Songs list feel finished: song lengths are right, 
 | Queue, a move fails | A styled inline notice (warning icon, soft background, "The move did not go through. Try again."), dismissing itself. Success shows nothing. |
 | History, normal | Rows with cover, title, artist, "Played 3 min ago", "..." menu. No sideways scrolling at any panel width. |
 | History, empty | "Played songs appear here for this session." |
+| Lyrics button pressed, song has no lyrics, a source is on | "Looking for lyrics…" with a spinner, then the lyrics, or "No lyrics found for this song" plus "Add a lyrics file". |
+| Lyrics button pressed, no lyrics source switched on | "No lyrics source is switched on"; administrators also see a link to Plugins. "Add a lyrics file" is still offered to everyone. |
 | Lyrics, found | Lyrics highlighted as they play, close button top right, small "Lyrics from LRCLIB" or "Lyrics from a file next to the song" line. |
 | Lyrics, none found | Plain message that says where lyrics normally come from and that none were found for this song. Everyone sees "Look up lyrics now" and "Add a lyrics file". |
 | Lyrics, lookup running | The button shows a spinner and "Looking up lyrics…". |
 | Lyrics, lookup finds nothing or fails | "No lyrics found at LRCLIB for this song." or "Lyrics lookup could not reach LRCLIB. Try again later." |
+| Lyrics, no lyrics source available to this person (none switched on, or not in its audience) | The explanation only, no buttons. |
 | Lyrics, lookup service switched off | "Lyrics lookup is turned off. An administrator can turn LRCLIB on in Settings → Providers (turning the source on or off stays an administrator setting; using it does not)." |
 | Songs list, normal | Header with search, sort menu, filter button. Columns as in section 1 item 8. Row hover shows add to queue next to the "...". |
 | Songs list, loading / empty / error | The existing shared loading, empty and error states; no new wording. |
@@ -113,6 +118,8 @@ Phone and TV: Up Next and History use the same rows; the drag handle is hidden o
 - **Done when:** a test finds a close button with the accessible name "Close Lyrics" on the desktop surface, and clicking it closes the card.
 
 ### WP5 — Lyrics origin, lookup and import
+- **v2 change (button):** the Lyrics button stays in the dock, full player and phone player at all times (D6d) and starts a lookup when pressed on a song with no lyrics. The lookup, writeback and overflow-menu structure are built by the plugin architecture work (PA7); this packet builds the panel states and wording and uses PA7's find action when it exists.
+- **v2 change:** lookup, writeback and the player overflow menu are owned by PA7 of the plugin architecture work; this packet no longer hides anything. Writeback does not exist for lyrics today; PA7 adds it, defaulting to a .lrc file beside the song, with embedded tags only where the library allows tag writeback. The source line shows the name of whichever source supplied the lyrics.
 - **What it does:** Replaces the empty message with the origin explanation; adds the source line when lyrics exist; for everyone adds "Look up lyrics now" and "Add a lyrics file" (existing Engine actions, with the Engine permission relaxed from administrators to any signed-in profile); shows the states in section 4; removes the pop-up editor link. Updates the player guide and the lyrics paragraph in the presentation rules.
 - **Files likely touched:** `src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor` and CSS, `src/MediaEngine.Web/Services/Playback/PlaybackLyricsPresenter.cs`, docs `docs/guides/playback-and-reading.md`, `docs/product/presentation-rules.md`, tests in `tests/MediaEngine.Web.Tests/PlaybackLyricsTests.cs`.
 - **Depends on:** WP4 (shares the lyrics card), WP5b
@@ -151,6 +158,7 @@ Wave plan: Wave 1 = WP1 and WP2 (different files). Wave 2 = WP3, WP4 and WP6 (WP
 - **L4.** Open Lyrics on a computer: the close button works with mouse and keyboard.
 - **L5.** Pick one song with lyrics and one without. The first shows the source line. On the second, as a non-administrator profile, "Look up lyrics now" either finds lyrics or says clearly why not (needs internet and the live LRCLIB service).
 - **L5b.** Open LRCLIB's details in Settings → Providers: it states it can be used by any profile. Sign in as a non-administrator profile and run a lyrics lookup: it works.
+- **L5c.** The Lyrics button shows on every song. With LRCLIB switched off and a song with no lyrics, pressing it says no lyrics source is switched on (administrators see the Plugins link). Switch LRCLIB on: pressing it on that song finds lyrics, and with writeback on a .lrc file appears beside the song.
 - **L6.** Songs list at desktop width next to the supplied example: columns, spacing, centred heart, hover actions, Delete in the "..." menu with its confirmation.
 
 ## 8. Risks and open questions
