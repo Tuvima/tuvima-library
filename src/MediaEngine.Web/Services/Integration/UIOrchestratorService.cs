@@ -351,6 +351,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<PluginInstallOutcome> InstallDirectoryPluginAsync(string pluginId, CancellationToken ct = default) =>
         _api.InstallDirectoryPluginAsync(pluginId, ct);
 
+    public Task<PluginInstallOutcome> UploadPluginAsync(Stream package, string fileName, CancellationToken ct = default) =>
+        _api.UploadPluginAsync(package, fileName, ct);
+
     public Task<PluginRemovalImpactResponse?> GetPluginRemovalImpactAsync(string pluginId, CancellationToken ct = default) =>
         _api.GetPluginRemovalImpactAsync(pluginId, ct);
 

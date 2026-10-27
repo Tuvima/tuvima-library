@@ -64,6 +64,128 @@ public sealed class PluginPackageInstaller
         }
     }
 
+    // The only kinds of file a JSON-only plugin needs next to its plugin.json; anything else could carry code.
+    private static readonly HashSet<string> UploadFileExtensions = new(StringComparer.OrdinalIgnoreCase) { ".md", ".txt", ".png" };
+
+    /// <summary>
+    /// Adds a plugin from a package file the administrator already has (Plugins and Integrations screens spec D5 and D11).
+    /// Only JSON-only (declarative) plugins are accepted: the Library reads them, they cannot run their own code, and nothing in
+    /// the package can be an executable or script. The plugin is stored with no install record, so it is Private, and it is
+    /// never switched on here: switching on is the approval step. Throws <see cref="PluginInstallException"/> with a plain
+    /// sentence when the package is refused; nothing is left behind.
+    /// </summary>
+    public async Task<PluginInstallResponse> UploadAsync(byte[] package, CancellationToken ct = default)
+    {
+        if (package.Length == 0)
+        {
+            throw new PluginInstallException("The file is empty.");
+        }
+
+        if (package.Length > PluginPackageRules.MaxPackageBytes)
+        {
+            throw new PluginInstallException("The plugin package is larger than allowed.");
+        }
+
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        var staging = Path.Combine(_catalog.StagingRoot, Guid.NewGuid().ToString("N"));
+        try
+        {
+            var unpacked = PluginPackageRules.Unpack(package, Path.Combine(staging, "new"));
+
+            foreach (var file in Directory.EnumerateFiles(unpacked, "*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(unpacked, file).Replace('\\', '/');
+                var isManifest = string.Equals(relative, "plugin.json", StringComparison.Ordinal);
+                if (!isManifest && !UploadFileExtensions.Contains(Path.GetExtension(file)))
+                {
+                    throw new PluginInstallException(
+                        $"The package contains a file the Library will not accept in an uploaded plugin ({Path.GetFileName(file)}). Uploaded plugins may hold only plugin.json and plain notes or pictures, because anything else could run code.");
+                }
+            }
+
+            var manifest = ReadManifest(Path.Combine(unpacked, "plugin.json"));
+            if (PluginCompatibility.ValidateManifest(manifest) is { } invalid)
+            {
+                throw new PluginInstallException($"The plugin package is not valid: {invalid}");
+            }
+
+            if (!PluginPackageRules.IsSafeId(manifest.Id))
+            {
+                throw new PluginInstallException("This plugin's id cannot be used, so it cannot be added.");
+            }
+
+            if (manifest.Kind != PluginKind.Declarative
+                || !string.IsNullOrWhiteSpace(manifest.EntryAssembly) || !string.IsNullOrWhiteSpace(manifest.EntryType)
+                || manifest.Service is not null || manifest.Sandbox is not null)
+            {
+                throw new PluginInstallException("Only plugins described entirely in JSON can be uploaded. A plugin that runs code needs a signature and cannot be uploaded.");
+            }
+
+            if (_catalog.Get(manifest.Id) is { } existing)
+            {
+                throw new PluginInstallException(existing.IsBuiltIn
+                    ? $"{existing.Manifest.Name} is built into the Library, so it cannot be replaced."
+                    : $"A plugin with this id ({existing.Manifest.Name}) is already installed. Remove it first to upload another.");
+            }
+
+            if (_blocklist?.Find(manifest.Id, manifest.Version) is { } block)
+            {
+                throw new PluginInstallException(string.IsNullOrWhiteSpace(block.Reason) ? "This plugin has been blocked." : $"Blocked: {block.Reason}");
+            }
+
+            var compatibility = PluginCompatibility.Evaluate(manifest, LibraryVersion.Current, PluginCompatibility.CurrentRid);
+            if (!compatibility.IsCompatible)
+            {
+                throw new PluginInstallException(compatibility.Problem ?? "This plugin does not work with this Library.");
+            }
+
+            var target = Path.Combine(_catalog.PluginRoot, manifest.Id.ToLowerInvariant());
+            if (Directory.Exists(target))
+            {
+                throw new PluginInstallException("A folder for this plugin already exists. Remove it first to upload another.");
+            }
+
+            try
+            {
+                Directory.CreateDirectory(_catalog.PluginRoot);
+                Directory.Move(unpacked, target);
+                // No install record: a plugin with none is Private, the least trusted level.
+                _catalog.InstallRecords.Delete(manifest.Id);
+                _catalog.Reload();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Uploading plugin {PluginId} failed while writing files", manifest.Id);
+                TryDelete(target);
+                throw new PluginInstallException("The plugin could not be written to the plugins folder.");
+            }
+
+            var added = _catalog.Get(manifest.Id);
+            if (added is null || added.Trust != PluginTrustLevel.Private || added.Enabled || !string.IsNullOrWhiteSpace(added.LoadError))
+            {
+                var problem = added?.LoadError;
+                TryDelete(target);
+                _catalog.Reload();
+                throw new PluginInstallException(string.IsNullOrWhiteSpace(problem)
+                    ? "The plugin could not be added."
+                    : $"The plugin could not be loaded: {problem}");
+            }
+
+            return new PluginInstallResponse
+            {
+                PluginId = manifest.Id,
+                Name = manifest.Name,
+                Version = manifest.Version,
+                Message = $"{manifest.Name} was added as a Private plugin. It is switched off; review what it can do and switch it on from Plugins when you are ready.",
+            };
+        }
+        finally
+        {
+            TryDelete(staging);
+            _gate.Release();
+        }
+    }
+
     private async Task<PluginInstallResponse> InstallEntryAsync(PluginDirectoryEntryDto entry, CancellationToken ct)
     {
         if (!PluginPackageRules.IsSafeId(entry.Id))

@@ -326,6 +326,20 @@ public sealed class MappedEndpointInventoryTests
     }
 
     [Fact]
+    public async Task UploadPlugin_IsInPersonAdministratorOnly_NeverOpenToAnOutsideApplication()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        var upload = inventory.Require("/plugins/upload", "POST");
+        Assert.Equal("UploadPlugin", upload.Name);
+        var policy = Assert.Single(upload.Policies);
+        var requirement = Assert.Single(policy.Requirements.OfType<EffectiveAdministratorRequirement>());
+        Assert.True(requirement.HumanOnly);
+        Assert.True(requirement.SurfaceUnlock);
+    }
+
+    [Fact]
     public async Task EveryEndpointAPendingSessionMayUse_ExistsUnderItsName_AndNoDeviceProfileRouteRemains()
     {
         await using var app = BuildEndpointOnlyApplication();

@@ -124,6 +124,28 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
+    public async Task<PluginInstallOutcome> UploadPluginAsync(Stream package, string fileName, CancellationToken ct = default)
+    {
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            content.Add(new StreamContent(package), "file", fileName);
+            using var response = await _http.PostAsync("/plugins/upload", content, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                return new PluginInstallOutcome(await response.Content.ReadFromJsonAsync<PluginInstallResponse>(ct));
+            }
+
+            return new PluginInstallOutcome(null, await ReadProblemDetailAsync(response, ct));
+        }
+        catch (OperationCanceledException) { return new PluginInstallOutcome(null); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /plugins/upload failed");
+            return new PluginInstallOutcome(null);
+        }
+    }
+
     public Task<PluginRemovalImpactResponse?> GetPluginRemovalImpactAsync(string pluginId, CancellationToken ct = default) =>
         GetAsync<PluginRemovalImpactResponse>("GET /plugins/{id}/removal-impact", $"/plugins/{Uri.EscapeDataString(pluginId)}/removal-impact", ct: ct);
 

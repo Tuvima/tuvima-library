@@ -343,6 +343,80 @@ public sealed class PluginPackageInstallerTests : IDisposable
         Assert.Empty(catalog.DescribeRemovalImpact("acme.art"));
     }
 
+    [Fact]
+    public async Task AnUploadedJsonPlugin_IsAddedAsPrivate_SwitchedOff_WithNoInstallRecord()
+    {
+        var (installer, catalog) = Build(Listing("x.y", "1.0.0", Package("x.y", "1.0.0")), Package("x.y", "1.0.0"));
+
+        var result = await installer.UploadAsync(Package("acme.up", "1.0.0", extra: "README.md"));
+
+        Assert.Equal("acme.up", result.PluginId);
+        var added = catalog.Get("acme.up")!;
+        Assert.Equal(PluginTrustLevel.Private, added.Trust);
+        Assert.False(added.Enabled);
+        Assert.Null(catalog.InstallRecords.Find("acme.up"));
+    }
+
+    [Fact]
+    public async Task AnUploadedPluginThatRunsCode_IsRefused_AndNothingIsLeftBehind()
+    {
+        var (installer, catalog) = Build(Listing("x.y", "1.0.0", Package("x.y", "1.0.0")), Package("x.y", "1.0.0"));
+
+        var ex = await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync(Package("acme.up", "1.0.0", kind: "official")));
+
+        Assert.Contains("JSON", ex.Message, StringComparison.Ordinal);
+        Assert.Null(catalog.Get("acme.up"));
+        Assert.False(Directory.Exists(Path.Combine(catalog.PluginRoot, "acme.up")));
+    }
+
+    [Theory]
+    [InlineData("lib.dll")]
+    [InlineData("run.exe")]
+    [InlineData("go.sh")]
+    [InlineData("module.wasm")]
+    [InlineData("nested/tool.py")]
+    public async Task AnUploadedPackage_WithAnythingThatCouldRunCode_IsRefused(string extra)
+    {
+        var (installer, catalog) = Build(Listing("x.y", "1.0.0", Package("x.y", "1.0.0")), Package("x.y", "1.0.0"));
+
+        var ex = await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync(Package("acme.up", "1.0.0", extra: extra)));
+
+        Assert.Contains("could run code", ex.Message, StringComparison.Ordinal);
+        Assert.Null(catalog.Get("acme.up"));
+    }
+
+    [Fact]
+    public async Task AnUploadedPackage_WithAnUnsafePath_AnEmptyFile_OrNotAZip_IsRefused()
+    {
+        var (installer, catalog) = Build(Listing("x.y", "1.0.0", Package("x.y", "1.0.0")), Package("x.y", "1.0.0"));
+
+        await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync(Package("acme.up", "1.0.0", rawEntry: "../escape.txt")));
+        await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync([]));
+        await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync(Encoding.UTF8.GetBytes("not a zip")));
+        Assert.Null(catalog.Get("acme.up"));
+    }
+
+    [Fact]
+    public async Task AnUploadedPlugin_WithAnIdThatIsAlreadyInstalled_IsRefused_AndTheFirstOneStays()
+    {
+        var (installer, catalog) = Build(Listing("x.y", "1.0.0", Package("x.y", "1.0.0")), Package("x.y", "1.0.0"));
+        await installer.UploadAsync(Package("acme.up", "1.0.0"));
+
+        var ex = await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync(Package("acme.up", "2.0.0")));
+
+        Assert.Contains("already installed", ex.Message, StringComparison.Ordinal);
+        Assert.Equal("1.0.0", catalog.Get("acme.up")!.Manifest.Version);
+    }
+
+    [Fact]
+    public async Task AnUploadedPlugin_WithAnUnsafeId_OrTooLarge_IsRefused()
+    {
+        var (installer, _) = Build(Listing("x.y", "1.0.0", Package("x.y", "1.0.0")), Package("x.y", "1.0.0"));
+
+        await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync(Package("con", "1.0.0")));
+        await Assert.ThrowsAsync<PluginInstallException>(() => installer.UploadAsync(new byte[(64 * 1024 * 1024) + 1]));
+    }
+
     // ── Support ──────────────────────────────────────────────────────────────
 
     private (PluginPackageInstaller Installer, PluginCatalog Catalog) Build(string listing, byte[] package, IReadOnlyList<string>? trustedKeys = null)
