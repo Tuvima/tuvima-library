@@ -1,0 +1,28 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* The header every Developer-area list page shares: a title, one line saying what the page is for, and the page's one main
+   button on the right. *@
+<header class="@RootClass">
+    <div class="app-list-page-header__copy">
+        <h2 class="app-list-page-header__title">@Title</h2>
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <p class="app-list-page-header__subtitle">@Subtitle</p>
+        }
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="app-list-page-header__actions">@Actions</div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+
+    /// <summary>The page's one main button (and anything beside it).</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string RootClass => string.Join(" ", new[] { "app-list-page-header", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

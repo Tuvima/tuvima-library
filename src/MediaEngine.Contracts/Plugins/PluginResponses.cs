@@ -148,6 +148,14 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("maximum_library_version")]
     public string? MaximumLibraryVersion { get; set; }
 
+    /// <summary>The tab the plugin is listed under: <c>metadata</c>, <c>media-processing</c>, <c>services</c> or <c>utilities</c>.</summary>
+    [JsonPropertyName("category")]
+    public string Category { get; set; } = "utilities";
+
+    /// <summary>The media types the plugin applies to (<c>books</c>, <c>comics</c>, <c>audiobooks</c>, <c>movies</c>, <c>tv</c>, <c>music</c>, <c>photos</c>); empty means every type.</summary>
+    [JsonPropertyName("media_types")]
+    public List<string> MediaTypes { get; set; } = [];
+
     /// <summary>Operating systems or runtime identifiers the plugin supports; empty means every platform.</summary>
     [JsonPropertyName("supported_platforms")]
     public List<string> SupportedPlatforms { get; set; } = [];

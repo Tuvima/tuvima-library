@@ -737,6 +737,8 @@ internal static class PluginEndpoints
         TrustLevel = PluginTrustName(registration.Trust),
         MinimumLibraryVersion = registration.Manifest.MinimumLibraryVersion,
         MaximumLibraryVersion = registration.Manifest.MaximumLibraryVersion,
+        Category = PluginCategories.Resolve(registration.Manifest.Category),
+        MediaTypes = PluginCategories.ResolveMediaTypes(registration.Manifest.MediaTypes).ToList(),
         SupportedPlatforms = registration.Manifest.SupportedPlatforms.ToList(),
         IsCompatible = registration.Compatibility.IsCompatible,
         CompatibilityProblem = registration.Compatibility.Problem,

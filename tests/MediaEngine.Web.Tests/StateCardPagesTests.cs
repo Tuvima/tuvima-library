@@ -188,7 +188,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         Assert.Contains("Broken", card.TextContent, StringComparison.Ordinal);
         Assert.Contains("The manifest is missing.", card.TextContent, StringComparison.Ordinal);
         Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Retry");
-        Assert.DoesNotContain(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Open settings");
+        Assert.DoesNotContain(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
 
         Assert.True(State.PluginsBroken);
         var plugins = PluginsRow();
@@ -206,7 +206,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
         var card = cut.Find("[data-state-card=plugin]");
         Assert.Equal("off", card.GetAttribute("data-health"));
-        Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Open settings");
+        Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
         Assert.DoesNotContain("The manifest is missing.", card.TextContent, StringComparison.Ordinal);
 
         Assert.False(State.PluginsBroken);
@@ -271,7 +271,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
             var card = cut.Find("[data-state-card=plugin]");
             Assert.Equal("needsattention", card.GetAttribute("data-health"));
             Assert.Contains("FFmpeg is missing.", card.TextContent, StringComparison.Ordinal);
-            Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Open settings");
+            Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
         });
     }
 
@@ -330,7 +330,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
         Assert.Empty(cut.FindAll("input[role=switch]"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Open settings");
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Configure");
     }
 
     // ── Local AI ─────────────────────────────────────────────────────────────

@@ -1,0 +1,2 @@
+.app-search-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.app-search-filter-row__search { flex: 1 1 18rem; min-width: 0; }

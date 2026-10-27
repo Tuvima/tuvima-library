@@ -1,0 +1,33 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* One quiet row of counts under a page header ("11 installed, 8 on, 1 needs attention"). While the page loads it shows
+   placeholders of the same size so nothing jumps. *@
+<ul class="@RootClass" aria-label="@(AriaLabel ?? "Summary")">
+    @foreach (var item in Items)
+    {
+        <li class="app-summary-strip__item">
+            @if (!string.IsNullOrWhiteSpace(item.Icon))
+            {
+                <AppMaterialIcon Icon="@item.Icon" />
+            }
+            @if (Loading)
+            {
+                <AppSkeleton Width="5rem" Height="1.5rem" />
+            }
+            else
+            {
+                <span class="app-summary-strip__value">@item.Value</span>
+                <span class="app-summary-strip__label">@item.Label</span>
+            }
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter] public IReadOnlyList<AppSummaryItem> Items { get; set; } = [];
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string RootClass => string.Join(" ", new[] { "app-summary-strip", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

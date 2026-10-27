@@ -4,94 +4,195 @@
 @* The one state card the Developer area uses for every plugin, integration, tester and the Local AI engine itself
    (Developer tools spec D-B): name and kind, switch, one of the four health words, what it is allowed to do, whether it
    sends data out, when it last did something and its last problem. Health is always written as text, never colour alone. *@
-<AppCard Class="app-state-card">
-    <div class="app-state-card__body" data-state-card="@Kind.ToString().ToLowerInvariant()" data-health="@Health.ToString().ToLowerInvariant()">
-        <div class="app-state-card__top">
-            <div class="app-state-card__identity">
-                <span class="app-state-card__kind">@StateCardHealth.KindLabel(Kind)</span>
-                <strong class="app-state-card__name">@Name</strong>
-                @if (!string.IsNullOrWhiteSpace(Description))
-                {
-                    <span class="app-state-card__description">@Description</span>
-                }
-                @if (Badges is not null)
-                {
-                    <span class="app-state-card__badges">@Badges</span>
-                }
-            </div>
-            <div class="app-state-card__status">
-                @if (Loading)
-                {
-                    <AppSkeleton Width="6rem" Height="1.5rem" Class="app-state-card__placeholder" />
-                }
-                else
-                {
-                    <AppStatusBadge Text="@StateCardHealth.Text(Health)" Tone="@StateCardHealth.Tone(Health)" Class="app-state-card__health" />
-                }
-                @if (IsOn is { } on)
-                {
-                    <AppSwitchRow Value="@on"
-                                  ValueChanged="@IsOnChanged"
-                                  Disabled="@(!string.IsNullOrWhiteSpace(SwitchDisabledReason))"
-                                  AriaLabel="@Name"
-                                  StopClickPropagation="true" />
-                }
-            </div>
-        </div>
-        @if (IsOn is not null && !string.IsNullOrWhiteSpace(SwitchDisabledReason))
-        {
-            <p class="app-state-card__reason">@SwitchDisabledReason</p>
-        }
+@if (Compact)
+{
+    @* The card style of the list pages (Plugins and Integrations spec D3): the same card and the same four health words,
+       drawn with the shared list card. The detail facts show only when ShowFacts is set ("View what it can access"). *@
+    <AppListCard Title="@Name"
+                 Icon="@Icon"
+                 Kind="@(KindText ?? StateCardHealth.KindLabel(Kind))"
+                 Description="@Description"
+                 Class="app-state-card app-state-card--compact"
+                 data-state-card="@Kind.ToString().ToLowerInvariant()"
+                 data-health="@Health.ToString().ToLowerInvariant()">
+        <Badges>
+            @if (Badges is not null) { @Badges }
+            @if (Loading)
+            {
+                <AppSkeleton Width="6rem" Height="1.5rem" Class="app-state-card__placeholder" />
+            }
+            else
+            {
+                <AppStatusBadge Text="@StateCardHealth.Text(Health)" Tone="@StateCardHealth.Tone(Health)" Class="app-state-card__health" />
+            }
+        </Badges>
+        <Aside>
+            @if (IsOn is { } switchedOn)
+            {
+                <span class="app-state-card__switch-label">@(switchedOn ? "Enabled" : "Disabled")</span>
+                <AppSwitchRow Value="@switchedOn"
+                              ValueChanged="@IsOnChanged"
+                              Disabled="@(!string.IsNullOrWhiteSpace(SwitchDisabledReason))"
+                              AriaLabel="@Name"
+                              StopClickPropagation="true" />
+            }
+            else if (!string.IsNullOrWhiteSpace(StatusText))
+            {
+                <span class="app-state-card__switch-label">@StatusText</span>
+            }
+        </Aside>
+        <ChildContent>
+            @if (IsOn is not null && !string.IsNullOrWhiteSpace(SwitchDisabledReason))
+            {
+                <p class="app-state-card__reason">@SwitchDisabledReason</p>
+            }
+            @if (!Loading && !string.IsNullOrWhiteSpace(LastProblem) && !ShowFacts)
+            {
+                <p class="app-state-card__reason">@LastProblem</p>
+            }
+            @* The facts stay in the page and are only hidden until "View what it can access" is chosen. *@
+            <div hidden="@(!ShowFacts)">
         <dl class="app-state-card__facts">
-            <div class="app-state-card__fact">
-                <dt>Allowed to</dt>
-                <dd>
-                    @if (AllowedTo.Count == 0)
-                    {
-                        <span>Nothing special</span>
-                    }
-                    else
-                    {
-                        <ul class="app-state-card__list">
-                            @foreach (var line in AllowedTo)
+                    <div class="app-state-card__fact">
+                        <dt>Allowed to</dt>
+                        <dd>
+                            @if (AllowedTo.Count == 0)
                             {
-                                <li>@line</li>
+                                <span>Nothing special</span>
                             }
-                        </ul>
+                            else
+                            {
+                                <ul class="app-state-card__list">
+                                    @foreach (var line in AllowedTo)
+                                    {
+                                        <li>@line</li>
+                                    }
+                                </ul>
+                            }
+                        </dd>
+                    </div>
+                    <div class="app-state-card__fact">
+                        <dt>Sends data out</dt>
+                        <dd data-testid="sends-data">@SendsDataText</dd>
+                    </div>
+                    <div class="app-state-card__fact">
+                        <dt>Last activity</dt>
+                        <dd data-testid="last-activity" title="@LastActivityTitle">
+                            @if (Loading)
+                            {
+                                <AppSkeleton Width="7rem" Height="1rem" Class="app-state-card__placeholder" />
+                            }
+                            else
+                            {
+                                @LastActivityText
+                            }
+                        </dd>
+                    </div>
+                    @if (!Loading && !string.IsNullOrWhiteSpace(LastProblem))
+                    {
+                        <div class="app-state-card__fact app-state-card__fact--problem">
+                            <dt>Last problem</dt>
+                            <dd data-testid="last-problem">@LastProblem</dd>
+                        </div>
                     }
-                </dd>
+                </dl>
             </div>
-            <div class="app-state-card__fact">
-                <dt>Sends data out</dt>
-                <dd data-testid="sends-data">@SendsDataText</dd>
-            </div>
-            <div class="app-state-card__fact">
-                <dt>Last activity</dt>
-                <dd data-testid="last-activity" title="@LastActivityTitle">
+        </ChildContent>
+        <Warning>@Warning</Warning>
+        <Footer>@(Footer ?? Action)</Footer>
+    </AppListCard>
+}
+else
+{
+<AppCard Class="app-state-card">
+        <div class="app-state-card__body" data-state-card="@Kind.ToString().ToLowerInvariant()" data-health="@Health.ToString().ToLowerInvariant()">
+            <div class="app-state-card__top">
+                <div class="app-state-card__identity">
+                    <span class="app-state-card__kind">@StateCardHealth.KindLabel(Kind)</span>
+                    <strong class="app-state-card__name">@Name</strong>
+                    @if (!string.IsNullOrWhiteSpace(Description))
+                    {
+                        <span class="app-state-card__description">@Description</span>
+                    }
+                    @if (Badges is not null)
+                    {
+                        <span class="app-state-card__badges">@Badges</span>
+                    }
+                </div>
+                <div class="app-state-card__status">
                     @if (Loading)
                     {
-                        <AppSkeleton Width="7rem" Height="1rem" Class="app-state-card__placeholder" />
+                        <AppSkeleton Width="6rem" Height="1.5rem" Class="app-state-card__placeholder" />
                     }
                     else
                     {
-                        @LastActivityText
+                        <AppStatusBadge Text="@StateCardHealth.Text(Health)" Tone="@StateCardHealth.Tone(Health)" Class="app-state-card__health" />
                     }
-                </dd>
-            </div>
-            @if (!Loading && !string.IsNullOrWhiteSpace(LastProblem))
-            {
-                <div class="app-state-card__fact app-state-card__fact--problem">
-                    <dt>Last problem</dt>
-                    <dd data-testid="last-problem">@LastProblem</dd>
+                    @if (IsOn is { } on)
+                    {
+                        <AppSwitchRow Value="@on"
+                                      ValueChanged="@IsOnChanged"
+                                      Disabled="@(!string.IsNullOrWhiteSpace(SwitchDisabledReason))"
+                                      AriaLabel="@Name"
+                                      StopClickPropagation="true" />
+                    }
                 </div>
+            </div>
+            @if (IsOn is not null && !string.IsNullOrWhiteSpace(SwitchDisabledReason))
+            {
+                <p class="app-state-card__reason">@SwitchDisabledReason</p>
             }
-        </dl>
-        @if (Action is not null)
-        {
-            <div class="app-state-card__action">@Action</div>
-        }
-    </div>
-</AppCard>
+            <dl class="app-state-card__facts">
+                <div class="app-state-card__fact">
+                    <dt>Allowed to</dt>
+                    <dd>
+                        @if (AllowedTo.Count == 0)
+                        {
+                            <span>Nothing special</span>
+                        }
+                        else
+                        {
+                            <ul class="app-state-card__list">
+                                @foreach (var line in AllowedTo)
+                                {
+                                    <li>@line</li>
+                                }
+                            </ul>
+                        }
+                    </dd>
+                </div>
+                <div class="app-state-card__fact">
+                    <dt>Sends data out</dt>
+                    <dd data-testid="sends-data">@SendsDataText</dd>
+                </div>
+                <div class="app-state-card__fact">
+                    <dt>Last activity</dt>
+                    <dd data-testid="last-activity" title="@LastActivityTitle">
+                        @if (Loading)
+                        {
+                            <AppSkeleton Width="7rem" Height="1rem" Class="app-state-card__placeholder" />
+                        }
+                        else
+                        {
+                            @LastActivityText
+                        }
+                    </dd>
+                </div>
+                @if (!Loading && !string.IsNullOrWhiteSpace(LastProblem))
+                {
+                    <div class="app-state-card__fact app-state-card__fact--problem">
+                        <dt>Last problem</dt>
+                        <dd data-testid="last-problem">@LastProblem</dd>
+                    </div>
+                }
+            </dl>
+            @if (Action is not null)
+            {
+                <div class="app-state-card__action">@Action</div>
+            }
+        </div>
+    </AppCard>
+}
 
 @code {
     [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
@@ -124,6 +225,27 @@
 
     /// <summary>Shows a quiet placeholder for the health and last activity while the checks are still running.</summary>
     [Parameter] public bool Loading { get; set; }
+
+    /// <summary>Card style for the list pages: the shared list card instead of the stacked state card.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    /// <summary>Compact only: the icon at the top left.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Compact only: the small label under the name (a category such as "Metadata"); the kind word when null.</summary>
+    [Parameter] public string? KindText { get; set; }
+
+    /// <summary>Compact only: words shown instead of a switch when the item has none (for example "Enabled" or "Read only").</summary>
+    [Parameter] public string? StatusText { get; set; }
+
+    /// <summary>Compact only: whether the allowed-to, sends-data and last-activity facts are open.</summary>
+    [Parameter] public bool ShowFacts { get; set; } = true;
+
+    /// <summary>Compact only: a warning strip across the card (a missing tool).</summary>
+    [Parameter] public RenderFragment? Warning { get; set; }
+
+    /// <summary>Compact only: the card's bottom row (Configure and the "..." menu); falls back to <see cref="Action"/>.</summary>
+    [Parameter] public RenderFragment? Footer { get; set; }
 
     private string SendsDataText => SendsDataOut
         ? string.IsNullOrWhiteSpace(SendsDataTo) ? "Yes" : $"Yes, to {SendsDataTo}"
