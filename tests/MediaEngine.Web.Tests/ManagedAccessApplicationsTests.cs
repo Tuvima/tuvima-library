@@ -48,20 +48,6 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PresetAndManualPermissionSelection_ExposeCustomAndUnavailableStates()
-    {
-        var cut = RenderApplications();
-        ButtonNamed(cut, "New integration").Click();
-
-        Assert.True(PermissionCheckbox(cut, "Unavailable camera access").HasAttribute("disabled"));
-        cut.WaitForElement("select[aria-label='Permission preset']").Change("media-player");
-        PermissionCheckbox(cut, "Write playback progress").Change(false);
-
-        cut.WaitForAssertion(() => Assert.Equal("custom", cut.WaitForElement("select[aria-label='Permission preset']").GetAttribute("value")));
-        Assert.Single(cut.FindAll("select[aria-label='Permission preset'] option"), option => option.TextContent == "Custom");
-    }
-
-    [Fact]
     public void TypeChange_RemovesIncompatiblePermissionsAndClearsBindingsBeforeUpdate()
     {
         var cut = RenderApplications();
@@ -289,47 +275,6 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void CreateApplication_UsesSelectedPresetAndContinuesToCredentialSetup()
-    {
-        var cut = RenderApplications();
-        ButtonNamed(cut, "New integration").Click();
-        ApplicationNameField(cut).Input("Kitchen display");
-        ButtonNamed(cut, "Create application").Click();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Contains("Kitchen display was created.", cut.Markup);
-            Assert.Contains("Generate credential", cut.Markup);
-        });
-        var request = Assert.Single(_handler.Requests,
-            request => request.Method == HttpMethod.Post && request.Path == "/access/applications");
-        var payload = JsonSerializer.Deserialize<CreateApplicationRequest>(request.Body, JsonOptions)!;
-        Assert.Equal(["library.read"], payload.PermissionIds);
-    }
-
-    [Fact]
-    public async Task CreateBindingFailure_RetryUpdatesPersistedApplicationWithoutDuplicateCreate()
-    {
-        _handler.BindingStatus = HttpStatusCode.Conflict;
-        var cut = RenderApplications();
-        var newApplication = ButtonNamed(cut, "New integration");
-        await cut.InvokeAsync(() => newApplication.Click());
-        var nameField = ApplicationNameField(cut);
-        await cut.InvokeAsync(() => nameField.Input("Kitchen display"));
-        var createApplication = ButtonNamed(cut, "Create application");
-        await cut.InvokeAsync(() => createApplication.Click());
-
-        cut.WaitForAssertion(() => Assert.Contains("native client bindings were not", cut.Markup));
-        _handler.BindingStatus = HttpStatusCode.OK;
-        var saveApplication = ButtonNamed(cut, "Save application");
-        await cut.InvokeAsync(() => saveApplication.Click());
-
-        cut.WaitForAssertion(() => Assert.Contains("Kitchen display was saved.", cut.Markup));
-        Assert.Single(_handler.Requests,
-            request => request.Method == HttpMethod.Post && request.Path == "/access/applications");
-    }
-
-    [Fact]
     public async Task DelayedCredential_DisablesSubmitAndCannotWriteIntoReopenedDrawer()
     {
         _handler.CredentialGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -344,13 +289,13 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             .Single(button => button.TextContent.Trim() == "Generate credential").HasAttribute("disabled")));
 
         cut.WaitForElement("button[aria-label='Close application drawer']").Click();
-        ButtonNamed(cut, "New integration").Click();
+        OpenEdit(cut);
         _handler.CredentialGate.SetResult();
         await pending;
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("New integration", cut.Markup);
+            Assert.Contains("Living room", cut.Markup);
             Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
         });
         Assert.Single(_handler.Requests,
@@ -806,6 +751,109 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         cut.WaitForElement("article[aria-label='Living room']");
     }
 
+    [Fact]
+    public void Wizard_CreatesAReadOnlyIntegrationAndShowsTheKeyOnce()
+    {
+        var cut = RenderApplications();
+        ButtonNamed(cut, "New integration").Click();
+        WizardNameField(cut).Input("Kitchen display");
+        ButtonNamed(cut, "Continue").Click();
+        cut.WaitForAssertion(() => Assert.Contains("Step 2 of 3, Access", cut.Markup));
+        ButtonNamed(cut, "Continue").Click();
+        cut.WaitForAssertion(() => Assert.Contains("Review and create", cut.Markup));
+        Assert.DoesNotContain(_handler.Requests, request => request.Method == HttpMethod.Post);
+        ButtonNamed(cut, "Create").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Kitchen display was created. Copy this key now. It cannot be shown again.", cut.Markup);
+            Assert.Contains(ApplicationsHandler.Secret, cut.Markup);
+        });
+        var request = Assert.Single(_handler.Requests,
+            request => request.Method == HttpMethod.Post && request.Path == "/access/applications");
+        var payload = JsonSerializer.Deserialize<CreateApplicationRequest>(request.Body, JsonOptions)!;
+        Assert.Equal(["library.read"], payload.PermissionIds);
+
+        ButtonNamed(cut, "Done").Click();
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Kitchen display was created.", cut.Markup);
+            Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
+        });
+    }
+
+    [Fact]
+    public void Wizard_BackKeepsChoices_AndCustomAccessUnlocksPermissionsExceptUnavailableOnes()
+    {
+        var cut = RenderApplications();
+        ButtonNamed(cut, "New integration").Click();
+        WizardNameField(cut).Input("Kitchen display");
+        ButtonNamed(cut, "Continue").Click();
+        ButtonNamed(cut, "Custom").Click();
+        foreach (var group in cut.FindAll(".integration-wizard__group button"))
+        {
+            group.Click();
+        }
+
+        cut.WaitForState(() => cut.FindAll(".integration-wizard__permission").Count >= 2);
+
+        Assert.True(WizardPermission(cut, "Unavailable camera access").HasAttribute("disabled"));
+        WizardPermission(cut, "Write playback progress").Change(true);
+        Assert.Contains("Can change things", cut.Markup);
+
+        ButtonNamed(cut, "Back").Click();
+        Assert.Equal("Kitchen display", WizardNameField(cut).GetAttribute("value"));
+    }
+
+    [Fact]
+    public void Wizard_CancelAsksBeforeDiscardingWhatWasEntered_AndSavesNothing()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        ButtonNamed(cut, "New integration").Click();
+        WizardNameField(cut).Input("Kitchen display");
+        ButtonNamed(cut, "Cancel").Click();
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Discard this integration?", dialogs.Markup));
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Discard").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Living room", cut.Markup));
+        Assert.DoesNotContain(_handler.Requests, request => request.Method == HttpMethod.Post);
+    }
+
+    [Fact]
+    public void Wizard_CancelWithNothingEnteredLeavesWithoutAsking()
+    {
+        var cut = RenderApplications();
+        ButtonNamed(cut, "New integration").Click();
+        ButtonNamed(cut, "Cancel").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Living room", cut.Markup));
+    }
+
+    [Fact]
+    public void Wizard_Webhook_ChoosesEventsInsteadOfAccess_AndShowsTheSigningSecret()
+    {
+        var cut = RenderApplications();
+        ButtonNamed(cut, "New integration").Click();
+        cut.WaitForElement("#wizard-kind").Change("webhook");
+        var fields = cut.FindAll(".integration-wizard__section input[type='text']");
+        fields[0].Input("Chat alerts");
+        cut.FindAll(".integration-wizard__section input[type='text']").Last().Input("https://receiver.example/events");
+        ButtonNamed(cut, "Continue").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Choose which events", cut.Markup));
+        cut.WaitForElement(".integration-wizard__section input[type='checkbox']").Change(true);
+        ButtonNamed(cut, "Continue").Click();
+        ButtonNamed(cut, "Create").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Chat alerts was created.", cut.Markup);
+            Assert.Contains(ApplicationsHandler.WebhookSecret, cut.Markup);
+        });
+    }
+
     private async Task UsePhoneAsync()
     {
         var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
@@ -829,6 +877,17 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     // Rows and buttons appear after a render, so lookups wait for the element instead of assuming the render already happened.
+    private static AngleSharp.Dom.IElement WizardNameField(IRenderedComponent<ManagedAccessApplications> cut)
+    {
+        cut.WaitForState(() => cut.FindAll(".integration-wizard__section input[type='text']").Count > 0);
+        return cut.FindAll(".integration-wizard__section input[type='text']").First();
+    }
+
+    private static AngleSharp.Dom.IElement WizardPermission(IRenderedComponent<ManagedAccessApplications> cut, string label) =>
+        cut.FindAll(".integration-wizard__permission")
+            .Single(row => row.TextContent.Contains(label, StringComparison.Ordinal))
+            .QuerySelector("input[type='checkbox']")!;
+
     private static AngleSharp.Dom.IElement PermissionCheckbox(
         IRenderedComponent<ManagedAccessApplications> cut,
         string label)
