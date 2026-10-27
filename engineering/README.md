@@ -76,7 +76,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Handoff: follow-ups from library setup and Simpler access (2026-10-23)](handoffs/2026-10-23-library-setup-and-access-follow-ups.md) | Current: 11 threads (ratings, kind naming, kind cards and icon guide, change-kind edges, YouTube cover, counts per library, flaky tests, Docker templates, filing wording, drawer check, stray branch) |
 | [Handoff: library read speed follow-ups (2026-10-21)](handoffs/2026-10-21-library-read-speed-follow-ups.md) | Current — T1 to T7; T4 and T5 wait on Shy's decisions |
 | [Handoff: developer tools after wave 2, and the follow-ups it turned up (2026-10-21)](handoffs/2026-10-21-developer-tools-and-follow-ups.md) | Current |
-| [Handoff: stop filing media into a doubled category folder (2026-10-20)](handoffs/2026-10-20-doubled-category-folder.md) | Current |
+| [Handoff: stop filing media into a doubled category folder (2026-10-20)](handoffs/2026-10-20-doubled-category-folder.md) | Done |
 | [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 
 ## Architecture decisions

@@ -4,6 +4,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Services;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Ingestion;
@@ -28,7 +29,8 @@ namespace MediaEngine.Ingestion;
 ///   {Ext}          — file extension WITH leading dot (e.g. ".mp4")
 ///   {Series}       — series claim (also accepts the legacy "show_name" key)
 ///   {Publisher}    — publisher claim
-///   {Category}     — top-level category folder (Movies, TV, Music, …)
+///   {Category}     — category name (Movies, TV, Music, …). Templates name the path inside the type's own
+///                    folder, so the standard ones leave it out.
 ///   {Artist}       — music artist
 ///   {AlbumArtist}  — music album artist (falls back to track artist)
 ///   {Album}        — music album
@@ -546,19 +548,9 @@ public sealed class FileOrganizer : IFileOrganizer
     }
 
     /// <summary>
-    /// Maps a <see cref="MediaType"/> to a broad human-readable category
-    /// used as the top-level directory in the Collection-first organisation template.
+    /// Maps a <see cref="MediaType"/> to its category name (Books, TV, …; "Other" when unknown, caught by the gate).
     /// </summary>
-    private static string ResolveCategoryFromMediaType(MediaType? mt) => mt switch
-    {
-        MediaType.Books => "Books",
-        MediaType.Comics => "Comics",
-        MediaType.Movies => "Movies",
-        MediaType.TV => "TV",
-        MediaType.Audiobooks => "Audiobooks",
-        MediaType.Music => "Music",
-        _ => "Other",  // Unknown, null — caught by upstream guard
-    };
+    private static string ResolveCategoryFromMediaType(MediaType? mt) => LibraryOrganizationPath.Category(mt);
 
     /// <summary>
     /// Builds the <c>{Episode}</c> token. A file that covers several episodes

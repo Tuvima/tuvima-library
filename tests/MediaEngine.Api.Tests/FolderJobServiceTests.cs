@@ -137,7 +137,7 @@ public sealed class FolderJobServiceTests : IDisposable
         Assert.Equal("2 organised.", done.Message);
         Assert.True(done.HasLog);
         Assert.Equal(
-            ["Movies/Alien (1979)/Alien (1979).mkv", "Movies/Dune (2021)/Dune (2021).mkv"],
+            ["Alien (1979)/Alien (1979).mkv", "Dune (2021)/Dune (2021).mkv"],
             _f.FilesIn(folder));
 
         var saved = _f.Source(folder.Id);
@@ -173,7 +173,7 @@ public sealed class FolderJobServiceTests : IDisposable
         Assert.Equal("queued", resumed.State);
         await _f.RunWorkerUntilAsync(() => _f.IsFinishedAsync(job.OperationId));
 
-        Assert.Equal(["Movies/Dune (2021)/Dune (2021).mkv"], _f.FilesIn(folder));
+        Assert.Equal(["Dune (2021)/Dune (2021).mkv"], _f.FilesIn(folder));
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public sealed class FolderJobServiceTests : IDisposable
 
         var done = await _f.Jobs.GetAsync(operationId, default);
         Assert.Equal("cancelled", done!.State);
-        Assert.Equal(2, _f.FilesIn(folder).Count(path => path.StartsWith("Movies/", StringComparison.Ordinal)));
+        Assert.Equal(2, _f.FilesIn(folder).Count(path => path.Contains('/')));
         Assert.Equal(2, _f.FilesIn(folder).Count(path => path.StartsWith("raw ", StringComparison.Ordinal)));
         Assert.Equal(LibrarySourceConversionStates.Converted, _f.Source(folder.Id).ConversionState);
         Assert.Contains("Stopped after", done.Message);
@@ -241,7 +241,7 @@ public sealed class FolderJobServiceTests : IDisposable
         await _f.RunWorkerUntilAsync(() => _f.IsFinishedAsync(job.OperationId));
 
         Assert.Equal(
-            ["Movies/Alien (1979)/Alien (1979).mkv", "Movies/Dune (2021)/Dune (2021).mkv"],
+            ["Alien (1979)/Alien (1979).mkv", "Dune (2021)/Dune (2021).mkv"],
             _f.FilesIn(folder));
         Assert.Equal("completed", (await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default))!.State);
     }
@@ -393,7 +393,7 @@ public sealed class FolderJobServiceTests : IDisposable
         Assert.True(done.HasLog);
         Assert.Equal(sourceBefore, _f.FilesIn(source));
         Assert.Equal(
-            ["Movies/Alien (1979)/Alien (1979).mkv", "Movies/Dune (2021)/Dune (2021).mkv"],
+            ["Alien (1979)/Alien (1979).mkv", "Dune (2021)/Dune (2021).mkv"],
             _f.FilesIn(target));
 
         var saved = _f.Source(source.Id);
@@ -408,7 +408,7 @@ public sealed class FolderJobServiceTests : IDisposable
         Assert.DoesNotContain(library.ScannableSources, item => item.Id == source.Id);
         Assert.Contains(library.ScannableSources, item => item.Id == target.Id);
         Assert.DoesNotContain(LibraryFolderEntryFactory.Create(library).EffectiveSourcePaths, path => path == source.Path);
-        Assert.Equal(Path.Combine(target.Path, "Movies", "Dune (2021)", "Dune (2021).mkv"), await _f.AssetPathAsync(dune));
+        Assert.Equal(Path.Combine(target.Path, "Dune (2021)", "Dune (2021).mkv"), await _f.AssetPathAsync(dune));
         Assert.Equal(0, await _f.CountAssetsUnderAsync(source));
 
         var log = await _f.Jobs.GetLogAsync(Guid.Parse(job.OperationId), 0, 100, default);
@@ -432,7 +432,7 @@ public sealed class FolderJobServiceTests : IDisposable
         Assert.Equal("1 moved.", (await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default))!.Message);
         Assert.Empty(_f.FilesIn(source));
         Assert.True(Directory.Exists(source.Path));
-        Assert.Equal(["Movies/Dune (2021)/Dune (2021).mkv"], _f.FilesIn(target));
+        Assert.Equal(["Dune (2021)/Dune (2021).mkv"], _f.FilesIn(target));
         Assert.Equal(LibraryMergeModes.Move, _f.Source(source.Id).MergeMode);
     }
 
@@ -489,7 +489,7 @@ public sealed class FolderJobServiceTests : IDisposable
         var resumed = await _f.Jobs.ControlAsync(Guid.Parse(job.OperationId), "resume", default);
         Assert.Equal("queued", resumed.State);
         await _f.RunWorkerUntilAsync(() => Task.FromResult(_f.Source(source.Id).MergeState == LibrarySourceMergeStates.Merged));
-        Assert.Equal(["Movies/Dune (2021)/Dune (2021).mkv"], _f.FilesIn(target));
+        Assert.Equal(["Dune (2021)/Dune (2021).mkv"], _f.FilesIn(target));
     }
 
     [Fact]
@@ -545,7 +545,7 @@ public sealed class FolderJobServiceTests : IDisposable
         var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
         // The Engine stopped after the copy landed but before the file was closed off in the log, and then the merge was cancelled.
         var original = Path.Combine(source.Path, "file0.mkv");
-        var copy = Path.Combine(target.Path, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var copy = Path.Combine(target.Path, "Dune (2021)", "Dune (2021).mkv");
         Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
         File.Copy(original, copy);
         await _f.Ledger.UpsertAsync(new FolderOrganiseLogEntry(

@@ -369,8 +369,10 @@ Recovery scenarios:
 The default organisation template is:
 
 ```
-{LibraryRoot}/{Category}/{Title} - {QID}/{Title}{Ext}
+{Title} - {QID}/{Title}{Ext}
 ```
+
+A template names the path inside the type's own folder (for example `library/Movies`); the Engine joins it onto that folder, so templates never start with the category.
 
 Per-media-type overrides:
 

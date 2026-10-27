@@ -48,14 +48,14 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
     {
         var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
         h.Mover.SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase);
-        var path = h.Write(Path.Combine("Movies", "Dune (2021)", "dune (2021).mkv"), "the only copy");
+        var path = h.Write(Path.Combine("Dune (2021)", "dune (2021).mkv"), "the only copy");
         await h.RegisterAsync(path, "Dune", "2021");
 
         var result = await h.RunAsync();
 
         Assert.Equal(0, result.Failed);
         Assert.Equal(0, result.Count(FolderOrganiseOutcomes.DuplicateRemoved));
-        var survivor = Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Movies", "Dune (2021)")).Single();
+        var survivor = Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Dune (2021)")).Single();
         Assert.Equal("Dune (2021).mkv", Path.GetFileName(survivor));
         Assert.Equal("the only copy", File.ReadAllText(survivor));
 
@@ -70,7 +70,7 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
     {
         var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
         h.Mover.IdentityUnproven = true;
-        var path = h.Write(Path.Combine("movies", "dune (2021)", "Dune (2021).mkv"), "the only copy");
+        var path = h.Write(Path.Combine("dune (2021)", "Dune (2021).mkv"), "the only copy");
         await h.RegisterAsync(path, "Dune", "2021");
 
         var result = await h.RunAsync();
@@ -80,7 +80,7 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
         Assert.Equal(1, result.Count(FolderOrganiseOutcomes.Skipped));
         Assert.Empty(h.Mover.Moves);
         Assert.Equal("the only copy", File.ReadAllText(path));
-        Assert.Equal(path, Directory.EnumerateFiles(Path.Combine(h.SourceDir, "movies", "dune (2021)")).Single());
+        Assert.Equal(path, Directory.EnumerateFiles(Path.Combine(h.SourceDir, "dune (2021)")).Single());
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
     {
         var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
         h.Mover.SameFile = (_, _) => true;
-        var kept = h.Write(Path.Combine("Movies", "Dune (2021)", "Dune (2021).mkv"), "same bytes");
+        var kept = h.Write(Path.Combine("Dune (2021)", "Dune (2021).mkv"), "same bytes");
         var other = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "same bytes");
         await h.RegisterAsync(other, "Dune", "2021");
 
@@ -103,7 +103,7 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
     public async Task A_true_duplicate_a_different_file_with_the_same_bytes_is_still_removed_under_Keep_one()
     {
         var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
-        var kept = h.Write(Path.Combine("Movies", "Dune (2021)", "Dune (2021).mkv"), "same bytes");
+        var kept = h.Write(Path.Combine("Dune (2021)", "Dune (2021).mkv"), "same bytes");
         var extra = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "same bytes");
         await h.RegisterAsync(extra, "Dune", "2021");
 
@@ -299,20 +299,20 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
     {
         var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
         h.Mover.SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase);
-        var path = h.Write(Path.Combine("Movies", "Dune (2021)", "dune (2021).mkv"), "the only copy");
+        var path = h.Write(Path.Combine("Dune (2021)", "dune (2021).mkv"), "the only copy");
         var id = await h.RegisterAsync(path, "Dune", "2021");
         h.Mover.AfterMove = (_, _) => throw new SimulatedCrashException();
         await Assert.ThrowsAsync<SimulatedCrashException>(() => h.RunAsync());
 
         // The file now sits under its temporary name: neither the old nor the new name exists.
-        Assert.Single(Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Movies", "Dune (2021)")));
-        Assert.EndsWith(CaseSafeRename.TemporarySuffix, Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Movies", "Dune (2021)")).Single(), StringComparison.Ordinal);
+        Assert.Single(Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Dune (2021)")));
+        Assert.EndsWith(CaseSafeRename.TemporarySuffix, Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Dune (2021)")).Single(), StringComparison.Ordinal);
 
         h.Mover.AfterMove = null;
         var result = await h.RunAsync();
 
         Assert.Equal(0, result.Failed);
-        var survivor = Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Movies", "Dune (2021)")).Single();
+        var survivor = Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Dune (2021)")).Single();
         Assert.Equal("Dune (2021).mkv", Path.GetFileName(survivor));
         Assert.Equal("the only copy", File.ReadAllText(survivor));
         Assert.Equal(survivor, (await h.Assets.FindByIdAsync(id))!.FilePathRoot);

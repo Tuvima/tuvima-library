@@ -72,7 +72,7 @@ public sealed partial class AutoOrganizeService
         }
 
         // The same checks tidying a filed asset makes: a usable name, the folder the file already lives in, then the shared policy.
-        var gate = _gate.Evaluate(1.0, metadata, hasUserLock: false, mediaTypeNeedsReview: false, resolvedRelativePath: relative);
+        var gate = _gate.Evaluate(1.0, metadata, hasUserLock: false, mediaTypeNeedsReview: false, filingCategory: LibraryOrganizationPath.FilingCategory(resolved.Library, mediaType));
         if (!gate.CanOrganize)
         {
             return AssetRefilePlan.Of(AssetRefileDisposition.Unavailable, current, "The file has no proper name to take yet.");

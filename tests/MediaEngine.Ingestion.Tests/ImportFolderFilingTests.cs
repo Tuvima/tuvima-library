@@ -30,7 +30,7 @@ public sealed class ImportFolderFilingTests : IDisposable
 
         await _h.Organizer.TryAutoOrganizeAsync(assetId);
 
-        var expected = Path.Combine(_h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var expected = Path.Combine(_h.MoviesDir, "Dune (2021)", "Dune (2021).mkv");
         Assert.True(File.Exists(expected));
         Assert.Equal("dune bytes", File.ReadAllText(expected));
         Assert.False(File.Exists(source));
@@ -67,7 +67,7 @@ public sealed class ImportFolderFilingTests : IDisposable
         // The run files it.
         var outcome = await harness.Organizer.FileOnScheduleAsync(assetId, new NoSteps());
 
-        var expected = Path.Combine(harness.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var expected = Path.Combine(harness.MoviesDir, "Dune (2021)", "Dune (2021).mkv");
         Assert.Equal(AssetRefileOutcomeKind.Moved, outcome.Kind);
         Assert.True(File.Exists(expected));
         Assert.False(File.Exists(source));
@@ -296,7 +296,7 @@ public sealed class ImportFolderFilingTests : IDisposable
     [Fact]
     public async Task A_file_dropped_while_a_name_is_taken_gets_a_unique_name_and_nothing_is_overwritten()
     {
-        var existing = Path.Combine(_h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var existing = Path.Combine(_h.MoviesDir, "Dune (2021)", "Dune (2021).mkv");
         Directory.CreateDirectory(Path.GetDirectoryName(existing)!);
         File.WriteAllText(existing, "a different file with the same name");
         var source = _h.WriteImportFile(Path.Combine("Movies", "Dune.mkv"), "dune");
@@ -336,7 +336,7 @@ public sealed class ImportFolderFilingTests : IDisposable
         var assetId = await harness.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
 
         // The previous run copied the file into place and stopped before it removed the original or updated the data store.
-        var landed = Path.Combine(harness.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var landed = Path.Combine(harness.MoviesDir, "Dune (2021)", "Dune (2021).mkv");
         Directory.CreateDirectory(Path.GetDirectoryName(landed)!);
         File.Copy(source, landed);
 
@@ -355,7 +355,7 @@ public sealed class ImportFolderFilingTests : IDisposable
         var source = _h.WriteImportFile(Path.Combine("Movies", "Dune.mkv"), "dune bytes");
         var assetId = await _h.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
         var asset = (await _h.Assets.FindByIdAsync(assetId))!;
-        var destination = Path.Combine(_h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var destination = Path.Combine(_h.MoviesDir, "Dune (2021)", "Dune (2021).mkv");
 
         // The previous run wrote its intent and moved the file, then stopped before it updated the data store.
         Assert.True(_h.Journal.TryBegin(new ImportFilingIntent(
@@ -397,7 +397,7 @@ public sealed class ImportFolderFilingTests : IDisposable
     [Fact]
     public async Task A_restart_when_the_first_attempt_used_a_unique_name_adopts_it_instead_of_making_another()
     {
-        var standard = Path.Combine(_h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var standard = Path.Combine(_h.MoviesDir, "Dune (2021)", "Dune (2021).mkv");
         Directory.CreateDirectory(Path.GetDirectoryName(standard)!);
         File.WriteAllText(standard, "a different file that took the standard name");
         var landed = Path.Combine(Path.GetDirectoryName(standard)!, "Dune (2021) (2).mkv");

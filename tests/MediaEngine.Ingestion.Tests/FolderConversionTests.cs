@@ -31,7 +31,7 @@ public sealed class FolderConversionTests : IDisposable
         return harness;
     }
 
-    private static string Standard(string title, string year) => $"Movies/{title} ({year})/{title} ({year}).mkv";
+    private static string Standard(string title, string year) => $"{title} ({year})/{title} ({year}).mkv";
 
     // ── C1, C7: the conversion renames, logs, and points the library at the new path ──────────────────────────────
 
@@ -52,14 +52,14 @@ public sealed class FolderConversionTests : IDisposable
         Assert.Equal(0, result.Failed);
         Assert.Equal([Standard("Alien", "1979"), Standard("Dune", "2021")], h.Files());
 
-        Assert.Equal(Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
-        Assert.Equal(Path.Combine(h.SourceDir, "Movies", "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.SourceDir, "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.SourceDir, "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
 
         // The ledger has the old and new path of every move, and History says so for each item.
         var entry = await h.Ledger.GetAsync(h.OperationId, dune);
         Assert.NotNull(entry);
         Assert.Equal(FolderOrganiseOutcomes.Moved, entry.Outcome);
-        Assert.Equal(Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "Dune (2021).mkv"), entry.NewPath);
+        Assert.Equal(Path.Combine(h.SourceDir, "Dune (2021)", "Dune (2021).mkv"), entry.NewPath);
         Assert.Equal(2, await h.Ledger.CountAsync(h.OperationId));
         var history = await h.Activity.GetRecentAsync(20);
         Assert.Equal(2, history.Count(item => item.ActionType == SystemActionType.PathUpdated));
@@ -133,11 +133,11 @@ public sealed class FolderConversionTests : IDisposable
 
         Assert.Equal(
             [
-                "Movies/Dune (2021)/Dune (2021).en.srt",
-                "Movies/Dune (2021)/Dune (2021).jpg",
-                "Movies/Dune (2021)/Dune (2021).mkv",
-                "Movies/Dune (2021)/Dune (2021).nfo",
-                "Movies/Dune (2021)/Dune (2021).pt-BR.forced.srt",
+                "Dune (2021)/Dune (2021).en.srt",
+                "Dune (2021)/Dune (2021).jpg",
+                "Dune (2021)/Dune (2021).mkv",
+                "Dune (2021)/Dune (2021).nfo",
+                "Dune (2021)/Dune (2021).pt-BR.forced.srt",
                 "rips/readme.txt",
             ],
             h.Files());
@@ -162,7 +162,7 @@ public sealed class FolderConversionTests : IDisposable
         await h.RunAsync();
 
         Assert.Equal(
-            [Standard("First Film", "1999"), "Movies/Second Film (2021)/Second Film (2021).en.srt", Standard("Second Film", "2021")],
+            [Standard("First Film", "1999"), "Second Film (2021)/Second Film (2021).en.srt", Standard("Second Film", "2021")],
             h.Files());
     }
 
@@ -191,9 +191,9 @@ public sealed class FolderConversionTests : IDisposable
         await h.RunAsync();
 
         var files = h.Files().ToList();
-        Assert.Equal(["Movies/Dune (2021)/Dune (2021) (2).mkv", Standard("Dune", "2021")], files);
-        var kept = File.ReadAllText(Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "Dune (2021).mkv"));
-        var numbered = File.ReadAllText(Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "Dune (2021) (2).mkv"));
+        Assert.Equal(["Dune (2021)/Dune (2021) (2).mkv", Standard("Dune", "2021")], files);
+        var kept = File.ReadAllText(Path.Combine(h.SourceDir, "Dune (2021)", "Dune (2021).mkv"));
+        var numbered = File.ReadAllText(Path.Combine(h.SourceDir, "Dune (2021)", "Dune (2021) (2).mkv"));
         Assert.Equal(new[] { "extended cut bytes, longer", "theatrical cut bytes" }, new[] { kept, numbered }.OrderBy(text => text));
 
         var collisions = (await h.Reviews.GetPendingAsync(50)).Where(r => r.Trigger == ReviewTrigger.NameCollision).ToList();
@@ -205,7 +205,7 @@ public sealed class FolderConversionTests : IDisposable
     public async Task An_exact_copy_at_the_standard_name_is_removed_under_Keep_one_copy()
     {
         var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
-        var kept = h.Write(Path.Combine("Movies", "Dune (2021)", "Dune (2021).mkv"), "same bytes");
+        var kept = h.Write(Path.Combine("Dune (2021)", "Dune (2021).mkv"), "same bytes");
         var extra = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "same bytes");
         h.Write(Path.Combine("downloads", "Dune.2021.en.srt"), "subtitles with no twin");
         var extraId = await h.RegisterAsync(extra, "Dune", "2021");
@@ -219,7 +219,7 @@ public sealed class FolderConversionTests : IDisposable
         // The one library record now points at the copy that stayed; the subtitles were carried across, not lost.
         Assert.Equal(kept, (await h.Assets.FindByIdAsync(extraId))!.FilePathRoot);
         Assert.Equal(
-            ["Movies/Dune (2021)/Dune (2021).en.srt", Standard("Dune", "2021")],
+            ["Dune (2021)/Dune (2021).en.srt", Standard("Dune", "2021")],
             h.Files());
         Assert.False(Directory.Exists(Path.Combine(h.SourceDir, "downloads")));
     }
@@ -235,7 +235,7 @@ public sealed class FolderConversionTests : IDisposable
         var result = await h.RunAsync();
 
         Assert.Equal(1, result.Count(FolderOrganiseOutcomes.MovedWithUniqueName));
-        Assert.Equal(["Movies/Dune (2021)/Dune (2021) (2).mkv", Standard("Dune", "2021")], h.Files());
+        Assert.Equal(["Dune (2021)/Dune (2021) (2).mkv", Standard("Dune", "2021")], h.Files());
         Assert.DoesNotContain(await h.Reviews.GetPendingAsync(50), r => r.Trigger == ReviewTrigger.NameCollision);
     }
 
@@ -341,7 +341,7 @@ public sealed class FolderConversionTests : IDisposable
         {
             var asset = await h.Assets.FindByIdAsync(ids[index]);
             Assert.True(File.Exists(asset!.FilePathRoot), $"{titles[index].Item1} must be where the library says");
-            Assert.Equal(Path.Combine(h.SourceDir, "Movies", $"{titles[index].Item1} ({titles[index].Item2})", $"{titles[index].Item1} ({titles[index].Item2}).mkv"), asset.FilePathRoot);
+            Assert.Equal(Path.Combine(h.SourceDir, $"{titles[index].Item1} ({titles[index].Item2})", $"{titles[index].Item1} ({titles[index].Item2}).mkv"), asset.FilePathRoot);
         }
 
         Assert.Empty(await h.Ledger.ListUnfinishedAsync(h.OperationId));
@@ -367,14 +367,14 @@ public sealed class FolderConversionTests : IDisposable
 
         Assert.Equal(FolderOrganiseStop.Paused, paused.Stop);
         Assert.Equal(2, paused.Completed);
-        Assert.Equal(2, h.Files().Count(path => path.StartsWith("Movies/")));
+        Assert.Equal(2, h.Files().Count(path => path.Contains('/')));
         Assert.Equal(4, host.Progress[^1].Total);
 
         var resumed = await h.RunAsync();
 
         Assert.Equal(FolderOrganiseStop.Finished, resumed.Stop);
         Assert.Equal(4, resumed.Completed);
-        Assert.Equal(4, h.Files().Count(path => path.StartsWith("Movies/")));
+        Assert.Equal(4, h.Files().Count(path => path.Contains('/')));
         Assert.Equal(4, h.Mover.Moves.Count);
     }
 
@@ -392,7 +392,7 @@ public sealed class FolderConversionTests : IDisposable
 
         Assert.Equal(FolderOrganiseStop.Cancelled, cancelled.Stop);
         Assert.Equal(1, cancelled.Completed);
-        Assert.Equal(1, h.Files().Count(path => path.StartsWith("Movies/")));
+        Assert.Equal(1, h.Files().Count(path => path.Contains('/')));
         Assert.Equal(2, h.Files().Count(path => path.StartsWith("raw ")));
     }
 
@@ -540,7 +540,7 @@ public sealed class FolderConversionTests : IDisposable
         Assert.Equal(0, result.Failed);
         var files = h.Files().ToList();
         // The first folder's cover travelled with its film; the second cover differs, so it stayed where it was.
-        Assert.Equal("cover one", File.ReadAllText(Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "cover.jpg")));
+        Assert.Equal("cover one", File.ReadAllText(Path.Combine(h.SourceDir, "Dune (2021)", "cover.jpg")));
         Assert.Equal("cover two", File.ReadAllText(Path.Combine(h.SourceDir, "CD2", "cover.jpg")));
         Assert.Equal(4, files.Count);
         var left = await h.Ledger.GetAsync(h.OperationId, Path.Combine(h.SourceDir, "CD2", "cover.jpg"));
@@ -559,7 +559,7 @@ public sealed class FolderConversionTests : IDisposable
         await h.RunAsync();
 
         Assert.Equal(
-            ["Movies/Dune (2021)/Dune (2021)-fanart-1.jpg", "Movies/Dune (2021)/Dune (2021)-poster.jpg", Standard("Dune", "2021")],
+            ["Dune (2021)/Dune (2021)-fanart-1.jpg", "Dune (2021)/Dune (2021)-poster.jpg", Standard("Dune", "2021")],
             h.Files());
         Assert.Equal(2, (await h.Ledger.CountByOutcomeAsync(h.OperationId))[FolderOrganiseOutcomes.SidecarMoved]);
     }
@@ -609,13 +609,13 @@ public sealed class FolderConversionTests : IDisposable
         }
 
         var h = NewHarness();
-        var path = h.Write(Path.Combine("Movies", "Dune (2021)", "dune (2021).mkv"), "dune");
+        var path = h.Write(Path.Combine("Dune (2021)", "dune (2021).mkv"), "dune");
         await h.RegisterAsync(path, "Dune", "2021");
 
         var result = await h.RunAsync();
 
         Assert.Equal(0, result.Failed);
-        Assert.Equal("Dune (2021).mkv", Path.GetFileName(Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Movies", "Dune (2021)")).Single()));
+        Assert.Equal("Dune (2021).mkv", Path.GetFileName(Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Dune (2021)")).Single()));
     }
 
     [Fact]
@@ -634,7 +634,7 @@ public sealed class FolderConversionTests : IDisposable
         Assert.Equal(FolderOrganiseStop.SourceNotManaged, result.Stop);
         var asset = await h.Assets.FindByIdAsync(id);
         Assert.True(File.Exists(asset!.FilePathRoot));
-        Assert.Equal(Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "Dune (2021).mkv"), asset.FilePathRoot);
+        Assert.Equal(Path.Combine(h.SourceDir, "Dune (2021)", "Dune (2021).mkv"), asset.FilePathRoot);
         Assert.Empty(await h.Ledger.ListUnfinishedAsync(h.OperationId));
     }
 

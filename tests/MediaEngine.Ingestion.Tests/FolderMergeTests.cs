@@ -37,7 +37,7 @@ public sealed class FolderMergeTests : IDisposable
         return harness;
     }
 
-    private static string Standard(string title, string year) => $"Movies/{title} ({year})/{title} ({year}).mkv";
+    private static string Standard(string title, string year) => $"{title} ({year})/{title} ({year}).mkv";
 
     // ── Copy: the source is never written ────────────────────────────────────────────────────────────────────────
 
@@ -65,24 +65,24 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(before, FolderMergeHarness.Fingerprint(h.SourceDir));
         Assert.Equal(
             [
-                "Movies/Alien (1979)/Alien (1979).mkv",
-                "Movies/Dune (2021)/Dune (2021).en.srt",
-                "Movies/Dune (2021)/Dune (2021).mkv",
-                "Movies/Dune (2021)/Dune (2021).nfo",
+                "Alien (1979)/Alien (1979).mkv",
+                "Dune (2021)/Dune (2021).en.srt",
+                "Dune (2021)/Dune (2021).mkv",
+                "Dune (2021)/Dune (2021).nfo",
             ],
             h.TargetFiles());
-        Assert.Equal("dune bytes", File.ReadAllText(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).mkv")));
-        Assert.Equal("english subtitles", File.ReadAllText(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).en.srt")));
+        Assert.Equal("dune bytes", File.ReadAllText(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).mkv")));
+        Assert.Equal("english subtitles", File.ReadAllText(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).en.srt")));
 
         // The library is catalogued once, as the target copies.
-        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
-        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
 
         // Every copy is in the ledger, old path to new path, and History says so for each item.
         var entry = await h.Ledger.GetAsync(h.OperationId, dune);
         Assert.NotNull(entry);
         Assert.Equal(FolderOrganiseOutcomes.Copied, entry.Outcome);
-        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).mkv"), entry.NewPath);
+        Assert.Equal(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).mkv"), entry.NewPath);
         var sidecar = await h.Ledger.GetAsync(h.OperationId, Path.Combine(h.SourceDir, "Dune.2021.1080p.en.srt"));
         Assert.Equal(FolderOrganiseOutcomes.SidecarCopied, sidecar!.Outcome);
         var history = await h.Activity.GetRecentAsync(20);
@@ -103,7 +103,7 @@ public sealed class FolderMergeTests : IDisposable
 
         Assert.Equal(1, result.Count(FolderOrganiseOutcomes.Copied));
         Assert.Equal(before, FolderMergeHarness.Fingerprint(h.SourceDir));
-        Assert.Equal(["Movies/Dune (2021)/Dune (2021).jpg", Standard("Dune", "2021")], h.TargetFiles());
+        Assert.Equal(["Dune (2021)/Dune (2021).jpg", Standard("Dune", "2021")], h.TargetFiles());
     }
 
     // ── Move: bytes are verified before an original is removed ───────────────────────────────────────────────────
@@ -128,16 +128,16 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(3, result.Count(FolderOrganiseOutcomes.Moved));
         Assert.Equal(
             [
-                "Movies/Alien (1979)/Alien (1979).en.srt",
-                "Movies/Alien (1979)/Alien (1979).mkv",
-                "Movies/Dune (2021)/Dune (2021).mkv",
-                "Movies/Heat (1995)/Heat (1995).mkv",
+                "Alien (1979)/Alien (1979).en.srt",
+                "Alien (1979)/Alien (1979).mkv",
+                "Dune (2021)/Dune (2021).mkv",
+                "Heat (1995)/Heat (1995).mkv",
             ],
             h.TargetFiles());
         Assert.Equal(["old/notes.txt"], h.SourceFiles());
         Assert.False(Directory.Exists(Path.Combine(h.SourceDir, "gone")));
         Assert.True(Directory.Exists(h.SourceDir));
-        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
         Assert.Equal(FolderOrganiseOutcomes.NotMoved, (await h.Ledger.GetAsync(h.OperationId, Path.Combine(h.SourceDir, "old", "notes.txt")))!.Outcome);
     }
 
@@ -198,8 +198,8 @@ public sealed class FolderMergeTests : IDisposable
         await copy.RunAsync();
 
         Assert.Equal(before, FolderMergeHarness.Fingerprint(copy.SourceDir));
-        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir, "Movies", "Alien (1979)", "poster.jpg")));
-        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir, "Movies", "Brazil (1985)", "poster.jpg")));
+        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir, "Alien (1979)", "poster.jpg")));
+        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir, "Brazil (1985)", "poster.jpg")));
 
         var move = NewHarness(sourceManaged: true, move: true);
         var dune = move.WriteSource(Path.Combine("one film", "Dune.2021.mkv"), "dune");
@@ -214,10 +214,10 @@ public sealed class FolderMergeTests : IDisposable
         await move.RunAsync();
 
         // The only film in its folder takes the cover with it; with two films the shared poster goes with the last to leave.
-        Assert.Equal("cover", File.ReadAllText(Path.Combine(move.TargetDir, "Movies", "Dune (2021)", "cover.jpg")));
+        Assert.Equal("cover", File.ReadAllText(Path.Combine(move.TargetDir, "Dune (2021)", "cover.jpg")));
         Assert.Empty(move.SourceFiles());
-        Assert.Contains("Movies/Ronin (1998)/poster.jpg", move.TargetFiles());
-        Assert.DoesNotContain("Movies/Heat (1995)/poster.jpg", move.TargetFiles());
+        Assert.Contains("Ronin (1998)/poster.jpg", move.TargetFiles());
+        Assert.DoesNotContain("Heat (1995)/poster.jpg", move.TargetFiles());
     }
 
     [Fact]
@@ -261,7 +261,7 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal([Standard("Dune", "2021")], h.TargetFiles());
         Assert.Equal(["Dune.2021.mkv"], h.SourceFiles());
         // The item is catalogued once, as the copy the target already had.
-        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
     }
 
     [Fact]
@@ -277,7 +277,7 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(1, result.Count(FolderOrganiseOutcomes.DuplicateRemoved));
         Assert.Empty(h.SourceFiles());
         Assert.Equal([Standard("Dune", "2021")], h.TargetFiles());
-        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
     }
 
     [Fact]
@@ -291,7 +291,7 @@ public sealed class FolderMergeTests : IDisposable
         var result = await h.RunAsync();
 
         Assert.Equal(1, result.Count(FolderOrganiseOutcomes.CopiedWithUniqueName));
-        Assert.Equal(["Movies/Dune (2021)/Dune (2021) (2).mkv", Standard("Dune", "2021")], h.TargetFiles());
+        Assert.Equal(["Dune (2021)/Dune (2021) (2).mkv", Standard("Dune", "2021")], h.TargetFiles());
         Assert.DoesNotContain(await h.Reviews.GetPendingAsync(50), review => review.Trigger == ReviewTrigger.NameCollision);
     }
 
@@ -306,8 +306,8 @@ public sealed class FolderMergeTests : IDisposable
         var result = await h.RunAsync();
 
         Assert.Equal(1, result.Count(FolderOrganiseOutcomes.CopiedWithUniqueName));
-        Assert.Equal("the old dune", File.ReadAllText(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).mkv")));
-        Assert.Equal("the new dune", File.ReadAllText(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021) (2).mkv")));
+        Assert.Equal("the old dune", File.ReadAllText(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).mkv")));
+        Assert.Equal("the new dune", File.ReadAllText(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021) (2).mkv")));
         Assert.Single(await h.Reviews.GetPendingAsync(50), review => review.Trigger == ReviewTrigger.NameCollision);
     }
 
@@ -476,7 +476,7 @@ public sealed class FolderMergeTests : IDisposable
             [Standard("Alien", "1979"), Standard("Brazil", "1985"), Standard("Casablanca", "1942")],
             h.TargetFiles());
         Assert.Equal(3, restarted.Count(FolderOrganiseOutcomes.Moved));
-        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
     }
 
     [Fact]
@@ -485,7 +485,7 @@ public sealed class FolderMergeTests : IDisposable
         var h = NewHarness();
         await ThreeFilmsAsync(h);
         await h.RunAsync(new TestHost { Signal = asked => asked == 1 ? FolderJobSignal.Cancel : FolderJobSignal.Continue });
-        var copy = Path.Combine(h.TargetDir, "Movies", "Alien (1979)", "Alien (1979).mkv");
+        var copy = Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv");
         File.WriteAllText(copy, "somebody changed this");
         h.SettleCancelledMerge();
         h.StartMergeAgain();
@@ -570,7 +570,7 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(FolderOrganiseStop.Finished, result.Stop);
         Assert.Equal(3, h.TargetFiles().Count());
         Assert.Empty(await h.Ledger.ListUnfinishedAsync(h.OperationId));
-        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
         Assert.Equal(["a.mkv", "b.mkv", "c.mkv"], h.SourceFiles());
     }
 
@@ -591,7 +591,7 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(FolderOrganiseStop.Finished, result.Stop);
         Assert.Equal(3, h.TargetFiles().Count());
         Assert.Empty(h.SourceFiles());
-        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
     }
 
     [Fact]
@@ -600,7 +600,7 @@ public sealed class FolderMergeTests : IDisposable
         var h = NewHarness();
         var dune = h.WriteSource("Dune.2021.mkv", "dune");
         await h.RegisterAsync(dune, "Dune", "2021");
-        var target = Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var target = Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).mkv");
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         var stale = Path.Combine(Path.GetDirectoryName(target)!, $".Dune (2021).{Guid.NewGuid():N}{MergeFileTransfer.PartSuffix}");
         File.WriteAllText(stale, "half a file");
@@ -699,7 +699,7 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(FolderOrganiseStop.Finished, result.Stop);
         Assert.Equal(2, h.TargetFiles().Count());
         Assert.Equal(unfinished.NewPath, (await h.RealAssets.FindByIdAsync(id))!.FilePathRoot);
-        Assert.Equal("the old dune", File.ReadAllText(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).mkv")));
+        Assert.Equal("the old dune", File.ReadAllText(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).mkv")));
     }
 
     [Fact]

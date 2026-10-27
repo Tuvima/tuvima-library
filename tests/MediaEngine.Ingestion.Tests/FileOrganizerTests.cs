@@ -232,7 +232,7 @@ public class FileOrganizerTests
 
         var relative = CreateOrganizer().CalculatePath(candidate, ShippedTemplate("Music"));
 
-        Assert.Equal("Music/Radiohead/OK Computer (1997)/Hidden Jam.flac", relative);
+        Assert.Equal("Radiohead/OK Computer (1997)/Hidden Jam.flac", relative);
     }
 
     [Fact]
@@ -242,13 +242,13 @@ public class FileOrganizerTests
 
         var relative = CreateOrganizer().CalculatePath(candidate, ShippedTemplate("Music"));
 
-        Assert.Equal("Music/Radiohead/OK Computer (1997)/09 - Hidden Jam.flac", relative);
+        Assert.Equal("Radiohead/OK Computer (1997)/09 - Hidden Jam.flac", relative);
     }
 
     [Theory]
-    [InlineData("1", "2", "TV/Show (2008)/Season 01/Show - s01e02 - Pilot.mkv")]
-    [InlineData("1", null, "TV/Show (2008)/Season 01/Show - Pilot.mkv")]
-    [InlineData(null, null, "TV/Show (2008)/Season Unknown/Show - Pilot.mkv")]
+    [InlineData("1", "2", "Show (2008)/Season 01/Show - s01e02 - Pilot.mkv")]
+    [InlineData("1", null, "Show (2008)/Season 01/Show - Pilot.mkv")]
+    [InlineData(null, null, "Show (2008)/Season Unknown/Show - Pilot.mkv")]
     public void CalculatePath_AnEpisodeWithNoNumber_IsNamedByItsTitleWithoutSxxEyy(string? season, string? episode, string expected)
     {
         var meta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -291,7 +291,7 @@ public class FileOrganizerTests
 
         var relative = CreateOrganizer().CalculatePath(candidate, ShippedTemplate("TV"));
 
-        Assert.Equal("TV/Show (2008)/Season 01/Show - s01e01-e02 - Pilot.mkv", relative);
+        Assert.Equal("Show (2008)/Season 01/Show - s01e01-e02 - Pilot.mkv", relative);
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public class FileOrganizerTests
 
         var relative = CreateOrganizer().CalculatePath(candidate, ShippedTemplate("Audiobooks"));
 
-        Assert.Equal("Audiobooks/Andy Weir/Project Hail Mary (2021)/Bonus Interview.mp3", relative);
+        Assert.Equal("Andy Weir/Project Hail Mary (2021)/Bonus Interview.mp3", relative);
     }
 
     [Fact]
