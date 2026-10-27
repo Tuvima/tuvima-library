@@ -1,0 +1,31 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* "Showing 11 of 11 plugins", with page buttons only when there is more than one page. Pages are numbered from 1. *@
+<div class="@RootClass">
+    <span class="app-pager__summary" aria-live="polite">Showing @Shown of @Total @Noun</span>
+    @if (PageCount > 1)
+    {
+        <nav class="app-pager__pages" aria-label="Pages">
+            <AppButton Label="Previous" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ChevronLeft"
+                       Disabled="@(Page <= 1)" OnClick="@(() => PageChanged.InvokeAsync(Page - 1))" />
+            <span class="app-pager__current">Page @Page of @PageCount</span>
+            <AppButton Label="Next" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
+                       Disabled="@(Page >= PageCount)" OnClick="@(() => PageChanged.InvokeAsync(Page + 1))" />
+        </nav>
+    }
+</div>
+
+@code {
+    [Parameter] public int Total { get; set; }
+    [Parameter] public int PageSize { get; set; } = 12;
+    [Parameter] public int Page { get; set; } = 1;
+    [Parameter] public EventCallback<int> PageChanged { get; set; }
+
+    /// <summary>What the items are called, plural ("plugins").</summary>
+    [Parameter] public string Noun { get; set; } = "items";
+    [Parameter] public string? Class { get; set; }
+
+    private int PageCount => PageSize <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling(Total / (double)PageSize));
+    private int Shown => Math.Max(0, Math.Min(PageSize, Total - ((Page - 1) * PageSize)));
+    private string RootClass => string.Join(" ", new[] { "app-pager", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

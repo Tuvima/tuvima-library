@@ -109,6 +109,9 @@ public partial interface IEngineApiClient
     /// <summary>POST /plugins/directory/{id}/install — installs or updates a listed plugin. Carries the Engine's reason when it was refused.</summary>
     Task<PluginInstallOutcome> InstallDirectoryPluginAsync(string pluginId, CancellationToken ct = default);
 
+    /// <summary>Uploads a JSON-only plugin package (Upload plugin). The plugin arrives Private and switched off; a refused package comes back with the Engine's plain sentence.</summary>
+    Task<PluginInstallOutcome> UploadPluginAsync(Stream package, string fileName, CancellationToken ct = default);
+
     /// <summary>GET /plugins/{id}/removal-impact — what would have no source if the plugin were removed. Null when the Engine could not be asked.</summary>
     Task<PluginRemovalImpactResponse?> GetPluginRemovalImpactAsync(string pluginId, CancellationToken ct = default);
 

@@ -1,0 +1,11 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* A one-line warning inside a card ("Requires Comskip or FFmpeg. Install it for full functionality."). Pressing it opens
+   where the problem is fixed; the icon and words say it is a warning, never colour alone. *@
+<AppButton ButtonStyle="AppButtonStyle.Text" FullWidth="true" Class="app-warning-strip" OnClick="@OnClick"
+           StartIcon="@AppMaterialIcons.Outlined.Warning" Label="@Text" />
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnClick { get; set; }
+}

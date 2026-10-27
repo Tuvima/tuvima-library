@@ -151,10 +151,6 @@ else
                                 {
                                     <ProfileDetailPage ProfileId="@ProfileDetailId" NameChanged="OnProfileNameChanged" />
                                 }
-                                else if (_activeSubsection == SettingsNav.HouseholdsSubsection)
-                                {
-                                    <HouseholdsTab />
-                                }
                                 else
                                 {
                                     <ProfilesTab />
@@ -237,7 +233,14 @@ else
                                 <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
                                 break;
                             case SettingsSection.Access:
-                                <UsersAccessSettingsTab Subsection="@_activeSubsection" />
+                                @if (_activeSubsection == SettingsNav.HouseholdsSubsection)
+                                {
+                                    <HouseholdsTab />
+                                }
+                                else
+                                {
+                                    <UsersAccessSettingsTab Subsection="@_activeSubsection" />
+                                }
                                 break;
                             case SettingsSection.Server:
                                 <BackupRecoveryPanel />
@@ -731,6 +734,8 @@ else
         }
     }
 
+    private bool _sawSettingsAddress;
+
     private bool RoutedSectionMatchesAddress()
     {
         var segments = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)))
@@ -738,9 +743,13 @@ else
             .Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length == 0 || !string.Equals(segments[0], "settings", StringComparison.OrdinalIgnoreCase))
         {
-            // The address is not a Settings address at all, so there is no newer page to wait for.
-            return true;
+            // Once this page has been at a Settings address, an address that is no longer one means a top-bar link or the logo has
+            // moved the router away: there is nothing left for this page to correct, and redirecting from here would drag the person
+            // back into Settings. A page that never saw a Settings address has nothing to wait for and resolves as usual.
+            return !_sawSettingsAddress;
         }
+
+        _sawSettingsAddress = true;
 
         string? SegmentAt(int index) => segments.Length > index ? segments[index] : null;
         return string.Equals(SegmentAt(1), Section, StringComparison.OrdinalIgnoreCase)
@@ -937,9 +946,7 @@ else
             : _activeSubsection == SettingsNav.TasteSubsection
                 ? "What the Library has learned you enjoy. Remove what is not you, or add what is."
                 : "You, what you have been watching, reading and listening to, and your taste.",
-        SettingsSection.Profiles => _activeSubsection == SettingsNav.HouseholdsSubsection
-            ? "Add, rename and remove households. Each has its own people, library access and Shared Library."
-            : "Add and look after the people in your household. Switch profile from the profile menu.",
+        SettingsSection.Profiles => "Add and look after the people in your household. Switch profile from the profile menu.",
         SettingsSection.Preferences => "How you watch, listen and read.",
         SettingsSection.Playback => "How you watch.",
         SettingsSection.Listening => "How you listen.",
@@ -976,6 +983,7 @@ else
         {
             "applications" => "Credentials and webhooks that let other software use Library.",
             "authentication" => "How people sign in, and the rules for passwords, sessions and invitations.",
+            SettingsNav.HouseholdsSubsection => "Add, rename and remove households. Each has its own people, library access and Shared Library.",
             _ => "Who can sign in, and which profile each sign-in opens.",
         },
         SettingsSection.Server => "Protect your Library configuration and recover it when needed.",

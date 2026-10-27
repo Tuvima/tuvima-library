@@ -46,7 +46,7 @@ Every sign-in that works away from home needs an email address. The administrato
 A person is looked after from their own page under **Settings → Profiles**, which is for administrators only; each person's row has an **Edit** button. What you see depends on who you are:
 
 - A **household administrator** sees the people in their own household (up to 8), and, on **Security → Devices**, the paired devices and signed-in browsers of their household (every signed-in person sees that page, but a member sees only their own). Nothing from Users and Sign-in is shown, and they cannot reach another household.
-- A **server administrator** sees every household under **Settings → Profiles**, with **Add household**, and a **Households** page under Profiles (**Settings → Profiles → Households**) that lists each household (name, how many people, how many sign-ins) and lets you rename or remove it. A household can only be removed once it has no people, sign-ins or shared photos.
+- A **server administrator** sees every household under **Settings → Profiles**, with **Add household**, and a **Households** page under Users and Sign-in (**Settings → Users and Sign-in → Households**) that lists each household (name, how many people, how many sign-ins) and lets you rename or remove it. A household can only be removed once it has no people, sign-ins or shared photos.
 - Anyone else does not see Profiles. They change their own name, picture and details from **Edit profile** on their Overview, and look after their sign-in under **Settings → Security**.
 
 On a person's page:

@@ -4,42 +4,23 @@
     gap: 18px;
 }
 
-.settings-plugin-summary__grid {
+.settings-plugin-cards {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
     gap: 16px;
 }
 
-.settings-plugin-summary__card strong {
-    color: var(--tl-text-primary);
-    font-size: 24px;
-    line-height: 1.2;
+.settings-plugin-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
 }
 
-.settings-plugin-summary__card span,
-.settings-plugin-table-meta,
 .settings-plugin-detail-header__description {
     color: var(--tl-text-muted);
     font-size: 14px;
-}
-
-.settings-plugin-table-title,
-.settings-plugin-table-meta {
-    display: block;
-}
-
-.settings-plugin-table-title {
-    color: var(--tl-text-primary);
-}
-
-.settings-plugin-cards-section {
-    display: grid;
-    gap: 12px;
-}
-
-.settings-plugin-cards {
-    display: grid;
-    gap: 16px;
 }
 
 .settings-plugin-configure-panel {
@@ -94,9 +75,4 @@
     color: var(--tl-text-primary);
     font-size: 18px;
 }
-
-@media (max-width: 840px) {
-    .settings-plugin-summary__grid {
-        grid-template-columns: 1fr;
-    }
-}
+.settings-plugin-breadcrumb { display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem; color: var(--app-text-muted); }

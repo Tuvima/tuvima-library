@@ -1,0 +1,3 @@
+.app-count-tabs__tab { display: inline-flex; align-items: center; gap: 8px; border: 0; border-bottom: 2px solid transparent; background: none; cursor: pointer; }
+.app-count-tabs__tab.is-selected { border-bottom-color: var(--tl-accent-primary); }
+.app-count-tabs__count { padding: 1px 8px; font-size: 12px; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-hover); }

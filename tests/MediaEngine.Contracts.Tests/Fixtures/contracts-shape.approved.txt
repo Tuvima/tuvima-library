@@ -6995,6 +6995,8 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCapabilityDto
   Name: System.String | nullability=not-null | accessors=get,set
   Description: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCategories
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeletedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   deleted: System.Boolean | nullability=not-null | accessors=get,init
@@ -7247,6 +7249,8 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   TrustLevel: System.String | nullability=not-null | accessors=get,set
   MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
   MaximumLibraryVersion: System.String | nullability=nullable | accessors=get,set
+  Category: System.String | nullability=not-null | accessors=get,set
+  MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   SupportedPlatforms: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   IsCompatible: System.Boolean | nullability=not-null | accessors=get,set
   CompatibilityProblem: System.String | nullability=nullable | accessors=get,set

@@ -30,6 +30,7 @@ internal static class AiFeaturePluginManifests
             Kind = PluginKind.Official,
             MinimumLibraryVersion = "1.0.0",
             Description = description,
+            Category = "utilities",
             Capabilities = [capability],
             Permissions = [
                 PluginPermissionIds.AiInfer,

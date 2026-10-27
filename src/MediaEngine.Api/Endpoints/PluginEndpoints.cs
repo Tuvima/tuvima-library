@@ -12,9 +12,12 @@ using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Events;
 using MediaEngine.Plugins;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
@@ -134,6 +137,71 @@ internal static class PluginEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireEffectiveAdministrator();
+
+        // Upload plugin (spec D5/D11): a JSON-only plugin from a file on the administrator's own computer. Never delegated to an
+        // outside application or paired app, because it puts a new file in the plugins folder.
+        group.MapPost("/upload", async (
+            HttpContext http,
+            IFormFile file,
+            [FromServices] PluginPackageInstaller installer,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            [FromServices] ISystemActivityRepository activity,
+            CancellationToken ct) =>
+        {
+            if (http.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } bodyLimit)
+            {
+                bodyLimit.MaxRequestBodySize = PluginPackageRules.MaxPackageBytes + (1024 * 1024);
+            }
+
+            if (file.Length is <= 0 or > PluginPackageRules.MaxPackageBytes)
+            {
+                return ApiErrors.BadRequest("The file is empty or larger than allowed.");
+            }
+
+            try
+            {
+                byte[] package;
+                await using (var input = file.OpenReadStream())
+                using (var buffer = new MemoryStream())
+                {
+                    await input.CopyToAsync(buffer, ct).ConfigureAwait(false);
+                    package = buffer.ToArray();
+                }
+
+                var result = await installer.UploadAsync(package, ct).ConfigureAwait(false);
+                var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+                await activity.LogAsync(new SystemActivityEntry
+                {
+                    OccurredAt = DateTimeOffset.UtcNow,
+                    ActionType = SystemActionType.PluginUploaded,
+                    EntityType = "Plugin",
+                    ProfileId = authority.ActiveProfileId,
+                    Detail = $"Uploaded plugin {result.Name} {result.Version} ({result.PluginId}) as a Private plugin, switched off.",
+                }, ct).ConfigureAwait(false);
+                return Results.Ok(result);
+            }
+            catch (PluginInstallException ex)
+            {
+                // A refused upload is the entry worth reading later, so it is logged too.
+                var refusedBy = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+                await activity.LogAsync(new SystemActivityEntry
+                {
+                    OccurredAt = DateTimeOffset.UtcNow,
+                    ActionType = SystemActionType.PluginUploaded,
+                    EntityType = "Plugin",
+                    ProfileId = refusedBy.ActiveProfileId,
+                    Detail = $"A plugin upload was refused: {ex.Message}",
+                }, ct).ConfigureAwait(false);
+                return ApiErrors.BadRequest(ex.Message);
+            }
+        })
+            .WithName("UploadPlugin")
+            .WithSummary("Add a JSON-only plugin from a package file. The package is checked with the install rules (size, safe unpacking, a valid description, only plugin.json and plain notes or pictures); it is stored as a Private plugin, switched off, and must still be approved before it can be switched on. Plugins that run code are refused.")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<PluginInstallResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .DisableAntiforgery()
+            .RequireEffectiveAdministratorInPerson();
 
         group.MapGet("/{pluginId}/removal-impact", (string pluginId, PluginCatalog catalog) =>
         {
@@ -737,6 +805,8 @@ internal static class PluginEndpoints
         TrustLevel = PluginTrustName(registration.Trust),
         MinimumLibraryVersion = registration.Manifest.MinimumLibraryVersion,
         MaximumLibraryVersion = registration.Manifest.MaximumLibraryVersion,
+        Category = PluginCategories.Resolve(registration.Manifest.Category),
+        MediaTypes = PluginCategories.ResolveMediaTypes(registration.Manifest.MediaTypes).ToList(),
         SupportedPlatforms = registration.Manifest.SupportedPlatforms.ToList(),
         IsCompatible = registration.Compatibility.IsCompatible,
         CompatibilityProblem = registration.Compatibility.Problem,

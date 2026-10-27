@@ -1,0 +1,57 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* The card every Developer-area grid uses (plugins, integrations): an icon, a name and one line about it, a small kind label,
+   badges, something on the right (a switch or a status), an optional warning strip and a footer of actions. *@
+<article class="@RootClass" aria-label="@Title" @attributes="AdditionalAttributes">
+    <div class="app-list-card__top">
+        <span class="app-list-card__icon" aria-hidden="true"><AppMaterialIcon Icon="@(Icon ?? AppMaterialIcons.Outlined.Extension)" /></span>
+        <div class="app-list-card__copy">
+            <strong class="app-list-card__title">@Title</strong>
+            @if (!string.IsNullOrWhiteSpace(Kind))
+            {
+                <span class="app-list-card__kind">@Kind</span>
+            }
+        </div>
+        @if (Aside is not null)
+        {
+            <div class="app-list-card__aside">@Aside</div>
+        }
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <p class="app-list-card__description">@Description</p>
+    }
+    @if (Badges is not null)
+    {
+        <div class="app-list-card__badges">@Badges</div>
+    }
+    @ChildContent
+    @if (Warning is not null)
+    {
+        <div class="app-list-card__warning">@Warning</div>
+    }
+    @if (Footer is not null)
+    {
+        <div class="app-list-card__footer">@Footer</div>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>The small category or kind label under the name.</summary>
+    [Parameter] public string? Kind { get; set; }
+    [Parameter] public RenderFragment? Badges { get; set; }
+
+    /// <summary>Top-right content: a switch, or a status label.</summary>
+    [Parameter] public RenderFragment? Aside { get; set; }
+    [Parameter] public RenderFragment? Warning { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string RootClass => string.Join(" ", new[] { "app-list-card", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

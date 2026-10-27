@@ -1,0 +1,4 @@
+.app-summary-strip { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding: 12px 16px; list-style: none; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-lg); }
+.app-summary-strip__item { display: flex; align-items: center; gap: 8px; }
+.app-summary-strip__value { font-size: 20px; font-weight: 700; }
+.app-summary-strip__label { color: var(--tl-text-muted); }

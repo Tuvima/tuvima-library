@@ -28,3 +28,14 @@
         margin: 0 auto;
     }
 }
+
+.companion-page__intro {
+    margin: 0;
+    color: var(--tl-text-secondary);
+}
+
+.companion-page__info {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-inline-start: var(--tl-space-1);
+}

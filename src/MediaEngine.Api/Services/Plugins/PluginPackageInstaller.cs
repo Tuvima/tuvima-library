@@ -64,6 +64,138 @@ public sealed class PluginPackageInstaller
         }
     }
 
+    // The only kinds of file a JSON-only plugin needs next to its plugin.json; anything else could carry code.
+    private static readonly HashSet<string> UploadFileExtensions = new(StringComparer.OrdinalIgnoreCase) { ".md", ".txt", ".png" };
+
+    /// <summary>
+    /// Adds a plugin from a package file the administrator already has (Plugins and Integrations screens spec D5 and D11).
+    /// Only JSON-only (declarative) plugins are accepted: the Library reads them, they cannot run their own code, and nothing in
+    /// the package can be an executable or script. The plugin is stored with no install record, so it is Private, and it is
+    /// never switched on here: switching on is the approval step. Throws <see cref="PluginInstallException"/> with a plain
+    /// sentence when the package is refused; nothing is left behind.
+    /// </summary>
+    public async Task<PluginInstallResponse> UploadAsync(byte[] package, CancellationToken ct = default)
+    {
+        if (package.Length == 0)
+        {
+            throw new PluginInstallException("The file is empty.");
+        }
+
+        if (package.Length > PluginPackageRules.MaxPackageBytes)
+        {
+            throw new PluginInstallException("The plugin package is larger than allowed.");
+        }
+
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        var staging = Path.Combine(_catalog.StagingRoot, Guid.NewGuid().ToString("N"));
+        try
+        {
+            string unpacked;
+            try
+            {
+                unpacked = PluginPackageRules.Unpack(package, Path.Combine(staging, "new"));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "An uploaded plugin package could not be unpacked");
+                throw new PluginInstallException("The plugin package could not be unpacked. Check that it is a normal zip file.");
+            }
+
+            foreach (var file in Directory.EnumerateFiles(unpacked, "*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(unpacked, file).Replace('\\', '/');
+                var isManifest = string.Equals(relative, "plugin.json", StringComparison.Ordinal);
+                if (!isManifest && (!UploadFileExtensions.Contains(Path.GetExtension(file)) || !LooksLikeItsExtension(file)))
+                {
+                    throw new PluginInstallException(
+                        $"The package contains a file the Library will not accept in an uploaded plugin ({Path.GetFileName(file)}). Uploaded plugins may hold only plugin.json and plain notes or pictures, because anything else could run code.");
+                }
+            }
+
+            var manifestPath = Path.Combine(unpacked, "plugin.json");
+            RequireStrictJsonOnlyManifest(manifestPath);
+            var manifest = ReadManifest(manifestPath);
+            if (PluginCompatibility.ValidateManifest(manifest) is { } invalid)
+            {
+                throw new PluginInstallException($"The plugin package is not valid: {invalid}");
+            }
+
+            if (!PluginPackageRules.IsSafeId(manifest.Id))
+            {
+                throw new PluginInstallException("This plugin's id cannot be used, so it cannot be added.");
+            }
+
+            if (manifest.Kind != PluginKind.Declarative
+                || !string.IsNullOrWhiteSpace(manifest.EntryAssembly) || !string.IsNullOrWhiteSpace(manifest.EntryType)
+                || manifest.Service is not null || manifest.Sandbox is not null)
+            {
+                throw new PluginInstallException("Only plugins described entirely in JSON can be uploaded. A plugin that runs code needs a signature and cannot be uploaded.");
+            }
+
+            if (_catalog.Get(manifest.Id) is { } existing)
+            {
+                throw new PluginInstallException(existing.IsBuiltIn
+                    ? $"{existing.Manifest.Name} is built into the Library, so it cannot be replaced."
+                    : $"A plugin with this id ({existing.Manifest.Name}) is already installed. Remove it first to upload another.");
+            }
+
+            if (_blocklist?.Find(manifest.Id, manifest.Version) is { } block)
+            {
+                throw new PluginInstallException(string.IsNullOrWhiteSpace(block.Reason) ? "This plugin has been blocked." : $"Blocked: {block.Reason}");
+            }
+
+            var compatibility = PluginCompatibility.Evaluate(manifest, LibraryVersion.Current, PluginCompatibility.CurrentRid);
+            if (!compatibility.IsCompatible)
+            {
+                throw new PluginInstallException(compatibility.Problem ?? "This plugin does not work with this Library.");
+            }
+
+            var target = Path.Combine(_catalog.PluginRoot, manifest.Id.ToLowerInvariant());
+            if (Directory.Exists(target))
+            {
+                throw new PluginInstallException("A folder for this plugin already exists. Remove it first to upload another.");
+            }
+
+            try
+            {
+                Directory.CreateDirectory(_catalog.PluginRoot);
+                Directory.Move(unpacked, target);
+                // No install record: a plugin with none is Private, the least trusted level.
+                _catalog.InstallRecords.Delete(manifest.Id);
+                _catalog.Reload();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Uploading plugin {PluginId} failed while writing files", manifest.Id);
+                TryDelete(target);
+                throw new PluginInstallException("The plugin could not be written to the plugins folder.");
+            }
+
+            var added = _catalog.Get(manifest.Id);
+            if (added is null || added.Trust != PluginTrustLevel.Private || added.Enabled || !string.IsNullOrWhiteSpace(added.LoadError))
+            {
+                // The Engine's own detail can name folders on this computer, so it goes to the log and the person gets a plain sentence.
+                _logger.LogWarning("Uploaded plugin {PluginId} was rolled back: {Problem}", manifest.Id, added?.LoadError);
+                TryDelete(target);
+                _catalog.Reload();
+                throw new PluginInstallException("The plugin could not be loaded, so it was not added. Check its plugin.json.");
+            }
+
+            return new PluginInstallResponse
+            {
+                PluginId = manifest.Id,
+                Name = manifest.Name,
+                Version = manifest.Version,
+                Message = $"{manifest.Name} was added as a Private plugin. It is switched off; review what it can do and switch it on from Plugins when you are ready.",
+            };
+        }
+        finally
+        {
+            TryDelete(staging);
+            _gate.Release();
+        }
+    }
+
     private async Task<PluginInstallResponse> InstallEntryAsync(PluginDirectoryEntryDto entry, CancellationToken ct)
     {
         if (!PluginPackageRules.IsSafeId(entry.Id))
@@ -282,6 +414,69 @@ public sealed class PluginPackageInstaller
         {
             _logger.LogWarning(ex, "The plugin package could not be downloaded from {Address}", address.Host);
             throw new PluginInstallException("The plugin could not be downloaded. Check the connection and try again.");
+        }
+    }
+
+    private static readonly HashSet<string> CodeManifestKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "entry_assembly", "entry_type", "service", "sandbox",
+    };
+
+    private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    // The extension alone proves nothing: a program renamed to .png must not get in. Pictures need the PNG signature and
+    // notes must be plain text without binary bytes.
+    private static bool LooksLikeItsExtension(string file)
+    {
+        var head = new byte[8192];
+        int read;
+        using (var stream = File.OpenRead(file))
+        {
+            read = stream.Read(head, 0, head.Length);
+        }
+
+        if (string.Equals(Path.GetExtension(file), ".png", StringComparison.OrdinalIgnoreCase))
+        {
+            return read >= PngSignature.Length && head.AsSpan(0, PngSignature.Length).SequenceEqual(PngSignature);
+        }
+
+        return !head.AsSpan(0, read).Contains((byte)0);
+    }
+
+    // The Engine reads plugin.json twice, once to check an upload and once to load it, with different rules for letter case
+    // and repeated names. A manifest that reads as JSON-only to one and as a program to the other would slip through, so an
+    // upload must name every top-level field once, in lowercase, and must not carry any code field at all.
+    private static void RequireStrictJsonOnlyManifest(string manifestPath)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(manifestPath), new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip,
+            });
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                throw new PluginInstallException("The plugin package's plugin.json cannot be read.");
+            }
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (!seen.Add(property.Name) || property.Name != property.Name.ToLowerInvariant())
+                {
+                    throw new PluginInstallException("The plugin package's plugin.json repeats a field or writes a field name in capitals, so it cannot be checked safely.");
+                }
+
+                if (CodeManifestKeys.Contains(property.Name))
+                {
+                    throw new PluginInstallException("Only plugins described entirely in JSON can be uploaded. A plugin that runs code needs a signature and cannot be uploaded.");
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            throw new PluginInstallException("The plugin package's plugin.json cannot be read.");
         }
     }
 

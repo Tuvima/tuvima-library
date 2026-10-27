@@ -8,92 +8,77 @@
 @inject DeviceContextService DeviceContext
 @implements IDisposable
 
-<SettingsSectionPanel Title="Integrations" Description="Other software you connect receives live service permissions. Credentials identify an application without storing its authorization." Icon="@AppMaterialIcons.Outlined.Apps">
+<div class="access-page">
     @if (!CanManage)
     {
         <AppAlert Severity="AppSeverity.Warning">Administrator access is required to manage applications.</AppAlert>
     }
+    else if (_wizard)
+    {
+        <NewIntegrationWizard Permissions="@_permissions" Presets="@_presets" OnFinished="WizardFinishedAsync" />
+    }
     else
     {
+        <AppListPageHeader Title="Integrations" Subtitle="Connect other applications securely to the Library">
+            <Actions>
+                @if (!DeviceContext.IsPhone)
+                {
+                    <span @ref="_returnFocus" tabindex="-1"><AppButton Label="New integration" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></span>
+                }
+            </Actions>
+        </AppListPageHeader>
         @if (DeviceContext.IsPhone)
         {
             <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
         }
         @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
-        <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
-            @if (!DeviceContext.IsPhone)
-            {
-                <AppButton Label="New application" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" />
-            }
-        </div>
+        <AppSummaryStrip AriaLabel="Integration summary" Loading="@_loading" Items="@SummaryItems()" />
         @if (_loading) { <AppProgressBar Indeterminate="true" aria-label="Loading applications" /> }
-        else if (_applications.Count == 0) { <AppEmptyState Title="No applications" Message="Create an application to issue a scoped credential." /> }
-        else if (DeviceContext.IsPhone)
+        else if (_applications.Count == 0)
         {
-            <AppTable CardsOn="AppTableCardsMode.Phone" Class="access-applications">
-                <caption class="sr-only">Applications</caption>
-                <thead>
-                    <tr>
-                        <th data-card-role="title">Application</th>
-                        <th data-card-role="subtitle">Kind</th>
-                        <th data-card-role="value">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var app in _applications)
+            <AppEmptyState Title="No integrations" Message="Connect another application securely to the Library.">
+                <Action>
+                    @if (!DeviceContext.IsPhone)
                     {
-                        <tr @key="app.Id">
-                            <td data-card-role="title">@app.Name</td>
-                            <td data-card-role="subtitle">@TypeLabel(app.ApplicationType)</td>
-                            <td data-card-role="value">
-                                <div class="access-phone-card__value">
-                                    <span class="access-status @(app.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(app.IsEnabled ? "Enabled" : "Disabled")</span>
-                                    <small>@(app.LastUsedAt is null ? "Never used" : $"Last used {app.LastUsedAt.Value.ToLocalTime():g}")</small>
-                                    @if (HealthOf(app) is { Word: HealthWord.NeedsAttention or HealthWord.Broken } health)
-                                    {
-                                        <small>@StateCardHealth.Text(health.Word): @health.LastProblem</small>
-                                    }
-                                </div>
-                            </td>
-                        </tr>
+                        <AppButton Label="New integration" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" />
                     }
-                </tbody>
-            </AppTable>
+                </Action>
+            </AppEmptyState>
         }
         else
         {
-            <div class="access-applications" role="table" aria-label="Applications">
-                <div class="access-applications__header" role="row"><span role="columnheader">Application</span><span role="columnheader">Access</span><span role="columnheader">Credentials</span><span role="columnheader">Last used</span><span role="columnheader">Status</span><span role="columnheader">Actions</span></div>
-                @foreach (var app in _applications)
-                {
-                    <div class="access-applications__row" role="row" @key="app.Id">
-                        <div role="cell"><strong>@app.Name</strong><small>@TypeLabel(app.ApplicationType)</small></div>
-                        <div role="cell"><AppChip Text="@PresetLabel(app)" Tone="@(app.IsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)" /></div>
-                        <div role="cell">@app.Credentials.Count(credential => credential.RevokedAt is null) active @if (CredentialExpirySummary(app) is { } summary) { <small>@summary</small> }</div>
-                        <div role="cell"><small>@(app.LastUsedAt?.ToLocalTime().ToString("g") ?? "Never")</small></div>
-                        <div role="cell">
-                            <span class="access-status @(app.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(app.IsEnabled ? "Enabled" : "Disabled")</span>
-                            @if (HealthOf(app) is { Word: HealthWord.NeedsAttention or HealthWord.Broken } health)
-                            {
-                                <AppChip Text="@StateCardHealth.Text(health.Word)" Tone="@StateCardHealth.Tone(health.Word)" title="@health.LastProblem" />
-                            }
-                        </div>
-                        <div class="access-applications__actions" role="cell">
-                            <AppIconButton Icon="@AppMaterialIcons.Filled.MoreVert" AriaLabel="@($"Actions for {app.Name}")" OnClick="@(() => ToggleActions(app.Id))" />
-                            @if (_actionApplicationId == app.Id)
-                            {
-                                <div class="access-action-menu" role="menu">
-                                    <AppButton Label="Edit application" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => Edit(app))" />
-                                    <AppButton Label="Delete application" FullWidth="true" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" role="menuitem" OnClick="@(() => ConfirmDelete(app))" />
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
-            </div>
+            @if (!DeviceContext.IsPhone)
+            {
+                <AppSearchFilterRow Search="@_search" SearchChanged="@(value => Narrow(() => _search = value))" Placeholder="Search integrations by name"
+                                    Narrowed="@Narrowed" OnClear="@ClearFilters">
+                    <AppSelect Label="Status" Value="@_statusFilter" Options="@StatusOptions" Native="true" FullWidth="false"
+                               ValueChanged="@(value => Narrow(() => _statusFilter = value ?? "all"))" />
+                    <AppSelect Label="Access" Value="@_accessFilter" Options="@AccessOptions()" Native="true" FullWidth="false"
+                               ValueChanged="@(value => Narrow(() => _accessFilter = value ?? "all"))" />
+                </AppSearchFilterRow>
+            }
+            <AppCountTabs Tabs="@KindTabs()" Selected="@_kindTab" AriaLabel="Integration kinds" SelectedChanged="@(key => Narrow(() => _kindTab = key))" />
+            var visible = VisibleApplications();
+            _page = Math.Clamp(_page, 1, Math.Max(1, (int)Math.Ceiling(visible.Count / (double)PageSize)));
+            @if (visible.Count == 0)
+            {
+                <AppEmptyState Title="No integrations match" Message="Nothing connected fits that search or filter.">
+                    <Action><AppButton Label="Clear filters" Size="AppControlSize.Compact" OnClick="@ClearFilters" /></Action>
+                </AppEmptyState>
+            }
+            else
+            {
+                <div class="access-cards" role="list">
+                    @foreach (var app in visible.Skip((_page - 1) * PageSize).Take(PageSize))
+                    {
+                        <div role="listitem" @key="app.Id">@IntegrationCard(app)</div>
+                    }
+                </div>
+                <AppPager Total="@visible.Count" PageSize="@PageSize" Page="@_page" PageChanged="@(page => _page = page)" Noun="integrations" />
+            }
         }
     }
-</SettingsSectionPanel>
+</div>
 
 @if (_open)
 {
@@ -204,8 +189,7 @@
     private List<ApplicationPermissionPresetDto> _presets = [];
     private HashSet<string> _selected = new(StringComparer.Ordinal);
     private ApplicationResponse? _editing;
-    private Guid? _actionApplicationId;
-    private ApplicationTypeDto _type = ApplicationTypeDto.UserClient;
+        private ApplicationTypeDto _type = ApplicationTypeDto.UserClient;
     private bool _loading = true;
     private bool _open;
     private bool _saving;
@@ -235,6 +219,143 @@
         _ => now.AddDays(IntegrationHealthRules.SuggestedKeyLifetimeDays),
     };
 
+    private RenderFragment IntegrationCard(ApplicationResponse app) => @<AppListCard Title="@app.Name" Icon="@AppMaterialIcons.Outlined.Apps" Kind="@KindLabel(app)" Description="@app.Description">
+        <Aside><AppChip Text="@StatusText(app)" Tone="@StatusTone(app)" /></Aside>
+        <ChildContent>
+            <p class="access-card__meta">
+                <AppChip Text="@PresetLabel(app)" Tone="@(app.IsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)" />
+                <span>@app.Credentials.Count(credential => credential.RevokedAt is null) active keys@(CredentialExpirySummary(app) is { } expiry ? $" · {expiry}" : null)</span>
+                <span>@(app.LastUsedAt is null ? "Never used" : $"Last used {app.LastUsedAt.Value.ToLocalTime():g}")</span>
+            </p>
+            @if (FailingWebhook(app) is { } failing)
+            {
+                <p class="access-card__failure" role="status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" /> Delivery failed@(failing.LastAttemptAt is { } at ? $" · last attempt {at.ToLocalTime():g}" : null)</p>
+            }
+            else if (HealthOf(app) is { Word: HealthWord.NeedsAttention or HealthWord.Broken } health)
+            {
+                <p class="access-card__failure" role="status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" /> @health.LastProblem</p>
+            }
+        </ChildContent>
+        <Footer>
+            @if (!DeviceContext.IsPhone)
+            {
+                <AppButton Label="Manage" Size="AppControlSize.Compact" OnClick="@(() => Edit(app))" />
+                <AppRowMenu AriaLabel="@($"Actions for {app.Name}")" Items="@MenuItems(app)" />
+            }
+        </Footer>
+    </AppListCard>;
+
+    private IReadOnlyList<AppRowMenuItem> MenuItems(ApplicationResponse app)
+    {
+        var items = new List<AppRowMenuItem>
+        {
+            new() { Label = app.IsEnabled ? "Disable" : "Enable", Icon = app.IsEnabled ? AppMaterialIcons.Outlined.Block : AppMaterialIcons.Outlined.CheckCircle, OnClick = EventCallback.Factory.Create(this, () => SetEnabledAsync(app, !app.IsEnabled)) },
+        };
+        if (app.Credentials.Any(credential => credential.RevokedAt is null))
+            items.Add(new() { Label = "Revoke keys", Icon = AppMaterialIcons.Outlined.Key, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RevokeAllKeysAsync(app)) });
+        items.Add(new() { Label = "Delete", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(app)) });
+        return items;
+    }
+
+    private const int PageSize = 12;
+    private string? _search;
+    private string _statusFilter = "all";
+    private string _accessFilter = "all";
+    private string _kindTab = "all";
+    private int _page = 1;
+    private readonly Dictionary<Guid, List<ApplicationWebhookResponse>> _webhooks = [];
+
+    private static readonly IReadOnlyList<AppSelectOption> StatusOptions =
+    [
+        new("all", "All"),
+        new("enabled", "Enabled"),
+        new("disabled", "Disabled"),
+        new("attention", "Needs attention"),
+    ];
+
+    private IReadOnlyList<AppSelectOption> AccessOptions() =>
+        [new("all", "All access"), .. _applications.Select(PresetLabel).Distinct().Order().Select(label => new AppSelectOption(label, label))];
+
+    private bool IsWebhook(ApplicationResponse app) => _webhooks.TryGetValue(app.Id, out var hooks) && hooks.Count > 0;
+    private ApplicationWebhookResponse? FailingWebhook(ApplicationResponse app) =>
+        _webhooks.TryGetValue(app.Id, out var hooks) ? hooks.FirstOrDefault(hook => StateCardHealth.ForWebhook(hook).Word is HealthWord.NeedsAttention or HealthWord.Broken) : null;
+    private bool NeedsAttention(ApplicationResponse app) => FailingWebhook(app) is not null || HealthOf(app).Word is HealthWord.NeedsAttention or HealthWord.Broken;
+    private string KindLabel(ApplicationResponse app) => IsWebhook(app) ? "Webhook" : TypeLabel(app.ApplicationType);
+    private string StatusText(ApplicationResponse app) => !app.IsEnabled ? "Disabled" : NeedsAttention(app) ? "Needs attention" : "Enabled";
+    private AppUiTone StatusTone(ApplicationResponse app) => !app.IsEnabled ? AppUiTone.Neutral : NeedsAttention(app) ? AppUiTone.Warning : AppUiTone.Success;
+    private bool Narrowed => !string.IsNullOrWhiteSpace(_search) || _statusFilter != "all" || _accessFilter != "all" || _kindTab != "all";
+
+    private void Narrow(Action change) { change(); _page = 1; }
+    private void ClearFilters() { _search = null; _statusFilter = _accessFilter = _kindTab = "all"; _page = 1; }
+
+    private bool MatchesFilters(ApplicationResponse app) =>
+        (string.IsNullOrWhiteSpace(_search) || app.Name.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase))
+        && (_statusFilter switch { "enabled" => app.IsEnabled, "disabled" => !app.IsEnabled, "attention" => NeedsAttention(app), _ => true })
+        && (_accessFilter == "all" || PresetLabel(app) == _accessFilter);
+
+    private List<ApplicationResponse> VisibleApplications() => _applications
+        .Where(MatchesFilters)
+        .Where(app => _kindTab switch { "webhooks" => IsWebhook(app), "applications" => !IsWebhook(app), _ => true })
+        .OrderBy(app => app.Name, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private IReadOnlyList<AppCountTab> KindTabs()
+    {
+        var matching = _applications.Where(MatchesFilters).ToList();
+        return
+        [
+            new("all", "All", matching.Count),
+            new("applications", "Applications", matching.Count(app => !IsWebhook(app))),
+            new("webhooks", "Webhooks", matching.Count(IsWebhook)),
+        ];
+    }
+
+    private IReadOnlyList<AppSummaryItem> SummaryItems() =>
+    [
+        new("integrations", _applications.Count.ToString(), AppMaterialIcons.Outlined.Apps),
+        new("active", _applications.Count(app => app.IsEnabled).ToString(), AppMaterialIcons.Outlined.CheckCircle),
+        new("need attention", _applications.Count(NeedsAttention).ToString(), AppMaterialIcons.Outlined.ErrorOutline),
+    ];
+
+    private async Task SetEnabledAsync(ApplicationResponse app, bool enabled)
+    {
+        _notice = string.Empty;
+        var updated = await ConfirmedAsync(hash => Identity.UpdateApplicationResultAsync(
+            app.Id, new(app.Name, app.Description, app.ApplicationType, enabled, app.IsAdministrator, hash)));
+        if (updated is null) { _notice = NotConfirmedMessage; return; }
+        if (!updated.Succeeded || updated.Value is null) { _notice = FailureMessage(updated.Failure); return; }
+        ReplaceApplication(updated.Value);
+        _notice = $"{app.Name} was {(enabled ? "enabled" : "disabled")}.";
+    }
+
+    private async Task RevokeAllKeysAsync(ApplicationResponse app)
+    {
+        _notice = string.Empty;
+        foreach (var credential in app.Credentials.Where(credential => credential.RevokedAt is null))
+        {
+            var result = await Identity.RevokeApplicationCredentialResultAsync(app.Id, credential.Id);
+            if (!result.Succeeded) { _notice = FailureMessage(result.Failure); await ReloadAllAsync(); return; }
+        }
+        await ReloadAllAsync();
+        _notice = $"Every key for {app.Name} was revoked.";
+    }
+
+    private async Task ReloadAllAsync()
+    {
+        _applications = await Identity.GetApplicationsAsync();
+        await LoadWebhooksAsync();
+    }
+
+    // Webhooks hang off the integrations that can host them; their delivery state drives the Webhooks tab and "Delivery failed".
+    private async Task LoadWebhooksAsync()
+    {
+        var hosts = _applications.Where(app => app.ApplicationType is ApplicationTypeDto.ServerIntegration or ApplicationTypeDto.Automation).ToList();
+        var loaded = await Task.WhenAll(hosts.Select(async app => (app.Id, Hooks: await Identity.GetApplicationWebhooksAsync(app.Id))));
+        _webhooks.Clear();
+        foreach (var (id, hooks) in loaded)
+            _webhooks[id] = hooks;
+    }
+
     private static StateCardHealthResult HealthOf(ApplicationResponse app) => StateCardHealth.ForApplication(app, DateTimeOffset.UtcNow);
     private string _presetId = "custom";
     private string _error = string.Empty;
@@ -245,7 +366,7 @@
     private bool _restoreFocus;
 
     private bool CanManage => Session.HasAction("applications.manage");
-    private string DrawerTitle => _deleteMode ? $"Delete · {_editing?.Name}" : _editing?.Name ?? "New application";
+    private string DrawerTitle => _deleteMode ? $"Delete · {_editing?.Name}" : _editing?.Name ?? "New integration";
     private IEnumerable<ApplicationPermissionDefinitionDto> CompatiblePermissions => _permissions.Where(permission => permission.ApplicationTypes.Contains(_type)).OrderBy(permission => permission.Category).ThenBy(permission => permission.SortOrder);
 
     protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
@@ -270,16 +391,23 @@
             _applications = applications.Result;
             _permissions = permissions.Result;
             _presets = presets.Result;
+            await LoadWebhooksAsync();
         }
         _loading = false;
     }
 
-    private void NewApplication()
+    private bool _wizard;
+
+    // The three-step page owns creating; this list only opens it and refreshes when it is done.
+    private void NewApplication() { _notice = string.Empty; _wizard = true; }
+
+    private async Task WizardFinishedAsync(ApplicationResponse? created)
     {
-        ResetDrawer();
-        var preset = _presets.FirstOrDefault(value => value.Id.Equals("read-only", StringComparison.OrdinalIgnoreCase)) ?? _presets.FirstOrDefault(value => !value.IsAdministrator);
-        if (preset is not null) SetPreset(preset);
-        _open = true;
+        _wizard = false;
+        if (created is null)
+            return;
+        await ReloadAllAsync();
+        _notice = $"{created.Name} was created.";
     }
 
     private void Edit(ApplicationResponse app)
@@ -598,15 +726,14 @@
     private static AppUiTone RiskTone(string risk) => risk.Equals("Sensitive", StringComparison.OrdinalIgnoreCase) || risk.Equals("High", StringComparison.OrdinalIgnoreCase) ? AppUiTone.Warning : AppUiTone.Neutral;
     private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private void ReplaceApplication(ApplicationResponse app) { var index = _applications.FindIndex(value => value.Id == app.Id); if (index < 0) _applications.Add(app); else _applications[index] = app; }
-    private void ToggleActions(Guid id) => _actionApplicationId = _actionApplicationId == id ? null : id;
-    private void ResetDrawer() { _drawerGeneration++; _saving = false; _editing = null; _actionApplicationId = null; _selected = new(StringComparer.Ordinal); _type = ApplicationTypeDto.UserClient; _enabled = true; _administrator = _deleteMode = false; _name = _description = _clientIds = _error = _message = string.Empty; _credentialName = "Credential"; _credentialExpiry = SuggestedExpiry; _presetId = "custom"; _plaintext = null; }
+    private void ResetDrawer() { _drawerGeneration++; _saving = false; _editing = null; _selected = new(StringComparer.Ordinal); _type = ApplicationTypeDto.UserClient; _enabled = true; _administrator = _deleteMode = false; _name = _description = _clientIds = _error = _message = string.Empty; _credentialName = "Credential"; _credentialExpiry = SuggestedExpiry; _presetId = "custom"; _plaintext = null; }
     private bool Begin(out long generation) { generation = _drawerGeneration; if (_saving) return false; _saving = true; return true; }
     private bool Current(long generation) => generation == _drawerGeneration;
     private void End(long generation) { if (Current(generation)) _saving = false; }
     private void ClearMessages() { _error = _message = string.Empty; }
     private void DrawerChanged(bool value) { if (value) _open = true; else Close(); }
     private void HandleDrawerKeyDown(KeyboardEventArgs args) { if (args.Key == "Escape") Close(); }
-    private void Close() { _drawerGeneration++; _saving = false; _open = false; _actionApplicationId = null; _plaintext = null; _restoreFocus = true; }
+    private void Close() { _drawerGeneration++; _saving = false; _open = false; _plaintext = null; _restoreFocus = true; }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!_restoreFocus) return;

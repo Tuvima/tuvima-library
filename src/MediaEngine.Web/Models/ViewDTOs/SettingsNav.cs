@@ -148,7 +148,7 @@ public static class SettingsNav
     private static bool _productionMode;
     private static readonly AsyncLocal<bool?> _scopedProductionMode = new();
 
-    /// <summary>The Households sub-page of Profiles (server administrators only).</summary>
+    /// <summary>The Households sub-page of Users and Sign-in (server administrators only).</summary>
     public const string HouseholdsSubsection = "households";
 
     /// <summary>The Logs sub-page of System: the Activity log (Events), technical log, retention and export (server administrators only).</summary>
@@ -284,10 +284,7 @@ public static class SettingsNav
                 Node("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
                 Node("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
             ]),
-            Node("Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles, children:
-            [
-                Node("Households", AppMaterialIcons.Outlined.Home, SettingsSection.Profiles, HouseholdsSubsection),
-            ]),
+            Node("Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
             Node("Preferences", AppMaterialIcons.Outlined.Tune, SettingsSection.Preferences, children:
             [
                 Node("Playback", AppMaterialIcons.Outlined.PlayCircleOutline, SettingsSection.Playback),
@@ -327,6 +324,7 @@ public static class SettingsNav
             Node("Users and Sign-in", AppMaterialIcons.Outlined.AdminPanelSettings, SettingsSection.Access, children:
             [
                 Node("Sign-in Methods", AppMaterialIcons.Outlined.Security, SettingsSection.Access, "authentication"),
+                Node("Households", AppMaterialIcons.Outlined.Home, SettingsSection.Access, HouseholdsSubsection),
             ]),
             Node("System", AppMaterialIcons.Outlined.DesktopWindows, SettingsSection.AdminOverview, children:
             [
@@ -372,10 +370,7 @@ public static class SettingsNav
                 new(ActivitySubsection, "Activity", AppMaterialIcons.Outlined.History),
                 new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
             ],
-            [SettingsSection.Profiles] =
-            [
-                new(HouseholdsSubsection, "Households", AppMaterialIcons.Outlined.Home),
-            ],
+            [SettingsSection.Profiles] = [],
             [SettingsSection.Preferences] = [],
             [SettingsSection.Playback] = [],
             [SettingsSection.Listening] = [],
@@ -423,6 +418,7 @@ public static class SettingsNav
                 new("users", "Users", AppMaterialIcons.Outlined.ManageAccounts),
                 new("applications", "Integrations", AppMaterialIcons.Outlined.Link),
                 new("authentication", "Sign-in Methods", AppMaterialIcons.Outlined.Security),
+                new(HouseholdsSubsection, "Households", AppMaterialIcons.Outlined.Home),
             ],
             [SettingsSection.Tools] = [],
             [SettingsSection.Notifications] = [],
@@ -521,11 +517,11 @@ public static class SettingsNav
     }
 
     /// <summary>
-    /// A sub-page row can be narrower than its section: Households (under Profiles) is for server administrators only,
+    /// A sub-page row can be narrower than its section: Households (under Users and Sign-in) is for server administrators only,
     /// while the Profiles list itself also serves a household administrator.
     /// </summary>
     public static bool IsNodeVisible(SettingsMenuNode node, bool administrationAllowed) =>
-        !(node is { Section: SettingsSection.Profiles, Subsection: HouseholdsSubsection }) || administrationAllowed;
+        !(node is { Section: SettingsSection.Access, Subsection: HouseholdsSubsection }) || administrationAllowed;
 
     /// <summary>Every row of the menu, parents before their children.</summary>
     public static IEnumerable<SettingsMenuNode> Flatten(IEnumerable<SettingsMenuNode> nodes)
@@ -665,10 +661,10 @@ public static class SettingsNav
 
         return section switch
         {
-            SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || normalized == HouseholdsSubsection || Guid.TryParse(normalized, out _),
+            SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || Guid.TryParse(normalized, out _),
             SettingsSection.Providers => normalized is "" or "providers",
             SettingsSection.Network => normalized is "" or "overview",
-            SettingsSection.Access => normalized is "" or "users" or "applications" or "authentication",
+            SettingsSection.Access => normalized is "" or "users" or "applications" or "authentication" or HouseholdsSubsection,
             // The Logs page (technical log, retention) is a desktop and tablet page; a phone keeps the System summary.
             SettingsSection.AdminOverview or SettingsSection.Delivery or SettingsSection.LocalAi or SettingsSection.Plugins =>
                 string.IsNullOrWhiteSpace(normalized),

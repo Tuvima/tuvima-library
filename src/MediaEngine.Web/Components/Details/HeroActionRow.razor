@@ -1,6 +1,9 @@
 @namespace MediaEngine.Web.Components.Details
 @using System.Globalization
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.Companion
+@using MediaEngine.Web.Services.Theming
+@inject DeviceContextService DeviceContext
 <div class="tl-detail-actions">
     @* No main button when nothing is playable: the primary slot is not rendered at all, so the circles sit flush left. *@
     @foreach (var action in PrimaryActions.Where(action => action.Key != "restart").Take(1))
@@ -59,6 +62,11 @@
         get
         {
             var actions = OverflowMenu(PrimaryActions, OverflowActions);
+            if (!CompanionDeviceRule.IsAvailable(DeviceContext))
+            {
+                actions = actions.Where(action => action.Key != "companion").ToList();
+            }
+
             if (HideStatusActions)
             {
                 actions = actions

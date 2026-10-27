@@ -5,6 +5,7 @@ using MediaEngine.Web.Components.Companion;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Services.Companion;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +36,7 @@ public sealed class CompanionPageTests : AsyncBunitContext
     private IReadOnlyList<CompanionLiveDeviceDto> _devices = [];
     private Func<Guid, CompanionContextDto?> _context = id => Context(id, "Pilot");
     private bool _spoilerSaveFails;
+    private readonly DeviceContextService _device;
 
     public CompanionPageTests()
     {
@@ -101,6 +103,10 @@ public sealed class CompanionPageTests : AsyncBunitContext
             });
         });
         Services.AddSingleton(api);
+        // The Companion is a phone and tablet page; tests that look at the desktop switch the form factor.
+        _device = new DeviceContextService(api);
+        _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true)).GetAwaiter().GetResult();
+        Services.AddSingleton(_device);
         Services.AddScoped<CompanionState>();
     }
 
@@ -255,6 +261,47 @@ public sealed class CompanionPageTests : AsyncBunitContext
         Assert.Contains("choose Companion from its ... menu", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(_contextRequests);
     }
+
+    [Fact]
+    public void TheCompanion_OpensWithOneSentenceSayingWhatItIs_AndAnInfoTooltip()
+    {
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() => Assert.Contains("Nothing is playing", cut.Markup, StringComparison.Ordinal));
+        var intro = cut.Find("[data-note='intro']");
+        Assert.StartsWith("Companion follows what you are watching or listening to", intro.TextContent.Trim(), StringComparison.Ordinal);
+        Assert.Contains("hiding anything past your place", intro.TextContent, StringComparison.Ordinal);
+        Assert.NotNull(intro.QuerySelector("[role='img'][aria-label^='How to use the Companion']"));
+    }
+
+    [Theory]
+    [InlineData("desktop")]
+    [InlineData("tv")]
+    public async Task OnADesktopOrTv_TheCompanionPage_TheHomeCard_AndTheMenuItemAreNotOffered(string formFactor)
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot(formFactor == "tv" ? "television" : "web", formFactor, false));
+        _devices = [Live("kitchen", "Kitchen", Episode1, "Pilot")];
+
+        var page = RenderPage();
+        Assert.Contains("Companion is for phones and tablets", page.Markup, StringComparison.Ordinal);
+        Assert.Empty(_contextRequests);
+        Assert.Empty(_calls);
+
+        var card = Render<CompanionNowPlayingCard>();
+        Assert.Empty(card.FindAll("[data-section='now-playing']"));
+
+        Assert.False(CompanionDeviceRule.IsAvailable(_device));
+    }
+
+    [Theory]
+    [InlineData("phone", true)]
+    [InlineData("tablet", true)]
+    [InlineData("desktop", false)]
+    [InlineData("tv", false)]
+    [InlineData("unknown", false)]
+    [InlineData(null, false)]
+    public void TheDeviceRule_OffersTheCompanionOnlyOnPhonesAndTablets(string? formFactor, bool expected) =>
+        Assert.Equal(expected, CompanionDeviceRule.IsAvailable(formFactor));
 
     [Fact]
     public void WithSeveralDevicesPlaying_ThePersonChoosesOne_AndFollowsIt()
