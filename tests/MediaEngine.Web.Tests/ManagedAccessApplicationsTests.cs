@@ -791,7 +791,10 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         ButtonNamed(cut, "Continue").Click();
         ButtonNamed(cut, "Custom").Click();
         foreach (var group in cut.FindAll(".integration-wizard__group button"))
+        {
             group.Click();
+        }
+
         cut.WaitForState(() => cut.FindAll(".integration-wizard__permission").Count >= 2);
 
         Assert.True(WizardPermission(cut, "Unavailable camera access").HasAttribute("disabled"));
