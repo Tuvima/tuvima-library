@@ -32,7 +32,7 @@ public sealed class ManagedFolderTidyInPlaceTests : IDisposable
 
         await _h.Organizer.TryAutoOrganizeAsync(assetId);
 
-        var expected = Path.Combine(_h.ElsewhereDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var expected = Path.Combine(_h.ElsewhereDir, "Dune (2021)", "Dune (2021).mkv");
         Assert.True(File.Exists(expected));
         Assert.Equal("dune bytes", File.ReadAllText(expected));
         Assert.False(File.Exists(source));
@@ -44,7 +44,7 @@ public sealed class ManagedFolderTidyInPlaceTests : IDisposable
     [Fact]
     public async Task A_file_already_at_its_standard_name_in_a_managed_folder_stays_exactly_where_it_is()
     {
-        var path = Write(_h.ElsewhereDir, Path.Combine("Movies", "Dune (2021)", "Dune (2021).mkv"));
+        var path = Write(_h.ElsewhereDir, Path.Combine( "Dune (2021)", "Dune (2021).mkv"));
         var assetId = await _h.RegisterAsync(path, MediaType.Movies, "Dune", "2021");
 
         await _h.Organizer.TryAutoOrganizeAsync(assetId);
@@ -62,7 +62,7 @@ public sealed class ManagedFolderTidyInPlaceTests : IDisposable
 
         await _h.Organizer.TryAutoOrganizeAsync(assetId);
 
-        var expected = Path.Combine(_h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var expected = Path.Combine(_h.MoviesDir, "Dune (2021)", "Dune (2021).mkv");
         Assert.True(File.Exists(expected));
         Assert.False(File.Exists(staged));
         Assert.Empty(_h.FilesUnder(_h.ElsewhereDir));
@@ -95,7 +95,7 @@ public sealed class ManagedFolderTidyInPlaceTests : IDisposable
     public async Task Leftovers_of_a_cancelled_conversion_are_tidied_in_their_own_folder_and_none_leave_it()
     {
         // Half the folder was already named by the stopped job; the rest still has its download names.
-        var named = Write(_h.ElsewhereDir, Path.Combine("Movies", "Alien (1979)", "Alien (1979).mkv"), "alien");
+        var named = Write(_h.ElsewhereDir, Path.Combine( "Alien (1979)", "Alien (1979).mkv"), "alien");
         var leftoverOne = Write(_h.ElsewhereDir, Path.Combine("incoming", "Dune.2021.mkv"), "dune");
         var leftoverTwo = Write(_h.ElsewhereDir, "Blade.Runner.1982.mkv", "blade runner");
         var alienId = await _h.RegisterAsync(named, MediaType.Movies, "Alien", "1979");
@@ -110,9 +110,9 @@ public sealed class ManagedFolderTidyInPlaceTests : IDisposable
         Assert.Empty(_h.FilesUnder(_h.MoviesDir));
         Assert.Equal(
             [
-                Path.Combine("Movies", "Alien (1979)", "Alien (1979).mkv"),
-                Path.Combine("Movies", "Blade Runner (1982)", "Blade Runner (1982).mkv"),
-                Path.Combine("Movies", "Dune (2021)", "Dune (2021).mkv"),
+                Path.Combine( "Alien (1979)", "Alien (1979).mkv"),
+                Path.Combine("Blade Runner (1982)", "Blade Runner (1982).mkv"),
+                Path.Combine( "Dune (2021)", "Dune (2021).mkv"),
             ],
             _h.FilesUnder(_h.ElsewhereDir).Select(path => Path.GetRelativePath(_h.ElsewhereDir, path)).OrderBy(path => path, StringComparer.Ordinal));
     }
@@ -140,7 +140,7 @@ public sealed class ManagedFolderTidyInPlaceTests : IDisposable
 
         await _h.Organizer.TryAutoOrganizeAsync(assetId);
 
-        Assert.True(File.Exists(Path.Combine(_h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv")));
+        Assert.True(File.Exists(Path.Combine(_h.MoviesDir, "Dune (2021)", "Dune (2021).mkv")));
         Assert.Empty(_h.FilesUnder(_h.ElsewhereDir));
     }
 

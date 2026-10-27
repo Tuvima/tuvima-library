@@ -74,13 +74,13 @@
 
     private static readonly Dictionary<string, string> FallbackExamples = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Movies"] = "Movies/Dune (2021)/Dune (2021).mkv",
-        ["TV"] = "TV/Severance (2022)/Season 01/Severance - s01e01 - Good News About Hell.mkv",
-        ["Music"] = "Music/Radiohead/OK Computer (1997)/01 - Airbag.flac",
-        ["Books"] = "Books/Frank Herbert/Dune (1965)/Dune (1965).epub",
-        ["Audiobooks"] = "Audiobooks/Frank Herbert/Dune (1965)/01 Chapter 1.m4b",
-        ["Comics"] = "Comics/Saga/Saga - 001 (2012).cbz",
-        ["Videos"] = "Videos/Python Course/01 - Introduction.mp4",
+        ["Movies"] = "Dune (2021)/Dune (2021).mkv",
+        ["TV"] = "Severance (2022)/Season 01/Severance - s01e01 - Good News About Hell.mkv",
+        ["Music"] = "Radiohead/OK Computer (1997)/01 - Airbag.flac",
+        ["Books"] = "Frank Herbert/Dune (1965)/Dune (1965).epub",
+        ["Audiobooks"] = "Frank Herbert/Dune (1965)/01 Chapter 1.m4b",
+        ["Comics"] = "Saga/Saga - 001 (2012).cbz",
+        ["Videos"] = "Python Course/01 - Introduction.mp4",
     };
 
     [Parameter] public IReadOnlyList<AdvancedType> Types { get; set; } = [];

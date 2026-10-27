@@ -222,7 +222,7 @@ TMDB movie details also supply `belongs_to_collection`. Tuvima stores that as a 
 ### Organization template
 
 ```
-Movies/{Title} ({Qid})/{Title}.mkv
+{Title} ({Qid})/{Title}.mkv   (inside the Movies folder)
 ```
 
 ---

@@ -205,7 +205,8 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             }
 
             await HandleAlreadyOrganizedAsync(
-                asset, assetId, metadata, mediaType, owningSource.Source.Path, owningSource.Library, ct)
+                asset, assetId, metadata, mediaType, owningSource.Source.Path, owningSource.Source.Path,
+                owningSource.Library, ct)
                 .ConfigureAwait(false);
             return;
         }
@@ -216,7 +217,9 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
 
         if (alreadyOrganized)
         {
-            await HandleAlreadyOrganizedAsync(asset, assetId, metadata, mediaType, libraryRoot, owningLibrary, ct)
+            await HandleAlreadyOrganizedAsync(
+                asset, assetId, metadata, mediaType,
+                LibraryOrganizationPath.TypeFolder(owningLibrary, libraryRoot, mediaType), libraryRoot, owningLibrary, ct)
                 .ConfigureAwait(false);
             return;
         }
@@ -276,7 +279,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             canonicalValues: metadata,
             hasUserLock: false,     // user-lock check is not needed here — gate is used for path/title guards only
             mediaTypeNeedsReview: false,
-            resolvedRelativePath: relative);
+            filingCategory: LibraryOrganizationPath.FilingCategory(owningLibrary, mediaType));
 
         if (!gateResult.CanOrganize)
         {
@@ -285,7 +288,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             return;
         }
 
-        var destPath = Path.Combine(libraryRoot, relative);
+        var destPath = Path.Combine(LibraryOrganizationPath.TypeFolder(owningLibrary, libraryRoot, mediaType), relative);
         var stagingFolder = Path.GetDirectoryName(asset.FilePathRoot) ?? string.Empty;
 
         if (!CanMoveBetween(asset.FilePathRoot, destPath))
@@ -482,7 +485,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             canonicalValues: metadata,
             hasUserLock: false,
             mediaTypeNeedsReview: false,
-            resolvedRelativePath: relative);
+            filingCategory: LibraryOrganizationPath.FilingCategory(destination.Library, mediaType));
         if (!gateResult.CanOrganize)
         {
             _logger.LogDebug("Import filing blocked for {Id}: {Reason}", assetId, gateResult.BlockReason);
@@ -644,9 +647,14 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
         metadata[MetadataFieldConstants.EpisodeEnd] = last.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Tidies a file to its standard name. The template is joined onto <paramref name="typeFolder"/> (the type's own
+    /// folder), and the new name must stay inside <paramref name="libraryRoot"/>, the folder the file already lives in.
+    /// </summary>
     private async Task HandleAlreadyOrganizedAsync(
         Domain.Aggregates.MediaAsset asset, Guid assetId,
         Dictionary<string, string> metadata, MediaType? mediaType,
+        string typeFolder,
         string libraryRoot,
         LibraryFolderEntry? library,
         CancellationToken ct)
@@ -661,9 +669,9 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             DetectedMediaType = mediaType,
         };
         var checkTemplate = _options.ResolveTemplate(mediaType?.ToString());
-        var checkRelative = LibraryOrganizationPath.Calculate(
-            _organizer, checkSynth, library ?? _libraryResolver?.ResolveById(asset.LibraryId ?? ""), checkTemplate);
-        var newDest = Path.GetFullPath(Path.Combine(libraryRoot, checkRelative));
+        var checkLibrary = library ?? _libraryResolver?.ResolveById(asset.LibraryId ?? "");
+        var checkRelative = LibraryOrganizationPath.Calculate(_organizer, checkSynth, checkLibrary, checkTemplate);
+        var newDest = Path.GetFullPath(Path.Combine(typeFolder, checkRelative));
 
         if (string.Equals(asset.FilePathRoot, newDest, StringComparison.OrdinalIgnoreCase))
         {
@@ -704,7 +712,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             canonicalValues: metadata,
             hasUserLock: false,
             mediaTypeNeedsReview: false,
-            resolvedRelativePath: checkRelative);
+            filingCategory: LibraryOrganizationPath.FilingCategory(checkLibrary, mediaType));
         if (!gateResult.CanOrganize)
         {
             _logger.LogDebug(

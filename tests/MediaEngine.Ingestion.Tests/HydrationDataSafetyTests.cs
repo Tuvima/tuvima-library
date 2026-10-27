@@ -32,7 +32,7 @@ public sealed class HydrationDataSafetyTests : IDisposable
     }
 
     private static string StandardMovie(FolderConversionHarness h) =>
-        Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        Path.Combine(h.SourceDir, "Dune (2021)", "Dune (2021).mkv");
 
     // ── HIGH 1: companions are never deleted by name ─────────────────────────
 
@@ -42,7 +42,7 @@ public sealed class HydrationDataSafetyTests : IDisposable
         var h = NewConversionHarness();
         var source = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "dune");
         var calibre = h.Write(Path.Combine("downloads", "metadata.opf"), "calibre opf");
-        var targetOpf = h.Write(Path.Combine("Movies", "Dune (2021)", "metadata.opf"), "target opf");
+        var targetOpf = h.Write(Path.Combine( "Dune (2021)", "metadata.opf"), "target opf");
         var id = await h.RegisterAsync(source, "Dune", "2021");
 
         await h.Auto.TryAutoOrganizeAsync(id);
@@ -59,8 +59,8 @@ public sealed class HydrationDataSafetyTests : IDisposable
         var source = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "dune");
         var cover = h.Write(Path.Combine("downloads", "cover.jpg"), "same cover");
         var metadata = h.Write(Path.Combine("downloads", "metadata.json"), "same json");
-        var targetCover = h.Write(Path.Combine("Movies", "Dune (2021)", "cover.jpg"), "same cover");
-        var targetMetadata = h.Write(Path.Combine("Movies", "Dune (2021)", "metadata.json"), "same json");
+        var targetCover = h.Write(Path.Combine( "Dune (2021)", "cover.jpg"), "same cover");
+        var targetMetadata = h.Write(Path.Combine( "Dune (2021)", "metadata.json"), "same json");
         var id = await h.RegisterAsync(source, "Dune", "2021");
 
         await h.Auto.TryAutoOrganizeAsync(id);
@@ -78,7 +78,7 @@ public sealed class HydrationDataSafetyTests : IDisposable
         var h = NewConversionHarness();
         var source = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "dune");
         h.Write(Path.Combine("downloads", "cover.jpg"), "same cover");
-        h.Write(Path.Combine("Movies", "Dune (2021)", "cover.jpg"), "same cover");
+        h.Write(Path.Combine( "Dune (2021)", "cover.jpg"), "same cover");
         var id = await h.RegisterAsync(source, "Dune", "2021");
 
         await h.Auto.TryAutoOrganizeAsync(id);
@@ -132,8 +132,8 @@ public sealed class HydrationDataSafetyTests : IDisposable
         var h = NewConversionHarness();
         var source = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "dune");
         var sourcePoster = h.Write(Path.Combine("downloads", "poster.jpg"), "dune poster");
-        h.Write(Path.Combine("Movies", "Dune (2021)", "Dune Extras.mkv"), "extras");
-        var folderPoster = h.Write(Path.Combine("Movies", "Dune (2021)", "poster.jpg"), "extras poster");
+        h.Write(Path.Combine( "Dune (2021)", "Dune Extras.mkv"), "extras");
+        var folderPoster = h.Write(Path.Combine( "Dune (2021)", "poster.jpg"), "extras poster");
         var id = await h.RegisterAsync(source, "Dune", "2021");
 
         await h.Auto.TryAutoOrganizeAsync(id);
@@ -170,8 +170,8 @@ public sealed class HydrationDataSafetyTests : IDisposable
         var h = NewConversionHarness();
         var source = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "dune");
         var sourcePoster = h.Write(Path.Combine("downloads", "poster.jpg"), "dune poster");
-        h.Write(Path.Combine("Movies", "Dune (2021)", "Dune Extras.mkv"), "extras");
-        var taken = h.Write(Path.Combine("Movies", "Dune (2021)", "Dune (2021)-poster.jpg"), "someone else's poster");
+        h.Write(Path.Combine( "Dune (2021)", "Dune Extras.mkv"), "extras");
+        var taken = h.Write(Path.Combine( "Dune (2021)", "Dune (2021)-poster.jpg"), "someone else's poster");
         var id = await h.RegisterAsync(source, "Dune", "2021");
 
         await h.Auto.TryAutoOrganizeAsync(id);
@@ -189,7 +189,7 @@ public sealed class HydrationDataSafetyTests : IDisposable
     public async Task Two_editions_that_share_one_standard_name_each_keep_their_own_file_and_row()
     {
         var h = NewConversionHarness();
-        var first = h.Write(Path.Combine("Movies", "Dune (2021)", "Dune (2021).mkv"), "1080p bytes");
+        var first = h.Write(Path.Combine( "Dune (2021)", "Dune (2021).mkv"), "1080p bytes");
         var second = h.Write(Path.Combine("downloads", "Dune.2021.2160p.mkv"), "4k bytes");
         var firstId = await h.RegisterAsync(first, "Dune", "2021");
         var secondId = await h.RegisterAsync(second, "Dune", "2021");
@@ -210,7 +210,7 @@ public sealed class HydrationDataSafetyTests : IDisposable
     {
         var h = new ImportFolderHarness();
         _disposables.Add(h);
-        var occupant = Path.Combine(h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var occupant = Path.Combine(h.MoviesDir, "Dune (2021)", "Dune (2021).mkv");
         Directory.CreateDirectory(Path.GetDirectoryName(occupant)!);
         File.WriteAllText(occupant, "1080p bytes");
         var occupantId = await h.RegisterAsync(occupant, MediaType.Movies, "Dune", "2021");
@@ -289,7 +289,7 @@ public sealed class HydrationDataSafetyTests : IDisposable
         }
 
         h.Mover.SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase);
-        var folder = Path.Combine("Movies", "Dune (2021)");
+        var folder = Path.Combine( "Dune (2021)");
         var media = h.Write(Path.Combine(folder, "dune (2021).mkv"), "the only copy");
         h.Write(Path.Combine(folder, "dune (2021).en.srt"), "subtitles");
         var id = await h.RegisterAsync(media, "Dune", "2021");
@@ -324,7 +324,7 @@ public sealed class HydrationDataSafetyTests : IDisposable
         }
 
         h.Mover.SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase);
-        var folder = Path.Combine("Movies", "Dune (2021)");
+        var folder = Path.Combine( "Dune (2021)");
         var media = h.Write(Path.Combine(folder, "dune (2021).mkv"), "the only copy");
         var id = await h.RegisterAsync(media, "Dune", "2021");
 

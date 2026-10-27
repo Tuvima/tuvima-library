@@ -43,8 +43,8 @@ public sealed class CoreConfiguration
     public string LibraryRoot { get; set; } = string.Empty;
 
     /// <summary>
-    /// Tokenised path template for file organisation (e.g.
-    /// <c>{Category}/{Author}/{Title}/{Title}{Ext}</c>).
+    /// Tokenised path template for file organisation, naming the path inside the type's own folder
+    /// (e.g. <c>{Author}/{Title}/{Title}{Ext}</c> inside <c>library/Books</c>).
     /// Used as the "default" template when no media-type-specific template
     /// matches in <see cref="OrganizationTemplates"/>.
     /// </summary>
@@ -54,9 +54,9 @@ public sealed class CoreConfiguration
     /// <summary>
     /// Per-media-type organisation templates.  Keys are media type names
     /// (e.g. "Books", "Audiobooks", "Movies", "TV", "Comics", "Music")
-    /// or "default".  Values are tokenised path templates.
-    /// Fallback chain: media-type-specific → "default" → <see cref="OrganizationTemplate"/>
-    /// → hardcoded <c>{Category}/{Title}/{Title}{Ext}</c>.
+    /// or "default".  Values are tokenised path templates inside the type's own folder, so they never
+    /// start with the category. Fallback chain: media-type-specific → "default" → <see cref="OrganizationTemplate"/>
+    /// → hardcoded <c>{Title}/{Title}{Ext}</c>.
     /// </summary>
     [JsonPropertyName("organization_templates")]
     public Dictionary<string, string> OrganizationTemplates { get; set; } = new(StringComparer.OrdinalIgnoreCase);

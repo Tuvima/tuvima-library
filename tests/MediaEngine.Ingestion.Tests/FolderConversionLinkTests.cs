@@ -183,7 +183,7 @@ public sealed class FolderConversionLinkTests : IDisposable
         Assert.True(File.Exists(outsideFile));
         Assert.Equal("heat", File.ReadAllText(outsideFile));
         Assert.Equal(
-            Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "Dune (2021).mkv"),
+            Path.Combine(h.SourceDir, "Dune (2021)", "Dune (2021).mkv"),
             (await h.Assets.FindByIdAsync(insideId))!.FilePathRoot);
         Assert.DoesNotContain(h.Mover.Moves, move => move.ToString()!.Contains("Heat", StringComparison.Ordinal));
     }

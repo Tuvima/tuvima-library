@@ -11,13 +11,15 @@ public interface IOrganizationGate
     /// <summary>
     /// Evaluates whether the given asset metadata passes all organization
     /// requirements. Returns a result with the decision and reason.
+    /// <paramref name="filingCategory"/> is the category a naming template files the asset under ("Other" when its
+    /// type is unknown), or null when no template names it.
     /// </summary>
     GateResult Evaluate(
         double overallConfidence,
         IReadOnlyDictionary<string, string> canonicalValues,
         bool hasUserLock,
         bool mediaTypeNeedsReview,
-        string? resolvedRelativePath);
+        string? filingCategory);
 }
 
 /// <param name="CanOrganize">True if the file may be promoted to the library.</param>

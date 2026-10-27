@@ -354,7 +354,7 @@ public sealed class ImportFolderPipelineTests : IDisposable
     private static async Task<(string Path, Guid AssetId)> SeedHeldCopyAsync(
         ImportFolderHarness h, string content, string? folder = null)
     {
-        var held = Path.Combine(folder ?? h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        var held = Path.Combine(folder ?? h.MoviesDir, "Dune (2021)", "Dune (2021).mkv");
         Directory.CreateDirectory(Path.GetDirectoryName(held)!);
         File.WriteAllText(held, content);
         var id = await h.RegisterAsync(held, MediaType.Movies, "Dune", "2021");
