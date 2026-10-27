@@ -1,6 +1,7 @@
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.BatchEdit;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Api.Services.ReadServices;
@@ -31,6 +32,8 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<ILibraryCurationReadService, LibraryCurationReadService>();
         services.AddSingleton<ILibraryBatchEditService, LibraryBatchEditService>();
         services.AddScoped<LibraryBatchEditAccessService>();
+        services.AddSingleton<IEditSessionChangeHandler, DetailsEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionService, EditSessionService>();
         services.AddSingleton<IMetadataClaimHistoryReadService, MetadataClaimHistoryReadService>();
         services.AddSingleton<ICollectionBrowseReadService, CollectionBrowseReadService>();
         services.AddSingleton<ICollectionSearchReadService, CollectionSearchReadService>();

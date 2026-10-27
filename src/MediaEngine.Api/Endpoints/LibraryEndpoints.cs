@@ -3,8 +3,10 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.BatchEdit;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Collections;
+using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain;
@@ -206,6 +208,33 @@ public static class LibraryEndpoints
         .WithName("ApplyBatchEdit")
         .WithSummary("Apply metadata changes to several items at once; an item that cannot take them goes to Needs Review and the rest still apply.")
         .Produces<LibraryBatchEditResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministrator();
+
+        // ── POST /library/edit-session ──────────────────────────────────────
+        group.MapPost("/edit-session", async (
+            EditSessionRequest request,
+            IEditSessionService editSession,
+            LibraryBatchEditAccessService access,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            if (request.Changes.Count == 0)
+            {
+                return ApiErrors.BadRequest("There are no changes to check or save.");
+            }
+
+            if (request.Changes.Count > EditSessionRequest.MaxChanges)
+            {
+                return ApiErrors.BadRequest($"An edit session takes at most {EditSessionRequest.MaxChanges} changes.");
+            }
+
+            var refusals = await access.FindRefusalsAsync(http, request.Changes.Select(change => change.EntityId).ToList(), ct);
+            return Results.Ok(await editSession.RunAsync(request, refusals, ct));
+        })
+        .WithName("RunEditSession")
+        .WithSummary("Check, or check and save, everything staged in the universal editor: all data changes together or none, file moves last.")
+        .Produces<EditSessionResult>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireEffectiveAdministrator();
 
