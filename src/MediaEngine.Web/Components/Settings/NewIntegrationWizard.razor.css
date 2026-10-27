@@ -6,9 +6,8 @@
 .integration-wizard__section, .integration-wizard__summary { display: grid; align-content: start; gap: .75rem; padding: 1rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-lg); }
 .integration-wizard__access { display: grid; grid-template-columns: minmax(0, 1fr) 16rem; gap: 1rem; }
 .integration-wizard__presets { display: flex; flex-wrap: wrap; gap: .5rem; }
-.integration-wizard__permission { display: grid; gap: .15rem; padding: .4rem .5rem; }
 .integration-wizard__review { display: grid; grid-template-columns: max-content 1fr; gap: .4rem 1rem; margin: 0; }
 .integration-wizard__review dd { margin: 0; overflow-wrap: anywhere; }
-.integration-wizard__secret code { display: block; margin: .4rem 0; padding: .6rem; overflow-wrap: anywhere; user-select: all; }
-.integration-wizard__footer { display: flex; justify-content: flex-end; gap: .75rem; }
+.integration-wizard__secret code { display: block; margin: .4rem 0; padding: .6rem; overflow-wrap: anywhere; }
+.integration-wizard__footer { display: flex; justify-content: flex-end; }
 @media (max-width: 840px) { .integration-wizard__access { grid-template-columns: minmax(0, 1fr); } }
