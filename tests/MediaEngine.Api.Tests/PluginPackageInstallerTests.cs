@@ -516,7 +516,9 @@ public sealed class PluginPackageInstallerTests : IDisposable
                     writer.Write(manifestJson);
                 }
                 else
-                writer.Write($$"""{ "id": "{{id}}", "name": "One", "version": "{{version}}", "kind": "{{kind}}", "permissions": [ {{perms}} ], "ai_permissions": [{ "role": "text_fast" }], "declarative": { "ai_steps": [{ "key": "s", "name": "S", "role": "text_fast", "prompt": "p" }] } }""");
+                {
+                    writer.Write($$"""{ "id": "{{id}}", "name": "One", "version": "{{version}}", "kind": "{{kind}}", "permissions": [ {{perms}} ], "ai_permissions": [{ "role": "text_fast" }], "declarative": { "ai_steps": [{ "key": "s", "name": "S", "role": "text_fast", "prompt": "p" }] } }""");
+                }
             }
 
             if (extra is not null)
