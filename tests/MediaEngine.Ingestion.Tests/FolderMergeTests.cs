@@ -76,7 +76,7 @@ public sealed class FolderMergeTests : IDisposable
 
         // The library is catalogued once, as the target copies.
         Assert.Equal(Path.Combine(h.TargetDir, "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
-        Assert.Equal(Path.Combine(h.TargetDir,  "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
 
         // Every copy is in the ledger, old path to new path, and History says so for each item.
         var entry = await h.Ledger.GetAsync(h.OperationId, dune);
@@ -137,7 +137,7 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(["old/notes.txt"], h.SourceFiles());
         Assert.False(Directory.Exists(Path.Combine(h.SourceDir, "gone")));
         Assert.True(Directory.Exists(h.SourceDir));
-        Assert.Equal(Path.Combine(h.TargetDir,  "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
         Assert.Equal(FolderOrganiseOutcomes.NotMoved, (await h.Ledger.GetAsync(h.OperationId, Path.Combine(h.SourceDir, "old", "notes.txt")))!.Outcome);
     }
 
@@ -198,8 +198,8 @@ public sealed class FolderMergeTests : IDisposable
         await copy.RunAsync();
 
         Assert.Equal(before, FolderMergeHarness.Fingerprint(copy.SourceDir));
-        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir,  "Alien (1979)", "poster.jpg")));
-        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir,  "Brazil (1985)", "poster.jpg")));
+        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir, "Alien (1979)", "poster.jpg")));
+        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir, "Brazil (1985)", "poster.jpg")));
 
         var move = NewHarness(sourceManaged: true, move: true);
         var dune = move.WriteSource(Path.Combine("one film", "Dune.2021.mkv"), "dune");
@@ -476,7 +476,7 @@ public sealed class FolderMergeTests : IDisposable
             [Standard("Alien", "1979"), Standard("Brazil", "1985"), Standard("Casablanca", "1942")],
             h.TargetFiles());
         Assert.Equal(3, restarted.Count(FolderOrganiseOutcomes.Moved));
-        Assert.Equal(Path.Combine(h.TargetDir,  "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
     }
 
     [Fact]
@@ -485,7 +485,7 @@ public sealed class FolderMergeTests : IDisposable
         var h = NewHarness();
         await ThreeFilmsAsync(h);
         await h.RunAsync(new TestHost { Signal = asked => asked == 1 ? FolderJobSignal.Cancel : FolderJobSignal.Continue });
-        var copy = Path.Combine(h.TargetDir,  "Alien (1979)", "Alien (1979).mkv");
+        var copy = Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv");
         File.WriteAllText(copy, "somebody changed this");
         h.SettleCancelledMerge();
         h.StartMergeAgain();
@@ -570,7 +570,7 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(FolderOrganiseStop.Finished, result.Stop);
         Assert.Equal(3, h.TargetFiles().Count());
         Assert.Empty(await h.Ledger.ListUnfinishedAsync(h.OperationId));
-        Assert.Equal(Path.Combine(h.TargetDir,  "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
         Assert.Equal(["a.mkv", "b.mkv", "c.mkv"], h.SourceFiles());
     }
 
@@ -591,7 +591,7 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(FolderOrganiseStop.Finished, result.Stop);
         Assert.Equal(3, h.TargetFiles().Count());
         Assert.Empty(h.SourceFiles());
-        Assert.Equal(Path.Combine(h.TargetDir,  "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.TargetDir, "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
     }
 
     [Fact]

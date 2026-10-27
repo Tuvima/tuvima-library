@@ -53,7 +53,7 @@ public sealed class FolderConversionTests : IDisposable
         Assert.Equal([Standard("Alien", "1979"), Standard("Dune", "2021")], h.Files());
 
         Assert.Equal(Path.Combine(h.SourceDir, "Dune (2021)", "Dune (2021).mkv"), (await h.Assets.FindByIdAsync(duneId))!.FilePathRoot);
-        Assert.Equal(Path.Combine(h.SourceDir,  "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
+        Assert.Equal(Path.Combine(h.SourceDir, "Alien (1979)", "Alien (1979).mkv"), (await h.Assets.FindByIdAsync(alienId))!.FilePathRoot);
 
         // The ledger has the old and new path of every move, and History says so for each item.
         var entry = await h.Ledger.GetAsync(h.OperationId, dune);
@@ -205,7 +205,7 @@ public sealed class FolderConversionTests : IDisposable
     public async Task An_exact_copy_at_the_standard_name_is_removed_under_Keep_one_copy()
     {
         var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
-        var kept = h.Write(Path.Combine( "Dune (2021)", "Dune (2021).mkv"), "same bytes");
+        var kept = h.Write(Path.Combine("Dune (2021)", "Dune (2021).mkv"), "same bytes");
         var extra = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "same bytes");
         h.Write(Path.Combine("downloads", "Dune.2021.en.srt"), "subtitles with no twin");
         var extraId = await h.RegisterAsync(extra, "Dune", "2021");
@@ -341,7 +341,7 @@ public sealed class FolderConversionTests : IDisposable
         {
             var asset = await h.Assets.FindByIdAsync(ids[index]);
             Assert.True(File.Exists(asset!.FilePathRoot), $"{titles[index].Item1} must be where the library says");
-            Assert.Equal(Path.Combine(h.SourceDir,  $"{titles[index].Item1} ({titles[index].Item2})", $"{titles[index].Item1} ({titles[index].Item2}).mkv"), asset.FilePathRoot);
+            Assert.Equal(Path.Combine(h.SourceDir, $"{titles[index].Item1} ({titles[index].Item2})", $"{titles[index].Item1} ({titles[index].Item2}).mkv"), asset.FilePathRoot);
         }
 
         Assert.Empty(await h.Ledger.ListUnfinishedAsync(h.OperationId));
@@ -609,7 +609,7 @@ public sealed class FolderConversionTests : IDisposable
         }
 
         var h = NewHarness();
-        var path = h.Write(Path.Combine( "Dune (2021)", "dune (2021).mkv"), "dune");
+        var path = h.Write(Path.Combine("Dune (2021)", "dune (2021).mkv"), "dune");
         await h.RegisterAsync(path, "Dune", "2021");
 
         var result = await h.RunAsync();

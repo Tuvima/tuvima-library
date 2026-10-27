@@ -1,8 +1,8 @@
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Enums;
-using MediaEngine.Intelligence.Models;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Services;
+using MediaEngine.Intelligence.Models;
 
 namespace MediaEngine.Ingestion.Tests;
 
