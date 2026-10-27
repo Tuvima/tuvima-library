@@ -659,6 +659,38 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.True(handler.DeleteObserved.Task.IsCompletedSuccessfully);
     }
 
+    [Theory]
+    [InlineData("/watch")]
+    [InlineData("/")]
+    [InlineData("/read")]
+    public async Task Settings_WhenATopBarLinkOrTheLogoLeavesIt_DoesNotDragThePersonBackWhenSomethingNudgesIt(string destination)
+    {
+        var nav = Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("/settings/overview");
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
+            builder.OpenComponent<Settings>(3);
+            builder.AddAttribute(4, nameof(Settings.Section), "overview");
+            builder.CloseComponent();
+        });
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".media-section-shell")), TimeSpan.FromSeconds(30));
+
+        // The router has moved on, but Settings is still on screen for a moment and gets nudged (a profile or authority change).
+        nav.NavigateTo(destination);
+        var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
+        var field = typeof(UIOrchestratorService).GetField("OnProfileChanged", BindingFlags.Instance | BindingFlags.NonPublic);
+        var handlers = (Action?)field!.GetValue(orchestrator);
+        Assert.NotNull(handlers);
+        await cut.InvokeAsync(() => handlers!.Invoke());
+        await Task.Delay(1000);
+
+        Assert.DoesNotContain("settings", nav.ToBaseRelativePath(nav.Uri), StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void Settings_DirectAdminRoute_InitializesCircuitAuthorityBeforeResolvingRoute()
     {

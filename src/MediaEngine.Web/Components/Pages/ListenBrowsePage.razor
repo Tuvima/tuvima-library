@@ -118,7 +118,6 @@
                     Preset.Tabs.Where(tab => !ListenBrowseConfiguration.FixedTabIds.Contains(tab.Id)).Select(tab => tab.Id).ToHashSet(StringComparer.OrdinalIgnoreCase)),
                 new("Listen next",
                 [
-                    new("My List", "/for-me?view=my-list&area=listen", AppMaterialIcons.Outlined.FavoriteBorder, Exact: true),
                     .. AudiobookTab is { } audiobookTab
                         ? new MediaSectionNavigationItem[]
                         {

@@ -13,7 +13,7 @@ A household is the group of people who live together and the sign-ins that open 
 
 ## Before you start
 
-- You need to be a server administrator or a household administrator. Both look after profiles from **Settings → Profiles**, which only administrators see: choose **Edit** on a person's row to open their page. Server administrators also get **Add household** there, and **Settings → Profiles → Households**, which lists every household and lets you rename or remove one.
+- You need to be a server administrator or a household administrator. Both look after profiles from **Settings → Profiles**, which only administrators see: choose **Edit** on a person's row to open their page. Server administrators also get **Add household** there, and **Settings → Users and Sign-in → Households**, which lists every household and lets you rename or remove one.
 - Users (sign-ins) are looked after only by the server administrator, in **Settings → Users and Sign-in**.
 
 ## Add a person to the household
@@ -81,7 +81,7 @@ They cannot change another household or a server administrator's profile, and on
 
 ## Adding a second household
 
-With one household the Library can be used without passwords. Before you add another household, set an email and password (or a passkey) for your own sign-in: **Settings → Profiles → Households → Add household** tells you so and has a **Set an email and password** button that opens Security.
+With one household the Library can be used without passwords. Before you add another household, set an email and password (or a passkey) for your own sign-in: **Settings → Users and Sign-in → Households → Add household** tells you so and has a **Set an email and password** button that opens Security.
 
 ## Next steps
 

@@ -138,7 +138,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profiles-tab__line")));
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add household").Click();
 
-        Assert.EndsWith("/settings/profiles/households?add=1", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+        Assert.EndsWith("/settings/access/households?add=1", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
     }
 
     [Fact]

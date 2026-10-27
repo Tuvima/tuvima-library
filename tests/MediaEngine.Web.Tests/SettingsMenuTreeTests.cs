@@ -43,7 +43,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         var users = Flatten(groups).Single(row => row.Label == "Users and Sign-in");
         Assert.Equal("/settings/access/users", users.Route);
-        Assert.Equal(["Sign-in Methods"], users.Children!.Select(child => child.Label));
+        Assert.Equal(["Sign-in Methods", "Households"], users.Children!.Select(child => child.Label));
 
         Assert.Equal("/settings/preferences", Flatten(groups).Single(row => row.Label == "Preferences").Route);
         Assert.Equal("/settings/ai", Flatten(groups).Single(row => row.Label == "Local AI").Route);
@@ -85,9 +85,10 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         var server = Flatten(SettingsMenuBuilder.Build(Context(administrator: true))).ToArray();
         var profiles = server.Single(row => row.Label == "Profiles");
         Assert.Equal("/settings/profiles", profiles.Route);
-        var households = Assert.Single(profiles.Children!);
-        Assert.Equal("Households", households.Label);
-        Assert.Equal("/settings/profiles/households", households.Route);
+        Assert.Empty(profiles.Children ?? []);
+        var users = server.Single(row => row.Label == "Users and Sign-in");
+        var households = Assert.Single(users.Children!, child => child.Label == "Households");
+        Assert.Equal("/settings/access/households", households.Route);
     }
 
     [Fact]

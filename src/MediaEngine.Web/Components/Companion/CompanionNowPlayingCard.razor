@@ -1,17 +1,19 @@
 @namespace MediaEngine.Web.Components.Companion
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Services.Companion
+@using MediaEngine.Web.Services.Theming
 @implements IDisposable
 @inject CompanionState Companion
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Navigation
+@inject DeviceContextService DeviceContext
 @inject ILogger<CompanionNowPlayingCard> Logger
 
 @* "Now playing" on Home (spec 4A.3): shown only while this profile is playing or has paused something on one of its devices,
    for example "The Fellowship of the Ring, on Living Room TV", with a Companion button. The Engine lists only the active
    profile's own devices, so this card can never show what someone else in the house is watching. While nothing plays the
    card is not drawn at all. *@
-@if (_devices.Count > 0)
+@if (_devices.Count > 0 && CompanionDeviceRule.IsAvailable(DeviceContext))
 {
     var device = _devices[0];
     <section class="companion-now" aria-label="Now playing" data-section="now-playing">

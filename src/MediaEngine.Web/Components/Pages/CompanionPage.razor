@@ -4,8 +4,10 @@
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Components.Companion
 @using MediaEngine.Web.Services.Companion
+@using MediaEngine.Web.Services.Theming
 @implements IDisposable
 @inject CompanionState Companion
+@inject DeviceContextService DeviceContext
 @inject IAppDialogService Dialogs
 @inject IAppToastService Snackbar
 @inject ILogger<CompanionPage> Logger
@@ -17,6 +19,24 @@
    episode or chapter they are at. Reading only: no editing, and no drawer. The page asks the Engine again every few seconds
    while following, so the position stays within about one heartbeat of the device. *@
 <div class="companion-page">
+    @if (!CompanionDeviceRule.IsAvailable(DeviceContext))
+    {
+        <AppEmptyState Title="Companion is for phones and tablets"
+                       Message="Open the Library on your phone or tablet, next to the TV or computer you are watching or listening on, to use the Companion.">
+            <Action>
+                <AppButton Label="Back to Home" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
+            </Action>
+        </AppEmptyState>
+    }
+    else
+    {
+    <p class="companion-page__intro" data-note="intro">
+        @IntroText
+        <AppTooltip Text="@IntroHelp" Placement="AppPlacement.Bottom">
+            <span class="companion-page__info" role="img" tabindex="0" aria-label="@($"How to use the Companion: {IntroHelp}")"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
+        </AppTooltip>
+    </p>
+
     @switch (_status)
     {
         case CompanionPageStatus.Loading:
@@ -41,7 +61,7 @@
             else
             {
                 <AppEmptyState Title="Nothing is playing"
-                               Message="Start something on a TV, a computer or your phone and it shows up here. Or open any title, choose Companion from its ... menu, and pick the episode or chapter you are at.">
+                               Message="Companion follows what you are watching or listening to. Start something on a TV or computer and it shows up here, or open any title on your phone, choose Companion from its ... menu, and pick where you are.">
                     <Action>
                         <AppButton Label="Back to Home" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
                     </Action>
@@ -100,9 +120,13 @@
             }
             break;
     }
+    }
 </div>
 
 @code {
+    private const string IntroText = "Companion follows what you are watching or listening to and shows who is on screen, where you have seen them before and a short recap, hiding anything past your place.";
+    private const string IntroHelp = "Start something on a TV or computer and it appears here. Or open any title on your phone, choose Companion from its ... menu and pick where you are.";
+
     private enum CompanionPageStatus { Loading, Ready, NothingToFollow, NotAvailable, Unavailable }
 
     /// <summary>How often the page asks the Engine again while following a device.</summary>
@@ -128,6 +152,11 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!CompanionDeviceRule.IsAvailable(DeviceContext))
+        {
+            return;
+        }
+
         // The same page serves /companion and /companion/{id}; a new id (or none) starts over.
         if (_loadedFor == WorkId && _status != CompanionPageStatus.Loading)
         {
