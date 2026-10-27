@@ -1,6 +1,8 @@
 # Spec: Plugins and Integrations screens (one look, plus a wizard for new integrations)
 
-> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy; built the same day) · **Related docs:** [Product overview](../product/overview.md) · [Developer tools](developer-tools.md) (D-A, D-B, D-D, D-W, WP1, WP31) · [Design system](../design/design-system.md) · bug log entries F73 (Plugins revamp), F70 (icons on buttons and toggles), F69 (Library area page, shares the search and filter row), F46 (shared list spacing), F26 (menus)
+> **Status:** Built, awaiting your Local checks · **Version:** 2 · **Last updated:** 2026-10-27 (v2 approved by Shy; built the same day) · **Related docs:** [Product overview](../product/overview.md) · [Developer tools](developer-tools.md) (D-A, D-B, D-D, D-W, WP1, WP31) · [Design system](../design/design-system.md) · bug log entries F73 (Plugins revamp), F70 (icons on buttons and toggles), F69 (Library area page, shares the search and filter row), F46 (shared list spacing), F26 (menus)
+
+> **Version 2 change note (Shy, 2026-10-27):** adds only; nothing in version 1 changes. The plugin card and the plugin detail page also show what the [Plugin architecture](plugin-architecture.md) spec adds (decisions D12 to D14 and the version 2 additions to WP2 and WP3 below). The Integrations page, the wizard and the profile pages are untouched.
 
 ## 1. Goal
 
@@ -38,6 +40,9 @@ None yet; the choices Shy still needs to make are in section 7. Defaults below a
 - **D9 (Shy, 2026-10-27).** Webhooks use the same three steps; step 2 chooses Events instead of Access.
 - **D11 (Shy, 2026-10-27).** Uploaded plugins are declarative (JSON-only) for now; code-running plugins wait for signing and encrypted keys. "Enough utility to start."
 - **D10 (Shy, 2026-10-27).** The plugin grid shows 12 per page; paging appears only beyond that.
+- **D12 (Shy, 2026-10-27, version 2).** The plugin detail page gets, below "What it can access", an **Access** section: Who can use it, Works on, Vault items, a plain "what leaves this machine" label, and "Limited to" libraries with a Change button for administrators.
+- **D13 (Shy, 2026-10-27, version 2).** The detail page also shows **Needs** and **Needed by** lists, an **Activity** list (what it did, and each failure with its cause), a **Check now** button, the latest **update note**, and a **removal preview** (what will be cleaned up, with counts, and keep or remove the plugin's Library output, default keep).
+- **D14 (Shy, 2026-10-27, version 2).** Plugin cards gain one state line, **"Waiting for X"**, used when a required dependency is off, missing or the wrong version; it counts under "Needs attention" in the summary strip. Cards otherwise keep their layout.
 
 ## 4. UI behaviour
 
@@ -129,10 +134,17 @@ Built in the cloud and validated locally as one batch. Waves: WP1 → (WP2 ∥ W
 - **Depends on:** WP3, WP5 · **Size:** Mechanical
 - **Done when:** docs build passes; no doc still describes the old layout.
 
+### Version 2 additions to WP2 and WP3
+- **WP2 adds:** the "Waiting for X" state line on cards (D14).
+- **WP3 adds:** the Access section, Needs and Needed by lists, Activity, Check now, update note and removal preview (D12, D13). Size rises from Standard to Complex.
+- The Plugin architecture spec's PA4 supplies the data and behaviour for these. Whichever of WP3 or PA4 is built first leaves empty, well-labelled slots for the other (no placeholder text shown to people).
+- **Done when:** with a plugin that needs Local AI switched off, its card says "Waiting for Local AI"; the detail page shows Access, Needs and Activity; removing a plugin shows the preview with counts and the keep or remove choice.
+
 ## Local checks (go to `engineering/validation/batch.md`)
 1. Plugins page on the real library at desktop and tablet widths: search, every filter, tabs, paging, warning strips with a really missing tool (FFmpeg, Comskip).
 2. Integrations: create a Read only integration through the wizard, copy the key, use it from another application, confirm Last used updates; make a webhook fail and see "Delivery failed".
 3. Look and feel against the supplied designs, light and dark.
+4. (Version 2) A plugin with a missing dependency shows "Waiting for X" and turns on with one approval listing everything it turns on; removing a plugin shows the preview and leaves nothing behind; the Access section and lists look right at desktop and tablet widths.
 
 ## 7. Risks and open questions
 

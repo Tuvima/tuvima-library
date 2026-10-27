@@ -1,0 +1,433 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Settings
+@using MediaEngine.Web.Services.Ui
+@inject DashboardIdentityClient Identity
+@inject ApprovalFlow Approvals
+@inject IAppDialogService Dialogs
+@inject IJSRuntime JS
+@inject IAppToastService Toast
+@inject ILogger<NewIntegrationWizard> Logger
+
+@* The three-step page for connecting something new (spec WP5). Nothing is saved until Create on step 3; Cancel and Back keep or
+   drop the choices, and Cancel asks first when anything was entered. *@
+<div class="integration-wizard">
+    <AppListPageHeader Title="New integration" Subtitle="Connect another application securely to the Library" />
+    <ol class="integration-wizard__steps" aria-label="Steps">
+        @foreach (var (number, label) in Steps)
+        {
+            <li aria-current="@(number == _step ? "step" : null)" class="@(number == _step ? "is-current" : number < _step ? "is-done" : null)">
+                <span class="integration-wizard__step-number">@number</span>
+                <span>@label<span class="sr-only">@(number == _step ? $", step {number} of 3" : null)</span></span>
+            </li>
+        }
+    </ol>
+    <p class="sr-only" role="status" aria-live="polite">Step @_step of 3, @Steps[_step - 1].Label</p>
+
+    @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="AppSeverity.Error">@_error</AppAlert> }
+
+    @if (Completed)
+    {
+        <AppAlert Severity="AppSeverity.Success" Class="integration-wizard__secret">
+            <strong>@_name was created. Copy @(_issuedKey is not null ? "this key" : "this secret") now. It cannot be shown again.</strong>
+            @if (_issuedKey is not null)
+            {
+                <span>Key</span>
+                <code>@_issuedKey</code>
+                <AppButton Label="Copy key" Size="AppControlSize.Compact" OnClick="@(() => CopyAsync(_issuedKey, "the key"))" />
+            }
+            @if (_signingSecret is not null)
+            {
+                <span>Signing secret for the webhook</span>
+                <code>@_signingSecret</code>
+                <AppButton Label="Copy secret" Size="AppControlSize.Compact" OnClick="@(() => CopyAsync(_signingSecret, "the secret"))" />
+            }
+        </AppAlert>
+        <div class="integration-wizard__footer"><AppButton Label="Done" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="@(() => OnFinished.InvokeAsync(_created))" /></div>
+    }
+    else
+    {
+        @switch (_step)
+        {
+            case 1:
+                <section class="integration-wizard__section" aria-label="Application">
+                    <label for="wizard-kind">What are you connecting?</label>
+                    <AppNativeSelect id="wizard-kind" Value="@_kind" OnChange="@(args => _kind = args.Value?.ToString() ?? KindApplication)" aria-label="What are you connecting?">
+                        <option value="@KindApplication">Application</option>
+                        <option value="@KindWebhook">Webhook</option>
+                    </AppNativeSelect>
+                    <AppTextField @bind-Value="_name" Label="Name" FullWidth="true" />
+                    <AppTextField @bind-Value="_description" Label="Description (optional)" FullWidth="true" />
+                    @if (_kind == KindWebhook)
+                    {
+                        <AppTextField @bind-Value="_webhookUrl" Label="Address to send events to" HelpText="For example https://receiver.example/events" FullWidth="true" />
+                    }
+                    else
+                    {
+                        <label for="wizard-type">Application type</label>
+                        <AppNativeSelect id="wizard-type" Value="@_type.ToString()" OnChange="SetType" aria-label="Application type">
+                            @foreach (var type in Enum.GetValues<ApplicationTypeDto>()) { <option value="@type">@TypeLabel(type)</option> }
+                        </AppNativeSelect>
+                        @if (_type == ApplicationTypeDto.UserClient)
+                        {
+                            <AppTextField @bind-Value="_clientIds" Label="Native client IDs" HelpText="Comma-separated registered client IDs allowed to use this application." FullWidth="true" />
+                        }
+                    }
+                </section>
+                break;
+            case 2 when _kind == KindWebhook:
+                <section class="integration-wizard__section" aria-label="Events">
+                    <strong>Events</strong>
+                    <small>Choose which events are sent to @(string.IsNullOrWhiteSpace(_webhookUrl) ? "the address" : _webhookUrl.Trim()).</small>
+                    @if (_eventTypes.Count == 0) { <AppAlert Severity="AppSeverity.Warning">The list of events could not be loaded. Go back and try again.</AppAlert> }
+                    @foreach (var eventType in _eventTypes)
+                    {
+                        <AppCheckbox Value="@_events.Contains(eventType)" ValueChanged="@((bool on) => ToggleEvent(eventType, on))" Label="@eventType" />
+                    }
+                    <AppSwitchRow @bind-Value="_allowLan" Label="Allow private LAN receiver" Description="Allows HTTP only for private network destinations. Host, loopback, link-local, and metadata addresses remain blocked." />
+                </section>
+                break;
+            case 2:
+                <div class="integration-wizard__access">
+                    <section class="integration-wizard__section" aria-label="Access">
+                        <strong>Choose access</strong>
+                        <div class="integration-wizard__presets" role="radiogroup" aria-label="Access preset">
+                            @foreach (var preset in _presets.Where(value => !value.Id.Equals("custom", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                <AppButton Label="@preset.DisplayName" Size="AppControlSize.Compact" role="radio" aria-checked="@(_presetId == preset.Id ? "true" : "false")"
+                                           ButtonStyle="@(_presetId == preset.Id ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" OnClick="@(() => Choose(preset))" />
+                            }
+                            <AppButton Label="Custom" Size="AppControlSize.Compact" role="radio" aria-checked="@(_presetId == CustomId ? "true" : "false")"
+                                       ButtonStyle="@(_presetId == CustomId ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" OnClick="ChooseCustom" />
+                        </div>
+                        @if (_administrator) { <AppAlert Severity="AppSeverity.Warning">Administrator applications receive every currently available permission and automatically include newly available ones.</AppAlert> }
+                        <strong>Included access</strong>
+                        @foreach (var group in Compatible.GroupBy(permission => permission.Category))
+                        {
+                            var open = _openGroups.Contains(group.Key);
+                            <div class="integration-wizard__group">
+                                <AppButton Label="@($"{group.Key} · {group.Count(permission => _administrator || _selected.Contains(permission.Id))} of {group.Count()} permissions")" ButtonStyle="AppButtonStyle.Text" FullWidth="true"
+                                           aria-expanded="@(open ? "true" : "false")" OnClick="@(() => ToggleGroup(group.Key))" />
+                                @if (open)
+                                {
+                                    @foreach (var permission in group)
+                                    {
+                                        <div class="integration-wizard__permission">
+                                            <AppCheckbox Value="@(_administrator || _selected.Contains(permission.Id))" ValueChanged="@((bool on) => TogglePermission(permission, on))"
+                                                         Disabled="@(_presetId != CustomId || !permission.IsAvailable)" Label="@permission.DisplayName" />
+                                            <small>@permission.Description</small>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        }
+                    </section>
+                    <aside class="integration-wizard__summary" aria-label="Access summary">
+                        <strong>Access summary</strong>
+                        @foreach (var line in SummaryLines()) { <span>@line</span> }
+                    </aside>
+                </div>
+                break;
+            default:
+                <section class="integration-wizard__section" aria-label="Review and create">
+                    <dl class="integration-wizard__review">
+                        <dt>Name</dt><dd>@_name</dd>
+                        <dt>Kind</dt><dd>@(_kind == KindWebhook ? "Webhook" : TypeLabel(_type))</dd>
+                        @if (_kind == KindWebhook)
+                        {
+                            <dt>Sends to</dt><dd>@_webhookUrl</dd>
+                            <dt>Events</dt><dd>@string.Join(", ", _events.Order())</dd>
+                        }
+                        else
+                        {
+                            <dt>Access</dt><dd>@AccessLabel</dd>
+                        }
+                    </dl>
+                    <AppSelect Native="true" Label="Key expires" Value="@_expiry" Options="@ExpiryOptions" ValueChanged="@(value => _expiry = value ?? "year")" />
+                </section>
+                break;
+        }
+        <div class="integration-wizard__footer">
+            <AppButton Label="Cancel" OnClick="CancelAsync" Disabled="@_busy" />
+            @if (_step > 1) { <AppButton Label="Back" OnClick="@(() => _step--)" Disabled="@_busy" /> }
+            @if (_step < 3) { <AppButton Label="Continue" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(!CanContinue)" OnClick="ContinueAsync" /> }
+            else { <AppButton Label="@(_failed ? "Try again" : "Create")" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@_busy" OnClick="CreateAsync" /> }
+        </div>
+    }
+</div>
+
+@code {
+    private const string KindApplication = "application";
+    private const string KindWebhook = "webhook";
+    private const string CustomId = "custom";
+    private const int MaxEventTypes = 32;
+
+    private static readonly (int Number, string Label)[] Steps = [(1, "Application"), (2, "Access"), (3, "Review and create")];
+
+    private static readonly IReadOnlyList<AppSelectOption> ExpiryOptions =
+    [
+        new("year", "In 1 year (suggested)"),
+        new("quarter", "In 90 days"),
+        new("never", "Never"),
+    ];
+
+    [Parameter, EditorRequired] public IReadOnlyList<ApplicationPermissionDefinitionDto> Permissions { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<ApplicationPermissionPresetDto> Presets { get; set; } = [];
+
+    /// <summary>Raised with the new integration when the person is done, or with null when they cancelled.</summary>
+    [Parameter] public EventCallback<ApplicationResponse?> OnFinished { get; set; }
+
+    private IReadOnlyList<ApplicationPermissionPresetDto> _presets = [];
+    private IReadOnlyList<string> _eventTypes = [];
+    private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _events = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _openGroups = new(StringComparer.Ordinal);
+    private int _step = 1;
+    private string _kind = KindApplication;
+    private ApplicationTypeDto _type = ApplicationTypeDto.UserClient;
+    private string _name = string.Empty;
+    private string _description = string.Empty;
+    private string _clientIds = string.Empty;
+    private string _webhookUrl = string.Empty;
+    private bool _allowLan;
+    private string _presetId = CustomId;
+    private bool _administrator;
+    private string _expiry = "year";
+    private bool _busy;
+    private bool _failed;
+    private string _error = string.Empty;
+    private ApplicationResponse? _created;
+    private bool _webhookDone;
+    private string? _issuedKey;
+    private string? _signingSecret;
+
+    private IEnumerable<ApplicationPermissionDefinitionDto> Compatible => Permissions
+        .Where(permission => permission.ApplicationTypes.Contains(EffectiveType))
+        .OrderBy(permission => permission.Category).ThenBy(permission => permission.SortOrder);
+
+    private bool Completed => _created is not null && _issuedKey is not null && (_kind != KindWebhook || _webhookDone);
+    private ApplicationTypeDto EffectiveType => _kind == KindWebhook ? ApplicationTypeDto.Automation : _type;
+    private bool Entered => !string.IsNullOrWhiteSpace(_name) || !string.IsNullOrWhiteSpace(_description) || !string.IsNullOrWhiteSpace(_webhookUrl);
+    private string AccessLabel => _administrator ? "Administrator" : _presetId == CustomId ? "Custom" : _presets.FirstOrDefault(value => value.Id == _presetId)?.DisplayName ?? "Custom";
+
+    private bool CanContinue => _step switch
+    {
+        1 => !string.IsNullOrWhiteSpace(_name) && (_kind != KindWebhook || !string.IsNullOrWhiteSpace(_webhookUrl)),
+        2 when _kind == KindWebhook => _events.Count > 0,
+        _ => true,
+    };
+
+    protected override void OnInitialized()
+    {
+        _presets = Presets;
+        var start = Presets.FirstOrDefault(value => value.Id.Equals("read-only", StringComparison.OrdinalIgnoreCase)) ?? Presets.FirstOrDefault(value => !value.IsAdministrator);
+        if (start is not null)
+            Choose(start);
+    }
+
+    private async Task ContinueAsync()
+    {
+        _error = string.Empty;
+        if (_step == 1 && _kind == KindWebhook && _eventTypes.Count == 0)
+        {
+            // The list of events does not depend on any one integration, so any id will do before one exists.
+            _eventTypes = await Identity.GetApplicationWebhookEventTypesAsync(Guid.Empty);
+        }
+
+        _step++;
+    }
+
+    private void SetType(ChangeEventArgs args)
+    {
+        if (!Enum.TryParse<ApplicationTypeDto>(args.Value?.ToString(), out var type))
+            return;
+        _type = type;
+        _selected.RemoveWhere(id => !Permissions.Any(permission => permission.Id == id && permission.IsAvailable && permission.ApplicationTypes.Contains(type)));
+        if (type != ApplicationTypeDto.UserClient)
+            _clientIds = string.Empty;
+    }
+
+    private void Choose(ApplicationPermissionPresetDto preset)
+    {
+        _presetId = preset.Id;
+        _administrator = preset.IsAdministrator;
+        _selected.Clear();
+        foreach (var id in preset.PermissionIds.Where(id => Permissions.Any(permission => permission.Id == id && permission.IsAvailable && permission.ApplicationTypes.Contains(EffectiveType))))
+            _selected.Add(id);
+    }
+
+    private void ChooseCustom()
+    {
+        _presetId = CustomId;
+        _administrator = false;
+    }
+
+    private void TogglePermission(ApplicationPermissionDefinitionDto permission, bool on)
+    {
+        if (_presetId != CustomId || !permission.IsAvailable)
+            return;
+        if (on) _selected.Add(permission.Id); else _selected.Remove(permission.Id);
+    }
+
+    private void ToggleGroup(string key)
+    {
+        if (!_openGroups.Remove(key))
+            _openGroups.Add(key);
+    }
+
+    private void ToggleEvent(string eventType, bool on)
+    {
+        if (!on) _events.Remove(eventType);
+        else if (_events.Count < MaxEventTypes) _events.Add(eventType);
+    }
+
+    private IEnumerable<string> SummaryLines()
+    {
+        if (_administrator)
+        {
+            yield return "Full administrator access";
+            yield break;
+        }
+
+        var chosen = Permissions.Where(permission => _selected.Contains(permission.Id)).ToList();
+        yield return $"{chosen.Count} permissions";
+        yield return chosen.Any(permission => IsWrite(permission.Id)) ? "Can change things" : "No write access";
+        var sensitive = chosen.Count(permission => permission.Risk.Equals("Sensitive", StringComparison.OrdinalIgnoreCase) || permission.Risk.Equals("High", StringComparison.OrdinalIgnoreCase));
+        yield return sensitive == 0 ? "Sensitive permissions excluded" : $"{sensitive} sensitive permissions included";
+    }
+
+    private static bool IsWrite(string id) => id.EndsWith(".write", StringComparison.Ordinal) || id.EndsWith(".manage", StringComparison.Ordinal) || id.EndsWith(".run", StringComparison.Ordinal);
+
+    private async Task CancelAsync()
+    {
+        if (Entered)
+        {
+            var discard = await Dialogs.ShowMessageBoxAsync("Discard this integration?", "Nothing has been created yet. Your choices will be lost.", yesText: "Discard", cancelText: "Keep editing");
+            if (discard != true)
+                return;
+        }
+
+        await OnFinished.InvokeAsync(null);
+    }
+
+    private async Task CreateAsync()
+    {
+        if (_busy)
+            return;
+        _busy = true;
+        _error = string.Empty;
+        _failed = false;
+        try
+        {
+            if (_created is null)
+            {
+                var permissionIds = _administrator ? [] : Permissions
+                    .Where(permission => _selected.Contains(permission.Id) && permission.IsAvailable && permission.ApplicationTypes.Contains(EffectiveType))
+                    .Select(permission => permission.Id).Order().ToArray();
+                var result = await Identity.CreateApplicationResultAsync(new(_name.Trim(), string.IsNullOrWhiteSpace(_description) ? null : _description.Trim(), EffectiveType, _administrator, permissionIds));
+                if (!result.Succeeded || result.Value is null)
+                {
+                    Fail("The integration could not be created. Check the values and try again.");
+                    return;
+                }
+
+                _created = result.Value;
+                if (EffectiveType == ApplicationTypeDto.UserClient && _clientIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.Ordinal).ToArray() is { Length: > 0 } clients)
+                {
+                    var bound = await Identity.SetApplicationClientBindingsResultAsync(_created.Id, new(clients));
+                    if (!bound.Succeeded || bound.Value is null)
+                    {
+                        Fail("The integration was created, but its native clients were not saved. Try again, or open Manage.");
+                        return;
+                    }
+
+                    _created = bound.Value;
+                }
+            }
+
+            if (_issuedKey is null)
+            {
+                var request = new CreateApplicationCredentialRequest("Key", ExpiryFor(_expiry, DateTimeOffset.UtcNow));
+                var issued = await Identity.IssueApplicationCredentialResultAsync(_created.Id, request);
+                if (issued.Failure == DashboardAccessMutationFailure.ApprovalRequired && issued.Approval is { } approval)
+                {
+                    var hashes = await Approvals.ConfirmAsync(approval.Approvals);
+                    if (hashes is null)
+                    {
+                        Fail("The integration was created, but its key was not confirmed. Try again to issue the key.");
+                        return;
+                    }
+
+                    issued = await Identity.IssueApplicationCredentialResultAsync(_created.Id, request with { ApprovalHash = hashes.Values.First() });
+                }
+
+                if (!issued.Succeeded || issued.Value is null)
+                {
+                    Fail("The integration was created, but its key could not be issued. Try again.");
+                    return;
+                }
+
+                _issuedKey = issued.Value.PlaintextCredential;
+            }
+
+            if (_kind == KindWebhook && !_webhookDone)
+            {
+                var hook = new SaveApplicationWebhookRequest(_webhookUrl.Trim(), _events.Order(StringComparer.Ordinal).ToArray(), _allowLan, true, null);
+                var saved = await Identity.CreateApplicationWebhookResultAsync(_created.Id, hook);
+                if (saved.Failure == DashboardAccessMutationFailure.ApprovalRequired && saved.Approval is { } approval)
+                {
+                    var hashes = await Approvals.ConfirmAsync(approval.Approvals);
+                    if (hashes is null)
+                    {
+                        Fail("The key was issued, but the webhook was not confirmed. Try again, or add the webhook from Manage.");
+                        return;
+                    }
+
+                    saved = await Identity.CreateApplicationWebhookResultAsync(_created.Id, hook with { ApprovalHash = hashes.Values.First() });
+                }
+
+                if (!saved.Succeeded || saved.Value is null)
+                {
+                    Fail("The key was issued, but the webhook could not be saved. Try again, or add the webhook from Manage.");
+                    return;
+                }
+
+                _webhookDone = true;
+                _signingSecret = saved.Value.SigningSecret;
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Fail(string message)
+    {
+        _error = message;
+        _failed = true;
+    }
+
+    private static DateTimeOffset? ExpiryFor(string choice, DateTimeOffset now) => choice switch
+    {
+        "quarter" => now.AddDays(90),
+        "never" => null,
+        _ => now.AddDays(IntegrationHealthRules.SuggestedKeyLifetimeDays),
+    };
+
+    private async Task CopyAsync(string text, string what)
+    {
+        switch (await JS.TryCopyAsync(text, Logger))
+        {
+            case ClipboardCopyResult.Copied:
+                Toast.Add($"Copied {what}.", AppSeverity.Success);
+                break;
+            case ClipboardCopyResult.Failed:
+                Toast.Add(ClipboardInterop.FailedMessage(what), AppSeverity.Warning);
+                break;
+        }
+    }
+
+    private static string TypeLabel(ApplicationTypeDto type) => type switch { ApplicationTypeDto.UserClient => "User Client", ApplicationTypeDto.ServerIntegration => "Server Integration", ApplicationTypeDto.Automation => "Automation", _ => "Other" };
+}

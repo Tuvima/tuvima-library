@@ -13,6 +13,10 @@
     {
         <AppAlert Severity="AppSeverity.Warning">Administrator access is required to manage applications.</AppAlert>
     }
+    else if (_wizard)
+    {
+        <NewIntegrationWizard Permissions="@_permissions" Presets="@_presets" OnFinished="WizardFinishedAsync" />
+    }
     else
     {
         <AppListPageHeader Title="Integrations" Subtitle="Connect other applications securely to the Library">
@@ -392,12 +396,18 @@
         _loading = false;
     }
 
-    private void NewApplication()
+    private bool _wizard;
+
+    // The three-step page owns creating; this list only opens it and refreshes when it is done.
+    private void NewApplication() { _notice = string.Empty; _wizard = true; }
+
+    private async Task WizardFinishedAsync(ApplicationResponse? created)
     {
-        ResetDrawer();
-        var preset = _presets.FirstOrDefault(value => value.Id.Equals("read-only", StringComparison.OrdinalIgnoreCase)) ?? _presets.FirstOrDefault(value => !value.IsAdministrator);
-        if (preset is not null) SetPreset(preset);
-        _open = true;
+        _wizard = false;
+        if (created is null)
+            return;
+        await ReloadAllAsync();
+        _notice = $"{created.Name} was created.";
     }
 
     private void Edit(ApplicationResponse app)
