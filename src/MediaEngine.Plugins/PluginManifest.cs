@@ -29,6 +29,20 @@ public sealed record PluginManifest
     [JsonPropertyName("description")]
     public string Description { get; init; } = "";
 
+    /// <summary>
+    /// Which tab the plugin is listed under on the Plugins page: <c>metadata</c>, <c>media-processing</c>, <c>services</c> or
+    /// <c>utilities</c>. Absent or unknown means <c>utilities</c> (see <see cref="PluginCategories"/>).
+    /// </summary>
+    [JsonPropertyName("category")]
+    public string? Category { get; init; }
+
+    /// <summary>
+    /// The media types the plugin applies to (<c>books</c>, <c>comics</c>, <c>audiobooks</c>, <c>movies</c>, <c>tv</c>,
+    /// <c>music</c>, <c>photos</c>). Empty means every type.
+    /// </summary>
+    [JsonPropertyName("media_types")]
+    public IReadOnlyList<string> MediaTypes { get; init; } = [];
+
     [JsonPropertyName("entry_assembly")]
     public string? EntryAssembly { get; init; }
 

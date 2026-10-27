@@ -115,7 +115,7 @@ public sealed class Phase7LocalAiTests
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
 
-        Assert.Contains("@InstalledPluginsPanel()", source, StringComparison.Ordinal);
+        Assert.Contains("@PluginsListPage()", source, StringComparison.Ordinal);
         Assert.DoesNotContain("@AdvancedPluginLinks()", source, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/plugins/", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SettingsAdvancedLinkRow", source, StringComparison.Ordinal);

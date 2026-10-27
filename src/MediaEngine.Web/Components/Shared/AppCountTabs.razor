@@ -1,0 +1,65 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* Tabs with a count on each ("All 11", "Metadata 4"). Arrow keys, Home and End move between tabs; the counts stay honest because
+   the page works them out from the whole list, not from what the search left. *@
+<div class="tl-tabs-toolbar @RootClass" role="tablist" aria-label="@(AriaLabel ?? "Categories")">
+    @for (var index = 0; index < Tabs.Count; index++)
+    {
+        var tab = Tabs[index];
+        var position = index;
+        var selected = string.Equals(tab.Key, Selected, StringComparison.Ordinal);
+        <button type="button"
+                role="tab"
+                id="@TabId(tab.Key)"
+                class="tl-tab app-count-tabs__tab @(selected ? "tl-tab-active is-selected" : null)"
+                aria-selected="@(selected ? "true" : "false")"
+                tabindex="@(selected ? 0 : -1)"
+                @onclick="() => SelectAsync(tab.Key)"
+                @onkeydown="args => KeyDownAsync(args, position)">
+            <span>@tab.Label</span>
+            <span class="app-count-tabs__count">@tab.Count</span>
+        </button>
+    }
+</div>
+
+@code {
+    [Inject] private IJSRuntime Js { get; set; } = default!;
+
+    [Parameter] public IReadOnlyList<AppCountTab> Tabs { get; set; } = [];
+    [Parameter] public string? Selected { get; set; }
+    [Parameter] public EventCallback<string> SelectedChanged { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private readonly string _idPrefix = "count-tab-" + Guid.NewGuid().ToString("N")[..8];
+
+    private string RootClass => string.Join(" ", new[] { "app-count-tabs", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string TabId(string key) => _idPrefix + "-" + key;
+
+    private Task SelectAsync(string key) => SelectedChanged.InvokeAsync(key);
+
+    private async Task KeyDownAsync(KeyboardEventArgs args, int position)
+    {
+        var target = args.Key switch
+        {
+            "ArrowRight" => (position + 1) % Tabs.Count,
+            "ArrowLeft" => (position - 1 + Tabs.Count) % Tabs.Count,
+            "Home" => 0,
+            "End" => Tabs.Count - 1,
+            _ => -1,
+        };
+        if (target < 0 || Tabs.Count == 0)
+            return;
+
+        await SelectAsync(Tabs[target].Key);
+        try
+        {
+            await Js.InvokeVoidAsync("tuvimaFocusById", TabId(Tabs[target].Key));
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is nothing left to focus.
+        }
+    }
+}

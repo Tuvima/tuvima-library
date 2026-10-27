@@ -96,6 +96,8 @@ internal static class SegmentManifestFactory
             Kind = PluginKind.Official,
             MinimumLibraryVersion = "1.0.0",
             Description = description,
+            Category = "media-processing",
+            MediaTypes = ["movies", "tv"],
             Capabilities =
         [
             new PluginCapabilityDescriptor

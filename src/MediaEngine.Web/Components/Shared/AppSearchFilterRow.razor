@@ -1,0 +1,34 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* The search box and filter menus that sit above a list of cards. Filters are passed in as content so each page chooses its
+   own; "Clear filters" appears only while something is narrowing the list. The Library area page reuses this row. *@
+<div class="@RootClass" role="search">
+    <AppSearchField Value="@Search"
+                    ValueChanged="@SearchChanged"
+                    Placeholder="@Placeholder"
+                    Label="@Placeholder"
+                    HideLabel="true"
+                    DebounceInterval="300"
+                    Class="app-search-filter-row__search" />
+    @ChildContent
+    @if (Narrowed)
+    {
+        <AppButton Label="Clear filters" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Close" OnClick="@OnClear" />
+    }
+</div>
+
+@code {
+    [Parameter] public string? Search { get; set; }
+    [Parameter] public EventCallback<string?> SearchChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Search";
+
+    /// <summary>True while the search text or any filter is narrowing the list.</summary>
+    [Parameter] public bool Narrowed { get; set; }
+    [Parameter] public EventCallback OnClear { get; set; }
+
+    /// <summary>The filter menus (Status, Media, Sort and so on).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string RootClass => string.Join(" ", new[] { "app-search-filter-row", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}
