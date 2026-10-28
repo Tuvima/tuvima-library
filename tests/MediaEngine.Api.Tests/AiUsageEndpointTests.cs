@@ -32,7 +32,7 @@ public sealed class AiUsageEndpointTests : IDisposable
         loader.SaveCore(new CoreConfiguration { LibraryRoot = libraryRoot });
         var empty = new ServiceCollection().BuildServiceProvider();
         _catalog = new PluginCatalog(
-            [new VibeTagsPlugin(empty), new SmartLabellingPlugin()],
+            [new DescriptionInsightsPlugin(empty), new SmartFilingPlugin()],
             new PluginSettingsService(loader),
             loader,
             new ApprovesEverything(),
@@ -55,14 +55,14 @@ public sealed class AiUsageEndpointTests : IDisposable
     public async Task Usage_NamesEachPluginAndAbility_AndKeepsPeopleAndIngestionAsTheirOwnRows()
     {
         var usage = new SummaryRepository(
-            new AiUsageSummaryRow(AiCallerKind.Plugin, "tuvima.ai-vibe-tags", AiAbility.Classify, 12, 10, 4_500, Now),
+            new AiUsageSummaryRow(AiCallerKind.Plugin, "tuvima.ai-description-insights", AiAbility.Classify, 12, 10, 4_500, Now),
             new AiUsageSummaryRow(AiCallerKind.Person, "person", AiAbility.WriteTextQuick, 3, 3, 900, Now),
             new AiUsageSummaryRow(AiCallerKind.Ingestion, "ingestion", AiAbility.ReadTextFromImage, 40, 40, 12_000, Now));
 
         var response = await Run(usage);
 
         var plugin = Assert.Single(response.Rows, row => row.CallerKind == "plugin");
-        Assert.Equal("Vibe tags", plugin.CallerName);
+        Assert.Equal("Description insights", plugin.CallerName);
         Assert.Equal("Classify", plugin.Ability);
         Assert.Equal(4.5, plugin.BusySeconds);
         Assert.Equal(10, plugin.Succeeded);
@@ -80,7 +80,7 @@ public sealed class AiUsageEndpointTests : IDisposable
             Assert.Equal(120, standing.RequestsPerHour);
             Assert.False(standing.OverBudget);
         });
-        Assert.Contains(response.Plugins, standing => standing.PluginName == "Vibe tags");
+        Assert.Contains(response.Plugins, standing => standing.PluginName == "Description insights");
     }
 
     [Fact]

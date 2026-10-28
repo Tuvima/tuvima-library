@@ -99,13 +99,13 @@ public sealed class PluginJobRunRecordTests : IDisposable
     {
         var started = new DateTimeOffset(2026, 10, 19, 2, 0, 0, TimeSpan.Zero);
         var run = new ScheduledTaskRun(
-            Guid.NewGuid(), ScheduledTaskKeys.PluginSegmentDetection, "tuvima.intro-skip", started,
+            Guid.NewGuid(), ScheduledTaskKeys.PluginSegmentDetection, "tuvima.skip-markers", started,
             started.AddMinutes(2), ScheduledTaskOutcomes.Failed, 4, "ffmpeg could not open the file.");
 
         var snapshot = PluginScheduledSegmentService.ToSnapshot(run, segmentsWritten: 1);
 
         Assert.Equal(run.Id, snapshot.Id);
-        Assert.Equal("tuvima.intro-skip", snapshot.PluginId);
+        Assert.Equal("tuvima.skip-markers", snapshot.PluginId);
         Assert.Equal("failed", snapshot.Status);
         Assert.Equal(started, snapshot.StartedAt);
         Assert.Equal(started.AddMinutes(2), snapshot.CompletedAt);
@@ -123,7 +123,7 @@ public sealed class PluginJobRunRecordTests : IDisposable
         var loader = new ConfigurationDirectoryLoader(configDirectory);
         loader.SaveCore(new CoreConfiguration { LibraryRoot = libraryRoot });
         var catalog = new PluginCatalog(
-            [new IntroSkipPlugin()], new PluginSettingsService(loader), loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
+            [new SkipMarkersPlugin()], new PluginSettingsService(loader), loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
         var pluginId = Assert.Single(catalog.List()).Manifest.Id;
         catalog.SetEnabled(pluginId, enable);
 

@@ -127,6 +127,13 @@ public sealed record PluginManifest
     [JsonPropertyName("declaration")]
     public PluginDeclaration? Declaration { get; init; }
 
+    /// <summary>
+    /// True for a built-in that exists so its settings and switch are ready but has nothing to do yet (its hook is not built).
+    /// It is left off the Plugins page until it does.
+    /// </summary>
+    [JsonPropertyName("hidden")]
+    public bool Hidden { get; init; }
+
     /// <summary>The declaration with every default filled in. Nothing is sent out when the manifest lists no network destinations.</summary>
     [JsonIgnore]
     public ResolvedPluginDeclaration ResolvedDeclaration =>

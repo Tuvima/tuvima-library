@@ -99,26 +99,23 @@ public sealed class AiFeaturePluginTests : IDisposable
     [Fact]
     public void ThePluginsThatRunOnASchedule_AskToRunScheduledWork_AndDeclareTheirJobAsAValidOne()
     {
-        foreach (var id in new[] { AiFeaturePluginIds.SeriesOrder, AiFeaturePluginIds.VibeTags, AiFeaturePluginIds.DescriptionInsights })
+        foreach (var (id, jobs) in new[] { (AiFeaturePluginIds.SeriesOrder, 1), (AiFeaturePluginIds.DescriptionInsights, 2) })
         {
             var plugin = _catalog.Get(id)!;
             Assert.Contains(PluginPermissionIds.ScheduledWork, plugin.Manifest.Permissions);
-            Assert.Single(plugin.Capabilities.OfType<IPluginScheduledJob>());
+            Assert.Equal(jobs, plugin.Capabilities.OfType<IPluginScheduledJob>().Count());
             Assert.Null(PluginHostCapabilityRules.Validate(plugin.Capabilities));
         }
 
-        foreach (var id in new[] { AiFeaturePluginIds.SmartLabelling, AiFeaturePluginIds.TypeHelper })
-        {
-            Assert.DoesNotContain(PluginPermissionIds.ScheduledWork, _catalog.Get(id)!.Manifest.Permissions);
-        }
+        Assert.DoesNotContain(PluginPermissionIds.ScheduledWork, _catalog.Get(AiFeaturePluginIds.SmartFiling)!.Manifest.Permissions);
     }
 
     [Fact]
     public void TheJobs_KeepTheSchedulesTheOldSettingsGave()
     {
-        Assert.Equal("0 3 * * *", Job(AiFeaturePluginIds.SeriesOrder).DefaultSchedule.Cron);
-        Assert.Equal("0 4 * * *", Job(AiFeaturePluginIds.VibeTags).DefaultSchedule.Cron);
-        Assert.Equal(TimeSpan.FromMinutes(15), Job(AiFeaturePluginIds.DescriptionInsights).DefaultSchedule.Interval);
+        Assert.Equal("0 3 * * *", Job(AiFeaturePluginIds.SeriesOrder, SeriesOrderPlugin.JobKey).DefaultSchedule.Cron);
+        Assert.Equal("0 4 * * *", Job(AiFeaturePluginIds.DescriptionInsights, DescriptionInsightsPlugin.VibeJobKey).DefaultSchedule.Cron);
+        Assert.Equal(TimeSpan.FromMinutes(15), Job(AiFeaturePluginIds.DescriptionInsights, DescriptionInsightsPlugin.JobKey).DefaultSchedule.Interval);
     }
 
     [Fact]
@@ -127,26 +124,59 @@ public sealed class AiFeaturePluginTests : IDisposable
         Assert.All(Enum.GetValues<AiFeature>(), feature => Assert.False(_switches.IsOn(feature)));
         Assert.False(_switches.AnyOn);
 
-        _catalog.SetEnabled(AiFeaturePluginIds.VibeTags, true);
+        _catalog.SetEnabled(AiFeaturePluginIds.SeriesOrder, true);
 
-        Assert.True(_switches.IsOn(AiFeature.VibeTags));
+        Assert.True(_switches.IsOn(AiFeature.SeriesAlignment));
         Assert.False(_switches.IsOn(AiFeature.SmartLabeling));
         Assert.False(_switches.IsOn(AiFeature.DescriptionIntelligence));
         Assert.True(_switches.AnyOn);
 
-        _catalog.SetEnabled(AiFeaturePluginIds.VibeTags, false);
+        _catalog.SetEnabled(AiFeaturePluginIds.SeriesOrder, false);
 
-        Assert.False(_switches.IsOn(AiFeature.VibeTags));
+        Assert.False(_switches.IsOn(AiFeature.SeriesAlignment));
         Assert.False(_switches.AnyOn);
     }
 
     [Fact]
-    public void EveryFeatureMapsToItsOwnPlugin()
+    public void EveryFeatureMapsToAPluginThatExists_AndTwoPluginsCarryTwoFeaturesEach()
     {
         var plugins = Enum.GetValues<AiFeature>().Select(AiFeaturePluginIds.For).ToList();
 
-        Assert.Equal(plugins.Count, plugins.Distinct(StringComparer.Ordinal).Count());
         Assert.All(plugins, id => Assert.NotNull(_catalog.Get(id)));
+        Assert.Equal(AiFeaturePluginIds.SmartFiling, AiFeaturePluginIds.For(AiFeature.SmartLabeling));
+        Assert.Equal(AiFeaturePluginIds.SmartFiling, AiFeaturePluginIds.For(AiFeature.TypeLogic));
+        Assert.Equal(AiFeaturePluginIds.DescriptionInsights, AiFeaturePluginIds.For(AiFeature.VibeTags));
+        Assert.Equal(AiFeaturePluginIds.DescriptionInsights, AiFeaturePluginIds.For(AiFeature.DescriptionIntelligence));
+        Assert.Equal(AiFeaturePluginIds.All.Order(StringComparer.Ordinal), plugins.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void DescriptionInsights_TurnsBothOfItsFeaturesOn_AndSmartFilingIsHiddenUntilItsHookExists()
+    {
+        _catalog.SetEnabled(AiFeaturePluginIds.DescriptionInsights, true);
+
+        Assert.True(_switches.IsOn(AiFeature.VibeTags));
+        Assert.True(_switches.IsOn(AiFeature.DescriptionIntelligence));
+        Assert.False(_switches.IsOn(AiFeature.SeriesAlignment));
+
+        Assert.True(_catalog.Get(AiFeaturePluginIds.SmartFiling)!.Manifest.Hidden);
+        Assert.All(
+            AiFeaturePluginIds.All.Where(id => id != AiFeaturePluginIds.SmartFiling),
+            id => Assert.False(_catalog.Get(id)!.Manifest.Hidden));
+    }
+
+    [Fact]
+    public void EveryAiFeaturePlugin_DeclaresWhoMayUseIt_WhatItNeedsAndWhatItKeeps()
+    {
+        Assert.All(_catalog.List(), plugin =>
+        {
+            var declaration = plugin.Manifest.ResolvedDeclaration;
+            var expected = plugin.Manifest.Id == AiFeaturePluginIds.TasteSummary ? PluginAudience.Everyone : PluginAudience.Administrators;
+            Assert.Equal(expected, declaration.Audience);
+            Assert.Contains(plugin.Manifest.Declaration!.Requires, requirement => requirement.Kind == "local_ai");
+            Assert.False(string.IsNullOrWhiteSpace(plugin.Manifest.Declaration.Stores?.SavedOutput));
+            Assert.Empty(PluginDeclarationRules.Validate(plugin.Manifest.Declaration));
+        });
     }
 
     [Fact]
@@ -159,7 +189,7 @@ public sealed class AiFeaturePluginTests : IDisposable
         Assert.True(_switches.IsLocalAiOn(settings));
 
         settings.AudioPackEnabled = false;
-        _catalog.SetEnabled(AiFeaturePluginIds.TypeHelper, true);
+        _catalog.SetEnabled(AiFeaturePluginIds.SmartFiling, true);
         Assert.True(_switches.IsLocalAiOn(settings));
     }
 
@@ -176,18 +206,18 @@ public sealed class AiFeaturePluginTests : IDisposable
     }
 
     [Fact]
-    public void TheVibeWords_FollowTheVibeTagsPluginSettings_TrimmedAndWithoutRepeats()
+    public void TheVibeWords_FollowTheDescriptionInsightsPluginSettings_TrimmedAndWithoutRepeats()
     {
         var source = new PluginVibeVocabularySource(_services);
         var settings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
         {
-            [VibeTagsPlugin.BooksKey] = JsonSerializer.SerializeToElement(new[] { "Calm ", "calm", "bold", "" }),
-            [VibeTagsPlugin.MoviesTvKey] = JsonSerializer.SerializeToElement(new[] { "tense" }),
-            [VibeTagsPlugin.MusicKey] = JsonSerializer.SerializeToElement(new[] { "mellow" }),
-            [VibeTagsPlugin.ComicsKey] = JsonSerializer.SerializeToElement(new[] { "noir" }),
+            [DescriptionInsightsPlugin.BooksKey] = JsonSerializer.SerializeToElement(new[] { "Calm ", "calm", "bold", "" }),
+            [DescriptionInsightsPlugin.MoviesTvKey] = JsonSerializer.SerializeToElement(new[] { "tense" }),
+            [DescriptionInsightsPlugin.MusicKey] = JsonSerializer.SerializeToElement(new[] { "mellow" }),
+            [DescriptionInsightsPlugin.ComicsKey] = JsonSerializer.SerializeToElement(new[] { "noir" }),
         };
 
-        _catalog.SaveSettings(AiFeaturePluginIds.VibeTags, settings);
+        _catalog.SaveSettings(AiFeaturePluginIds.DescriptionInsights, settings);
 
         Assert.Equal(["Calm", "bold"], source.Current.Books);
         Assert.Equal(["tense"], source.Current.MoviesTv);
@@ -201,13 +231,13 @@ public sealed class AiFeaturePluginTests : IDisposable
         var source = new PluginVibeVocabularySource(_services);
         var settings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
         {
-            [VibeTagsPlugin.BooksKey] = JsonSerializer.SerializeToElement(Array.Empty<string>()),
-            [VibeTagsPlugin.MoviesTvKey] = JsonSerializer.SerializeToElement(new[] { "tense" }),
-            [VibeTagsPlugin.MusicKey] = JsonSerializer.SerializeToElement(new[] { "mellow" }),
-            [VibeTagsPlugin.ComicsKey] = JsonSerializer.SerializeToElement(new[] { "noir" }),
+            [DescriptionInsightsPlugin.BooksKey] = JsonSerializer.SerializeToElement(Array.Empty<string>()),
+            [DescriptionInsightsPlugin.MoviesTvKey] = JsonSerializer.SerializeToElement(new[] { "tense" }),
+            [DescriptionInsightsPlugin.MusicKey] = JsonSerializer.SerializeToElement(new[] { "mellow" }),
+            [DescriptionInsightsPlugin.ComicsKey] = JsonSerializer.SerializeToElement(new[] { "noir" }),
         };
 
-        _catalog.SaveSettings(AiFeaturePluginIds.VibeTags, settings);
+        _catalog.SaveSettings(AiFeaturePluginIds.DescriptionInsights, settings);
 
         Assert.Equal(new AiVibeVocabulary().Books, source.Current.Books);
         Assert.Equal(["tense"], source.Current.MoviesTv);
@@ -229,23 +259,21 @@ public sealed class AiFeaturePluginTests : IDisposable
     }
 
     [Theory]
-    [InlineData(AiFeaturePluginIds.VibeTags, "vibe")]
     [InlineData(AiFeaturePluginIds.SeriesOrder, "series_alignment")]
-    [InlineData(AiFeaturePluginIds.DescriptionInsights, "description_intelligence")]
-    public async Task SwitchingAFeaturePluginOff_RetractsTheResultsItRecorded(string pluginId, string featureKey)
+    [InlineData(AiFeaturePluginIds.DescriptionInsights, "description_intelligence", "vibe")]
+    public async Task SwitchingAFeaturePluginOff_RetractsTheResultsItRecorded(string pluginId, params string[] featureKeys)
     {
         var persistence = new RetractionSpy();
         var service = new AiFeatureRetractionService(persistence, NullLogger<AiFeatureRetractionService>.Instance);
 
         var retracted = await service.RetractForPluginAsync(pluginId, default);
 
-        Assert.Equal(1, retracted);
-        Assert.Equal([featureKey], persistence.Retracted);
+        Assert.Equal(featureKeys.Length, retracted);
+        Assert.Equal(featureKeys, persistence.Retracted);
     }
 
     [Theory]
-    [InlineData(AiFeaturePluginIds.SmartLabelling)]
-    [InlineData(AiFeaturePluginIds.TypeHelper)]
+    [InlineData(AiFeaturePluginIds.SmartFiling)]
     [InlineData(AiFeaturePluginIds.TasteSummary)]
     [InlineData("someone.elses-plugin")]
     public async Task APluginThatRecordsNoAiResults_RetractsNothing(string pluginId)
@@ -257,15 +285,13 @@ public sealed class AiFeaturePluginTests : IDisposable
         Assert.Empty(persistence.Retracted);
     }
 
-    private IPluginScheduledJob Job(string pluginId) =>
-        Assert.Single(_catalog.Get(pluginId)!.Capabilities.OfType<IPluginScheduledJob>());
+    private IPluginScheduledJob Job(string pluginId, string key) =>
+        Assert.Single(_catalog.Get(pluginId)!.Capabilities.OfType<IPluginScheduledJob>(), job => job.Key == key);
 
     private static IEnumerable<ITuvimaPlugin> Plugins(IServiceProvider services) =>
     [
-        new SmartLabellingPlugin(),
-        new TypeHelperPlugin(),
+        new SmartFilingPlugin(),
         new SeriesOrderPlugin(services),
-        new VibeTagsPlugin(services),
         new DescriptionInsightsPlugin(services),
         new TasteSummaryPlugin(),
     ];

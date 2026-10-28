@@ -223,13 +223,13 @@ public static class BaselinePrepare
     }
 
     /// <summary>
-    /// The Local AI plugins whose jobs fire at night, with the job key to hold. The every-15-minutes description insights
-    /// job does not depend on the time of day, so it stays as it is.
+    /// The Local AI plugin jobs that fire at night, with the job key to hold. The every-15-minutes description insights
+    /// job does not depend on the time of day, so it stays as it is (only the vibe tags job on the same plugin is held).
     /// </summary>
     private static readonly (string PluginId, string JobKey)[] HeldAiPluginJobs =
     [
         (AiFeaturePluginIds.SeriesOrder, SeriesOrderPlugin.JobKey),
-        (AiFeaturePluginIds.VibeTags, VibeTagsPlugin.JobKey),
+        (AiFeaturePluginIds.DescriptionInsights, DescriptionInsightsPlugin.VibeJobKey),
     ];
 
     private static readonly JsonSerializerOptions PluginConfigJson = new() { WriteIndented = true };
@@ -237,7 +237,7 @@ public static class BaselinePrepare
     /// <summary>
     /// Holds the clock-scheduled tasks for the run: in the copied <c>maintenance.json</c> every schedule moves to one time
     /// 30 days after the run starts (<see cref="HeldScheduleFrom"/>) and the off-hours retag and storage sweeps are switched
-    /// off; in the run's own plugin settings the nightly Local AI jobs (series order, vibe tags) are held the same way, still
+    /// off; in the run's own plugin settings the nightly Local AI jobs (series order, and the vibe tags job of description insights) are held the same way, still
     /// switched off like every plugin. A run that crosses the night (02:00 to 06:00) then gives the same result as one that
     /// does not, with the Local AI plugins off or switched on.
     /// </summary>

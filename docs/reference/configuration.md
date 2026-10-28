@@ -106,15 +106,14 @@ Role requirements define the promotion gates for each role. Tuvima selects the s
 
 ### AI features are plugins
 
-Which Local AI features run is no longer set in `config/ai.json`. Smart labelling, Type helper, Series order, Vibe tags and Description insights are Official plugins, each off until an administrator turns it on (and approves what it uses) on **Settings > Plugins**. Their schedules and the words Vibe tags may use are plugin settings, saved under `.data/plugin-config/{plugin id}.json` in the library root:
+Which Local AI features run is no longer set in `config/ai.json`. Smart filing (Smart labelling and Type helper in one; left off the Plugins page until its ingestion hook is built), Series order, Description insights (including mood tags) and Taste summary are Official plugins, each off until an administrator turns it on (and approves what it uses) on **Settings > Plugins**. Their schedules and the words the mood tags may use are plugin settings, saved under `.data/plugin-config/{plugin id}.json` in the library root:
 
 | Plugin | Id | Default schedule |
 |---|---|---|
 | Series order | `tuvima.ai-series-order` | `0 3 * * *` |
-| Vibe tags | `tuvima.ai-vibe-tags` | `0 4 * * *` |
-| Description insights | `tuvima.ai-description-insights` | every 15 minutes |
+| Description insights | `tuvima.ai-description-insights` | every 15 minutes (insights); `0 4 * * *` (mood tags, job `vibe-tags`) |
 
-The Vibe tags plugin keeps its vocabulary in the settings lists `books`, `movies_tv`, `music` and `comics`; an empty list falls back to the built-in words. The old `features`, `vibe_vocabulary` and `scheduling` sections of `config/ai.json` were removed.
+The Description insights plugin keeps the mood-tag vocabulary in the settings lists `books`, `movies_tv`, `music` and `comics`; an empty list falls back to the built-in words. The old `features`, `vibe_vocabulary` and `scheduling` sections of `config/ai.json` were removed.
 
 ---
 
