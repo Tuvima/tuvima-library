@@ -11,6 +11,7 @@
     <Project Path="src/MediaEngine.Processors/MediaEngine.Processors.csproj" />
     <Project Path="src/MediaEngine.Plugin.CommercialSkip/MediaEngine.Plugin.CommercialSkip.csproj" />
     <Project Path="src/MediaEngine.Plugin.FandomLore/MediaEngine.Plugin.FandomLore.csproj" />
+    <Project Path="src/MediaEngine.Plugin.ListenBrainz/MediaEngine.Plugin.ListenBrainz.csproj" />
     <Project Path="src/MediaEngine.Plugin.MediaSegments/MediaEngine.Plugin.MediaSegments.csproj" />
     <Project Path="src/MediaEngine.Plugins/MediaEngine.Plugins.csproj" />
     <Project Path="src/MediaEngine.Storage/MediaEngine.Storage.csproj" />
