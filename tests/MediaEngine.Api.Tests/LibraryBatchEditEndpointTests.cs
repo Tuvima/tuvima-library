@@ -8,6 +8,7 @@ using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.BatchEdit;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.Services;
 using MediaEngine.Domain.Authorization;
@@ -327,6 +328,7 @@ public sealed class LibraryBatchEditEndpointTests : IDisposable
         builder.Services.AddSingleton<ISystemActivityRepository, SystemActivityRepository>();
         builder.Services.AddSingleton<ILibraryBatchEditService, LibraryBatchEditService>();
         builder.Services.AddScoped<LibraryBatchEditAccessService>();
+        builder.Services.AddSingleton<IEditSessionService, EditSessionService>();
         builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(authority));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new LibraryAccess(_allowedLibrary));
