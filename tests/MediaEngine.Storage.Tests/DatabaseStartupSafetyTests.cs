@@ -741,6 +741,7 @@ public sealed class DatabaseStartupSafetyTests
             ("plugin_profile_connections", "profile_id"),
             ("plugin_outbox", "id"),
             ("plugin_outbox", "profile_id"),
+            ("text_track_rejections", "asset_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)
