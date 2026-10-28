@@ -20,8 +20,9 @@ public sealed class PersonAliasReadService : IPersonAliasReadService
         _db = db;
     }
 
-    public async Task<PersonAliasResponse?> GetAliasesAsync(Guid personId, CancellationToken ct)
+    public async Task<PersonAliasResponse?> GetAliasesAsync(Guid personId, ViewerCatalogue viewer, CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(viewer);
         var person = await _personRepo.FindByIdAsync(personId, ct);
         if (person is null)
         {
@@ -35,11 +36,20 @@ public sealed class PersonAliasReadService : IPersonAliasReadService
             : "SELECT pseudonym_person_id FROM person_aliases WHERE real_person_id = @id";
         cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob).Value = GuidSql.ToBlob(personId);
 
-        var aliases = new List<PersonAliasItemResponse>();
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read())
+        var linkedIds = new List<Guid>();
+        using (var reader = cmd.ExecuteReader())
         {
-            var aliasId = GuidSql.FromDb(reader.GetValue(0));
+            while (reader.Read())
+            {
+                linkedIds.Add(GuidSql.FromDb(reader.GetValue(0)));
+            }
+        }
+
+        // A linked person is shown only when the viewer could open them (see LinkedPersonVisibility).
+        var visible = await LinkedPersonVisibility.VisibleAsync(_personRepo, linkedIds, viewer, ct);
+        var aliases = new List<PersonAliasItemResponse>();
+        foreach (var aliasId in linkedIds.Where(visible.Contains))
+        {
             var aliasPerson = await _personRepo.FindByIdAsync(aliasId, ct);
             if (aliasPerson is null)
             {
@@ -79,12 +89,25 @@ public sealed class PersonPresenceReadService : IPersonPresenceReadService
 
     public async Task<IReadOnlyDictionary<string, Dictionary<string, int>>> GetPresenceAsync(
         IReadOnlyList<Guid> personIds,
+        ViewerCatalogue viewer,
         CancellationToken ct)
     {
-        var presence = await _personRepo.GetPresenceBatchAsync(personIds, ct);
-        return presence.ToDictionary(
-            kv => kv.Key.ToString(),
-            kv => kv.Value);
+        ArgumentNullException.ThrowIfNull(viewer);
+
+        // Only the credits on files the viewer may see are counted, so a title in the Vault, in a hidden library or above the viewer's
+        // content limit adds nothing. A person with no visible credit has no entry at all (Vault sections spec D27, D32).
+        var credits = await _personRepo.GetPresenceCreditsAsync(personIds, ct);
+        return credits
+            .Where(credit => viewer.CanSeeCredit(credit.WorkId, credit.AssetId, credit.LibraryId))
+            .GroupBy(credit => credit.PersonId)
+            .ToDictionary(
+                person => person.Key.ToString(),
+                person => person
+                    .GroupBy(credit => credit.MediaType, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        type => type.First().MediaType,
+                        type => type.Select(credit => credit.DisplayWorkId).Distinct().Count(),
+                        StringComparer.OrdinalIgnoreCase));
     }
 }
 
@@ -151,9 +174,12 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
         _db = db;
     }
 
-    public async Task<IReadOnlyList<PersonSummaryResponse>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
+    public async Task<IReadOnlyList<PersonSummaryResponse>> GetByCollectionAsync(
+        Guid collectionId, ViewerCatalogue viewer, CancellationToken ct)
     {
-        return await GetByAssetQueryAsync("""
+        ArgumentNullException.ThrowIfNull(viewer);
+        var visiblePersonIds = await GetCanonicalPersonIdsForCollectionAsync(collectionId, viewer.PrimaryAssetIds, ct);
+        var persons = await GetByAssetQueryAsync("""
             -- readiness: membership lookup from a person or collection id to files, not a listing
             SELECT ma.id
             FROM media_assets ma
@@ -161,19 +187,30 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
             JOIN works w    ON w.id = e.work_id
             WHERE w.collection_id = @id;
             """, collectionId, ct);
+        return persons.Where(person => visiblePersonIds.Contains(person.Id)).ToList();
     }
 
-    public async Task<IReadOnlyList<PersonSummaryResponse>> GetByWorkAsync(Guid workId, CancellationToken ct)
+    public async Task<IReadOnlyList<PersonSummaryResponse>> GetByWorkAsync(
+        Guid workId, ViewerCatalogue viewer, CancellationToken ct)
     {
-        return await GetByAssetQueryAsync("""
+        ArgumentNullException.ThrowIfNull(viewer);
+        var visiblePersonIds = await GetCanonicalPersonIdsAsync(viewer.PrimaryAssetIdsOf(workId), ct);
+        var persons = await GetByAssetQueryAsync("""
             SELECT ma.id
             FROM media_assets ma
             JOIN editions e ON e.id = ma.edition_id
             WHERE e.work_id = @id;
             """, workId, ct);
+        return persons.Where(person => visiblePersonIds.Contains(person.Id)).ToList();
     }
 
-    public Task<IReadOnlySet<Guid>> GetCanonicalPersonIdsAsync(
+    public Task<IReadOnlySet<Guid>> GetCanonicalPersonIdsAsync(ViewerCatalogue viewer, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(viewer);
+        return GetCanonicalPersonIdsAsync(viewer.PrimaryAssetIds, ct);
+    }
+
+    private Task<IReadOnlySet<Guid>> GetCanonicalPersonIdsAsync(
         IReadOnlyCollection<Guid> assetIds,
         CancellationToken ct)
     {
@@ -191,7 +228,7 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
         return Task.FromResult<IReadOnlySet<Guid>>(people.ToHashSet());
     }
 
-    public Task<IReadOnlySet<Guid>> GetCanonicalPersonIdsForCollectionAsync(
+    private Task<IReadOnlySet<Guid>> GetCanonicalPersonIdsForCollectionAsync(
         Guid collectionId,
         IReadOnlyCollection<Guid> assetIds,
         CancellationToken ct)
@@ -225,12 +262,11 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
         return Task.FromResult<IReadOnlySet<Guid>>(people.ToHashSet());
     }
 
-    public Task<IReadOnlyDictionary<string, int>> GetCanonicalRoleCountsAsync(
-        IReadOnlyCollection<Guid> assetIds,
-        CancellationToken ct)
+    public Task<IReadOnlyDictionary<string, int>> GetCanonicalRoleCountsAsync(ViewerCatalogue viewer, CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(viewer);
         ct.ThrowIfCancellationRequested();
-        var ids = NormalizeAssetIds(assetIds);
+        var ids = NormalizeAssetIds(viewer.PrimaryAssetIds);
         if (ids.Length == 0)
         {
             return Task.FromResult<IReadOnlyDictionary<string, int>>(

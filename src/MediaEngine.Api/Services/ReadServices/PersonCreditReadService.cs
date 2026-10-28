@@ -946,8 +946,10 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
     public async Task<List<PersonGroupMemberDto>> GetGroupMembersAsync(
         Guid personId,
         bool isGroup,
+        ViewerCatalogue viewer,
         CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(viewer);
         using var conn = _db.CreateConnection();
         var rows = (await conn.QueryAsync<PersonGroupMemberRow>(
             isGroup
@@ -985,7 +987,10 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
                   """,
             new { personId })).ToList();
 
+        // A group's members, or the groups a person belongs to, are shown only when the viewer could open them (see LinkedPersonVisibility).
+        var visible = await LinkedPersonVisibility.VisibleAsync(_personRepo, rows.Select(row => row.Id), viewer, ct);
         return rows
+            .Where(row => visible.Contains(row.Id))
             .Select(row => new PersonGroupMemberDto
             {
                 Id = row.Id,

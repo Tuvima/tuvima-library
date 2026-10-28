@@ -8,6 +8,7 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Persons;
@@ -36,6 +37,7 @@ internal sealed partial class DetailCompositionOrchestrator
         DetailPresentationContext context,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks,
+        ViewerCatalogue viewer,
         CancellationToken ct)
     {
         var person = await _persons.FindByIdAsync(personId, ct);
@@ -93,7 +95,10 @@ internal sealed partial class DetailCompositionOrchestrator
         var aliases = person.IsGroup
             ? []
             : await _persons.FindAliasesAsync(personId, ct);
-        var groupMembers = await _personCredits.GetGroupMembersAsync(personId, person.IsGroup, ct);
+        // A linked person is shown only when the viewer could open them (a pen name must not expose a Vault-only real name).
+        var visibleAliases = await LinkedPersonVisibility.VisibleAsync(_persons, aliases.Select(alias => alias.Id), viewer, ct);
+        aliases = aliases.Where(alias => visibleAliases.Contains(alias.Id)).ToList();
+        var groupMembers = await _personCredits.GetGroupMembersAsync(personId, person.IsGroup, viewer, ct);
         var memberOfGroups = person.IsGroup
             ? []
             : groupMembers;

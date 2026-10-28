@@ -90,7 +90,10 @@ public sealed class PersonRepository : IPersonRepository
     {
         public Guid PersonId { get; init; }
         public string MediaType { get; init; } = "";
-        public int Count { get; init; }
+        public Guid DisplayWorkId { get; init; }
+        public Guid AssetId { get; init; }
+        public Guid WorkId { get; init; }
+        public string? LibraryId { get; init; }
     }
 
     public PersonRepository(IDatabaseConnection db)
@@ -880,7 +883,26 @@ public sealed class PersonRepository : IPersonRepository
     }
 
     /// <inheritdoc/>
-    public Task<Dictionary<Guid, Dictionary<string, int>>> GetPresenceBatchAsync(
+    public async Task<Dictionary<Guid, Dictionary<string, int>>> GetPresenceBatchAsync(
+        IEnumerable<Guid> personIds,
+        CancellationToken ct = default)
+    {
+        var credits = await GetPresenceCreditsAsync(personIds, ct).ConfigureAwait(false);
+        var result = new Dictionary<Guid, Dictionary<string, int>>();
+        foreach (var person in credits.GroupBy(credit => credit.PersonId))
+        {
+            result[person.Key] = person
+                .GroupBy(credit => credit.MediaType, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    type => type.First().MediaType,
+                    type => type.Select(credit => credit.DisplayWorkId).Distinct().Count(),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        return result;
+    }
+
+    public Task<IReadOnlyList<PersonPresenceCredit>> GetPresenceCreditsAsync(
         IEnumerable<Guid> personIds,
         CancellationToken ct = default)
     {
@@ -889,7 +911,7 @@ public sealed class PersonRepository : IPersonRepository
         var idList = personIds.Distinct().ToList();
         if (idList.Count == 0)
         {
-            return Task.FromResult(new Dictionary<Guid, Dictionary<string, int>>());
+            return Task.FromResult<IReadOnlyList<PersonPresenceCredit>>([]);
         }
 
         using var conn = _db.CreateConnection();
@@ -910,49 +932,37 @@ public sealed class PersonRepository : IPersonRepository
                 "presence_credit_rows",
                 "SELECT asset_id FROM presence_candidate_assets",
                 "pr_");
+            // A file in a Vault library never counts here, whoever asks: a read with no viewer keeps the Vault out through this
+            // predicate, and a read for a viewer starts from these rows (security review leak 2).
             rows.AddRange(conn.Query<PresenceRow>($"""
                 WITH {candidateAssetsCte},
-                {scopedCreditsCte},
-                credited_works AS (
-                    SELECT p.id AS PersonId,
-                           COALESCE(gp.media_type, parent.media_type, w.media_type) AS MediaType,
-                           CASE
-                               WHEN w.work_kind = 'child' THEN COALESCE(gp.id, parent.id, w.id)
-                               WHEN w.work_kind = 'parent' AND parent.id IS NOT NULL THEN COALESCE(gp.id, parent.id, w.id)
-                               ELSE w.id
-                           END AS DisplayWorkId
-                    FROM persons p
-                    JOIN presence_credit_rows primary_credit ON primary_credit.person_id = p.id
-                    JOIN media_assets ma ON ma.id = primary_credit.media_asset_id
-                    JOIN editions e ON e.id = ma.edition_id
-                    JOIN works w ON w.id = e.work_id
-                    LEFT JOIN works parent ON parent.id = w.parent_work_id
-                    LEFT JOIN works gp ON gp.id = parent.parent_work_id
-                    WHERE p.id IN ({personIdClause})
-                      AND w.ownership = 'Owned'
-                      AND w.is_catalog_only = 0
-                )
-                SELECT PersonId,
-                       MediaType,
-                       COUNT(DISTINCT DisplayWorkId) AS Count
-                FROM credited_works
-                GROUP BY PersonId, MediaType;
+                {scopedCreditsCte}
+                SELECT DISTINCT p.id AS PersonId,
+                       COALESCE(gp.media_type, parent.media_type, w.media_type) AS MediaType,
+                       CASE
+                           WHEN w.work_kind = 'child' THEN COALESCE(gp.id, parent.id, w.id)
+                           WHEN w.work_kind = 'parent' AND parent.id IS NOT NULL THEN COALESCE(gp.id, parent.id, w.id)
+                           ELSE w.id
+                       END AS DisplayWorkId,
+                       ma.id AS AssetId,
+                       w.id AS WorkId,
+                       ma.library_id AS LibraryId
+                FROM persons p
+                JOIN presence_credit_rows primary_credit ON primary_credit.person_id = p.id
+                JOIN media_assets ma ON ma.id = primary_credit.media_asset_id
+                JOIN editions e ON e.id = ma.edition_id
+                JOIN works w ON w.id = e.work_id
+                LEFT JOIN works parent ON parent.id = w.parent_work_id
+                LEFT JOIN works gp ON gp.id = parent.parent_work_id
+                WHERE p.id IN ({personIdClause})
+                  AND w.ownership = 'Owned'
+                  AND w.is_catalog_only = 0
+                  AND {VaultSql.NotVaultAsset("ma.id")};
                 """, p));
         }
 
-        var result = new Dictionary<Guid, Dictionary<string, int>>();
-        foreach (var row in rows)
-        {
-            var personId = row.PersonId;
-            if (!result.TryGetValue(personId, out var mediaMap))
-            {
-                mediaMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                result[personId] = mediaMap;
-            }
-            mediaMap[row.MediaType] = row.Count;
-        }
-
-        return Task.FromResult(result);
+        return Task.FromResult<IReadOnlyList<PersonPresenceCredit>>(
+            rows.Select(row => new PersonPresenceCredit(row.PersonId, row.MediaType, row.DisplayWorkId, row.AssetId, row.WorkId, row.LibraryId)).ToList());
     }
 
     // -------------------------------------------------------------------------
@@ -979,6 +989,62 @@ public sealed class PersonRepository : IPersonRepository
             """, p);
 
         return Task.CompletedTask;
+    }
+
+    private sealed record CreditedFileRow
+    {
+        public Guid PersonId { get; init; }
+        public Guid WorkId { get; init; }
+        public Guid AssetId { get; init; }
+        public string? LibraryId { get; init; }
+    }
+
+    public Task<IReadOnlyList<PersonCreditedFile>> GetCreditedFilesAsync(
+        IEnumerable<Guid> personIds,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var idList = personIds.Distinct().ToList();
+        if (idList.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<PersonCreditedFile>>([]);
+        }
+
+        using var conn = _db.CreateConnection();
+        var rows = new List<CreditedFileRow>();
+        foreach (var batch in idList.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            ct.ThrowIfCancellationRequested();
+            var p = new DynamicParameters();
+            var personIdClause = AddGuidBlobList(p, "personId", batch);
+            var candidateAssetsCte = PersonCreditSql.CandidateAssetsCte(
+                "footprint_candidate_assets",
+                $"SELECT id, name, wikidata_qid FROM persons WHERE id IN ({personIdClause})",
+                "fc_");
+            var scopedCreditsCte = PersonCreditSql.ScopedCreditsCte(
+                "footprint_credit_rows",
+                "SELECT asset_id FROM footprint_candidate_assets",
+                "ff_");
+            // Deliberately no Vault predicate: the caller needs to know a person IS credited somewhere the viewer cannot see.
+            rows.AddRange(conn.Query<CreditedFileRow>($"""
+                WITH {candidateAssetsCte},
+                {scopedCreditsCte}
+                SELECT DISTINCT credit.person_id AS PersonId, w.id AS WorkId, ma.id AS AssetId, ma.library_id AS LibraryId
+                FROM (
+                    SELECT person_id, media_asset_id FROM footprint_credit_rows WHERE person_id IN ({personIdClause})
+                    UNION
+                    SELECT person_id, media_asset_id FROM person_media_links WHERE person_id IN ({personIdClause})
+                ) credit
+                JOIN media_assets ma ON ma.id = credit.media_asset_id
+                JOIN editions e ON e.id = ma.edition_id
+                JOIN works w ON w.id = e.work_id
+                WHERE ma.is_orphaned = 0;
+                """, p));
+        }
+
+        return Task.FromResult<IReadOnlyList<PersonCreditedFile>>(
+            rows.Select(row => new PersonCreditedFile(row.PersonId, row.WorkId, row.AssetId, row.LibraryId)).ToList());
     }
 
     /// <inheritdoc/>

@@ -975,8 +975,9 @@ internal sealed partial class DetailCompositionOrchestrator
     {
         using var conn = _db.CreateConnection();
         var rows = await conn.QueryAsync<Guid>(new CommandDefinition(
-            """
+            $"""
             -- readiness: detail page of one item opened by id
+            -- A Vault album is never offered under "more by this artist": this read has no viewer, so the Vault predicate keeps it out.
             SELECT DISTINCT COALESCE(p.id, w.id)
             FROM primary_person_media_credits credit
             INNER JOIN media_assets ma ON ma.id = credit.media_asset_id
@@ -985,7 +986,8 @@ internal sealed partial class DetailCompositionOrchestrator
             LEFT JOIN works p ON p.id = w.parent_work_id
             WHERE credit.person_id = @personId
               AND credit.credit_key = 'artist'
-              AND LOWER(w.media_type) = 'music';
+              AND LOWER(w.media_type) = 'music'
+              AND {VaultSql.NotVaultAsset("ma.id")};
             """,
             new { personId = GuidSql.ToBlob(personId) },
             cancellationToken: ct));

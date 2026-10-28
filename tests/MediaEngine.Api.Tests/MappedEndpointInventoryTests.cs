@@ -441,7 +441,7 @@ public sealed class MappedEndpointInventoryTests
 
         Assert.DoesNotContain(inventory.Endpoints, endpoint => endpoint.Pattern == "/plugins/approved");
     }
-    private static WebApplication BuildEndpointOnlyApplication()
+    internal static WebApplication BuildEndpointOnlyApplication()
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
