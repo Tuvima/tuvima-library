@@ -200,6 +200,10 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("network_destinations")]
     public List<PluginNetworkDestinationDto> NetworkDestinations { get; set; } = [];
 
+    /// <summary>Who may use it, where it works, how it treats Vault items, what leaves the machine, what it needs and stores (Plugin architecture spec).</summary>
+    [JsonPropertyName("access")]
+    public PluginAccessDto Access { get; set; } = new();
+
     [JsonPropertyName("settings")]
     public Dictionary<string, JsonElement> Settings { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
