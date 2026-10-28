@@ -7,16 +7,19 @@ namespace MediaEngine.Api.Services.Plugins;
 /// <summary>
 /// Builds a plugin's health answer from its own health checks plus the Engine's view of it. A plugin that has used up its
 /// Local AI allowance for the hour, or that was stopped or refused for going over a host-service limit (its records, jobs,
-/// events, always-on work or web connection), reports degraded, which the Dashboard shows as Needs attention.
+/// events, always-on work or web connection), or that was paused after repeated failures, reports degraded, which the Dashboard shows as Needs attention.
 /// </summary>
 internal static class PluginHealthComposer
 {
+    public const string PausedMessage = "Paused after several failures in a row. The Library keeps working without it and tries it again automatically.";
+
     public static async Task<PluginHealthResponse> ComposeAsync(
         string pluginId,
         IReadOnlyList<PluginHealthResult> checks,
         PluginAiBudget aiBudget,
         CancellationToken ct,
-        PluginHostServicesDto? hostServices = null)
+        PluginHostServicesDto? hostServices = null,
+        DateTimeOffset? pausedUntil = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
         ArgumentNullException.ThrowIfNull(checks);
@@ -45,6 +48,16 @@ internal static class PluginHealthComposer
             {
                 Status = "degraded",
                 Message = hostProblem,
+            });
+        }
+
+        // Paused after repeated failures (C10): the Library carries on without it and shows Needs attention until it works again.
+        if (pausedUntil is not null)
+        {
+            dtos.Add(new PluginHealthCheckDto
+            {
+                Status = "degraded",
+                Message = PausedMessage,
             });
         }
 

@@ -211,6 +211,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAiUsageRecordRepository, AiUsageRecordRepository>();
         services.AddSingleton<IPluginRecordRepository, PluginRecordRepository>();
         services.AddSingleton<IPluginActivityRepository, PluginActivityRepository>();
+        services.AddSingleton<IPluginLibraryLimitRepository, PluginLibraryLimitRepository>();
         services.AddSingleton<INotificationRepository, NotificationRepository>();
         services.AddSingleton<IBackupDestinationRepository, BackupDestinationRepository>();
         services.AddSingleton<IPluginEventCursorRepository, PluginEventCursorRepository>();

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
 
@@ -11,7 +12,8 @@ namespace MediaEngine.Api.Services.Plugins;
 /// (task key <c>plugin:{pluginId}:{jobKey}</c>), so it is listed in Scheduled tasks and survives a restart. Limits, from
 /// <see cref="PluginHostLimits"/>: a job never overlaps itself, at most two plugin jobs run at once across the Engine, a
 /// run longer than ten minutes is cancelled and recorded as failed, and a job stopped that way three times in a row
-/// pauses until its plugin is switched off and on.
+/// pauses until its plugin is switched off and on. A plugin that declares itself heavy (Plugin architecture spec D11) waits while
+/// ingestion is working and runs one at a time, so it never competes with the Library finishing its own work.
 /// </summary>
 internal sealed class PluginJobScheduler : BackgroundService, IScheduledTaskDescriptorSource
 {
@@ -31,9 +33,12 @@ internal sealed class PluginJobScheduler : BackgroundService, IScheduledTaskDesc
     private readonly ILogger<PluginJobScheduler> _logger;
     private readonly PluginActivityService? _activity;
     private readonly SemaphoreSlim _slots;
+    private readonly SemaphoreSlim _heavySlot = new(1, 1);
+    private readonly IIngestionQueueProgressService? _ingestion;
     private readonly object _gate = new();
     private readonly Dictionary<string, JobTiming> _timings = new(StringComparer.Ordinal);
     private readonly HashSet<string> _running = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _heavyRunning = new(StringComparer.Ordinal);
     private readonly HashSet<string> _ignoredOverrides = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Task> _inFlight = new(StringComparer.Ordinal);
 
@@ -46,9 +51,11 @@ internal sealed class PluginJobScheduler : BackgroundService, IScheduledTaskDesc
         PluginHostLimits limits,
         TimeProvider clock,
         ILogger<PluginJobScheduler> logger,
-        PluginActivityService? activity = null)
+        PluginActivityService? activity = null,
+        IIngestionQueueProgressService? ingestion = null)
     {
         _activity = activity;
+        _ingestion = ingestion;
         _catalog = catalog;
         _statuses = statuses;
         _contexts = contexts;
@@ -219,13 +226,30 @@ internal sealed class PluginJobScheduler : BackgroundService, IScheduledTaskDesc
                 return;
             }
 
-            // At most MaxConcurrentJobs at once; a job that finds no room stays due and is tried again next pass.
-            if (!_slots.Wait(0))
+            // A heavy job waits for ingestion to finish and for any other heavy job (D11); it stays due and is tried again next pass.
+            var heavy = registration.Manifest.ResolvedDeclaration.WeightClass == PluginWeightClass.Heavy;
+            if (heavy && (_ingestion?.Current.State == "working" || !_heavySlot.Wait(0)))
             {
                 return;
             }
 
+            // At most MaxConcurrentJobs at once; a job that finds no room stays due and is tried again next pass.
+            if (!_slots.Wait(0))
+            {
+                if (heavy)
+                {
+                    _heavySlot.Release();
+                }
+
+                return;
+            }
+
             _running.Add(taskKey);
+            if (heavy)
+            {
+                _heavyRunning.Add(taskKey);
+            }
+
             timing.NextDue = PluginJobSchedules.NextDue(schedule, now);
         }
 
@@ -332,6 +356,10 @@ internal sealed class PluginJobScheduler : BackgroundService, IScheduledTaskDesc
             lock (_gate)
             {
                 _running.Remove(taskKey);
+                if (_heavyRunning.Remove(taskKey))
+                {
+                    _heavySlot.Release();
+                }
             }
 
             if (!status.IsPaused(PluginHostMessages.JobProblemKey(job.Key)))

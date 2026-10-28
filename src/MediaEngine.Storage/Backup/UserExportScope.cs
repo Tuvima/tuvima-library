@@ -88,6 +88,7 @@ public static class UserExportScope
         ["application_webhooks"] = "Server settings: webhooks belong to the Library and hold a signing secret.",
         ["approval_records"] = "Approvals an administrator gave on this Library; they say nothing about the new one.",
         ["plugin_lore_sources"] = "Server settings: lore sources belong to the Library.",
+        ["plugin_library_limits"] = "Server settings: which libraries a plugin works on belong to the Library.",
         ["metadata_providers"] = "Server settings: providers belong to the Library.",
         ["provider_config"] = "Server settings: provider settings belong to the Library.",
         ["notification_settings"] = "Server settings: notification channels belong to the Library.",
