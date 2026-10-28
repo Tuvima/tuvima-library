@@ -7059,6 +7059,18 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCapabilityDto
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCategories
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCheckNowResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Result: System.String | nullability=not-null | accessors=get,set
+  Summary: System.String | nullability=not-null | accessors=get,set
+  Steps: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginCheckStepDto> | nullability=not-null | accessors=get,set
+  CheckedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCheckStepDto
+  Label: System.String | nullability=not-null | accessors=get,set
+  Ok: System.Boolean | nullability=not-null | accessors=get,set
+  Detail: System.String | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeletedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   deleted: System.Boolean | nullability=not-null | accessors=get,init
@@ -7289,6 +7301,23 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalImpactR
   PluginId: System.String | nullability=not-null | accessors=get,set
   WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   Keeps: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalPreviewResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Lines: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Records: System.Int32 | nullability=not-null | accessors=get,set
+  RecordBytes: System.Int64 | nullability=not-null | accessors=get,set
+  SecretsSet: System.Int32 | nullability=not-null | accessors=get,set
+  SavedOutput: System.String | nullability=nullable | accessors=get,set
+  SavedOutputCount: System.Int32 | nullability=not-null | accessors=get,set
+  DefaultOutput: System.String | nullability=not-null | accessors=get,set
+  NeededBy: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemoveRequest
+  Output: System.String | nullability=nullable | accessors=get,set
+  AlsoSwitchOffDependants: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRequirementDto
   Kind: System.String | nullability=not-null | accessors=get,set

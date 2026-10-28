@@ -300,7 +300,16 @@ public sealed class PluginSecretsTests : IDisposable
         var secretsFile = Path.Combine(_root, "config", "secrets", "plugins", "tuvima.test.dynamic.json");
         Assert.True(File.Exists(secretsFile));
 
-        var deleted = await Execute(await PluginEndpoints.DeletePluginAsync("tuvima.test.dynamic", catalog, _store, default));
+        using var kit = new ApprovalTestKit();
+        var removal = new PluginRemovalService(
+            catalog,
+            new MediaEngine.Api.Services.Plugins.Sources.ProviderCapabilityCatalogue(_loader),
+            new PluginDataRepository(kit.Database),
+            _store,
+            new MediaEngine.Api.Services.Plugins.AiFeatures.AiFeatureRetractionService(null!, NullLogger<MediaEngine.Api.Services.Plugins.AiFeatures.AiFeatureRetractionService>.Instance),
+            new PluginActivityService(new PluginActivityRepository(kit.Database), new PluginCircuitBreaker(TimeProvider.System), TimeProvider.System, NullLogger<PluginActivityService>.Instance),
+            NullLogger<PluginRemovalService>.Instance);
+        var deleted = await Execute(await PluginEndpoints.DeletePluginAsync("tuvima.test.dynamic", null, catalog, removal, default));
 
         Assert.Equal(StatusCodes.Status200OK, deleted.Status);
         Assert.False(File.Exists(secretsFile));
