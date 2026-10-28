@@ -5,8 +5,8 @@ namespace MediaEngine.Api.Services.EditSession;
 
 /// <summary>
 /// A character, place or organisation of a Universe in the universal editor (the Chronicle explorer): its name and description, and a
-/// portrait and background. Name and description are stored together as one local pair (<c>fictional_entity_user_overrides</c>), the
-/// write the old shared entity editor made, so there is no per-field "reset" here. Appearances, relationships, the timeline and sources
+/// portrait and background. Each field is its own local override (<c>fictional_entity_user_overrides</c>): saving only the name leaves
+/// the description following the provider, and the other way round. Appearances, relationships, the timeline and sources
 /// come from Wikidata and the works, and stay read-only in the explorer.
 /// </summary>
 public sealed class FictionalEntityEditSubject(IFictionalEntityRepository entities) : IEditSubject
@@ -85,8 +85,10 @@ public sealed class FictionalEntityEditSubject(IFictionalEntityRepository entiti
         var before = await entities.FindByIdAsync(id, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException(EditSessionReasons.Gone);
 
-        var label = before.Label;
-        var description = before.Description;
+        // Start from the overrides as stored (not the merged values), so a field the person did not touch keeps following the provider.
+        var stored = await entities.GetUserDetailsAsync(id, ct).ConfigureAwait(false);
+        var label = stored?.Label;
+        var description = stored?.Description;
         foreach (var field in fields)
         {
             switch (field.Key.Trim().ToLowerInvariant())
@@ -103,8 +105,8 @@ public sealed class FictionalEntityEditSubject(IFictionalEntityRepository entiti
 
         await entities.UpdateUserDetailsAsync(id, label, description, ct).ConfigureAwait(false);
 
-        var previousLabel = before.Label;
-        var previousDescription = before.Description;
+        var previousLabel = stored?.Label;
+        var previousDescription = stored?.Description;
         return async undoCt =>
         {
             await entities.UpdateUserDetailsAsync(id, previousLabel, previousDescription, undoCt).ConfigureAwait(false);

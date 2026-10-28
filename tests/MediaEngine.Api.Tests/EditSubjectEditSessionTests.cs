@@ -337,6 +337,38 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     }
 
     [Fact]
+    public async Task FictionalEntity_SavingOnlyTheName_LeavesTheDescriptionFollowingTheProvider()
+    {
+        var entity = await SeedEntityAsync("Paul Atreides", "Heir to House Atreides.");
+
+        await _details.ApplyAsync(DetailsChange("d1", entity, ("name", "Muad'Dib")));
+
+        var stored = await _entities.GetUserDetailsAsync(entity);
+        Assert.Equal("Muad'Dib", stored!.Value.Label);
+        Assert.Null(stored.Value.Description);
+        Assert.Equal("Heir to House Atreides.", (await _entities.FindByIdAsync(entity))!.Description);
+    }
+
+    [Fact]
+    public async Task FictionalEntity_SavingOnlyTheDescription_LeavesTheNameFollowingTheProvider_AndUndoRemovesIt()
+    {
+        var entity = await SeedEntityAsync("Paul Atreides", "Heir.");
+
+        var undo = await _details.ApplyAsync(DetailsChange("d1", entity, ("description", "The Kwisatz Haderach.")));
+
+        var stored = await _entities.GetUserDetailsAsync(entity);
+        Assert.Null(stored!.Value.Label);
+        Assert.Equal("The Kwisatz Haderach.", stored.Value.Description);
+
+        await undo!(CancellationToken.None);
+
+        var restored = await _entities.GetUserDetailsAsync(entity);
+        Assert.Null(restored!.Value.Label);
+        Assert.Null(restored.Value.Description);
+        Assert.Equal("Heir.", (await _entities.FindByIdAsync(entity))!.Description);
+    }
+
+    [Fact]
     public async Task FictionalEntity_Check_RefusesAnEmptyNameAndAFieldItDoesNotHave()
     {
         var entity = await SeedEntityAsync("Paul Atreides", null);
