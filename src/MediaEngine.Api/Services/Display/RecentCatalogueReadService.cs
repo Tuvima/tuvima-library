@@ -13,11 +13,22 @@ internal sealed class RecentCatalogueReadService(
     DisplayCardBuilder cards,
     IDatabaseConnection database)
 {
-    public async Task<IReadOnlyList<DisplayRecentItemDto>> LoadAsync(string type, Guid profileId, DisplayRecentBoundary? boundary, int take, CancellationToken ct)
+    public async Task<IReadOnlyList<DisplayRecentItemDto>> LoadAsync(string type, Guid profileId, DisplayRecentBoundary? boundary, int take, CancellationToken ct, ISet<string>? availableTypes = null)
     {
         // Rank the shows, albums and works from a light listing, then load full rows only for the leading ones.
         // Content ratings are only known on full rows, so a page that comes up short widens to the next batch.
         var candidates = await authorization.FilterRecentCandidatesAsync(await reader.LoadRecentCandidatesAsync(ct), profileId, ct);
+        if (availableTypes is not null)
+        {
+            // Which pills have anything behind them, whatever the current filter is.
+            foreach (var part in new[] { "watch", "read", "listen" })
+            {
+                if (candidates.Any(candidate => DisplayRecentCursor.IncludesMedia(part, candidate.MediaType)))
+                {
+                    availableTypes.Add(part);
+                }
+            }
+        }
         var groups = RankGroups(candidates, type, boundary);
         ct.ThrowIfCancellationRequested();
         var additions = LoadAdditions(ct);
@@ -185,15 +196,7 @@ internal sealed class RecentCatalogueReadService(
         var tvGroups = new HashSet<(bool IsRoot, Guid Id)>();
         foreach (var candidate in candidates)
         {
-            var include = type switch
-            {
-                "watch" => DisplayMediaRules.IsWatchKind(candidate.MediaType),
-                "read" => DisplayMediaRules.IsReadKind(candidate.MediaType),
-                "listen" => DisplayMediaRules.IsListenKind(candidate.MediaType),
-                "all" => true,
-                _ => false
-            };
-            if (!include)
+            if (!DisplayRecentCursor.IncludesMedia(type, candidate.MediaType))
             {
                 continue;
             }
@@ -228,14 +231,7 @@ internal sealed class RecentCatalogueReadService(
 
     public static IReadOnlyList<DisplayRecentItemDto> Compose(IReadOnlyList<DisplayWorkRow> rows, DisplayCardBuilder cards, string type, DisplayRecentBoundary? boundary, int take, IReadOnlyDictionary<Guid, DisplayJourneyRow>? progress = null, IReadOnlyDictionary<Guid, DisplayTvShowSummary>? tvSummaries = null)
     {
-        var filtered = rows.Where(r => type switch
-        {
-            "watch" => DisplayMediaRules.IsWatchKind(r.MediaType),
-            "read" => DisplayMediaRules.IsReadKind(r.MediaType),
-            "listen" => DisplayMediaRules.IsListenKind(r.MediaType),
-            "all" => true,
-            _ => false
-        }).ToList();
+        var filtered = rows.Where(r => DisplayRecentCursor.IncludesMedia(type, r.MediaType)).ToList();
         var result = new List<DisplayCardDto>();
         result.AddRange(cards.BuildTvShowCards(filtered, progress, tvSummaries));
         foreach (var group in filtered.Where(r => DisplayMediaRules.NormalizeDisplayKind(r.MediaType) == "Music")

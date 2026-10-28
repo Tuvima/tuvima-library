@@ -3527,6 +3527,7 @@
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayRecentItemDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NextCursor: System.String | json=nextCursor | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasMore: System.Boolean | json=hasMore | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AvailableTypes: System.Collections.Generic.IReadOnlyList<System.String> | json=availableTypes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Display.DisplayRecentViewAssetDto
   kind=class | converter=default | number-handling=default | unmapped=default

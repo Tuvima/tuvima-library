@@ -2938,6 +2938,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayRecentPageDto
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayRecentItemDto> | nullability=not-null | accessors=get,init
   NextCursor: System.String | nullability=nullable | accessors=get,init
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
+  AvailableTypes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayRecentViewAssetDto
   AssetId: System.Guid | nullability=not-null | accessors=get,init
