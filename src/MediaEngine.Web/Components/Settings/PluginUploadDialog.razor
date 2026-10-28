@@ -9,7 +9,9 @@
 @if (Open)
 {
     <AppDialogFrame Open="true" Title="Upload plugin" DialogOptions="DialogShape" OnCancel="CloseAsync">
-        <div class="plugin-upload" data-testid="plugin-upload-dialog">
+        <AppDialogShell Modal="false" Title="Upload plugin" Size="Medium" Tone="AppUiTone.Warning" OnClose="CloseAsync">
+        <ChildContent>
+        <div class="plugin-upload app-dialog-shell__pad app-dialog-shell__pad--stretch" data-testid="plugin-upload-dialog">
             <AppAlert Tone="AppUiTone.Warning">Only upload plugins you trust. A plugin can read and change your library.</AppAlert>
             <p>Only plugins described entirely in JSON can be uploaded. An uploaded plugin is marked Private and arrives switched off; you see what it can do before you switch it on. Any keys it needs are kept in the config folder as plain text, and the page never shows them back.</p>
             <AppFileUpload T="IBrowserFile" Accept=".zip" FilesChanged="@Chosen" Disabled="@_busy">
@@ -21,18 +23,20 @@
             {
                 <AppAlert Tone="AppUiTone.Error" data-testid="plugin-upload-problem">@_problem</AppAlert>
             }
-            <AppActionBar Align="AppHorizontalAlignment.End">
-                <AppButton Label="Cancel" OnClick="CloseAsync" Disabled="@_busy" />
-                <AppButton Label="Upload" StartIcon="@AppMaterialIcons.Outlined.UploadFile" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Disabled="@(_file is null || _busy)" Loading="@_busy" OnClick="UploadAsync" />
-            </AppActionBar>
         </div>
+        </ChildContent>
+        <FooterContent>
+            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="CloseAsync" Disabled="@_busy" />
+            <AppButton Label="Upload" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Disabled="@(_file is null || _busy)" Loading="@_busy" OnClick="UploadAsync" />
+        </FooterContent>
+        </AppDialogShell>
     </AppDialogFrame>
 }
 
 @code {
     private const long MaxPackageBytes = 64L * 1024 * 1024;
-    private static readonly AppDialogOptions DialogShape = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = false, CloseOnEscapeKey = true };
+    private static readonly AppDialogOptions DialogShape = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = false, CloseOnEscapeKey = true, NoHeader = true };
 
     private IBrowserFile? _file;
     private string? _problem;

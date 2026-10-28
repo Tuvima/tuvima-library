@@ -12,8 +12,8 @@
         @if (_error is not null) { <p role="alert">@_error</p> }
     </DialogContent>
     <DialogActions>
-        <AppButton OnClick="@(() => Dialog.Cancel())">Cancel</AppButton>
-        <AppButton Disabled="@(_saving || _selected is null)" OnClick="SaveAsync">Add</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => Dialog.Cancel())">Cancel</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || _selected is null)" OnClick="SaveAsync">Add</AppButton>
     </DialogActions>
 </AppDialog>
 @code {

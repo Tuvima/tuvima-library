@@ -4,20 +4,23 @@
 @if (Open)
 {
     <div class="admin-unlock__backdrop">
-        <div class="admin-unlock" role="dialog" aria-modal="true" aria-labelledby="admin-unlock-title">
-            <h2 id="admin-unlock-title" class="admin-unlock__title">Enter your administrator PIN</h2>
-            <p class="admin-unlock__hint">This is only asked for when administrator protection is turned on.</p>
-            <PinPad @bind-Value="_pin" Disabled="@Busy" MaxLength="12" OnSubmit="SubmitAsync" OnCancel="Cancel" />
-            @if (!string.IsNullOrWhiteSpace(Error))
-            {
-                <p class="admin-unlock__error" role="alert">@Error</p>
-            }
-            <div class="admin-unlock__actions">
-                <AppNativeButton Type="button" Class="who-button" Disabled="@Busy" OnClick="Cancel">Cancel</AppNativeButton>
-                <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(Busy || _pin.Length < 4)" OnClick="SubmitAsync">
-                    @(Busy ? "Checking…" : "Continue")
-                </AppNativeButton>
-            </div>
+        <div class="admin-unlock">
+            <AppDialogShell Title="Enter your administrator PIN" Size="Small" Tone="AppUiTone.Info" OnClose="Cancel">
+                <ChildContent>
+                    <div class="app-dialog-shell__pad">
+                        <p class="admin-unlock__hint">This is only asked for when administrator protection is turned on.</p>
+                        <PinPad @bind-Value="_pin" Disabled="@Busy" MaxLength="12" OnSubmit="SubmitAsync" OnCancel="Cancel" />
+                        @if (!string.IsNullOrWhiteSpace(Error))
+                        {
+                            <p class="admin-unlock__error" role="alert">@Error</p>
+                        }
+                    </div>
+                </ChildContent>
+                <FooterContent>
+                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="Cancel" />
+                    <AppButton Label="@(Busy ? "Checking…" : "Continue")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Busy || _pin.Length < 4)" OnClick="SubmitAsync" />
+                </FooterContent>
+            </AppDialogShell>
         </div>
     </div>
 }

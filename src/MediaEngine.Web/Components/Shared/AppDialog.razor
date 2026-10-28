@@ -14,6 +14,8 @@ else
     [Parameter] public string? Subtitle { get; set; }
     [Parameter] public string? Eyebrow { get; set; }
     [Parameter] public string? Icon { get; set; }
+    /// <summary>The popup's icon tone (see <see cref="AppDialogShell.Tone"/>).</summary>
+    [Parameter] public AppUiTone? Tone { get; set; }
     [Parameter] public string Size { get; set; } = "Large";
     [Parameter] public bool Visible { get; set; }
     [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
@@ -27,17 +29,36 @@ else
     [Parameter] public string? Class { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
     private AppDialogOptions ResolvedOptions => Options ?? new() { MaxWidth = AppMaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
+    private string ResolvedTitle => !string.IsNullOrWhiteSpace(Title) ? Title : Context?.Title ?? string.Empty;
+    private string ResolvedSize => (Options ?? Context?.Options)?.MaxWidth switch
+    {
+        AppMaxWidth.Small or AppMaxWidth.ExtraSmall => "Small",
+        AppMaxWidth.Medium => "Medium",
+        null => Size == "Large" ? "Medium" : Size,
+        _ => Size,
+    };
     private string ResolvedClass => $"app-dialog-host {Class}";
     protected override async Task OnParametersSetAsync()
     {
-        if (Context is not null) await Context.SetPresentationClassAsync(ResolvedClass);
+        if (Context is null) return;
+        await Context.SetPresentationClassAsync(ResolvedClass);
+        // The shared card draws its own title, so the frame's plain header would repeat it.
+        if (DialogActions is not null && Context.Options.NoHeader != true)
+            await Context.SetOptionsAsync(Context.Options with { NoHeader = true });
     }
     private RenderFragment Content => @<text>
-        @if (DialogContent is not null || DialogActions is not null || TitleContent is not null)
+        @if (DialogActions is not null)
+        {
+            @* The words-and-buttons popup: the same card as every other popup (one-look spec WP2), with the caller's buttons in the footer. *@
+            <AppDialogShell Modal="false" Title="@ResolvedTitle" Subtitle="@Subtitle" Tone="@Tone" Size="@ResolvedSize" OnClose="CloseAsync">
+                <ChildContent><div class="app-dialog-content tl-dialog-content">@DialogContent</div></ChildContent>
+                <FooterContent>@DialogActions</FooterContent>
+            </AppDialogShell>
+        }
+        else if (DialogContent is not null || TitleContent is not null)
         {
             @if (TitleContent is not null) { <header class="app-dialog-title tl-dialog-title">@TitleContent</header> }
             <div class="app-dialog-content tl-dialog-content">@DialogContent</div>
-            @if (DialogActions is not null) { <footer class="app-dialog-actions tl-dialog-actions">@DialogActions</footer> }
         }
         else
         {

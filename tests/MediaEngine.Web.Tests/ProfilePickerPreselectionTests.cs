@@ -82,7 +82,7 @@ public sealed class ProfilePickerPreselectionTests : AsyncBunitContext
 
         cut.Find(".who-button--primary").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("Enter Dad's PIN", cut.Find("#who-pin-title").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("Enter Dad's PIN", cut.Find(".app-dialog-shell__title").TextContent));
         Assert.DoesNotContain(_requests, request => request.Path == "/auth/session/switch-profile");
     }
 

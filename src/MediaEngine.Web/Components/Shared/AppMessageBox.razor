@@ -1,13 +1,17 @@
 @namespace MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Ui
-<div class="app-message-box">
-    <div class="app-message-box__message">@if (Message is MarkupString markup) { @markup } else { @Message }</div>
-    <footer class="app-message-box__actions">
-        @if (CancelText is not null) { <AppButton OnClick="CancelAsync">@CancelText</AppButton> }
-        @if (NoText is not null) { <AppButton OnClick="NoAsync">@NoText</AppButton> }
-        <AppButton OnClick="YesAsync">@YesText</AppButton>
-    </footer>
-</div>
+@* The service's generic alert / question, drawn as the shared popup card (one-look spec WP2): the caller's title, the message,
+   and the buttons bottom right with the main choice last. *@
+<AppDialog Tone="AppUiTone.Info" Size="Small">
+    <DialogContent>
+        <div class="app-message-box__message">@if (Message is MarkupString markup) { @markup } else { @Message }</div>
+    </DialogContent>
+    <DialogActions>
+        @if (CancelText is not null) { <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="CancelAsync">@CancelText</AppButton> }
+        @if (NoText is not null) { <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="NoAsync">@NoText</AppButton> }
+        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="YesAsync">@YesText</AppButton>
+    </DialogActions>
+</AppDialog>
 @code {
     [CascadingParameter] public IAppDialogContext Dialog { get; set; } = default!;
     [Parameter] public object? Message { get; set; }
