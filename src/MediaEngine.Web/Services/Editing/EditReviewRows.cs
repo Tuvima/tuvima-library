@@ -59,27 +59,37 @@ public static class EditReviewRows
 
     public static IReadOnlyList<EditReviewRow> Build(PendingEditList pending, EditSessionState session, ItemFieldEditSession fields)
     {
-        ArgumentNullException.ThrowIfNull(pending);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(fields);
+        return Build(pending, session.ItemName, fields);
+    }
+
+    /// <summary>
+    /// The rows for a pending list whose items are named by <paramref name="itemName"/>. <paramref name="fields"/> is the loaded item's
+    /// values (a detail page); a list has none, so its rows have no "before" and a field reads as its key made readable.
+    /// </summary>
+    public static IReadOnlyList<EditReviewRow> Build(PendingEditList pending, Func<Guid, string?> itemName, ItemFieldEditSession? fields)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        ArgumentNullException.ThrowIfNull(itemName);
 
         var rows = new List<EditReviewRow>();
         foreach (var change in pending.Changes)
         {
-            var item = session.ItemName(change.EntityId) ?? UnknownItem;
+            var item = itemName(change.EntityId) ?? UnknownItem;
             var label = pending.Label(change.Id);
             switch (change.Kind)
             {
                 case EditSessionChangeKinds.Details:
                     foreach (var field in change.Fields)
                     {
-                        var presented = fields.Find(field.Key);
-                        var before = fields.EntityId == change.EntityId && presented is not null
+                        var presented = fields?.Find(field.Key);
+                        var before = fields is not null && fields.EntityId == change.EntityId && presented is not null
                             ? FirstText(presented.DisplayValue, presented.Value)
                             : null;
                         var after = string.IsNullOrWhiteSpace(field.Value) ? "Provider value" : field.Value.Trim();
                         rows.Add(new EditReviewRow(change.Id, field.Key, change.EntityId, change.Kind, EditReviewGroup.Metadata, item,
-                            presented?.Label ?? field.Key, before, after, null));
+                            presented?.Label ?? ReadableKey(field.Key), before, after, null));
                     }
 
                     break;
@@ -105,6 +115,13 @@ public static class EditReviewRows
 
         // Stable: groups in the spec's order, each keeping the order the changes were staged in.
         return rows.OrderBy(row => row.Group).ToList();
+    }
+
+    // "release_year" reads "Release year" when no loaded item gives the field its own label.
+    private static string ReadableKey(string key)
+    {
+        var words = key.Replace('_', ' ').Trim();
+        return words.Length == 0 ? key : char.ToUpperInvariant(words[0]) + words[1..];
     }
 
     private static string? FirstText(params string?[] values) => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();

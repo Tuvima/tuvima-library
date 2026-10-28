@@ -16,7 +16,8 @@ namespace MediaEngine.Api.Services.EditSession;
 /// </summary>
 public sealed class EditSessionService(
     IEnumerable<IEditSessionChangeHandler> handlers,
-    ILogger<EditSessionService> logger) : IEditSessionService
+    ILogger<EditSessionService> logger,
+    IEditSessionFileWrites? fileWrites = null) : IEditSessionService
 {
     private readonly Dictionary<string, IEditSessionChangeHandler> _handlers =
         handlers.ToDictionary(handler => handler.Kind, StringComparer.Ordinal);
@@ -47,7 +48,30 @@ public sealed class EditSessionService(
             };
         }
 
-        return await ApplyAsync(request.Changes, ct).ConfigureAwait(false);
+        var applied = await ApplyAsync(request.Changes, ct).ConfigureAwait(false);
+        await QueueFilesAsync(request, applied).ConfigureAwait(false);
+        return applied;
+    }
+
+    // The library setting "Save changes into the files" (spec D15) decides in the write list whether a file is really written. This is the
+    // one place a session asks: after the data changes are in the library, and never when this save said not to update the files.
+    private async Task QueueFilesAsync(EditSessionRequest request, EditSessionResult applied)
+    {
+        if (fileWrites is null || request.WriteIntoFiles == false || !applied.DataSaved)
+        {
+            return;
+        }
+
+        var saved = applied.Changes.Where(result => result.Status == EditSessionChangeStatuses.Ok).Select(result => result.Id).ToHashSet(StringComparer.Ordinal);
+        var entities = request.Changes
+            .Where(change => saved.Contains(change.Id) && EditSessionFileWriteRules.ChangesFileContent(change))
+            .Select(change => change.EntityId)
+            .Distinct()
+            .ToList();
+        if (entities.Count > 0)
+        {
+            await fileWrites.QueueAsync(entities, CancellationToken.None).ConfigureAwait(false);
+        }
     }
 
     private async Task<List<(EditSessionChange Change, string? Reason)>> CheckAllAsync(

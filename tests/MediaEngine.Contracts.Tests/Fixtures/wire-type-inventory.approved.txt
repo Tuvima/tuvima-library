@@ -3638,7 +3638,8 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   PreviewOnly: System.Boolean | json=preview_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChange> | json=changes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"preview_only":true,"changes":[]}
+  WriteIntoFiles: System.Boolean? | json=write_into_files | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"preview_only":true,"changes":[],"write_into_files":true}
 
 [contracts] MediaEngine.Contracts.Editing.EditSessionResult
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -81,7 +81,7 @@
             }
 
             <p class="review-changes__note">Provider records are never modified.</p>
-            <ReviewFilesStatus />
+            <ReviewFilesStatus Source="Source" Disabled="@Busy" />
         </div>
     </ChildContent>
     <FooterContent>
@@ -116,7 +116,7 @@
 
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
 
-    [Parameter, EditorRequired] public EditSessionFlow Flow { get; set; } = default!;
+    [Parameter, EditorRequired] public IReviewSource Source { get; set; } = default!;
 
     private bool Busy => _loading || _saving;
 
@@ -131,13 +131,13 @@
     private string SaveLabel => _saving ? "Saving..." : _rows.Count == 1 ? "Save 1 change" : $"Save {_rows.Count} changes";
 
     /// <summary>Opens Review changes for the flow's pending list and returns how the person left it.</summary>
-    public static async Task<ReviewChangesOutcome> ShowAsync(IAppDialogService dialogs, EditSessionFlow flow)
+    public static async Task<ReviewChangesOutcome> ShowAsync(IAppDialogService dialogs, IReviewSource source)
     {
         ArgumentNullException.ThrowIfNull(dialogs);
-        ArgumentNullException.ThrowIfNull(flow);
+        ArgumentNullException.ThrowIfNull(source);
         var dialog = await dialogs.ShowAsync<ReviewChangesDialog>(
             string.Empty,
-            new AppDialogParameters<ReviewChangesDialog> { { component => component.Flow, flow } },
+            new AppDialogParameters<ReviewChangesDialog> { { component => component.Source, source } },
             new AppDialogOptions
             {
                 MaxWidth = AppMaxWidth.Medium,
@@ -161,7 +161,7 @@
     // Rebuilds the rows from the pending list and asks the Engine to check them. A change the check refuses keeps its reason on its row.
     private async Task RefreshAsync()
     {
-        _rows = [.. Flow.ReviewRows()];
+        _rows = [.. Source.ReviewRows()];
         _results.Clear();
         _notice = null;
         _afterSave = false;
@@ -173,7 +173,7 @@
 
         _loading = true;
         StateHasChanged();
-        var outcome = await Flow.PreviewAsync();
+        var outcome = await Source.PreviewAsync();
         if (outcome.Results is { } results)
         {
             foreach (var result in results)
@@ -202,7 +202,7 @@
             EditSessionChangeStatuses.Invalid or EditSessionChangeStatuses.Failed => (result.Status, reason),
             EditSessionChangeStatuses.NotApplied => ("not_applied", "Not applied"),
             // A passed check is not worth a line; after a save it means saved, unless the whole list was held back.
-            _ => _afterSave ? (Flow.DataSaved ? "ok" : "not_applied", Flow.DataSaved ? "Saved" : "Not applied") : ("ok", null),
+            _ => _afterSave ? (Source.DataSaved ? "ok" : "not_applied", Source.DataSaved ? "Saved" : "Not applied") : ("ok", null),
         };
     }
 
@@ -223,13 +223,13 @@
 
     private async Task RemoveAsync(EditReviewRow row)
     {
-        Flow.RemoveReviewRow(row);
+        Source.RemoveReviewRow(row);
         await RefreshAsync();
     }
 
     private async Task EditAsync(EditReviewRow row)
     {
-        await Flow.JumpToAsync(row);
+        await Source.JumpToAsync(row);
         await Dialog.CloseAsync(AppDialogResult.Ok(ReviewChangesOutcome.Edit));
     }
 
@@ -238,7 +238,7 @@
     private async Task DiscardAsync()
     {
         // Asks "Unsaved changes" first; staying keeps this dialog and every change.
-        if (await Flow.LeaveAsync())
+        if (await Source.LeaveAsync())
         {
             await Dialog.CloseAsync(AppDialogResult.Ok(ReviewChangesOutcome.Discarded));
         }
@@ -253,7 +253,7 @@
 
         _saving = true;
         _notice = null;
-        var saved = await Flow.SaveAsync();
+        var saved = await Source.SaveAsync();
         _saving = false;
         if (saved)
         {
@@ -262,13 +262,13 @@
         }
 
         _results.Clear();
-        foreach (var result in Flow.Results)
+        foreach (var result in Source.Results)
         {
             _results[result.Id] = result;
         }
 
         _afterSave = true;
-        if (Flow.DataSaved)
+        if (Source.DataSaved)
         {
             // The data is in the library; what is left are file moves (or similar) that did not go through. The rows are no longer editable.
             var failed = _rows.Count(row => _results.TryGetValue(row.ChangeId, out var result) && result.Status != EditSessionChangeStatuses.Ok);
@@ -279,9 +279,9 @@
                 : $"Your changes were saved; {failed} {(failed == 1 ? "change" : "changes")} could not be completed.";
             _finished = true;
         }
-        else if (!string.IsNullOrWhiteSpace(Flow.Message))
+        else if (!string.IsNullOrWhiteSpace(Source.Message))
         {
-            _notice = Flow.Message;
+            _notice = Source.Message;
         }
         else if (_results.Count == 0)
         {

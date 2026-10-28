@@ -8,7 +8,7 @@ namespace MediaEngine.Web.Services.Editing;
 /// "Unsaved changes" first when anything is staged; Save checks everything before it writes anything and keeps a change that failed in
 /// the list with its reason. The list's filters, sort and scroll are not touched here: the host only refreshes its rows after a save.
 /// </summary>
-public sealed class BulkEditSession
+public sealed class BulkEditSession : IReviewSource
 {
     private readonly EditSessionSaver _saver;
     private readonly Func<Task<bool>> _confirmDiscard;
@@ -34,6 +34,42 @@ public sealed class BulkEditSession
     /// <summary>A plain sentence when the last save could not even be tried (Engine unreachable).</summary>
     public string? Message { get; private set; }
 
+    /// <summary>The Engine's answer for every change in the last save (Review changes shows one status per row).</summary>
+    public IReadOnlyList<EditSessionChangeResult> Results { get; private set; } = [];
+
+    /// <summary>True when the last save wrote the data changes to the library.</summary>
+    public bool DataSaved { get; private set; }
+
+    /// <summary>The editor media types of the list's rows, which say which library's file setting applies (set by the host).</summary>
+    public Func<IReadOnlyList<string>>? MediaTypes { get; set; }
+
+    IReadOnlyList<string> IReviewSource.FileWriteMediaTypes => MediaTypes?.Invoke() ?? [];
+
+    /// <summary>This save's own answer to "Save changes into the files" (null follows the library). Reset after a save or a discard.</summary>
+    public bool? WriteIntoFiles { get; set; }
+
+    /// <summary>Names the items for Review changes (set by the host from the rows it has ticked).</summary>
+    public Func<Guid, string?>? ItemName { get; set; }
+
+    /// <summary>Review's Edit on a row: a list has one panel for every change, so there is no tool to go back to.</summary>
+    public Task JumpToAsync(EditReviewRow row) => Task.CompletedTask;
+
+    /// <summary>The pending list as the rows Review changes shows.</summary>
+    public IReadOnlyList<EditReviewRow> ReviewRows() => EditReviewRows.Build(Pending, id => ItemName?.Invoke(id), fields: null);
+
+    /// <summary>Asks the Engine to check the pending list without saving anything (Review changes opens with this).</summary>
+    public Task<EditSessionSaveOutcome> PreviewAsync(CancellationToken ct = default) => _saver.PreviewAsync(Pending, ct);
+
+    /// <summary>Takes one Review row's change back out of the pending list. A details row takes only its own field.</summary>
+    public bool RemoveReviewRow(EditReviewRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        return row.FieldKey is { } key ? Pending.ClearField(row.EntityId, key) : Pending.Remove(row.ChangeId);
+    }
+
+    /// <summary>Discard changes in Review: the same question and the same result as Cancel.</summary>
+    public Task<bool> LeaveAsync() => CancelAsync();
+
     /// <summary>Raised after a save that reached the library, so the host can refresh its rows.</summary>
     public Func<Task>? Saved { get; set; }
 
@@ -58,6 +94,9 @@ public sealed class BulkEditSession
         Pending.Discard();
         Failures = [];
         Message = null;
+        Results = [];
+        DataSaved = false;
+        WriteIntoFiles = null;
         RaiseChanged();
         return true;
     }
@@ -73,11 +112,13 @@ public sealed class BulkEditSession
         Saving = true;
         Failures = [];
         Message = null;
+        Results = [];
+        DataSaved = false;
         RaiseChanged();
         EditSessionSaveOutcome outcome;
         try
         {
-            outcome = await _saver.SaveAsync(Pending);
+            outcome = await _saver.SaveAsync(Pending, WriteIntoFiles);
         }
         finally
         {
@@ -86,6 +127,8 @@ public sealed class BulkEditSession
 
         Failures = outcome.Failures;
         Message = outcome.Message;
+        Results = outcome.Results ?? [];
+        DataSaved = outcome.Saved;
         if (!outcome.Saved)
         {
             RaiseChanged();
@@ -100,6 +143,11 @@ public sealed class BulkEditSession
         foreach (var id in outcome.AppliedIds ?? [])
         {
             Pending.Remove(id);
+        }
+
+        if (Pending.IsEmpty)
+        {
+            WriteIntoFiles = null;
         }
 
         RaiseChanged();

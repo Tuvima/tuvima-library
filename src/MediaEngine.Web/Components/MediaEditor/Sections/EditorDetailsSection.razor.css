@@ -306,25 +306,6 @@
     color: #91adf6;
 }
 
-.sme-details-writeback {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 28px;
-    padding-top: 13px;
-    color: rgba(192, 205, 230, 0.74);
-    font-size: 13px;
-}
-
-.sme-details-writeback ::deep .tl-icon-root {
-    color: #63d8aa;
-}
-
-.sme-details-writeback__hint {
-    margin-left: 4px;
-    color: rgba(177, 190, 216, 0.48);
-}
-
 .sme-details-inline-error {
     margin-top: 12px;
     color: #ff9b9b;

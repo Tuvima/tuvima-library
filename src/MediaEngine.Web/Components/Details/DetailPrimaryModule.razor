@@ -20,8 +20,7 @@
                                                 ShowIdentity="false"
                                                 RequestedSeasonId="SelectedSeasonId"
                                                 OnSeasonSelected="OnSeasonSelected"
-                                                OnContainerSelected="OnContainerSelected"
-                                                OnEditItem="OnEditItem" />
+                                                OnContainerSelected="OnContainerSelected" />
                     }
                     else if (FilteredItems.Count == 0)
                     {
@@ -69,7 +68,6 @@
     [Parameter] public Guid? SelectedSeasonId { get; set; }
     [Parameter] public EventCallback<Guid> OnSeasonSelected { get; set; }
     [Parameter] public EventCallback<SequenceContainerOptionViewModel> OnContainerSelected { get; set; }
-    [Parameter] public EventCallback<SequenceItemViewModel> OnEditItem { get; set; }
 
     private string _selectedLane = "all";
     private string _selectedRole = "all";

@@ -106,7 +106,6 @@ public partial class SharedMediaEditorShell
     private List<LibraryItemHistoryDto> _history = [];
     private string? _historyError;
     private ArtworkEditorDto? _artwork;
-    private ArtworkWritebackSettingsDto? _writebackSettings;
     private ArtworkWritebackStatusDto? _writebackStatus;
     private AssetFileWriteStatusDto? _fileWriteStatus;
     private MediaEditorContextDto? _editorContext;
@@ -372,20 +371,6 @@ public partial class SharedMediaEditorShell
     protected bool HasStagedEditorChanges => IsDirty;
     protected bool HasMatchDraft => _selectedRetailCandidateId is not null || _selectedWikidataCandidateId is not null || _selectedTvdbCandidate is not null;
     protected bool HasPendingNavigationChanges => HasStagedEditorChanges || HasPendingDetailsInlineEdit || HasMatchDraft;
-    protected string WritebackPolicyLabel => _writebackSettings switch
-    {
-        null => "unavailable",
-        { MetadataWritebackEnabled: false, ArtworkEnabled: false } => "off",
-        _ when SelectedNavigatorNode?.PrimaryAssetId is null => "unavailable",
-        _ when string.Equals(_writebackStatus?.Status, "Unsupported", StringComparison.OrdinalIgnoreCase)
-            && !_writebackSettings.MetadataWritebackEnabled => "unsupported",
-        _ when _writebackStatus?.Reason?.Contains("read-only", StringComparison.OrdinalIgnoreCase) == true => "read-only",
-        _ => "enabled",
-    };
-    protected string WritebackPolicyExplanation =>
-        $"Metadata policy: {(_writebackSettings?.MetadataWritebackEnabled == true ? "on" : "off or unavailable")}. "
-        + $"Artwork policy: {(_writebackSettings?.ArtworkEnabled == true ? "on" : "off or unavailable")}. "
-        + "This policy does not confirm a file write. See History for actual outcomes.";
     protected bool ShouldShowEditorFooter =>
         (HasStagedEditorChanges && !HasPendingDetailsInlineEdit && !IsOnlyArtworkUploadInFlight)
         || Request.Mode == SharedMediaEditorMode.Review;
@@ -760,8 +745,6 @@ public partial class SharedMediaEditorShell
         {
             Logger.LogDebug(ex, "Provider catalogue unavailable while opening the media editor");
         }
-
-        _writebackSettings = await ApiClient.GetArtworkWritebackSettingsAsync();
 
         if (IsSingleItem)
         {
