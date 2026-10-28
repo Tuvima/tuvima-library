@@ -77,8 +77,15 @@ public sealed class ViewerAccessService(IDisplayProjectionReadService display) :
         // Selected libraries the profile was not chosen for, items over the content limit and files that are only Unmatched. A request
         // with no usable authority gets no rows, so the catalogue is empty and fails closed.
         var rows = await display.LoadWorkLibraryRowsAsync(ct).ConfigureAwait(false);
-        return new ViewerCatalogue(rows.Select(row => new ViewerCatalogueFile(row.WorkId, row.AssetId, row.CreatedAt)));
+        return CatalogueOf(rows);
     }
+
+    /// <summary>
+    /// The catalogue for rows the authorized projection already produced. The one place a catalogue is built from rows, so every caller
+    /// agrees on what a row means (the work, the file it shows and the library it sits in).
+    /// </summary>
+    public static ViewerCatalogue CatalogueOf(IEnumerable<DisplayWorkRow> rows) =>
+        new(rows.Select(row => new ViewerCatalogueFile(row.WorkId, row.AssetId, row.CreatedAt, row.LibraryId)));
 
     public async ValueTask<IReadOnlyList<DisplayWorkRow>> GetVisibleWorksAsync(CancellationToken ct = default) =>
         await display.LoadWorksAsync(ct).ConfigureAwait(false);

@@ -287,8 +287,25 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.DoesNotContain(allowedCredits, credit => credit.WorkId == shape.Secret.WorkId);
     }
 
-    [Fact]
-    public async Task LinkedPeople_AnAudiobookNarratorCredit_OnAnotherFileOfAVisibleWork_StillCounts()
+    /// <summary>A new file id that sorts before or after another as the data store sorts ids (as bytes), so id ties are decided on purpose.</summary>
+    private static Guid NewAssetIdSortingRelativeTo(Guid other, bool before)
+    {
+        var otherBlob = GuidSql.ToBlob(other);
+        while (true)
+        {
+            var candidate = Guid.NewGuid();
+            var order = GuidSql.ToBlob(candidate).AsSpan().SequenceCompareTo(otherBlob);
+            if (before ? order < 0 : order > 0)
+            {
+                return candidate;
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LinkedPeople_AnAudiobookNarratorCredit_OnAnotherFileOfAVisibleWork_StillCounts(bool audiobookSortsFirst)
     {
         // The catalogue holds one chosen file per (work, library); a credit on another file of the same visible work (a narrator credited
         // only on the audiobook edition while the list shows the book) must keep counting for an ordinary viewer (finding 3).
@@ -296,7 +313,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var library = Guid.NewGuid();
         await CreateHumanAsync(account, EveryFeature, new HashSet<Guid>());
         var book = await InsertOwnedWorkWithIdAsync(library, "Book with narration", "Book");
-        var audiobookAsset = Guid.NewGuid();
+        // The list keeps one file per (work, library), the lowest id among equals, so the id order decides which file the viewer's list
+        // shows. Both orders are exercised so the result never depends on random ids.
+        var audiobookAsset = NewAssetIdSortingRelativeTo(book.AssetId, audiobookSortsFirst);
         var audiobookEdition = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
         {
@@ -305,6 +324,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
                 INSERT INTO editions (id, work_id) VALUES (@edition, @work);
                 INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)
                 VALUES (@asset, @edition, @hash, @path, datetime('now', '+1 day'), @library);
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@asset, 'title', 'Book with narration', CURRENT_TIMESTAMP);
                 """,
                 new
                 {
