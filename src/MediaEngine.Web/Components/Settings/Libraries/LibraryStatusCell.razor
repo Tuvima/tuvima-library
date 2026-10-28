@@ -1,0 +1,39 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Formatting
+
+@* A library's status in words (Library pages D17): Healthy, Needs review (a count that links to Needs Review for the library), Empty,
+   Folder offline (the warning's words open as a tooltip) or Scanning. Nothing is claimed while the status is not known. *@
+@if (Row.Status is not { } status)
+{
+    <span class="lib-status lib-status--muted" data-status="unknown" aria-label="No status to show">—</span>
+}
+else
+{
+    switch (status)
+    {
+        case LibraryStatusKind.Healthy:
+            <span class="lib-status" data-status="healthy"><LibraryHealthIcon Health="@LibraryHealth.Ok" />Healthy</span>
+            break;
+        case LibraryStatusKind.NeedsReview:
+            <a class="lib-status lib-status--warning" data-status="needs-review" href="@LibraryListing.NeedsReviewAddress(Row.Key)" @onclick:stopPropagation="true"
+               aria-label="@($"Needs review, {DisplayFormat.FormatCount(Row.NeedsReview)}. Open Needs Review for {Row.Name}")">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />Needs review (@DisplayFormat.FormatCount(Row.NeedsReview))
+            </a>
+            break;
+        case LibraryStatusKind.FolderOffline:
+            <AppTooltip Text="@Row.StatusDetail">
+                <span class="lib-status lib-status--warning" data-status="folder-offline" tabindex="0"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />Folder offline</span>
+            </AppTooltip>
+            break;
+        case LibraryStatusKind.Scanning:
+            <span class="lib-status" data-status="scanning"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" />Scanning</span>
+            break;
+        default:
+            <span class="lib-status lib-status--muted" data-status="empty">Empty</span>
+            break;
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public LibraryListRow Row { get; set; } = default!;
+}

@@ -19,6 +19,9 @@ public sealed record FileSourceMutationPolicy
     public bool AllowDelete { get; init; }
     public bool AllowAsDestination { get; init; }
 
+    /// <summary>False when scanning is paused for this folder: the gate then refuses every change except the folder merge job's own.</summary>
+    public bool ScanEnabled { get; init; } = true;
+
     /// <summary>
     /// True only for the policy the folder merge job itself holds over the folder it is merging. The merge is the one caller
     /// allowed to move or remove an original it has listed in its own ledger (after checking the copy); every other caller is

@@ -1,0 +1,15 @@
+@namespace MediaEngine.Web.Components.Shared
+@* One (i) beside a section heading. The explanation shows in the shared tooltip (which sits in the browser's top layer, so a dialog can never
+   cover it) and is read out as the icon's name. Use one per section heading, not one per option. *@
+<AppTooltip Text="@Text" Placement="AppPlacement.Top">
+    <span class="app-info-tip" role="img" tabindex="0" aria-label="@AriaLabel"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
+</AppTooltip>
+
+@code {
+    /// <summary>The explanation.</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+    /// <summary>What the icon is called to a screen reader; defaults to the explanation itself.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    private string AriaLabel => string.IsNullOrWhiteSpace(Label) ? Text : $"{Label}: {Text}";
+}

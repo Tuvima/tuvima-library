@@ -14,7 +14,7 @@ class Element extends EventTarget {
     remove(){tips=tips.filter(tip=>tip!==this);}
 }
 globalThis.MutationObserver=class {constructor(fn){observer=fn;}observe(){}disconnect(){}};
-globalThis.document={body:{append:tip=>tips.push(tip)},createElement:()=>new Element()};
+globalThis.document={body:{append:tip=>tips.push(tip)},querySelectorAll:()=>[],createElement:()=>new Element()};
 globalThis.window=new EventTarget(); globalThis.innerWidth=320; globalThis.innerHeight=568;
 globalThis.setTimeout=fn=>{const timer={fn};timers.push(timer);return timer;};
 globalThis.clearTimeout=timer=>{timers=timers.filter(item=>item!==timer);};

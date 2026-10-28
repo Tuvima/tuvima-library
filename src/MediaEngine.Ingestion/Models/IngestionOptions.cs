@@ -51,6 +51,13 @@ public sealed class LibraryFolderEntry
 
     public string? PrimaryDestinationSourceId { get; init; }
 
+    /// <summary>This library's own duplicate rule (<c>file_handling.duplicate_policy</c>), or null to follow the server-wide default.</summary>
+    public string? DuplicatePolicy { get; init; }
+
+    /// <summary>The duplicate rule for a folder of this library: the folder's override, else the library's, else <paramref name="serverDefault"/>.</summary>
+    public string ResolveDuplicatePolicy(LibrarySourceEntry? source, string? serverDefault)
+        => LibraryFileHandlingResolver.ResolveDuplicatePolicy(serverDefault, DuplicatePolicy, source?.DuplicatePolicyOverride);
+
     /// <summary>
     /// All source paths belonging to this logical library. A single library can
     /// span multiple drives (e.g. <c>D:\Movies</c> and <c>E:\Movies</c> as one
@@ -62,9 +69,18 @@ public sealed class LibraryFolderEntry
     public IReadOnlyList<LibrarySourceEntry> Sources { get; init; } = [];
 
     /// <summary>
-    /// The effective list of source paths.
+    /// The folders to scan and watch: not merged away and not paused.
     /// </summary>
     public IReadOnlyList<string> EffectiveSourcePaths =>
+        Sources
+            .Where(source => !source.IsMergedAway && source.ScanEnabled)
+            .Select(source => source.Path)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    /// <summary>Every folder that still holds this library's files, paused or not (used for overlap checks).</summary>
+    public IReadOnlyList<string> CataloguedSourcePaths =>
         Sources
             .Where(source => !source.IsMergedAway)
             .Select(source => source.Path)
@@ -118,6 +134,15 @@ public sealed class LibrarySourceEntry
     public string AccessMode { get; init; } = LibrarySourceAccessModes.ReadOnly;
 
     public bool IncludeSubdirectories { get; init; } = true;
+
+    /// <summary>False when scanning is paused for this folder: it is not watched, swept or resolved for new files.</summary>
+    public bool ScanEnabled { get; init; } = true;
+
+    /// <summary>This folder's own duplicate rule, or null to follow its library.</summary>
+    public string? DuplicatePolicyOverride { get; init; }
+
+    /// <summary>This folder's own "write tags" choice, or null to follow its library.</summary>
+    public bool? WriteTagsOverride { get; init; }
 
     public string ConversionState { get; init; } = LibrarySourceConversionStates.None;
 

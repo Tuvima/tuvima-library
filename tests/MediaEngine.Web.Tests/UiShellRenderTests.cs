@@ -813,10 +813,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Equal("http://localhost/settings/profiles", navigation.Uri);
     }
 
-    // The Libraries levels are real addresses: a type page (group and type) must not be redirected to the front door or /not-found.
+    // The Libraries levels are real addresses: a library's own page must not be redirected to the overview or /not-found.
     [Theory]
-    [InlineData("/settings/libraries/watch/movies", "watch", "movies")]
-    [InlineData("/settings/libraries/watch", "watch", null)]
+    [InlineData("/settings/libraries/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null)]
     [InlineData("/settings/libraries/import", "import", null)]
     [InlineData("/settings/libraries/view/photos", "view", "photos")]
     public async Task SettingsPage_OnALibrariesLevelAddress_StaysOnThatAddress(string address, string subsection, string? detail)
@@ -838,27 +837,35 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.NotEmpty(cut.FindAll(".libraries"));
     }
 
-    // The tab title names a Libraries group only when the page shows it: with the private group off, its address never reaches the title.
+    // The tab title names a library and its area only when the page shows them: the older group, type and Vault addresses redirect, so they read as Libraries.
     [Theory]
-    [InlineData("watch", null, "Watch - Library")]
-    [InlineData("watch", "movies", "Movies - Watch - Library")]
-    [InlineData("view", null, "View - Library")]
+    [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies - Watch - Library")]
     [InlineData("view", "photos", "Photos - View - Library")]
     [InlineData("import", null, "Import folder - Library")]
+    [InlineData("watch", null, "Libraries - Library")]
+    [InlineData("watch", "movies", "Libraries - Library")]
     [InlineData("vault", null, "Libraries - Library")]
-    public void SettingsPage_OnALibrariesAddress_TitlesTheTabFromTheGroupsThatAreShown(string subsection, string? detail, string expectedTitle)
+    public void SettingsPage_OnALibrariesAddress_TitlesTheTabFromTheLibraryAndAreaThatAreShown(string subsection, string? detail, string expectedTitle)
     {
         var cut = RenderLibraries(subsection, detail);
 
-        var title = (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!;
-        Assert.Equal(expectedTitle, title);
+        // A library's name arrives with the libraries, after the first render.
+        cut.WaitForAssertion(() => Assert.Equal(expectedTitle, (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!));
+    }
+
+    // The earlier group address is redirected by the Libraries page to the matching tab of the overview.
+    [Fact]
+    public void SettingsPage_OnAnEarlierGroupAddress_RedirectsToThatAreasTab()
+    {
+        RenderLibraries("watch", null);
+
+        Assert.EndsWith("/settings/libraries?area=watch", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
     }
 
     // The Settings frame carries each Libraries level: one breadcrumb, one title, and no second heading or breadcrumb in the page.
     [Theory]
     [InlineData(null, null, "Libraries", "Libraries", true)]
-    [InlineData("watch", null, "Watch", "Libraries|Watch", false)]
-    [InlineData("watch", "movies", "Movies", "Libraries|Watch|Movies", false)]
+    [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies", "Libraries|Watch|Movies", false)]
     [InlineData("view", "photos", "Photos", "Libraries|View|Photos", false)]
     [InlineData("import", null, "Import folder", "Libraries|Import folder", false)]
     public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)

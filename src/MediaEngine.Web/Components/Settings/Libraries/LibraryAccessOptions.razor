@@ -1,0 +1,46 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Components.Shared
+@* The three Access choices of a library, in one place so they can be switched on one at a time as their packets arrive: Selected profiles
+   (the Access tab packet) and Vault-protected (the Vault packet). A choice that is not available yet is drawn, disabled, with the reason. *@
+<div class="library-access-options" role="group" aria-label="Access">
+    <AppChoiceRow Title="Standard"
+                  Description="Everyone who can use this area, within each profile's limits."
+                  Selected="@(Value == LibraryAccessChoices.Standard)"
+                  Disabled="@Disabled"
+                  OnClick="@(() => Choose(LibraryAccessChoices.Standard))" />
+    <AppChoiceRow Title="Selected profiles"
+                  Description="@(SelectedProfilesEnabled ? "Only the profiles you choose." : SelectedProfilesReason)"
+                  Selected="@(Value == LibraryAccessChoices.Selected)"
+                  Disabled="@(Disabled || !SelectedProfilesEnabled)"
+                  OnClick="@(() => Choose(LibraryAccessChoices.Selected))" />
+    @if (ShowVault)
+    {
+        <AppChoiceRow Title="Vault-protected"
+                      Description="@(VaultEnabled ? "Kept in the Vault, for administrators with Vault access." : VaultReason)"
+                      Selected="@(Value == LibraryAccessChoices.Vault)"
+                      Disabled="@(Disabled || !VaultEnabled)"
+                      OnClick="@(() => Choose(LibraryAccessChoices.Vault))" />
+    }
+</div>
+
+@code {
+    /// <summary>Selected profiles can be chosen when a library is created. Switched on by the Access tab packet.</summary>
+    public static readonly bool SelectedProfilesAvailable = false;
+
+    /// <summary>Vault-protected can be chosen when a library is created. Switched on by the Vault packet.</summary>
+    public static readonly bool VaultAvailable = false;
+
+    public const string SelectedProfilesReason = "Choose profiles on the Access tab once the library exists.";
+    public const string VaultReason = "Available after the Vault update.";
+
+    /// <summary>The chosen access value (<see cref="LibraryAccessChoices"/>).</summary>
+    [Parameter] public string Value { get; set; } = LibraryAccessChoices.Standard;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    /// <summary>Draws the Vault-protected choice: only for a server administrator, and never in first-run setup.</summary>
+    [Parameter] public bool ShowVault { get; set; }
+    [Parameter] public bool SelectedProfilesEnabled { get; set; } = SelectedProfilesAvailable;
+    [Parameter] public bool VaultEnabled { get; set; } = VaultAvailable;
+    [Parameter] public bool Disabled { get; set; }
+
+    private Task Choose(string value) => Value == value ? Task.CompletedTask : ValueChanged.InvokeAsync(value);
+}

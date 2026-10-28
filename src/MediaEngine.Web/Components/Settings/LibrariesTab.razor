@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
+@using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Navigation
-@using MediaEngine.Contracts.Vault
 @using Microsoft.AspNetCore.WebUtilities
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
@@ -17,10 +17,9 @@
     var unavailable = DeviceContext.IsTelevision;
 }
 
-@* Libraries has three levels, each its own address so Back and a reload keep the level:
-   the front door (/settings/libraries), a group (/settings/libraries/watch) and a type (/settings/libraries/watch/movies).
-   The Import folder is /settings/libraries/import and each View kind's settings /settings/libraries/view/{kind} (photos,
-   personal_videos, documents). *@
+@* Libraries has these addresses, so Back and a reload keep the level: the overview (/settings/libraries, with ?area=watch|listen|read|view),
+   one library's page (/settings/libraries/{libraryId}, with ?tab=), the Import folder (/settings/libraries/import) and each View kind's
+   settings (/settings/libraries/view/{kind}: photos, personal_videos, documents). The older group and type addresses redirect. *@
 <div class="libraries">
     @if (unavailable)
     {
@@ -38,7 +37,11 @@
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
                       Title="Libraries could not be loaded"
-                      Message="@(_loadError ?? "The Engine did not return library configuration.")" />
+                      Message="@(_loadError ?? "The Engine did not return library configuration.")">
+            <Actions>
+                <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="RetryAsync" />
+            </Actions>
+        </AppPageState>
     }
     else
     {
@@ -63,29 +66,28 @@
 
         @switch (level.Kind)
         {
-            case LevelKind.Front:
-                @* The Vault card follows the Vault's privacy rules (LibraryVaultAccess): drawn only while it may be shown, else no trace. *@
-                <LibraryFrontDoor Configuration="@_configuration"
-                                  Kinds="@Kinds"
-                                  Overview="@_overview"
-                                  ViewFolders="@_viewFolders"
-                                  PathIssues="@_pathIssues"
-                                  ShowVault="@VaultVisible"
-                                  ReadOnly="@readOnly"
-                                  FolderAdded="FolderAddedAsync" />
+            case LevelKind.Overview:
+                <LibrariesOverview Configuration="@_configuration"
+                                   Kinds="@Kinds"
+                                   Overview="@_overview"
+                                   ViewFolders="@_viewFolders"
+                                   PathIssues="@_pathIssues"
+                                   ShowVault="@VaultVisible"
+                                   ReadOnly="@readOnly"
+                                   Area="@AreaQuery"
+                                   FolderAdded="FolderAddedAsync" />
                 break;
-            case LevelKind.Group:
-                <LibraryGroupPage Group="@(level.Group!)"
-                                  Configuration="@_configuration"
-                                  Kinds="@Kinds"
-                                  Overview="@_overview"
-                                  ViewFolders="@_viewFolders"
-                                  PathIssues="@_pathIssues"
-                                  VaultLibraries="@_vaultLibraries"
-                                  VaultReadFailed="@_vaultReadFailed"
-                                  RetryVault="RetryVaultAsync"
-                                  ReadOnly="@readOnly"
-                                  FolderAdded="FolderAddedAsync" />
+            case LevelKind.Library:
+                <LibraryShell @key="@level.Library!.Id"
+                             Library="@level.Library"
+                             Configuration="@_configuration"
+                             Kinds="@Kinds"
+                             Overview="@_overview"
+                             PathIssues="@_pathIssues"
+                             ReadOnly="@readOnly"
+                             Tab="@TabQuery"
+                             HighlightAddFolder="@HighlightAdd"
+                             Changed="FolderAddedAsync" />
                 break;
             case LevelKind.ViewKind:
                 <ViewLibrarySettings @key="@level.TypeKey"
@@ -97,18 +99,14 @@
                                      InitialPath="@StartPath"
                                      RootChanged="LoadAsync" />
                 break;
-            case LevelKind.Type:
-                <LibraryFoldersPanel @key="@level.TypeKey"
+            case LevelKind.Import:
+                <LibraryFoldersPanel @key="@LibraryTypeCatalog.ImportKey"
                                      ShowTypeNav="false"
-                                     TypeKey="@level.TypeKey"
+                                     TypeKey="@LibraryTypeCatalog.ImportKey"
                                      Kinds="@Kinds"
                                      HighlightAddFolder="@HighlightAdd"
                                      ReadOnly="@(readOnly || _engineUnavailable)"
                                      Changed="RefreshConfigurationAsync" />
-                @if (level.TypeKey != LibraryTypeCatalog.ImportKey)
-                {
-                    <LibraryIconLegend ShowHandling="true" />
-                }
                 break;
             default:
                 <AppPageState Kind="AppPageStateKind.Unavailable"
@@ -130,28 +128,28 @@
     // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
     [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
 
-    private enum LevelKind { Front, Group, Type, ViewKind, NotFound }
+    private enum LevelKind { Overview, Library, Import, ViewKind, NotFound }
 
-    private sealed record Level(LevelKind Kind, LibraryGroup? Group = null, string? TypeKey = null);
+    private sealed record Level(LevelKind Kind, LibraryFolderDto? Library = null, string? TypeKey = null);
 
     private LibrariesConfigurationDto? _configuration;
     private LibraryKindCatalog Kinds => LibraryKinds.Catalog;
     private LibraryOverviewDto? _overview;
     private IReadOnlyDictionary<string, int>? _viewFolders;
-    // Null until the folder checks finish: no health icon is shown before then.
+    // Null until the folder checks finish: no status is claimed before then.
     private IReadOnlyDictionary<string, string>? _pathIssues;
     private string? _loadError;
     private bool _loading = true;
     private bool _engineUnavailable;
     private string? _routeKey;
-
-    // The Vault's libraries for its group page; null until they are read (or when the Engine could not say).
-    private IReadOnlyList<VaultLibraryDto>? _vaultLibraries;
-    private bool _vaultReadFailed;
     private bool _isKids;
 
-    // The Vault card is drawn only for an administrator with Vault mode on, never on a Kids profile (Library setup D13).
+    // A Vault-protected library is listed only for an administrator with Vault mode on, never on a Kids profile (Library setup D13).
     private bool VaultVisible => LibraryVaultAccess.CanShow(Nsfw, Session, _isKids);
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Navigation.Uri);
+    private string? AreaQuery => Query.String("area");
+    private string? TabQuery => Query.String("tab");
 
     protected override async Task OnInitializedAsync()
     {
@@ -161,22 +159,14 @@
         // The list of kinds is read again on each visit, since a plugin may have been switched on or off; the list read
         // before stays if the Engine cannot answer.
         await LibraryKinds.RefreshAsync();
-        if (RedirectSavedLink()) return;
         await LoadAsync();
+        if (RedirectSavedLink()) return;
         await InvokeAsync(StateHasChanged);
         await LoadSummaryAsync();
     }
 
-    // Vault mode switching on or off draws or removes the Vault card at once; the Vault's own address then reads as not found.
-    private void OnVaultModeChanged() => _ = InvokeAsync(async () =>
-    {
-        if (VaultVisible && CurrentLevel.Group?.Key == LibraryGroupCatalog.VaultKey)
-        {
-            await LoadVaultLibrariesAsync();
-        }
-
-        StateHasChanged();
-    });
+    // Vault mode switching on or off lists or removes Vault-protected libraries at once.
+    private void OnVaultModeChanged() => _ = InvokeAsync(StateHasChanged);
 
     public void Dispose() => Nsfw.Changed -= OnVaultModeChanged;
 
@@ -200,8 +190,8 @@
         var routeKey = $"{Subsection}/{Detail}";
         if (_routeKey is null || string.Equals(_routeKey, routeKey, StringComparison.OrdinalIgnoreCase)) return;
         _routeKey = routeKey;
-        if (RedirectSavedLink()) return;
-        if (_configuration is not null && CurrentLevel.Kind is LevelKind.Front or LevelKind.Group)
+        if (_configuration is not null && RedirectSavedLink()) return;
+        if (_configuration is not null && CurrentLevel.Kind is LevelKind.Overview or LevelKind.Library)
         {
             await RefreshConfigurationAsync();
             await LoadSummaryAsync();
@@ -211,24 +201,52 @@
     // Type pages whose key changed with the kinds list: a bookmark to the old address lands on the page that replaced it.
     private static readonly Dictionary<string, string> RenamedTypeKeys = new(StringComparer.OrdinalIgnoreCase) { ["videos"] = "other_videos" };
 
-    private string? RenamedTypeAddress()
+    // The earlier addresses (a group, a type, an "other" library, ?type=) land on what replaced them: the overview on that area's tab,
+    // or the page of the library that held the type.
+    private string? LegacyAddress()
     {
-        if (string.IsNullOrWhiteSpace(Subsection)
-            || string.IsNullOrWhiteSpace(Detail)
-            || !RenamedTypeKeys.TryGetValue(Detail.Trim(), out var current)
-            || Kinds.TryGetVisibleGroup(Subsection.Trim(), VaultVisible) is not { } group
-            || !group.TypeKeys.Contains(current, StringComparer.OrdinalIgnoreCase))
+        var subsection = Subsection?.Trim();
+        var detail = Detail?.Trim();
+        if (string.IsNullOrEmpty(subsection))
+        {
+            return Kinds.Find(Query.String("type")) is { } type && LibraryOfKind(type.Key) is { } library ? LibraryListing.AddressOf(library.Id) : null;
+        }
+
+        if (string.Equals(subsection, "other", StringComparison.OrdinalIgnoreCase))
+        {
+            var id = detail is not null && detail.StartsWith("other-", StringComparison.OrdinalIgnoreCase) ? detail["other-".Length..] : null;
+            return id is not null && FindLibrary(id) is { } other ? LibraryListing.AddressOf(other.Id) : LibraryListing.OverviewAddress(null);
+        }
+
+        if (Kinds.TryGetGroup(subsection) is not { } group)
         {
             return null;
         }
 
-        return LibraryGroupCatalog.TypeAddress(group, current);
+        if (group.Key == LibraryTypeCatalog.ViewArea)
+        {
+            return string.IsNullOrEmpty(detail) ? LibraryListing.OverviewAddress(group.Key) : null;
+        }
+
+        if (string.IsNullOrEmpty(detail) || group.Key == LibraryGroupCatalog.VaultKey)
+        {
+            return LibraryListing.OverviewAddress(group.Key == LibraryGroupCatalog.VaultKey ? null : group.Key);
+        }
+
+        var typeKey = RenamedTypeKeys.TryGetValue(detail, out var current) ? current : detail;
+        return LibraryOfKind(typeKey) is { } held ? LibraryListing.AddressOf(held.Id) : LibraryListing.OverviewAddress(group.Key);
     }
 
-    // Saved links to /settings/libraries?type=movies still work: they land on that type's own address.
+    private LibraryFolderDto? LibraryOfKind(string kindKey) => _configuration?.Libraries
+        .FirstOrDefault(library => LibraryRollup.IsCatalogued(library) && string.Equals(library.KindKey, kindKey, StringComparison.OrdinalIgnoreCase));
+
+    private LibraryFolderDto? FindLibrary(string? id) => string.IsNullOrWhiteSpace(id)
+        ? null
+        : _configuration?.Libraries.FirstOrDefault(library => LibraryRollup.IsCatalogued(library) && string.Equals(library.Id, id.Trim(), StringComparison.OrdinalIgnoreCase));
+
     private bool RedirectSavedLink()
     {
-        var address = RenamedTypeAddress() ?? TypeQueryAddress();
+        var address = LegacyAddress();
         if (address is null)
         {
             return false;
@@ -236,18 +254,6 @@
 
         Navigation.NavigateTo(address, replace: true);
         return true;
-    }
-
-    private string? TypeQueryAddress()
-    {
-        if (!string.IsNullOrWhiteSpace(Subsection)
-            || Kinds.Find(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("type")) is not { } type
-            || Kinds.GroupFor(type.Key) is not { } group)
-        {
-            return null;
-        }
-
-        return LibraryGroupCatalog.TypeAddress(group, type.Key);
     }
 
     private async Task LoadAsync()
@@ -261,22 +267,22 @@
         _loading = false;
     }
 
-    // The front door and group pages show counts and health. They load after the first render so the cards appear at once;
+    private async Task RetryAsync()
+    {
+        await LoadAsync();
+        await InvokeAsync(StateHasChanged);
+        await LoadSummaryAsync();
+    }
+
+    // The overview and library pages show counts and status. They load after the first render so the rows appear at once;
     // anything that cannot be read is left out rather than guessed (no overview means folder counts only).
     private async Task LoadSummaryAsync()
     {
-        if (_configuration is null || DeviceContext.IsTelevision || CurrentLevel.Kind is not (LevelKind.Front or LevelKind.Group)) return;
-        if (CurrentLevel.Group?.Key == LibraryGroupCatalog.VaultKey)
-        {
-            await LoadVaultLibrariesAsync();
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-
+        if (_configuration is null || DeviceContext.IsTelevision || CurrentLevel.Kind is not (LevelKind.Overview or LevelKind.Library)) return;
         var configuration = _configuration;
         var overview = ApiClient.GetLibraryOverviewAsync();
         var issues = LibraryFolderHealth.CheckAsync(configuration, path => Orchestrator.TestPathAsync(path));
-        var viewFolders = CountViewFoldersAsync();
+        var viewFolders = CurrentLevel.Kind == LevelKind.Overview ? CountViewFoldersAsync() : Task.FromResult(_viewFolders);
 
         _overview = await overview;
         await InvokeAsync(StateHasChanged);
@@ -284,21 +290,6 @@
         await InvokeAsync(StateHasChanged);
         _viewFolders = await viewFolders;
         await InvokeAsync(StateHasChanged);
-    }
-
-    // The Vault's library, read through the Vault's own client (an unlocked administrator only). A failed read leaves it unknown, never "none".
-    private async Task LoadVaultLibrariesAsync()
-    {
-        var call = await ApiClient.GetVaultLibrariesAsync();
-        _vaultReadFailed = !call.Succeeded;
-        _vaultLibraries = call.Succeeded ? call.Value : null;
-    }
-
-    private async Task RetryVaultAsync()
-    {
-        _vaultReadFailed = false;
-        _vaultLibraries = null;
-        await LoadVaultLibrariesAsync();
     }
 
     // View keeps its folders per profile, outside the library list: the distinct folders of each View kind across every profile's
@@ -328,14 +319,14 @@
     }
 
     // A jump from the Import folder's "Choose" arrives with ?highlight=add so Add Folder is pointed at on the type's page.
-    private bool HighlightAdd => string.Equals(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("highlight"), "add", StringComparison.OrdinalIgnoreCase);
+    private bool HighlightAdd => string.Equals(Query.String("highlight"), "add", StringComparison.OrdinalIgnoreCase);
 
     // The Add folder wizard hands View over with ?add=folder (and the folder it was shown, as ?path=); View's own add form opens.
-    private bool StartAdding => string.Equals(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("add"), "folder", StringComparison.OrdinalIgnoreCase);
+    private bool StartAdding => string.Equals(Query.String("add"), "folder", StringComparison.OrdinalIgnoreCase);
 
-    private string? StartPath => StartAdding ? RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("path") : null;
+    private string? StartPath => StartAdding ? Query.String("path") : null;
 
-    // A folder was added from the front door or a group page: its counts and health are read again.
+    // A folder was added from the overview or a library page: its counts and status are read again.
     private async Task FolderAddedAsync()
     {
         await RefreshConfigurationAsync();
@@ -348,35 +339,24 @@
     {
         var subsection = Subsection?.Trim();
         var detail = Detail?.Trim();
-        if (string.IsNullOrEmpty(subsection)) return string.IsNullOrEmpty(detail) ? new Level(LevelKind.Front) : new Level(LevelKind.NotFound);
+        if (string.IsNullOrEmpty(subsection)) return string.IsNullOrEmpty(detail) ? new Level(LevelKind.Overview) : new Level(LevelKind.NotFound);
 
         if (string.Equals(subsection, LibraryTypeCatalog.ImportKey, StringComparison.OrdinalIgnoreCase))
         {
-            return string.IsNullOrEmpty(detail) ? new Level(LevelKind.Type, null, LibraryTypeCatalog.ImportKey) : new Level(LevelKind.NotFound);
+            return string.IsNullOrEmpty(detail) ? new Level(LevelKind.Import) : new Level(LevelKind.NotFound);
         }
 
-        // A catalogued library with no known area has no group; it opens as /settings/libraries/other/other-{id}.
-        if (string.Equals(subsection, "other", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(subsection, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase))
         {
-            var orphan = LibraryRollup.OthersWithoutGroup(Kinds, _configuration).FirstOrDefault(other => string.Equals(other.Key, detail, StringComparison.OrdinalIgnoreCase));
-            return orphan is null ? new Level(LevelKind.NotFound) : new Level(LevelKind.Type, null, orphan.Key);
+            return Kinds.FindViewKind(detail) is { } viewKind ? new Level(LevelKind.ViewKind, null, viewKind.Key) : new Level(LevelKind.NotFound);
         }
 
-        var group = Kinds.TryGetVisibleGroup(subsection, VaultVisible);
-        if (group is null) return new Level(LevelKind.NotFound);
-        if (string.IsNullOrEmpty(detail)) return new Level(LevelKind.Group, group);
-
-        if (group.Key == LibraryTypeCatalog.ViewArea)
+        if (Guid.TryParse(subsection, out _) && string.IsNullOrEmpty(detail) && FindLibrary(subsection) is { } library
+            && (LibraryListing.AccessOf(library) != LibraryListing.Vault || VaultVisible))
         {
-            return Kinds.FindViewKind(detail) is { } viewKind
-                ? new Level(LevelKind.ViewKind, group, viewKind.Key)
-                : new Level(LevelKind.NotFound);
+            return new Level(LevelKind.Library, library);
         }
 
-        var standard = group.TypeKeys.FirstOrDefault(key => string.Equals(key, detail, StringComparison.OrdinalIgnoreCase));
-        if (standard is not null) return new Level(LevelKind.Type, group, standard);
-
-        var other = LibraryRollup.OthersIn(Kinds, _configuration, group).FirstOrDefault(item => string.Equals(item.Key, detail, StringComparison.OrdinalIgnoreCase));
-        return other is null ? new Level(LevelKind.NotFound) : new Level(LevelKind.Type, group, other.Key);
+        return new Level(LevelKind.NotFound);
     }
 }

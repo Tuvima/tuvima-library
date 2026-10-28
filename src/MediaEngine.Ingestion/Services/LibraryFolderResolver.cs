@@ -61,7 +61,7 @@ public sealed class LibraryFolderResolver : ILibraryFolderResolver
             foreach (var source in entry.Sources)
             {
                 var sourcePath = source.Path;
-                if (string.IsNullOrWhiteSpace(sourcePath) || source.IsMergedAway)
+                if (string.IsNullOrWhiteSpace(sourcePath) || source.IsMergedAway || !source.ScanEnabled)
                 {
                     continue;
                 }
@@ -104,7 +104,7 @@ public sealed class LibraryFolderResolver : ILibraryFolderResolver
         var flat = new List<(int LibraryIndex, string Normalized, string Original)>();
         for (int i = 0; i < libraries.Count; i++)
         {
-            foreach (var sourcePath in libraries[i].EffectiveSourcePaths)
+            foreach (var sourcePath in libraries[i].CataloguedSourcePaths)
             {
                 if (string.IsNullOrWhiteSpace(sourcePath))
                 {

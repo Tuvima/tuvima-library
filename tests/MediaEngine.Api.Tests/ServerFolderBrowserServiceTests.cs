@@ -342,6 +342,104 @@ public sealed class ServerFolderBrowserServiceTests
     }
 
     [Fact]
+    public void ValidationCountsTheVideoFilesOfAWatchKind()
+    {
+        using var fixture = new Fixture();
+        var films = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Films"));
+        var extras = Directory.CreateDirectory(Path.Combine(films.FullName, "Season 1"));
+        for (var index = 0; index < 100; index++)
+        {
+            File.WriteAllText(Path.Combine(films.FullName, $"film-{index}.mkv"), "x");
+        }
+
+        for (var index = 0; index < 26; index++)
+        {
+            File.WriteAllText(Path.Combine(extras.FullName, $"episode-{index}.mp4"), "x");
+        }
+
+        File.WriteAllText(Path.Combine(films.FullName, "cover.jpg"), "x");
+        File.WriteAllText(Path.Combine(films.FullName, "notes.txt"), "x");
+
+        var result = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            StorageLocationId = "media",
+            RelativePath = "Films",
+            KindKey = "movies",
+        });
+
+        Assert.True(result.CanSelect);
+        Assert.Equal(126, result.SupportedFileCount);
+        Assert.False(result.SupportedFileCountCapped);
+        Assert.False(result.SupportedFileCountUnavailable);
+        Assert.Equal("video", result.SupportedFileKindLabel);
+    }
+
+    [Fact]
+    public void ValidationCountsOnlyTheFilesTheKindTakes()
+    {
+        using var fixture = new Fixture();
+        var shelf = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Shelf"));
+        File.WriteAllText(Path.Combine(shelf.FullName, "dune.epub"), "x");
+        File.WriteAllText(Path.Combine(shelf.FullName, "emma.pdf"), "x");
+        File.WriteAllText(Path.Combine(shelf.FullName, "song.mp3"), "x");
+
+        var books = fixture.Service.Validate(new ValidateServerFolderRequest { StorageLocationId = "media", RelativePath = "Shelf", KindKey = "books" });
+        var music = fixture.Service.Validate(new ValidateServerFolderRequest { StorageLocationId = "media", RelativePath = "Shelf", KindKey = "music" });
+
+        Assert.Equal(2, books.SupportedFileCount);
+        Assert.Equal("book", books.SupportedFileKindLabel);
+        Assert.Equal(1, music.SupportedFileCount);
+        Assert.Equal("audio", music.SupportedFileKindLabel);
+    }
+
+    [Fact]
+    public void ValidationWithoutAKindOrForAViewKindGivesNoCount()
+    {
+        using var fixture = new Fixture();
+        var folder = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Mixed"));
+        File.WriteAllText(Path.Combine(folder.FullName, "film.mkv"), "x");
+
+        var none = fixture.Service.Validate(new ValidateServerFolderRequest { StorageLocationId = "media", RelativePath = "Mixed" });
+        var photos = fixture.Service.Validate(new ValidateServerFolderRequest { StorageLocationId = "media", RelativePath = "Mixed", KindKey = "photos" });
+        var unknown = fixture.Service.Validate(new ValidateServerFolderRequest { StorageLocationId = "media", RelativePath = "Mixed", KindKey = "no_such_kind" });
+
+        Assert.All(new[] { none, photos, unknown }, result =>
+        {
+            Assert.Null(result.SupportedFileCount);
+            Assert.False(result.SupportedFileCountUnavailable);
+            Assert.Null(result.SupportedFileKindLabel);
+        });
+    }
+
+    [Fact]
+    public void ValidationNamesTheOtherLibraryInPlainWordsAndSkipsTheCount()
+    {
+        using var fixture = new Fixture();
+        var configured = Path.Combine(fixture.AllowedRoot, "Configured");
+        var nested = Path.Combine(configured, "Nested");
+        Directory.CreateDirectory(nested);
+        File.WriteAllText(Path.Combine(nested, "film.mkv"), "x");
+        fixture.AddConfiguredSource(configured);
+
+        var inside = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            StorageLocationId = "media",
+            RelativePath = Path.Combine("Configured", "Nested"),
+            KindKey = "movies",
+        });
+        var exact = fixture.Service.Validate(new ValidateServerFolderRequest { StorageLocationId = "media", RelativePath = "Configured", KindKey = "movies" });
+        var around = fixture.Service.Validate(new ValidateServerFolderRequest { StorageLocationId = "media", RelativePath = string.Empty, KindKey = "movies" });
+
+        var insideIssue = Assert.Single(inside.Issues, issue => issue.Code == "inside_configured_source");
+        Assert.Equal("This folder is inside a folder that the library \"Movies\" already uses. Choose a folder that does not overlap it.", insideIssue.Message);
+        Assert.Equal("Movies", insideIssue.LibraryName);
+        Assert.False(inside.CanSelect);
+        Assert.Null(inside.SupportedFileCount);
+        Assert.Equal("This folder is already used by the library \"Movies\". Choose a different folder.", Assert.Single(exact.Issues, issue => issue.Code == "already_configured").Message);
+        Assert.Contains("holds a folder that the library \"Movies\" already uses", Assert.Single(around.Issues, issue => issue.Code == "contains_configured_source").Message);
+    }
+
+    [Fact]
     public void RoutesAreAdministratorOnlyAndRegistered()
     {
         var root = FindRepoRoot();

@@ -38,6 +38,36 @@ public sealed class ImportFolderService : IImportFolderService
     public string DuplicatePolicy
         => Load()?.FileHandling.DuplicatePolicy ?? LibraryDuplicatePolicies.KeepOne;
 
+    public string ResolveDuplicatePolicy(string heldCopyPath)
+    {
+        var configuration = Load();
+        if (configuration is null)
+        {
+            return LibraryDuplicatePolicies.KeepOne;
+        }
+
+        // The rule of the folder that holds the copy that stays: the deepest folder containing it wins.
+        LibraryFolderConfig? owningLibrary = null;
+        LibrarySourceConfig? owningSource = null;
+        var bestLength = -1;
+        foreach (var library in configuration.Libraries)
+        {
+            foreach (var source in library.CataloguedSources)
+            {
+                if (source.Path.Length > bestLength && IsContained(heldCopyPath, source.Path))
+                {
+                    owningLibrary = library;
+                    owningSource = source;
+                    bestLength = source.Path.Length;
+                }
+            }
+        }
+
+        return owningLibrary is null
+            ? configuration.FileHandling.DuplicatePolicy
+            : owningLibrary.ResolveDuplicatePolicy(owningSource, configuration.FileHandling.DuplicatePolicy);
+    }
+
     public string? GetImportPath()
     {
         var configuration = Load();

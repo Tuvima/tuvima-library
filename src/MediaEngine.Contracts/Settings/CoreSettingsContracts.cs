@@ -164,6 +164,14 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("recycle_bin")]
     public bool RecycleBin { get; set; }
 
+    /// <summary>Who may see this library: <c>standard</c> (default), <c>selected</c> or <c>vault</c>.</summary>
+    [JsonPropertyName("access")]
+    public string Access { get; set; } = "standard";
+
+    /// <summary>This library's own file handling; anything left out follows the server-wide default.</summary>
+    [JsonPropertyName("file_handling")]
+    public LibraryFileHandlingDto FileHandling { get; set; } = new();
+
     [JsonPropertyName("sources")]
     public List<LibrarySourceDto> Sources { get; set; } = [];
 
@@ -238,6 +246,14 @@ public sealed class LibrarySourceDto
     [JsonPropertyName("merged_at")]
     public DateTimeOffset? MergedAt { get; set; }
 
+    /// <summary>When off, this folder is not scanned or watched, but what is already catalogued from it stays.</summary>
+    [JsonPropertyName("scan_enabled")]
+    public bool ScanEnabled { get; set; } = true;
+
+    /// <summary>This folder's own file handling; null when it follows its library.</summary>
+    [JsonPropertyName("file_handling_override")]
+    public LibrarySourceFileHandlingOverrideDto? FileHandlingOverride { get; set; }
+
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
 
@@ -255,6 +271,26 @@ public sealed class LibrarySourceDto
     [JsonPropertyName("first_check")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public MediaEngine.Contracts.Library.FolderFirstCheckDto? FirstCheck { get; set; }
+}
+
+/// <summary>A library's own file handling. Null fields follow the server-wide default.</summary>
+public sealed class LibraryFileHandlingDto
+{
+    /// <summary><c>keep_one</c> or <c>keep_both</c>; null follows the server-wide default.</summary>
+    [JsonPropertyName("duplicate_policy")]
+    public string? DuplicatePolicy { get; set; }
+}
+
+/// <summary>A folder's own file handling. Null fields follow its library.</summary>
+public sealed class LibrarySourceFileHandlingOverrideDto
+{
+    /// <summary><c>keep_one</c> or <c>keep_both</c>; null follows the library.</summary>
+    [JsonPropertyName("duplicate_policy")]
+    public string? DuplicatePolicy { get; set; }
+
+    /// <summary>Write tags into files in this folder; null follows the library.</summary>
+    [JsonPropertyName("write_tags")]
+    public bool? WriteTags { get; set; }
 }
 
 public sealed class LibraryOrganizationPolicyDto
@@ -278,7 +314,7 @@ public sealed class FileHandlingDto
 public sealed class UpdateLibrariesRequest
 {
     [JsonPropertyName("schema_version")]
-    public string SchemaVersion { get; init; } = "8.0";
+    public string SchemaVersion { get; init; } = "9.0";
 
     [JsonPropertyName("storage_locations")]
     public List<ServerStorageLocationDto> StorageLocations { get; init; } = [];
@@ -299,7 +335,7 @@ public sealed class UpdateLibrariesRequest
 public sealed class LibrariesConfigurationDto
 {
     [JsonPropertyName("schema_version")]
-    public string SchemaVersion { get; init; } = "8.0";
+    public string SchemaVersion { get; init; } = "9.0";
 
     [JsonPropertyName("storage_locations")]
     public List<ServerStorageLocationDto> StorageLocations { get; init; } = [];
@@ -501,6 +537,10 @@ public sealed class ValidateServerFolderRequest
 
     [JsonPropertyName("current_source_id")]
     public string? CurrentSourceId { get; init; }
+
+    /// <summary>The library kind the folder is for (for example <c>movies</c>); the Engine counts that kind's supported files. Null means no count.</summary>
+    [JsonPropertyName("kind_key")]
+    public string? KindKey { get; init; }
 }
 
 public static class ServerFolderSelectionModes
@@ -571,6 +611,22 @@ public sealed class ServerFolderValidationResultDto
 
     [JsonPropertyName("can_select")]
     public bool CanSelect { get; init; }
+
+    /// <summary>How many files of the requested kind's supported types sit in the folder and its subfolders; null when no kind was asked for or the count is unavailable.</summary>
+    [JsonPropertyName("supported_file_count")]
+    public int? SupportedFileCount { get; init; }
+
+    /// <summary>True when the count stopped at its cap, so it reads "10,000+".</summary>
+    [JsonPropertyName("supported_file_count_capped")]
+    public bool SupportedFileCountCapped { get; init; }
+
+    /// <summary>True when the count could not be made in time (a slow network drive) or was cancelled.</summary>
+    [JsonPropertyName("supported_file_count_unavailable")]
+    public bool SupportedFileCountUnavailable { get; init; }
+
+    /// <summary>One lower-case word for what was counted ("video", "audio", "book", "comic"), so the screen can say "126 video files found".</summary>
+    [JsonPropertyName("supported_file_kind_label")]
+    public string? SupportedFileKindLabel { get; init; }
 
     [JsonPropertyName("issues")]
     public List<ServerFolderValidationIssueDto> Issues { get; init; } = [];

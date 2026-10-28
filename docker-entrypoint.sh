@@ -62,9 +62,9 @@ if [ -z "$(find /config -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; th
     echo "[Tuvima] To finish setup from another device, run: docker exec -it <container> tuvima-admin setup code"
 fi
 
-# libraries.json changed format in version 8.0 ("suitable for limited profiles" moved to folders, unused sharing fields removed). An
+# libraries.json changed format in version 9.0 (per-library access and file handling, per-folder scanning on or off). An
 # older file is not converted: say so plainly and show how to start from a fresh default instead of failing later with a vague error.
-if [ -f /config/libraries.json ] && ! grep -Eq '"schema_version"[[:space:]]*:[[:space:]]*"8\.0"' /config/libraries.json; then
+if [ -f /config/libraries.json ] && ! grep -Eq '"schema_version"[[:space:]]*:[[:space:]]*"9\.0"' /config/libraries.json; then
     fail "/config/libraries.json is in an older format and is not converted. Rename or delete it and restart to get a fresh default, then add your library folders again."
 fi
 if [ ! -f /config/libraries.json ] && [ -f /app/docker-config/libraries.json ]; then

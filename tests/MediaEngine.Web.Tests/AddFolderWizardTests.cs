@@ -904,9 +904,13 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
             .Add(x => x.ReadOnly, true));
         Assert.Empty(group.FindAll("button"));
 
-        var type = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "watch").Add(x => x.Detail, "movies"));
-        type.WaitForElement(".library-folders__add");
-        Assert.True(type.Find(".library-folders__add").HasAttribute("disabled"));
+        // The library page (and the overview) is read-only on a phone: counts and status, and no control that changes anything.
+        var page = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, MoviesId));
+        page.WaitForElement(".libpage");
+        Assert.DoesNotContain(page.FindAll("button"), button => Text(button) is "Add folder" or "Add files" or "Scan now" or "Add Folder");
+        var overview = Render<LibrariesTab>();
+        overview.WaitForElement(".libs__row");
+        Assert.DoesNotContain(overview.FindAll("button"), button => Text(button) == "Add library");
     }
 
     [Fact]
@@ -946,9 +950,9 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     [Fact]
     public async Task AddFolderOnATypePageOpensTheWizardAtTheFolderStepAndTheNewFolderShowsInTheTable()
     {
-        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "watch").Add(x => x.Detail, "movies"));
+        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, MoviesId));
         cut.WaitForElement(".folder-table");
-        cut.Find(".library-folders__add").Click();
+        cut.FindAll(".libpage__actions button").Single(button => Text(button) == "Add folder").Click();
         _dialogs.WaitForElement(".add-wizard");
         Assert.Equal("1 Folder · 2 How", Steps);
 

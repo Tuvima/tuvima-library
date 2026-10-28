@@ -26,6 +26,12 @@ public static class LibrariesConfigurationNormalizer
                     source.ConversionOperationId = null;
                 }
 
+                // An override that sets nothing says nothing: keep it null.
+                if (source.FileHandlingOverride is { IsEmpty: true })
+                {
+                    source.FileHandlingOverride = null;
+                }
+
                 // Merge details only mean something while a merge is running or done.
                 if (source.MergeState == LibrarySourceMergeStates.None)
                 {

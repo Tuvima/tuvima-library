@@ -40,9 +40,10 @@ public static class FileSourceMutationPolicyFactory
             source.IsWritable,
             isDestination: string.Equals(library.PrimaryDestination?.Id, source.Id, StringComparison.OrdinalIgnoreCase),
             isMergeTarget,
-            library.WriteTags,
+            LibraryFileHandlingResolver.ResolveWriteTags(library.WriteTags, source.WriteTagsOverride),
             allowDelete,
-            isMergeJob);
+            isMergeJob,
+            source.ScanEnabled);
     }
 
     public static FileSourceMutationPolicy Create(
@@ -71,9 +72,10 @@ public static class FileSourceMutationPolicyFactory
             source.IsWritable,
             isDestination: string.Equals(library.PrimaryDestination?.Id, source.Id, StringComparison.OrdinalIgnoreCase),
             isMergeTarget,
-            library.OrganizationPolicy.WriteTags,
+            LibraryFileHandlingResolver.ResolveWriteTags(library.OrganizationPolicy.WriteTags, source.FileHandlingOverride?.WriteTags),
             allowDelete,
-            isMergeJob);
+            isMergeJob,
+            source.ScanEnabled);
     }
 
     private static bool IsManaged(string managementMode) => string.Equals(
@@ -91,7 +93,8 @@ public static class FileSourceMutationPolicyFactory
         bool isMergeTarget,
         bool writeTags,
         bool allowDelete,
-        bool isMergeJob)
+        bool isMergeJob,
+        bool scanEnabled)
         => new()
         {
             LibraryId = libraryId,
@@ -107,5 +110,6 @@ public static class FileSourceMutationPolicyFactory
             AllowDelete = managed && allowDelete,
             AllowAsDestination = managed && (isDestination || isMergeTarget),
             IsMergeJob = isMergeJob,
+            ScanEnabled = scanEnabled,
         };
 }

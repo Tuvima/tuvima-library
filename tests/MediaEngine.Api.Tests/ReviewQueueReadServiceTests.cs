@@ -338,6 +338,7 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         public MediaEngine.Ingestion.Models.LibraryFolderEntry? ResolveLibraryForType(MediaType mediaType) => throw new NotSupportedException();
         public ImportDestination ResolveDestination(MediaType mediaType, long requiredBytes = 0) => throw new NotSupportedException();
         public string DuplicatePolicy => throw new NotSupportedException();
+        public string ResolveDuplicatePolicy(string heldCopyPath) => throw new NotSupportedException();
         public FileSourceMutationPolicy? CreateImportPolicy(bool allowDelete = false) => throw new NotSupportedException();
         public IReadOnlyList<string> EnsureSubfolders(bool createImportFolder = false) => throw new NotSupportedException();
         public void RemoveEmptyFolders(string startFolder) => throw new NotSupportedException();

@@ -129,7 +129,7 @@ internal sealed class ContentLimitPolicy(
 
         // The marked folders, read once per request. Merged-away folders are no longer scanned, so their files live in the target folder.
         var suitableFolders = configuration?.LoadLibraries().Libraries
-            .SelectMany(library => library.ScannableSources
+            .SelectMany(library => library.CataloguedSources
                 .Where(source => source.OkForLimitedProfiles)
                 .Select(source => new SuitableFolder(library.Id, FolderFirstCheckPaths.Prefix(source.Path))))
             .ToList();

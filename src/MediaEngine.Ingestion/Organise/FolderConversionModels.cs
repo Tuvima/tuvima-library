@@ -97,7 +97,8 @@ public sealed class FolderConversionContext
             }
 
             return new FolderConversionContext(
-                operationId, sourceId, library, source, root, libraries.FileHandling.DuplicatePolicy);
+                operationId, sourceId, library, source, root,
+                library.ResolveDuplicatePolicy(source, libraries.FileHandling.DuplicatePolicy));
         }
 
         reason = FolderConversionUnavailable.SourceRemoved;
