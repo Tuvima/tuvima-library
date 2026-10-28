@@ -123,24 +123,6 @@ public sealed class ProfilePersonalMediaRepositoryTests : IDisposable
             """, new { person }));
     }
 
-    [Fact]
-    public async Task APersonWhoChoseAFolderTimelineSetting_CanStillBeRemoved()
-    {
-        var person = Person("Maya");
-        var other = Person("Sam");
-        Photo(other, "/data/Profiles/sam/b.jpg", managed: true);
-        var source = Query<Guid>("SELECT id FROM view_sources WHERE personal_space_id IN (SELECT id FROM view_personal_spaces WHERE owner_profile_id=@other)", new { other });
-        Execute("""
-            INSERT INTO view_folder_timeline_policies
-                (source_id,relative_path,absolute_path,include_in_timeline,updated_by_profile_id,updated_at)
-            VALUES (@source,'Trips','/data/Trips',1,@person,@now);
-            """, new { source, person, now = Now.ToString("O") });
-
-        await _accounts.DeleteManagedProfileAsync(person);
-
-        Assert.Equal(1, Count("SELECT COUNT(*) FROM view_folder_timeline_policies WHERE updated_by_profile_id IS NULL", new { }));
-    }
-
     private Guid Person(string name)
     {
         var id = Guid.NewGuid();

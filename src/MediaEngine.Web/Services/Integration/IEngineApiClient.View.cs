@@ -28,9 +28,6 @@ public partial interface IEngineApiClient
     Task<IReadOnlyList<ViewAddedByDto>?> GetViewAssetsAddedByAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
     Task<LocalAssetDto?> GetViewItemAsync(Guid itemId, ViewScopeKind scope, Guid? scopeProfileId = null, CancellationToken ct = default);
     Task<ViewDocumentTextDto?> GetViewDocumentTextAsync(Guid itemId, ViewScopeKind scope, Guid? scopeProfileId = null, CancellationToken ct = default);
-    Task<ViewFolderPageDto?> GetViewFoldersAsync(ViewFolderQueryOptions options, CancellationToken ct = default);
-    Task<bool> SetViewFolderPinAsync(ViewFolderPinRequest request, CancellationToken ct = default);
-    Task<bool> SetViewFolderTimelinePolicyAsync(ViewFolderTimelinePolicyRequest request, CancellationToken ct = default);
     Task<ViewPeoplePageDto?> GetViewPeopleAsync(ViewDiscoveryQueryOptions options, CancellationToken ct = default);
     Task<ViewPlacesPageDto?> GetViewPlacesAsync(ViewDiscoveryQueryOptions options, CancellationToken ct = default);
     Task<ViewAtlasPageDto?> GetViewAtlasAsync(ViewAtlasQueryOptions options, CancellationToken ct = default);
@@ -112,13 +109,3 @@ public sealed record ViewAtlasQueryOptions(
     DateTimeOffset? To = null,
     string TimelineResolution = "year",
     bool FavoritesOnly = false);
-
-public sealed record ViewFolderQueryOptions(
-    ViewScopeKind Scope = ViewScopeKind.Shared,
-    Guid? ScopeProfileId = null,
-    Guid? SourceId = null,
-    string? RelativePath = null,
-    bool IncludeDescendants = false,
-    string? Search = null,
-    int Offset = 0,
-    int Limit = 100);

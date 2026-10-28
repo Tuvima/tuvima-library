@@ -702,6 +702,25 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         Assert.Equal(AddedSource(request).Id, request.Library!.PrimaryDestinationSourceId);
     }
 
+    // D23: the folder step says in one line what subfolders mean for the area.
+    [Fact]
+    public async Task TheFolderStepSaysWhatSubfoldersMeanInWatch()
+    {
+        await OpenWizardAsync(type: "movies");
+
+        Assert.Contains("a folder of several videos is a series", Text(_dialogs.Find("[data-subfolder-hint=watch]")), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("view", "Include subfolders")]
+    [InlineData("watch", "folder with one video stays on its own")]
+    [InlineData("listen", "stays grouped")]
+    [InlineData("read", "stay grouped")]
+    public void EachAreaHasOneSubfolderLine(string area, string expected)
+    {
+        Assert.Contains(expected, Components.Settings.SubfolderHints.For(area), StringComparison.Ordinal);
+    }
+
     // 4. Phone footage.
     [Fact]
     public async Task APhoneFootageFolderInAWatchKindShowsTheHintAndAddToViewSwitchesBeforeAnythingIsSaved()
@@ -864,10 +883,10 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     [Fact]
     public void ViewOpensItsAddFormWhenStartedAddingAndNotOtherwise()
     {
-        var plain = Render<ViewLibrarySettings>(parameters => parameters.Add(x => x.Configuration, _configuration));
+        var plain = Render<ViewKindPage>(parameters => parameters.Add(x => x.Configuration, _configuration));
         plain.WaitForAssertion(() => Assert.Empty(plain.FindAll(".libraries-form-grid")));
 
-        var started = Render<ViewLibrarySettings>(parameters => parameters
+        var started = Render<ViewKindPage>(parameters => parameters
             .Add(x => x.Configuration, _configuration)
             .Add(x => x.StartAdding, true)
             .Add(x => x.InitialPath, "F:\\Phone"));

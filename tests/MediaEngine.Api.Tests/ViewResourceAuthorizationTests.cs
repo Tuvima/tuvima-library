@@ -321,28 +321,6 @@ public sealed class ViewResourceAuthorizationTests
     }
 
     [Fact]
-    public async Task SharedFolderPolicyRequiresAdministratorSurfaceUnlock()
-    {
-        var caller = State(access: true, include: false);
-        var evaluator = new DenySurfaceEvaluator();
-        var service = new ViewResourceAuthorizationService(
-            new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(caller)),
-            new ResourceStore(), evaluator);
-
-        var authority = Identity(caller) with
-        {
-            ActiveProfileIsServerAdministrator = true,
-        };
-        var decision = await service.AuthorizeAsync(authority, new ViewResourceRequest(
-            ViewScopeRequest.Shared, ViewResourceKind.FolderPolicy, null,
-            ViewResourceAction.Manage));
-
-        Assert.Equal(ViewAccessOutcome.Forbidden, decision.Outcome);
-        Assert.True(evaluator.LastRequirement!.RequiresAdministrator);
-        Assert.True(evaluator.LastRequirement.RequiresAdministratorSurfaceUnlock);
-    }
-
-    [Fact]
     public async Task DelegatedClientWithoutViewPermissionCannotReadPersonalResources()
     {
         var caller = State(access: true, include: false);
@@ -518,23 +496,6 @@ public sealed class ViewResourceAuthorizationTests
             ResourceAuthorizationContext? resource,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(AuthorizationDecision.Deny(AuthorizationDenialReason.MissingFeatureGrant));
-    }
-
-    private sealed class DenySurfaceEvaluator : IAuthorizationEvaluator
-    {
-        public AuthorizationRequirement? LastRequirement { get; private set; }
-
-        public ValueTask<AuthorizationDecision> EvaluateAsync(
-            RequestAuthority authority,
-            AuthorizationRequirement requirement,
-            ResourceAuthorizationContext? resource,
-            CancellationToken cancellationToken = default)
-        {
-            LastRequirement = requirement;
-            return ValueTask.FromResult(requirement.RequiresAdministratorSurfaceUnlock
-                ? AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorUnlockRequired)
-                : AuthorizationDecision.Allow());
-        }
     }
 
     private sealed class AllowEvaluator(ApplicationPermissionId? deniedPermission = null) : IAuthorizationEvaluator

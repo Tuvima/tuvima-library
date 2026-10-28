@@ -57,7 +57,7 @@ Details shows the item's title, art, facts, and actions. Open **Edit** there to 
 
 ## Open View
 
-[View](view-personal-space.md) holds personal photos, videos, and other local media in a profile's Personal Space. Its menu has Photos, Folders, Galleries, People, and Places. Sharing follows your rights and the chosen scope.
+[View](view-personal-space.md) holds personal photos, videos, and other local media in a profile's Personal Space. Its menu has Photos, Galleries, People, and Places. Sharing follows your rights and the chosen scope.
 
 ## Check work and settings
 

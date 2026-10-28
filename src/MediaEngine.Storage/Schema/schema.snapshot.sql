@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0057 library_profile_grants).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0058 remove_view_folder_pins_and_policies).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2893,24 +2893,6 @@ CREATE TABLE view_devices (
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL,
     UNIQUE (personal_space_id, client_device_id)
-);
-
-CREATE TABLE view_folder_pins (
-    profile_id      BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    source_id       BLOB NOT NULL REFERENCES view_sources(id) ON DELETE CASCADE,
-    relative_path   TEXT NOT NULL,
-    created_at      TEXT NOT NULL,
-    PRIMARY KEY (profile_id, source_id, relative_path)
-);
-
-CREATE TABLE view_folder_timeline_policies (
-    source_id           BLOB NOT NULL REFERENCES view_sources(id) ON DELETE CASCADE,
-    relative_path       TEXT NOT NULL,
-    absolute_path       TEXT NOT NULL,
-    include_in_timeline INTEGER NOT NULL CHECK (include_in_timeline IN (0, 1)),
-    updated_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
-    updated_at          TEXT NOT NULL,
-    PRIMARY KEY (source_id, relative_path)
 );
 
 CREATE TABLE view_galleries (

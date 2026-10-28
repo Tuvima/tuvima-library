@@ -13,8 +13,6 @@ public enum ViewResourceKind
     Gallery,
     Preference,
     Upload,
-    Folder,
-    FolderPolicy,
 }
 
 public enum ViewResourceAction
@@ -129,9 +127,8 @@ public sealed class ViewResourceAuthorizationService(
                 && (request.Action == ViewResourceAction.Read
                     || request.Action == ViewResourceAction.Manage
                        && resolution.Scope.Kind == ViewScopeKind.Mine);
-            var scopedMutation = (request.Kind is ViewResourceKind.Folder or ViewResourceKind.FolderPolicy
-                    || (request.Kind is ViewResourceKind.Preference or ViewResourceKind.Upload
-                        && resolution.Scope.Kind == ViewScopeKind.Mine))
+            var scopedMutation = request.Kind is ViewResourceKind.Preference or ViewResourceKind.Upload
+                && resolution.Scope.Kind == ViewScopeKind.Mine
                 && (request.Action == ViewResourceAction.Manage
                     || request.Action == ViewResourceAction.Contribute);
             // A person reads their own saved preferences (scope, density, viewer info, Documents sort) without
@@ -304,7 +301,7 @@ public sealed class ViewResourceAuthorizationService(
         RequestAuthority caller, ViewResourceRequest request, ResolvedViewScope scope, CancellationToken ct)
     {
         var readOnlyKind = request.Kind is ViewResourceKind.Asset or ViewResourceKind.Thumbnail
-            or ViewResourceKind.Original or ViewResourceKind.Search or ViewResourceKind.Folder;
+            or ViewResourceKind.Original or ViewResourceKind.Search;
         if (request.Action != ViewResourceAction.Read || !readOnlyKind)
         {
             return ViewAccessDecision.NotFound();
@@ -367,7 +364,7 @@ public sealed class ViewResourceAuthorizationService(
 
         if (request.Action != ViewResourceAction.Read
             && (requestedScope == ViewScopeKind.OtherShared
-                || requestedScope == ViewScopeKind.Profile && request.Kind != ViewResourceKind.Folder))
+                || requestedScope == ViewScopeKind.Profile))
         {
             return false;
         }
@@ -380,10 +377,6 @@ public sealed class ViewResourceAuthorizationService(
         {
             return false;
         }
-
-        var protectedSharedFolderPolicy = request.Kind == ViewResourceKind.FolderPolicy
-            && request.Action != ViewResourceAction.Read
-            && requestedScope == ViewScopeKind.Shared;
 
         AuthorizationRequirement requirement;
         if (caller.PrincipalKind == PrincipalKind.ServiceApplication)
@@ -405,12 +398,8 @@ public sealed class ViewResourceAuthorizationService(
             }
 
             requirement = caller.PrincipalKind == PrincipalKind.DelegatedUserClient
-                ? new(permission, AccountFeatureId.View, RequiresHumanContext: true,
-                    RequiresAdministrator: protectedSharedFolderPolicy,
-                    RequiresAdministratorSurfaceUnlock: protectedSharedFolderPolicy)
-                : new(AccountFeature: AccountFeatureId.View, RequiresHumanContext: true,
-                    RequiresAdministrator: protectedSharedFolderPolicy,
-                    RequiresAdministratorSurfaceUnlock: protectedSharedFolderPolicy);
+                ? new(permission, AccountFeatureId.View, RequiresHumanContext: true)
+                : new(AccountFeature: AccountFeatureId.View, RequiresHumanContext: true);
         }
 
         var resource = new ResourceAuthorizationContext(

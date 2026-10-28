@@ -106,8 +106,6 @@ public static class UserExportScope
         ["view_sources"] = "Folders and devices a View space reads from belong to this Library.",
         ["view_source_policies"] = "Folders and devices a View space reads from belong to this Library.",
         ["view_devices"] = "Paired devices are not carried.",
-        ["view_folder_pins"] = "Folders pinned in View belong to this Library's folders.",
-        ["view_folder_timeline_policies"] = "Folders in View belong to this Library's folders.",
         ["view_storage_labels"] = "Names of View storage locations belong to this Library.",
         ["view_shared_library"] = "The household's shared View library belongs to the household and this Library.",
         ["view_galleries"] = "View galleries hang off a View space and View items, which a user export does not carry.",

@@ -13,7 +13,7 @@ tags:
 
 # Documents in View
 
-**View > Documents** is where the PDFs, Word files, spreadsheets, scans and photos of paper in your View folders are found, read, searched and filed. It sits beside Photos, Galleries and Folders in the View menu. Your files stay where they are. Tuvima Library builds a searchable, organised list on top of them.
+**View > Documents** is where the PDFs, Word files, spreadsheets, scans and photos of paper in your View folders are found, read, searched and filed. It sits beside Photos and Galleries in the View menu. Your files stay where they are. Tuvima Library builds a searchable, organised list on top of them.
 
 ## What is read
 

@@ -54,6 +54,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     };
     private readonly List<UpdateViewProfilePolicyRequest> _policySaves = [];
     private readonly List<CreateViewSourceRequest> _createdSources = [];
+    private readonly List<UpdateViewSourceRequest> _sourceUpdates = [];
 
     // Libraries has pages below it (a group, then a type), so its menu row matches them; every other row stays exact.
     [Fact]
@@ -148,6 +149,11 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
                 _createdSources.Add(request);
                 return Task.FromResult<ViewSourceAdminDto?>(ViewSource(request.Path ?? "C:\\New", request.Name, request.ContentKind ?? "photos"));
             });
+            stub.SetHandler(nameof(IEngineApiClient.UpdateViewProfileSourceAsync), args =>
+            {
+                _sourceUpdates.Add((UpdateViewSourceRequest)args![2]!);
+                return Task.FromResult<ViewSourceAdminDto?>(ViewSource("D:\\Pictures", "Pictures", "photos"));
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetImportFolderWaitingAsync), _ => Task.FromResult<MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse?>(null));
             stub.SetHandler(nameof(IEngineApiClient.GetFolderJobsAsync), _ => Task.FromResult<IReadOnlyList<FolderJobStatusDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetExcludedFilesAsync), _ => Task.FromResult<IReadOnlyList<ExcludedFileDto>>([]));
@@ -172,8 +178,13 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         new(Guid.NewGuid(), "local_folder", name, "linked", location, true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
             ContentKind: kind, SkippedFileCount: skipped, AcceptsPhotosAndVideos: photosAndVideos, KeptInLibraryCount: keptInLibrary);
 
-    private IRenderedComponent<LibrariesTab> Open(string? subsection = null, string? detail = null)
+    private IRenderedComponent<LibrariesTab> Open(string? subsection = null, string? detail = null, string? tab = null)
     {
+        if (tab is not null)
+        {
+            Services.GetRequiredService<NavigationManager>().NavigateTo($"/settings/libraries/{subsection}/{detail}?tab={tab}");
+        }
+
         var cut = Render<LibrariesTab>(parameters =>
         {
             if (subsection is not null)
@@ -378,13 +389,15 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var page = Open("view", "documents");
 
         page.WaitForAssertion(() => Assert.Equal(["Paperwork"], page.FindAll(".view-source-row strong").Select(Text).ToArray()));
-        Assert.Contains("Who can see documents", page.Markup, StringComparison.Ordinal);
+        // Who can see the kind is on the Access tab, not on the Folders tab.
+        Assert.DoesNotContain("Who can see documents", page.Markup, StringComparison.Ordinal);
+        Assert.Equal("1 folder", Text(page.Find(".libpage__counts")));
     }
 
     [Fact]
     public async Task AddingAFolderOnTheDocumentsPageSendsTheDocumentsKind()
     {
-        var page = Render<ViewLibrarySettings>(parameters => parameters
+        var page = Render<ViewKindPage>(parameters => parameters
             .Add(x => x.Configuration, _configuration)
             .Add(x => x.Kind, "documents")
             .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
@@ -462,7 +475,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     [Fact]
     public void ThePermissionSwitchOnThePersonalVideosPageSendsPersonalVideosAndKeepsTheOtherFlags()
     {
-        var page = Open("view", "personal_videos");
+        var page = Open("view", "personal_videos", tab: "access");
         page.WaitForAssertion(() => Assert.Contains("Who can see personal videos", page.Markup, StringComparison.Ordinal));
         page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll(".view-kind-access__list input[role=switch]")));
         Assert.False(page.Find(".view-kind-access__list input[role=switch]").HasAttribute("checked"));
@@ -495,8 +508,11 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var page = Open("view", "documents");
 
         page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
-        Assert.Contains("Auto-filing rules", page.Markup, StringComparison.Ordinal);
-        Assert.Empty(page.FindAll("input[role=switch][aria-label=Timeline]"));
+        Assert.Empty(page.FindAll("input[role=switch][aria-label='Show in Photos timeline']"));
+        Assert.DoesNotContain("Auto-filing rules", page.Markup, StringComparison.Ordinal);
+
+        var handling = Open("view", "documents", tab: "file-handling");
+        handling.WaitForAssertion(() => Assert.Contains("Auto-filing rules", handling.Markup, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -507,7 +523,56 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var page = Open("view", "photos");
 
         page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
-        Assert.Single(page.FindAll("input[role=switch][aria-label=Timeline]"));
-        Assert.DoesNotContain("Auto-filing rules", page.Markup, StringComparison.Ordinal);
+        Assert.Single(page.FindAll("input[role=switch][aria-label='Show in Photos timeline']"));
+
+        var handling = Open("view", "photos", tab: "file-handling");
+        handling.WaitForAssertion(() => Assert.Contains("Originals remain protected", handling.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("Auto-filing rules", handling.Markup, StringComparison.Ordinal);
+    }
+
+    // Library pages WP11: View's kinds open the same page shape as any library (header facts, Folders, Access, File handling).
+    [Fact]
+    public void AViewKindPageHasTheLibraryTabsAndNoIncludeSubfoldersSwitch()
+    {
+        _personalSpace = TestSpace;
+        _viewSources = [ViewSource("D:\\Pictures", "Pictures", "photos")];
+        var page = Open("view", "photos");
+
+        page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
+        Assert.Equal(["Folders", "Access", "File handling"], page.FindAll("[role=tab]").Select(Text).ToArray());
+        Assert.Equal("Photos", Text(page.Find(".libpage__type")));
+        Assert.Equal("Per profile", Text(page.Find(".libpage__access")));
+        Assert.DoesNotContain("Include subfolders", page.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Add library", page.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ANewViewFolderIsManagedByDefault()
+    {
+        var page = Render<ViewKindPage>(parameters => parameters
+            .Add(x => x.Configuration, _configuration)
+            .Add(x => x.Kind, "photos")
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
+            .Add(x => x.StartAdding, true));
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll(".libraries-form-grid")));
+
+        var mode = page.FindComponents<MediaEngine.Web.Components.Shared.AppSelect>().First(select => select.Instance.Label == "Folder management");
+        Assert.Equal("managed", mode.Instance.Value);
+    }
+
+    // Library pages WP13, D24: the Show in Photos timeline switch is per source folder and is saved straight away.
+    [Fact]
+    public void TheTimelineSwitchOfASourceFolderIsSavedForThatFolder()
+    {
+        _personalSpace = TestSpace;
+        _viewSources = [ViewSource("D:\\Pictures", "Pictures", "photos")];
+        var page = Open("view", "photos");
+        page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
+
+        page.Find("input[role=switch][aria-label='Show in Photos timeline']").Change(true);
+
+        page.WaitForAssertion(() => Assert.Single(_sourceUpdates));
+        Assert.Equal("Pictures", _sourceUpdates[0].Name);
+        Assert.True(_sourceUpdates[0].IncludeInTimeline);
     }
 }

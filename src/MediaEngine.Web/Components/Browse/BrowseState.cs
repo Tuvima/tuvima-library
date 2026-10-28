@@ -16,4 +16,5 @@ public sealed record BrowseState(
     MediaEngine.Web.Components.Shared.TimelineGrouping Period = MediaEngine.Web.Components.Shared.TimelineGrouping.Year,
     IReadOnlyList<string>? Vibes = null,
     IReadOnlyList<string>? Themes = null,
-    bool Unmatched = false);
+    bool Unmatched = false,
+    Guid? LibraryChip = null);
