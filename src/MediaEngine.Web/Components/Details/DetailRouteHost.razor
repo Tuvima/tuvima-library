@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.WebUtilities
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Nav
+@inject IServiceProvider Services
 @implements IDisposable
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -36,7 +37,7 @@
 else if (_loading)
 {
     <div class="tl-detail-route-state">
-        <DetailHeroSkeleton />
+        <DetailHeroSkeleton Preview="_preview" />
     </div>
 }
 else
@@ -79,6 +80,7 @@ else
     [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
 
     private DetailPageViewModel? _detail;
+    private DetailPreview? _preview;
     private DetailPageLoadFailure _failure;
     private bool _loading = true;
     private string? _activeTab;
@@ -128,7 +130,9 @@ else
         var cts = _loadCts = new CancellationTokenSource();
         var ct = cts.Token;
 
-        // The previous page (if any) stays visible, dimmed, until the new payload replaces it.
+        // The previous page (if any) stays visible, dimmed, until the new payload replaces it. With no previous page,
+        // what the clicked tile knew (title, cover, logo, backdrop) fills the hero straight away.
+        _preview = _detail is null ? Services.GetService<DetailPreviewState>()?.TryTake(Request.EntityId) : null;
         _loading = true;
         Overlay?.SetTitle(null);
         _failure = DetailPageLoadFailure.None;
@@ -159,6 +163,7 @@ else
             return;
 
         _detail = result.Detail;
+        _preview = null;
         _failure = result.Detail is null && result.Failure == DetailPageLoadFailure.None
             ? DetailPageLoadFailure.NotFound
             : result.Failure;

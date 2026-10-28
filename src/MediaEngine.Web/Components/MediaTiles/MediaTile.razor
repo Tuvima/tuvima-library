@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @inject NavigationManager Nav
+@inject IServiceProvider Services
 @inject IJSRuntime JS
 @inject ILogger<MediaTile> Logger
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
@@ -1165,6 +1166,13 @@
 
     private void OpenDetails()
     {
+        // The details page draws its hero from what this tile already knows instead of showing empty boxes.
+        Services.GetService<MediaEngine.Web.Services.Navigation.DetailPreviewState>()?.Set(new MediaEngine.Web.Services.Navigation.DetailPreview(
+            new[] { Item.Id, Item.WorkId ?? Guid.Empty, Item.CollectionId ?? Guid.Empty }.Where(id => id != Guid.Empty).ToList(),
+            Item.EpisodeContext?.ShowTitle ?? Item.Title,
+            Item.PreviewImageUrl ?? Item.TileImageUrl,
+            Item.LogoUrl,
+            Item.HeroBackgroundImageUrl));
         Nav.NavigateTo(Item.DetailsNavigationUrl ?? Item.NavigationUrl);
     }
 

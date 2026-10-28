@@ -432,6 +432,7 @@ builder.Services.AddScoped<ListenContextSidebarState>();
 builder.Services.AddScoped<ContextSidebarCoordinator>();
 builder.Services.AddScoped<IDetailsOverlayHistory, DetailsOverlayJsHistory>();
 builder.Services.AddScoped<DetailsOverlayState>();
+builder.Services.AddScoped<DetailPreviewState>();
 
 // Provider Catalogue (scoped = one API client per SignalR circuit).
 // Caches provider UI metadata from GET /providers/catalogue in IMemoryCache while
