@@ -170,7 +170,7 @@ public sealed class VaultMoveTests : IDisposable
         var job = await QueueAsync(VaultMoveDirections.In, _world.NormalSourceId);
 
         // The Engine stops right after the checked copy was saved, before the old title is touched.
-        _world.Runner.BeforeStep = state => { if (state == VaultMoveItemStates.Copied) throw new InvalidOperationException("stop"); };
+        _world.Runner.BeforeStep = state => { if (state == VaultMoveItemStates.Copied) { throw new InvalidOperationException("stop"); } };
         await _world.Runner.RunPassAsync(default);
 
         Assert.Equal(VaultMoveStates.Attention, (await _world.Moves.GetAsync(job))!.State);
@@ -194,7 +194,7 @@ public sealed class VaultMoveTests : IDisposable
         var old = _world.AddTitle(_world.NormalLibraryId, path, "Brazil");
         var job = await QueueAsync(VaultMoveDirections.In, _world.NormalSourceId);
 
-        _world.Runner.BeforeStep = state => { if (state == VaultMoveItemStates.Copied) throw new InvalidOperationException("stop"); };
+        _world.Runner.BeforeStep = state => { if (state == VaultMoveItemStates.Copied) { throw new InvalidOperationException("stop"); } };
         await _world.Runner.RunPassAsync(default);
         foreach (var staged in Directory.GetFiles(_world.VaultFolder, "*" + VaultMoveService.StagingSuffix))
         {

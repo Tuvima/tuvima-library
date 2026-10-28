@@ -102,9 +102,19 @@ public sealed class VaultMoveRepository(IDatabaseConnection database) : IVaultMo
                 """,
                 new
                 {
-                    job.Id, job.Direction, job.KindKey, job.SourceLibraryId, job.DestinationLibraryId, job.SourceFolder, job.DestinationFolder,
-                    RemoveReadOnlyOriginals = job.RemoveReadOnlyOriginals ? 1 : 0, job.State, job.Message, job.CreatedByProfileId,
-                    CreatedAt = Iso(job.CreatedAt), UpdatedAt = Iso(job.UpdatedAt),
+                    job.Id,
+                    job.Direction,
+                    job.KindKey,
+                    job.SourceLibraryId,
+                    job.DestinationLibraryId,
+                    job.SourceFolder,
+                    job.DestinationFolder,
+                    RemoveReadOnlyOriginals = job.RemoveReadOnlyOriginals ? 1 : 0,
+                    job.State,
+                    job.Message,
+                    job.CreatedByProfileId,
+                    CreatedAt = Iso(job.CreatedAt),
+                    UpdatedAt = Iso(job.UpdatedAt),
                 }, transaction);
             foreach (var item in items)
             {
@@ -189,8 +199,21 @@ public sealed class VaultMoveRepository(IDatabaseConnection database) : IVaultMo
 
     private static object ItemParameters(VaultMoveItem item) => new
     {
-        item.Id, item.MoveId, item.Position, item.WorkId, item.AssetId, item.NewAssetId, item.SourcePath, item.FinalName, item.SizeBytes,
-        item.ContentHash, item.FilesJson, item.SnapshotJson, OriginalLeft = item.OriginalLeft ? 1 : 0, item.State, item.Reason,
+        item.Id,
+        item.MoveId,
+        item.Position,
+        item.WorkId,
+        item.AssetId,
+        item.NewAssetId,
+        item.SourcePath,
+        item.FinalName,
+        item.SizeBytes,
+        item.ContentHash,
+        item.FilesJson,
+        item.SnapshotJson,
+        OriginalLeft = item.OriginalLeft ? 1 : 0,
+        item.State,
+        item.Reason,
         UpdatedAt = Iso(item.UpdatedAt),
     };
 

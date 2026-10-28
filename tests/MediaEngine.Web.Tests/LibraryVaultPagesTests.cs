@@ -32,7 +32,12 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
     private VaultMoveDestinationDto? _destination = new("movies", VaultMoveDestinationStates.None, null, null, 0);
     private VaultMovePreviewDto _preview = new()
     {
-        State = VaultMovePreviewStates.Ready, Items = 3, Bytes = 3L * 1024 * 1024 * 1024, SourceName = "Library Movies", DestinationName = "Private Movies", Fingerprint = "f1",
+        State = VaultMovePreviewStates.Ready,
+        Items = 3,
+        Bytes = 3L * 1024 * 1024 * 1024,
+        SourceName = "Library Movies",
+        DestinationName = "Private Movies",
+        Fingerprint = "f1",
     };
     private readonly List<StartVaultMoveRequest> _startedMoves = [];
     private bool _lookupSaves = true;
@@ -381,7 +386,13 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
         _destination = new("movies", VaultMoveDestinationStates.Ready, Guid.Parse(VaultMoviesId), "Private Movies", 1);
         _preview = new()
         {
-            State = VaultMovePreviewStates.Ready, Items = 1, Bytes = 10, SourceName = "Library Movies", DestinationName = "Private Movies", OriginalsStay = true, Fingerprint = "f2",
+            State = VaultMovePreviewStates.Ready,
+            Items = 1,
+            Bytes = 10,
+            SourceName = "Library Movies",
+            DestinationName = "Private Movies",
+            OriginalsStay = true,
+            Fingerprint = "f2",
         };
 
         var dialogs = OpenMove();
