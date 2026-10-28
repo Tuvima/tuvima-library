@@ -35,10 +35,10 @@
         }
     </DialogContent>
     <DialogActions>
-        <AppButton Label="Cancel" OnClick="Cancel" />
+        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
         @if (_hasPasskey)
         {
-            <AppButton Label="Use a passkey" Loading="@_working" Disabled="@_working" OnClick="ConfirmWithPasskeyAsync" />
+            <AppButton Label="Use a passkey" ButtonStyle="AppButtonStyle.Outlined" Loading="@_working" Disabled="@_working" OnClick="ConfirmWithPasskeyAsync" />
         }
         @if (_hasPassword)
         {

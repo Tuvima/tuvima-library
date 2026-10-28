@@ -9,7 +9,7 @@
             <p>@Label(item.Command) &#183; @item.ChangedAt.ToLocalTime().ToString("g") @(item.Undone ? "(Undone)" : "")</p>
         }
     </DialogContent>
-    <DialogActions><AppButton OnClick="@(() => Dialog.Close())">Close</AppButton></DialogActions>
+    <DialogActions><AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => Dialog.Close())">Close</AppButton></DialogActions>
 </AppDialog>
 @code {
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;

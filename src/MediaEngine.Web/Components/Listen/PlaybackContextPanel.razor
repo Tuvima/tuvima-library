@@ -148,10 +148,9 @@
 @if (_moveMessage is not null) { <p class="listen-context-sidebar__feedback" role="status" aria-live="polite">@_moveMessage</p> }
 @if (_historyConfirmation is not null)
 {
-    <AppDialog Visible="true" Title="Clear player history?" Size="Small" OnClose="@(() => _historyConfirmation = null)">
-        <TitleContent><h2>Clear player history?</h2></TitleContent>
+    <AppDialog Visible="true" Title="Clear player history?" Size="Small" Tone="AppUiTone.Warning" OnClose="@(() => _historyConfirmation = null)">
         <DialogContent><p>This clears this player's recently played music only. Play counts and saved progress remain.</p></DialogContent>
-        <DialogActions><AppButton OnClick="@(() => _historyConfirmation = null)">Cancel</AppButton><AppButton OnClick="ConfirmClearHistoryAsync">Clear History</AppButton></DialogActions>
+        <DialogActions><AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => _historyConfirmation = null)">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="ConfirmClearHistoryAsync">Clear history</AppButton></DialogActions>
     </AppDialog>
 }
 </div>

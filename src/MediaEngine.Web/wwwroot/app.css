@@ -4971,6 +4971,9 @@ input[type="reset"],
 .who-card__edit { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; border-radius: 50%; background: rgb(0 0 0 / 48%); }
 .who-card__edit svg { width: 36%; height: 36%; }
 .who-backdrop--top { z-index: 1400; }
+/* The padded, centred body every small popup card shares (PIN pads and the like). */
+.app-dialog-shell__pad { display: grid; justify-items: center; gap: 14px; padding: 16px 24px 20px; }
+.app-dialog-shell__pad--stretch { justify-items: stretch; }
 .who-dialog__hint { margin: 0; color: var(--tl-text-muted); font-size: .85rem; text-align: center; }
 .profile-editor__photos { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
 .profile-editor__photos legend { padding: 0; font-weight: 600; }

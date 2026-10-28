@@ -58,6 +58,8 @@ public interface IAppDialogReference
 public interface IAppDialogContext
 {
     Guid Id { get; }
+    /// <summary>The title the caller gave when it opened the dialog (shown in the shared popup header); null when none was given.</summary>
+    string? Title => null;
     AppDialogOptions Options { get; }
     string? PresentationClass { get; }
     void Close(AppDialogResult? result = null);

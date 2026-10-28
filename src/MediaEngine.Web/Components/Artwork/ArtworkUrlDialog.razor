@@ -1,13 +1,12 @@
 @namespace MediaEngine.Web.Components.Artwork
 
-<AppDialog Options="@(new AppDialogOptions { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true })">
-    <TitleContent>Import artwork from URL</TitleContent>
+<AppDialog Title="Import artwork from URL" Options="@(new AppDialogOptions { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true })">
     <DialogContent>
         <AppTextField Label="Image URL" Value="@_url" ValueChanged="@((string? value) => _url = value ?? string.Empty)" />
     </DialogContent>
     <DialogActions>
-        <AppButton ButtonStyle="AppButtonStyle.Text" OnClick="Cancel">Cancel</AppButton>
-        <AppButton Disabled="@(!ValidUrl)" OnClick="Import">Import image</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel">Cancel</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!ValidUrl)" OnClick="Import">Import image</AppButton>
     </DialogActions>
 </AppDialog>
 

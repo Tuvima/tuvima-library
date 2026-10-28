@@ -147,45 +147,47 @@
     @if (_needsUnlock)
     {
         <div class="who-backdrop who-backdrop--top">
-            <div class="who-dialog" role="dialog" aria-modal="true" aria-labelledby="who-unlock-title">
-                <h2 id="who-unlock-title" class="who-dialog__title">Enter your administrator PIN</h2>
-                <p class="who-dialog__hint">This is only asked for when administrator protection is turned on.</p>
-                <PinPad @bind-Value="_unlockPin" Disabled="@_busy" MaxLength="12" OnSubmit="UnlockAsync" OnCancel="CancelUnlock" />
-                @if (!string.IsNullOrWhiteSpace(_error))
-                {
-                    <p class="who-page__error" role="alert">@_error</p>
-                }
-                <div class="who-dialog__actions">
-                    <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="CancelUnlock">Cancel</AppNativeButton>
-                    <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(_busy || _unlockPin.Length < 4)" OnClick="UnlockAsync">
-                        @(_busy ? "Checking…" : "Continue")
-                    </AppNativeButton>
-                </div>
-            </div>
+            <AppDialogShell Title="Enter your administrator PIN" Size="Small" Tone="AppUiTone.Info" OnClose="CancelUnlock">
+                <ChildContent>
+                    <div class="app-dialog-shell__pad">
+                        <p class="who-dialog__hint">This is only asked for when administrator protection is turned on.</p>
+                        <PinPad @bind-Value="_unlockPin" Disabled="@_busy" MaxLength="12" OnSubmit="UnlockAsync" OnCancel="CancelUnlock" />
+                        @if (!string.IsNullOrWhiteSpace(_error))
+                        {
+                            <p class="who-page__error" role="alert">@_error</p>
+                        }
+                    </div>
+                </ChildContent>
+                <FooterContent>
+                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="CancelUnlock" />
+                    <AppButton Label="@(_busy ? "Checking…" : "Continue")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || _unlockPin.Length < 4)" OnClick="UnlockAsync" />
+                </FooterContent>
+            </AppDialogShell>
         </div>
     }
 
     @if (_pending is not null)
     {
         <div class="who-backdrop">
-            <div class="who-dialog" role="dialog" aria-modal="true" aria-labelledby="who-pin-title">
-                <h2 id="who-pin-title" class="who-dialog__title">Enter @_pending.DisplayName's PIN</h2>
-                <PinPad @bind-Value="_pin"
-                        Disabled="@_busy"
-                        ShakeCount="@_shake"
-                        OnSubmit="SubmitPinAsync"
-                        OnCancel="CancelPin" />
-                @if (!string.IsNullOrWhiteSpace(_error))
-                {
-                    <p class="who-page__error" role="alert">@_error</p>
-                }
-                <div class="who-dialog__actions">
-                    <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="CancelPin">Cancel</AppNativeButton>
-                    <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(_busy || _pin.Length < 4)" OnClick="SubmitPinAsync">
-                        @(_busy ? "Checking…" : "Continue")
-                    </AppNativeButton>
-                </div>
-            </div>
+            <AppDialogShell Title="@($"Enter {_pending.DisplayName}'s PIN")" Size="Small" Tone="AppUiTone.Info" OnClose="CancelPin">
+                <ChildContent>
+                    <div class="app-dialog-shell__pad">
+                        <PinPad @bind-Value="_pin"
+                                Disabled="@_busy"
+                                ShakeCount="@_shake"
+                                OnSubmit="SubmitPinAsync"
+                                OnCancel="CancelPin" />
+                        @if (!string.IsNullOrWhiteSpace(_error))
+                        {
+                            <p class="who-page__error" role="alert">@_error</p>
+                        }
+                    </div>
+                </ChildContent>
+                <FooterContent>
+                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="CancelPin" />
+                    <AppButton Label="@(_busy ? "Checking…" : "Continue")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || _pin.Length < 4)" OnClick="SubmitPinAsync" />
+                </FooterContent>
+            </AppDialogShell>
         </div>
     }
 </section>

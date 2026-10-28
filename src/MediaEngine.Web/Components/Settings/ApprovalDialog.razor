@@ -4,6 +4,8 @@
 
 @* The one confirmation every "switch this on" action shows (Developer tools spec D-C): what it can do, whether anything
    leaves this machine, then the choice. The words come from the Engine; this only lays them out. *@
+<AppDialog Tone="AppUiTone.Warning" Size="Small">
+<DialogContent>
 <div class="approval-dialog" data-testid="approval-dialog" data-approval-kind="@Preview.Kind">
     <strong class="approval-dialog__title" data-testid="approval-title">@Preview.Title</strong>
     <p class="approval-dialog__heading">It can:</p>
@@ -30,11 +32,13 @@
             }
         </ul>
     }
-    <footer class="approval-dialog__actions">
-        <AppButton Label="Cancel" OnClick="CancelAsync" />
-        <AppButton Label="@ConfirmLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ConfirmAsync" />
-    </footer>
 </div>
+</DialogContent>
+<DialogActions>
+    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="CancelAsync" />
+    <AppButton Label="@ConfirmLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ConfirmAsync" />
+</DialogActions>
+</AppDialog>
 
 @code {
     [CascadingParameter] public IAppDialogContext Dialog { get; set; } = default!;

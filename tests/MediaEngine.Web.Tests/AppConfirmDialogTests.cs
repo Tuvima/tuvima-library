@@ -177,4 +177,23 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
         host.Find("button[aria-label='Close dialog']").Click();
         await Task.Yield();
     }
+
+    [Fact]
+    public async Task TheMessageBoxIsTheSharedCardWithCancelBeforeTheMainButtonAndOneTitle()
+    {
+        var host = Render<AppDialogHost>();
+        _ = Dialogs.ShowMessageBoxAsync("Heads up", "Something to read.", yesText: "OK", cancelText: "Cancel");
+        host.WaitForElement(".app-dialog-shell");
+
+        Assert.Equal("Heads up", host.Find(".app-dialog-shell__title").TextContent.Trim());
+        Assert.Empty(host.FindAll(".app-native-dialog__header"));
+        Assert.Contains("Something to read.", host.Find(".app-message-box__message").TextContent);
+        var buttons = host.FindAll(".app-dialog-shell__footer button").ToList();
+        Assert.Equal(["Cancel", "OK"], buttons.Select(button => button.TextContent.Trim()));
+        Assert.Contains("app-button--outlined", buttons[0].ClassList);
+        Assert.Contains("app-button--filled", buttons[1].ClassList);
+
+        host.Find("button[aria-label='Close dialog']").Click();
+        await Task.Yield();
+    }
 }
