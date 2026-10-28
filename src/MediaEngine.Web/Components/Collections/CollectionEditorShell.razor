@@ -1707,9 +1707,9 @@ else
                                         <div class="collection-editor-item-title">@item.Title</div>
                                         <div class="collection-editor-item-meta">@FormatManualItemMeta(item)</div>
                                     </div>
-                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Size="AppControlSize.Compact" Disabled="@(item.SortOrder == _manualItems.Min(existing => existing.SortOrder))" OnClick="@(() => MoveManualItemAsync(item, -1))" aria-label="Move item up" />
-                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Size="AppControlSize.Compact" Disabled="@(item.SortOrder == _manualItems.Max(existing => existing.SortOrder))" OnClick="@(() => MoveManualItemAsync(item, 1))" aria-label="Move item down" />
-                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RemoveCircle" Size="AppControlSize.Compact" Tone="AppUiTone.Error" OnClick="@(() => RemoveManualItemAsync(item))" aria-label="Remove item" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Size="AppControlSize.Compact" Disabled="@(item.SortOrder == _manualItems.Min(existing => existing.SortOrder))" OnClick="@(() => MoveManualItemAsync(item, -1))" Tooltip="Move item up" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Size="AppControlSize.Compact" Disabled="@(item.SortOrder == _manualItems.Max(existing => existing.SortOrder))" OnClick="@(() => MoveManualItemAsync(item, 1))" Tooltip="Move item down" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RemoveCircle" Size="AppControlSize.Compact" Tone="AppUiTone.Error" OnClick="@(() => RemoveManualItemAsync(item))" Tooltip="Remove item" />
                                 </div>
                             }
                         </div>

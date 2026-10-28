@@ -16,10 +16,10 @@
     <div class="bookmark-packs__toolbar">
         <span>Bookmark packs</span>
         <div class="bookmark-packs__buttons">
-            <AppButton Class="bookmark-packs__button" Disabled="@(_busy || OwnBookmarks.Count == 0)" title="@(OwnBookmarks.Count == 0 ? "Save a bookmark first" : "Export some of your bookmarks as a pack file")" OnClick="StartExport">Export</AppButton>
+            <AppButton Class="bookmark-packs__button" Disabled="@(_busy || OwnBookmarks.Count == 0)" title="@(OwnBookmarks.Count == 0 ? "Save a bookmark first" : "Export some of your bookmarks as a pack file")" StartIcon="@AppMaterialIcons.Outlined.Download" OnClick="StartExport">Export</AppButton>
             <AppFileUpload T="IBrowserFile" Accept=".zip,application/zip" Disabled="@_busy" FilesChanged="PickPackAsync">
                 <CustomContent Context="upload">
-                    <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="upload.OpenFilePickerAsync">Import</AppButton>
+                    <AppButton Class="bookmark-packs__button" Disabled="@_busy" StartIcon="@AppMaterialIcons.Outlined.FileUpload" OnClick="upload.OpenFilePickerAsync">Import</AppButton>
                 </CustomContent>
             </AppFileUpload>
         </div>
