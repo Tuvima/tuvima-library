@@ -174,7 +174,6 @@ public partial class SharedMediaEditorShell
     private bool _rereadingFileMetadata;
     private string? _fileMetadataRereadMessage;
     private string _historyFilter = "all";
-    private bool _confirmDiscard;
     private string? _dragTargetArtworkType;
     private string? _loadError;
     private string? _saveError;
@@ -388,8 +387,7 @@ public partial class SharedMediaEditorShell
         + $"Artwork policy: {(_writebackSettings?.ArtworkEnabled == true ? "on" : "off or unavailable")}. "
         + "This policy does not confirm a file write. See History for actual outcomes.";
     protected bool ShouldShowEditorFooter =>
-        _confirmDiscard
-        || (HasStagedEditorChanges && !HasPendingDetailsInlineEdit && !IsOnlyArtworkUploadInFlight)
+        (HasStagedEditorChanges && !HasPendingDetailsInlineEdit && !IsOnlyArtworkUploadInFlight)
         || Request.Mode == SharedMediaEditorMode.Review;
 
     // In an Editing Mode section a picked image is applied at once, so a staged file is either on its way (the footer stays
@@ -438,7 +436,7 @@ public partial class SharedMediaEditorShell
         }
     }
     protected bool ShouldShowNonInlineEditorFooter =>
-        (!Inline || IsSection) && (_confirmDiscard || (ShouldShowEditorFooter && _activeTab != "links"));
+        (!Inline || IsSection) && ShouldShowEditorFooter && _activeTab != "links";
     private bool _automaticArtworkRestoring;
     protected bool IsArtworkBusy => _automaticArtworkRestoring || _artworkUrlSubmitting || _providerArtworkRefreshing
                                     || _artworkApplyingKeys.Count > 0 || _editionCoverReviewing || _editionCoverSaving;
@@ -2645,7 +2643,20 @@ public partial class SharedMediaEditorShell
         CancelAllMatchSearches();
         if (HasPendingNavigationChanges)
         {
-            _confirmDiscard = true;
+            // The shared popup (one-look spec WP1); closing it any other way keeps the person editing.
+            var answer = await AppConfirmDialog.ShowAsync(
+                DialogService,
+                "Discard your changes?",
+                "You have changes that are not saved yet.",
+                primaryLabel: "Discard",
+                secondaryLabel: "Keep editing",
+                primaryDestructive: true,
+                tone: AppUiTone.Warning);
+            if (answer == AppConfirmResult.Primary)
+            {
+                await DiscardAndClose();
+            }
+
             return;
         }
 
@@ -2683,7 +2694,6 @@ public partial class SharedMediaEditorShell
         _audiobookChapterResetKeys.Clear();
         _unifiedArtworkWorkspace?.DiscardPendingChanges();
         _unifiedArtworkPending = false;
-        _confirmDiscard = false;
         _saveError = null;
         _saveConflict = false;
     }

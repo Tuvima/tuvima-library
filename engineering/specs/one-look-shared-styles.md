@@ -1,6 +1,6 @@
 # Spec: One look for the whole app (popups, menus, lists, icons, profile pictures)
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · [Appendix A: dialog inventory](#appendix-a-dialog-inventory) · [Plugins and Integrations screens](plugins-and-integrations-screens.md) (applies the icon rule, F70) · bug log entries F3, F12, F15, F25, F26, F35, F42, F45, F46, F51, F52, F64, F69, F70 · Editing revamp thread (uses the popup in F35; F49 decides which editor is kept)
+> **Status:** In progress · **Version:** 2 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · [Appendix A: dialog inventory](#appendix-a-dialog-inventory) · [Plugins and Integrations screens](plugins-and-integrations-screens.md) (applies the icon rule, F70) · bug log entries F3, F12, F15, F25, F26, F35, F42, F45, F46, F51, F52, F64, F69, F70 · Editing revamp thread (uses the popup in F35; F49 decides which editor is kept)
 
 ## 1. Goal
 

@@ -1039,11 +1039,6 @@
     color: white;
 }
 
-.sme-discard-warning {
-    font-size: 0.92rem;
-    font-weight: 600;
-}
-
 /* Touch tablets above the 960px full-screen breakpoint: fill the visible viewport, not 90vh. */
 @media (hover: none), (pointer: coarse) {
 .sme-shell {

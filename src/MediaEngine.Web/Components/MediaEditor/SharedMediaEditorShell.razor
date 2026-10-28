@@ -112,23 +112,6 @@
                 </div>
             }
 
-            @if (Inline && !IsSection && _confirmDiscard)
-            {
-                <div class="sme-inline-decision" role="alert">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" />
-                    <div>
-                        <strong>Discard unsaved changes?</strong>
-                        <span>Your edits will be lost and the unchanged detail page will return.</span>
-                    </div>
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="@(() => _confirmDiscard = false)">
-                        Keep Editing
-                    </AppButton>
-                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="DiscardAndClose">
-                        Discard
-                    </AppButton>
-                </div>
-            }
-
             @if (_navigationGuard.PendingLocation is not null)
             {
                 <div class="sme-inline-decision sme-navigation-decision" role="alert">
@@ -863,63 +846,45 @@
             @if (ShouldShowNonInlineEditorFooter)
             {
             <div class="sme-footer">
-                @if (_confirmDiscard)
+                <div class="sme-footer-spacer"></div>
+                @if (ShowArtworkUploadRetryFooter)
                 {
-                    <div class="sme-discard-warning">Discard unsaved changes?</div>
-                    <AppButton ButtonStyle="AppButtonStyle.Text"
-                               Tone="AppUiTone.Neutral"
-                               Class="sme-footer-btn sme-footer-btn--ghost"
-                               OnClick="@(() => _confirmDiscard = false)">
-                        Keep Editing
-                    </AppButton>
+                    <div class="sme-footer-note" role="alert">
+                        <span>The image was not added, so nothing has changed yet.</span>
+                    </div>
                     <AppButton ButtonStyle="AppButtonStyle.Filled"
-                               Tone="AppUiTone.Error"
-                               Class="sme-footer-btn sme-footer-btn--danger"
-                               OnClick="DiscardAndClose">
-                        Discard
+                               Tone="AppUiTone.Primary"
+                               Class="sme-footer-btn sme-footer-btn--primary"
+                               Disabled="@IsArtworkRetryRunning"
+                               OnClick="RetryFailedArtworkUploadsAsync">
+                        Retry upload
                     </AppButton>
                 }
-                else
+                else if (HasStagedEditorChanges)
                 {
-                    <div class="sme-footer-spacer"></div>
-                    @if (ShowArtworkUploadRetryFooter)
-                    {
-                        <div class="sme-footer-note" role="alert">
-                            <span>The image was not added, so nothing has changed yet.</span>
-                        </div>
-                        <AppButton ButtonStyle="AppButtonStyle.Filled"
-                                   Tone="AppUiTone.Primary"
-                                   Class="sme-footer-btn sme-footer-btn--primary"
-                                   Disabled="@IsArtworkRetryRunning"
-                                   OnClick="RetryFailedArtworkUploadsAsync">
-                            Retry upload
-                        </AppButton>
-                    }
-                    else if (HasStagedEditorChanges)
-                    {
-                        <AppButton ButtonStyle="AppButtonStyle.Filled"
-                                   Tone="AppUiTone.Primary"
-                                   Class="sme-footer-btn sme-footer-btn--primary"
-                                   OnClick="SaveAsync"
-                                   Disabled="@_saving">
-                            @if (_saving)
-                            {
-                                <AppSpinner Indeterminate="true" Size="AppSize.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
-                            }
-                            @GetDirtySaveLabel()
-                        </AppButton>
-                    }
-                    else if (Request.Mode == SharedMediaEditorMode.Review)
-                    {
-                        <AppButton ButtonStyle="AppButtonStyle.Filled"
-                                   Tone="AppUiTone.Primary"
-                                   Class="sme-footer-btn sme-footer-btn--primary"
-                                   OnClick="HandleReviewPrimaryActionAsync"
-                                   Disabled="@_saving">
-                            @(_saving ? "Resolving..." : GetResolveReviewLabel())
-                        </AppButton>
-                    }
+                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               Class="sme-footer-btn sme-footer-btn--primary"
+                               OnClick="SaveAsync"
+                               Disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <AppSpinner Indeterminate="true" Size="AppSize.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
+                        }
+                        @GetDirtySaveLabel()
+                    </AppButton>
                 }
+                else if (Request.Mode == SharedMediaEditorMode.Review)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               Class="sme-footer-btn sme-footer-btn--primary"
+                               OnClick="HandleReviewPrimaryActionAsync"
+                               Disabled="@_saving">
+                        @(_saving ? "Resolving..." : GetResolveReviewLabel())
+                    </AppButton>
+                }
+            
             </div>
             }
         </div>

@@ -182,28 +182,6 @@ public sealed class EditorMatchTargetTests
         Assert.False(shell.PendingNavigation);
     }
 
-    [Fact]
-    public async Task ClosingWithMatchDraftOnLinksShowsAndCanDismissDiscardPrompt()
-    {
-        var shell = new TargetShell();
-        shell.Configure("Books", "book", "Book");
-        shell.SetActiveTab("links");
-        shell.SetField("_selectedWikidataCandidateId", "qid:Q123");
-
-        Assert.True(shell.PendingNavigation);
-        Assert.False(shell.NonInlineFooterVisible);
-
-        await shell.RequestClose();
-
-        Assert.True(shell.ConfirmDiscard);
-        Assert.True(shell.NonInlineFooterVisible);
-
-        shell.KeepEditing();
-
-        Assert.False(shell.ConfirmDiscard);
-        Assert.False(shell.NonInlineFooterVisible);
-    }
-
     [Theory]
     [InlineData("TV", "series", "Solo Leveling", "Series title")]
     [InlineData("Music", "album", "GNX", "Album title")]
@@ -282,10 +260,6 @@ public sealed class EditorMatchTargetTests
         public string StaticTitle => StaticHeaderTitle;
         public string? StaticYear => StaticHeaderYear;
         public bool PendingNavigation => HasPendingNavigationChanges;
-        public bool ConfirmDiscard => (bool)typeof(SharedMediaEditorShell).GetField("_confirmDiscard", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(this)!;
-        public bool NonInlineFooterVisible => ShouldShowNonInlineEditorFooter;
-        public Task RequestClose() => HandleClose();
-        public void KeepEditing() => SetField("_confirmDiscard", false);
         public void SetActiveTab(string tabId) =>
             ((MediaEditorTabState)typeof(SharedMediaEditorShell).GetField("_tabState", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(this)!).Activate(tabId);
         public void CancelCandidate() => CancelMatchDraft();

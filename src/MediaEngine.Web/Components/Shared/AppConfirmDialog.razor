@@ -6,7 +6,7 @@
    with the labels the caller chooses, and the same frame as the Delete from library dialog. Closing it (Esc, the close button or
    the backdrop) is a third answer, Cancelled, so nothing is ever decided by accident. When the primary button is destructive
    the safer secondary button has the focus when it opens (the autofocus attribute is honoured by the native dialog). *@
-<AppDialogShell Title="@Title" Size="@(Preview is null ? "Small" : "Medium")" OnClose="CancelAsync">
+<AppDialogShell Title="@Title" Size="@(Preview is null ? "Small" : "Medium")" Tone="@ResolvedTone" OnClose="CancelAsync">
     <ChildContent>
         <div class="app-confirm">
             @if (!string.IsNullOrWhiteSpace(Message))
@@ -23,12 +23,12 @@
     <FooterContent>
         @if (PrimaryDestructive)
         {
-            <AppButton Label="@SecondaryLabel" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" OnClick="SecondaryAsync" />
+            <AppButton Label="@SecondaryLabel" ButtonStyle="AppButtonStyle.Outlined" autofocus="autofocus" OnClick="SecondaryAsync" />
             <AppButton Label="@PrimaryLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="PrimaryAsync" />
         }
         else
         {
-            <AppButton Label="@SecondaryLabel" ButtonStyle="AppButtonStyle.Text" OnClick="SecondaryAsync" />
+            <AppButton Label="@SecondaryLabel" ButtonStyle="AppButtonStyle.Outlined" OnClick="SecondaryAsync" />
             <AppButton Label="@PrimaryLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" autofocus="autofocus" OnClick="PrimaryAsync" />
         }
     </FooterContent>
@@ -51,6 +51,11 @@
     /// <summary>True when the primary step cannot be undone (a delete, a removal): the button is red and starts unfocused.</summary>
     [Parameter] public bool PrimaryDestructive { get; set; }
 
+    /// <summary>The popup's icon tone: Warning (amber) for unsaved or risky questions, Info for plain notices, Error for destructive ones. Left empty it follows <see cref="PrimaryDestructive"/>.</summary>
+    [Parameter] public AppUiTone? Tone { get; set; }
+
+    private AppUiTone ResolvedTone => Tone ?? (PrimaryDestructive ? AppUiTone.Error : AppUiTone.Warning);
+
     private Task PrimaryAsync() => Dialog.CloseAsync(AppDialogResult.Ok(AppConfirmResult.Primary));
 
     private Task SecondaryAsync() => Dialog.CloseAsync(AppDialogResult.Ok(AppConfirmResult.Secondary));
@@ -68,7 +73,8 @@
         string primaryLabel,
         string secondaryLabel,
         bool primaryDestructive = false,
-        RenderFragment? preview = null)
+        RenderFragment? preview = null,
+        AppUiTone? tone = null)
     {
         var parameters = new AppDialogParameters<AppConfirmDialog>
         {
@@ -78,6 +84,7 @@
             { component => component.PrimaryLabel, primaryLabel },
             { component => component.SecondaryLabel, secondaryLabel },
             { component => component.PrimaryDestructive, primaryDestructive },
+            { component => component.Tone, tone },
         };
         var dialog = await dialogs.ShowAsync<AppConfirmDialog>(
             string.Empty,

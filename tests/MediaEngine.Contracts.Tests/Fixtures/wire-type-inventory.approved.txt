@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1248; api=0; web-client=54
+# scopes: contracts=1253; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3600,6 +3600,46 @@
   Results: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.UniversalSearchResultDto> | json=results | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TotalCount: System.Int32 | json=totalCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SeeAllRoute: System.String | json=seeAllRoute | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Editing.EditSessionChange
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Fields: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionFieldChange> | json=fields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TargetId: System.String | json=target_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Slot: System.String | json=slot | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Token: System.String | json=token | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","kind":"sample","entity_id":"11111111-2222-3333-4444-555555555555","fields":[],"target_id":"sample","slot":"sample","token":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EditSessionChangeResult
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Status: System.String | json=status | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","kind":"sample","entity_id":"11111111-2222-3333-4444-555555555555","status":"sample","reason":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EditSessionFieldChange
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Value: System.String | json=value | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","value":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EditSessionRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PreviewOnly: System.Boolean | json=preview_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChange> | json=changes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"preview_only":true,"changes":[]}
+
+[contracts] MediaEngine.Contracts.Editing.EditSessionResult
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PreviewOnly: System.Boolean | json=preview_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Valid: System.Boolean | json=valid | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DataSaved: System.Boolean | json=data_saved | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChangeResult> | json=changes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"preview_only":true,"valid":true,"data_saved":true,"changes":[]}
 
 [contracts] MediaEngine.Contracts.Imports.ImportUploadCompleteResponse
   kind=class | converter=default | number-handling=default | unmapped=default

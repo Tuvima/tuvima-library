@@ -3001,6 +3001,40 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.UniversalSearchSecti
   TotalCount: System.Int32 | nullability=not-null | accessors=get,init
   SeeAllRoute: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChange
+  Id: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Fields: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionFieldChange> | nullability=not-null | accessors=get,init
+  TargetId: System.String | nullability=nullable | accessors=get,init
+  Slot: System.String | nullability=nullable | accessors=get,init
+  Token: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeKinds
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeResult
+  Id: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Status: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeStatuses
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionFieldChange
+  Key: System.String | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionRequest
+  PreviewOnly: System.Boolean | nullability=not-null | accessors=get,init
+  Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChange> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionResult
+  PreviewOnly: System.Boolean | nullability=not-null | accessors=get,init
+  Valid: System.Boolean | nullability=not-null | accessors=get,init
+  DataSaved: System.Boolean | nullability=not-null | accessors=get,init
+  Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChangeResult> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Imports.MediaEngine.Contracts.Imports.ImportUploadCompleteResponse
   UploadId: System.Guid | nullability=not-null | accessors=get,init
   FileName: System.String | nullability=not-null | accessors=get,init

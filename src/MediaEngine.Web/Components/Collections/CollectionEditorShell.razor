@@ -593,7 +593,8 @@ else
             "You have changes that are not saved yet.",
             primaryLabel: "Discard",
             secondaryLabel: "Keep editing",
-            primaryDestructive: true) == AppConfirmResult.Primary;
+            primaryDestructive: true,
+            tone: AppUiTone.Warning) == AppConfirmResult.Primary;
 
     private async Task<bool> ConfirmDeleteCollectionAsync(string name) =>
         await AppConfirmDialog.ShowAsync(
