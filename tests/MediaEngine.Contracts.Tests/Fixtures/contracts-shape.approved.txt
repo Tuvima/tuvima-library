@@ -310,8 +310,13 @@ MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.ApprovalWebhookI
   EventTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
   AllowLocalNetwork: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.PluginDisableRequest
+  AlsoSwitchOffDependants: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.PluginEnableRequest
   ApprovalHash: System.String | nullability=nullable | accessors=get,init
+  AlsoSwitchOnNeeded: System.Boolean | nullability=not-null | accessors=get,init
+  ApprovalHashes: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ArtworkAssetContextDto
   EntityId: System.Guid | nullability=not-null | accessors=get,init
@@ -7048,6 +7053,12 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeletedRespons
   plugin_id: System.String | nullability=not-null | accessors=get,init
   deleted: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDependenciesResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  WaitingFor: System.String | nullability=nullable | accessors=get,set
+  Needs: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeedDto> | nullability=not-null | accessors=get,set
+  NeededBy: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeededByDto> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryEntryDto
   Id: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
@@ -7095,6 +7106,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectorySetti
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginEnabledResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   enabled: System.Boolean | nullability=not-null | accessors=get,init
+  also_changed: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHealthCheckDto
   Status: System.String | nullability=not-null | accessors=get,set
@@ -7193,6 +7205,17 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginMenuEntryDto
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginMenuResponse
   Entries: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginMenuEntryDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginNeedDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Optional: System.Boolean | nullability=not-null | accessors=get,set
+  VersionRange: System.String | nullability=nullable | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginNeededByDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginNetworkDestinationDto
   Host: System.String | nullability=not-null | accessors=get,set
