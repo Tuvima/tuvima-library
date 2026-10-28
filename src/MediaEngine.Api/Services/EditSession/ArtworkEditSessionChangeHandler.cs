@@ -10,7 +10,9 @@ namespace MediaEngine.Api.Services.EditSession;
 /// Saves an artwork choice the way the artwork workspace does: the picture named by <see cref="EditSessionChange.TargetId"/> becomes the
 /// chosen one for the slot through <see cref="ArtworkAssetService.LinkAsync"/> (the existing "preferred" write), and
 /// <see cref="EditSessionArtworkTargets.None"/> leaves no picture chosen. Pictures the person uploaded, pasted or took from a provider were
-/// stored earlier as unchosen pictures, so the page does not change until this runs. Undo puts the previously chosen picture back.
+/// stored earlier as unchosen pictures of that item (linked to it, not chosen), so the page does not change until this runs. A picture
+/// that is not one of the item's own is refused, so a saved change can never take another item's picture. Undo puts the previously
+/// chosen picture back.
 /// </summary>
 public sealed class ArtworkEditSessionChangeHandler(
     ArtworkAssetService artwork,
@@ -21,6 +23,7 @@ public sealed class ArtworkEditSessionChangeHandler(
     public const string UnknownSlot = "That kind of artwork cannot be changed here.";
     public const string NoTargetPicture = "No picture was chosen.";
     public const string PictureGone = "That picture is no longer available.";
+    public const string NotThisItemsPicture = "That picture belongs to a different item. Add it to this item first.";
 
     public string Kind => EditSessionChangeKinds.Artwork;
 
@@ -46,9 +49,14 @@ public sealed class ArtworkEditSessionChangeHandler(
             return null;
         }
 
-        return Guid.TryParse(change.TargetId, out var assetId) && await artwork.AssetExistsAsync(assetId, ct).ConfigureAwait(false)
-            ? null
-            : PictureGone;
+        if (!Guid.TryParse(change.TargetId, out var assetId) || !await artwork.AssetExistsAsync(assetId, ct).ConfigureAwait(false))
+        {
+            return PictureGone;
+        }
+
+        // Only this item's own pictures can be chosen for it: the ones already saved for it, its unchosen ones, and uploads, pasted
+        // links and provider pictures added for it in the editor (all of which are linked to it, unchosen, when they are stored).
+        return await artwork.AssetBelongsToEntityAsync(assetId, change.EntityId, ct).ConfigureAwait(false) ? null : NotThisItemsPicture;
     }
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
@@ -67,6 +75,11 @@ public sealed class ArtworkEditSessionChangeHandler(
             if (!Guid.TryParse(change.TargetId, out var assetId) || !await artwork.AssetExistsAsync(assetId, ct).ConfigureAwait(false))
             {
                 throw new InvalidOperationException(PictureGone);
+            }
+
+            if (!await artwork.AssetBelongsToEntityAsync(assetId, change.EntityId, ct).ConfigureAwait(false))
+            {
+                throw new InvalidOperationException(NotThisItemsPicture);
             }
 
             var context = await artwork.GetLinkContextAsync(entityType, change.EntityId, role, assetId, ct).ConfigureAwait(false);

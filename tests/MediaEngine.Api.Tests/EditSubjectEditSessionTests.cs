@@ -154,6 +154,8 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     {
         var person = await SeedPersonAsync();
         var photo = SeedAsset("photo");
+        // A saved photo of this person (stored for them, not chosen yet), which is the only kind of picture a save may choose.
+        await _artwork.LinkAsync("Person", person, new(photo, "Portrait", Preferred: false, SourceAssetType: "Headshot"), CancellationToken.None);
 
         var result = await CreateService().RunAsync(
             Request(previewOnly: false, new EditSessionChange
@@ -282,6 +284,8 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         var universe = SeedGrouping(CollectionType.Universe, "Dune universe", null);
         var cover = SeedAsset("cover");
         var background = SeedAsset("background");
+        await _artwork.LinkAsync("Collection", universe, new(cover, "Primary", Preferred: false, SourceAssetType: "CoverArt"), CancellationToken.None);
+        await _artwork.LinkAsync("Collection", universe, new(background, "Background", Preferred: false, SourceAssetType: "Background"), CancellationToken.None);
 
         var result = await CreateService().RunAsync(
             Request(

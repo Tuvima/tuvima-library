@@ -17,7 +17,7 @@ public sealed class ArtworkEditPreview
     private readonly EditSessionState _session;
     private readonly ItemFieldEditSession _fields;
     private readonly Dictionary<string, Shown> _picked = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Shown> _staged = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<(Guid Entity, string Slot), Shown> _staged = new();
     private readonly Dictionary<string, string> _current = new(StringComparer.OrdinalIgnoreCase);
 
     public ArtworkEditPreview(EditSessionState session, ItemFieldEditSession fields)
@@ -27,6 +27,12 @@ public sealed class ArtworkEditPreview
     }
 
     private sealed record Shown(string TargetId, string? Url);
+
+    /// <summary>
+    /// The item whose pictures the page itself shows (the page's own title). While another item of the page is being edited, the hero keeps
+    /// showing the page item's own staged pictures, not the other item's. Null means the page shows whichever item is being edited.
+    /// </summary>
+    public Guid? PageArtworkEntityId { get; set; }
 
     /// <summary>True for a slot the page does not normally show (season poster, season thumbnail, episode still).</summary>
     public static bool UsesTemporaryView(string? slot) =>
@@ -66,7 +72,7 @@ public sealed class ArtworkEditPreview
     /// <summary>Remembers the preview of a picture that was staged, so the page keeps showing it until Save changes.</summary>
     public void RememberStaged(string slot, string targetId, string? url)
     {
-        _staged[slot] = new Shown(targetId, url);
+        _staged[(_fields.ArtworkEntityId, slot.Trim().ToLowerInvariant())] = new Shown(targetId, url);
         _picked.Remove(slot);
     }
 
@@ -81,16 +87,22 @@ public sealed class ArtworkEditPreview
     public string? StagedChangeId(string slot) => FindStaged(slot)?.Id;
 
     /// <summary>The picture the page should show for a slot: the pick, else the staged picture, else null (the page keeps its own).</summary>
-    public string? Url(string slot)
+    public string? Url(string slot) => UrlFor(slot, _fields.ArtworkEntityId);
+
+    /// <summary>The picture the page itself should show for a slot: the one for the page's own item, even while another item is being edited.</summary>
+    public string? PageUrl(string slot) => UrlFor(slot, PageArtworkEntityId ?? _fields.ArtworkEntityId);
+
+    // A pick belongs to the item being edited; a staged picture belongs to the item it was staged for.
+    private string? UrlFor(string slot, Guid entityId)
     {
-        if (_picked.TryGetValue(slot, out var picked) && !string.IsNullOrWhiteSpace(picked.Url))
+        if (entityId == _fields.ArtworkEntityId && _picked.TryGetValue(slot, out var picked) && !string.IsNullOrWhiteSpace(picked.Url))
         {
             return picked.Url;
         }
 
-        var change = FindStaged(slot);
+        var change = FindStaged(slot, entityId);
         return change is not null
-               && _staged.TryGetValue(slot, out var staged)
+               && _staged.TryGetValue((entityId, slot.Trim().ToLowerInvariant()), out var staged)
                && string.Equals(staged.TargetId, change.TargetId, StringComparison.Ordinal)
                && !string.IsNullOrWhiteSpace(staged.Url)
             ? staged.Url
@@ -105,10 +117,11 @@ public sealed class ArtworkEditPreview
     /// <summary>The page's artwork with every previewed picture in place of the stored one. Returns <paramref name="artwork"/> itself when nothing is previewed.</summary>
     public ArtworkSet Apply(ArtworkSet artwork)
     {
-        var cover = Url("CoverArt");
-        var background = Url("Background");
-        var logo = Url("Logo");
-        var headshot = Url("Headshot");
+        var owner = PageArtworkEntityId ?? _fields.ArtworkEntityId;
+        var cover = UrlFor("CoverArt", owner);
+        var background = UrlFor("Background", owner);
+        var logo = UrlFor("Logo", owner);
+        var headshot = UrlFor("Headshot", owner);
         if (cover is null && background is null && logo is null && headshot is null)
         {
             return artwork;
@@ -150,9 +163,10 @@ public sealed class ArtworkEditPreview
         };
     }
 
-    private EditSessionChange? FindStaged(string slot)
+    private EditSessionChange? FindStaged(string slot) => FindStaged(slot, _fields.ArtworkEntityId);
+
+    private EditSessionChange? FindStaged(string slot, Guid entityId)
     {
-        var entityId = _fields.ArtworkEntityId;
         if (!_session.IsActive || entityId == Guid.Empty)
         {
             return null;

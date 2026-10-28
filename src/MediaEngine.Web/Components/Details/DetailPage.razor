@@ -142,7 +142,12 @@ else if (Model is not null)
 
             @if (context == EditTool.Match)
             {
-                <EditorMatchPanel Subject="_editing?.Fields.MatchSubject()"
+                @if (_editing is { Fields.Loading: true })
+                {
+                    <EditorPanelBusy Label="Loading this item's match details" />
+                }
+
+                <EditorMatchPanel Subject="@(_editing is { Fields.Loading: false } ? _editing.Fields.MatchSubject() : null)"
                                   Session="_flow.Session"
                                   CanEdit="@(_editing?.CanEdit == true)"
                                   Mode="_editing"
@@ -151,6 +156,7 @@ else if (Model is not null)
 
             <EditingSectionSlot Mode="_editing"
                                 InPanel="true"
+                                ItemKey="@_flow.Session.ActiveItem?.EntityId"
                                 BuildRequest="BuildSectionRequest"
                                 OnCommitted="RefreshAfterSectionCommitAsync" />
         </EditorPanelHost>
@@ -222,6 +228,8 @@ else if (Model is not null)
         {
             Saved = RefreshAfterEditSavedAsync,
             MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
+            OpenItem = OpenEditItemAsync,
+            ItemSwitched = AfterEditItemSwitchedAsync,
         };
         _preview = new EditPendingPreview(session, _editing.Fields);
         _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);
@@ -281,6 +289,7 @@ else if (Model is not null)
 
     protected override void OnParametersSet()
     {
+        UpdateEditingCatalog();
         UpdateEditingEligibility();
         _batch.MediaType = Model is null ? null : ResolveEditorMediaType(Model.EntityType, Model.PresentationContext);
     }
@@ -376,11 +385,150 @@ else if (Model is not null)
         _ => null,
     };
 
-    // Where the item being edited sits. The trail is the page's own item for now; the parents and children come with the item switcher.
+    // Where the item being edited sits (spec D7): the page's own item with its parents (show > season > episode, artist > album > track), read
+    // from the page the Dashboard already has. The same lists give each step of the bar the items it can switch to.
     private IReadOnlyList<EditTrailItem> EditTrail() =>
-        Model is not null && Guid.TryParse(Model.Id, out var id)
-            ? [new EditTrailItem(id, Model.Title, Model.EntityType.ToString())]
-            : [new EditTrailItem(_editing?.Fields.EntityId ?? Guid.Empty, "This item", "Item")];
+        _flow.Catalog.PageTrail.Count > 0
+            ? _flow.Catalog.PageTrail
+            : [new EditTrailItem(_editing?.Fields.EntityId ?? Guid.Empty, Model?.Title ?? "This item", "Item")];
+
+    // Children found after the page loaded (the episodes of a season that was not open), kept across page refreshes.
+    private readonly Dictionary<Guid, IReadOnlyList<EditTrailItem>> _lateChildren = [];
+    private IReadOnlyList<EditTrailItem> _engineChain = [];
+    private DetailPageViewModel? _catalogModel;
+
+    private void UpdateEditingCatalog()
+    {
+        if (_flow is null || ReferenceEquals(_catalogModel, Model))
+        {
+            return;
+        }
+
+        _catalogModel = Model;
+        var catalog = EditTrailCatalog.From(Model);
+        catalog.AdoptAncestors(_engineChain);
+        foreach (var (parent, children) in _lateChildren)
+        {
+            catalog.AddChildren(parent, children);
+        }
+
+        _flow.Catalog = catalog;
+    }
+
+    private bool IsPageItem(EditTrailItem item) =>
+        _flow.Catalog.PageTrail is not { Count: > 0 } trail || trail[^1].EntityId == item.EntityId;
+
+    // The fields of whatever the person is editing now: after a save or a section commit the editor reloads the item it is on, not the page's.
+    private Task LoadEditingFieldsAsync() =>
+        _flow.Session is { IsActive: true, ActiveItem: { } active } && !IsPageItem(active)
+            ? LoadOtherItemFieldsAsync(active)
+            : LoadPageItemFieldsAsync();
+
+    // The person switched to an item of the page (spec D7): its fields load, the panel, the Artwork picker and Match follow, and nothing is
+    // saved. Loading only asks for what the item needs; the library's genre and tag lists are reused. False keeps the person on their item.
+    private async Task<bool> OpenEditItemAsync(EditTrailItem item)
+    {
+        if (_editing is null || Model is null || _disposed)
+        {
+            return false;
+        }
+
+        if (IsPageItem(item))
+        {
+            await LoadPageItemFieldsAsync();
+        }
+        else
+        {
+            await LoadOtherItemFieldsAsync(item);
+        }
+
+        // Another item must come back as the very item asked for: its changes are staged under that id.
+        var fields = _editing.Fields;
+        var ready = !_disposed && fields.Loaded && (IsPageItem(item) || fields.EntityId == item.EntityId);
+        if (ready && item.Kind == EditTrailKinds.Season)
+        {
+            await EnsureSeasonChildrenAsync(item.EntityId);
+        }
+
+        return ready;
+    }
+
+    private async Task AfterEditItemSwitchedAsync()
+    {
+        // The Artwork picker keeps its tab where the new item has it; the History block rebuilds for the new item through its item key.
+        if (_flow.Session.ActiveTool == EditTool.Artwork)
+        {
+            await _artworkPicker.FollowItemAsync();
+        }
+    }
+
+    private static string? ScopeFor(EditTrailItem item) => EditTrailKinds.ScopeOf(item.Kind);
+
+    private async Task LoadOtherItemFieldsAsync(EditTrailItem item)
+    {
+        if (_editing is null || Model is null)
+        {
+            return;
+        }
+
+        if (item.Kind == EditTrailKinds.Person)
+        {
+            await _editing.Fields.LoadSubjectAsync(item.EntityId);
+            return;
+        }
+
+        await _editing.Fields.LoadAsync(
+            item.EntityId,
+            ResolveEditorMediaType(Model.EntityType, Model.PresentationContext),
+            ScopeFor(item),
+            _editingProfileId);
+    }
+
+    // A show page lists the episodes of the season it has open; another season's are fetched the first time the person switches to it.
+    private async Task EnsureSeasonChildrenAsync(Guid seasonId)
+    {
+        if (Model is not { EntityType: DetailEntityType.TvShow } || !Guid.TryParse(Model.Id, out var showId) || _flow.Catalog.ChildrenOf(seasonId).Count > 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var page = await ApiClient.GetDetailPageAsync(
+                DetailEntityType.TvSeason, seasonId, Model.PresentationContext, containerId: showId.ToString("D"), sequence: EditTrailCatalog.SeasonWindow);
+            var group = page?.SequencePlacement?.Groups.FirstOrDefault(candidate => Guid.TryParse(candidate.EntityId, out var id) && id == seasonId);
+            var episodes = group is null ? [] : EditTrailCatalog.EpisodesOf(group);
+            if (episodes.Count > 0 && !_disposed)
+            {
+                _lateChildren[seasonId] = episodes;
+                _flow.Catalog.AddChildren(seasonId, episodes);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "The episodes of season {SeasonId} could not be listed for the editing trail", seasonId);
+        }
+    }
+
+    // The page's own item has loaded: the page keeps showing its staged values while another item is edited, and the Engine's chain for the
+    // item fills in the parents the page does not name.
+    private void RememberPageItem()
+    {
+        if (_editing is not { Fields.Loaded: true } editing)
+        {
+            return;
+        }
+
+        var fields = editing.Fields;
+        _preview.PageEntityId = fields.EntityId;
+        _preview.Artwork.PageArtworkEntityId = fields.ArtworkEntityId;
+        var chain = fields.ScopeChain;
+        if (chain.Count > 1 && chain[^1].EntityId == fields.EntityId)
+        {
+            _engineChain = chain;
+            _flow.Catalog.AdoptAncestors(chain);
+        }
+    }
 
     private void OnEditingChanged()
     {
@@ -448,7 +596,7 @@ else if (Model is not null)
     private static bool IsSubjectKind(string entityKind) =>
         entityKind is "Person" or "StructuralCollection" or "Collection";
 
-    private async Task LoadEditingFieldsAsync()
+    private async Task LoadPageItemFieldsAsync()
     {
         if (_editing is null || Model is null || !Guid.TryParse(Model.Id, out var entityId))
         {
@@ -456,11 +604,16 @@ else if (Model is not null)
         }
 
         var target = ResolveEditorTarget(entityId);
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        _editingProfileId = profile?.Id;
+        if (_editingProfileId is null)
+        {
+            var profile = await Orchestrator.GetActiveProfileAsync();
+            _editingProfileId = profile?.Id;
+        }
+
         if (IsSubjectKind(target.EntityKind))
         {
             await _editing.Fields.LoadSubjectAsync(target.EntityId);
+            RememberPageItem();
             return;
         }
 
@@ -469,6 +622,7 @@ else if (Model is not null)
             ResolveEditorMediaType(Model.EntityType, Model.PresentationContext),
             target.InitialScope,
             _editingProfileId);
+        RememberPageItem();
     }
 
     // The request for the editor hosted in the section slot: the section id (artwork, links or history) is its one tab.
@@ -477,6 +631,12 @@ else if (Model is not null)
         if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
         {
             return null;
+        }
+
+        // Another item of the page is being edited (spec D7): the section is about that item, not the page's own.
+        if (_flow.Session is { IsActive: true, ActiveItem: { } active } && !IsPageItem(active))
+        {
+            return BuildOtherItemRequest(active, tab, artworkSlot);
         }
 
         string? moveLine = null;
@@ -1025,6 +1185,42 @@ else if (Model is not null)
             await RefreshCurrentDetailAsync();
         }
         finally { _changingUnmatched = false; }
+    }
+
+    // The same request shape for an item of the page other than its own (a season or episode of a show, a track of an album).
+    private MediaEditorLaunchRequest? BuildOtherItemRequest(EditTrailItem item, string initialTab, string? initialArtworkSlot)
+    {
+        if (Model is null)
+        {
+            return null;
+        }
+
+        var mediaType = ResolveEditorMediaType(Model.EntityType, Model.PresentationContext);
+        return new MediaEditorLaunchRequest
+        {
+            EntityIds = [item.EntityId],
+            LaunchEntityId = item.EntityId,
+            LaunchEntityKind = item.Kind == EditTrailKinds.Person ? "Person" : "Work",
+            ContainerMode = "Canonical",
+            ActiveProfileId = _editingProfileId,
+            Mode = SharedMediaEditorMode.Normal,
+            InitialTab = initialTab,
+            InitialArtworkSlot = initialArtworkSlot,
+            MediaType = mediaType,
+            HeaderTitle = item.Title,
+            CoverUrl = item.ImageUrl,
+            OnArtworkChanged = RefreshCurrentDetailAsync,
+            PreviewItems =
+            [
+                new MediaEditorPreviewItem
+                {
+                    EntityId = item.EntityId,
+                    Title = item.Title,
+                    CoverUrl = item.ImageUrl,
+                    MediaType = mediaType,
+                },
+            ],
+        };
     }
 
     // One request shape for the modal (people, and any caller outside Editing Mode) and for the Editing Mode section slot.

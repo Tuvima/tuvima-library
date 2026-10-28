@@ -707,6 +707,19 @@ public sealed class ArtworkAssetService(
             "SELECT EXISTS (SELECT 1 FROM artwork_assets WHERE id = @assetId);", new { assetId });
     }
 
+    /// <summary>
+    /// Whether the picture is already one of the entity's own: linked to it, chosen or not. An upload, a pasted link or a provider picture
+    /// is linked to the item it was added for (unchosen) the moment it is stored, so this is also true for a picture just added.
+    /// </summary>
+    public async Task<bool> AssetBelongsToEntityAsync(Guid assetId, Guid entityId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        return await connection.ExecuteScalarAsync<bool>(
+            "SELECT EXISTS (SELECT 1 FROM entity_artwork_links WHERE entity_id = @entityId AND artwork_asset_id = @assetId);",
+            new { entityId, assetId });
+    }
+
     /// <summary>The kind of entity (Work, Person, ...) the stored links of this id belong to, or null when it has none yet.</summary>
     public async Task<string?> FindLinkedEntityTypeAsync(Guid entityId, CancellationToken ct)
     {
