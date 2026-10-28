@@ -71,8 +71,14 @@ public interface IFictionalEntityRepository
         int limit,
         CancellationToken ct = default);
 
-    /// <summary>Persist user-owned details separately from provider enrichment values.</summary>
-    Task UpdateUserDetailsAsync(Guid entityId, string label, string? description, CancellationToken ct = default);
+    /// <summary>
+    /// Persist user-owned details separately from provider enrichment values. A null label or description means that field has
+    /// no local override, so the provider's value keeps showing and keeps updating.
+    /// </summary>
+    Task UpdateUserDetailsAsync(Guid entityId, string? label, string? description, CancellationToken ct = default);
+
+    /// <summary>The local label and description overrides as stored (null where a field has none), or null when the entity has no override row.</summary>
+    Task<(string? Label, string? Description)?> GetUserDetailsAsync(Guid entityId, CancellationToken ct = default);
 
     /// <summary>
     /// Returns all fictional entities linked to a given work QID

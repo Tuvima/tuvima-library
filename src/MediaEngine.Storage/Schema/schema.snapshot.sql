@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0061 profile_hero_plugin_switches).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0062 fictional_entity_override_label_optional).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1030,9 +1030,9 @@ CREATE TABLE fictional_entities (
     enriched_at              TEXT
 , wikidata_revision_id INTEGER);
 
-CREATE TABLE fictional_entity_user_overrides (
+CREATE TABLE "fictional_entity_user_overrides" (
     entity_id      BLOB NOT NULL PRIMARY KEY REFERENCES fictional_entities(id) ON DELETE CASCADE,
-    label          TEXT NOT NULL,
+    label          TEXT,
     description    TEXT,
     updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
