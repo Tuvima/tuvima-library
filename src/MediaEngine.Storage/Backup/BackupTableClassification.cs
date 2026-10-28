@@ -5,7 +5,7 @@ namespace MediaEngine.Storage.Backup;
 /// <summary>
 /// The one registry saying what a backup does with every data store table. A guardrail test fails when a table is
 /// not listed here, so a new table cannot ship without a decision (Configuration, PersonalState, Catalogue or
-/// Transient). The public description is <c>docs/architecture/backup-and-restore.md</c>.
+/// Transient). The public description is the Backup and restore architecture page on docs.tuvima.com.
 /// </summary>
 public static partial class BackupTableClassification
 {

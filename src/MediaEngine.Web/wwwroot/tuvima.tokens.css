@@ -13,7 +13,7 @@
        literals because custom properties are not valid in media conditions;
        JavaScript reads these unitless values instead of defining thresholds.
 
-       Supported widths (docs/reference/ui-supported-devices.md):
+       Supported widths (tuvima-docs: reference/ui-supported-devices):
        320 (must not break), 360-430 phone, 768-1024 tablet,
        1280-1920 desktop, 2560 large desktop / tv.
        New CSS uses only 600 / 840 / 1180 plus the tokens below.

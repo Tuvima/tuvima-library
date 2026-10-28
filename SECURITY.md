@@ -32,6 +32,6 @@ Fixes are developed on the active branch and included in a subsequent release wh
 
 ## Deployment guidance
 
-Follow the [remote-access guide](https://tuvima.github.io/tuvima-library/guides/remote-access/). Do not expose the Engine port directly as a public entry point. Plugins run in the Engine process, so install only plugins you trust.
+Follow the [remote-access guide](https://docs.tuvima.com/products/library/guides/remote-access/). Do not expose the Engine port directly as a public entry point. Plugins run in the Engine process, so install only plugins you trust.
 
-Read the [security architecture](https://tuvima.github.io/tuvima-library/architecture/security/) for the account, profile, library and application access model.
+Read the [security architecture](https://docs.tuvima.com/products/library/architecture/security/) for the account, profile, library and application access model.

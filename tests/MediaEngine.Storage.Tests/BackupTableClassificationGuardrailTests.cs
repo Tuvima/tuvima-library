@@ -11,8 +11,6 @@ namespace MediaEngine.Storage.Tests;
 /// </summary>
 public sealed class BackupTableClassificationGuardrailTests
 {
-    private const string ArchitectureDocPath = "docs/architecture/backup-and-restore.md";
-
     /// <summary>
     /// PersonalState tables that genuinely have no owner column of their own. Adding a table here needs a reason.
     /// </summary>
@@ -296,23 +294,6 @@ public sealed class BackupTableClassificationGuardrailTests
         });
     }
 
-    [Fact]
-    public void ArchitectureDoc_ListsEveryClassifiedTable()
-    {
-        var docPath = Path.Combine(FindRepoRoot(), ArchitectureDocPath);
-        Assert.True(File.Exists(docPath), $"{ArchitectureDocPath} is missing.");
-
-        var doc = File.ReadAllText(docPath);
-        var missing = BackupTableClassification.Rules.Keys
-            .Where(table => !doc.Contains($"`{table}`", StringComparison.Ordinal))
-            .OrderBy(table => table, StringComparer.Ordinal)
-            .ToList();
-
-        Assert.True(
-            missing.Count == 0,
-            $"{ArchitectureDocPath} does not list these classified tables in backticks: " + string.Join(", ", missing));
-    }
-
     private static void WithFreshStore(Action<SqliteConnection> assertions)
     {
         var path = Path.Combine(Path.GetTempPath(), $"tuvima_backup_classification_{Guid.NewGuid():N}.db");
@@ -378,16 +359,5 @@ public sealed class BackupTableClassificationGuardrailTests
         }
 
         return columns;
-    }
-
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new DirectoryNotFoundException("Could not find repository root.");
     }
 }
