@@ -3648,6 +3648,20 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstCheckItem
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstChecksDto
   Items: System.Collections.Generic.List<MediaEngine.Contracts.Library.FolderFirstCheckItemDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryActivityDto
+  LibraryId: System.Guid | nullability=not-null | accessors=get,init
+  Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.LibraryActivityEntryDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryActivityEntryDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  OccurredAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Text: System.String | nullability=not-null | accessors=get,init
+  NeedsReview: System.Boolean | nullability=not-null | accessors=get,init
+  Route: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryActivityKinds
+
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryAddFilesRefusalCodes
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryAddFilesRequest

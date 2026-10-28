@@ -1,0 +1,8 @@
+.library-lookup { display: flex; flex-direction: column; gap: var(--tl-space-3); min-width: 0; max-width: 720px; }
+.library-lookup__heading { margin: 0; font-size: var(--tl-font-size-md); }
+.library-lookup__state { display: flex; align-items: center; gap: var(--tl-space-2); margin: 0; font-weight: 600; }
+.library-lookup__note { margin: 0; color: var(--tl-text-muted); }
+.library-lookup__key { display: flex; flex-direction: column; gap: var(--tl-space-2); }
+.library-lookup__actions { display: flex; flex-wrap: wrap; gap: var(--tl-space-2); }
+.library-lookup__steps { margin: 0; padding-left: 1.25rem; display: grid; gap: var(--tl-space-2); }
+.library-lookup__link { margin: var(--tl-space-2) 0; }
