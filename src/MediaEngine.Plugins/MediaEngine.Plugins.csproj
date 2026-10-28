@@ -5,4 +5,8 @@
     <AssemblyName>MediaEngine.Plugins</AssemblyName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\MediaEngine.Domain\MediaEngine.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

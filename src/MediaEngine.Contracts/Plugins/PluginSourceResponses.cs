@@ -39,6 +39,10 @@ public sealed class PluginSourceDto
     /// <summary>The web addresses (hosts) it contacts.</summary>
     [JsonPropertyName("sends_data_to")]
     public List<string> SendsDataTo { get; set; } = [];
+
+    /// <summary>Who may use it, where it works, how it treats Vault items, what leaves the machine, what it needs and stores (Plugin architecture spec).</summary>
+    [JsonPropertyName("access")]
+    public PluginAccessDto Access { get; set; } = new();
 }
 
 /// <summary>What would have no source if a metadata source were switched off or removed, and what would still be covered.</summary>

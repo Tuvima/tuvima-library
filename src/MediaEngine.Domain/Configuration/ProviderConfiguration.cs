@@ -312,6 +312,13 @@ public sealed class ProviderConfiguration
     /// </summary>
     [JsonPropertyName("onboarding")]
     public ProviderOnboardingConfiguration? Onboarding { get; set; }
+
+    /// <summary>
+    /// The shared declaration block (Plugin architecture spec PA1), the same one a plugin manifest carries: who may use the
+    /// source, what it requires, how heavy it is, what it stores and how it fails. Absent means administrators only.
+    /// </summary>
+    [JsonPropertyName("declaration")]
+    public PluginDeclaration? Declaration { get; set; }
 }
 
 /// <summary>Declarative provider setup contract.</summary>

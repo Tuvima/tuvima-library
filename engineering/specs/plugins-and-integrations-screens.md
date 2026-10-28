@@ -1,6 +1,6 @@
 # Spec: Plugins and Integrations screens (one look, plus a wizard for new integrations)
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-27 (v2 approved by Shy) · **Related docs:** [Product overview](../product/overview.md) · [Developer tools](developer-tools.md) (D-A, D-B, D-D, D-W, WP1, WP31) · [Design system](../design/design-system.md) · bug log entries F73 (Plugins revamp), F70 (icons on buttons and toggles), F69 (Library area page, shares the search and filter row), F46 (shared list spacing), F26 (menus)
+> **Status:** Built, awaiting your Local checks · **Version:** 2 · **Last updated:** 2026-10-27 (v2 approved by Shy; built the same day) · **Related docs:** [Product overview](../product/overview.md) · [Developer tools](developer-tools.md) (D-A, D-B, D-D, D-W, WP1, WP31) · [Design system](../design/design-system.md) · bug log entries F73 (Plugins revamp), F70 (icons on buttons and toggles), F69 (Library area page, shares the search and filter row), F46 (shared list spacing), F26 (menus)
 
 > **Version 2 change note (Shy, 2026-10-27):** adds only; nothing in version 1 changes. The plugin card and the plugin detail page also show what the [Plugin architecture](plugin-architecture.md) spec adds (decisions D12 to D14 and the version 2 additions to WP2 and WP3 below). The Integrations page, the wizard and the profile pages are untouched.
 
