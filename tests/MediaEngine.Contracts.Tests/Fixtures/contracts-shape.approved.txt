@@ -3034,6 +3034,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionFieldChan
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionIdentityTarget
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionPosition
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionRequest
   PreviewOnly: System.Boolean | nullability=not-null | accessors=get,init
   Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChange> | nullability=not-null | accessors=get,init

@@ -127,7 +127,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
             return true;
         }
 
-        if (_mode.SectionOpen && !_mode.OpenSectionKind.IsBatch() && !await _mode.CloseSectionAsync())
+        if (_mode.SectionOpen && !await _mode.CloseSectionAsync())
         {
             return false;
         }

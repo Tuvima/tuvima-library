@@ -130,11 +130,19 @@ else if (Model is not null)
             <FloatingArtworkPicker Mode="_editing" Flow="_flow" Picker="_artworkPicker" />
         }
 
-        @* The right-hand panel of the editor: Details here, Match through the editor section it has always used. *@
-        <EditorPanelHost Mode="_editing" Flow="_flow">
+        @* The right-hand panel of the editor: Details here (or the bulk panel while rows are ticked and the bar opened it), Match through the
+           editor section it has always used. *@
+        <EditorPanelHost Mode="_editing" Flow="_flow" TitleOverride="@BulkPanelTitle">
             @if (context == EditTool.Details)
             {
-                <EditorDetailsPanel Mode="_editing" Session="_flow.Session" />
+                @if (_batch.Panel != BulkPanelKind.None)
+                {
+                    <BulkEditPanel Selection="_batch" Pending="_flow.Session.Pending" CanEdit="@(_editing?.CanEdit == true)" />
+                }
+                else
+                {
+                    <EditorDetailsPanel Mode="_editing" Session="_flow.Session" />
+                }
             }
 
             @if (context == EditTool.Match)
@@ -197,8 +205,11 @@ else if (Model is not null)
     private EditPendingPreview _preview = default!;
     private ArtworkPickerSession _artworkPicker = default!;
 
-    // The rows ticked for "Edit together", Move and Delete (spec D8). It ends with Editing Mode; the rows ask the page to refresh through it.
-    private readonly DetailBatchSelection _batch = new();
+    // The rows ticked for the bulk panel, Move, Match and Delete (spec D14). It ends with Editing Mode; the rows ask the page to refresh through it.
+    // What it stages goes into the same pending list as one item's edits, so the one Save changes (and its review) covers everything.
+    private readonly BulkEditSelection _batch = new();
+    private EditTool? _lastTool;
+    private bool _bulkWasOpen;
     private Guid? _editingProfileId;
     private IDisposable? _overlayGuard;
     private IDisposable? _overlayEscape;
@@ -221,6 +232,7 @@ else if (Model is not null)
         _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);
         session.Changed += OnEditSessionChanged;
         _artworkPicker.Changed += OnEditSessionChanged;
+        _batch.Changed += OnBatchChanged;
         _batch.RefreshAsync = RefreshAfterSectionCommitAsync;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         UpdateEditingEligibility();
@@ -290,12 +302,77 @@ else if (Model is not null)
         _editing.Fields.Saved -= RefreshAfterFieldSavedAsync;
         _flow.Session.Changed -= OnEditSessionChanged;
         _artworkPicker.Changed -= OnEditSessionChanged;
+        _batch.Changed -= OnBatchChanged;
         _flow.Dispose();
         _editing.Dispose();
     }
 
-    // The staged changes changed (a field typed into, a tool opened): the hero, overview and bar show them.
-    private void OnEditSessionChanged() => _ = InvokeAsync(StateHasChanged);
+    // The staged changes changed (a field typed into, a tool opened): the hero, overview and bar show them. Leaving the Details tool
+    // (the panel's close button, or another tool) also closes the bulk panel; the ticks and the staged changes stay.
+    private void OnEditSessionChanged()
+    {
+        var tool = _flow.Session.ActiveTool;
+        if (_lastTool == EditTool.Details && tool != EditTool.Details && _batch.Panel != BulkPanelKind.None)
+        {
+            _bulkWasOpen = false;
+            _batch.ClosePanel();
+        }
+
+        _lastTool = tool;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    // The bar asked for a bulk panel, or the ticks ended: open the Details tool for it (settling an open section first), or close the tool
+    // again when the last ticked row went and the panel was only there for them.
+    private void OnBatchChanged() => _ = InvokeAsync(SyncBulkPanelAsync);
+
+    private async Task SyncBulkPanelAsync()
+    {
+        if (_disposed || _editing is null)
+        {
+            return;
+        }
+
+        if (_batch.Panel != BulkPanelKind.None)
+        {
+            if (_editing is not { IsOn: true, CanEdit: true } || !_flow.Session.IsActive)
+            {
+                _batch.ClosePanel();
+                return;
+            }
+
+            if (_editing.SectionOpen && !await _editing.CloseSectionAsync())
+            {
+                _batch.ClosePanel();
+                return;
+            }
+
+            _bulkWasOpen = true;
+            if (_flow.Session.ActiveTool != EditTool.Details)
+            {
+                _flow.Session.SetTool(EditTool.Details);
+            }
+        }
+        else if (_bulkWasOpen)
+        {
+            _bulkWasOpen = false;
+            if (_flow.Session.IsActive && _flow.Session.ActiveTool == EditTool.Details && !_editing.SectionOpen)
+            {
+                _flow.Session.SetTool(null);
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    // "Edit 4 songs", "Move to album", "Match": what the panel is called while the bulk panel is in it.
+    private string? BulkPanelTitle => _batch.Panel switch
+    {
+        BulkPanelKind.Edit => BulkEditRules.EditTitle(_batch.Rows, _batch.MediaType),
+        BulkPanelKind.Move => BulkEditRules.MoveLabel(_batch.Rows, _batch.MediaType),
+        BulkPanelKind.Match => $"Match {_batch.Count} {BulkEditRules.Noun(_batch.Rows, _batch.MediaType)}",
+        _ => null,
+    };
 
     // Where the item being edited sits. The trail is the page's own item for now; the parents and children come with the item switcher.
     private IReadOnlyList<EditTrailItem> EditTrail() =>
@@ -307,7 +384,7 @@ else if (Model is not null)
     {
         if (_editing is { IsOn: false })
         {
-            // Leaving Editing Mode (Done, a device change, a removed title) ends the ticks and the last batch result with it.
+            // Leaving Editing Mode (Done, a device change, a removed title) ends the ticks and the bulk panel with them.
             _batch.Clear();
         }
 
@@ -408,6 +485,8 @@ else if (Model is not null)
     // A failed refresh never undoes the save; the page keeps what it had until the next load.
     private async Task RefreshAfterEditSavedAsync()
     {
+        // Whatever the bulk panel read is out of date now (a change that failed stays staged and is read again on top of the saved values).
+        _batch.NotifySaved();
         try
         {
             await RefreshCurrentDetailAsync();

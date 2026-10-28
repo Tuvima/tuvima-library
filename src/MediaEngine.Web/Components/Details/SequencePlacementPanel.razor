@@ -125,8 +125,8 @@
     </div>
     }
 
-    @* Editing Mode: the ticked rows' bar and the "Edit together" section sit directly above the rows. *@
-    <DetailBatchPanel />
+    @* Editing Mode: the ticked rows' bar sits directly above the rows. *@
+    <BulkSelectionBar />
 
     @if (_seasonBrowserOpen && IsSeasonContainer)
     {
@@ -1192,10 +1192,9 @@ else
             return;
 
         var changed = !string.Equals(SelectedGroupKey, value, StringComparison.OrdinalIgnoreCase);
-        if (changed && !await ClearTicksBeforeSwitchAsync())
+        if (changed)
         {
-            // The person kept their batch input: they stay on this season.
-            return;
+            ClearTicksBeforeSwitch();
         }
 
         // Any window still being fetched belongs to the season being left; its answer must not touch this one.
@@ -1530,22 +1529,8 @@ else
         => OnContainerSelected.InvokeAsync(option);
 
     // A season or series switch changes which rows are on screen, so rows ticked in the one being left must not stay ticked out of sight.
-    // An open batch section (typed fields, or move picks) asks "Save or discard?" first; Cancel keeps the person where they were.
-    private async Task<bool> ClearTicksBeforeSwitchAsync()
-    {
-        if (BatchSelection is not { Count: > 0 } selection)
-        {
-            return true;
-        }
-
-        if (EditingMode is { } mode && mode.OpenSectionKind.IsBatch() && !await mode.CloseSectionAsync())
-        {
-            return false;
-        }
-
-        selection.Clear();
-        return true;
-    }
+    // Changes already staged stay in the pending list, so nothing typed is lost by clearing the ticks.
+    private void ClearTicksBeforeSwitch() => BatchSelection?.Clear();
 
     private async Task SelectContainerValueAsync(string? containerId)
     {
@@ -1556,11 +1541,10 @@ else
             return;
         }
 
-        // Another series changes which rows are on screen: ticks from the one being left are cleared (after "Save or discard?" if needed).
-        var changed = !string.Equals(option.ContainerId, SelectedContainerValue, StringComparison.OrdinalIgnoreCase);
-        if (changed && !await ClearTicksBeforeSwitchAsync())
+        // Another series changes which rows are on screen: ticks from the one being left are cleared.
+        if (!string.Equals(option.ContainerId, SelectedContainerValue, StringComparison.OrdinalIgnoreCase))
         {
-            return;
+            ClearTicksBeforeSwitch();
         }
 
         await SelectContainerAsync(option);
@@ -1595,7 +1579,7 @@ else
            && BatchSelection is not null
            && item.IsOwned
            && TickId(item) != Guid.Empty
-           && DetailBatchRules.IsSelectableKind(item.EntityType);
+           && BulkEditRules.IsSelectableKind(item.EntityType);
 
     private bool IsTicked(SequenceItemViewModel item)
         => IsTickable(item) && BatchSelection!.Contains(TickId(item));
@@ -1610,9 +1594,9 @@ else
             return;
         }
 
-        if (!BatchSelection.Toggle(new DetailBatchRow(TickId(item), SequenceItemTitle(item), item.EntityType)))
+        if (!BatchSelection.Toggle(new BulkEditRow(TickId(item), SequenceItemTitle(item), item.EntityType, Guid.TryParse(SelectedContainerValue, out var season) ? season : null, "TV")))
         {
-            Snackbar.Add(DetailBatchSelection.FullNotice, AppSeverity.Info);
+            Snackbar.Add(BulkEditSelection.FullNotice, AppSeverity.Info);
         }
     }
 
@@ -1621,10 +1605,10 @@ else
 
     [CascadingParameter] public EditingModeContext? EditingMode { get; set; }
 
-    [CascadingParameter] public DetailBatchSelection? BatchSelection { get; set; }
+    [CascadingParameter] public BulkEditSelection? BatchSelection { get; set; }
 
     private EditingModeContext? _hookedMode;
-    private DetailBatchSelection? _hookedSelection;
+    private BulkEditSelection? _hookedSelection;
 
     private void HookBatchState()
     {

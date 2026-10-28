@@ -13,13 +13,13 @@
            aria-labelledby="tl-editor-panel-title"
            data-tool="@tool.ToString().ToLowerInvariant()">
         <header class="tl-editor-panel__header">
-            <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@TitleFor(tool)</h2>
+            <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@(TitleOverride ?? TitleFor(tool))</h2>
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                            Size="AppControlSize.Large"
                            Tone="AppUiTone.Neutral"
                            Class="tl-editor-panel__close"
-                           Tooltip="@($"Close {TitleFor(tool)}")"
-                           AriaLabel="@($"Close {TitleFor(tool)}")"
+                           Tooltip="@($"Close {TitleOverride ?? TitleFor(tool)}")"
+                           AriaLabel="@($"Close {TitleOverride ?? TitleFor(tool)}")"
                            OnClick="@(() => Flow.ClosePanelAsync())" />
         </header>
         <div class="tl-editor-panel__body">
@@ -35,6 +35,9 @@
     [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
 
     [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    /// <summary>A title for the panel in place of the tool's name ("Edit 4 songs" while several ticked items are edited together).</summary>
+    [Parameter] public string? TitleOverride { get; set; }
 
     /// <summary>What the open tool shows; the page decides (the Details fields, or the section the tool hosts).</summary>
     [Parameter] public RenderFragment<EditTool>? ChildContent { get; set; }

@@ -2,6 +2,7 @@ using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Items;
+using MediaEngine.Contracts.Library;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
@@ -18,8 +19,9 @@ using Microsoft.JSInterop;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Delete from library on the Listen song table (spec delete-from-library D13, D25): who sees the Delete icon and the row checkboxes,
-/// what the slim "N selected" bar does, and that the handlers refuse on their own when the icon should not have been there.
+/// The Listen song table's selection (spec delete-from-library D13, D25; universal editor spec D14): who sees the row checkboxes and the
+/// Delete entries, what the shared "N selected" bar does (Edit, Move to album, Delete in "..."), and that the handlers refuse on
+/// their own when the icon should not have been there.
 /// </summary>
 public sealed class ListenSongTableDeleteTests : AsyncBunitContext
 {
@@ -37,6 +39,8 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         Services.AddNativeUiServices();
         var api = EngineApiClientStub.Create(stub =>
         {
+            stub.SetHandler(nameof(IEngineApiClient.PreviewLibraryBatchEditAsync), _ =>
+                Task.FromResult(LibraryBatchEditOutcome<LibraryBatchEditPreview>.Ok(new LibraryBatchEditPreview { AffectedCount = 1 })));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemDeletionPreviewAsync), args =>
             {
                 var ids = (IReadOnlyList<Guid>)args![0]!;
@@ -112,6 +116,18 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
 
     private static bool IsDelete(AngleSharp.Dom.IElement item) => item.TextContent.Trim() == "Delete from library…";
 
+    private const string Bar = ".tl-batch__bar";
+
+    private static string BarCount(IRenderedComponent<ListenSongTable> cut) => cut.Find(".tl-batch__count").TextContent.Trim();
+
+    // The bar's "..." menu holds Delete from library (administrators only).
+    private static void DeleteFromTheBar(IRenderedComponent<ListenSongTable> cut)
+    {
+        cut.Find($"{Bar} button[aria-label='More actions']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        cut.FindAll("[role='menuitem']").Single(IsDelete).Click();
+    }
+
     // -- Who sees it ---------------------------------------------------------------------------
 
     [Fact]
@@ -129,30 +145,33 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         Assert.Same(items[^1], delete);
         Assert.Contains("app-tone--error", delete.ClassList);
         Assert.Equal(["Select Song 1", "Select Song 2", "Select Song 3"], Checkboxes(cut).Select(box => box.GetAttribute("aria-label")));
-        Assert.Empty(cut.FindAll(".listen-song-table__selection"));
+        Assert.Empty(cut.FindAll(Bar));
     }
 
     [Fact]
-    public async Task ANonAdministratorSeesNeitherTheCheckboxNorTheDeleteIcon()
+    public async Task ANonAdministratorOnADesktopSeesTheCheckboxesToEditButDeleteNowhere()
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(false);
 
         var cut = RenderTable(Songs(3));
+        Checkboxes(cut)[0].Change(true);
 
-        Assert.Empty(Checkboxes(cut));
+        Assert.Equal(3, Checkboxes(cut).Count);
+        Assert.Equal(["Edit", "Match", "Move to album", "Clear"], cut.FindAll($"{Bar} button").Select(button => button.TextContent.Trim()));
+        Assert.Empty(cut.FindAll($"{Bar} button[aria-label='More actions']"));
         Assert.DoesNotContain(OpenRowMenuItems(cut, 0), IsDelete);
-        Assert.DoesNotContain("Delete from library", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Delete from library", cut.Markup.Replace("Delete from library…", string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task WithNoAuthorityLoadedThereIsNoCheckboxAndNoDeleteIcon()
+    public async Task WithNoAuthorityLoadedADesktopStillGetsTheCheckboxesAndNoDeleteIcon()
     {
         await UseDeviceAsync("desktop");
 
         var cut = RenderTable(Songs(2));
 
-        Assert.Empty(Checkboxes(cut));
+        Assert.Equal(2, Checkboxes(cut).Count);
         Assert.DoesNotContain(OpenRowMenuItems(cut, 0), IsDelete);
     }
 
@@ -184,9 +203,9 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var cut = RenderTable(Songs(2));
         Checkboxes(cut)[0].Change(true);
 
-        var bar = cut.Find(".listen-song-table__selection");
+        var bar = cut.Find(Bar);
 
-        Assert.False(bar.HasAttribute("role"));
+        Assert.Equal("toolbar", bar.GetAttribute("role"));
         Assert.Equal("1 selected", Assert.Single(bar.QuerySelectorAll("[role='status']")).TextContent.Trim());
     }
 
@@ -224,12 +243,13 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
             Checkboxes(cut)[index].Change(true);
         }
 
-        var bar = cut.Find(".listen-song-table__selection");
+        var bar = cut.Find(Bar);
         Assert.Contains("3 selected", bar.TextContent);
-        Assert.Equal(["Delete…", "Clear"], bar.QuerySelectorAll("button").Select(button => button.TextContent.Trim()));
-        Assert.Contains("app-tone--error", bar.QuerySelectorAll("button")[0].ClassList);
+        Assert.Equal(["Edit", "Move to album", "More actions", "Clear"], bar.QuerySelectorAll("button:not([hidden])")
+            .Select(button => button.GetAttribute("aria-label") ?? button.TextContent.Trim())
+            .Where(label => label.Length > 0));
 
-        bar.QuerySelectorAll("button")[0].Click();
+        DeleteFromTheBar(cut);
 
         host.WaitForElement(".delete-library__section");
         var request = Assert.Single(_previewRequests);
@@ -246,11 +266,11 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var cut = RenderTable(Songs(3));
         Checkboxes(cut)[0].Change(true);
         Checkboxes(cut)[1].Change(true);
-        Assert.Contains("2 selected", cut.Find(".listen-song-table__selection").TextContent);
+        Assert.Equal("2 selected", BarCount(cut));
 
-        cut.FindAll(".listen-song-table__selection button").Single(button => button.TextContent.Trim() == "Clear").Click();
+        cut.FindAll($"{Bar} button").Single(button => button.TextContent.Trim() == "Clear").Click();
 
-        Assert.Empty(cut.FindAll(".listen-song-table__selection"));
+        Assert.Empty(cut.FindAll(Bar));
         Assert.All(Checkboxes(cut), box => Assert.False(box.HasAttribute("checked")));
     }
 
@@ -270,7 +290,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         });
 
         Assert.Empty(_played);
-        Assert.Contains("1 selected", cut.Find(".listen-song-table__selection").TextContent);
+        Assert.Equal("1 selected", BarCount(cut));
         Assert.Single(Checkboxes(cut), box => box.HasAttribute("checked"));
     }
 
@@ -351,6 +371,42 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         Assert.Empty(_previewRequests);
     }
 
+    // -- Edit and the list stay as they are -------------------------------------------------------
+
+    [Fact]
+    public async Task PressingEditOnTheBarOpensTheEditPanelAndTheListKeepsItsTicksAndRows()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(false);
+        var cut = RenderTable(Songs(4));
+        Checkboxes(cut)[1].Change(true);
+        Checkboxes(cut)[2].Change(true);
+
+        cut.FindAll($"{Bar} button").Single(button => button.TextContent.Trim() == "Edit").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("Edit 2 songs", cut.Find(".tl-editor-panel__title").TextContent.Trim()));
+        Assert.Equal(4, cut.FindAll(".listen-song-table__row").Count);
+        Assert.Equal(2, Checkboxes(cut).Count(box => box.HasAttribute("checked")));
+        Assert.Empty(_played);
+    }
+
+    [Fact]
+    public async Task ClosingThePanelKeepsTheTicks()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(false);
+        var cut = RenderTable(Songs(3));
+        Checkboxes(cut)[0].Change(true);
+        cut.FindAll($"{Bar} button").Single(button => button.TextContent.Trim() == "Edit").Click();
+        cut.WaitForElement(".tl-editor-panel");
+
+        cut.Find(".tl-editor-panel__close").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editor-panel")));
+        Assert.Equal("1 selected", BarCount(cut));
+        Assert.Single(Checkboxes(cut), box => box.HasAttribute("checked"));
+    }
+
     // -- No browser confirm --------------------------------------------------------------------
 
     [Fact]
@@ -362,7 +418,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var cut = RenderTable(Songs(2));
 
         Checkboxes(cut)[0].Change(true);
-        cut.Find(".listen-song-table__selection button").Click();
+        DeleteFromTheBar(cut);
         host.WaitForElement(".delete-library__section");
         host.FindAll("footer button").Single(button => button.TextContent.Trim() == "Cancel").Click();
 
@@ -390,7 +446,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var cut = RenderTable(songs);
         Checkboxes(cut)[0].Change(true);
         Checkboxes(cut)[1].Change(true);
-        Assert.Contains("2 selected", cut.Find(".listen-song-table__selection").TextContent);
+        Assert.Equal("2 selected", BarCount(cut));
 
         await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>()
             .RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([songs[0].Id], [])));
@@ -399,7 +455,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         {
             Assert.Equal(3, cut.FindAll(".listen-song-table__row").Count);
             Assert.DoesNotContain("Song 1<", cut.Markup, StringComparison.Ordinal);
-            Assert.Contains("1 selected", cut.Find(".listen-song-table__selection").TextContent);
+            Assert.Equal("1 selected", BarCount(cut));
         });
     }
 

@@ -1,3 +1,4 @@
+@using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Components.Details
 @using System.Globalization
 @using MediaEngine.Web.Components.Library
@@ -66,13 +67,11 @@ else
 {
     // Worked out once per render: the column list and every row read it.
     _showDelete = ComputeShowDelete();
-    if (ShowDelete && _selected.Count > 0)
+    _showSelect = ComputeShowSelect();
+    if (ShowSelect)
     {
-        <div class="listen-song-table__selection">
-            <span class="listen-song-table__selection-count" role="status">@_selected.Count selected</span>
-            <AppButton Label="Delete…" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="AppControlSize.Compact" OnClick="DeleteSelectedAsync" />
-            <AppButton Label="Clear" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="ClearSelection" />
-        </div>
+        @* Ticking songs shows the selection bar (Edit, Match, Move to album, Delete in "...") and its right-hand panel (universal editor spec D14). *@
+        <BulkEditHost Rows="@BulkRows" MediaType="Music" OnSaved="OnEditedAsync" OnCleared="ClearSelectionAsync" OnDeleted="OnDeletedAsync" />
     }
     <div class="listen-song-table"
          role="table"
@@ -148,7 +147,7 @@ else
                  @ondragend="EndDragAsync"
                  @onclick="@(() => PlayAsync(track.Id, false))"
                  @onkeydown="@((args) => HandleRowKeyDownAsync(args, track.Id))">
-                @if (ShowDelete)
+                @if (ShowSelect)
                 {
                     <div class="listen-song-table__select" role="cell" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                         <AppCheckbox Value="@_selected.Contains(track.Id)"
@@ -293,6 +292,9 @@ else
     [Parameter] public Func<WorkViewModel, Task>? OnAlbumRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnPlayNextRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnEditRequested { get; set; }
+
+    /// <summary>Asks the host to reload its songs after the bulk panel saved changes; the table keeps its sort and selection.</summary>
+    [Parameter] public Func<Task>? OnTracksChanged { get; set; }
     [Parameter] public Func<Guid, Task>? OnDragStarted { get; set; }
     [Parameter] public Func<Task>? OnDragEnded { get; set; }
 
@@ -390,6 +392,12 @@ else
     private bool _showDelete;
     private bool ShowDelete => _showDelete;
 
+    // The tick boxes and the selection bar are for any desktop that may edit; the Engine decides who really may (the panel says so when it refuses).
+    private bool _showSelect;
+    private bool ShowSelect => _showSelect;
+
+    private bool ComputeShowSelect() => !DeviceContext.IsPhone && EditorDeviceRule.CanEdit(DeviceContext);
+
     private bool ComputeShowDelete() => !DeviceContext.IsPhone
         && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>());
 
@@ -405,15 +413,41 @@ else
         }
     }
 
-    private void ClearSelection() => _selected.Clear();
+    // The ticked songs in the order the list shows them, with the album each sits in, for the bulk panel.
+    private IReadOnlyList<BulkEditRow> BulkRows => _selected.Count == 0
+        ? []
+        : [.. DisplayTracks
+            .Where(track => _selected.Contains(track.Id))
+            .Select(track => new BulkEditRow(
+                track.Id,
+                DisplayTrackTitle(track),
+                DetailEntityType.Work,
+                track.RootWorkId is { } album && album != track.Id && album != Guid.Empty ? album : null,
+                "Music"))];
+
+    private Task ClearSelectionAsync()
+    {
+        _selected.Clear();
+        return Task.CompletedTask;
+    }
+
+    // Songs the bar deleted leave the list and the selection at once, as songs deleted from the row menu do.
+    private Task OnDeletedAsync(IReadOnlyList<Guid> workIds)
+    {
+        MarkRemoved(workIds);
+        return Task.CompletedTask;
+    }
+
+    // A save reached the library: the host page reloads its songs. The table's own sort, column widths and ticks stay.
+    private async Task OnEditedAsync()
+    {
+        if (OnTracksChanged is { } changed)
+        {
+            await changed();
+        }
+    }
 
     internal Task DeleteRowAsync(WorkViewModel track) => DeleteAsync([track.Id], DisplayTrackTitle(track));
-
-    internal Task DeleteSelectedAsync()
-    {
-        var chosen = VisibleTracks.Where(track => _selected.Contains(track.Id)).ToList();
-        return DeleteAsync(chosen.Select(track => track.Id).ToList(), chosen.Count == 1 ? DisplayTrackTitle(chosen[0]) : null);
-    }
 
     private async Task DeleteAsync(IReadOnlyList<Guid> workIds, string? title)
     {
@@ -511,7 +545,7 @@ else
         "favorite" => ShowFavorite,
         "queue" => ShowQueue,
         "edit" => ShowEdit,
-        "select" => ShowDelete,
+        "select" => ShowSelect,
         _ => true,
     };
 
