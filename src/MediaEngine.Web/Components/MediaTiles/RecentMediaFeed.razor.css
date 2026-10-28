@@ -1,6 +1,6 @@
 
-.recent-feed { min-width:0; }
-.recent-feed-heading { display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
+.recent-feed { min-width:0; --home-shelf-height:clamp(150px,11.25vw,195px); }
+.recent-feed-heading { min-height:48px; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
 .recent-feed-heading h2 { margin:0; font-size:clamp(1.4rem,2vw,2rem); }
 .recent-view-all { margin-left:auto; display:inline-flex; align-items:center; min-height:48px; color:inherit; }
 .recent-item { flex:0 0 auto; scroll-snap-align:start; }
@@ -13,15 +13,15 @@
 .recent-feed ::deep .recent-view-card:hover .recent-view-art { outline:2px solid var(--tl-accent-primary); box-shadow:0 0 18px rgba(136, 82, 252,.4); }
 .recent-view-title { width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.4; }
 @media(max-width:840px) { .recent-feed-heading { gap:8px; } .recent-feed-heading ::deep .recent-filters { order:3; flex-basis:100%; } }
-@media(max-width:720px) { .recent-feed { --home-shelf-height:180px; } }
+@media(max-width:720px) { .recent-feed { --home-shelf-height:135px; } }
 
 :root[data-form-factor="phone"] .recent-feed {
-    --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5);
+    --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5 * .75);
     --phone-shelf-height: var(--home-shelf-height);
 }
 
 /* Phones: an item still being matched is a smaller, quieter tile that sits after the matched ones. */
-:root[data-form-factor="phone"] .recent-item--settling { --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5 * .8); }
+:root[data-form-factor="phone"] .recent-item--settling { --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5 * .75 * .8); }
 
 /* Phones: "See All" is a full 48px target on the right of the heading row; the filter chips drop to their own scrolling row below. */
 :root[data-form-factor="phone"] .recent-view-all { display:inline-flex; align-items:center; justify-content:flex-end; min-height:48px; min-width:48px; margin-left:auto; }

@@ -1,12 +1,20 @@
 @namespace MediaEngine.Web.Components.MediaTiles
-<div class="recent-filters" role="group" aria-label="Recently added media">
-    @foreach (var type in Types)
-    {
-        <AppNativeButton Type="button" Class="@($"recent-filter {(Selected == type.Key ? "is-active" : null)}")" aria-pressed="@(Selected == type.Key ? "true" : "false")" OnClick="() => SelectedChanged.InvokeAsync(type.Key)">@type.Label</AppNativeButton>
-    }
-</div>
+@if (Visible.Count > 0)
+{
+    <div class="recent-filters" role="group" aria-label="Recently added media">
+        <AppNativeButton Type="button" Class="@($"recent-filter {(RecentFilterLogic.IsAll(Selected) ? "is-active" : null)}")" aria-pressed="@(RecentFilterLogic.IsAll(Selected) ? "true" : "false")" OnClick="SelectAllAsync">All</AppNativeButton>
+        @foreach (var type in Visible)
+        {
+            var on = RecentFilterLogic.Selected(Selected).Contains(type);
+            <AppNativeButton Type="button" Class="@($"recent-filter {(on ? "is-active" : null)}")" aria-pressed="@(on ? "true" : "false")" OnClick="() => SelectedChanged.InvokeAsync(RecentFilterLogic.Toggle(Selected, type, Visible))">@RecentFilterLogic.Label(type)</AppNativeButton>
+        }
+    </div>
+}
 @code {
-    private static readonly (string Key, string Label)[] Types = [("all", "All"), ("watch", "Watch"), ("read", "Read"), ("listen", "Listen"), ("view", "View")];
     [Parameter] public string Selected { get; set; } = "all";
+    /// <summary>Types that have recent items (from the Engine). Null until known: no pills yet.</summary>
+    [Parameter] public IReadOnlyList<string>? Available { get; set; }
     [Parameter] public EventCallback<string> SelectedChanged { get; set; }
+    private Task SelectAllAsync() => SelectedChanged.InvokeAsync("all");
+    private IReadOnlyList<string> Visible => RecentFilterLogic.VisibleTypes(Available);
 }
