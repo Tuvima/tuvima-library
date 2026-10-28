@@ -92,7 +92,16 @@ else
     private string? _selectedPluginId;
     private string? _configurePluginId;
     private string? _deletePluginId;
-    private PluginRemovalImpactResponse? _removalImpact;
+    private PluginRemovalPreviewResponse? _removalPreview;
+    private string _removeOutput = "keep";
+    private bool _switchOffDependants;
+    private string? _removeProblem;
+    private readonly Dictionary<string, PluginDependenciesResponse> _dependencies = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PluginLibraryLimitResponse> _libraryLimits = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PluginActivityResponse> _activity = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PluginCheckNowResponse> _checkNow = new(StringComparer.OrdinalIgnoreCase);
+    private string? _editLibrariesFor;
+    private HashSet<string> _pickedLibraries = [];
 
     /// <summary>
     /// The plugin a <c>/settings/plugins?plugin={id}</c> link points at. When it names an installed plugin the page scrolls to
@@ -177,8 +186,7 @@ else
         return StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id)).Word;
     }
 
-    // Dependencies that are off, missing or the wrong version, by plugin id. The Plugin architecture build fills this from the
-    // Engine; until then no card waits for anything.
+    // Dependencies that are off, missing or the wrong version, by plugin id, read from the Engine when the page loads.
     private readonly Dictionary<string, IReadOnlyList<string>> _waitingFor = new(StringComparer.OrdinalIgnoreCase);
 
     private IReadOnlyList<string> WaitingFor(PluginSummaryResponse plugin) =>
@@ -554,48 +562,100 @@ else
             <AppText Typo="AppTypo.subtitle1">Access</AppText>
             <AppTable Class="settings-plugin-job-table">
                 <tbody>
-                    <tr><td>Who can use it</td><td>Everyone who can use this Library</td></tr>
+                    <tr><td>Who can use it</td><td>@AudienceWords(plugin.Access.Audience)</td></tr>
                     <tr><td>Works on</td><td>@(plugin.MediaTypes.Count == 0 ? "All kinds of media" : string.Join(", ", plugin.MediaTypes.Select(ToTitle)))</td></tr>
-                    <tr><td>Vault items</td><td>Not used on Vault items</td></tr>
-                    <tr><td>What leaves this machine</td><td>@(string.IsNullOrWhiteSpace(plugin.SendsDataTo) ? "Nothing" : plugin.SendsDataTo)</td></tr>
+                    <tr><td>Vault items</td><td>@(string.IsNullOrWhiteSpace(plugin.Access.VaultWords) ? "Not used on Vault items" : plugin.Access.VaultWords)</td></tr>
+                    <tr><td>What leaves this machine</td><td>@DataLeavingWords(plugin)</td></tr>
+                    <tr><td>How heavy</td><td>@WeightWords(plugin.Access.WeightClass)</td></tr>
                     <tr>
                         <td>Limited to</td>
-                        <td>All libraries
-                            @if (!DeviceContext.IsMobile)
+                        <td>
+                            @LimitedToWords(plugin)
+                            @if (!DeviceContext.IsMobile && _libraryLimits.ContainsKey(plugin.Id))
                             {
-                                <AppButton Label="Change" Size="AppControlSize.Compact" Disabled="true" />
+                                <AppButton Label="Change" Size="AppControlSize.Compact" OnClick="@(() => BeginEditLibraries(plugin))" />
                             }
                         </td>
                     </tr>
                 </tbody>
             </AppTable>
+            @if (string.Equals(_editLibrariesFor, plugin.Id, StringComparison.OrdinalIgnoreCase) && _libraryLimits.TryGetValue(plugin.Id, out var limit))
+            {
+                <div class="settings-plugin-library-picker" data-testid="plugin-library-picker">
+                    <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Pick the libraries it works on. Leave all of them unticked to let it work on every library. Vault libraries are never listed.</AppText>
+                    @foreach (var library in limit.Libraries)
+                    {
+                        var libraryId = library.Id;
+                        <AppCheckbox Label="@library.Name"
+                                     Value="@_pickedLibraries.Contains(libraryId)"
+                                     ValueChanged="@(on => TogglePickedLibrary(libraryId, on))" />
+                    }
+                    <AppActionBar Align="AppHorizontalAlignment.End">
+                        <AppButton Label="Save" Tone="AppUiTone.Primary" OnClick="@(() => SaveLibrariesAsync(plugin))" />
+                        <AppButton Label="Cancel" OnClick="@(() => _editLibrariesFor = null)" />
+                    </AppActionBar>
+                </div>
+            }
         </section>
         <section class="settings-plugin-detail-section" aria-label="Needs and needed by">
             <AppText Typo="AppTypo.subtitle1">Needs</AppText>
-            @if (plugin.ToolRequirements.Count == 0 && WaitingFor(plugin).Count == 0)
+            @{ var needs = NeedLines(plugin); }
+            @if (needs.Count == 0 && WaitingFor(plugin).Count == 0)
             {
                 <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">It does not need anything else.</AppText>
             }
             else
             {
-                <ul>
-                    @foreach (var name in WaitingFor(plugin)) { <li>@name (waiting)</li> }
-                    @foreach (var requirement in plugin.ToolRequirements) { <li>@ToTitle(string.IsNullOrWhiteSpace(requirement.ExecutableName) ? requirement.Id : requirement.ExecutableName)</li> }
+                <ul data-testid="plugin-needs">
+                    @foreach (var name in WaitingFor(plugin)) { <li>@name</li> }
+                    @foreach (var need in needs) { <li>@need</li> }
                 </ul>
             }
             <AppText Typo="AppTypo.subtitle1">Needed by</AppText>
-            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Nothing else depends on it.</AppText>
+            @if (_dependencies.TryGetValue(plugin.Id, out var dependencies) && dependencies.NeededBy.Count > 0)
+            {
+                <ul data-testid="plugin-needed-by">
+                    @foreach (var dependant in dependencies.NeededBy) { <li>@dependant.Name</li> }
+                </ul>
+            }
+            else
+            {
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Nothing else depends on it.</AppText>
+            }
         </section>
         <section class="settings-plugin-detail-section" aria-label="Activity">
             <AppText Typo="AppTypo.subtitle1">Activity</AppText>
             <AppActionBar Align="AppHorizontalAlignment.Start">
                 <AppButton Label="Check now" StartIcon="@AppMaterialIcons.Outlined.HealthAndSafety" Size="AppControlSize.Compact" OnClick="@(() => CheckNowAsync(plugin))" />
             </AppActionBar>
-            @if (_health.TryGetValue(plugin.Id, out var health))
+            @if (_checkNow.TryGetValue(plugin.Id, out var checkNow))
+            {
+                <AppAlert Tone="@CheckNowTone(checkNow.Result)" data-testid="plugin-check-now">
+                    @checkNow.Summary
+                    @foreach (var step in checkNow.Steps)
+                    {
+                        <div>@(step.Ok ? "✓" : "✕") @step.Label@(string.IsNullOrWhiteSpace(step.Detail) ? null : $" - {step.Detail}")</div>
+                    }
+                </AppAlert>
+            }
+            else if (_health.TryGetValue(plugin.Id, out var health))
             {
                 <AppAlert Tone="@HealthTone(health.Status)">@health.Status</AppAlert>
             }
-            @if (_jobs.TryGetValue(plugin.Id, out var jobs) && jobs.Count > 0)
+            @if (_activity.TryGetValue(plugin.Id, out var activity) && activity.Entries.Count > 0)
+            {
+                @if (activity.PausedUntil is { } pausedUntil)
+                {
+                    <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Paused until @pausedUntil.ToLocalTime().ToString("g").</AppText>
+                }
+                <ul data-testid="plugin-activity">
+                    @foreach (var entry in activity.Entries.Take(8))
+                    {
+                        <li>@entry.OccurredAt.ToLocalTime().ToString("g"): @entry.Summary@(string.IsNullOrWhiteSpace(entry.ReasonWords) ? null : $" - {entry.ReasonWords}")</li>
+                    }
+                </ul>
+            }
+            else if (_jobs.TryGetValue(plugin.Id, out var jobs) && jobs.Count > 0)
             {
                 <ul data-testid="plugin-activity">
                     @foreach (var job in jobs.Take(5))
@@ -611,7 +671,7 @@ else
         </section>
         <section class="settings-plugin-detail-section" aria-label="Update note">
             <AppText Typo="AppTypo.subtitle1">Version @plugin.Version</AppText>
-            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">No update note for this version.</AppText>
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">@(string.IsNullOrWhiteSpace(plugin.Access.Changelog) ? "No update note for this version." : plugin.Access.Changelog)</AppText>
         </section>
         <section class="settings-plugin-detail-section" aria-label="Removing this plugin">
             <AppText Typo="AppTypo.subtitle1">Removing this plugin</AppText>
@@ -620,10 +680,170 @@ else
         </section>
     </div>;
 
+    private static string AudienceWords(string audience) => audience switch
+    {
+        "everyone" => "Everyone who can use this Library",
+        "adults" => "Adults only (not kids profiles)",
+        _ => "Administrators only",
+    };
+
+    private static string WeightWords(string weight) => weight switch
+    {
+        "heavy" => "Heavy: works when the machine is idle",
+        "medium" => "Medium",
+        _ => "Light",
+    };
+
+    private static string DataLeavingWords(PluginSummaryResponse plugin)
+    {
+        if (!string.IsNullOrWhiteSpace(plugin.Access.DataLeaving))
+            return plugin.Access.DataLeaving;
+
+        return string.IsNullOrWhiteSpace(plugin.SendsDataTo) ? "Nothing" : plugin.SendsDataTo;
+    }
+
+    private string LimitedToWords(PluginSummaryResponse plugin)
+    {
+        if (!_libraryLimits.TryGetValue(plugin.Id, out var limit) || !limit.Limited)
+            return "All libraries";
+
+        var names = limit.Libraries.Where(library => library.Selected).Select(library => library.Name).ToList();
+        return names.Count == 0 ? "All libraries" : string.Join(", ", names);
+    }
+
+    private static AppUiTone CheckNowTone(string result) => result switch
+    {
+        "working" => AppUiTone.Success,
+        "not_working" => AppUiTone.Error,
+        _ => AppUiTone.Warning,
+    };
+
+    // Everything the plugin needs, in plain words: other plugins with how they stand, then Local AI, tools, sources and host services.
+    private IReadOnlyList<string> NeedLines(PluginSummaryResponse plugin)
+    {
+        var lines = new List<string>();
+        if (_dependencies.TryGetValue(plugin.Id, out var dependencies))
+        {
+            lines.AddRange(dependencies.Needs.Select(need =>
+                $"{need.Name}{(need.Optional ? " (only improves results)" : string.Empty)}{(need.State == "ready" ? string.Empty : $" - {need.State.Replace('_', ' ')}")}"));
+        }
+
+        var others = plugin.Access.Requires.Where(requirement => !string.Equals(requirement.Kind, "plugin", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (others.Count > 0)
+        {
+            lines.AddRange(others.Select(requirement => $"{RequirementKindWords(requirement.Kind)}: {ToTitle(requirement.Id)}{(requirement.Optional ? " (only improves results)" : string.Empty)}"));
+        }
+        else
+        {
+            lines.AddRange(plugin.ToolRequirements.Select(requirement => ToTitle(string.IsNullOrWhiteSpace(requirement.ExecutableName) ? requirement.Id : requirement.ExecutableName)));
+        }
+
+        return lines;
+    }
+
+    private static string RequirementKindWords(string kind) => kind switch
+    {
+        "local_ai" => "Local AI",
+        "tool" => "Tool",
+        "source" => "Source",
+        "host_service" => "Library service",
+        _ => ToTitle(kind),
+    };
+
+    private void BeginEditLibraries(PluginSummaryResponse plugin)
+    {
+        if (!_libraryLimits.TryGetValue(plugin.Id, out var limit))
+            return;
+
+        _pickedLibraries = limit.Limited
+            ? limit.Libraries.Where(library => library.Selected).Select(library => library.Id).ToHashSet(StringComparer.Ordinal)
+            : [];
+        _editLibrariesFor = plugin.Id;
+    }
+
+    private void TogglePickedLibrary(string libraryId, bool on)
+    {
+        if (on)
+            _pickedLibraries.Add(libraryId);
+        else
+            _pickedLibraries.Remove(libraryId);
+    }
+
+    private async Task SaveLibrariesAsync(PluginSummaryResponse plugin)
+    {
+        if (!await ApiClient.SetPluginLibrariesAsync(plugin.Id, _pickedLibraries.ToList()))
+        {
+            Snackbar.Add("The libraries could not be saved.", AppSeverity.Error);
+            return;
+        }
+
+        _editLibrariesFor = null;
+        var refreshed = await ApiClient.GetPluginLibrariesAsync(plugin.Id);
+        if (refreshed is not null)
+            _libraryLimits[plugin.Id] = refreshed;
+
+        Snackbar.Add("Saved.", AppSeverity.Success);
+    }
+
+    // What the detail page shows beyond the plugin's own summary: what it needs, who needs it, where it works and what it did.
+    private async Task LoadDetailAsync(string pluginId)
+    {
+        try
+        {
+            var dependencies = ApiClient.GetPluginDependenciesAsync(pluginId, _disposed.Token);
+            var libraries = ApiClient.GetPluginLibrariesAsync(pluginId, _disposed.Token);
+            var activity = ApiClient.GetPluginActivityAsync(pluginId, 20, _disposed.Token);
+            if (await dependencies is { } loadedDependencies)
+                _dependencies[pluginId] = loadedDependencies;
+            if (await libraries is { } loadedLibraries)
+                _libraryLimits[pluginId] = loadedLibraries;
+            if (await activity is { } loadedActivity)
+                _activity[pluginId] = loadedActivity;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (!_disposed.IsCancellationRequested)
+            await InvokeAsync(StateHasChanged);
+    }
+
+    // Who is waiting for whom is read for every plugin once, so a card can say "Waiting for ..." without being opened.
+    private async Task LoadWaitingAsync(IReadOnlyList<PluginSummaryResponse> plugins)
+    {
+        try
+        {
+            var loaded = await Task.WhenAll(plugins.Select(async plugin => (plugin.Id, Dependencies: await ApiClient.GetPluginDependenciesAsync(plugin.Id, _disposed.Token))));
+            foreach (var (id, dependencies) in loaded)
+            {
+                if (dependencies is null)
+                    continue;
+
+                _dependencies[id] = dependencies;
+                _waitingFor[id] = string.IsNullOrWhiteSpace(dependencies.WaitingFor) ? [] : [dependencies.WaitingFor];
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (!_disposed.IsCancellationRequested)
+            await InvokeAsync(StateHasChanged);
+    }
+
     private async Task CheckNowAsync(PluginSummaryResponse plugin)
     {
+        var result = await ApiClient.CheckPluginNowAsync(plugin.Id);
+        if (result is not null)
+            _checkNow[plugin.Id] = result;
+
         await CheckHealthAsync(plugin);
         await LoadJobsAsync(plugin);
+        var activity = await ApiClient.GetPluginActivityAsync(plugin.Id, 20);
+        if (activity is not null)
+            _activity[plugin.Id] = activity;
     }
 
     private RenderFragment PluginHealthJobsPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
@@ -689,19 +909,32 @@ else
             }
             else if (string.Equals(_deletePluginId, plugin.Id, StringComparison.OrdinalIgnoreCase))
             {
-                @if (_removalImpact is { WouldLose.Count: > 0 } impact)
+                @if (_removalPreview is { } preview)
                 {
-                    <AppAlert Tone="AppUiTone.Warning" Dense="true" data-testid="plugin-removal-impact">
-                        @foreach (var line in impact.WouldLose)
+                    <AppAlert Tone="@(preview.WouldLose.Count > 0 || preview.NeededBy.Count > 0 ? AppUiTone.Warning : AppUiTone.Info)" Dense="true" data-testid="plugin-removal-preview">
+                        @foreach (var line in preview.Lines)
                         {
                             <div>@line</div>
                         }
-                        <div>@impact.Keeps</div>
                     </AppAlert>
+                    @if (preview.SavedOutput is not null && preview.SavedOutputCount > 0)
+                    {
+                        <AppSegmentedControl AriaLabel="@($"What to do with the {preview.SavedOutput} it saved")"
+                                             Options="@RemoveOutputOptions(preview)"
+                                             Value="@_removeOutput"
+                                             ValueChanged="@(value => _removeOutput = value)" />
+                    }
+                    @if (preview.NeededBy.Count > 0)
+                    {
+                        <AppCheckbox Label="@($"Switch off {string.Join(" and ", preview.NeededBy)} too")"
+                                     Value="@_switchOffDependants"
+                                     ValueChanged="@(on => _switchOffDependants = on)" />
+                    }
                 }
-                else if (_removalImpact is { } safe)
+
+                @if (!string.IsNullOrWhiteSpace(_removeProblem))
                 {
-                    <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" data-testid="plugin-removal-keeps">@safe.Keeps</AppText>
+                    <AppAlert Tone="AppUiTone.Error" Dense="true">@_removeProblem</AppAlert>
                 }
 
                 <AppActionBar Align="AppHorizontalAlignment.End">
@@ -781,6 +1014,7 @@ else
         _configurePluginId = match.Id;
         _scrollToFocused = true;
         _ = LoadLatestApprovalAsync(match.Id);
+        _ = LoadDetailAsync(match.Id);
     }
 
     public void Dispose()
@@ -821,6 +1055,7 @@ else
         }
 
         StartHealthChecks(_plugins.Where(plugin => plugin.Enabled && plugin.IsCompatible && string.IsNullOrWhiteSpace(plugin.LoadError)));
+        _ = LoadWaitingAsync(_plugins);
     }
 
     private async Task ReloadAsync()
@@ -896,6 +1131,10 @@ else
         _configurePluginId = string.Equals(_configurePluginId, pluginId, StringComparison.OrdinalIgnoreCase)
             ? null
             : pluginId;
+        _editLibrariesFor = null;
+        _deletePluginId = null;
+        if (_configurePluginId is not null)
+            _ = LoadDetailAsync(_configurePluginId);
     }
 
     private async Task SetEnabledAsync(PluginSummaryResponse plugin, bool enabled)
@@ -968,22 +1207,38 @@ else
     // Removing says first what would have no source, and that what the plugin already saved stays.
     private async Task BeginDeleteAsync(PluginSummaryResponse plugin)
     {
-        _removalImpact = await Orchestrator.GetPluginRemovalImpactAsync(plugin.Id);
+        _removalPreview = await ApiClient.GetPluginRemovalPreviewAsync(plugin.Id);
+        _removeOutput = _removalPreview?.DefaultOutput ?? "keep";
+        _switchOffDependants = false;
+        _removeProblem = null;
         _deletePluginId = plugin.Id;
     }
 
+    private static IReadOnlyList<AppSelectOption> RemoveOutputOptions(PluginRemovalPreviewResponse preview) =>
+    [
+        new("keep", $"Keep the {preview.SavedOutput}"),
+        new("remove", $"Remove the {preview.SavedOutput}"),
+    ];
+
     private async Task DeletePluginAsync(PluginSummaryResponse plugin)
     {
-        if (!await Orchestrator.DeletePluginAsync(plugin.Id))
+        var result = await ApiClient.RemovePluginAsync(plugin.Id, new PluginRemoveRequest
         {
-            Snackbar.Add("Plugin could not be deleted.", AppSeverity.Error);
+            Output = _removalPreview?.SavedOutput is null ? null : _removeOutput,
+            AlsoSwitchOffDependants = _switchOffDependants,
+        });
+        if (!result.Succeeded)
+        {
+            // The Engine explains a refusal (for example another plugin needs this one); show its words, not a generic failure.
+            _removeProblem = string.IsNullOrWhiteSpace(result.Message) ? "Plugin could not be deleted." : result.Message;
             return;
         }
 
         Snackbar.Add($"{plugin.Name} deleted.", AppSeverity.Success);
         _selectedPluginId = null;
         _deletePluginId = null;
-        _removalImpact = null;
+        _removalPreview = null;
+        _removeProblem = null;
         await ReloadAsync();
     }
 
