@@ -38,7 +38,14 @@ internal sealed class ListenBrainzFinishedPlays : IPluginEventSubscriber
         }
 
         var listenedAt = play.OccurredAt.AddSeconds(-Math.Max(0, play.PlayedSeconds)).ToUnixTimeSeconds();
-        await context.Outbox.EnqueueAsync(play.ProfileId, BuildListen(track, listenedAt), cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await context.Outbox.EnqueueAsync(play.ProfileId, BuildListen(track, listenedAt), cancellationToken).ConfigureAwait(false);
+        }
+        catch (PluginLimitExceededException)
+        {
+            // One unusable play must not count as a failure of the subscription, which would pause sharing for everyone.
+        }
     }
 
     internal static bool CountsAsListen(double playedSeconds, double? durationSeconds)
@@ -86,17 +93,20 @@ internal sealed class ListenBrainzFinishedPlays : IPluginEventSubscriber
 
         var metadata = new JsonObject
         {
-            ["artist_name"] = track.Artist,
-            ["track_name"] = track.Title,
+            ["artist_name"] = Cap(track.Artist),
+            ["track_name"] = Cap(track.Title),
             ["additional_info"] = info,
         };
         if (track.Album is not null)
         {
-            metadata["release_name"] = track.Album;
+            metadata["release_name"] = Cap(track.Album);
         }
 
         return new JsonObject { ["listened_at"] = listenedAt, ["track_metadata"] = metadata }.ToJsonString();
     }
+
+    // Names longer than any real track are cut, so one odd file can never make a listen too big to queue.
+    private static string Cap(string value) => value.Length <= 512 ? value : value[..512];
 
     private static bool TryRead(string envelopeJson, out FinishedPlay play)
     {

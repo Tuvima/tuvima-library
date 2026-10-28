@@ -54,6 +54,11 @@ internal sealed class ListenBrainzDelivery : IPluginOutboxDelivery
         {
             return PluginDeliveryResult.RetryLater("ListenBrainz could not be reached.");
         }
+        catch (Exception ex) when (ex is FormatException or InvalidOperationException)
+        {
+            // A token that cannot be sent as a header (for example one pasted with a line break). The reason is fixed text so the token is never echoed.
+            return PluginDeliveryResult.GiveUp("The saved token could not be used. Link it again on your profile.");
+        }
 
         using (response)
         {

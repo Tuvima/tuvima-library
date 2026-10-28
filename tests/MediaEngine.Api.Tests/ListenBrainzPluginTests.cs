@@ -135,6 +135,41 @@ public sealed class ListenBrainzPluginTests
     }
 
     [Fact]
+    public async Task Delivery_WithATokenThatCannotBeSent_GivesUpWithoutEchoingIt()
+    {
+        _context.Throw = new FormatException("bad header Token secret-token");
+
+        var result = await Delivery().DeliverAsync(Item("{}", "secret-token"), _context, CancellationToken.None);
+
+        Assert.Equal(PluginDeliveryOutcome.GiveUp, result.Outcome);
+        Assert.DoesNotContain("secret-token", result.Reason);
+    }
+
+    [Fact]
+    public async Task AnOversizedTrackName_IsCutAndStillQueued()
+    {
+        _context.Linked.Add(Ana);
+        _context.Track = Song() with { Title = new string('x', 100_000) };
+
+        await Subscriber().HandleAsync(Play(Ana, played: 200, duration: 200), _context, CancellationToken.None);
+
+        var queued = Assert.Single(_context.Queued);
+        Assert.True(queued.Json.Length < 2_000);
+    }
+
+    [Fact]
+    public async Task AQueueThatRefusesAPlay_DoesNotFailTheSubscription()
+    {
+        _context.Linked.Add(Ana);
+        _context.Track = Song();
+        _context.RefuseQueue = true;
+
+        await Subscriber().HandleAsync(Play(Ana, played: 200, duration: 200), _context, CancellationToken.None);
+
+        Assert.Empty(_context.Queued);
+    }
+
+    [Fact]
     public async Task Delivery_NeverPutsTheTokenInItsReasons()
     {
         _context.Offline = true;
@@ -200,6 +235,10 @@ public sealed class ListenBrainzPluginTests
 
         public bool Offline { get; set; }
 
+        public Exception? Throw { get; set; }
+
+        public bool RefuseQueue { get; set; }
+
         public string PluginId => ListenBrainzPlugin.PluginId;
 
         public IReadOnlyDictionary<string, JsonElement> Settings => new Dictionary<string, JsonElement>();
@@ -226,6 +265,11 @@ public sealed class ListenBrainzPluginTests
 
         public Task EnqueueAsync(Guid profileId, string payloadJson, CancellationToken cancellationToken = default)
         {
+            if (RefuseQueue)
+            {
+                throw new PluginLimitExceededException("too big");
+            }
+
             Queued.Add((profileId, payloadJson));
             return Task.CompletedTask;
         }
@@ -247,6 +291,11 @@ public sealed class ListenBrainzPluginTests
             if (Offline)
             {
                 throw new HttpRequestException("offline");
+            }
+
+            if (Throw is not null)
+            {
+                throw Throw;
             }
 
             Sent.Add(new SentRequest(request.RequestUri, request.Headers.Authorization?.ToString(), await request.Content!.ReadAsStringAsync(cancellationToken)));

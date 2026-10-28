@@ -17,6 +17,7 @@ public sealed class PluginPlayDetailsService(
     IWorkRepository works,
     ICanonicalValueRepository canonicalValues,
     IBridgeIdRepository bridgeIds,
+    IVaultLibraryRepository vault,
     IPluginAccessGate gate)
 {
     public async Task<PluginPlayedTrack?> GetTrackAsync(string pluginId, Guid assetId, CancellationToken ct)
@@ -28,6 +29,13 @@ public sealed class PluginPlayDetailsService(
 
         var asset = await assets.FindByIdAsync(assetId, ct).ConfigureAwait(false);
         if (asset is null)
+        {
+            return null;
+        }
+
+        // A Vault item is never described to a plugin, whatever the plugin declares about the Vault: its own declaration could otherwise
+        // let it through. The gate below still applies the library limit.
+        if (!string.IsNullOrWhiteSpace(asset.LibraryId) && (await vault.GetIdsAsync(ct).ConfigureAwait(false)).Contains(asset.LibraryId))
         {
             return null;
         }

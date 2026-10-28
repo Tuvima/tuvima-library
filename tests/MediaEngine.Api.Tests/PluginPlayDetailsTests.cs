@@ -23,6 +23,7 @@ public sealed class PluginPlayDetailsTests
     private readonly List<CanonicalValue> _values = [];
     private readonly List<BridgeIdEntry> _bridges = [];
     private readonly GateSpy _gate = new();
+    private readonly HashSet<string> _vaultLibraries = [];
     private MediaType _mediaType = MediaType.Music;
     private bool _assetExists = true;
 
@@ -60,6 +61,15 @@ public sealed class PluginPlayDetailsTests
         _gate.Outcome = PluginAccessOutcome.VaultBlocked;
 
         Assert.Null(await Service().GetTrackAsync(PluginId, _asset, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AVaultItem_GetsNoAnswer_EvenWhenTheGateWouldAllowIt()
+    {
+        _vaultLibraries.Add("lib-1");
+
+        Assert.Null(await Service().GetTrackAsync(PluginId, _asset, CancellationToken.None));
+        Assert.Null(_gate.Seen);
     }
 
     [Theory]
@@ -118,6 +128,7 @@ public sealed class PluginPlayDetailsTests
             _values.GroupBy(value => value.EntityId).ToDictionary(group => group.Key, group => (IReadOnlyList<CanonicalValue>)group.ToList())))),
         Stub.Create<IBridgeIdRepository>(("GetByEntitiesAsync", _ => Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<BridgeIdEntry>>>(
             _bridges.GroupBy(entry => entry.EntityId).ToDictionary(group => group.Key, group => (IReadOnlyList<BridgeIdEntry>)group.ToList())))),
+        Stub.Create<IVaultLibraryRepository>(("GetIdsAsync", _ => Task.FromResult<IReadOnlySet<string>>(_vaultLibraries))),
         _gate);
 
     private static CanonicalValue Value(Guid entity, string key, string value) => new() { EntityId = entity, Key = key, Value = value };
