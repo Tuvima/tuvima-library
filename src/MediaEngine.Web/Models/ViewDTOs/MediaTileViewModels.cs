@@ -77,6 +77,9 @@ public sealed record MediaTilePersonViewModel
     public string Name { get; init; } = string.Empty;
     public string? ImageUrl { get; init; }
     public IReadOnlyList<string> Roles { get; init; } = [];
+
+    /// <summary>The one small facts line under the name: active years and what they have in the library.</summary>
+    public string? FactsLine { get; init; }
 }
 
 public sealed record MediaTileGroupSummaryViewModel
