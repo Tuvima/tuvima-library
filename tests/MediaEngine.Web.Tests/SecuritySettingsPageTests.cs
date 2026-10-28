@@ -314,8 +314,9 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         Assert.Contains("UTC", rows[0].TextContent, StringComparison.Ordinal);
         Assert.Contains("9:00", rows[0].TextContent, StringComparison.Ordinal);
         Assert.NotNull(cut.Find("[role='dialog']").QuerySelector(".app-table-shell--cards"));
-        // Read-only: the only control in the sheet is Done.
-        Assert.Equal(["Done"], cut.FindAll("[role='dialog'] button").Select(button => button.TextContent.Trim()).ToArray());
+        // Read-only: the only controls in the sheet are the close X and Done.
+        Assert.Equal(["", "Done"], cut.FindAll("[role='dialog'] button").Select(button => button.TextContent.Trim()).ToArray());
+        Assert.Equal("Close dialog", cut.Find("[role='dialog'] .app-dialog-shell__close").GetAttribute("aria-label"));
         Assert.Equal([(0, 25)], Views.Requests);
     }
 

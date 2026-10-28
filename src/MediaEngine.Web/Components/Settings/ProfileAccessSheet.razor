@@ -11,14 +11,16 @@
 {
     <div class="settings-sheet-backdrop" @onclick="CloseAsync">
         <div @ref="_root"
-             class="settings-sheet profile-access-sheet"
+             class="settings-sheet settings-sheet--card profile-access-sheet"
              role="dialog"
              aria-modal="true"
-             aria-labelledby="profile-access-sheet-title"
+             aria-label="Libraries and lanes"
              tabindex="-1"
              @onclick:stopPropagation="true"
              @onkeydown="OnKeyDown">
-            <h2 id="profile-access-sheet-title" class="settings-sheet__title">Libraries and lanes</h2>
+            <AppDialogShell Modal="false" Title="Libraries and lanes" Size="Medium" OnClose="@(Saving ? default : EventCallback.Factory.Create(this, CloseAsync))">
+                <ChildContent>
+            <div class="app-dialog-shell__pad app-dialog-shell__pad--stretch">
             <p class="sign-in-sheet__intro">
                 What @(string.IsNullOrWhiteSpace(PersonName) ? "this person" : PersonName) can open.
             </p>
@@ -39,12 +41,14 @@
                                               FeatureChanged="ToggleFeature" OnHiddenChanged="OnHiddenChanged" RetryLibraries="OnRetryLibraries" />
             }
 
-            <div class="sign-in-sheet__actions">
-                <span class="sign-in-sheet__spacer"></span>
-                <AppButton Label="Cancel" Disabled="@Saving" OnClick="CloseAsync" />
-                <AppButton Label="@(Saving ? "Saving…" : "Save")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Disabled="@(Saving || Loading || Person is null)" OnClick="SaveAsync" />
             </div>
+                </ChildContent>
+                <FooterContent>
+                    <AppButton Label="Cancel" Disabled="@Saving" OnClick="CloseAsync" />
+                    <AppButton Label="@(Saving ? "Saving…" : "Save")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                               Disabled="@(Saving || Loading || Person is null)" OnClick="SaveAsync" />
+                </FooterContent>
+            </AppDialogShell>
         </div>
     </div>
 }

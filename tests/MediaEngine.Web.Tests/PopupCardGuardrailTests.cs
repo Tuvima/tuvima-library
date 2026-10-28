@@ -35,9 +35,6 @@ public sealed class PopupCardGuardrailTests
         // Special layouts that keep their behaviour.
         ["Components/Layout/ReconnectModal.razor"] = "Connection-lost modal; keeps its special behaviour.",
         ["Components/Search/UniversalSearchOverlay.razor"] = "Large search overlay; keeps its search layout.",
-        // Not yet moved onto the card (one-look follow-up): multi-step sheets with their own layout.
-        ["Components/Settings/SecuritySettingsPage.razor"] = "TO MOVE: security popup with several steps.",
-        ["Components/Settings/ProfileAccessSheet.razor"] = "TO MOVE: Libraries and lanes sheet.",
     };
 
     private static readonly string[] CardMarkers = ["<AppDialogShell", "<AppDialog ", "<AppHostedDialog"];
