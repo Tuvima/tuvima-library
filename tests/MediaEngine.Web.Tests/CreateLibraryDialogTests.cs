@@ -328,12 +328,13 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task SimpleModeOffersStandardAccessAndNoVaultEvenForAnAdministrator()
+    public async Task SimpleModeAsksNoAccessQuestionAndMentionsNoVaultEvenForAnAdministrator()
     {
         SignInAsAdministrator();
         await OpenAsync(kind: "tv", simple: true);
 
-        Assert.DoesNotContain("Vault", _dialogs.Find("[aria-label='Access']").TextContent, StringComparison.Ordinal);
+        Assert.Empty(_dialogs.FindAll("[aria-label='Access']"));
+        Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -379,6 +380,30 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
         Assert.DoesNotContain("Adult content", _dialogs.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SimpleModeDoesNotOfferTheAdultContentKind()
+    {
+        var adult = new LibraryKindDto
+        {
+            Key = CreateLibraryDialog.AdultContentKindKey,
+            Area = "watch",
+            Label = "Adult content",
+            Icon = "VideoLibrary",
+            Format = "Videos",
+            NamingTemplate = "Videos",
+            Misfit = "keep",
+            DefaultHandling = "read_only",
+            Tooltip = "Adult videos and pictures.",
+            Order = 9,
+            Available = true,
+        };
+        var kinds = new LibraryKindCatalog(LibraryKindsTestData.BuiltIn(adult));
+        await OpenAsync(area: "watch", simple: true, kinds: kinds);
+
+        Assert.DoesNotContain("Adult content", _dialogs.Markup, StringComparison.Ordinal);
+        Assert.Contains("TV Shows", _dialogs.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

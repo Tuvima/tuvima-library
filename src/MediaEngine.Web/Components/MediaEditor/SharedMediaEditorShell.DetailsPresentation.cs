@@ -30,7 +30,6 @@ public partial class SharedMediaEditorShell
         .OrderByDescending(entry => entry.OccurredAt)
         .Take(3)
         .ToList();
-    protected string DetailsMetadataWritebackState => ResolveDetailsMetadataWritebackState();
     protected bool CanAddDetailsTags => DetailsPresentation.CanAddTags;
     protected string? DetailsImageUrl => MediaTileArtworkUrl.Sized(ResolveDetailsImageVariant()?.ImageUrl, "m");
     protected string? DetailsImageSrcSet => MediaTileArtworkUrl.SrcSet(
@@ -230,44 +229,6 @@ public partial class SharedMediaEditorShell
             unit++;
         }
         return $"{size:0.#} {units[unit]}";
-    }
-
-    private string ResolveDetailsMetadataWritebackState()
-    {
-        if (_writebackSettings is null)
-        {
-            return "limited";
-        }
-        if (!_writebackSettings.MetadataWritebackEnabled)
-        {
-            return "disabled";
-        }
-        if (SelectedNavigatorNode?.PrimaryAssetId is null)
-        {
-            return "limited";
-        }
-
-        // The settings flag reports policy only. Keep the UI conservative about
-        // containers whose current writer/read-back behavior is not established.
-        var files = DetailsFiles;
-        if (files.Count == 0)
-        {
-            return "limited";
-        }
-        return files.All(file => HasBoundedMetadataWriter(file.FileName)) ? "enabled" : "limited";
-    }
-
-    private static bool HasBoundedMetadataWriter(string fileName)
-    {
-        var extension = Path.GetExtension(fileName);
-        return extension.Equals(".mp3", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".flac", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".ogg", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".m4a", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".m4b", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".epub", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".cbz", StringComparison.OrdinalIgnoreCase);
     }
 
     private string ResolveDetailsImageShape()

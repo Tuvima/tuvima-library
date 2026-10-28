@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Services.Integration;
@@ -21,6 +22,7 @@ public sealed class ItemFieldEditSession
     private readonly ILogger? _logger;
     private MediaEditorContextDto? _context;
     private MediaEditorScopeDto? _scope;
+    private EditorSubjectDto? _subject;
     private string? _mediaType;
     private Guid? _profileId;
     private IReadOnlyDictionary<string, string>? _profileOverrides;
@@ -67,7 +69,16 @@ public sealed class ItemFieldEditSession
     public string MediaType => _context?.MediaType ?? _mediaType ?? string.Empty;
 
     /// <summary>Whether Match and Identity applies to the active scope (the editor's own rule), so the banner only offers it where it works.</summary>
-    public bool CanMatch => MediaEditorMatchRule.CanMatch(_context?.MediaType ?? _mediaType, _scope?.ScopeId);
+    public bool CanMatch => _subject is null && MediaEditorMatchRule.CanMatch(_context?.MediaType ?? _mediaType, _scope?.ScopeId);
+
+    /// <summary>
+    /// The kind of thing being edited when it is a person, Series, curated collection or Universe rather than a library title (the
+    /// <see cref="EditorSubjectKinds"/> value); null for a title. Its fields, pictures and tools come from the Engine's subject answer.
+    /// </summary>
+    public string? SubjectKind => _subject?.Kind;
+
+    /// <summary>Whether the Artwork tool may ask the item's providers for pictures. Only a library title has providers to ask.</summary>
+    public bool ProvidersAvailable => _subject is null;
 
     public Guid EntityId => _scope?.FieldEntityId ?? Guid.Empty;
 
@@ -115,6 +126,7 @@ public sealed class ItemFieldEditSession
     {
         Loading = true;
         LoadError = null;
+        _subject = null;
         Changed?.Invoke();
         try
         {
@@ -167,6 +179,121 @@ public sealed class ItemFieldEditSession
             Changed?.Invoke();
         }
     }
+
+    /// <summary>Loads a person, Series or curated collection (universal editor spec D17) in place of a library title.</summary>
+    public Task LoadSubjectAsync(Guid id, CancellationToken ct = default) =>
+        LoadSubjectCoreAsync(id, token => _api.GetEditorSubjectAsync(id, token), ct);
+
+    /// <summary>Loads a Universe, found by its Wikidata ID (spec D17a), in place of a library title.</summary>
+    public Task LoadUniverseSubjectAsync(string qid, CancellationToken ct = default) =>
+        LoadSubjectCoreAsync(Guid.Empty, token => _api.GetUniverseEditorSubjectAsync(qid, token), ct);
+
+    private async Task LoadSubjectCoreAsync(Guid requestedId, Func<CancellationToken, Task<EditorSubjectDto?>> read, CancellationToken ct)
+    {
+        Loading = true;
+        LoadError = null;
+        Changed?.Invoke();
+        try
+        {
+            var subject = await read(ct);
+            if (subject is null)
+            {
+                _subject = null;
+                Loaded = false;
+                LoadError = "This cannot be opened for editing right now.";
+                return;
+            }
+
+            ApplySubject(subject);
+            if (subject.Fields.Any(field => field.InputKind == EditorSubjectInputKinds.Chips))
+            {
+                await LoadSuggestionsAsync(ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page moved on while the subject was loading; there is nothing to show or report.
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The editor could not load {EntityId}", requestedId);
+            _subject = null;
+            LoadError = "This cannot be opened for editing right now.";
+            Loaded = false;
+        }
+        finally
+        {
+            Loading = false;
+            Changed?.Invoke();
+        }
+    }
+
+    // A subject has no editor scopes of its own: a synthetic one carries what the staged editor reads from a scope (the id, the
+    // picture owner and slots, whether fields and pictures can be changed), and the Engine's field list becomes the presentation.
+    private void ApplySubject(EditorSubjectDto subject)
+    {
+        _subject = subject;
+        _mediaType = subject.Kind;
+        _preferences = null;
+        _profileOverrides = null;
+        EditorEntityId = subject.Id;
+        _context = new MediaEditorContextDto
+        {
+            LaunchEntityId = subject.Id,
+            LaunchEntityKind = subject.ArtworkEntityKind,
+            MediaType = subject.Kind,
+            InitialScope = subject.Kind,
+        };
+        _scope = new MediaEditorScopeDto
+        {
+            ScopeId = subject.Kind,
+            Label = subject.Kind,
+            FieldEntityId = subject.Id,
+            FieldEntityKind = subject.ArtworkEntityKind,
+            ArtworkOwnerEntityId = subject.Id,
+            ArtworkOwnerEntityKind = subject.ArtworkEntityKind,
+            DisplayTitle = subject.Title,
+            CanEditFields = true,
+            CanEditArtwork = subject.ArtworkSlots.Count > 0,
+            ArtworkSlots = [.. subject.ArtworkSlots],
+        };
+
+        var canonicalName = subject.Kind == EditorSubjectKinds.Universe ? "canonical" : null;
+        var rows = subject.Fields.Select(field => SubjectField(field, canonicalName)).ToList();
+        var facts = subject.Facts.Select(fact => new MediaEditorDetailsFieldPresentation(
+            fact.Label.ToLowerInvariant().Replace(' ', '_'), string.Empty, fact.Label, fact.Value, string.Empty, "text", "Provider",
+            fact.SourceLabel, null, false, false, false, 3, fact.Value, fact.Value, false)).ToList();
+        var heading = rows.FirstOrDefault();
+        var synopsis = rows.Skip(1).FirstOrDefault(row => row.InputKind == "textarea");
+        _presentation = new MediaEditorDetailsPresentation
+        {
+            Heading = heading,
+            Synopsis = synopsis,
+            Fields = rows.Where(row => row != heading && row != synopsis).ToList(),
+            Facts = facts,
+        };
+        Loaded = true;
+        LoadError = null;
+    }
+
+    private static MediaEditorDetailsFieldPresentation SubjectField(EditorSubjectFieldDto field, string? canonicalName) => new(
+        field.Key,
+        field.Key,
+        field.Label,
+        field.Value,
+        string.Empty,
+        field.InputKind == EditorSubjectInputKinds.TextArea ? "textarea" : "text",
+        field.IsOverridden ? "Override" : "Canonical",
+        field.SourceLabel,
+        null,
+        true,
+        field.IsOverridden,
+        field.InputKind == EditorSubjectInputKinds.Chips,
+        1,
+        field.Value,
+        field.Value,
+        false,
+        CanonicalName: canonicalName);
 
     private async Task LoadSuggestionsAsync(CancellationToken ct)
     {
@@ -515,6 +642,12 @@ public sealed class ItemFieldEditSession
 
     private void Rebuild()
     {
+        if (_subject is not null)
+        {
+            // A subject's presentation comes whole from the Engine's answer; there is no scope snapshot to rebuild it from.
+            return;
+        }
+
         if (_scope is null || _context is null)
         {
             _presentation = new();

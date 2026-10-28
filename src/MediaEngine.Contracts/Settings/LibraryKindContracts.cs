@@ -4,7 +4,7 @@ namespace MediaEngine.Contracts.Settings;
 
 /// <summary>
 /// One library kind ("recipe"): a type of library the Library can hold, from the built-in list or supplied by a plugin.
-/// Every screen that offers a type (the Libraries front door, group pages and Add folder) is drawn from the list of these.
+/// Every screen that offers a type (the Libraries overview and the Create library dialog) is drawn from the list of these.
 /// </summary>
 public sealed class LibraryKindDto
 {

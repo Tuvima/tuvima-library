@@ -111,8 +111,6 @@
     /// <summary>The add form is shown.</summary>
     [Parameter] public bool Adding { get; set; }
     [Parameter] public EventCallback<bool> AddingChanged { get; set; }
-    /// <summary>A folder to pre-fill in the add form, when the wizard noticed phone or camera footage.</summary>
-    [Parameter] public string? InitialPath { get; set; }
     /// <summary>Raised after a folder was added, changed or detached, so the page reads the folders again.</summary>
     [Parameter] public EventCallback SourcesChanged { get; set; }
     /// <summary>Raised after the View root was saved.</summary>
@@ -121,7 +119,6 @@
     private bool _busy, _timeline;
     private string? _owner, _path, _error;
     private string _name = string.Empty, _mode = ManagedMode;
-    private bool _prefilled;
 
     // Documents never join the Photos timeline.
     private bool ShowsTimeline => Kind != ViewContentKinds.Documents;
@@ -133,20 +130,6 @@
     private string RootPath => Path.Combine(Configuration.StorageLocations.FirstOrDefault(x => x.Id == Configuration.ViewStorage.StorageLocationId)?.Path ?? "", Configuration.ViewStorage.RelativeRoot);
     private IReadOnlyList<AppSelectOption> OwnerOptions => Profiles.Select(p => new AppSelectOption(p.Id.ToString(), p.DisplayName)).ToList();
     private static readonly IReadOnlyList<AppSelectOption> ModeOptions = [new(ManagedMode, "New managed folder (recommended)"), new(LinkedMode, "Existing folder — read-only")];
-
-    protected override void OnParametersSet()
-    {
-        // The wizard hands over the folder it was shown: the add form opens on the linked choice with that folder filled in.
-        if (_prefilled || !Adding || string.IsNullOrWhiteSpace(InitialPath))
-        {
-            return;
-        }
-
-        _prefilled = true;
-        _mode = LinkedMode;
-        _path = InitialPath;
-        _name = Path.GetFileName(InitialPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-    }
 
     private async Task ChooseSourceAsync()
     {

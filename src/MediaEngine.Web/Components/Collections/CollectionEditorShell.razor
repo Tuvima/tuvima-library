@@ -20,15 +20,6 @@
 <NavigationLock ConfirmExternalNavigation="@_hasUnsavedChanges"
                 OnBeforeInternalNavigation="ConfirmNavigationWithUnsavedChanges" />
 
-@if (_inlineIssueRequest is not null)
-{
-    <SharedMediaEditorShell @key="_inlineIssueRequest.LaunchEntityId"
-                            Request="@_inlineIssueRequest"
-                            Inline="true"
-                            Closed="OnOwnedIssueEditorClosedAsync" />
-}
-else
-{
 <MediaEditorSurface Inline="@Inline">
     <div class="sme-shell collection-editor-workspace">
         <header class="sme-header collection-editor-header">
@@ -88,26 +79,13 @@ else
                     @switch (_activeTab)
                     {
                         case "details":
-                            @if (IsStructuralCollection) { @RenderStructuralDetailsTab() }
-                            else { @RenderDetailsTab() }
+                            @RenderDetailsTab()
                             break;
                         case "artwork":
                             @RenderArtworkTab()
                             break;
                         case "membership":
-                            @if (Request.StructuralDetail is { } structuralDetail)
-                            {
-                                <p>Membership and sequence are maintained from library metadata.</p>
-                                @if (IsComicRunStructuralCollection && StructuralOwnedChildParentId != Guid.Empty)
-                                {
-                                    <MediaEditorOwnedChildBrowser @key="_ownedChildBrowserVersion"
-                                                                  ParentEntityId="StructuralOwnedChildParentId"
-                                                                  Session="@_ownedChildBrowserSession"
-                                                                  ChangeMatch="OpenOwnedIssueMatchAsync" />
-                                }
-                                <AutomaticCollectionMembership Model="structuralDetail" />
-                            }
-                            else { @RenderMembershipTab() }
+                            @RenderMembershipTab()
                             break;
                         case "companions":
                             break;
@@ -119,7 +97,7 @@ else
                             break;
                     }
 
-                    @if (!IsPlaylistDialog && !IsStructuralCollection)
+                    @if (!IsPlaylistDialog)
                     {
                         <div hidden="@(!string.Equals(_activeTab, "companions", StringComparison.OrdinalIgnoreCase))">
                             <CollectionPersonalMediaSection @ref="_personalMediaSection"
@@ -156,7 +134,6 @@ else
         </div>
     </div>
 </MediaEditorSurface>
-}
 
 @code {
     [CascadingParameter] private IAppDialogContext? DialogContext { get; set; }
@@ -179,13 +156,6 @@ else
         ("membership", "Membership", AppMaterialIcons.Outlined.Inventory2),
         ("history", "History", AppMaterialIcons.Outlined.History),
     ];
-    private static readonly (string Id, string Label, string Icon)[] StructuralTabs =
-    [
-        ("details", "Details", AppMaterialIcons.Outlined.Article),
-        ("artwork", "Artwork", AppMaterialIcons.Outlined.PhotoLibrary),
-        ("membership", "Match & Identity", AppMaterialIcons.Outlined.Inventory2),
-        ("history", "History", AppMaterialIcons.Outlined.History),
-    ];
     private static readonly (string Slot, string Label, string Icon)[] DraftArtworkRoles =
     [
         ("poster", "Poster / Cover", AppMaterialIcons.Outlined.Image),
@@ -205,13 +175,12 @@ else
     ];
 
     private CollectionListItemViewModel? EditingCollection => Request.EditingCollection;
-    private bool IsStructuralCollection => Request.StructuralDetail is not null;
     private bool _artworkChanged;
     private ArtworkLibraryItemDto? CollectionArtworkItem => EditingCollection is null
         ? null
         : new ArtworkLibraryItemDto(
             EditingCollection.Id,
-            IsStructuralCollection ? Request.StructuralEntityKind : "Collection",
+            "Collection",
             EditingCollection.Name,
             EditingCollection.PrimaryArea,
             null,
@@ -243,7 +212,7 @@ else
         };
     private bool IsPlaylistDialog => Request.Kind == ContainerEditorKind.Playlist;
     private (string Id, string Label, string Icon)[] VisibleTabs =>
-        (IsStructuralCollection ? StructuralTabs : IsPlaylistDialog ? PlaylistTabs : Tabs)
+        (IsPlaylistDialog ? PlaylistTabs : Tabs)
             .Where(tab => EditingCollection is not null || tab.Id != "history")
             .ToArray();
 
@@ -285,21 +254,15 @@ else
     // A new collection, and a stored rule-driven one being switched to manual, hold no items yet: the chosen items
     // stay in this editor and travel with the save instead of being added one by one.
     private bool _storedRuleDriven;
-    private readonly MediaEditorOwnedChildBrowserSession _ownedChildBrowserSession = new();
-    private int _ownedChildBrowserVersion;
-    private MediaEditorLaunchRequest? _inlineIssueRequest;
 
     private bool IsPlaylist => string.Equals(_collectionType, "Playlist", StringComparison.OrdinalIgnoreCase);
-    private bool IsComicRunStructuralCollection => Request.StructuralDetail?.EntityType == DetailEntityType.ComicSeries;
-    private Guid StructuralOwnedChildParentId => EditingCollection?.Id ?? Guid.Empty;
     private string PersistenceVisibility => string.Equals(_audience, "Everyone", StringComparison.OrdinalIgnoreCase) ? "shared" : "private";
     private bool SupportsManualItems => !_rulesEnabled;
 
     // A manually curated collection (Custom with stored members) is never allowed to be empty: the Engine refuses
     // to create or save one, and takes the collection away when its last item leaves the library. An attached
     // Gallery or smart-rule source counts as a member, so it keeps the collection from being empty.
-    private bool IsEmptyCuratedCollection => !IsStructuralCollection
-        && !IsPlaylistDialog
+    private bool IsEmptyCuratedCollection => !IsPlaylistDialog
         && string.Equals(_collectionType, "Custom", StringComparison.OrdinalIgnoreCase)
         && SupportsManualItems
         && _manualItems.Count == 0
@@ -341,18 +304,14 @@ else
     private string EditorIdentityTitle => string.IsNullOrWhiteSpace(_name) ? DialogTitle : _name;
 
     private string HeaderSubtitle =>
-        IsStructuralCollection
-            ? "Edit this shelf as a collection. Membership follows library metadata."
-            : IsPlaylistDialog
-                ? "Create a playlist, then choose manual or smart membership."
-                : EditingCollection is null
-                    ? "Create a saved collection using either live rules or manual membership."
-                    : "Update the collection settings, rules, and saved items.";
+        IsPlaylistDialog
+            ? "Create a playlist, then choose manual or smart membership."
+            : EditingCollection is null
+                ? "Create a saved collection using either live rules or manual membership."
+                : "Update the collection settings, rules, and saved items.";
 
     private string? FooterSummary =>
-        IsStructuralCollection
-            ? "Changes apply to the shelf, not an individual item."
-            : IsPlaylistDialog
+        IsPlaylistDialog
             ? null
             : IsEmptyCuratedCollection
                 ? EmptyCuratedCollectionMessage
@@ -394,12 +353,6 @@ else
 
         _name = EditingCollection.Name;
         _description = EditingCollection.Description;
-        if (IsStructuralCollection)
-        {
-            _collectionType = "Series";
-            _rulesEnabled = false;
-            return;
-        }
         _iconName = EditingCollection.IconName;
         _collectionType = string.Equals(EditingCollection.CollectionType, "Smart", StringComparison.OrdinalIgnoreCase) ? "Playlist" : EditingCollection.CollectionType;
         _primaryArea = EditingCollection.PrimaryArea;
@@ -453,50 +406,12 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (IsStructuralCollection)
-            return;
         _availableAudienceProfiles = (await Orchestrator.GetProfilesAsync())
             .Where(profile => profile.Id != Request.ActiveProfileId)
             .OrderBy(profile => profile.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (SupportsManualItems)
             await LoadManualItemsAsync();
-    }
-
-    private async Task OpenOwnedIssueMatchAsync(MediaEditorOwnedChildDto child)
-    {
-        if (child.WorkId == Guid.Empty)
-        {
-            return;
-        }
-
-        if (_hasUnsavedChanges)
-        {
-            Snackbar.Add("Save or discard the shelf changes before editing an issue match.", AppSeverity.Info);
-            return;
-        }
-
-        _inlineIssueRequest = new MediaEditorLaunchRequest
-        {
-            EntityIds = [child.WorkId],
-            LaunchEntityId = child.WorkId,
-            MediaType = "Comics",
-            ActiveProfileId = Request.ActiveProfileId,
-            IdentityIntent = MediaEditorIdentityIntent.FixRetailMatch,
-            InitialTab = "links",
-        };
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task OnOwnedIssueEditorClosedAsync(bool changed)
-    {
-        _inlineIssueRequest = null;
-        if (changed)
-        {
-            _ownedChildBrowserSession.RefreshOnReturn = true;
-            _ownedChildBrowserVersion++;
-        }
-        await InvokeAsync(StateHasChanged);
     }
 
     private Task SetAudienceProfileAsync(Guid profileId, bool selected)
@@ -912,12 +827,6 @@ else
             return;
         }
 
-        if (IsStructuralCollection)
-        {
-            await SaveStructuralCollectionAsync();
-            return;
-        }
-
         if (string.Equals(PersistenceVisibility, "private", StringComparison.OrdinalIgnoreCase) && !Request.ActiveProfileId.HasValue)
         {
             Snackbar.Add("An active profile is required to save a private collection.", AppSeverity.Warning);
@@ -1064,34 +973,6 @@ else
             _saving = false;
             StateHasChanged();
         }
-    }
-
-    private async Task SaveStructuralCollectionAsync()
-    {
-        if (EditingCollection is null) return;
-        _saving = true;
-        try
-        {
-            var fields = new Dictionary<string, string>();
-            if (_name != EditingCollection.Name) fields["title"] = _name.Trim();
-            if (_description != EditingCollection.Description) fields["description"] = _description ?? string.Empty;
-            var saved = fields.Count == 0 || (Request.StructuralEntityKind == "Collection"
-                ? await ApiClient.SaveCollectionDisplayOverridesAsync(EditingCollection.Id, fields)
-                : await ApiClient.SaveItemDisplayOverridesAsync(EditingCollection.Id, fields));
-            if (!saved)
-            {
-                Snackbar.Add(ApiClient.LastError ?? "Failed to save collection details.", AppSeverity.Error);
-                return;
-            }
-            _hasUnsavedChanges = false;
-            await CloseEditorAsync(applied: true);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Could not save structural collection {Id}.", EditingCollection.Id);
-            Snackbar.Add("Failed to save collection details. Your changes are still available to retry.", AppSeverity.Error);
-        }
-        finally { _saving = false; }
     }
 
     private async Task CloseEditorAsync(bool applied)
@@ -1481,13 +1362,6 @@ else
 
     </div>;
 
-    private RenderFragment RenderStructuralDetailsTab() => @<div class="collection-editor-pane">
-        <MediaEditorPanel Title="Collection information" Description="The name and description of this shelf. Local edits are preserved when metadata refreshes.">
-            <AppTextField T="string" Value="@_name" ValueChanged="OnNameChanged" Label="Name" Immediate="true" />
-            <AppTextarea Value="@_description" ValueChanged="OnDescriptionChanged" Label="Description (optional)" />
-        </MediaEditorPanel>
-    </div>;
-
     private RenderFragment RenderArtworkTab() => @<div class="collection-editor-pane collection-editor-artwork-page">
         @if (CollectionArtworkItem is { } collectionArtworkItem)
         {
@@ -1569,14 +1443,7 @@ else
 
     private RenderFragment RenderHistoryTab() => @<div class="collection-editor-pane">
         <div class="collection-editor-history-list">
-            @if (IsStructuralCollection)
-            {
-                <div class="collection-editor-empty">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History" />
-                    <span>No recorded edit events are available for this shelf.</span>
-                </div>
-            }
-            else if (EditingCollection is null)
+            @if (EditingCollection is null)
             {
                 <div class="collection-editor-empty">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History" />

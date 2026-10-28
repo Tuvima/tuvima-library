@@ -3,6 +3,9 @@ using MediaEngine.Domain.Enums;
 
 namespace MediaEngine.Domain.Contracts;
 
+/// <summary>A source result marked wrong for one item: the source and the result's id inside it.</summary>
+public sealed record TextTrackRejection(string Provider, string SourceId);
+
 public interface ITextTrackRepository
 {
     Task<IReadOnlyList<TextTrack>> GetByAssetAsync(Guid assetId, TextTrackKind? kind = null, CancellationToken ct = default);
@@ -14,6 +17,14 @@ public interface ITextTrackRepository
     Task UpsertAsync(TextTrack track, CancellationToken ct = default);
 
     Task SetPreferredAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Removes one track's row. The caller removes the managed file.</summary>
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>The results a person marked wrong for this item, so they are never picked again (Plugin architecture spec C24).</summary>
+    Task<IReadOnlyList<TextTrackRejection>> GetRejectionsAsync(Guid assetId, TextTrackKind kind, CancellationToken ct = default);
+
+    Task AddRejectionAsync(Guid assetId, TextTrackKind kind, string provider, string sourceId, CancellationToken ct = default);
 
     /// <summary>
     /// The preferred downloaded subtitles of files inside the folder of the first check <paramref name="sourceId"/> that have not been exported

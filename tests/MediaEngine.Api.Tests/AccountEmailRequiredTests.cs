@@ -378,7 +378,7 @@ public sealed class AccountEmailRequiredTests
         }
     }
 
-    private sealed class AllowAdministratorDecisions : IAccountAccessDecisionService
+    internal sealed class AllowAdministratorDecisions : IAccountAccessDecisionService
     {
         public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature,
             CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
@@ -388,14 +388,14 @@ public sealed class AccountEmailRequiredTests
             CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
     }
 
-    private sealed class AllowEvaluator : IAuthorizationEvaluator
+    internal sealed class AllowEvaluator : IAuthorizationEvaluator
     {
         public ValueTask<AuthorizationDecision> EvaluateAsync(RequestAuthority authority,
             AuthorizationRequirement requirement, ResourceAuthorizationContext? resource,
             CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
     }
 
-    private sealed class NoOpInvalidation : IAuthorizationInvalidationService
+    internal sealed class NoOpInvalidation : IAuthorizationInvalidationService
     {
         public ValueTask InvalidateAccountAsync(Guid accountId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask InvalidateGrantAsync(Guid accountId, Guid profileId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
@@ -403,7 +403,7 @@ public sealed class AccountEmailRequiredTests
         public ValueTask InvalidateSessionAsync(Guid sessionId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 
-    private sealed class NoOpAudit : IAuthorizationAuditWriter
+    internal sealed class NoOpAudit : IAuthorizationAuditWriter
     {
         public ValueTask WriteAsync(AuthorizationAuditEvent auditEvent,
             CancellationToken cancellationToken = default) => ValueTask.CompletedTask;

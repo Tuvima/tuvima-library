@@ -177,7 +177,7 @@ body {
 .page-ambient-bg {
     position: fixed;
     inset: 0;
-    z-index: -1;
+    z-index: 0;
     pointer-events: none;
     background: radial-gradient(
         ellipse 110% 55% at 50% 0%,
@@ -3660,7 +3660,7 @@ button.app-menu-item {
     top: 0;
     transform: translateX(-50%);
     width: 44px;
-    z-index: -1;
+    z-index: 0;
 }
 
 .app-select--playback-flat.app-field:not(.app-select--disabled):hover::before,
@@ -5492,7 +5492,6 @@ input[type="reset"],
 .library-advanced__tabs { min-width: 0; max-width: 100%; }
 .library-advanced__tabs .tl-tabs-toolbar { overflow-x: auto; }
 .library-advanced__tabs .tl-tab { flex: 0 0 auto; white-space: nowrap; }
-.library-folders__add.is-highlighted { box-shadow: 0 0 0 2px var(--tl-accent-primary); }
 
 /* Settings banner X (SettingsNoticeBubble): an AppNativeButton, so its root styles live here. Touch and narrow windows grow it to 44px
    in the shared tap-target block. */
@@ -5507,24 +5506,17 @@ input[type="reset"],
 .merge-folder__option:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .merge-folder__option:disabled { cursor: wait; opacity: .65; }
 
-/* Add folder wizard: the group tiles, kind options and treatment choices are AppNativeButton roots, so their styles live here. */
-.add-wizard__tile { display: grid; align-content: center; justify-items: center; gap: 12px; min-height: 140px; padding: 16px 8px; font-size: 1.05rem; color: inherit; font: inherit; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
-.add-wizard__tile--watch { --add-wizard-colour: var(--area-colour-watch); }
-.add-wizard__tile--listen { --add-wizard-colour: var(--area-colour-listen); }
-.add-wizard__tile--read { --add-wizard-colour: var(--area-colour-read); }
-.add-wizard__tile--view { --add-wizard-colour: var(--area-colour-view); }
-.add-wizard__tile--vault { --add-wizard-colour: var(--tl-status-danger); }
-.add-wizard__kind-option, .add-wizard__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
-.add-wizard__tile:hover, .add-wizard__tile:focus-visible, .add-wizard__tile.is-selected,
-.add-wizard__kind-option:hover, .add-wizard__kind-option:focus-visible, .add-wizard__kind-option.is-selected,
-.add-wizard__choice:hover, .add-wizard__choice:focus-visible, .add-wizard__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
-/* The kind cards and the "Which library?" choices are shared by Add folder and the file-drop dialog, so their layout lives here too. */
-.add-wizard__kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.add-wizard__kind, .add-wizard__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.add-wizard__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: 1.25rem; }
-.add-wizard__options { display: grid; gap: 10px; }
-.add-wizard__lead, .add-wizard__question { margin: 0; }
-.add-wizard__question { font-size: 1rem; }
+/* Kind options and treatment choices (Change kind, file-drop dialog): AppNativeButton roots, so their styles live here. */
+.lib-choice__kind-option, .lib-choice__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
+.lib-choice__kind-option:hover, .lib-choice__kind-option:focus-visible, .lib-choice__kind-option.is-selected,
+.lib-choice__choice:hover, .lib-choice__choice:focus-visible, .lib-choice__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
+/* The kind cards and the "Which library?" choices are shared by the file-drop and Change kind dialogs, so their layout lives here too. */
+.lib-choice__kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.lib-choice__kind, .lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lib-choice__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: 1.25rem; }
+.lib-choice__options { display: grid; gap: 10px; }
+.lib-choice__lead, .lib-choice__question { margin: 0; }
+.lib-choice__question { font-size: 1rem; }
 
 /* Adding files by dropping them or choosing them (Library setup D44): the drop zone over a page's list, and one row per file with its bar. */
 .upload-dragging { outline: 2px dashed var(--tl-accent-primary); outline-offset: -2px; background: var(--tl-accent-primary-soft); }
@@ -5553,12 +5545,6 @@ input[type="reset"],
 .lib-meta__icon--plain { min-width: var(--tl-control-height-compact); min-height: var(--tl-control-height-compact); color: var(--tl-text-muted); font-size: 1.25rem; }
 .lib-meta__icon:focus-visible, .lib-unmatched:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .lib-unmatched { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; padding: 0 6px; border: 1px solid var(--tl-status-warning-border); border-radius: 999px; color: var(--tl-status-warning); background: var(--tl-status-warning-soft); font-size: .75rem; font-weight: 700; }
-
-/* First-run "What do you have?" tick cards (SetupMediaStage): AppNativeButton roots. */
-.setup-have__card { display: grid; align-content: center; justify-items: center; gap: 6px; min-height: 124px; padding: 14px 8px; color: inherit; font: inherit; text-align: center; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
-.setup-have__card small { color: var(--tl-text-muted); font-size: .78rem; }
-.setup-have__card:hover, .setup-have__card[aria-pressed="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
-.setup-have__card:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 
 /* Phone search: the visible Cancel button next to the full-screen search field. */
 .universal-search-overlay__cancel {
@@ -5912,7 +5898,7 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-editing-bar__notice{display:flex;align-items:flex-start;gap:var(--tl-space-2);margin-top:var(--tl-space-2);padding:var(--tl-space-2) var(--tl-space-3);border:1px solid var(--tl-status-warning-border);border-radius:var(--tl-radius-lg);color:var(--tl-text-secondary);font-size:var(--tl-font-size-sm)}
 .tl-editing-bar__notice strong{color:var(--tl-text-primary)}
 .tl-editing-bar__notice ul{margin:var(--tl-space-1) 0 0;padding-left:1.25rem}
-.review-changes{display:grid;gap:var(--tl-space-4);padding:var(--tl-space-4) 22px}.review-changes h3,.review-changes p{margin:0}.review-changes__group h3{font-size:var(--tl-font-size-md);font-weight:var(--tl-font-weight-semibold)}.review-changes__count{color:var(--tl-text-secondary);font-weight:400}.review-changes__rows{display:grid;gap:var(--tl-space-2);margin:var(--tl-space-2) 0 0;padding:0;list-style:none}.review-changes__row{display:grid;gap:var(--tl-space-1);padding:var(--tl-space-3);border:1px solid var(--tl-border-subtle);border-radius:var(--tl-radius-md,8px)}.review-changes__what{display:flex;flex-wrap:wrap;gap:var(--tl-space-2);align-items:baseline}.review-changes__what span,.review-changes__label,.review-changes__note,.review-changes__files,.review-changes__state{color:var(--tl-text-secondary)}.review-changes__values{display:flex;flex-wrap:wrap;gap:var(--tl-space-1) var(--tl-space-4);overflow-wrap:anywhere}.review-changes__label{margin-right:var(--tl-space-1);font-size:var(--tl-font-size-sm)}.review-changes__status{color:var(--tl-text-secondary)}.review-changes__row[data-state=invalid] .review-changes__status,.review-changes__row[data-state=failed] .review-changes__status{color:var(--tl-danger)}.review-changes__actions{display:flex;gap:var(--tl-space-2);align-items:center;justify-content:flex-end}
+.review-changes{display:grid;gap:var(--tl-space-4);padding:var(--tl-space-4) 22px}.review-changes h3,.review-changes p{margin:0}.review-changes__group h3{font-size:var(--tl-font-size-md);font-weight:var(--tl-font-weight-semibold)}.review-changes__count{color:var(--tl-text-secondary);font-weight:400}.review-changes__rows{display:grid;gap:var(--tl-space-2);margin:var(--tl-space-2) 0 0;padding:0;list-style:none}.review-changes__row{display:grid;gap:var(--tl-space-1);padding:var(--tl-space-3);border:1px solid var(--tl-border-subtle);border-radius:var(--tl-radius-md,8px)}.review-changes__what{display:flex;flex-wrap:wrap;gap:var(--tl-space-2);align-items:baseline}.review-changes__what span,.review-changes__label,.review-changes__note,.review-changes__files,.review-changes__state{color:var(--tl-text-secondary)}.review-changes__values{display:flex;flex-wrap:wrap;gap:var(--tl-space-1) var(--tl-space-4);overflow-wrap:anywhere}.review-changes__label{margin-right:var(--tl-space-1);font-size:var(--tl-font-size-sm)}.review-changes__status{color:var(--tl-text-secondary)}.review-changes__row[data-state=invalid] .review-changes__status,.review-changes__row[data-state=failed] .review-changes__status{color:var(--tl-danger)}.review-changes__actions{display:flex;gap:var(--tl-space-2);align-items:center;justify-content:flex-end}.review-changes__files-block{display:flex;flex-wrap:wrap;gap:var(--tl-space-1) var(--tl-space-3);align-items:center}.review-changes__files-override{flex-basis:100%}
 .tl-editor-panel{position:fixed;top:calc(var(--tl-editing-banner-top,0px) + var(--tl-editing-bar-height));right:0;bottom:0;z-index:19;display:flex;flex-direction:column;box-sizing:border-box;width:min(450px,100vw);border-left:1px solid var(--tl-border-default);background:var(--tl-bg-surface);color:var(--tl-text-primary);box-shadow:var(--tl-shadow-lg)}
 .tl-editor-panel--wide{width:min(650px,100vw)}
 .tl-editor-panel__header{display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:var(--tl-space-3);padding:var(--tl-space-2) var(--tl-space-4);border-bottom:1px solid var(--tl-divider)}
@@ -5994,6 +5980,42 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-match__actions{display:flex;justify-content:space-between;gap:var(--tl-space-3)}
 .tl-match__problem{align-items:center}
 
+/* Universe hero: the Universe's own cover, description and background once the editor has set them (spec D17a). */
+.universe-hero__cover {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--tl-radius-md, 0.5rem);
+}
+
+.universe-hero__description {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+}
+
+.universe-hero {
+    position: relative;
+}
+
+.universe-hero__backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.25;
+    pointer-events: none;
+}
+
+.universe-hero__art,
+.universe-hero__copy {
+    position: relative;
+    z-index: 1;
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
@@ -6072,7 +6094,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre {
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre::before {
     content: "";
     position: absolute;
-    z-index: -1;
+    z-index: 0;
     inset: 0.4rem 0;
     border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 48%, rgba(255, 255, 255, 0.2));
     border-radius: 999px;

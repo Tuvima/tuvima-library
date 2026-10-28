@@ -18,7 +18,6 @@
 @inject IEngineApiClient ApiClient
 @inject MediaEditorLauncherService MediaEditorLauncher
 @inject DeviceContextService DeviceContext
-@inject CollectionEditorLauncherService CollectionEditorLauncher
 @inject SavedItemService SavedItems
 @inject MediaReactionService Reactions
 @inject PlaybackSessionController Playback
@@ -50,14 +49,11 @@ else if (Model is not null)
     <article class="tl-detail-page">
         @* Editing: the bar is the first thing in the page's scroll container and sticks to its top; it is outside the
            hero because the full-bleed hero clips what overflows it. *@
-        @if (Model.EntityType != DetailEntityType.Person)
-        {
-            <EditingBar Mode="_editing"
-                        Flow="_flow"
-                        CanDelete="@CanDeleteFromLibrary"
-                        GuardInternalNavigation="@(Overlay is null)"
-                        OnActionSelected="HandleDetailActionAsync" />
-        }
+        <EditingBar Mode="_editing"
+                    Flow="_flow"
+                    CanDelete="@CanDeleteFromLibrary"
+                    GuardInternalNavigation="@(Overlay is null)"
+                    OnActionSelected="HandleDetailActionAsync" />
 
         <section class="@DetailStageClass">
             @if (TemporaryArtworkSlot is { } temporarySlot)
@@ -89,8 +85,7 @@ else if (Model is not null)
             <DetailPrimaryModule Model="Model"
                                  SelectedSeasonId="SelectedSeasonId"
                                  OnSeasonSelected="SelectedSeasonChanged"
-                                 OnContainerSelected="HandleContainerSelectedAsync"
-                                 OnEditItem="OpenEpisodeEditorAsync" />
+                                 OnContainerSelected="HandleContainerSelectedAsync" />
             </section>
         }
 
@@ -196,8 +191,7 @@ else if (Model is not null)
     private bool CanEditMedia => DeviceContext.CanEdit && Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
 
-    // Editing Mode (the banner, pencils and one section below the hero) is for single items. Collections, series shelves and
-    // people keep their own editors.
+    // Editing Mode (the bar, side panel and floating artwork picker) serves items, people, series and curated collections.
     private EditingModeContext? _editing;
 
     // The universal editor on this page: the staged changes, the open tool, what the person does with them, and how the page shows them.
@@ -227,6 +221,7 @@ else if (Model is not null)
         _flow = new EditSessionFlow(session, _editing, new EditSessionSaver(ApiClient), EditTrail, () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
         {
             Saved = RefreshAfterEditSavedAsync,
+            MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
         };
         _preview = new EditPendingPreview(session, _editing.Fields);
         _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);
@@ -264,6 +259,13 @@ else if (Model is not null)
                 Snackbar.Add(resume.ResultLine, AppSeverity.Success);
             }
 
+            return;
+        }
+
+        if (resume.SelectRow is { } row)
+        {
+            // A song's Edit: the song is ticked and the Edit panel opens for it, on the page it came from.
+            await RowEditEntry.StartAsync(_editing, _batch, row);
             return;
         }
 
@@ -440,11 +442,11 @@ else if (Model is not null)
             : null;
     }
 
-    private bool SupportsEditingMode =>
-        Model is not null
-        && Model.EntityType != DetailEntityType.Person
-        && Guid.TryParse(Model.Id, out var entityId)
-        && ResolveEditorTarget(entityId).EntityKind is not ("Person" or "StructuralCollection" or "Collection");
+    private bool SupportsEditingMode => Model is not null && Guid.TryParse(Model.Id, out _);
+
+    // People, series and curated collections edit through the same bar; the Engine describes what each one offers.
+    private static bool IsSubjectKind(string entityKind) =>
+        entityKind is "Person" or "StructuralCollection" or "Collection";
 
     private async Task LoadEditingFieldsAsync()
     {
@@ -456,6 +458,12 @@ else if (Model is not null)
         var target = ResolveEditorTarget(entityId);
         var profile = await Orchestrator.GetActiveProfileAsync();
         _editingProfileId = profile?.Id;
+        if (IsSubjectKind(target.EntityKind))
+        {
+            await _editing.Fields.LoadSubjectAsync(target.EntityId);
+            return;
+        }
+
         await _editing.Fields.LoadAsync(
             target.EntityId,
             ResolveEditorMediaType(Model.EntityType, Model.PresentationContext),
@@ -848,20 +856,13 @@ else if (Model is not null)
             if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)) return;
             if (!CanEditMedia) return;
 
-            // Single items edit in place; shelves, collections and people keep their own editor dialogs.
-            // The menu entry only ever turns Editing Mode on; choosing it while already editing keeps it on
-            // (Done is the way out).
-            if (_editing is { HasPermission: true })
+            // Items, people, series and curated collections all edit in place. The menu entry only ever turns Editing Mode on;
+            // choosing it while already editing keeps it on (Done is the way out).
+            if (_editing is { HasPermission: true } && !_editing.IsOn)
             {
-                if (!_editing.IsOn)
-                {
-                    await _editing.EnterAsync();
-                }
-
-                return;
+                await _editing.EnterAsync();
             }
 
-            await OpenMediaEditorAsync();
             return;
         }
 
@@ -1026,74 +1027,6 @@ else if (Model is not null)
         finally { _changingUnmatched = false; }
     }
 
-    private async Task OpenMediaEditorAsync()
-    {
-        if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
-            return;
-
-        try
-        {
-            var target = ResolveEditorTarget(entityId);
-            var activeProfile = await Orchestrator.GetActiveProfileAsync();
-            if (string.Equals(target.EntityKind, "StructuralCollection", StringComparison.OrdinalIgnoreCase))
-            {
-                var structuralApplied = await CollectionEditorLauncher.OpenAsync(new CollectionEditorLaunchRequest
-                {
-                    EditingCollection = new CollectionListItemViewModel
-                    {
-                        Id = target.EntityId,
-                        Name = Model.Title,
-                        Description = Model.Description,
-                        CollectionType = "Series",
-                        CoverUrl = Model.Artwork.CoverUrl ?? Model.Artwork.PosterUrl,
-                        BackgroundUrl = Model.Artwork.BackdropUrl,
-                        LogoUrl = Model.Artwork.LogoUrl,
-                    },
-                    StructuralDetail = Model,
-                    StructuralEntityKind = target.ContainerMode == "Collection" ? "Collection" : "Work",
-                    ActiveProfileId = activeProfile?.Id,
-                });
-                if (structuralApplied)
-                    await RefreshCurrentDetailAsync();
-                return;
-            }
-            if (string.Equals(target.EntityKind, "Collection", StringComparison.OrdinalIgnoreCase))
-            {
-                var collection = await ResolveManagedCollectionForEditorAsync(target.EntityId);
-                if (collection is null)
-                {
-                    Snackbar.Add("Collection editor could not load this collection.", AppSeverity.Error);
-                    return;
-                }
-
-                var collectionApplied = await CollectionEditorLauncher.OpenAsync(new CollectionEditorLaunchRequest
-                {
-                    EditingCollection = collection,
-                    ActiveProfileId = activeProfile?.Id ?? collection.ProfileId,
-                    Kind = ContainerEditorKind.Collection,
-                });
-
-                if (collectionApplied)
-                    await RefreshCurrentDetailAsync();
-
-                return;
-            }
-
-            var request = BuildMediaEditorRequest(entityId, target, activeProfile?.Id, target.InitialTab ?? "details", null)!;
-
-            var applied = await MediaEditorLauncher.OpenAsync(request);
-            if (applied)
-            {
-                await RefreshCurrentDetailAsync();
-                Snackbar.Add("Media details updated.", AppSeverity.Success);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Media editor could not open: {ex.Message}", AppSeverity.Error);
-        }
-    }
-
     // One request shape for the modal (people, and any caller outside Editing Mode) and for the Editing Mode section slot.
     private MediaEditorLaunchRequest? BuildMediaEditorRequest(
         Guid entityId,
@@ -1144,53 +1077,6 @@ else if (Model is not null)
         };
     }
 
-    private async Task OpenEpisodeEditorAsync(SequenceItemViewModel item)
-    {
-        if (Model is null || !item.IsOwned || !Guid.TryParse(item.Id, out var episodeId))
-            return;
-
-        try
-        {
-            var activeProfile = await Orchestrator.GetActiveProfileAsync();
-            var applied = await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
-            {
-                EntityIds = [episodeId],
-                LaunchEntityId = episodeId,
-                LaunchEntityKind = "Work",
-                ContainerMode = "Canonical",
-                ActiveProfileId = activeProfile?.Id,
-                Mode = SharedMediaEditorMode.Normal,
-                InitialTab = "details",
-                InitialScope = "episode",
-                MediaType = "TV",
-                HeaderTitle = item.Title,
-                HeaderSubtitle = item.GroupTitle ?? item.PositionText ?? Model.Title,
-                CoverUrl = item.ArtworkUrl,
-                OnArtworkChanged = RefreshCurrentDetailAsync,
-                PreviewItems =
-                [
-                    new MediaEditorPreviewItem
-                    {
-                        EntityId = episodeId,
-                        Title = item.Title,
-                        CoverUrl = item.ArtworkUrl,
-                        MediaType = "TV",
-                    },
-                ],
-            });
-
-            if (applied)
-            {
-                await RefreshCurrentDetailAsync();
-                Snackbar.Add("Episode updated.", AppSeverity.Success);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Episode editor could not open: {ex.Message}", AppSeverity.Error);
-        }
-    }
-
     private (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) ResolveEditorTarget(Guid fallbackEntityId)
     {
         var target = Model?.EditorTarget;
@@ -1200,48 +1086,6 @@ else if (Model is not null)
             ? (targetId, target.EntityKind, target.ContainerMode, target.InitialTab, target.InitialScope)
             : (fallbackEntityId, Model?.EntityType.ToString() ?? "Work", "Canonical", "details", null);
     }
-
-    private async Task<CollectionListItemViewModel?> ResolveManagedCollectionForEditorAsync(Guid collectionId)
-    {
-        var collections = await ApiClient.GetManagedCollectionsAsync();
-        var collection = collections.FirstOrDefault(item => item.Id == collectionId);
-        return collection is null ? null : ToCollectionListItem(collection);
-    }
-
-    private static CollectionListItemViewModel ToCollectionListItem(ManagedCollectionViewModel collection) =>
-        new()
-        {
-            Id = collection.Id,
-            Name = collection.Name,
-            Description = collection.Description,
-            IconName = collection.IconName,
-            CollectionType = collection.CollectionType,
-            Resolution = collection.Resolution,
-            Scope = collection.Scope,
-            ProfileId = collection.ProfileId,
-            Visibility = collection.Visibility,
-            MembershipMode = collection.MembershipMode,
-            PrimaryArea = collection.PrimaryArea,
-            OwnerKind = collection.OwnerKind,
-            Audience = collection.Audience,
-            IsEnabled = collection.IsEnabled,
-            IsFeatured = collection.IsFeatured,
-            ItemCount = collection.ItemCount,
-            RuleJson = collection.RuleJson,
-            RuleHash = collection.RuleHash,
-            MatchMode = collection.MatchMode,
-            SortField = collection.SortField,
-            SortDirection = collection.SortDirection,
-            SecondarySortField = collection.SecondarySortField,
-            SecondarySortDirection = collection.SecondarySortDirection,
-            CoverUrl = collection.CoverArtworkUrl,
-            BackgroundUrl = collection.BackgroundArtworkUrl,
-            BannerUrl = collection.BannerArtworkUrl,
-            LogoUrl = collection.LogoArtworkUrl,
-            CreatedAt = collection.CreatedAt,
-            CanEdit = collection.CanEdit,
-            CanShare = collection.CanShare,
-        };
 
     // A move merged the title this page shows into another (or emptied the audiobook it shows), so the Work in the address is gone: the
     // address now names the Work the item lives in. In the overlay the entry is replaced with its underlay kept, so Back still returns to

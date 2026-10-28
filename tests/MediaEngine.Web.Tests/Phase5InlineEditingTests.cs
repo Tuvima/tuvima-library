@@ -20,7 +20,7 @@ public sealed class Phase5InlineEditingTests
     }
 
     [Fact]
-    public void DetailPage_EditActionTurnsEditingModeOnAndKeepsTheModalForPeopleAndShelves()
+    public void DetailPage_EditActionTurnsEditingModeOnForItemsPeopleSeriesAndCollections()
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
 
@@ -33,15 +33,14 @@ public sealed class Phase5InlineEditingTests
         Assert.DoesNotContain("<EditingBanner", source, StringComparison.Ordinal);
         Assert.Contains("<EditingSectionSlot", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<EditingDrawer", source, StringComparison.Ordinal);
-        // People, series shelves and curated collections keep their own editor dialogs.
-        Assert.Contains("MediaEditorLauncherService MediaEditorLauncher", source, StringComparison.Ordinal);
-        Assert.Contains("MediaEditorLauncher.OpenAsync(request)", source, StringComparison.Ordinal);
-        Assert.Contains("CollectionEditorLauncher.OpenAsync", source, StringComparison.Ordinal);
-        Assert.Contains("is not (\"Person\" or \"StructuralCollection\" or \"Collection\")", source, StringComparison.Ordinal);
+        // People, series and curated collections edit through the same bar (spec D17): no dialog is opened for them any more.
+        Assert.DoesNotContain("CollectionEditorLauncher", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("PersonEditorDialog", source, StringComparison.Ordinal);
+        Assert.Contains("IsSubjectKind(target.EntityKind)", source, StringComparison.Ordinal);
+        Assert.Contains("_editing.Fields.LoadSubjectAsync(target.EntityId)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("MediaEditorLauncher.BeginInline", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<SharedMediaEditorShell", source, StringComparison.Ordinal);
         Assert.Contains("<DetailPrimaryModule Model=\"Model\"", source, StringComparison.Ordinal);
-        Assert.Contains("ActiveProfileId = activeProfile?.Id", source, StringComparison.Ordinal);
         Assert.Contains("Mode = SharedMediaEditorMode.Normal", source, StringComparison.Ordinal);
     }
 
@@ -68,11 +67,12 @@ public sealed class Phase5InlineEditingTests
         var table = ReadSource("src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor");
         var card = ReadSource("src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor");
 
-        Assert.Contains("MediaEditorLauncherService MediaEditorLauncher", browse, StringComparison.Ordinal);
+        // Edit opens the item's own page with the editor on (the universal editor), never the old pop-up.
+        Assert.DoesNotContain("MediaEditorLauncher", browse, StringComparison.Ordinal);
         Assert.Contains("OnEditClicked=\"OpenItemEditorAsync\"", browse, StringComparison.Ordinal);
         Assert.DoesNotContain("OnEditClicked=\"OpenCardEditorAsync\"", browse, StringComparison.Ordinal);
         Assert.DoesNotContain("MediaGroupPage", browse, StringComparison.Ordinal);
-        Assert.Contains("MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest", browse, StringComparison.Ordinal);
+        Assert.Contains("OfferEditResume(new DetailsEditResume(entityId, EditingSection.History", browse, StringComparison.Ordinal);
         Assert.Contains("OnEditClicked.InvokeAsync(item.EntityId)", table, StringComparison.Ordinal);
         Assert.Contains("href=\"@DetailsNavigationUrl\"", card, StringComparison.Ordinal);
         Assert.DoesNotContain("OnEditClicked", card, StringComparison.Ordinal);
@@ -90,13 +90,14 @@ public sealed class Phase5InlineEditingTests
     }
 
     [Fact]
-    public void ReviewQueue_ReviewActionLaunchesEditorInReviewModeWithReviewId()
+    public void ReviewQueue_ReviewActionOpensTheItemsOwnPageOnTheMatchTool()
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor");
 
-        Assert.Contains("Mode = SharedMediaEditorMode.Review", source, StringComparison.Ordinal);
-        Assert.Contains("ReviewItemId = item.Id", source, StringComparison.Ordinal);
+        Assert.Contains("new DetailsEditResume(item.EntityId, EditingSection.Match, null)", source, StringComparison.Ordinal);
         Assert.Contains("Label=\"Review\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MediaEditorLauncher", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SharedMediaEditorMode.Review", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Desktop required", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Open complete review", source, StringComparison.Ordinal);
         Assert.Contains("await LoadReviewsAsync();", source, StringComparison.Ordinal);
@@ -184,50 +185,17 @@ public sealed class Phase5InlineEditingTests
     {
         var sharedShell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
         var sharedCode = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
-        var personShell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor");
         var collectionShell = ReadSource("src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor");
         var globalStyles = ReadSource("src/MediaEngine.Web/wwwroot/app.css");
 
         Assert.Contains("app-selection-nav__item sme-section-nav__item is-active", sharedCode, StringComparison.Ordinal);
-        Assert.Contains("app-selection-nav__item person-editor__nav-item is-active", personShell, StringComparison.Ordinal);
         Assert.Contains("app-selection-nav__item sme-section-nav__item is-active", collectionShell, StringComparison.Ordinal);
         Assert.Contains("is-active is-group-open", sharedCode, StringComparison.Ordinal);
-        Assert.Contains("is-active is-group-open", personShell, StringComparison.Ordinal);
         Assert.Contains("is-active is-group-open", collectionShell, StringComparison.Ordinal);
         Assert.Contains("aria-current", sharedShell, StringComparison.Ordinal);
-        Assert.Contains("aria-current", personShell, StringComparison.Ordinal);
         Assert.Contains("aria-current", collectionShell, StringComparison.Ordinal);
         Assert.Contains(".app-selection-nav__item.is-active", globalStyles, StringComparison.Ordinal);
         Assert.Contains("background: var(--tl-menu-item-selected) !important", globalStyles, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void PersonEditor_UsesMediaArtworkWorkspaceAndOmitsMatchAndPersonalNotes()
-    {
-        var source = ReadSource("src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor.css");
-        var contracts = ReadSource("src/MediaEngine.Contracts/Persons/PersonEditorContracts.cs");
-
-        Assert.Contains("(\"details\", \"Details\"", source, StringComparison.Ordinal);
-        Assert.Contains("(\"artwork\", \"Artwork\"", source, StringComparison.Ordinal);
-        Assert.Contains("(\"history\", \"History\"", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("(\"match\", \"Match\"", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("_activeTab == \"match\"", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Personal notes", source, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("PersonalNotes", contracts, StringComparison.Ordinal);
-
-        Assert.Contains("<ArtworkWorkspace", source, StringComparison.Ordinal);
-        Assert.Contains("ShowClose=\"false\"", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("StartInEditMode", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("person-editor__tab-heading", source, StringComparison.Ordinal);
-        Assert.Contains("GetPersonTabClass(captured.Id)", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"Banner\" =>", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("person-editor__artwork-type-rail", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("person-editor__artwork-sidebar", source, StringComparison.Ordinal);
-        Assert.Contains("PersonArtworkItem", source, StringComparison.Ordinal);
-        Assert.Contains("PersonArtworkChangedAsync", source, StringComparison.Ordinal);
-        Assert.Contains("background: var(--tl-bg-surface-raised)", styles, StringComparison.Ordinal);
-        Assert.DoesNotContain("#", styles, StringComparison.Ordinal);
     }
 
     [Fact]

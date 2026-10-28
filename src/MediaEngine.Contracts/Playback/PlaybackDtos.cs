@@ -566,6 +566,12 @@ public sealed class PlaybackGeneralSettingsDto
     /// <c>everything</c>. Read-only here: it changes only through the profile's own spoiler action, never a bulk save.
     /// </summary>
     public string SpoilerLevel { get; set; } = "up_to_progress";
+
+    /// <summary>
+    /// "Show Vault in the navigation bar" (Library pages D20), off by default. Read-only here: it changes only through the
+    /// person's own Vault action, never a bulk save.
+    /// </summary>
+    public bool ShowVaultInNavigation { get; set; }
     public bool SyncAcrossDevices { get; set; } = true;
     public int SyncFrequencyMinutes { get; set; } = 15;
     public bool UseBannerArtWhenAvailable { get; set; } = true;

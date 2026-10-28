@@ -18,9 +18,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-// Who may see the Vault in the Libraries screens (Library setup spec D12, D13) and that first-run setup never offers it. The Vault is
-// created from the Create library dialog (Library pages spec WP9), which brings its own tests.
-public sealed class LibraryVaultCardTests : AsyncBunitContext
+// Who may see the Vault in the Libraries screens (Library setup spec D12, D13) and that first-run setup, which draws the same table in
+// simple mode, never lists or offers it. A Vault library is created from the Create library dialog (Library pages spec WP9), which
+// brings its own tests.
+public sealed class LibraryVaultVisibilityTests : AsyncBunitContext
 {
     private static readonly Guid Me = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
@@ -31,7 +32,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     };
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
 
-    public LibraryVaultCardTests()
+    public LibraryVaultVisibilityTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLocalization();
@@ -80,21 +81,17 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheWizardInFirstRunSetupNeverOffersTheVaultEvenWithVaultModeOn()
+    public async Task TheSharedTableInFirstRunSetupNeverListsOrMentionsTheVaultEvenWithVaultModeOn()
     {
         await SetUpAsync();
-        var parameters = new AppDialogParameters<AddFolderWizard>
-        {
-            { component => component.Embedded, true },
-            { component => component.ShowVault, true },
-            { component => component.Configuration, _configuration },
-            { component => component.Kinds, LibraryKindsTestData.Catalog },
-        };
+        _configuration.Libraries.Add(new() { Id = "11111111-1111-4111-8111-111111111111", Name = "Movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"], Sources = [new() { Id = "m1", Path = "E:\\Movies" }] });
+        _configuration.Libraries.Add(new() { Id = "99999999-9999-4999-8999-999999999999", Name = "Private movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"], Access = "vault", Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
 
-        await Services.GetRequiredService<IAppDialogService>().ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
-        _dialogs.WaitForElement(".add-wizard");
+        var settings = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true));
+        var setup = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true).Add(x => x.Simple, true));
 
-        Assert.Equal(["Watch", "Listen", "Read"], _dialogs.FindAll(".add-wizard__tile").Select(Text).ToArray());
-        Assert.DoesNotContain("vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(["Movies", "Private movies"], settings.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.Equal(["Movies"], setup.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.DoesNotContain("vault", setup.Markup, StringComparison.OrdinalIgnoreCase);
     }
 }

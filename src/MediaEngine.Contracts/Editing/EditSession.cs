@@ -104,6 +104,13 @@ public sealed class EditSessionRequest
 
     [JsonPropertyName("changes")]
     public List<EditSessionChange> Changes { get; init; } = [];
+
+    /// <summary>
+    /// This save's own answer to "Save changes into the files" (spec D15). Null follows the library's setting; false asks the Engine not
+    /// to put the changed items' files on the write list this once. It is never a way to turn the library setting on.
+    /// </summary>
+    [JsonPropertyName("write_into_files")]
+    public bool? WriteIntoFiles { get; init; }
 }
 
 /// <summary>What happened to one pending change.</summary>

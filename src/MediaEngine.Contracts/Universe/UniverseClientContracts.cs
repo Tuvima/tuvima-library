@@ -19,6 +19,14 @@ public sealed class UniverseClientDetailDto
     [JsonPropertyName("description")]
     public string? Description { get; init; }
 
+    /// <summary>The cover the person chose for this Universe in the editor, or null while it has none.</summary>
+    [JsonPropertyName("cover_url")]
+    public string? CoverUrl { get; init; }
+
+    /// <summary>The background the person chose for this Universe in the editor, or null while it has none.</summary>
+    [JsonPropertyName("background_url")]
+    public string? BackgroundUrl { get; init; }
+
     /// <summary>Always <c>universe</c>; see <see cref="MediaEngine.Contracts.Collections.CollectionGroupTypes"/>.</summary>
     [JsonPropertyName("group_type")]
     public string GroupType { get; init; } = MediaEngine.Contracts.Collections.CollectionGroupTypes.Universe;

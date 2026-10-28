@@ -58,6 +58,7 @@ public sealed class VaultRouteInventoryTests
         ("/works/{workId:guid}", "The handler restricts the work to the files the catalogue authorization allows, and answers not found for none"),
         ("/works/{workId:guid}/editions", "The handler restricts the work to the files the catalogue authorization allows, and answers not found for none"),
         ("/works/{workId:guid}/cast", "The handler answers not found unless the catalogue authorization allows a file of the work"),
+        ("/library/editor-subjects/{id:guid}", "People, Series, curated collections and Universes are never files, so a Vault item cannot be one; the handler still asks the edit session's catalogue refusal check for the id (EditSessionAccessService) and answers not found for anything that is not such a subject"),
     ];
 
     [Fact]

@@ -9,6 +9,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
+using MediaEngine.Storage;
 using ManifestItem = MediaEngine.Domain.Entities.SeriesManifestItemRecord;
 
 namespace MediaEngine.Api.Services.ReadServices;
@@ -29,7 +30,8 @@ public sealed partial class UniverseClientReadService(
     UniverseConnectionsReadService connections,
     ISeriesManifestRepository? manifests = null,
     UniverseLinkCache? linkCache = null,
-    ICanonicalValueArrayRepository? arrays = null)
+    ICanonicalValueArrayRepository? arrays = null,
+    CollectionDisplayOverrideRepository? displayOverrides = null)
 {
     /// <summary>Cards listed on each member shelf; <c>item_count</c> still reports the whole shelf.</summary>
     public const int MaxShelfItems = 24;
@@ -167,12 +169,22 @@ public sealed partial class UniverseClientReadService(
         var universeConnections = await connections.GetConnectionsAsync(
             normalized, visibleWorkQids, includeCharacters, profile, universeWorkQids, ct).ConfigureAwait(false);
 
+        // A local name or description the universal editor stored (spec D17a) shows in place of the canonical one; the canonical
+        // value itself is never touched, and removing the override brings it back.
+        var local = displayOverrides is null
+            ? null
+            : await displayOverrides.LoadAsync(universe.Id, ct).ConfigureAwait(false);
+        string? Local(string key) => local is not null && local.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value : null;
+        var shownName = Local("title") ?? universe.DisplayName;
+
         return new UniverseBuild(
             new UniverseClientDetailDto
             {
                 Qid = normalized,
-                Name = string.IsNullOrWhiteSpace(universe.DisplayName) ? normalized : universe.DisplayName!,
-                Description = universe.Description,
+                Name = string.IsNullOrWhiteSpace(shownName) ? normalized : shownName,
+                Description = Local("description") ?? universe.Description,
+                CoverUrl = string.IsNullOrWhiteSpace(universe.CoverArtworkPath) ? null : $"/collections/{universe.Id}/artwork/poster",
+                BackgroundUrl = string.IsNullOrWhiteSpace(universe.BackgroundArtworkPath) ? null : $"/collections/{universe.Id}/artwork/background",
                 ItemCount = shelves.Sum(shelf => shelf.ItemCount + shelf.AlsoInThisWorldCount),
                 SeriesCount = shelves.Count,
                 MediaTypes = mediaTypes,

@@ -76,6 +76,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginOutboxService>();
         services.AddSingleton<PluginDisplayService>();
         services.AddSingleton<PluginPlayDetailsService>();
+        services.AddSingleton<PlayerPluginActionService>();
         services.AddSingleton<PluginOutboxWorker>();
         services.AddHostedService(sp => sp.GetRequiredService<PluginOutboxWorker>());
         services.AddHostedService<PluginOrphanSweepHostedService>();

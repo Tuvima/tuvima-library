@@ -1,10 +1,12 @@
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Universe;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
@@ -31,7 +33,8 @@ public sealed class UniversePageTests : AsyncBunitContext
     private readonly List<string> _calls = [];
     private Func<UniversePageLoadResult> _overview = () => UniversePageLoadResult.Loaded(Overview());
     private TaskCompletionSource<UniversePageLoadResult>? _gate;
-    private SharedEntityEditorContextDto? _editContext;
+    private EditorSubjectDto? _subject = DuneSubject();
+    private readonly List<EditSessionRequest> _sessions = [];
     private IReadOnlyList<PluginSummaryResponse> _plugins = [];
 
     public UniversePageTests()
@@ -47,8 +50,17 @@ public sealed class UniversePageTests : AsyncBunitContext
                 _calls.Add("overview");
                 return _gate is { } gate ? gate.Task : Task.FromResult(_overview());
             });
-            stub.SetHandler(nameof(IEngineApiClient.GetSharedEntityEditorContextAsync), _ =>
-                Task.FromResult(_editContext));
+            stub.SetHandler(nameof(IEngineApiClient.GetUniverseEditorSubjectAsync), _ =>
+            {
+                _calls.Add("subject");
+                return Task.FromResult(_subject);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
+            {
+                var request = (EditSessionRequest)args![0]!;
+                _sessions.Add(request);
+                return Task.FromResult(LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult { PreviewOnly = request.PreviewOnly, Valid = true }));
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetPluginsAsync), _ =>
             {
                 _calls.Add("plugins");
@@ -321,18 +333,16 @@ public sealed class UniversePageTests : AsyncBunitContext
     // Editing -------------------------------------------------------------------------------------------------------
 
     [Theory]
-    [InlineData("web", "desktop", true, true, true)]
-    [InlineData("web", "desktop", false, true, false)]
-    [InlineData("web", "desktop", true, false, false)]
-    [InlineData("web", "tablet", true, true, false)]
-    [InlineData("mobile", "phone", true, true, false)]
-    [InlineData("television", "tv", true, true, false)]
-    public async Task TheEditButton_IsOnlyForDesktopAdministratorsWhoMayEditThisUniverse(
-        string deviceClass, string formFactor, bool administrator, bool editable, bool expected)
+    [InlineData("web", "desktop", true, true)]
+    [InlineData("web", "desktop", false, false)]
+    [InlineData("web", "tablet", true, false)]
+    [InlineData("mobile", "phone", true, false)]
+    [InlineData("television", "tv", true, false)]
+    public async Task TheEditButton_IsOnlyForDesktopAdministrators(
+        string deviceClass, string formFactor, bool administrator, bool expected)
     {
         await UseDeviceAsync(deviceClass, formFactor);
         SignIn(administrator);
-        _editContext = EditContext(editable);
 
         var cut = RenderPage();
 
@@ -345,7 +355,6 @@ public sealed class UniversePageTests : AsyncBunitContext
     {
         // A fresh load can render before the browser has reported its device; unknown means "can't edit" until it does.
         SignIn(administrator: true);
-        _editContext = EditContext(editable: true);
 
         var cut = RenderPage();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universe-hero")));
@@ -361,7 +370,6 @@ public sealed class UniversePageTests : AsyncBunitContext
     {
         await UseDeviceAsync("web", "desktop");
         SignIn(administrator: true);
-        _editContext = EditContext(editable: true);
         _access.Unlocked = false;
 
         var cut = RenderPage();
@@ -369,90 +377,132 @@ public sealed class UniversePageTests : AsyncBunitContext
         cut.Find("button.universe-hero__edit").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(1, _access.Requests));
-        Assert.Empty(cut.FindAll(".tl-editing-banner"));
-        Assert.Empty(cut.FindAll(".tl-editing-slot"));
+        Assert.Empty(cut.FindAll(".tl-editing-bar"));
+        Assert.Empty(cut.FindAll(".tl-editor-panel"));
+        Assert.DoesNotContain("subject", _calls);
     }
 
     [Fact]
-    public async Task ChoosingEdit_AfterTheUnlock_ShowsTheBannerAndTheUniverseEditorInLine_NotADrawerOrAModal()
+    public async Task ChoosingEdit_AfterTheUnlock_ShowsTheSharedBarAndPanel_WithDetailsAndArtworkButNoMatch()
     {
-        await UseDeviceAsync("web", "desktop");
-        SignIn(administrator: true);
-        _editContext = EditContext(editable: true);
-        _access.Unlocked = true;
-
-        var cut = RenderPage();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
-        Assert.Empty(cut.FindAll(".tl-editing-banner"));
-        cut.Find("button.universe-hero__edit").Click();
+        var cut = await StartEditingAsync();
 
         cut.WaitForAssertion(() =>
         {
             Assert.Equal(1, _access.Requests);
-            Assert.Single(cut.FindAll(".tl-editing-banner"));
-            Assert.Single(cut.FindAll(".tl-editing-slot[data-section='details']"));
-            Assert.Equal("Universe details", cut.Find(".tl-editing-slot__title").TextContent.Trim());
-            Assert.NotEmpty(cut.FindAll(".tl-editing-slot .sme-shell--section"));
+            Assert.Single(cut.FindAll(".tl-editing-bar"));
+            Assert.Single(cut.FindAll(".tl-editor-panel[data-tool='details']"));
         });
-        // The slot sits directly below the hero, in the page's own flow, and the page behind it is unchanged.
-        Assert.True(cut.Find(".universe-hero").NextElementSibling?.Id == "tl-editing-slot");
-        Assert.NotEmpty(cut.FindAll(".universe-hero"));
+        // The Universe edits through the same bar as every other page: no banner, slot, drawer or dialog.
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-slot"));
         Assert.Empty(cut.FindAll(".tl-dialog"));
         Assert.DoesNotContain("tl-editing-drawer", cut.Markup, StringComparison.Ordinal);
-
-        // The Universe editor brings its own sections, so the banner offers only Done.
-        Assert.Empty(cut.FindAll(".tl-editing-banner__section"));
-        Assert.Equal(["Done"], cut.FindAll(".tl-editing-banner button").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork"], cut.FindAll(".tl-editing-bar__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Dune"], cut.FindAll(".tl-editing-bar__trail li").Select(item => item.TextContent.Trim()));
     }
 
     [Fact]
-    public async Task DoneInTheBanner_EndsEditingAndTakesTheBannerAndTheEditorAway()
+    public async Task TheDetailsPanel_ListsTheLocalNameAndDescription_AndTheSeriesReadOnly()
     {
-        await UseDeviceAsync("web", "desktop");
-        SignIn(administrator: true);
-        _editContext = EditContext(editable: true);
-        _access.Unlocked = true;
+        var cut = await StartEditingAsync();
 
-        var cut = RenderPage();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
-        cut.Find("button.universe-hero__edit").Click();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-slot")));
+        cut.WaitForElement(".tl-editor-field[data-field-key='title'] input");
+        Assert.Single(cut.FindAll(".tl-editor-field[data-field-key='description'] textarea"));
+        var series = cut.Find(".tl-editor-details__group[aria-label='Series in this Universe']");
+        Assert.Contains("The Novels", series.TextContent);
+        Assert.Empty(series.QuerySelectorAll("input, textarea, button"));
+    }
 
-        cut.Find("button.tl-editing-banner__done").Click();
+    [Fact]
+    public async Task ARenamedUniverse_ShowsOnTheHeroAtOnce_AndSavesNothingUntilSaveChanges()
+    {
+        var cut = await StartEditingAsync();
+
+        cut.WaitForElement(".tl-editor-field[data-field-key='title'] input").Input("Arrakis");
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Empty(cut.FindAll(".tl-editing-banner"));
-            Assert.Empty(cut.FindAll(".tl-editing-slot"));
+            Assert.Equal("Arrakis", cut.Find(".universe-hero__title").TextContent.Trim());
+            Assert.Contains("Save 1 change", cut.Find("button.tl-editing-bar__save").TextContent);
+        });
+        Assert.Empty(_sessions);
+    }
+
+    [Fact]
+    public async Task AFieldWithALocalOverride_OffersResetToTheCanonicalValue()
+    {
+        _subject = DuneSubject(overridden: true);
+        var cut = await StartEditingAsync();
+
+        var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
+
+        Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
+        Assert.Contains(title.QuerySelectorAll("button"), button => button.TextContent.Contains("Reset to canonical value"));
+    }
+
+    [Fact]
+    public async Task Cancel_EndsEditing_AndTakesTheBarAndThePanelAway()
+    {
+        var cut = await StartEditingAsync();
+        cut.WaitForElement(".tl-editor-panel");
+
+        cut.Find("button.tl-editing-bar__cancel").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll(".tl-editing-bar"));
+            Assert.Empty(cut.FindAll(".tl-editor-panel"));
         });
         Assert.NotEmpty(cut.FindAll(".universe-hero"));
     }
 
     [Fact]
-    public async Task ClosingTheEditorInTheSlot_EndsEditingBecauseThePageHasNoOtherEditingSurface()
+    public async Task AUniverseTheEngineWillNotOpen_ShowsTheReasonOnTheBar()
+    {
+        _subject = null;
+        var cut = await StartEditingAsync(expectPanel: false);
+
+        cut.WaitForAssertion(() => Assert.Contains("Editing is not ready", cut.Find(".tl-editing-bar__notice").TextContent));
+    }
+
+    private async Task<IRenderedComponent<UniversePage>> StartEditingAsync(bool expectPanel = true)
     {
         await UseDeviceAsync("web", "desktop");
         SignIn(administrator: true);
-        _editContext = EditContext(editable: true);
         _access.Unlocked = true;
 
         var cut = RenderPage();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
         cut.Find("button.universe-hero__edit").Click();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-slot")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
+        if (expectPanel)
+        {
+            cut.WaitForElement(".tl-editor-panel");
+        }
 
-        cut.Find("button.tl-editing-slot__close").Click();
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
-        Assert.Empty(cut.FindAll(".tl-editing-slot"));
+        return cut;
     }
+
+    private static EditorSubjectDto DuneSubject(bool overridden = false) => new()
+    {
+        Id = Guid.Parse("00000000-0000-0000-0000-0000000000d1"),
+        Kind = EditorSubjectKinds.Universe,
+        Title = "Dune",
+        ArtworkEntityKind = "Collection",
+        ArtworkSlots = ["CoverArt", "Background"],
+        Fields =
+        [
+            new EditorSubjectFieldDto { Key = "title", Label = "Name", Value = overridden ? "Arrakis" : "Dune", CanonicalValue = "Dune", IsOverridden = overridden, SourceLabel = "Wikidata" },
+            new EditorSubjectFieldDto { Key = "description", Label = "Description", InputKind = EditorSubjectInputKinds.TextArea, Value = "A desert world.", CanonicalValue = "A desert world.", SourceLabel = "Wikidata" },
+        ],
+    };
 
     [Fact]
     public async Task TheAdministratorExtras_Appear_WhenTheSignInArrivesAfterThePageHasLoaded()
     {
         // A fresh load can render before the sign-in details reach the screen; when they arrive the page checks again.
         await UseDeviceAsync("web", "desktop");
-        _editContext = EditContext(editable: true);
         _plugins = [new PluginSummaryResponse { Id = "tuvima.fandom-lore", Name = "Fandom lore", Enabled = false }];
 
         var cut = RenderPage();
@@ -667,13 +717,6 @@ public sealed class UniversePageTests : AsyncBunitContext
             Guid.NewGuid(),
             new DashboardAuthorityResponse(
                 Guid.NewGuid(), Guid.NewGuid(), true, true, 1, 1, administrator, administrator, null, 1, [], [], []));
-
-    private static SharedEntityEditorContextDto EditContext(bool editable) => new(
-        new SharedEntityEditorTargetDto(SharedEntityEditorTargetKinds.Universe, Qid, null, Qid),
-        "Dune",
-        "Universe",
-        [new SharedEntityEditorCapabilityDto("details", true, editable)],
-        "ready");
 
     private static readonly UniverseSourceDto Wikidata = new() { Kind = UniverseSourceDto.Wikidata, Label = "Wikidata" };
 

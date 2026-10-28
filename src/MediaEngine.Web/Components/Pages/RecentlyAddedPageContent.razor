@@ -3,8 +3,9 @@
 @using MediaEngine.Contracts.Paging
 @using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Navigation
 @inject IEngineApiClient Api
-@inject MediaEditorLauncherService MediaEditorLauncher
+@inject IServiceProvider Services
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Nav
 @implements IDisposable
@@ -165,16 +166,19 @@
         };
     }
 
-    private async Task OpenMediaEditorAsync(IngestionMediaGroupDto item)
+    // Edit opens the item's own page with the editor already on, on the Details tool (universal editor spec D2): the same bar and panel as
+    // everywhere else, not a pop-up.
+    private Task OpenMediaEditorAsync(IngestionMediaGroupDto item)
     {
-        var entityId = item.WorkId ?? item.EditionId ?? item.GroupId;
-        await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
+        if (EditorDeviceRule.TryRefuse(DeviceContext, null))
         {
-            EntityIds = [entityId], LaunchEntityId = entityId, LaunchEntityKind = "work",
-            Mode = SharedMediaEditorMode.Normal, MediaType = item.MediaType,
-            HeaderTitle = item.Title, CoverUrl = item.CoverUrl,
-            PreviewItems = [new() { EntityId = entityId, Title = item.Title, CoverUrl = item.CoverUrl, MediaType = item.MediaType }],
-        });
+            return Task.CompletedTask;
+        }
+
+        var entityId = item.WorkId ?? item.EditionId ?? item.GroupId;
+        Services.GetService<DetailsOverlayState>()?.OfferEditResume(new DetailsEditResume(entityId, EditingSection.History, null));
+        Nav.NavigateTo($"/details/work/{entityId:D}");
+        return Task.CompletedTask;
     }
 
     private static string RelativeAge(DateTimeOffset value) { var age = DateTimeOffset.UtcNow - value; return age.TotalDays >= 1 ? $"{Math.Max(1, (int)age.TotalDays)}d" : age.TotalHours >= 1 ? $"{Math.Max(1, (int)age.TotalHours)}h" : $"{Math.Max(1, (int)age.TotalMinutes)}m"; }

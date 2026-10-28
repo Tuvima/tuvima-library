@@ -171,6 +171,39 @@ public sealed class TextTrackRepository : ITextTrackRepository
         return Task.CompletedTask;
     }
 
+    public Task DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        conn.Execute("DELETE FROM text_tracks WHERE id = @id;", new { id });
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<TextTrackRejection>> GetRejectionsAsync(Guid assetId, TextTrackKind kind, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<TextTrackRejection>("""
+            SELECT provider AS Provider, source_id AS SourceId
+            FROM text_track_rejections
+            WHERE asset_id = @assetId AND kind = @kind;
+            """, new { assetId, kind = kind.ToString() });
+        return Task.FromResult<IReadOnlyList<TextTrackRejection>>(rows.ToList());
+    }
+
+    public Task AddRejectionAsync(Guid assetId, TextTrackKind kind, string provider, string sourceId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceId);
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            INSERT OR IGNORE INTO text_track_rejections (asset_id, kind, provider, source_id)
+            VALUES (@assetId, @kind, @provider, @sourceId);
+            """, new { assetId, kind = kind.ToString(), provider, sourceId });
+        return Task.CompletedTask;
+    }
+
     public Task SetPreferredAsync(Guid id, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -189,13 +222,13 @@ public sealed class TextTrackRepository : ITextTrackRepository
 
             conn.Execute("""
                 UPDATE text_tracks
-                SET is_preferred = 0, updated_at = datetime('now')
-                WHERE asset_id = @AssetId AND kind = @Kind AND language = @Language;
+                SET is_preferred = 0, updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now')
+                WHERE asset_id = @AssetId AND kind = @Kind AND language = @Language AND is_preferred = 1;
                 """, new { target.AssetId, target.Kind, target.Language }, tx);
 
             conn.Execute("""
                 UPDATE text_tracks
-                SET is_preferred = 1, updated_at = datetime('now')
+                SET is_preferred = 1, updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now')
                 WHERE id = @id;
                 """, new { id }, tx);
 

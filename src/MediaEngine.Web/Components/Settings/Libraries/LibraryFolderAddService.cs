@@ -8,11 +8,10 @@ using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Settings;
 
-/// <summary>How a new folder is used: read-only (nothing changes), merged into a managed folder once, or managed by Library.</summary>
+/// <summary>How a new folder is used: read-only (nothing changes) or managed by Library.</summary>
 public enum AddFolderHandling
 {
     ReadOnly,
-    Merge,
     Managed,
 }
 
@@ -56,9 +55,9 @@ public sealed record AddFolderResult(LibrariesConfigurationDto? Configuration, L
 public sealed record FolderFollowUp(bool Started, string? Notice);
 
 /// <summary>
-/// The one "add a folder" operation shared by the Add folder wizard and the folders panel: re-check the folder for the chosen
-/// handling, save it into the type's library, move the "New media goes here" marker when asked, and run the Convert and Merge
-/// follow-ups. It holds no state of its own; the caller owns the configuration it passes in.
+/// The one "add a folder" operation shared by the Create library dialog, a library's page and the folders panel: re-check the folder
+/// for the chosen handling, save it into the type's library, move the "New media goes here" marker when asked, and run the Convert
+/// and Merge follow-ups. It holds no state of its own; the caller owns the configuration it passes in.
 /// </summary>
 public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDialogService dialogs, IAppToastService toasts)
 {
@@ -88,7 +87,6 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
 
         var selected = plan.Folder;
         var managed = plan.Handling == AddFolderHandling.Managed;
-        var mergeAfter = plan.Handling == AddFolderHandling.Merge;
         string? notice = null;
         if (managed)
         {
@@ -156,7 +154,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             return new AddFolderResult(null, source, type, managed, notice, apiClient.LastError ?? "That change could not be saved. Check the folder and try again.", library.Id);
         }
 
-        toasts.Add(plan.SuccessMessage ?? (mergeAfter ? "Folder added as read-only. Choose where its files should go." : "Folder added."), AppSeverity.Success);
+        toasts.Add(plan.SuccessMessage ?? "Folder added.", AppSeverity.Success);
         var result = new AddFolderResult(saved, source, type, managed, notice, null, library.Id);
 
         // "Should new media go here?" answered Yes: when another folder of the type already holds the marker, move it.
@@ -309,7 +307,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
     public sealed record CreatedLibrary(LibrariesConfigurationDto Configuration, LibraryFolderDto Library);
 
     /// <summary>
-    /// Makes a library of a kind with no folder yet, through the same save the Add folder wizard uses (a new library named for the kind, or by the
+    /// Makes a library of a kind with no folder yet, through the same save the Create library dialog uses (a new library named for the kind, or by the
     /// person for a kind that holds several). Null when the Engine refused it; <see cref="IEngineApiClient.LastError"/> then says why.
     /// </summary>
     public async Task<CreatedLibrary?> CreateLibraryAsync(FolderAddScope scope, LibraryTypeOption type, string? name, LibrariesConfigurationDto baseline)

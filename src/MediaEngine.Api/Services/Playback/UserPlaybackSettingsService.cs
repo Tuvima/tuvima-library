@@ -169,7 +169,9 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         // transaction, so a level chosen a moment ago can never be put back by a save that read the old one.
         return await _db.ExecuteWriteAsync((conn, tx, _) =>
         {
-            normalized.General.SpoilerLevel = ReadStored(conn, tx, profileId).General.SpoilerLevel;
+            var stored = ReadStored(conn, tx, profileId);
+            normalized.General.SpoilerLevel = stored.General.SpoilerLevel;
+            normalized.General.ShowVaultInNavigation = stored.General.ShowVaultInNavigation;
             Validate(normalized);
             return Save(conn, tx, normalized, profileId);
         }, ct);
@@ -198,6 +200,23 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
             Save(conn, tx, settings, profileId);
         }, ct);
         return chosen;
+    }
+
+    public async Task<bool> GetShowVaultInNavigationAsync(Guid profileId, CancellationToken ct = default) =>
+        (await GetAsync(profileId, ct)).General.ShowVaultInNavigation;
+
+    public async Task SetShowVaultInNavigationAsync(Guid profileId, bool show, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        await EnsureProfileExistsAsync(profileId, ct);
+        // Merged onto the latest stored settings inside one write transaction, so a concurrent bulk save is not overwritten.
+        await _db.ExecuteWriteAsync((conn, tx, _) =>
+        {
+            var settings = Normalize(ReadStored(conn, tx, profileId), profileId);
+            settings.General.ShowVaultInNavigation = show;
+            Validate(settings);
+            Save(conn, tx, settings, profileId);
+        }, ct);
     }
 
     private static UserPlaybackSettingsDto Save(SqliteConnection conn, SqliteTransaction tx, UserPlaybackSettingsDto normalized, Guid profileId)

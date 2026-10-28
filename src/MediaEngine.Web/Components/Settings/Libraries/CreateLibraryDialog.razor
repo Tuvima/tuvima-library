@@ -11,8 +11,8 @@
 
 @* Add library: one screen. The media area, a name, the content type, who can see it, and the first source folder, checked as it is chosen.
    Create saves the library with that folder, starts a scan and opens the new library's page: no "go to..." question. First-run setup uses the
-   same dialog with Simple on (Standard access only, no Vault) and stays where it is. For an administrator the Access choices include
-   Vault-protected (Library pages D10): chosen here, never switched on or off later; Adult content comes with that tick on (D12). *@
+   same dialog with Simple on (no Access choice, so Standard; no Vault, so no Adult content kind) and stays where it is. For an administrator the
+   Access choices include Vault-protected (Library pages D10): chosen here, never switched on or off later; Adult content comes with that tick on (D12). *@
 <AppDialogShell Title="Add library" Size="Large" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="create-library">
@@ -53,6 +53,8 @@
                 }
             </section>
 
+            @if (!Simple)
+            {
             <section class="create-library__section">
                 <h3 class="create-library__heading">Access <AppInfoTip Text="@AccessTipText" Label="About access" /></h3>
                 <LibraryAccessOptions Value="@_access"
@@ -74,6 +76,7 @@
                                   ValueChanged="SetVaultTick" />
                 }
             </section>
+            }
 
             <section class="create-library__section">
                 <h3 class="create-library__heading">First folder <AppInfoTip Text="Choose a folder on the Library server that holds your files. Library never changes your originals unless you let it." Label="About the first folder" /></h3>

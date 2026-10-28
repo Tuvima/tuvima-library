@@ -255,6 +255,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications));
         // Only here so mapping can infer each route's parameters; the routes under test never ask for them.
         builder.Services.AddSingleton(typeof(MediaEngine.Api.Services.Vault.VaultAdministrationService), _ => throw new InvalidOperationException("Not used by these routes."));
+        builder.Services.AddSingleton(typeof(MediaEngine.Api.Services.Playback.IUserPlaybackSettingsService), _ => throw new InvalidOperationException("Not used by these routes."));
         builder.Services.AddSingleton(typeof(MediaEngine.Api.Services.Security.RecentSignInGuard), _ => throw new InvalidOperationException("Not used by these routes."));
         // The add-a-folder route: its refusals (not an administrator, locked) never reach the service, so a service with nothing behind it fails the test if touched.
         builder.Services.AddSingleton(new MediaEngine.Api.Services.Vault.VaultFolderAttachmentService(
