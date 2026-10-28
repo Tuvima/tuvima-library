@@ -51,6 +51,7 @@ Sizes: 12 · 13 (secondary) · 14 · 16 · 18 · 24 px. Weights: 400 body, 500 l
 ## Spacing, shape, depth and motion
 
 - **Spacing:** 4 · 8 · 12 · 16 · 20 · 24 · 32 · 40 px. Control heights 36 / 42 / 48 px.
+- **Lists and tables:** column gap 16 px (`--tl-list-column-gap`), row height 56 px (`--tl-list-row-height`; compact track lists 2.7rem), hover and playing styles shared. Text columns are left-aligned; numbers and times right-aligned; icon columns (favourite, play) centred. The play button always has its own narrow column, empty when a row cannot be played, so numbers and titles line up. Rarely used row actions (delete, edit, add to queue) live in the "..." menu; destructive actions are never a loose icon in a row. Read these tokens instead of setting a gap per list.
 - **Corners:** 4 · 6 · 8 · 12 px, pill 999px; controls 10px.
 - **Shadows:** small / medium / large tiers plus hover tiers; shadows appear on floating things (hero, menus, dialogs), not resting cards.
 - **Focus:** 3px ring in `#A78BFA` with 2px offset. Every interactive element needs a visible focus state.

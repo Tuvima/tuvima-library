@@ -242,13 +242,6 @@ else
                                 }
                             </div>
                             break;
-                        case "delete":
-                            <div class="listen-song-table__delete" role="cell" @onkeydown:stopPropagation="true">
-                                <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__delete-button" Title="Delete from library…" AriaLabel="@($"Delete {trackTitle} from library…")" StopPropagation="true" OnClick="@(() => DeleteRowAsync(track))">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
-                                </AppNativeButton>
-                            </div>
-                            break;
                         case "options":
                             <div class="listen-song-table__options" role="cell" @onclick:stopPropagation="true">
                                 <AppOverflowMenu Size="AppControlSize.Compact" Class="listen-song-table__overflow">
@@ -257,6 +250,14 @@ else
                                                  Icon="@AppMaterialIcons.Outlined.Album"
                                                  Disabled="@(track.RootWorkId is null || track.RootWorkId == Guid.Empty)"
                                                  OnClick="@(() => OpenAlbumAsync(track))" />
+                                    @if (ShowDelete)
+                                    {
+                                        <AppMenuItem Label="Delete from library…"
+                                                     Icon="@AppMaterialIcons.Outlined.Delete"
+                                                     Tone="AppUiTone.Error"
+                                                     DividerBefore="true"
+                                                     OnClick="@(() => DeleteRowAsync(track))" />
+                                    }
                                 </AppOverflowMenu>
                             </div>
                             break;
@@ -308,7 +309,6 @@ else
         new("dateAdded", "Date Added", 112, 104),
         new("queue", "Queue", 64, 56),
         new("edit", "Edit", 64, 56),
-        new("delete", "Delete", 64, 56),
         new("options", string.Empty, 42, 40),
     ];
 
@@ -324,7 +324,7 @@ else
     private string? _sortColumn;
     private bool _sortDescending;
 
-    // Delete from library (spec delete-from-library D13, D25): desktop administrators get a checkbox and a Delete icon on each row.
+    // Delete from library (spec delete-from-library D13, D25): desktop administrators get a checkbox on each row and "Delete from library…" as the last, red item of the row's "..." menu (one-look spec WP6, F45).
     // The rule, the dialog and the toasts are LibraryItemDeletionFlow's; this table only collects the songs and hides them once gone.
     private readonly HashSet<Guid> _selected = [];
     private readonly HashSet<Guid> _removed = [];
@@ -511,14 +511,14 @@ else
         "favorite" => ShowFavorite,
         "queue" => ShowQueue,
         "edit" => ShowEdit,
-        "select" or "delete" => ShowDelete,
+        "select" => ShowDelete,
         _ => true,
     };
 
     private string RowClass(WorkViewModel track) =>
         $"listen-song-table__row {(CurrentWorkId == track.Id ? "is-playing" : string.Empty)}".Trim();
 
-    private static bool IsSortableColumn(string key) => key is not ("queue" or "edit" or "delete" or "select");
+    private static bool IsSortableColumn(string key) => key is not ("queue" or "edit" or "select");
 
     private void BeginColumnResize(string key, double clientX)
     {

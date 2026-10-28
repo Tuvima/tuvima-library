@@ -147,7 +147,7 @@
                              @ondragstart="@(() => StartDrag(item))"
                              @ondragend="EndDrag"
                              @ondblclick="@(() => PlayItemAsync(item))">
-                            <div class="tl-embedded-audio__ordinal" role="cell">
+                            <div class="tl-embedded-audio__play-cell" role="cell">
                                 @if (isPlaying)
                                 {
                                     <span class="tl-embedded-audio__playing" aria-label="Currently playing">
@@ -164,8 +164,8 @@
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                                     </AppNativeButton>
                                 }
-                                <span>@DisplayOrdinal(item, index)</span>
                             </div>
+                            <div class="tl-embedded-audio__ordinal" role="cell">@DisplayOrdinal(item, index)</div>
                             <div class="tl-embedded-audio__title" role="cell">
                                 <DetailRowSelectBox ItemId="@ItemId(item)" Title="@item.Title" Kind="@item.EntityType" />
                                 <strong>@item.Title</strong>
