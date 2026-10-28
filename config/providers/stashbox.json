@@ -32,7 +32,7 @@
     "required_scopes": ["Look up a video by its title", "Look up a video by a fingerprint of its file (separate permission, off by default)"],
     "intro": {
       "title": "Stash-box lookup",
-      "summary": "This contacts a stash-box server and is only ever asked about items in the Vault. It sends the video's title. It sends a fingerprint of your file only if you turn on that separate permission. It needs your own account key from the server, which is kept on this machine and never shown again. Without a key it does nothing."
+      "summary": "Looks up details for videos in your Vault on StashDB (stashdb.org), a public community database, or another stash-box server you add. You need your own free StashDB account. Library sends your account key to that server only, so it knows the request is yours, and sends the video's title to find a match. A fingerprint of the file is sent only if you turn on that separate permission. The key is kept on this machine and never shown again. Without a key, nothing is sent."
     },
     "skip_consequences": [
       { "lane": "watch", "summary": "Vault videos keep the title from their file name and a still frame as the cover.", "unavailable_capabilities": ["title", "description", "tags", "cover"] }
