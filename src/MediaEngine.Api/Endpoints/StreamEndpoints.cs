@@ -377,6 +377,119 @@ public static class StreamEndpoints
         .RequireClientScope(ClientApiScopes.PlaybackWrite)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
 
+        group.MapGet("/{assetId:guid}/text-tracks/alternatives", async (
+            Guid assetId,
+            string? kind,
+            HttpContext http,
+            TextTrackEnrichmentWorker textTrackWorker,
+            IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            if (!TryParseTextTrackKind(kind, out var textTrackKind))
+            {
+                return ApiErrors.BadRequest("kind must be either 'lyrics' or 'subtitles'.");
+            }
+
+            var requester = PluginAccessGate.RequesterOf(await authorityResolver.ResolveAsync(http, ct));
+            var result = await textTrackWorker.FindAlternativesAsync(assetId, textTrackKind, requester, ct);
+            return Results.Ok(new TextTrackAlternativesResponse
+            {
+                asset_id = assetId,
+                kind = textTrackKind.ToString(),
+                status = result.Status,
+                message = result.Message,
+                items = result.Items.Select(item => new TextTrackAlternativeDto
+                {
+                    provider = item.Provider,
+                    provider_name = item.ProviderName,
+                    source_id = item.SourceId,
+                    language = item.Language,
+                    is_timed = item.IsTimed,
+                    confidence = item.Confidence,
+                    duration_match_score = item.DurationMatchScore,
+                    is_hearing_impaired = item.IsHearingImpaired,
+                    release_name = item.ReleaseName,
+                    preview = item.Preview,
+                    is_current = item.IsCurrent,
+                }).ToList(),
+            });
+        })
+        .WithName("GetTextTrackAlternatives")
+        .WithSummary("Ask the switched-on lyrics or subtitle sources for other results for one item. Fetched live and never stored.")
+        .Produces<TextTrackAlternativesResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
+
+        group.MapPost("/{assetId:guid}/text-tracks/alternatives/choose", async (
+            Guid assetId,
+            [Microsoft.AspNetCore.Mvc.FromBody] ChooseTextTrackAlternativeRequest request,
+            HttpContext http,
+            TextTrackEnrichmentWorker textTrackWorker,
+            IRequestAuthorityResolver authorityResolver,
+            PluginPeopleActionLog peopleActions,
+            CancellationToken ct) =>
+        {
+            if (!TryParseTextTrackKind(request.kind, out var textTrackKind)
+                || string.IsNullOrWhiteSpace(request.provider)
+                || string.IsNullOrWhiteSpace(request.source_id))
+            {
+                return ApiErrors.BadRequest("kind, provider and source_id are required.");
+            }
+
+            var authority = await authorityResolver.ResolveAsync(http, ct);
+            var result = await textTrackWorker.ChooseAlternativeAsync(
+                assetId, textTrackKind, request.provider, request.source_id, PluginAccessGate.RequesterOf(authority), ct);
+            if (result.Status == "Updated")
+            {
+                await peopleActions.RecordAsync(new PluginPeopleAction(
+                    authority.ActiveProfileId, request.provider, textTrackKind == TextTrackKind.Lyrics ? "chose-lyrics" : "chose-subtitles",
+                    $"Chose other {textTrackKind.ToString().ToLowerInvariant()} from {request.provider}", assetId), ct);
+            }
+
+            return Results.Ok(new TextTrackChoiceResponse { asset_id = assetId, status = result.Status, message = result.Message, track_id = result.TrackId });
+        })
+        .WithName("ChooseTextTrackAlternative")
+        .WithSummary("Use one of the results a source offered. The choice is Library-wide; the previous one is kept so Go back works once.")
+        .Produces<TextTrackChoiceResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
+
+        group.MapPost("/{assetId:guid}/text-tracks/{trackId:guid}/wrong", async (
+            Guid assetId,
+            Guid trackId,
+            HttpContext http,
+            TextTrackEnrichmentWorker textTrackWorker,
+            ITextTrackRepository textTrackRepo,
+            IRequestAuthorityResolver authorityResolver,
+            PluginPeopleActionLog peopleActions,
+            CancellationToken ct) =>
+        {
+            var track = await textTrackRepo.FindByIdAsync(trackId, ct);
+            if (track is null || track.AssetId != assetId)
+            {
+                return ApiErrors.NotFound("Text track not found for this asset.");
+            }
+
+            var result = await textTrackWorker.MarkWrongAsync(assetId, trackId, ct);
+            if (result.Status == "Updated")
+            {
+                var authority = await authorityResolver.ResolveAsync(http, ct);
+                await peopleActions.RecordAsync(new PluginPeopleAction(
+                    authority.ActiveProfileId, track.Provider, track.Kind == TextTrackKind.Lyrics ? "marked-lyrics-wrong" : "marked-subtitles-wrong",
+                    $"Marked {track.Kind.ToString().ToLowerInvariant()} from {track.Provider} as wrong", assetId), ct);
+            }
+
+            return Results.Ok(new TextTrackChoiceResponse { asset_id = assetId, status = result.Status, message = result.Message, track_id = result.TrackId });
+        })
+        .WithName("MarkTextTrackWrong")
+        .WithSummary("Mark a lyrics or subtitle result as wrong so it is never picked again for this item. A person's own file is never removed.")
+        .Produces<TextTrackChoiceResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
+
         group.MapPost("/{assetId:guid}/text-tracks/import", async (
             Guid assetId,
             HttpRequest request,
@@ -686,6 +799,24 @@ public static class StreamEndpoints
                 or MediaEngine.Domain.Enums.MediaType.Comics => lineage.TargetForSelfScope,
             _ => lineage.TargetForParentScope,
         };
+    }
+
+    private static bool TryParseTextTrackKind(string? value, out TextTrackKind kind)
+    {
+        if (string.Equals(value, "lyrics", StringComparison.OrdinalIgnoreCase))
+        {
+            kind = TextTrackKind.Lyrics;
+            return true;
+        }
+
+        if (string.Equals(value, "subtitles", StringComparison.OrdinalIgnoreCase))
+        {
+            kind = TextTrackKind.Subtitles;
+            return true;
+        }
+
+        kind = default;
+        return false;
     }
 
     private static string? NormalizeArtworkSize(string? size) =>

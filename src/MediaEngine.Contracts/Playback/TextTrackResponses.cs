@@ -67,3 +67,50 @@ public sealed record RefreshTextTracksResponse
     public Guid? track_id { get; init; }
     public string message { get; init; } = string.Empty;
 }
+
+/// <summary>One result a source offers for an item's lyrics or subtitles, for "Not right? Find another".</summary>
+public sealed record TextTrackAlternativeDto
+{
+    public string provider { get; init; } = string.Empty;
+    public string provider_name { get; init; } = string.Empty;
+    public string source_id { get; init; } = string.Empty;
+    public string language { get; init; } = "und";
+    public bool is_timed { get; init; }
+    public double confidence { get; init; }
+    public double? duration_match_score { get; init; }
+    public bool is_hearing_impaired { get; init; }
+    public string? release_name { get; init; }
+    public string? preview { get; init; }
+    public bool is_current { get; init; }
+}
+
+/// <summary>Response for <c>GET /stream/{assetId}/text-tracks/alternatives</c>. The list is asked of the sources live and is never stored.</summary>
+public sealed record TextTrackAlternativesResponse
+{
+    public Guid asset_id { get; init; }
+    public string kind { get; init; } = string.Empty;
+
+    /// <summary><c>Found</c>, <c>NoneFound</c>, <c>NoSourceOn</c>, <c>NotAllowed</c>, <c>Blocked</c>, <c>Unavailable</c>, <c>AssetMissing</c> or <c>Unsupported</c>.</summary>
+    public string status { get; init; } = string.Empty;
+    public string message { get; init; } = string.Empty;
+    public IReadOnlyList<TextTrackAlternativeDto> items { get; init; } = [];
+}
+
+/// <summary>Body of <c>POST /stream/{assetId}/text-tracks/alternatives/choose</c>.</summary>
+public sealed record ChooseTextTrackAlternativeRequest
+{
+    public string kind { get; init; } = string.Empty;
+    public string provider { get; init; } = string.Empty;
+    public string source_id { get; init; } = string.Empty;
+}
+
+/// <summary>Response for choosing a result or marking one wrong.</summary>
+public sealed record TextTrackChoiceResponse
+{
+    public Guid asset_id { get; init; }
+    public string status { get; init; } = string.Empty;
+    public string message { get; init; } = string.Empty;
+
+    /// <summary>The track now in use, or null when none is.</summary>
+    public Guid? track_id { get; init; }
+}

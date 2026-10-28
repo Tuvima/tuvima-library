@@ -6180,6 +6180,11 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastTextTrackDto
   Path: System.String | nullability=not-null | accessors=get,init
   ContentType: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ChooseTextTrackAlternativeRequest
+  kind: System.String | nullability=not-null | accessors=get,init
+  provider: System.String | nullability=not-null | accessors=get,init
+  source_id: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionCharacterDto
   Qid: System.String | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init
@@ -6886,6 +6891,32 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSe
   SubtitleBackground: System.Boolean | nullability=not-null | accessors=get,set
   SubtitlePosition: System.String | nullability=not-null | accessors=get,set
   SubtitleStyle: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackAlternativeDto
+  provider: System.String | nullability=not-null | accessors=get,init
+  provider_name: System.String | nullability=not-null | accessors=get,init
+  source_id: System.String | nullability=not-null | accessors=get,init
+  language: System.String | nullability=not-null | accessors=get,init
+  is_timed: System.Boolean | nullability=not-null | accessors=get,init
+  confidence: System.Double | nullability=not-null | accessors=get,init
+  duration_match_score: System.Double? | nullability=nullable | accessors=get,init
+  is_hearing_impaired: System.Boolean | nullability=not-null | accessors=get,init
+  release_name: System.String | nullability=nullable | accessors=get,init
+  preview: System.String | nullability=nullable | accessors=get,init
+  is_current: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackAlternativesResponse
+  asset_id: System.Guid | nullability=not-null | accessors=get,init
+  kind: System.String | nullability=not-null | accessors=get,init
+  status: System.String | nullability=not-null | accessors=get,init
+  message: System.String | nullability=not-null | accessors=get,init
+  items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.TextTrackAlternativeDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackChoiceResponse
+  asset_id: System.Guid | nullability=not-null | accessors=get,init
+  status: System.String | nullability=not-null | accessors=get,init
+  message: System.String | nullability=not-null | accessors=get,init
+  track_id: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackDto
   Id: System.Guid | nullability=not-null | accessors=get,set

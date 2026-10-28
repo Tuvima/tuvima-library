@@ -852,6 +852,20 @@ Cached Wikidata display labels for QIDs, avoiding repeated API lookups.
 | `label` | TEXT | Display label in the configured metadata language |
 | `fetched_at` | TEXT | Timestamp |
 
+### text_track_rejections
+
+"This one is wrong" on lyrics or subtitles (Plugin architecture C24). One row per source result a person marked wrong for an item, so
+the Library never picks it again for that item. It keeps only the source's name and the result's id, never the text, and goes with the
+file (`ON DELETE CASCADE`).
+
+| Column | Type | Notes |
+|---|---|---|
+| `asset_id` | BLOB | FK -> `media_assets.id`; part of the primary key |
+| `kind` | TEXT | `Lyrics` or `Subtitles`; part of the primary key |
+| `provider` | TEXT | The source's name; part of the primary key |
+| `source_id` | TEXT | The result's id inside that source; part of the primary key |
+| `rejected_at` | TEXT | When it was marked wrong |
+
 ### subtitle_index_tracks, subtitle_lines, subtitle_name_tags
 
 The subtitle text index (Universes U-WP14). One `subtitle_index_tracks` row per subtitle track that was read: either a

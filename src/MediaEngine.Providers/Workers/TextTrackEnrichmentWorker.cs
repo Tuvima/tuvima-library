@@ -20,7 +20,7 @@ public sealed record TextTrackEnrichmentResult(
     Guid? TrackId,
     string Message);
 
-public sealed class TextTrackEnrichmentWorker
+public sealed partial class TextTrackEnrichmentWorker
 {
     private readonly IMediaAssetRepository _assetRepo;
     private readonly IWorkRepository _workRepo;
@@ -198,6 +198,9 @@ public sealed class TextTrackEnrichmentWorker
                 importedLocal ? "Local text tracks were refreshed." :
                     "The movie or episode identity could not be verified for an online subtitle search.");
         }
+        var rejected = (await _trackRepo.GetRejectionsAsync(assetId, kind, ct).ConfigureAwait(false))
+            .Select(entry => (entry.Provider, entry.SourceId))
+            .ToHashSet();
         var instrumentalDetected = false;
         var incompatibleSubtitleDetected = false;
         string? incompatibleProviderName = null;
@@ -218,6 +221,7 @@ public sealed class TextTrackEnrichmentWorker
             instrumentalDetected |= candidates.Any(candidate => candidate.IsInstrumental);
             foreach (var candidate in candidates
                          .Where(candidate => !candidate.IsInstrumental)
+                         .Where(candidate => !rejected.Contains((candidate.Provider, candidate.SourceId)))
                          .OrderBy(candidate => candidate.IsForced)
                          .ThenBy(candidate => candidate.IsHearingImpaired)
                          .ThenByDescending(candidate => candidate.Confidence)

@@ -110,6 +110,7 @@ public sealed class TextTrackSourceAccessTests
         {
             "GetByAssetAsync" => Task.FromResult<IReadOnlyList<TextTrack>>(tracks.ToList()),
             "GetPreferredAsync" => Task.FromResult<TextTrack?>(tracks.SingleOrDefault(track => track.IsPreferred)),
+            "GetRejectionsAsync" => Task.FromResult<IReadOnlyList<TextTrackRejection>>([]),
             "UpsertAsync" => Task.CompletedTask,
             "SetPreferredAsync" => Task.CompletedTask,
             _ => throw new NotSupportedException(method.Name),
