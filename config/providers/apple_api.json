@@ -526,7 +526,13 @@
   "requires_api_key": false,
   "custom_icon_name": null,
   "language_strategy": "localized",
-  "ui_metadata": null,
+  "ui_metadata": {
+    "accent_color": "#FA243C",
+    "material_icon": "Storefront",
+    "category": "Retail",
+    "requires_key": false,
+    "auth_type": "none"
+  },
   "onboarding": {
     "classification": "built_in",
     "signup_url": null,
@@ -541,5 +547,12 @@
     ],
     "credentials": [],
     "authentication_probe": { "path": "/search?term=tuvima&limit=1", "method": "GET", "success_status_codes": [200] }
+  },
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "tell_me",
+    "changelog": "First built-in version: book, music and audiobook identity and artwork from Apple."
   }
 }

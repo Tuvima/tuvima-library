@@ -25,5 +25,19 @@
     ],
     "credentials": [],
     "authentication_probe": null
+  },
+  "ui_metadata": {
+    "accent_color": "#607D8B",
+    "material_icon": "Folder",
+    "category": "Local",
+    "requires_key": false,
+    "auth_type": "none"
+  },
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "quiet",
+    "changelog": "First built-in version: facts read from the files themselves."
   }
 }

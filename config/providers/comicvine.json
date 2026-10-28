@@ -874,5 +874,12 @@
       { "key": "api_key", "label": "Comic Vine API Key", "input_type": "password", "required": true, "ownership": "user_supplied", "purpose": "api_key", "format_hint": "The API key shown on your Comic Vine API page.", "minimum_length": 16, "maximum_length": 128, "validation_pattern": "^[A-Za-z0-9_-]+$" }
     ],
     "authentication_probe": { "path": "/types/", "method": "GET", "success_status_codes": [200] }
+  },
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "tell_me",
+    "changelog": "First built-in version: comic series and issue details from Comic Vine."
   }
 }

@@ -122,5 +122,25 @@
     ],
     "credentials": [],
     "authentication_probe": { "path": "/api/get?artist_name=Borislav%20Slavov&track_name=I%20Want%20to%20Live", "method": "GET", "success_status_codes": [200] }
+  },
+  "declaration": {
+    "audience": "everyone",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "quiet",
+    "changelog": "First built-in version: synced lyrics for music.",
+    "text_track": "lyrics",
+    "stores": {
+      "saved_output": "lyrics",
+      "on_removal": "keep"
+    },
+    "actions": [
+      {
+        "id": "find-lyrics",
+        "kind": "find_lyrics",
+        "label": "Look up lyrics",
+        "slot": "panel"
+      }
+    ]
   }
 }

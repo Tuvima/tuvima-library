@@ -51,5 +51,19 @@
       }
     ],
     "authentication_probe": null
+  },
+  "ui_metadata": {
+    "accent_color": "#E53935",
+    "material_icon": "PlayCircle",
+    "category": "Open",
+    "requires_key": false,
+    "auth_type": "none"
+  },
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "quiet",
+    "changelog": "First built-in version: details for online videos by their YouTube id."
   }
 }
