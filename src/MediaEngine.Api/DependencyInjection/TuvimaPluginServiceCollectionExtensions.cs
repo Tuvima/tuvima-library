@@ -68,6 +68,8 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginCircuitBreaker>();
         services.AddSingleton<PluginActivityService>();
         services.AddSingleton<PluginLibraryLimitService>();
+        services.AddSingleton<PluginRemovalService>();
+        services.AddHostedService<PluginOrphanSweepHostedService>();
         services.AddSingleton<PluginPeopleActionLog>();
         services.AddSingleton<PluginJobScheduler>();
         services.AddSingleton<IScheduledTaskDescriptorSource>(sp => sp.GetRequiredService<PluginJobScheduler>());
