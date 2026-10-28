@@ -16,7 +16,7 @@ Use Settings in Tuvima Library to add folders and check background work. This fi
 Libraries is **Settings > Libraries**, in two levels. Each has its own address, so Back and a reload keep your place, and the page title and breadcrumb above it show where you are.
 
 1. **The overview** has four tabs, **Watch**, **Listen**, **Read** and **View**. The tabs filter the list: pick one and the table under it shows only that area's libraries, one row per library. A row has the library's name with its icon, its content type, who can see it (**Standard** or **Selected profiles**), its folder and title counts ("3 folders · 1,284 titles", or "Nothing added yet") and a status: **Healthy**, **Needs review** (with the number of files; it opens Needs Review), **Empty**, **Folder offline** (the folders at fault in a tooltip) or **Scanning**. The whole row opens the library, and a chevron and a highlight on hover show that it does. Search and a status filter sit above the table, and an area with nothing in it says "No Watch libraries yet" with one **Add library** button. A Vault-protected library appears, with a lock, only while Vault mode is on for you and your profile may use it; otherwise there is no row and no hint. Under the table is a line for the [Import folder](#import-folder) (it reads "set" or "not set").
-2. **A library page** (for example Movies) shows the library's content type, who can see it, its counts and status, and **Scan now**, **Add folder** and **Add files**. Its tabs are **Folders** (the table of folders), **Access**, **File handling** and **Activity**, plus **Lookup** for a kind that has lookup settings (YouTube). Access, File handling, Activity and Lookup are being built and say "Coming in the next step" for now. **Scan now** scans this library's folders only (folders with scanning paused or offline are left alone). An amber count and a short **Paused** note on the Folders tab mean a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
+2. **A library page** (for example Movies) shows the library's content type, who can see it, its counts and status, and **Scan now**, **Add folder** and **Add files**. Its tabs are **Folders** (the table of folders), **Access**, **File handling** and **Activity**, plus **Lookup** for a kind that has lookup settings (YouTube). File handling, Activity and Lookup are being built and say "Coming in the next step" for now. **Scan now** scans this library's folders only (folders with scanning paused or offline are left alone). An amber count and a short **Paused** note on the Folders tab mean a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
 
 The kinds are:
 
@@ -120,6 +120,16 @@ If the Engine refuses the change, the dialog shows its one sentence and only **C
 ## Who sees a library
 
 Everyone with a library's area (Read, Watch, Listen or View) sees it, including a library you have just added; nothing needs ticking. To keep one from a person, open their page under **Settings > Profiles**, find the area, and untick the library in its **Libraries** list. It saves at once and says "Hidden from {name}"; the list shows only when the area has more than one library, administrators always see everything, and the Vault keeps its own rules and never appears in the list. Moving a folder or changing its kind tells you who will stop seeing its files before you confirm. See [Set up a household](households.md) for who may change this.
+
+### Choose who sees one library
+
+Open the library and pick its **Access** tab. There are three choices:
+
+- **Standard** is the rule above: everyone with the area sees the library.
+- **Selected profiles** shows the library only to the profiles you tick, and to administrators (who always see everything). Each profile shows its picture; Kids profiles are marked. Every other limit still applies on top: a profile also needs the area, must not have the library hidden, and keeps its content limit and the household ceiling.
+- **Vault-protected** is chosen when a library is made and can never be switched on or off here. It is not available yet, so the choice is greyed out.
+
+Switching a Standard library to **Selected profiles** starts with nobody ticked, and the tab warns that only administrators will see it until you tick someone. A new profile starts with no Selected libraries. Nothing is saved until you press **Save changes** in the bar at the bottom (**Discard** puts the saved choice back, and leaving with unsaved changes asks first). Switching a library between Standard and Selected clears its ticked profiles, and a profile that gains or loses a library signs in again to refresh what it can see. Only administrators can change this, and on a phone the tab shows the choice but cannot change it. You can also pick **Selected profiles** when you add a library; the same warning appears and you tick profiles on its Access tab afterwards.
 
 ## Advanced settings
 

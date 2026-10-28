@@ -264,7 +264,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AccessOffersThreeChoicesWithVaultOnlyForAdministratorsAndNeitherOfTheLastTwoSwitchedOnYet()
+    public async Task AccessOffersThreeChoicesWithVaultOnlyForAdministratorsAndOnlyVaultNotSwitchedOnYet()
     {
         SignInAsAdministrator();
         await OpenAsync(kind: "tv");
@@ -273,8 +273,8 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         Assert.Equal(["Standard", "Selected profiles", "Vault-protected"], rows.Select(row => row.QuerySelector("strong")!.TextContent).ToArray());
         Assert.False(rows[0].HasAttribute("disabled"));
         Assert.True(rows[0].ClassList.Contains("is-selected"));
-        Assert.True(rows[1].HasAttribute("disabled"));
-        Assert.Contains("Choose profiles on the Access tab once the library exists.", Text(rows[1]), StringComparison.Ordinal);
+        Assert.False(rows[1].HasAttribute("disabled"));
+        Assert.Contains("Only the profiles you choose.", Text(rows[1]), StringComparison.Ordinal);
         Assert.True(rows[2].HasAttribute("disabled"));
         Assert.Contains("Available after the Vault update", Text(rows[2]), StringComparison.Ordinal);
     }
@@ -384,6 +384,23 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         Assert.Equal(saved.Id, _created);
         // Straight to the new library's page, with no "go to" question in between.
         Assert.EndsWith($"/settings/libraries/{saved.Id}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ChoosingSelectedProfilesShowsAPlainNoteAndCreatesTheLibraryWithThatAccess()
+    {
+        await OpenAsync(kind: "tv");
+        _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
+        Assert.DoesNotContain("Nobody but administrators", _dialogs.Markup, StringComparison.Ordinal);
+
+        _dialogs.Find("[aria-label='Access']").QuerySelectorAll("button").Single(x => Text(x).StartsWith("Selected profiles", StringComparison.Ordinal)).Click();
+
+        _dialogs.WaitForAssertion(() => Assert.Contains("Nobody but administrators will see this library until you tick profiles on its Access tab.", _dialogs.Markup, StringComparison.Ordinal));
+        Assert.False(CreateButton.HasAttribute("disabled"));
+        CreateButton.Click();
+
+        _dialogs.WaitForAssertion(() => Assert.Single(_mutations));
+        Assert.Equal("selected", _mutations[0].Library!.Access);
     }
 
     [Fact]

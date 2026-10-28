@@ -119,7 +119,8 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
     {
         var context = new DefaultHttpContext();
         return new(new HttpContextAccessor { HttpContext = context }, new AuthorityResolver(authority),
-            new Evaluator(decision), new ProfileAccessRepository(_database), repository);
+            new Evaluator(decision), new ProfileAccessRepository(_database),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)), repository);
     }
 
     private void SeedAccess(Guid accountId, Guid profileId, Guid libraryId)

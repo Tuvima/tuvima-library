@@ -86,6 +86,10 @@
                                              ReadOnly="@ReadOnly"
                                              Changed="ChangedAsync" />
                     }
+                    else if (tab.Slug == AccessTab)
+                    {
+                        <LibraryAccessTab Library="@Library" ReadOnly="@ReadOnly" Changed="ChangedAsync" />
+                    }
                     else
                     {
                         <AppPageState Kind="AppPageStateKind.Empty"

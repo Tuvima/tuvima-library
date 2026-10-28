@@ -451,6 +451,16 @@ public sealed partial class EngineApiClient
     public Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default) =>
         PostAsync<LibraryMutationRequest, LibrariesConfigurationDto>("POST /settings/libraries/mutations", "/settings/libraries/mutations", request, ct: ct);
 
+    public Task<LibraryAccessGrantsDto?> GetLibraryAccessAsync(string libraryId, CancellationToken ct = default) =>
+        GetAsync<LibraryAccessGrantsDto>(
+            "GET /settings/libraries/{libraryId}/access", $"/settings/libraries/{Uri.EscapeDataString(libraryId)}/access", ct: ct);
+
+    public Task<LibraryAccessGrantsDto?> SetLibraryProfilesAsync(string libraryId, IReadOnlyList<Guid> profileIds, CancellationToken ct = default) =>
+        PutAsync<SetLibraryProfileGrantsRequest, LibraryAccessGrantsDto>(
+            "PUT /settings/libraries/{libraryId}/access/profiles",
+            $"/settings/libraries/{Uri.EscapeDataString(libraryId)}/access/profiles",
+            new SetLibraryProfileGrantsRequest(profileIds), ct: ct);
+
     public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default) =>
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
             "POST /library/unmatched/libraries/{libraryId}/retry", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}/retry", null, ct: ct);

@@ -8496,6 +8496,21 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrariesConfigura
   FileHandling: MediaEngine.Contracts.Settings.FileHandlingDto | nullability=not-null | accessors=get,init
   ImportFolderStatus: MediaEngine.Contracts.Settings.ImportFolderStatusDto | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryAccessGrantsDto
+  LibraryId: System.Guid | nullability=not-null | accessors=get,init
+  Access: System.String | nullability=not-null | accessors=get,init
+  ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Settings.LibraryAccessProfileDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryAccessProfileDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+  AvatarColor: System.String | nullability=not-null | accessors=get,init
+  AvatarIcon: System.String | nullability=nullable | accessors=get,init
+  AvatarImageUrl: System.String | nullability=nullable | accessors=get,init
+  IsKids: System.Boolean | nullability=not-null | accessors=get,init
+  IsServerAdmin: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFileHandlingDto
   DuplicatePolicy: System.String | nullability=nullable | accessors=get,set
 
@@ -9077,6 +9092,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerStorageLocat
   AllowWrite: System.Boolean | nullability=not-null | accessors=get,set
   AvailableBytes: System.Int64? | nullability=nullable | accessors=get,init
   FileSystem: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SetLibraryProfileGrantsRequest
+  ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SettingsCatalogEntryResponse
   key: System.String | nullability=not-null | accessors=get,init

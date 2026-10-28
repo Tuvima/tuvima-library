@@ -10014,6 +10014,23 @@
   ImportFolderStatus: MediaEngine.Contracts.Settings.ImportFolderStatusDto | json=import_folder_status | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"schema_version":"sample","storage_locations":[],"view_storage":null,"libraries":[],"personal_library_policy":null,"file_handling":null,"import_folder_status":null}
 
+[contracts] MediaEngine.Contracts.Settings.LibraryAccessGrantsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  LibraryId: System.Guid | json=library_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Access: System.String | json=access | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=profile_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Settings.LibraryAccessProfileDto> | json=profiles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Settings.LibraryAccessProfileDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AvatarColor: System.String | json=avatar_color | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AvatarIcon: System.String | json=avatar_icon | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AvatarImageUrl: System.String | json=avatar_image_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsKids: System.Boolean | json=is_kids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsServerAdmin: System.Boolean | json=is_server_admin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
 [contracts] MediaEngine.Contracts.Settings.LibraryFileHandlingDto
   kind=class | converter=default | number-handling=default | unmapped=default
   DuplicatePolicy: System.String | json=duplicate_policy | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -10722,6 +10739,10 @@
   AvailableBytes: System.Int64? | json=available_bytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileSystem: System.String | json=file_system | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"sample","label":"sample","path":"sample","allow_write":true,"available_bytes":7,"file_system":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.SetLibraryProfileGrantsRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=profile_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Settings.SettingsCatalogEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
