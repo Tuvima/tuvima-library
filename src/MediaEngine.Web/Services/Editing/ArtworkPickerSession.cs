@@ -15,7 +15,7 @@ public sealed record ArtworkPickerPicture(Guid AssetId, string ThumbnailUrl, str
 /// <summary>Which tabs the picker offers and how a slot maps to the Engine's artwork roles.</summary>
 public static class ArtworkPickerRules
 {
-    private static readonly string[] SlotOrder = ["Background", "CoverArt", "Logo", "SeasonPoster", "SeasonThumb", "EpisodeStill"];
+    private static readonly string[] SlotOrder = ["Background", "CoverArt", "Headshot", "Logo", "SeasonPoster", "SeasonThumb", "EpisodeStill"];
 
     /// <summary>The tabs for the slots an item can hold: Background, Poster (Cover for books, comics and music) and Logo, or the season and episode pictures.</summary>
     public static IReadOnlyList<ArtworkPickerTab> TabsFor(IReadOnlyList<string> slots, string? mediaType)
@@ -34,6 +34,7 @@ public static class ArtworkPickerRules
     {
         "coverart" or "seasonposter" or "episodestill" => "Primary",
         "background" or "seasonthumb" => "Background",
+        "headshot" => "Portrait",
         "logo" => "Logo",
         _ => null,
     };
@@ -41,6 +42,7 @@ public static class ArtworkPickerRules
     public static string LabelFor(string slot, string coverLabel = "Poster") => slot.Trim().ToLowerInvariant() switch
     {
         "coverart" => coverLabel,
+        "headshot" => "Photo",
         "background" => "Background",
         "logo" => "Logo",
         "seasonposter" => "Season poster",
@@ -51,7 +53,8 @@ public static class ArtworkPickerRules
 
     private static bool IsCoverMedia(string? mediaType) =>
         mediaType is not null
-        && (mediaType.Contains("book", StringComparison.OrdinalIgnoreCase)
+        && (mediaType is EditorSubjectKinds.Series or EditorSubjectKinds.Collection or EditorSubjectKinds.Universe
+            || mediaType.Contains("book", StringComparison.OrdinalIgnoreCase)
             || mediaType.Contains("comic", StringComparison.OrdinalIgnoreCase)
             || mediaType.Contains("music", StringComparison.OrdinalIgnoreCase)
             || mediaType.Contains("audio", StringComparison.OrdinalIgnoreCase));

@@ -23,7 +23,8 @@ public sealed class EditorDetailsReadFirstTests
         Assert.Contains("DetailsImageUrl", markup, StringComparison.Ordinal);
         Assert.Contains("DetailsImageSrcSet", markup, StringComparison.Ordinal);
         Assert.Contains("DetailsImageSizes", markup, StringComparison.Ordinal);
-        Assert.Contains("DetailsMetadataWritebackState", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("DetailsMetadataWritebackState", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("sme-details-writeback", markup, StringComparison.Ordinal);
         Assert.Contains("DetailsImageUrl =>", presentation, StringComparison.Ordinal);
         Assert.Contains("EditorMediaType == \"TV\" && scope.ScopeId == \"series\"", presentation, StringComparison.Ordinal);
         Assert.Contains("GetExactScopeArtworkVariant(scope, \"Background\")", presentation, StringComparison.Ordinal);

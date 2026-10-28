@@ -1,7 +1,10 @@
 @namespace MediaEngine.Web.Components.Settings
 @implements IDisposable
 @inject UIOrchestratorService Orchestrator
-@inject MediaEditorLauncherService MediaEditorLauncher
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Navigation
+@inject IServiceProvider Services
+@inject DeviceContextService Device
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
 @inject DashboardSessionAccessor Session
@@ -189,27 +192,18 @@
 
     private Task OnSearchChanged(string? value) { _search = value; return Task.CompletedTask; }
 
-    private async Task OpenReviewEditorAsync(ReviewItemViewModel item)
+    // Fix opens the item's own page with the editor already on, on the Match tool (universal editor spec D16): the same bar, panel and
+    // Review changes as everywhere else. There is no separate review pop-up.
+    private Task OpenReviewEditorAsync(ReviewItemViewModel item)
     {
-        _busyReviewIds.Add(item.Id);
-        try
+        if (EditorDeviceRule.TryRefuse(Device, Snackbar))
         {
-            var target = ReviewTargetResolver.Resolve(item.MediaType, item.Trigger);
-            var title = DisplayTitle(item);
-            var applied = await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
-            {
-                EntityIds = [item.EntityId], LaunchEntityId = item.EntityId,
-                LaunchEntityKind = StringHelpers.FirstNonBlankOr("review", item.EntityType),
-                Mode = SharedMediaEditorMode.Review, IdentityIntent = target.Intent,
-                InitialTab = target.InitialTab, InitialCanonicalTargetGroup = target.CanonicalTargetGroup,
-                ReviewItemId = item.Id, ReviewTrigger = item.Trigger, ReviewCandidatesJson = item.CandidatesJson, MediaType = item.MediaType,
-                HeaderTitle = title, HeaderSubtitle = target.PrimaryActionLabel, CoverUrl = item.CoverUrl,
-                PreviewItems = [new() { EntityId = item.EntityId, Title = title, CoverUrl = item.CoverUrl, MediaType = item.MediaType }],
-            });
-            if (applied) { await LoadReviewsAsync(); }
+            return Task.CompletedTask;
         }
-        catch (Exception ex) { Snackbar.Add($"Review editor could not open: {ex.Message}", AppSeverity.Error); }
-        finally { _busyReviewIds.Remove(item.Id); }
+
+        Services.GetService<DetailsOverlayState>()?.OfferEditResume(new DetailsEditResume(item.EntityId, EditingSection.Match, null));
+        Nav.NavigateTo($"/details/work/{item.EntityId:D}");
+        return Task.CompletedTask;
     }
 
     private async Task DismissAsync(ReviewItemViewModel item)

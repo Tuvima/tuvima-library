@@ -9,6 +9,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -123,6 +124,50 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     {
         cut.Find("article.review-row .app-overflow-menu__trigger").Click();
         cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains(label, StringComparison.Ordinal)).Click();
+    }
+
+    private sealed class NoHistory : MediaEngine.Web.Services.Navigation.IDetailsOverlayHistory
+    {
+        public ValueTask<bool> GoBackAsync(int steps) => ValueTask.FromResult(true);
+    }
+
+    [Fact]
+    public async Task Review_OnADesktop_OpensTheItemsOwnPageOnTheMatchTool_NotAPopUp()
+    {
+        var item = Item(FirstId, "Cibola Burn");
+        Register(() => Loaded(item));
+        Services.AddSingleton<MediaEngine.Web.Services.Navigation.IDetailsOverlayHistory>(new NoHistory());
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.DetailsOverlayState>();
+        await Services.GetRequiredService<DeviceContextService>()
+            .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
+
+        cut.FindAll("article.review-row button").Single(button => button.TextContent.Trim() == "Review").Click();
+
+        Assert.EndsWith($"/details/work/{item.EntityId:D}", Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri, StringComparison.Ordinal);
+        var overlay = Services.GetRequiredService<MediaEngine.Web.Services.Navigation.DetailsOverlayState>();
+        Assert.True(overlay.TryTakeEditResume(item.EntityId, out var resume));
+        Assert.Equal(EditingSection.Match, resume.Section);
+    }
+
+    [Fact]
+    public async Task Review_OffTheDesktop_StaysOnTheListAndOffersNothing()
+    {
+        var item = Item(FirstId, "Cibola Burn");
+        Register(() => Loaded(item));
+        Services.AddSingleton<MediaEngine.Web.Services.Navigation.IDetailsOverlayHistory>(new NoHistory());
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.DetailsOverlayState>();
+        await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
+        var before = navigation.Uri;
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
+
+        cut.FindAll("article.review-row button").Single(button => button.TextContent.Trim() == "Review").Click();
+
+        Assert.Equal(before, navigation.Uri);
+        Assert.False(Services.GetRequiredService<MediaEngine.Web.Services.Navigation.DetailsOverlayState>().TryTakeEditResume(item.EntityId, out _));
     }
 
     [Fact]

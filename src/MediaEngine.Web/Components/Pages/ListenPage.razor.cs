@@ -39,7 +39,7 @@ public partial class ListenPage
     [Inject] private ListenAudioDragService AudioDrag { get; set; } = default!;
     [Inject] private MediaReactionService Reactions { get; set; } = default!;
     [Inject] private SavedItemService SavedItems { get; set; } = default!;
-    [Inject] private MediaEditorLauncherService MediaEditorLauncher { get; set; } = default!;
+    [Inject] private IServiceProvider Services { get; set; } = default!;
     [Inject] private MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext { get; set; } = default!;
     [Inject] private CollectionEditorLauncherService CollectionEditorLauncher { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
@@ -61,7 +61,6 @@ public partial class ListenPage
 
     private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
     public Guid? Track => Query.Guid("track");
-    public bool Edit => Query.Bool("edit");
     public string? AlbumArtist => Query.String("artist");
     public string? BrowseQuery => Query.String("browse");
 
@@ -1385,7 +1384,7 @@ public partial class ListenPage
             return;
         }
 
-        var context = $"{CurrentPath}|{Track.Value}|{Edit}";
+        var context = $"{CurrentPath}|{Track.Value}";
         if (string.Equals(_lastHandledTrackContext, context, StringComparison.Ordinal))
         {
             return;
@@ -1399,12 +1398,6 @@ public partial class ListenPage
         }
 
         _selectedTrackIds = [requestedTrack.Id];
-
-        if (Edit)
-        {
-            await OpenTrackEditorAsync(requestedTrack, navigateBackToTrackContext: true);
-            return;
-        }
     }
 
     private void NavigateTo(string route, bool forceLoad = false)
@@ -1628,7 +1621,7 @@ public partial class ListenPage
                 .Take(2)
                 .Select(part => char.ToUpperInvariant(part[0])));
 
-    private string BuildAlbumDetailRoute(string? albumName, string? artistName = null, Guid? trackId = null, bool edit = false)
+    private string BuildAlbumDetailRoute(string? albumName, string? artistName = null, Guid? trackId = null)
     {
         var album = _albumGroups.FirstOrDefault(group =>
             string.Equals(group.DisplayName, albumName, StringComparison.OrdinalIgnoreCase)
@@ -1722,56 +1715,47 @@ public partial class ListenPage
         Snackbar.Add($"{work.Title} will play next", AppSeverity.Success);
     }
 
-    private async Task EditTrackAsync(WorkViewModel work)
+    // A song's Edit (the playlist's Edit button): edit mode starts on the song's album page with the song ticked and the Edit panel open
+    // (universal editor spec D19). The songs lists edit in place instead, so this is only for a list that has no editor of its own.
+    private Task EditTrackAsync(WorkViewModel work)
     {
-        var albumRoute = BuildAlbumRouteForTrack(work, edit: true);
-        if (!string.IsNullOrWhiteSpace(albumRoute))
+        if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
         {
-            NavigateTo(albumRoute);
-            return;
+            return Task.CompletedTask;
         }
 
-        await OpenTrackEditorAsync(work, navigateBackToTrackContext: false);
+        if (AlbumOfTrack(work) is not { } album)
+        {
+            Snackbar.Add("This song is not on an album yet, so there is no page to edit it on.", AppSeverity.Info);
+            return Task.CompletedTask;
+        }
+
+        var row = new BulkEditRow(work.Id, DisplayTrackTitle(work), DetailEntityType.Work, album.AlbumId, "Music");
+        (Overlay ?? Services.GetService<DetailsOverlayState>())?.OfferEditResume(new DetailsEditResume(album.AlbumId, EditingSection.History, null, row));
+        NavigateTo(album.Route);
+        return Task.CompletedTask;
     }
 
-    private async Task OpenTrackEditorAsync(WorkViewModel work, bool navigateBackToTrackContext)
+    private (Guid AlbumId, string Route)? AlbumOfTrack(WorkViewModel work)
     {
-        var applied = await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
+        if (work.CollectionId is { } collection)
         {
-            EntityIds = [work.Id],
-            LaunchEntityId = work.Id,
-            LaunchEntityKind = "Work",
-            Mode = SharedMediaEditorMode.Normal,
-            MediaType = work.MediaType,
-            HeaderTitle = DisplayTrackTitle(work),
-            HeaderSubtitle = StringHelpers.FirstNonBlankOr("-", work.Artist, work.Author, work.Album, work.Series),
-            CoverUrl = work.CoverUrl,
-            PreviewItems =
-            [
-                new MediaEditorPreviewItem
-                {
-                    EntityId = work.Id,
-                    Title = DisplayTrackTitle(work),
-                    CoverUrl = work.CoverUrl,
-                    MediaType = work.MediaType,
-                }
-            ],
-        });
-
-        if (applied)
-        {
-            await LoadAsync();
+            return (collection, $"/details/musicalbum/{collection:D}?context=listen&track={work.Id:D}");
         }
 
-        var trackContextRoute = BuildAlbumRouteForTrack(work);
-        if (navigateBackToTrackContext && !string.IsNullOrWhiteSpace(trackContextRoute))
+        if (string.IsNullOrWhiteSpace(work.Album))
         {
-            // The album page it returns to is a detail address, which must carry its own history state.
-            DetailsOverlayNavigation.ReplacePage(Nav, trackContextRoute);
+            return null;
         }
+
+        var artist = StringHelpers.FirstNonBlank(work.Artist, work.Author);
+        var album = _albumGroups.FirstOrDefault(group =>
+            string.Equals(group.DisplayName, work.Album, StringComparison.OrdinalIgnoreCase)
+            && (string.IsNullOrWhiteSpace(artist) || string.Equals(group.Creator, artist, StringComparison.OrdinalIgnoreCase)));
+        return album is null ? null : (album.CollectionId, BuildAlbumDetailRoute(work.Album, artist, work.Id));
     }
 
-    private string? BuildAlbumRouteForTrack(WorkViewModel work, bool edit = false)
+    private string? BuildAlbumRouteForTrack(WorkViewModel work)
     {
         if (work.CollectionId.HasValue)
         {
@@ -1783,7 +1767,7 @@ public partial class ListenPage
             return null;
         }
 
-        return BuildAlbumDetailRoute(work.Album, StringHelpers.FirstNonBlank(work.Artist, work.Author), work.Id, edit);
+        return BuildAlbumDetailRoute(work.Album, StringHelpers.FirstNonBlank(work.Artist, work.Author), work.Id);
     }
 
     private async Task AddToPlaylistAsync(WorkViewModel work, ManagedCollectionViewModel collection)

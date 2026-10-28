@@ -156,7 +156,9 @@ public sealed class PendingEditList
     public int CountForItem(Guid entityId) => _changes.Count(c => c.EntityId == entityId);
 
     /// <summary>The whole list as the request the Engine checks or saves.</summary>
-    public EditSessionRequest ToRequest(bool previewOnly) => new() { PreviewOnly = previewOnly, Changes = [.. _changes] };
+    /// <summary>The request for a check or a save; <paramref name="writeIntoFiles"/> false skips the files for this one save (spec D15).</summary>
+    public EditSessionRequest ToRequest(bool previewOnly, bool? writeIntoFiles = null) =>
+        new() { PreviewOnly = previewOnly, Changes = [.. _changes], WriteIntoFiles = writeIntoFiles };
 
     private EditSessionChange? Find(string kind, Guid entityId) =>
         _changes.FirstOrDefault(c => c.Kind == kind && c.EntityId == entityId);

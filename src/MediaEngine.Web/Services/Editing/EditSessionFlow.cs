@@ -9,7 +9,7 @@ namespace MediaEngine.Web.Services.Editing;
 /// "Unsaved changes" first when anything is pending), and Save changes (check, then save, with the reason for every change that failed).
 /// It follows <see cref="EditingModeContext"/>: turning that on starts the <see cref="EditSessionState"/>, turning it off ends it.
 /// </summary>
-public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
+public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource, IDisposable
 {
     private readonly EditSessionState _session;
     private readonly EditingModeContext _mode;
@@ -53,6 +53,14 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
 
     /// <summary>True when the last save wrote the data changes to the library, even if some file moves then failed.</summary>
     public bool DataSaved { get; private set; }
+
+    /// <summary>The editor media types of the items being edited (set by the page), which say which library's file setting applies.</summary>
+    public Func<IReadOnlyList<string>>? MediaTypes { get; set; }
+
+    IReadOnlyList<string> IReviewSource.FileWriteMediaTypes => MediaTypes?.Invoke() ?? [];
+
+    /// <summary>This save's own answer to "Save changes into the files" (null follows the library). Reset when edit mode ends.</summary>
+    public bool? WriteIntoFiles { get; set; }
 
     public event Action? Changed;
 
@@ -170,6 +178,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
         _session.Cancel();
         Failures = [];
         Message = null;
+        WriteIntoFiles = null;
         _mode.Leave();
         return true;
     }
@@ -231,7 +240,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
         EditSessionSaveOutcome outcome;
         try
         {
-            outcome = await _saver.SaveAsync(_session.Pending);
+            outcome = await _saver.SaveAsync(_session.Pending, WriteIntoFiles);
         }
         finally
         {
@@ -266,6 +275,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
 
         _session.Pending.Discard();
         _session.End();
+        WriteIntoFiles = null;
         _mode.Leave();
         Changed?.Invoke();
         return true;

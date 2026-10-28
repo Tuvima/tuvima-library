@@ -4,8 +4,11 @@ using MediaEngine.Api.Services.Libraries.Moves;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Matching;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
+using MediaEngine.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -53,6 +56,34 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
         Assert.Equal(["replace-without-moving:" + song], _writer.Calls);
         Assert.Equal(before, _world.Work(song).Parent);
         Assert.NotEqual(okComputer, _world.Work(song).Parent);
+    }
+
+    [Fact]
+    public async Task Identity_ClosesTheReviewItemsOfTheMatchedItem_SoNeedsReviewDropsIt()
+    {
+        var song = BestOfSong("Paranoid Android", 4, Files.Managed, out _, out _);
+        var other = BestOfSong("Karma Police", 5, Files.Managed, out _, out _);
+        var reviews = new ReviewQueueRepository(_world.Database);
+        var mine = await reviews.InsertAsync(new ReviewQueueEntry { Id = Guid.NewGuid(), EntityId = song, EntityType = "Work", Trigger = ReviewTrigger.LowConfidence });
+        var theirs = await reviews.InsertAsync(new ReviewQueueEntry { Id = Guid.NewGuid(), EntityId = other, EntityType = "Work", Trigger = ReviewTrigger.LowConfidence });
+
+        var result = await Service().RunAsync(Request(previewOnly: false, Identity("match", song)), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(ReviewStatus.Resolved, (await reviews.GetByIdAsync(mine))!.Status);
+        Assert.Equal(ReviewStatus.Pending, (await reviews.GetByIdAsync(theirs))!.Status);
+    }
+
+    [Fact]
+    public async Task Identity_WhenOnlyChecking_LeavesTheReviewItemsAlone()
+    {
+        var song = BestOfSong("Paranoid Android", 4, Files.Managed, out _, out _);
+        var reviews = new ReviewQueueRepository(_world.Database);
+        var mine = await reviews.InsertAsync(new ReviewQueueEntry { Id = Guid.NewGuid(), EntityId = song, EntityType = "Work", Trigger = ReviewTrigger.LowConfidence });
+
+        await Service().RunAsync(Request(previewOnly: true, Identity("match", song)), NoRefusals);
+
+        Assert.Equal(ReviewStatus.Pending, (await reviews.GetByIdAsync(mine))!.Status);
     }
 
     [Fact]
@@ -327,6 +358,7 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
     {
         var scopes = new ServiceCollection()
             .AddScoped<IRetailMatchWriter>(_ => _writer)
+            .AddSingleton<IReviewQueueRepository>(new ReviewQueueRepository(_world.Database))
             .BuildServiceProvider()
             .GetRequiredService<IServiceScopeFactory>();
         var handlers = new List<IEditSessionChangeHandler>

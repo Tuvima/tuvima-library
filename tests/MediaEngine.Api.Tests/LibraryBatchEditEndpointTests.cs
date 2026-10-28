@@ -328,6 +328,8 @@ public sealed class LibraryBatchEditEndpointTests : IDisposable
         builder.Services.AddSingleton<ISystemActivityRepository, SystemActivityRepository>();
         builder.Services.AddSingleton<ILibraryBatchEditService, LibraryBatchEditService>();
         builder.Services.AddScoped<LibraryBatchEditAccessService>();
+        builder.Services.AddScoped<EditSessionAccessService>();
+        builder.Services.AddSingleton(new EditSubjectDirectory([]));
         builder.Services.AddSingleton<IEditSessionService, EditSessionService>();
         builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(authority));
@@ -340,6 +342,7 @@ public sealed class LibraryBatchEditEndpointTests : IDisposable
         builder.Services.AddSingleton<ILibraryWorkFeedReadService>(_ => null!);
         builder.Services.AddSingleton<IDisplayProjectionReadService>(_ => null!);
         builder.Services.AddSingleton<ICollectionRepository>(_ => null!);
+        builder.Services.AddSingleton<IProfileRepository>(_ => null!);
 
         var app = builder.Build();
         app.UseDeveloperExceptionPage();

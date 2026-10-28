@@ -4,6 +4,7 @@
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Domain.Enums
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
 @using Microsoft.AspNetCore.Components.Web
@@ -602,6 +603,17 @@
             new() { Label = "Play next", Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => PlayItemNextAsync(item)) },
             new() { Label = "Add to queue", Icon = AppMaterialIcons.Outlined.PlaylistAdd, Disabled = !CanQueue(item), OnClick = EventCallback.Factory.Create(this, () => QueueItemAsync(item)) },
         };
+        if (EditingMode is { CanEdit: true } && BatchSelection is not null && BulkEditRules.IsSelectableKind(item.EntityType))
+        {
+            // Edit starts edit mode on this page with this track ticked and the Edit panel open (universal editor spec D19).
+            items.Add(new()
+            {
+                Label = "Edit",
+                Icon = AppMaterialIcons.Outlined.Edit,
+                OnClick = EventCallback.Factory.Create(this, () => EditTrackAsync(item)),
+            });
+        }
+
         if (Guid.TryParse(ArtistId, out var artistGuid) && artistGuid != Guid.Empty)
         {
             items.Add(new() { Label = "Go to artist", Icon = AppMaterialIcons.Outlined.Person, OnClick = EventCallback.Factory.Create(this, () => Navigation.NavigateTo($"/details/person/{artistGuid:D}")) });
@@ -609,6 +621,9 @@
 
         return items;
     }
+
+    private Task EditTrackAsync(MediaGroupingItemViewModel item) =>
+        RowEditEntry.StartAsync(EditingMode, BatchSelection, new BulkEditRow(ItemId(item), item.Title, item.EntityType, RowParentId, RowMediaType));
 
     private async Task PlayItemNextAsync(MediaGroupingItemViewModel item)
     {

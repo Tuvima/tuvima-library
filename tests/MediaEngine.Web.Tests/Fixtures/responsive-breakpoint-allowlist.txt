@@ -46,8 +46,6 @@ src/MediaEngine.Web/Components/MediaEditor/MediaEditorInheritedArtworkTable.razo
 src/MediaEngine.Web/Components/MediaEditor/MediaEditorLocalOptions.razor.css:720px
 src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css:800px
 src/MediaEngine.Web/Components/MediaEditor/MediaEditorPairingPreview.razor.css:850px
-src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor.css:1040px
-src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor.css:900px
 src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css:1040px
 src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css:720px
 src/MediaEngine.Web/Components/MediaEditor/Sections/EditorDetailsSection.razor.css:1450px
