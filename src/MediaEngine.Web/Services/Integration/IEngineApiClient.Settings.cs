@@ -224,6 +224,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /settings/libraries/{libraryId}/access — a library's access value, the profiles chosen for it and every profile to choose from (administrators); null when the Engine refused, the library is unknown or it could not be read.</summary>
     Task<LibraryAccessGrantsDto?> GetLibraryAccessAsync(string libraryId, CancellationToken ct = default);
 
+    /// <summary>GET /library/libraries/{libraryId}/activity — what has happened in one library, newest first, in plain sentences (administrators); null when the Engine refused, the library is unknown or it could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.LibraryActivityDto?> GetLibraryActivityAsync(string libraryId, int take = 50, CancellationToken ct = default);
+
     /// <summary>PUT /settings/libraries/{libraryId}/access/profiles — replaces the profiles chosen for a Selected-profiles library (administrators); the saved choice, or null when the Engine refused.</summary>
     Task<LibraryAccessGrantsDto?> SetLibraryProfilesAsync(string libraryId, IReadOnlyList<Guid> profileIds, CancellationToken ct = default);
 

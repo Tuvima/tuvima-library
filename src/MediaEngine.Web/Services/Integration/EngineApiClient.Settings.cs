@@ -455,6 +455,10 @@ public sealed partial class EngineApiClient
         GetAsync<LibraryAccessGrantsDto>(
             "GET /settings/libraries/{libraryId}/access", $"/settings/libraries/{Uri.EscapeDataString(libraryId)}/access", ct: ct);
 
+    public Task<MediaEngine.Contracts.Library.LibraryActivityDto?> GetLibraryActivityAsync(string libraryId, int take = 50, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Library.LibraryActivityDto>(
+            "GET /library/libraries/{libraryId}/activity", $"/library/libraries/{Uri.EscapeDataString(libraryId)}/activity?take={take}", ct: ct);
+
     public Task<LibraryAccessGrantsDto?> SetLibraryProfilesAsync(string libraryId, IReadOnlyList<Guid> profileIds, CancellationToken ct = default) =>
         PutAsync<SetLibraryProfileGrantsRequest, LibraryAccessGrantsDto>(
             "PUT /settings/libraries/{libraryId}/access/profiles",

@@ -1,0 +1,122 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Components.Shared
+@inject IEngineApiClient Api
+
+@* A library's Activity tab (Library pages D16): a filtered view of events the Engine already records for this library only: what was
+   added, what needs review, what failed, folder checks, renames, merges and moves. The Engine writes the sentences; this tab lays them out
+   with a time, an icon whose colour says the kind, and the sentence. A line that needs review links to Needs Review. *@
+<section class="library-activity" aria-label="Activity">
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading activity" />
+    }
+    else if (_failed)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="Activity could not be loaded"
+                      Message="Check that the Library server is running, then try again.">
+            <Actions>
+                <AppButton Label="Try again" OnClick="LoadAsync" />
+            </Actions>
+        </AppPageState>
+    }
+    else if (_entries.Count == 0)
+    {
+        <AppPageState Kind="AppPageStateKind.Empty"
+                      Icon="@AppMaterialIcons.Outlined.History"
+                      Title="Nothing has happened in this library yet"
+                      Message="Scans, imports, renames and anything that needs review will show up here." />
+    }
+    else
+    {
+        <AppList T="LibraryActivityEntryDto" Class="library-activity__list" aria-label="Activity, newest first" data-testid="library-activity-rows">
+            @foreach (var entry in _entries)
+            {
+                <AppListItem T="LibraryActivityEntryDto" Class="library-activity__item">
+                    <div class="library-activity__row" data-kind="@entry.Kind" data-testid="library-activity-row">
+                        <time class="library-activity__time" datetime="@entry.OccurredAt.ToString("O")" title="@FullTime(entry.OccurredAt)">@ShortTime(entry.OccurredAt)</time>
+                        <span class="library-activity__icon library-activity__icon--@ToneOf(entry.Kind)" aria-hidden="true"><AppMaterialIcon Icon="@IconOf(entry.Kind)" /></span>
+                        <span class="library-activity__text">
+                            @entry.Text
+                            @if (entry.NeedsReview && !string.IsNullOrWhiteSpace(entry.Route))
+                            {
+                                <AppLink Href="@entry.Route" Class="library-activity__link">Needs review</AppLink>
+                            }
+                        </span>
+                    </div>
+                </AppListItem>
+            }
+        </AppList>
+    }
+</section>
+
+@code {
+    private const int Take = 100;
+
+    [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
+
+    private IReadOnlyList<LibraryActivityEntryDto> _entries = [];
+    private string? _loadedFor;
+    private bool _loading = true;
+    private bool _failed;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == Library.Id)
+        {
+            return;
+        }
+
+        _loadedFor = Library.Id;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _failed = false;
+        var result = await Api.GetLibraryActivityAsync(Library.Id, Take);
+        if (result is null)
+        {
+            _failed = true;
+        }
+        else
+        {
+            _entries = result.Entries;
+        }
+
+        _loading = false;
+    }
+
+    private static string IconOf(string kind) => kind switch
+    {
+        LibraryActivityKinds.Added => AppMaterialIcons.Outlined.AddCircleOutline,
+        LibraryActivityKinds.Review => AppMaterialIcons.Outlined.RateReview,
+        LibraryActivityKinds.Failed => AppMaterialIcons.Outlined.ErrorOutline,
+        LibraryActivityKinds.Scan => AppMaterialIcons.Outlined.Sync,
+        LibraryActivityKinds.Conversion => AppMaterialIcons.Outlined.DriveFileRenameOutline,
+        LibraryActivityKinds.Merge => AppMaterialIcons.Outlined.FolderOpen,
+        LibraryActivityKinds.Move => AppMaterialIcons.Outlined.DriveFileMove,
+        _ => AppMaterialIcons.Outlined.Info,
+    };
+
+    // Colour carries the kind too, never alone: every kind has its own icon shape.
+    private static string ToneOf(string kind) => kind switch
+    {
+        LibraryActivityKinds.Added => "success",
+        LibraryActivityKinds.Review => "warning",
+        LibraryActivityKinds.Failed => "danger",
+        _ => "info",
+    };
+
+    // Today shows just the time; an older entry shows the date as well. The tooltip carries the full timestamp.
+    private static string ShortTime(DateTimeOffset occurredAt)
+    {
+        var local = occurredAt.ToLocalTime();
+        return local.Date == DateTimeOffset.Now.Date ? local.ToString("h:mm tt") : local.ToString("MMM d, h:mm tt");
+    }
+
+    private static string FullTime(DateTimeOffset occurredAt) => occurredAt.ToLocalTime().ToString("dddd, MMMM d, yyyy h:mm:ss tt");
+}

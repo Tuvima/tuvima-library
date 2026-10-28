@@ -98,6 +98,14 @@
                                                 ReadOnly="@ReadOnly"
                                                 Changed="ChangedAsync" />
                     }
+                    else if (tab.Slug == ActivityTab)
+                    {
+                        <LibraryActivityTab Library="@Library" />
+                    }
+                    else if (tab.Slug == LookupTab)
+                    {
+                        <LibraryLookupTab Library="@Library" ReadOnly="@ReadOnly" />
+                    }
                     else
                     {
                         <AppPageState Kind="AppPageStateKind.Empty"
@@ -117,9 +125,6 @@
     public const string FileHandlingTab = "file-handling";
     public const string ActivityTab = "activity";
     public const string LookupTab = "lookup";
-
-    /// <summary>The kinds with lookup settings of their own (the Lookup tab); the Vault's per-section switch joins them with the Vault work.</summary>
-    private static readonly string[] KindsWithLookupSettings = ["youtube"];
 
     [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
@@ -157,7 +162,7 @@
                 new(FileHandlingTab, "File handling"),
                 new(ActivityTab, "Activity"),
             };
-            if (KindsWithLookupSettings.Contains(Library.KindKey, StringComparer.OrdinalIgnoreCase))
+            if (LibraryLookupRules.HasLookupTab(Library.KindKey))
             {
                 tabs.Add(new(LookupTab, "Lookup"));
             }

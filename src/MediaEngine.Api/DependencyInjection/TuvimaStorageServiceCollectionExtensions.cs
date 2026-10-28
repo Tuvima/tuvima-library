@@ -239,6 +239,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IFolderFirstCheckRepository, FolderFirstCheckRepository>();
         // Files per library for a folder or a list of files: the one grouped read behind "who would lose sight" (simpler access D13).
         services.AddSingleton<IMediaAssetLibraryCountRepository, MediaAssetLibraryCountRepository>();
+        // One library's events, read from the tables that already hold them (Library pages D16).
+        services.AddSingleton<ILibraryActivityReadRepository, LibraryActivityReadRepository>();
         services.AddSingleton<ISuitableFolderAssetRepository, SuitableFolderAssetRepository>();
         services.AddSingleton<MediaEngine.Domain.Contracts.IFilingHold, FolderFirstCheckFilingHold>();
         services.AddSingleton<MediaEngine.Ingestion.Services.UnmatchedFileMarker>();

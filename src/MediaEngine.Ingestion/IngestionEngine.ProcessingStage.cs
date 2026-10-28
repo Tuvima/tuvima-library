@@ -457,6 +457,7 @@ public sealed partial class IngestionEngine
             // Activity: media failed (replaces granular FileQuarantined).
             var failedJson = JsonSerializer.Serialize(new
             {
+                source_path = candidate.Path,
                 source_file = Path.GetFileName(candidate.Path),
                 reason = result.CorruptReason,
                 error_type = "corrupt_file",
