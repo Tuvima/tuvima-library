@@ -140,14 +140,16 @@ public sealed class BaselineRunTests : IDisposable
         BaselinePrepare.HoldClockSchedules(config, libraryRoot, start);
 
         var pluginConfig = Path.Combine(libraryRoot, ".data", "plugin-config");
-        foreach (var (pluginId, jobKey) in new[] { ("tuvima.ai-series-order", "series-order"), ("tuvima.ai-vibe-tags", "vibe-tags") })
+        foreach (var (pluginId, jobKey) in new[] { ("tuvima.ai-series-order", "series-order"), ("tuvima.ai-description-insights", "vibe-tags") })
         {
             using var held = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(pluginConfig, $"{pluginId}.json")));
             Assert.False(held.RootElement.GetProperty("Enabled").GetBoolean());
             Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), held.RootElement.GetProperty("schedules").GetProperty(jobKey).GetString());
         }
 
-        // The every-15-minutes description insights job does not depend on the time of day, so it keeps its own schedule.
-        Assert.False(File.Exists(Path.Combine(pluginConfig, "tuvima.ai-description-insights.json")));
+        // The every-15-minutes description insights job does not depend on the time of day, so it keeps its own schedule:
+        // only the vibe tags job on the same plugin is held.
+        using var insights = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(pluginConfig, "tuvima.ai-description-insights.json")));
+        Assert.False(insights.RootElement.GetProperty("schedules").TryGetProperty("description-insights", out _));
     }
 }

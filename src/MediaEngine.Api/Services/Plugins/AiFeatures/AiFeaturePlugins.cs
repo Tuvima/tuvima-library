@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaEngine.AI.Configuration;
 using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
 
@@ -22,7 +23,9 @@ internal static class AiFeaturePluginManifests
         bool scheduled,
         string[]? extraPermissions = null,
         Dictionary<string, JsonElement>? defaultSettings = null,
-        JsonElement? settingsSchema = null) => new()
+        JsonElement? settingsSchema = null,
+        PluginDeclaration? declaration = null,
+        bool hidden = false) => new()
         {
             Id = id,
             Name = name,
@@ -50,7 +53,24 @@ internal static class AiFeaturePluginManifests
             SupportedPlatforms = [],
             DefaultSettings = defaultSettings ?? new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase),
             SettingsSchema = settingsSchema,
+            Declaration = declaration,
+            Hidden = hidden,
         };
+
+    /// <summary>
+    /// The declaration the Local AI plugins share: administrators set up and see the results unless <paramref name="audience"/>
+    /// says otherwise, Local AI is required, the output stays on removal, and a failure is skipped and retried quietly.
+    /// </summary>
+    public static PluginDeclaration Declare(string audience, string weight, string aiRole, string savedOutput, string changelog) => new()
+    {
+        Audience = audience,
+        WeightClass = weight,
+        OnFailure = "skip_and_retry",
+        Notify = "quiet",
+        Requires = [new PluginRequirement { Kind = "local_ai", Id = aiRole }],
+        Stores = new PluginStores { SavedOutput = savedOutput, OnRemoval = "keep" },
+        Changelog = changelog,
+    };
 }
 
 /// <summary>The recurring job of a scheduled Local AI feature plugin; one pass of the feature's runner per run.</summary>
@@ -80,42 +100,28 @@ internal sealed class AiFeatureScheduledJob(
     }
 }
 
-/// <summary>Improves filenames and first guesses when files are added (the ingestion-assist hook arrives with WP28 part B).</summary>
-internal sealed class SmartLabellingPlugin : ITuvimaPlugin
+/// <summary>
+/// Improves filenames and first guesses when files are added, and decides the media type of a file when it is unclear
+/// (the ingestion-assist hook arrives with WP28 part B). It has nothing to do until that hook exists, so it stays off the
+/// Plugins page until then.
+/// </summary>
+internal sealed class SmartFilingPlugin : ITuvimaPlugin
 {
     public PluginManifest Manifest { get; } = AiFeaturePluginManifests.Create(
-        AiFeaturePluginIds.SmartLabelling,
-        "Smart labelling",
-        "Reads file and folder names and suggests titles, authors, years and episode numbers when files are added. Runs on this machine with Local AI; without it, plain filename rules are used.",
+        AiFeaturePluginIds.SmartFiling,
+        "Smart filing",
+        "Reads file and folder names when files are added: suggests titles, authors, years and episode numbers, and decides the media type when it is unclear. Runs on this machine with Local AI; without it, plain filename rules are used and an unclear file goes to Needs Review.",
         new PluginCapabilityDescriptor
         {
             Kind = "ingestion-assist",
-            Name = "Filename labeller",
-            Description = "Suggests titles, authors, years and episode numbers from file names.",
+            Name = "Filename and type helper",
+            Description = "Suggests titles, authors, years, episode numbers and the media type of a file from its name.",
         },
         aiRole: "text_quality",
         maxTokens: 512,
-        scheduled: false);
-
-    public IReadOnlyList<IPluginCapability> CreateCapabilities() => [];
-}
-
-/// <summary>Decides the media type of a file when it is unclear.</summary>
-internal sealed class TypeHelperPlugin : ITuvimaPlugin
-{
-    public PluginManifest Manifest { get; } = AiFeaturePluginManifests.Create(
-        AiFeaturePluginIds.TypeHelper,
-        "Type helper",
-        "Reads file names and basic file facts to decide the media type when it is unclear. Runs on this machine with Local AI; without it, the unclear file goes to Needs Review.",
-        new PluginCapabilityDescriptor
-        {
-            Kind = "ingestion-assist",
-            Name = "Media type helper",
-            Description = "Suggests the media type of a file the Library cannot place on its own.",
-        },
-        aiRole: "text_quality",
-        maxTokens: 256,
-        scheduled: false);
+        scheduled: false,
+        declaration: AiFeaturePluginManifests.Declare("administrators", "light", "text_quality", "filing suggestions", "Smart labelling and Type helper are now one plugin."),
+        hidden: true);
 
     public IReadOnlyList<IPluginCapability> CreateCapabilities() => [];
 }
@@ -137,7 +143,8 @@ internal sealed class SeriesOrderPlugin(IServiceProvider services) : ITuvimaPlug
         },
         aiRole: "text_quality",
         maxTokens: 512,
-        scheduled: true);
+        scheduled: true,
+        declaration: AiFeaturePluginManifests.Declare("administrators", "medium", "text_quality", "series order suggestions", "Declares who may use it, what it needs and what it keeps."));
 
     public IReadOnlyList<IPluginCapability> CreateCapabilities() =>
     [
@@ -149,35 +156,42 @@ internal sealed class SeriesOrderPlugin(IServiceProvider services) : ITuvimaPlug
     ];
 }
 
-/// <summary>Adds mood tags from the plugin's own word lists.</summary>
-internal sealed class VibeTagsPlugin(IServiceProvider services) : ITuvimaPlugin
+/// <summary>Adds themes, setting, mood and other context from descriptions, with the short summary included.</summary>
+internal sealed class DescriptionInsightsPlugin(IServiceProvider services) : ITuvimaPlugin
 {
-    public const string JobKey = "vibe-tags";
+    public const string JobKey = "description-insights";
+    public const string VibeJobKey = "vibe-tags";
     public const string BooksKey = "books";
     public const string MoviesTvKey = "movies_tv";
     public const string MusicKey = "music";
     public const string ComicsKey = "comics";
 
     public PluginManifest Manifest { get; } = AiFeaturePluginManifests.Create(
-        AiFeaturePluginIds.VibeTags,
-        "Vibe tags",
-        "Reads descriptions and genres and adds mood tags, once a day. The words it may use are in this plugin's settings. Runs on this machine with Local AI; tags are labelled as AI.",
+        AiFeaturePluginIds.DescriptionInsights,
+        "Description insights",
+        "Reads descriptions and genres and adds themes, mood, setting, period, audience, pace, content warnings and people, a short summary, and mood tags chosen from the words in this plugin's settings. Runs on this machine with Local AI; results are labelled as AI.",
         new PluginCapabilityDescriptor
         {
             Kind = PluginCapabilityKinds.ScheduledJobKind,
-            Name = "Vibe tag pass",
-            Description = "Adds mood tags chosen from the plugin's word lists.",
+            Name = "Description insights pass",
+            Description = "Adds structured context from descriptions in small batches, and mood tags once a day.",
         },
-        aiRole: "text_quality",
-        maxTokens: 512,
+        aiRole: "text_scholar",
+        maxTokens: 1024,
         scheduled: true,
         defaultSettings: DefaultSettings(),
-        settingsSchema: SettingsSchema());
+        settingsSchema: SettingsSchema(),
+        declaration: AiFeaturePluginManifests.Declare("administrators", "heavy", "text_scholar", "descriptive tags and summaries", "Vibe tags is now part of this plugin."));
 
     public IReadOnlyList<IPluginCapability> CreateCapabilities() =>
     [
         new AiFeatureScheduledJob(
             JobKey,
+            "Add description insights",
+            PluginSchedule.Every(TimeSpan.FromMinutes(15)),
+            ct => services.GetRequiredService<DescriptionIntelligenceRunner>().ProcessBatchAsync(ct)),
+        new AiFeatureScheduledJob(
+            VibeJobKey,
             "Add vibe tags",
             PluginSchedule.OnCron("0 4 * * *"),
             ct => services.GetRequiredService<VibeBatchRunner>().RunBatchAsync(ct)),
@@ -232,35 +246,6 @@ internal sealed class VibeTagsPlugin(IServiceProvider services) : ITuvimaPlugin
     }
 }
 
-/// <summary>Adds themes, setting, mood and other context from descriptions, with the short summary included.</summary>
-internal sealed class DescriptionInsightsPlugin(IServiceProvider services) : ITuvimaPlugin
-{
-    public const string JobKey = "description-insights";
-
-    public PluginManifest Manifest { get; } = AiFeaturePluginManifests.Create(
-        AiFeaturePluginIds.DescriptionInsights,
-        "Description insights",
-        "Reads descriptions and adds themes, mood, setting, period, audience, pace, content warnings and people, plus a short summary. Runs on this machine with Local AI; results are labelled as AI.",
-        new PluginCapabilityDescriptor
-        {
-            Kind = PluginCapabilityKinds.ScheduledJobKind,
-            Name = "Description insights pass",
-            Description = "Adds structured context from descriptions in small batches.",
-        },
-        aiRole: "text_scholar",
-        maxTokens: 1024,
-        scheduled: true);
-
-    public IReadOnlyList<IPluginCapability> CreateCapabilities() =>
-    [
-        new AiFeatureScheduledJob(
-            JobKey,
-            "Add description insights",
-            PluginSchedule.Every(TimeSpan.FromMinutes(15)),
-            ct => services.GetRequiredService<DescriptionIntelligenceRunner>().ProcessBatchAsync(ct)),
-    ];
-}
-
 /// <summary>Writes the short taste summary on a profile page from what that profile watched, read and listened to.</summary>
 internal sealed class TasteSummaryPlugin : ITuvimaPlugin
 {
@@ -277,7 +262,8 @@ internal sealed class TasteSummaryPlugin : ITuvimaPlugin
         aiRole: "text_fast",
         maxTokens: 160,
         scheduled: false,
-        extraPermissions: [PluginPermissionIds.WatchActivity]);
+        extraPermissions: [PluginPermissionIds.WatchActivity],
+        declaration: AiFeaturePluginManifests.Declare("everyone", "light", "text_fast", "taste summaries", "Declares who may use it, what it needs and what it keeps."));
 
     public IReadOnlyList<IPluginCapability> CreateCapabilities() => [];
 }

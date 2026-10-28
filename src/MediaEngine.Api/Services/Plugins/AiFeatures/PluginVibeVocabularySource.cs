@@ -5,7 +5,7 @@ using MediaEngine.AI.Infrastructure;
 namespace MediaEngine.Api.Services.Plugins.AiFeatures;
 
 /// <summary>
-/// The words a vibe tag may be, read from the Vibe tags plugin's settings. A list the plugin does not have, or one that
+/// The words a vibe tag may be, read from the Description insights plugin's settings. A list the plugin does not have, or one that
 /// is empty or not a list of words, falls back to the built-in list for that kind of media so tagging never runs without words.
 /// </summary>
 internal sealed class PluginVibeVocabularySource(IServiceProvider services) : IVibeVocabularySource
@@ -19,7 +19,7 @@ internal sealed class PluginVibeVocabularySource(IServiceProvider services) : IV
         get
         {
             var defaults = new AiVibeVocabulary();
-            var settings = Catalog.Get(AiFeaturePluginIds.VibeTags)?.Settings;
+            var settings = Catalog.Get(AiFeaturePluginIds.DescriptionInsights)?.Settings;
             if (settings is null)
             {
                 return defaults;
@@ -27,10 +27,10 @@ internal sealed class PluginVibeVocabularySource(IServiceProvider services) : IV
 
             return new AiVibeVocabulary
             {
-                Books = Words(settings, VibeTagsPlugin.BooksKey) ?? defaults.Books,
-                MoviesTv = Words(settings, VibeTagsPlugin.MoviesTvKey) ?? defaults.MoviesTv,
-                Music = Words(settings, VibeTagsPlugin.MusicKey) ?? defaults.Music,
-                Comics = Words(settings, VibeTagsPlugin.ComicsKey) ?? defaults.Comics,
+                Books = Words(settings, DescriptionInsightsPlugin.BooksKey) ?? defaults.Books,
+                MoviesTv = Words(settings, DescriptionInsightsPlugin.MoviesTvKey) ?? defaults.MoviesTv,
+                Music = Words(settings, DescriptionInsightsPlugin.MusicKey) ?? defaults.Music,
+                Comics = Words(settings, DescriptionInsightsPlugin.ComicsKey) ?? defaults.Comics,
             };
         }
     }
