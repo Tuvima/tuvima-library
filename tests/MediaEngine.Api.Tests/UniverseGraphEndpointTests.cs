@@ -52,6 +52,17 @@ public sealed class UniverseGraphEndpointTests
     }
 
     [Fact]
+    public void GraphRoute_ShowsTheLocalUniverseNameTheEditorSaves()
+    {
+        var source = File.ReadAllText(GetRepoFilePath(
+            @"src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs"));
+
+        // The Universe editor saves its name as a collection display override; the explorer header must read the same one.
+        Assert.Contains("UniverseLabelAsync(root, collections, displayOverrides, ct)", source, StringComparison.Ordinal);
+        Assert.Contains("GroupingEditSubject.TitleKey", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void VisibleUniverseEntitiesRequireProvenanceFromAnAuthorizedWork()
     {
         var visible = new FictionalEntity { Id = Guid.NewGuid(), WikidataQid = "Q1" };
