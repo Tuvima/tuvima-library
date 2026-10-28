@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0063 view_intake_and_duplicates).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0065 vault_moves).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2876,6 +2876,41 @@ CREATE TABLE vault_matches (
     matched_at  TEXT NOT NULL
 );
 
+CREATE TABLE vault_move_items (
+    id             BLOB NOT NULL PRIMARY KEY,
+    move_id        BLOB NOT NULL REFERENCES vault_moves(id) ON DELETE CASCADE,
+    position       INTEGER NOT NULL,
+    work_id        BLOB,
+    asset_id       BLOB,
+    new_asset_id   BLOB,
+    source_path    TEXT NOT NULL,
+    final_name     TEXT NOT NULL,
+    size_bytes     INTEGER NOT NULL DEFAULT 0,
+    content_hash   TEXT,
+    files_json     TEXT,
+    snapshot_json  TEXT,
+    original_left  INTEGER NOT NULL DEFAULT 0 CHECK (original_left IN (0, 1)),
+    state          TEXT NOT NULL CHECK (state IN ('planned', 'copied', 'retired', 'published', 'done', 'skipped', 'failed')),
+    reason         TEXT,
+    updated_at     TEXT NOT NULL
+);
+
+CREATE TABLE vault_moves (
+    id                         BLOB NOT NULL PRIMARY KEY,
+    direction                  TEXT NOT NULL CHECK (direction IN ('in', 'out')),
+    kind_key                   TEXT NOT NULL,
+    source_library_id          TEXT NOT NULL COLLATE NOCASE,
+    destination_library_id     TEXT NOT NULL COLLATE NOCASE,
+    source_folder              TEXT NOT NULL,
+    destination_folder         TEXT NOT NULL,
+    remove_read_only_originals INTEGER NOT NULL DEFAULT 0 CHECK (remove_read_only_originals IN (0, 1)),
+    state                      TEXT NOT NULL CHECK (state IN ('queued', 'running', 'done', 'attention', 'failed')),
+    message                    TEXT,
+    created_by_profile_id      BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at                 TEXT NOT NULL,
+    updated_at                 TEXT NOT NULL
+);
+
 CREATE TABLE vault_performers (
     id         BLOB NOT NULL PRIMARY KEY,
     library_id TEXT NOT NULL REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
@@ -2885,6 +2920,14 @@ CREATE TABLE vault_performers (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     UNIQUE (library_id, name)
+);
+
+CREATE TABLE vault_section_grants (
+    library_id            TEXT NOT NULL COLLATE NOCASE REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
+    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at            TEXT NOT NULL,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    PRIMARY KEY (library_id, profile_id)
 );
 
 CREATE TABLE vault_studios (
@@ -3935,6 +3978,12 @@ CREATE INDEX ix_vault_image_items_library ON vault_image_items(library_id, item_
 
 CREATE INDEX ix_vault_image_tags_tag      ON vault_image_tags(tag_id, item_id);
 
+CREATE INDEX ix_vault_move_items_move ON vault_move_items(move_id, state);
+
+CREATE INDEX ix_vault_moves_state ON vault_moves(state);
+
+CREATE INDEX ix_vault_section_grants_profile ON vault_section_grants(profile_id);
+
 CREATE INDEX ix_view_devices_space_backup
     ON view_devices(personal_space_id, last_backup_at DESC, id);
 
@@ -4192,6 +4241,13 @@ BEGIN
     DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.id;
 END;
 
+CREATE TRIGGER trg_profiles_vault_sections_withdrawn
+AFTER UPDATE OF role, content_limit ON profiles
+WHEN NEW.role = 'RestrictedProfile' OR NEW.content_limit IS NOT NULL
+BEGIN
+    DELETE FROM vault_section_grants WHERE profile_id = NEW.id;
+END;
+
 CREATE TRIGGER trg_vault_activity_vault_only
 BEFORE INSERT ON vault_activity
 WHEN NOT EXISTS (
@@ -4284,6 +4340,11 @@ BEFORE INSERT ON vault_matches
 WHEN NOT EXISTS (
     SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
 BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have a Vault match.'); END;
+
+CREATE TRIGGER trg_vault_section_grants_eligible
+BEFORE INSERT ON vault_section_grants
+WHEN EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
+BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot open a Vault section.'); END;
 
 CREATE TRIGGER trg_view_galleries_cover_no_vault_image_insert
 BEFORE INSERT ON view_galleries

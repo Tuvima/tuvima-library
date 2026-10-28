@@ -132,3 +132,39 @@ public sealed class AttachVaultFolderRequest
     [JsonPropertyName("admin_pin")]
     public string? AdminPin { get; init; }
 }
+
+/// <summary>
+/// One Vault section (a Vault library) and whether the profile whose page this is may open it (<c>GET /api/v1/profiles/{id}/vault-sections</c>;
+/// Vault sections D28, D39). Only an administrator whose Vault mode is on ever receives this.
+/// </summary>
+public sealed class VaultSectionDto
+{
+    [JsonPropertyName("library_id")]
+    public string LibraryId { get; init; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
+
+    [JsonPropertyName("kind_key")]
+    public string KindKey { get; init; } = string.Empty;
+
+    [JsonPropertyName("granted")]
+    public bool Granted { get; init; }
+}
+
+/// <summary>The Vault sections and which of them one profile may open. An administrator opens every section, so <c>opens_all</c> is true and nothing needs ticking.</summary>
+public sealed class ProfileVaultSectionsDto
+{
+    [JsonPropertyName("opens_all")]
+    public bool OpensAll { get; init; }
+
+    [JsonPropertyName("sections")]
+    public IReadOnlyList<VaultSectionDto> Sections { get; init; } = [];
+}
+
+/// <summary>Replaces the Vault sections one profile may open (<c>PUT /api/v1/profiles/{id}/vault-sections</c>). Nothing is ticked by default.</summary>
+public sealed class SetProfileVaultSectionsRequest
+{
+    [JsonPropertyName("library_ids")]
+    public IReadOnlyList<string> LibraryIds { get; init; } = [];
+}

@@ -263,6 +263,9 @@ public static partial class BackupTableClassification
         // Videos Wave 3: the Vault. Settings and each person's own state are kept; the Vault catalogue is never backed up (a rescan rebuilds it).
         Config("profile_nsfw_settings", "How each profile's Vault mode is protected and when it turns off."),
         Config("vault_libraries", "Which libraries are Vault libraries and how they look things up."),
+        Config("vault_section_grants", "Which Vault sections each profile may open."),
+        Transient("vault_moves", "Move to Vault jobs; a job in flight is not worth restoring, the files are the record."),
+        Transient("vault_move_items", "The items of a Move to Vault job."),
         Personal("bookmark_packs", "profile_id", "Bookmark packs a person imported for a title.", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("bookmark_pack_items", null, "The bookmarks inside a pack (owned through the pack's profile).", refs: []),
         Transient("nsfw_session_unlocks", "Temporary Vault mode sessions."),

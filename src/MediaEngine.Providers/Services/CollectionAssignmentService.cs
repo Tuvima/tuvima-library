@@ -40,6 +40,7 @@ public sealed class CollectionAssignmentService
     private readonly ISeriesManifestRepository? _manifestRepo;
     private readonly SeriesAmbiguityReviewer? _ambiguityReviewer;
     private readonly ISeriesPlacementRepository? _placementRepo;
+    private readonly IVaultLibraryRepository? _vaultLibraries;
 
     // Per-shelf semaphores serialise concurrent find-or-create calls so two
     // workers cannot race past lookup and both UpsertAsync the same ContentGroup
@@ -54,7 +55,8 @@ public sealed class CollectionAssignmentService
         ICanonicalValueArrayRepository? arrayRepo = null,
         ISeriesManifestRepository? manifestRepo = null,
         SeriesAmbiguityReviewer? ambiguityReviewer = null,
-        ISeriesPlacementRepository? placementRepo = null)
+        ISeriesPlacementRepository? placementRepo = null,
+        IVaultLibraryRepository? vaultLibraries = null)
     {
         _collectionRepo = collectionRepo;
         _canonicalRepo = canonicalRepo;
@@ -64,6 +66,7 @@ public sealed class CollectionAssignmentService
         _manifestRepo = manifestRepo;
         _ambiguityReviewer = ambiguityReviewer;
         _placementRepo = placementRepo;
+        _vaultLibraries = vaultLibraries;
     }
 
     /// <summary>
@@ -87,6 +90,19 @@ public sealed class CollectionAssignmentService
                 CollectionAssignmentOutcome.SkippedNoWork,
                 entityId,
                 Message: "No work found for entity.");
+        }
+
+        // A Vault work never joins a shared Series or Universe (Vault sections D35): it is stopped here, before any Series is looked up
+        // or created, so nothing about it is written to a shelf other profiles can see.
+        if (_vaultLibraries is not null
+            && (await _vaultLibraries.IsInVaultAsync(entityId, ct).ConfigureAwait(false)
+                || await _vaultLibraries.IsInVaultAsync(workId.Value, ct).ConfigureAwait(false)))
+        {
+            return new CollectionAssignmentResult(
+                CollectionAssignmentOutcome.SkippedNoShelfIdentity,
+                entityId,
+                workId,
+                Message: "Vault items are not placed in shared Series.");
         }
 
         var existingCollectionId = await _collectionRepo.GetCollectionIdByWorkIdAsync(workId.Value, ct);

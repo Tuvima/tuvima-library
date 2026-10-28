@@ -756,6 +756,15 @@ public sealed class DatabaseStartupSafetyTests
             ("plugin_outbox", "id"),
             ("plugin_outbox", "profile_id"),
             ("text_track_rejections", "asset_id"),
+            ("vault_section_grants", "profile_id"),
+            ("vault_section_grants", "created_by_profile_id"),
+            ("vault_moves", "id"),
+            ("vault_moves", "created_by_profile_id"),
+            ("vault_move_items", "id"),
+            ("vault_move_items", "move_id"),
+            ("vault_move_items", "work_id"),
+            ("vault_move_items", "asset_id"),
+            ("vault_move_items", "new_asset_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)

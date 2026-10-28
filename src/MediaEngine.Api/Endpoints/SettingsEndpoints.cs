@@ -130,6 +130,7 @@ public static class SettingsEndpoints
         grp.MapLibraryMutations();
         grp.MapLibraryAccess();
         grp.MapVaultLibraries();
+        grp.MapVaultMoves();
 
         grp.MapGet("/security/auth", (AuthenticationProviderConfigurationService providerConfiguration, IConfigurationLoader configLoader) =>
         {

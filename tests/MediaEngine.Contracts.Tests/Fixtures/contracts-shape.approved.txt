@@ -8355,6 +8355,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AdaptiveHlsSetting
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AddVaultFolderRequest
   KindKey: System.String | nullability=not-null | accessors=get,init
   FolderPath: System.String | nullability=not-null | accessors=get,init
+  Managed: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AuthSettingsDto
   Mode: System.String | nullability=not-null | accessors=get,init
@@ -8393,6 +8394,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.CreateVaultLibrary
   KindKey: System.String | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init
   FolderPath: System.String | nullability=not-null | accessors=get,init
+  Managed: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.DismissProfileNoticeRequest
   Fingerprint: System.String | nullability=not-null | accessors=get,init
@@ -10319,6 +10321,10 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwStatusDto
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwUnlockRequest
   Pin: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.ProfileVaultSectionsDto
+  OpensAll: System.Boolean | nullability=not-null | accessors=get,init
+  Sections: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultSectionDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.RemoveVaultLibraryRequest
   AdminPin: System.String | nullability=nullable | accessors=get,init
 
@@ -10326,6 +10332,21 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.SetNsfwAccessRequest
   Mode: System.String | nullability=not-null | accessors=get,init
   IdleLockMinutes: System.Int32? | nullability=nullable | accessors=get,init
   AdminPin: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.SetProfileVaultSectionsRequest
+  LibraryIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.StartVaultMoveRequest
+  Direction: System.String | nullability=not-null | accessors=get,init
+  SourceId: System.String | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+  AdminPin: System.String | nullability=nullable | accessors=get,init
+  RemoveReadOnlyOriginals: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.StartVaultMoveResultDto
+  Started: System.Boolean | nullability=not-null | accessors=get,init
+  Job: MediaEngine.Contracts.Vault.VaultMoveJobDto | nullability=nullable | accessors=get,init
+  Preview: MediaEngine.Contracts.Vault.VaultMovePreviewDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.UpdateVaultLibraryRequest
   LookupSource: System.String | nullability=not-null | accessors=get,init
@@ -10501,6 +10522,39 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultMatchDto
   MatchedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   Fields: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultFieldSourceDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultMoveDirections
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultMoveJobDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Direction: System.String | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  Moved: System.Int32 | nullability=not-null | accessors=get,init
+  Waiting: System.Int32 | nullability=not-null | accessors=get,init
+  Skipped: System.Int32 | nullability=not-null | accessors=get,init
+  Failed: System.Int32 | nullability=not-null | accessors=get,init
+  OriginalLeft: System.Int32 | nullability=not-null | accessors=get,init
+  CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultMovePreviewDto
+  State: System.String | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
+  Direction: System.String | nullability=not-null | accessors=get,init
+  Items: System.Int32 | nullability=not-null | accessors=get,init
+  Skipped: System.Int32 | nullability=not-null | accessors=get,init
+  Bytes: System.Int64 | nullability=not-null | accessors=get,init
+  SourceName: System.String | nullability=not-null | accessors=get,init
+  DestinationName: System.String | nullability=not-null | accessors=get,init
+  OriginalsStay: System.Boolean | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultMovePreviewRequest
+  Direction: System.String | nullability=not-null | accessors=get,init
+  SourceId: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultMovePreviewStates
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultNameLinkDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init
@@ -10553,6 +10607,12 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultSearchResultDto
   Scenes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultSceneDto> | nullability=not-null | accessors=get,init
   Performers: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultNameTileDto> | nullability=not-null | accessors=get,init
   Studios: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultNameTileDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultSectionDto
+  LibraryId: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  KindKey: System.String | nullability=not-null | accessors=get,init
+  Granted: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultSort
 

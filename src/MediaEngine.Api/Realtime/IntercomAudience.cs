@@ -36,7 +36,8 @@ public sealed class IntercomAudienceAuthorizer(
     IVaultLibraryRepository vaultLibraries,
     INsfwAccessRepository nsfw,
     IVaultPathClassifier vaultPaths,
-    LibraryVisibilityRule libraryVisibility) : IIntercomAudienceAuthorizer
+    LibraryVisibilityRule libraryVisibility,
+    IVaultSectionGrantRepository? vaultSections = null) : IIntercomAudienceAuthorizer
 {
     /// <summary>
     /// Events whose payload names a file, a folder or an item, so the audience decides by where it sits: an item or path in a Vault
@@ -119,8 +120,10 @@ public sealed class IntercomAudienceAuthorizer(
         // event that names only a path is read from where the path sits.
         if (await IsAboutVaultAsync(payload, assetId, ct).ConfigureAwait(false))
         {
+            // A person with no Vault section ticked is told nothing about it either (Vault sections D28, D39).
             return await nsfw.IsUnlockedAsync(session.Id, session.ActiveProfileId, timeProvider.GetUtcNow(), ct).ConfigureAwait(false)
-                && (await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(AccountFeatureId.Watch);
+                && (await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(AccountFeatureId.Watch)
+                && (administrator || vaultSections is null || (await vaultSections.GetGrantedAsync(profile.ProfileId, ct).ConfigureAwait(false)).Count > 0);
         }
 
         // Titles deleted from the library carry only ids of things that no longer exist, so every signed-in person's open screens

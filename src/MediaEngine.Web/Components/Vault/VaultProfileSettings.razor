@@ -77,6 +77,30 @@
                                       Description="@AskPinDescription"
                                       Value="@_askPin" ValueChanged="AskPinChangedAsync" Disabled="@_busy" />
                     }
+                    @if (_allow && !IsAdministratorPerson)
+                    {
+                        @if (_sections is { Sections.Count: > 0 } sections)
+                        {
+                            <strong data-vault-sections-title>Vault sections @Person.DisplayName can open</strong>
+                            @foreach (var section in sections.Sections)
+                            {
+                                <AppSwitchRow Label="@section.Name"
+                                              Description="@(section.Granted ? "They can open this section." : "Closed to them.")"
+                                              Value="@section.Granted"
+                                              ValueChanged="@(granted => SectionChangedAsync(section.LibraryId, granted))"
+                                              Disabled="@_busy" />
+                            }
+                            <small>Nothing is open until you tick it. Administrators open every section.</small>
+                        }
+                        else if (_sectionsLoaded && _sections is { Sections.Count: 0 })
+                        {
+                            <small>There are no Vault sections yet. Make one from Settings, Libraries (Access: Vault-protected).</small>
+                        }
+                        else if (_sectionsLoaded)
+                        {
+                            <small>Turn on your own Vault mode to choose which sections @Person.DisplayName can open.</small>
+                        }
+                    }
                     @if (!_modeKnown)
                     {
                         <small>The current setting isn't shown for other people. Choose one and save to change it.</small>
@@ -105,6 +129,8 @@
     private bool _busy;
     private Guid _readFor;
     private bool _stateRequested;
+    private ProfileVaultSectionsDto? _sections;
+    private bool _sectionsLoaded;
 
     /// <summary>The person whose page this is.</summary>
     [Parameter, EditorRequired] public ProfileViewModel Person { get; set; } = default!;
@@ -124,6 +150,9 @@
     private bool ShowOwn => IsSelf && !IsLimited && Nsfw.IsAvailable;
 
     private bool ShowAccess => IsAdministrator && !IsLimited;
+
+    // A server administrator's own page: an administrator opens every section, so there is nothing to tick.
+    private bool IsAdministratorPerson => _sections?.OpensAll == true;
 
     private string AskPinLabel => IsSelf ? "Ask for my PIN to open Vault mode" : "Ask for their PIN to open Vault mode";
 
@@ -155,6 +184,59 @@
         {
             _readFor = Person.Id;
             ReadOwnAccess();
+            await LoadSectionsAsync();
+        }
+    }
+
+    // The sections name Vault libraries, so the Engine answers only an administrator whose own Vault mode is on; anyone else gets nothing here.
+    private async Task LoadSectionsAsync()
+    {
+        _sections = null;
+        _sectionsLoaded = false;
+        if (!ShowAccess)
+        {
+            return;
+        }
+
+        var call = await ApiClient.GetProfileVaultSectionsAsync(Person.Id);
+        _sections = call.Succeeded ? call.Value : null;
+        _sectionsLoaded = true;
+    }
+
+    private async Task SectionChangedAsync(string libraryId, bool granted)
+    {
+        if (_busy || _sections is null)
+        {
+            return;
+        }
+
+        var wanted = _sections.Sections.Where(section => section.Granted).Select(section => section.LibraryId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (granted)
+        {
+            wanted.Add(libraryId);
+        }
+        else
+        {
+            wanted.Remove(libraryId);
+        }
+
+        _busy = true;
+        try
+        {
+            var call = await ApiClient.SetProfileVaultSectionsAsync(Person.Id, [.. wanted]);
+            if (call.Succeeded)
+            {
+                _sections = call.Value;
+                Toasts.Add("Vault sections saved.", AppSeverity.Success);
+            }
+            else
+            {
+                Toasts.Add(VaultMessages.For(call) ?? VaultMessages.Unreachable, AppSeverity.Warning);
+            }
+        }
+        finally
+        {
+            _busy = false;
         }
     }
 

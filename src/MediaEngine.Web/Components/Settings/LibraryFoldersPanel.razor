@@ -213,6 +213,9 @@
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>Raised by a folder's "Move to Vault" menu entry; the entry is drawn only when the host sets this (server administrators, ordinary libraries).</summary>
     [Parameter] public EventCallback<LibrarySourceDto> OnMoveToVault { get; set; }
+
+    /// <summary>Raised by a Vault folder's "Move out of the Vault" menu entry; drawn only when the host sets this.</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnMoveOutOfVault { get; set; }
     /// <summary>The type to show (a standard key or "import").</summary>
     [Parameter] public string? TypeKey { get; set; }
     /// <summary>Raised after any saved change so the host can refresh its own state.</summary>
@@ -977,6 +980,7 @@
                                    OnOrganiseNow="OrganiseNowAsync"
                                    OnMerge="MergeIntoAsync"
                                    OnMoveToVault="@OnMoveToVault"
+                                   OnMoveOutOfVault="@OnMoveOutOfVault"
                                    OnKeepGoing="@(EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
                                    OnSetSuitableForLimited="@(EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))" />
             }

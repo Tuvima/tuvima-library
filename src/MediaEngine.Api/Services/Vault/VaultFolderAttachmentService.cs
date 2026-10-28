@@ -47,6 +47,10 @@ public sealed class VaultFolderAttachmentService(
     public const string FolderNotAllowedMessage = "That folder can't be used for the Vault, so nothing was added.";
     public const string FolderHoldsOrdinaryFilesMessage =
         "That folder already holds files that are in your normal libraries, so nothing was added. Put the Vault videos in a folder of their own first.";
+    public const string FolderHoldsLinksMessage =
+        "That folder holds a shortcut or link that points somewhere else, so nothing was added. Remove the link, or choose a folder with only real files in it.";
+    public const string FolderManagedNeedsWriteMessage =
+        "Library can't write to that folder, so it can't be a managed Vault folder. Choose a folder Library may change, or add it as read-only.";
 
     /// <summary>Name of the settings entry that holds the Vault's folders. Never shown in a library list.</summary>
     public const string LibraryName = "Vault";
@@ -61,7 +65,7 @@ public sealed class VaultFolderAttachmentService(
 
         // The PIN comes before anything is learned about the folder, so a wrong PIN cannot be used to probe the server's disks.
         await administration.RequireAdminPinAsync(adminProfileId, adminPin, ct).ConfigureAwait(false);
-        return await AttachCoreAsync(libraryId, folderPath, newEntry: null, preCheck: null, ct).ConfigureAwait(false);
+        return await AttachCoreAsync(libraryId, folderPath, newEntry: null, preCheck: null, managed: false, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -70,11 +74,11 @@ public sealed class VaultFolderAttachmentService(
     /// is an administrator's. The same folder rules apply as for <see cref="AttachAsync"/>.
     /// </summary>
     internal Task<VaultFolderAttachmentOutcome> AttachAsAdministratorAsync(
-        string libraryId, string? folderPath, LibraryFolderConfig? newEntry, Func<LibrariesConfiguration, string?>? preCheck, CancellationToken ct) =>
-        AttachCoreAsync(libraryId, folderPath, newEntry, preCheck, ct);
+        string libraryId, string? folderPath, LibraryFolderConfig? newEntry, Func<LibrariesConfiguration, string?>? preCheck, bool managed, CancellationToken ct) =>
+        AttachCoreAsync(libraryId, folderPath, newEntry, preCheck, managed, ct);
 
     private async Task<VaultFolderAttachmentOutcome> AttachCoreAsync(
-        string libraryId, string? folderPath, LibraryFolderConfig? newEntry, Func<LibrariesConfiguration, string?>? preCheck, CancellationToken ct)
+        string libraryId, string? folderPath, LibraryFolderConfig? newEntry, Func<LibrariesConfiguration, string?>? preCheck, bool managed, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(libraryId) || await libraries.GetAsync(libraryId, ct).ConfigureAwait(false) is not { } vaultLibrary)
         {
@@ -95,7 +99,7 @@ public sealed class VaultFolderAttachmentService(
                 return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.NotAllowed, refusal);
             }
 
-            var check = CheckFolder(folderPath, settings);
+            var check = CheckFolder(folderPath, settings, managed);
             if (check.Outcome is not null)
             {
                 return check.Outcome;
@@ -105,6 +109,12 @@ public sealed class VaultFolderAttachmentService(
             if (await libraries.HoldsOrdinaryFilesAsync(check.Path!, ct).ConfigureAwait(false))
             {
                 return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.NotAllowed, FolderHoldsOrdinaryFilesMessage);
+            }
+
+            // A link inside the folder could point into a normal library and pull its files into the Vault (or the other way round).
+            if (VaultFolderLinkCheck.HoldsLink(check.Path!))
+            {
+                return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.NotAllowed, FolderHoldsLinksMessage);
             }
 
             var library = settings.Libraries.FirstOrDefault(entry => string.Equals(entry.Id, libraryId, StringComparison.OrdinalIgnoreCase));
@@ -118,9 +128,9 @@ public sealed class VaultFolderAttachmentService(
             {
                 Id = Guid.NewGuid().ToString("D"),
                 Path = check.Path!,
-                // As-is: the files stay where they are and are never touched (spec D34).
-                ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
-                AccessMode = LibrarySourceAccessModes.ReadOnly,
+                // As-is unless the administrator chose a Managed Vault folder, the only kind Move to Vault may write to (spec D33, D38).
+                ManagementMode = managed ? LibrarySourceManagementModes.ManagedByTuvima : LibrarySourceManagementModes.ExistingLibrary,
+                AccessMode = managed ? LibrarySourceAccessModes.Writable : LibrarySourceAccessModes.ReadOnly,
                 SourceType = LibrarySourceTypes.LocalFolder,
                 IncludeSubdirectories = true,
             });
@@ -145,13 +155,17 @@ public sealed class VaultFolderAttachmentService(
         return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.Attached, Library: vaultLibrary);
     }
 
-    private (string? Path, VaultFolderAttachmentOutcome? Outcome) CheckFolder(string folderPath, LibrariesConfiguration settings)
+    private (string? Path, VaultFolderAttachmentOutcome? Outcome) CheckFolder(string folderPath, LibrariesConfiguration settings, bool managed)
     {
         ServerFolderValidationResultDto result;
         try
         {
             result = folders.Validate(
-                new ValidateServerFolderRequest { ManualPath = folderPath.Trim(), SelectionMode = ServerFolderSelectionModes.ExistingLibrary },
+                new ValidateServerFolderRequest
+                {
+                    ManualPath = folderPath.Trim(),
+                    SelectionMode = managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary,
+                },
                 settings);
         }
         catch (ServerFolderAccessException)
@@ -162,6 +176,11 @@ public sealed class VaultFolderAttachmentService(
         if (result.Issues.Any(issue => issue.Code == "not_found") || (result.CanSelect && !result.Exists))
         {
             return (null, new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.FolderNotFound, FolderNotFoundMessage));
+        }
+
+        if (managed && result.Issues.Any(issue => issue.Code is "storage_location_read_only" or "write_required"))
+        {
+            return (null, new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.NotAllowed, FolderManagedNeedsWriteMessage));
         }
 
         return result.CanSelect && !string.IsNullOrWhiteSpace(result.Path)

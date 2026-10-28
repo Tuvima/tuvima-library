@@ -45,7 +45,7 @@ internal static class VaultLibraryEndpoints
             }
 
             var unlocked = await UnlockedAdministratorAsync(http, authorities, access) is not null;
-            return Answered(await siblings.CreateAsync(adminProfileId, request.KindKey, request.Name, request.FolderPath, http.RequestAborted), unlocked);
+            return Answered(await siblings.CreateAsync(adminProfileId, request.KindKey, request.Name, request.FolderPath, http.RequestAborted, request.Managed), unlocked);
         }).WithName("CreateVaultSiblingLibrary").Produces<VaultLibraryActionResultDto>()
           .ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict)
           .RequireAuthorization(AuthPolicies.Authenticated);
@@ -63,7 +63,7 @@ internal static class VaultLibraryEndpoints
             }
 
             var unlocked = await UnlockedAdministratorAsync(http, authorities, access) is not null;
-            return Answered(await siblings.AddFolderAsync(adminProfileId, request.KindKey, request.FolderPath, http.RequestAborted), unlocked);
+            return Answered(await siblings.AddFolderAsync(adminProfileId, request.KindKey, request.FolderPath, http.RequestAborted, request.Managed), unlocked);
         }).WithName("AddVaultSiblingFolder").Produces<VaultLibraryActionResultDto>()
           .ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict)
           .RequireAuthorization(AuthPolicies.Authenticated);
@@ -109,7 +109,7 @@ internal static class VaultLibraryEndpoints
             : null;
     }
 
-    private static async Task<Guid?> UnlockedAdministratorAsync(HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver access)
+    internal static async Task<Guid?> UnlockedAdministratorAsync(HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver access)
     {
         if (await AdministratorAsync(http, authorities) is not { } profileId)
         {
