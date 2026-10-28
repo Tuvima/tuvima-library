@@ -23,11 +23,12 @@ internal sealed class DisplayRecentComposerService(RecentCatalogueReadService ca
         var take = Math.Min(limit ?? 18, 100);
         var boundary = DisplayRecentCursor.Decode(cursor, scope, profileId);
         var items = new List<DisplayRecentItemDto>();
+        var available = new HashSet<string>(StringComparer.Ordinal);
         if (scope != "view")
         {
-            items.AddRange(await catalogue.LoadAsync(scope, profileId, boundary, take + 1, ct));
+            items.AddRange(await catalogue.LoadAsync(scope, profileId, boundary, take + 1, ct, cursor is null ? available : null));
         }
-        if (scope is "all" or "view")
+        if (DisplayRecentCursor.Includes(scope, "view"))
         {
             // Home shows photos and videos only. A document's title, file name or id never reaches Home, for anyone;
             // documents live on the Documents page behind the profile's Documents permission.
@@ -48,6 +49,23 @@ internal sealed class DisplayRecentComposerService(RecentCatalogueReadService ca
                 }
             }
         }
-        return DisplayRecentCursor.Page(scope, profileId, items, take);
+        var recent = DisplayRecentCursor.Page(scope, profileId, items, take);
+        if (cursor is not null)
+        {
+            return recent;
+        }
+        // Pills only for types with something behind them. The View probe reads one row, whatever the filter is.
+        if (items.Any(item => item.ViewAsset is not null) || await HasViewItemsAsync(ct))
+        {
+            available.Add("view");
+        }
+        return recent with { AvailableTypes = new[] { "watch", "read", "listen", "view" }.Where(available.Contains).ToList() };
+    }
+
+    private async Task<bool> HasViewItemsAsync(CancellationToken ct)
+    {
+        var result = await view.QueryAsync(new ViewAssetQueryRequest(new ViewScopeRequest(ViewScopeKind.Mine),
+            Limit: 1, MediaKinds: HomeMediaKinds, SortByAddedAt: true), ct);
+        return result.Page is { Items.Count: > 0 };
     }
 }

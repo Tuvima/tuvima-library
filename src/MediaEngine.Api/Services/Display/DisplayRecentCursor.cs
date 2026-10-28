@@ -8,12 +8,41 @@ internal sealed record DisplayRecentBoundary(DateTimeOffset AddedAt, string Key)
 internal static class DisplayRecentCursor
 {
     private sealed record Payload(int Version, string Type, Guid ProfileId, DateTimeOffset AddedAt, string Key);
+    private static readonly string[] Parts = ["watch", "read", "listen", "view"];
+
+    /// <summary>
+    /// A scope is "all" or one or more of watch, read, listen and view joined by commas (the Dashboard's toggle pills).
+    /// Parts are put in a fixed order and de-duplicated so one filter always has one cursor; every part together is "all".
+    /// </summary>
     public static string NormalizeType(string? type)
     {
-        var value = type?.Trim().ToLowerInvariant() ?? "all";
-        return value is "all" or "watch" or "read" or "listen" or "view" ? value
-            : throw new ArgumentException("Recent type must be all, watch, read, listen, or view.");
+        var requested = (type?.Trim().ToLowerInvariant() ?? "all").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (requested.Length == 0)
+        {
+            throw Invalid();
+        }
+        if (requested.Contains("all"))
+        {
+            return requested.All(part => part == "all") ? "all" : throw Invalid();
+        }
+        if (requested.Any(part => !Parts.Contains(part)))
+        {
+            throw Invalid();
+        }
+        var ordered = Parts.Where(requested.Contains).ToArray();
+        return ordered.Length == Parts.Length ? "all" : string.Join(',', ordered);
     }
+    private static ArgumentException Invalid() => new("Recent type must be all, or any of watch, read, listen and view separated by commas.");
+
+    /// <summary>True when the scope includes this part ("watch", "read", "listen" or "view").</summary>
+    public static bool Includes(string scope, string part) => scope == "all" || scope.Split(',').Contains(part);
+
+    /// <summary>True when the scope includes the media type's family (watch, read or listen).</summary>
+    public static bool IncludesMedia(string scope, string mediaType) =>
+        scope == "all"
+        || (Includes(scope, "watch") && DisplayMediaRules.IsWatchKind(mediaType))
+        || (Includes(scope, "read") && DisplayMediaRules.IsReadKind(mediaType))
+        || (Includes(scope, "listen") && DisplayMediaRules.IsListenKind(mediaType));
     public static string Encode(string type, Guid profileId, DisplayRecentBoundary boundary) =>
         Convert.ToBase64String(JsonSerializer.SerializeToUtf8Bytes(new Payload(1, type, profileId, boundary.AddedAt, boundary.Key)))
             .TrimEnd('=').Replace('+', '-').Replace('/', '_');
@@ -51,7 +80,7 @@ internal static class DisplayRecentCursor
         var prefix = key.StartsWith("catalogue:", StringComparison.Ordinal) ? "catalogue:" : key.StartsWith("view:", StringComparison.Ordinal) ? "view:" : null;
         return prefix is not null && key.Length == prefix.Length + 32 && Guid.TryParseExact(key[prefix.Length..], "N", out var id) && id != Guid.Empty
             && key[prefix.Length..].All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f')
-            && (type == "all" || (type == "view" ? prefix == "view:" : prefix == "catalogue:"));
+            && (type == "all" || (prefix == "view:" ? Includes(type, "view") : Includes(type, "watch") || Includes(type, "read") || Includes(type, "listen")));
     }
     public static bool IsAfter(DateTimeOffset addedAt, string key, DisplayRecentBoundary? boundary) =>
         boundary is null || addedAt < boundary.AddedAt || (addedAt == boundary.AddedAt && string.CompareOrdinal(key, boundary.Key) > 0);

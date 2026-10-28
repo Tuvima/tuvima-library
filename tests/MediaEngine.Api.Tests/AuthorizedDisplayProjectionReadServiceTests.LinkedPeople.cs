@@ -231,6 +231,40 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.DoesNotContain("Real Ordinary Name", JsonSerializer.Serialize(penPageForNobody), StringComparison.Ordinal);
     }
 
+    // Outside-source links WP4: a band member nobody in the Library credits (found from Wikidata) opens a light page, while a person credited
+    // only on titles the viewer cannot see still reads as not found.
+    [Fact]
+    public async Task LinkedPeople_APersonNoFileCredits_OpensALightPage_ButAVaultOnlyPersonStillDoesNot()
+    {
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var band = CreditPerson("Ordinary Band", "QBAND", shape.Normal);
+        MarkGroup(band);
+        var noCreditMember = PersonWithoutCredits("Member Without Credits");
+        var vaultOnly = CreditPerson("Vault Only Person", "QVAULTONLY", shape.Secret);
+        LinkMember(band, noCreditMember);
+        var viewer = await ViewerAccessFor(VaultContext(shape.Account, NewVaultSession(shape.Account))).GetCatalogueAsync();
+
+        var light = await ComposePersonWithWorksAsync(noCreditMember, viewer);
+        var hidden = await ComposePersonWithWorksAsync(vaultOnly, viewer);
+
+        Assert.NotNull(light);
+        Assert.Equal("Member Without Credits", light!.Title);
+        Assert.Null(hidden);
+    }
+
+    private Task<MediaEngine.Contracts.Details.DetailPageViewModel?> ComposePersonWithWorksAsync(Guid person, ViewerCatalogue viewerCatalogue) =>
+        CreateComposer().BuildAuthorizedAsync(
+            DetailEntityType.Person,
+            person,
+            DetailPresentationContext.Default,
+            CancellationToken.None,
+            selectedContainerId: null,
+            MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
+            default(DetailActionAuthorizationContext),
+            authorizedAssetIds: null,
+            authorizedWorks: [],
+            viewerCatalogue: viewerCatalogue);
+
     private Task<MediaEngine.Contracts.Details.DetailPageViewModel?> ComposePersonAsync(Guid person, ViewerCatalogue? viewerCatalogue) =>
         CreateComposer().BuildAuthorizedAsync(
             DetailEntityType.Person,

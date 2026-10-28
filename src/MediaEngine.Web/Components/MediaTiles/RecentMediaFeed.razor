@@ -15,7 +15,7 @@
 @if (Browse || _loading || _error is not null || _items.Count > 0 || Type != "all")
 {
 <section class="recent-feed" aria-label="Recently Added">
-    <div class="recent-feed-heading"><h2>Recently Added</h2><RecentMediaFilters Selected="@Type" SelectedChanged="ChangeTypeAsync" />@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">@(DeviceContext.IsPhone ? "See All" : "View all")</a> }</div>
+    <div class="recent-feed-heading"><h2>Recently Added</h2><RecentMediaFilters Selected="@Type" Available="@_available" SelectedChanged="ChangeTypeAsync" />@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">@(DeviceContext.IsPhone ? "See All" : "View all")</a> }</div>
     @if (_error is not null) { <p role="status">@_error</p> }
     else if (_items.Count == 0 && !_loading) { <p role="status">No accessible recent additions in this scope.</p> }
     @if (Browse) { <div class="recent-items recent-items--browse" aria-busy="@_loading">@RecentItems</div> }
@@ -58,6 +58,7 @@
     private long _loadedRefreshKey;
     private readonly List<DisplayRecentItemDto> _items = [];
     private string? _loadedType, _cursor, _error;
+    private IReadOnlyList<string>? _available;
     private Guid? _profileId;
     private LocalAssetDto? _activeView;
     private bool _loading, _disposed, _refreshPending;
@@ -82,7 +83,7 @@
     {
         // Never retain another profile's private View or catalogue data.
         ++_version; _refreshVersion = null; _refreshPending = false;
-        _items.Clear(); _tiles.Clear(); _activeView = null; _profileId = null; _loadedType = null;
+        _items.Clear(); _tiles.Clear(); _activeView = null; _profileId = null; _loadedType = null; _available = null;
         _ = InvokeAsync(RefreshAsync);
     }
     private async Task RefreshAsync() { await ReloadAsync(); if (!_disposed) StateHasChanged(); }
@@ -138,6 +139,7 @@
             _items.Clear(); _items.AddRange(page.Items);
             _tiles.Clear(); foreach (var tile in tiles) _tiles[tile.Key] = tile.Value;
             _cursor = page.NextCursor;
+            if (page.AvailableTypes is { } available) _available = available;
             await HasItemsChanged.InvokeAsync(_items.Count > 0);
         }
         finally

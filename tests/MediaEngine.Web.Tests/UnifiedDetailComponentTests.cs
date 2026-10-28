@@ -730,10 +730,10 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("tl-series-item__connector", styles);
         Assert.Contains("justify-content: start", styles);
         Assert.Contains("tl-series-source-link", source);
-        Assert.Contains("https://www.wikidata.org/wiki/{qid}", source);
+        Assert.Contains("OutsideLinks.Wikidata(SeriesWikidataQid)", source);
         Assert.Contains("@SourceKindLabel: Wikidata (@SeriesWikidataQid)", source);
         Assert.Contains("@SourceKindLabel: Comic Vine", source);
-        Assert.Contains("https://comicvine.gamespot.com/volume/4050-{parsedVolumeId}/", source);
+        Assert.Contains("OutsideLinks.ComicVineVolume(volumeId)", source);
         Assert.Contains("@SourceKindLabel: Wikipedia", source);
         Assert.Contains("Placement.ContainerWikipediaUrl", source);
         Assert.DoesNotContain("tl-series-owned-chip\"", source);

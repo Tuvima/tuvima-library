@@ -23,7 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
-| [Spec: Links to outside sources (TheTVDB links, linked people, person-page links)](specs/outside-source-links.md) | Locked (v2, 2026-10-27; not yet built; WP1 live-address check runs locally first) |
+| [Spec: Links to outside sources (TheTVDB links, linked people, person-page links)](specs/outside-source-links.md) | In progress (2026-10-28; cloud build done, WP1 live-address check parked as Local checks) |
 | [Spec: Plugins and Integrations screens (one look, Upload plugin, new-integration wizard)](specs/plugins-and-integrations-screens.md) | Built, awaiting your Local checks (v2, 2026-10-27; PRs #458, #459, #461, #463, #464, #466; community plugins, directory installs and code-running uploads stay parked) |
 | [Spec: Plugin architecture (audience, libraries, Vault rule, dependencies, clean removal, display slots, per-profile connections, one pass over every plugin)](specs/plugin-architecture.md) | Built, awaiting Local checks (v1, locked 2026-10-27; PA1-PA7 built and merged; left over: per-profile Plugin actions switches, the Comskip source check, the chapter-name detector; community plugins stay parked) |
 | [Spec: Music player, queue, lyrics and Songs list (song lengths, queue layout, lyrics origin and lookup, plugin audience)](specs/music-player-and-queue.md) | Built, awaiting your Local checks (v2; built 2026-10-28; checks in [the batch list](validation/batch.md); Songs list header sort menu and filter button not built, see the batch row) |

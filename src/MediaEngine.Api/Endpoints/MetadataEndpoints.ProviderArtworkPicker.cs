@@ -88,7 +88,7 @@ public static partial class MetadataEndpoints
                             item.Candidate.ThumbnailUrl.Length > 0 ? item.Candidate.ThumbnailUrl : item.Candidate.Url) ?? string.Empty,
                 }).ToList(),
                     "Artwork from TheTVDB. Select images to add to managed artwork.");
-                attributionUrl = $"https://thetvdb.com/{scopeId switch { "season" => "seasons", "episode" => "episodes", _ => "series" }}/{requestContext.ProviderItemId}";
+                attributionUrl = OutsideLinks.TvdbForScope(scopeId, requestContext.ProviderItemId);
             }
             else if (!string.IsNullOrWhiteSpace(target.CoverUrl))
             {

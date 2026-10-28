@@ -1006,9 +1006,7 @@ else
         }
     }
     private string? SeriesWikidataQid => ResolveSeriesWikidataQid();
-    private string? SeriesWikidataUrl => SeriesWikidataQid is { } qid
-        ? $"https://www.wikidata.org/wiki/{qid}"
-        : null;
+    private string? SeriesWikidataUrl => MediaEngine.Domain.Services.OutsideLinks.Wikidata(SeriesWikidataQid);
     private string? ComicVineSeriesUrl
     {
         get
@@ -1021,9 +1019,7 @@ else
                 .SelectMany(option => new[] { option.ContainerId, option.SourceContainerId }.Concat(option.EquivalentContainerIds))
                 .FirstOrDefault(identity => identity?.StartsWith("comicvine:volume:", StringComparison.OrdinalIgnoreCase) == true);
             var volumeId = providerIdentity?.Split(':', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
-            return long.TryParse(volumeId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedVolumeId)
-                ? $"https://comicvine.gamespot.com/volume/4050-{parsedVolumeId}/"
-                : null;
+            return MediaEngine.Domain.Services.OutsideLinks.ComicVineVolume(volumeId);
         }
     }
 

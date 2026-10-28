@@ -421,6 +421,18 @@ download rules (`allowed_hosts`, `max_bytes`, `formats`, archive limits), `error
 retry hints), `messages`, and `http` (no redirects, buffer size). Identities come from
 `SubtitleLookupContext.ToVerifiedValues`. See `subdl.json` and `lrclib.json`.
 
+### Links to the provider's own website (`ui_metadata.external_links`)
+
+Each entry under `ui_metadata.external_links` turns one stored identifier into a "View on ..." link on details pages and in the match screens. The key is the identifier (for example `tvdb_id`), and `url_template` is the web address with `{value}` standing for the identifier:
+
+```json
+"external_links": {
+  "tvdb_id": { "label": "TheTVDB series", "url_template": "https://thetvdb.com/dereferrer/series/{value}", "tooltip": "Open the matched series on TheTVDB." }
+}
+```
+
+All expansion goes through one shared builder, `OutsideLinks` (`src/MediaEngine.Domain/Services/OutsideLinks.cs`). It checks the identifier's shape first (TheTVDB ids are numbers, MusicBrainz ids are GUIDs, Wikidata ids look like `Q42`), and a link whose identifier is missing or malformed is simply not shown. To add a pattern for a known identifier, add the template to the provider's config and, if the identifier has a fixed shape, add its rule to `OutsideLinks.IsValidIdentifier`. Never build a provider web address in other code; call `OutsideLinks`. A test (`OutsideLinksTests`) expands every shipped template and fails if one does not produce a well-formed address.
+
 ### Registration order (`registration_order`)
 
 Providers register in file order. A positive `registration_order` registers after the built-in
