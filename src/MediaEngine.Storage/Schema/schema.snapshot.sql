@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0056 library_profile_grants).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0057 library_profile_grants).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1583,7 +1583,7 @@ CREATE TABLE media_operations (
   updated_at          TEXT NOT NULL,
   completed_at        TEXT,
   idempotency_key     TEXT NOT NULL
-);
+, requested_audience TEXT NULL);
 
 CREATE TABLE metadata_claims (
     id          BLOB NOT NULL PRIMARY KEY,  -- UUID

@@ -14,6 +14,13 @@ public sealed class MediaOperation
     public string? SubKey { get; init; }
     public string? PluginId { get; init; }
     public string? PluginVersion { get; init; }
+
+    /// <summary>
+    /// The audience word (<c>administrators</c>, <c>adults</c> or <c>everyone</c>) of the person who asked for this work, or <c>null</c> when
+    /// the Library asked itself. Plugins and sources are used only within their own audience when the work really runs.
+    /// </summary>
+    public string? RequestedAudience { get; init; }
+
     public string? ProviderId { get; init; }
     public string? ModelId { get; init; }
     public string Status { get; init; } = MediaOperationStatus.Pending;

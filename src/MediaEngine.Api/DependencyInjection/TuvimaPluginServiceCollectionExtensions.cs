@@ -68,6 +68,8 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginCircuitBreaker>();
         services.AddSingleton<PluginActivityService>();
         services.AddSingleton<PluginLibraryLimitService>();
+        services.AddSingleton<IVaultSectionOnlineLookup, VaultSectionOnlineLookupOff>();
+        services.AddSingleton<IPluginAccessGate, PluginAccessGate>();
         services.AddSingleton<PluginRemovalService>();
         services.AddSingleton<PluginCheckNowService>();
         services.AddSingleton<PluginProfileConnectionService>();

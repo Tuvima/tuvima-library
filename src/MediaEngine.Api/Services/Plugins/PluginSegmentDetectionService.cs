@@ -16,6 +16,7 @@ public sealed class PluginSegmentDetectionService
     private readonly ILogger<PluginSegmentDetectionService> _logger;
     private readonly PluginActivityService? _activity;
     private readonly PluginLibraryLimitService? _libraryLimits;
+    private readonly IPluginAccessGate? _accessGate;
 
     public PluginSegmentDetectionService(
         PluginCatalog catalog,
@@ -24,8 +25,10 @@ public sealed class PluginSegmentDetectionService
         IPluginExecutionContextFactory contexts,
         ILogger<PluginSegmentDetectionService> logger,
         PluginActivityService? activity = null,
-        PluginLibraryLimitService? libraryLimits = null)
+        PluginLibraryLimitService? libraryLimits = null,
+        IPluginAccessGate? accessGate = null)
     {
+        _accessGate = accessGate;
         _activity = activity;
         _libraryLimits = libraryLimits;
         _catalog = catalog;
@@ -62,8 +65,17 @@ public sealed class PluginSegmentDetectionService
                 continue;
             }
 
-            // An administrator can limit a detector to chosen libraries (D6); an item elsewhere is simply not its work.
-            if (_libraryLimits is not null && !await _libraryLimits.IsAllowedAsync(registration.Manifest.Id, asset.LibraryId, ct).ConfigureAwait(false))
+            // The central check (PA2): the Vault rule and the administrator's library limit (D6). A scan is the Library asking itself, so no
+            // person's audience applies. An item elsewhere is simply not this detector's work.
+            if (_accessGate is not null)
+            {
+                var access = await _accessGate.CheckAsync(new PluginAccessQuery(registration.Manifest.Id, null, asset.LibraryId, asset.Id), ct).ConfigureAwait(false);
+                if (access != PluginAccessOutcome.Allowed)
+                {
+                    continue;
+                }
+            }
+            else if (_libraryLimits is not null && !await _libraryLimits.IsAllowedAsync(registration.Manifest.Id, asset.LibraryId, ct).ConfigureAwait(false))
             {
                 continue;
             }

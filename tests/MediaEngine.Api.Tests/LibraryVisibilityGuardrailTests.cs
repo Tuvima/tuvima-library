@@ -60,7 +60,7 @@ public sealed class LibraryVisibilityGuardrailTests
         ["src/MediaEngine.Storage/Backup/UserExportScope.cs"] = "every access table is named as left out of a user export",
         ["src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"] = "the development reset lists every table it empties",
         ["src/MediaEngine.Storage/Schema/schema.snapshot.sql"] = "the generated data structure",
-        ["src/MediaEngine.Storage/Schema/Upgrades/0056_library_profile_grants.sql"] = "the step that creates the table",
+        ["src/MediaEngine.Storage/Schema/Upgrades/0057_library_profile_grants.sql"] = "the step that creates the table",
         ["src/MediaEngine.Api/DependencyInjection/TuvimaStorageServiceCollectionExtensions.cs"] = "registers the repository",
         ["src/MediaEngine.Api/Program.cs"] = "registers the catalog",
     };

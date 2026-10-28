@@ -34,6 +34,7 @@ public sealed class TextTrackEnrichmentWorker
     private readonly IConfigurationLoader? _configurationLoader;
     private readonly ITvEpisodeCrosswalk? _episodeCrosswalk;
     private readonly ILibraryKindSource? _kindSource;
+    private readonly IPluginAccessGate? _accessGate;
 
     public TextTrackEnrichmentWorker(
         IMediaAssetRepository assetRepo,
@@ -47,8 +48,10 @@ public sealed class TextTrackEnrichmentWorker
         ITextTrackExportService? textTrackExportService = null,
         IConfigurationLoader? configurationLoader = null,
         ITvEpisodeCrosswalk? episodeCrosswalk = null,
-        ILibraryKindSource? kindSource = null)
+        ILibraryKindSource? kindSource = null,
+        IPluginAccessGate? accessGate = null)
     {
+        _accessGate = accessGate;
         _kindSource = kindSource;
         _assetRepo = assetRepo;
         _workRepo = workRepo;
@@ -63,7 +66,11 @@ public sealed class TextTrackEnrichmentWorker
         _episodeCrosswalk = episodeCrosswalk;
     }
 
-    public async Task<TextTrackEnrichmentResult> EnrichAsync(Guid assetId, TextTrackKind kind, CancellationToken ct = default)
+    /// <param name="requester">
+    /// The audience of the person who asked, so a source is used only within its own audience (Plugin architecture spec PA2), or
+    /// <c>null</c> when the Library asked itself. The Vault rule and library limits apply either way.
+    /// </param>
+    public async Task<TextTrackEnrichmentResult> EnrichAsync(Guid assetId, TextTrackKind kind, CancellationToken ct = default, PluginAudience? requester = null)
     {
         var asset = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
         if (asset is null)
@@ -148,6 +155,35 @@ public sealed class TextTrackEnrichmentWorker
                 afterLocal.Count,
                 afterLocal.FirstOrDefault(track => track.IsPreferred)?.Id,
                 importedLocal ? "Local text tracks were refreshed." : providerState.Message ?? "The text-track provider is unavailable.");
+        }
+
+        if (_accessGate is not null)
+        {
+            var permitted = new List<ITextTrackProvider>();
+            foreach (var candidate in availableProviders)
+            {
+                var access = await _accessGate.CheckAsync(new PluginAccessQuery(candidate.Name, requester, asset.LibraryId, asset.Id), ct).ConfigureAwait(false);
+                if (access == PluginAccessOutcome.Allowed)
+                {
+                    permitted.Add(candidate);
+                }
+            }
+
+            if (permitted.Count == 0)
+            {
+                var afterRefused = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
+                return new(
+                    importedLocal ? "Updated" : "NotAllowed",
+                    kind,
+                    before.Count,
+                    afterRefused.Count,
+                    afterRefused.FirstOrDefault(track => track.IsPreferred)?.Id,
+                    importedLocal
+                        ? "Local text tracks were refreshed."
+                        : $"No {kind.ToString().ToLowerInvariant()} source can be used for this item.");
+            }
+
+            availableProviders = permitted;
         }
 
         var lookup = await BuildLookupAsync(asset, lineage, mediaType, kind, ct).ConfigureAwait(false);
