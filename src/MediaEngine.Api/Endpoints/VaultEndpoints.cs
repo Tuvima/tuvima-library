@@ -358,7 +358,7 @@ public static class VaultEndpoints
             // Private and uncacheable whether or not the image is found, so a cached answer never outlives the Vault mode session.
             CatalogueResourceAuthorizationService.ApplyVaultCacheControl(http.Response);
             var authority = await resolver.ResolveAsync(http, ct);
-            if (!await access.IsUnlockedAsync(authority, ct)
+            if (!await access.MayOpenAnySectionAsync(authority, ct)
                 || await artwork.GetAsync(artworkId, ct) is not { } record
                 || !File.Exists(record.FilePath))
             {

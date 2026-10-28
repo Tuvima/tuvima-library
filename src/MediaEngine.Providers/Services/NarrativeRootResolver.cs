@@ -51,6 +51,7 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
     private readonly ISystemActivityRepository _activity;
     private readonly ILogger<NarrativeRootResolver> _logger;
     private readonly IParentCollectionResolver? _parentResolver;
+    private readonly IVaultLibraryRepository? _vaultLibraries;
 
     public NarrativeRootResolver(
         ICanonicalValueRepository canonicalValues,
@@ -60,8 +61,10 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
         IQidLabelRepository qidLabelRepo,
         ISystemActivityRepository activity,
         ILogger<NarrativeRootResolver> logger,
-        IParentCollectionResolver? parentResolver = null)
+        IParentCollectionResolver? parentResolver = null,
+        IVaultLibraryRepository? vaultLibraries = null)
     {
+        _vaultLibraries = vaultLibraries;
         _canonicalValues = canonicalValues;
         _canonicalArrays = canonicalArrays;
         _narrativeRoots = narrativeRoots;
@@ -75,6 +78,12 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
     /// <inheritdoc />
     public async Task<NarrativeRoot?> ResolveAsync(Guid entityId, CancellationToken ct = default)
     {
+        // A Vault work never joins a shared Universe (Vault sections D35), so it has no narrative root.
+        if (_vaultLibraries is not null && await _vaultLibraries.IsInVaultAsync(entityId, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
         var values = await _canonicalValues.GetByEntityAsync(entityId, ct);
         var lookup = values.ToDictionary(v => v.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
         var arrays = await _canonicalArrays.GetAllByEntityAsync(entityId, ct);

@@ -45,13 +45,25 @@ A Vault folder is added as-is: Library reads the files and never moves, renames 
 
 There is no separate Vault section in Settings. A Vault library is a library whose Access is **Vault-protected**, chosen when it is created and never switched on or off later. Each content type has at most one ordinary library and one Vault library, and a Vault library is never listed to a profile that cannot open the Vault. Its folders are added as they are: Library reads them and does not rename, move or tag them.
 
-An administrator can also use **Move to Vault** in a folder's menu. For now it only shows a preview of where items would go and moves nothing; moving items into the Vault arrives with a later update.
+An administrator can also use **Move to Vault** in a folder's menu, and **Move out of the Vault** in the menu of a folder in a Vault library. See [Moving items in and out](#moving-items-in-and-out).
+
+## Moving items in and out
+
+Move to Vault first shows what it would do, in numbers only: how many titles, how big, where they would go. If the content type has no Vault library yet, it offers **Add a Vault library** and carries on once that exists; if the Vault library has no folder that Library manages, it says so. Starting the move asks for your own profile PIN again.
+
+The move runs in the background and keeps going if you close the window or restart the server. Each title is copied next to its destination under a temporary name, checked byte for byte against the original, and only then does the old record go and the copy take its real name. Your progress, ratings, bookmarks and highlights move with it. A title that cannot be moved safely (more than one file, a link, a file that is missing) is left where it is and counted, never named.
+
+- **A folder Library manages:** the original is removed once its copy is checked.
+- **A Read-only folder:** your originals are never touched. The copy is made, and the original stays where it is ("original still in place"); it shows only inside the Vault. If you also want the originals gone, there is a separate switch, off by default, that deletes each original only after its copy's hash is checked again.
+- **Move out** goes only to a folder Library manages, never into a Read-only one.
+
+Moves never name a title in the activity list, in logs, or in anything that is sent to other profiles.
 
 ## Online lookups and privacy
 
 A Vault library of a kind that normally looks details up (such as Movies) has its own **Look up details online** switch on its Lookup tab. It is off by default, and the reason is privacy: looking something up online means sending its title to an outside service, which is something you may not want for private material, so it is a deliberate choice made library by library.
 
-The switch is stored, but online lookup for the Vault is not running yet. Nothing is sent to any online service until a later update, whether the switch is on or off, and your choice is kept for when it starts. Adult content is matched only against the Stash-box server you set up for the Vault, as described above.
+With the switch off, nothing from that library is sent to any online service. With it on, the titles of that library's items are sent to the lookup services for its kind, and the switch says so in plain words. Adult content is matched only against the Stash-box server you set up for the Vault, as described above.
 
 ## Next steps
 

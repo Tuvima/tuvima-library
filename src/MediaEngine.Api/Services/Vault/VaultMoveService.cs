@@ -166,7 +166,7 @@ public sealed class VaultMoveService(
             ct.ThrowIfCancellationRequested();
             // A title with several files, a file that is not set up as a title, a missing file and a link stay where they are.
             var info = SafeFile(candidate.FilePath);
-            if (candidate.WorkId is null || candidate.FilesInTitle != 1 || info is null || info.LinkTarget is not null)
+            if (candidate.WorkId is null || candidate.FilesInTitle != 1 || info is null || info.LinkTarget is not null || HasLinkedFolder(sourceRoot, candidate.FilePath))
             {
                 skipped++;
                 continue;
@@ -213,7 +213,53 @@ public sealed class VaultMoveService(
     }
 
     /// <summary>The part of <see cref="StartAsync"/> after the PIN: plan again, compare with what the person saw, save the job and its items, wake the worker.</summary>
+    // Two starts for the same folder must not both pass the "nothing open" check, so planning and saving the job are one step.
+    private static readonly SemaphoreSlim QueueLock = new(1, 1);
+
+    /// <summary>True when any folder between the source folder and the file is a link, so the file may really sit somewhere else.</summary>
+    private static bool HasLinkedFolder(string root, string filePath)
+    {
+        try
+        {
+            var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+            for (var directory = new DirectoryInfo(Path.GetDirectoryName(Path.GetFullPath(filePath)) ?? normalizedRoot);
+                 directory is not null;
+                 directory = directory.Parent)
+            {
+                if (directory.LinkTarget is not null)
+                {
+                    return true;
+                }
+
+                if (string.Equals(Path.TrimEndingDirectorySeparator(directory.FullName), normalizedRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            // The file is not under the source folder at all.
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return true;
+        }
+    }
+
     internal async Task<VaultMoveStartOutcome> QueueAsync(Guid administratorProfileId, StartVaultMoveRequest request, CancellationToken ct)
+    {
+        await QueueLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await QueueCoreAsync(administratorProfileId, request, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            QueueLock.Release();
+        }
+    }
+
+    private async Task<VaultMoveStartOutcome> QueueCoreAsync(Guid administratorProfileId, StartVaultMoveRequest request, CancellationToken ct)
     {
         var plan = await PlanAsync(request.Direction, request.SourceId, ct).ConfigureAwait(false);
         if (plan.State != VaultMovePreviewStates.Ready)
@@ -251,7 +297,7 @@ public sealed class VaultMoveService(
         }
 
         await moves.CreateAsync(job, items, ct).ConfigureAwait(false);
-        logger.LogInformation("A Vault move was queued with {Count} item(s).", items.Count);
+        logger.LogDebug("A library move was queued.");
         signal.Wake();
         return new VaultMoveStartOutcome(VaultMoveStartStatus.Started, jobId);
     }

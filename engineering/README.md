@@ -38,7 +38,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Simpler access (areas, ratings, untick a library, folder checkbox)](specs/simpler-access.md) | Built, awaiting your Local checks (v4, 2026-10-27, adds Selected profiles WP7; v3 packets all merged; access now on profiles per Users, profiles and households) |
 | [Spec: Home page redesign (hero, pick-up row, Recently Added, hover, details opening)](specs/archive/home-page-redesign.md) | Built (v1, archived 2026-10-28; awaiting Local checks L1-L9) |
 | [Spec: TV artwork, cast and matching](specs/tv-artwork-cast-and-matching.md) | In progress (v1; WP1, WP4, WP5 built; WP2, WP3, WP6 parked until Local check L1 is run) |
-| [Spec: Vault sections and Move to Vault](specs/vault-sections-and-move.md) | Locked (v5, 2026-10-27; not yet built; start with the central access service, WP0; v5 follows the Library pages spec) |
+| [Spec: Vault sections and Move to Vault](specs/vault-sections-and-move.md) | Built, awaiting your Local checks (v5; folder-level moves, see batch.md) |
 | [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/delete-groups.md) | Locked (v7, 2026-10-21) |
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
 | [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | Built, awaiting your Local checks (v33, 2026-10-27, partly superseded by Library pages; every packet merged, WP7b-3 and WP10 last) |

@@ -81,6 +81,16 @@ public sealed class VaultAccessResolver(
         return new VaultVisibility(ids, unlocked: true, await sections.GetGrantedAsync(profileId, ct).ConfigureAwait(false));
     }
 
+    /// <summary>
+    /// True when the request is unlocked and the person may open at least one Vault section (an administrator opens all). A person with
+    /// nothing ticked is treated as locked out of every Vault read (Vault sections D28, D39).
+    /// </summary>
+    public async ValueTask<bool> MayOpenAnySectionAsync(RequestAuthority authority, CancellationToken ct = default)
+    {
+        var visibility = await ResolveAsync(authority, ct).ConfigureAwait(false);
+        return visibility.Unlocked && (visibility.AllowedLibraryIds is null || visibility.AllowedLibraryIds.Count > 0);
+    }
+
     /// <summary>True when this request is a person's own live Dashboard session that has switched Vault mode on.</summary>
     public async ValueTask<bool> IsUnlockedAsync(RequestAuthority authority, CancellationToken ct = default)
     {

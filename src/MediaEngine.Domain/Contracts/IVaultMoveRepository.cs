@@ -116,6 +116,9 @@ public interface IMovedItemStateCarry
     /// <summary>Saves everything profiles have recorded against the old title and file, as JSON, before they are removed.</summary>
     Task<string> CaptureAsync(Guid? workId, Guid assetId, CancellationToken ct = default);
 
-    /// <summary>Writes the saved state against the new title and file. A profile that no longer exists is skipped.</summary>
-    Task RestoreAsync(string snapshotJson, Guid? newWorkId, Guid newAssetId, CancellationToken ct = default);
+    /// <summary>
+    /// Writes the saved state against the new title and file. A profile that no longer exists is skipped, and running it again adds nothing twice.
+    /// <paramref name="includeHistory"/> is false when the title leaves the Vault, so history kept in the Vault never appears in the ordinary library.
+    /// </summary>
+    Task RestoreAsync(string snapshotJson, Guid? newWorkId, Guid newAssetId, bool includeHistory = true, CancellationToken ct = default);
 }

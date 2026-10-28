@@ -12,7 +12,7 @@ public interface IVaultSectionGrantRepository
 
     /// <summary>
     /// Replaces the sections one profile may open. Refuses a library that is not a Vault library and a profile that does not exist or is a
-    /// Kids or content-limited profile; the profile's authorization version is raised in the same transaction when the set changed.
+    /// Kids or content-limited profile. Grants are read live on every request, so no version needs raising.
     /// </summary>
     Task ReplaceGrantedAsync(
         Guid profileId, IReadOnlyCollection<string> libraryIds, DateTimeOffset changedAt, Guid? changedByProfileId, CancellationToken ct = default);

@@ -68,7 +68,7 @@ Only one Engine may run on the machine at a time, across all sessions: claim the
 4. Write a silent `catch { }`.
 5. Call `IDatabaseConnection.Open()` outside startup/schema/integrity code.
 6. Add backwards-compatibility shims or data-store migrations for pre-release data — resets are acceptable.
-7. Restore role-based guest keys, automatic compatibility conversion of old identity state, localhost administration, seed-owner fallback, private-space reassignment, or role checks done by URL flag. Original source media stay protected.
+7. Restore role-based guest keys, automatic compatibility conversion of old identity state, localhost administration, seed-owner fallback, private-space reassignment, or role checks done by URL flag. Original source media stay protected, with one named exception (Vault sections D30): after a Move to Vault from a Read-only folder, an unlocked administrator may separately choose to remove the originals, and each is deleted only after its copy's hash is re-verified.
 8. Copy native AI runtimes or model weights into build outputs or the repo.
 9. Add a tool/library without a license check (AGPLv3-compatible only).
 10. Rewrite the body of a Locked spec, or go beyond a spec's scope without asking.

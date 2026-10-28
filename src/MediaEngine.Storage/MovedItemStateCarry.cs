@@ -50,7 +50,7 @@ public sealed class MovedItemStateCarry(IDatabaseConnection database) : IMovedIt
         return Task.FromResult(JsonSerializer.Serialize(snapshot, Json));
     }
 
-    public Task RestoreAsync(string snapshotJson, Guid? newWorkId, Guid newAssetId, CancellationToken ct = default)
+    public Task RestoreAsync(string snapshotJson, Guid? newWorkId, Guid newAssetId, bool includeHistory = true, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(snapshotJson);
         var snapshot = JsonSerializer.Deserialize<Snapshot>(snapshotJson, Json) ?? new Snapshot();
@@ -68,13 +68,14 @@ public sealed class MovedItemStateCarry(IDatabaseConnection database) : IMovedIt
                     new { row.ProfileId, newAssetId, row.ContentHash, row.ProgressPct, row.LastAccessed, row.Extended }, transaction);
             }
 
-            foreach (var row in snapshot.Consumption)
+            foreach (var row in includeHistory ? snapshot.Consumption : [])
             {
                 connection.Execute(
                     """
                     INSERT OR IGNORE INTO consumption_history (id, profile_id, asset_id, session_key, experience, started_at, updated_at, progress_pct)
                     SELECT @id, @ProfileId, @newAssetId, @SessionKey, @Experience, @StartedAt, @UpdatedAt, @ProgressPct
-                    WHERE EXISTS (SELECT 1 FROM profiles WHERE id = @ProfileId);
+                    WHERE EXISTS (SELECT 1 FROM profiles WHERE id = @ProfileId)
+                      AND NOT EXISTS (SELECT 1 FROM consumption_history WHERE profile_id = @ProfileId AND asset_id = @newAssetId AND session_key IS @SessionKey AND started_at = @StartedAt);
                     """,
                     new { id = Guid.NewGuid(), row.ProfileId, newAssetId, row.SessionKey, row.Experience, row.StartedAt, row.UpdatedAt, row.ProgressPct }, transaction);
             }
@@ -82,7 +83,11 @@ public sealed class MovedItemStateCarry(IDatabaseConnection database) : IMovedIt
             foreach (var row in snapshot.Bookmarks)
             {
                 connection.Execute(
-                    "INSERT INTO reader_bookmarks (id, user_id, asset_id, chapter_index, cfi_position, label, created_at) VALUES (@id, @UserId, @newAssetId, @ChapterIndex, @CfiPosition, @Label, @CreatedAt);",
+                    """
+                    INSERT INTO reader_bookmarks (id, user_id, asset_id, chapter_index, cfi_position, label, created_at)
+                    SELECT @id, @UserId, @newAssetId, @ChapterIndex, @CfiPosition, @Label, @CreatedAt
+                    WHERE NOT EXISTS (SELECT 1 FROM reader_bookmarks WHERE user_id = @UserId AND asset_id = @newAssetId AND chapter_index IS @ChapterIndex AND cfi_position IS @CfiPosition AND created_at IS @CreatedAt);
+                    """,
                     new { id = Guid.NewGuid(), row.UserId, newAssetId, row.ChapterIndex, row.CfiPosition, row.Label, row.CreatedAt }, transaction);
             }
 
@@ -91,7 +96,8 @@ public sealed class MovedItemStateCarry(IDatabaseConnection database) : IMovedIt
                 connection.Execute(
                     """
                     INSERT INTO reader_highlights (id, user_id, asset_id, chapter_index, start_offset, end_offset, cfi_range, selected_text, color, note_text, created_at)
-                    VALUES (@id, @UserId, @newAssetId, @ChapterIndex, @StartOffset, @EndOffset, @CfiRange, @SelectedText, @Color, @NoteText, @CreatedAt);
+                    SELECT @id, @UserId, @newAssetId, @ChapterIndex, @StartOffset, @EndOffset, @CfiRange, @SelectedText, @Color, @NoteText, @CreatedAt
+                    WHERE NOT EXISTS (SELECT 1 FROM reader_highlights WHERE user_id = @UserId AND asset_id = @newAssetId AND chapter_index IS @ChapterIndex AND start_offset IS @StartOffset AND end_offset IS @EndOffset AND created_at IS @CreatedAt);
                     """,
                     new { id = Guid.NewGuid(), row.UserId, newAssetId, row.ChapterIndex, row.StartOffset, row.EndOffset, row.CfiRange, row.SelectedText, row.Color, row.NoteText, row.CreatedAt }, transaction);
             }

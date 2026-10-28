@@ -188,6 +188,29 @@ public sealed class VaultMoveTests : IDisposable
     }
 
     [Fact]
+    public async Task IfTheCheckedCopyGoesMissingBeforeTheOldTitleIsRemoved_TheOriginalIsNeverTouched_AndTheCopyIsMadeAgain()
+    {
+        var path = _world.WriteFile(_world.NormalFolder, "Brazil.mkv", 2048);
+        var old = _world.AddTitle(_world.NormalLibraryId, path, "Brazil");
+        var job = await QueueAsync(VaultMoveDirections.In, _world.NormalSourceId);
+
+        _world.Runner.BeforeStep = state => { if (state == VaultMoveItemStates.Copied) throw new InvalidOperationException("stop"); };
+        await _world.Runner.RunPassAsync(default);
+        foreach (var staged in Directory.GetFiles(_world.VaultFolder, "*" + VaultMoveService.StagingSuffix))
+        {
+            File.Delete(staged);
+        }
+
+        _world.Runner.BeforeStep = null;
+        await _world.Runner.RunPassAsync(default);
+
+        // The original stayed until a fresh checked copy existed; then the move finished normally.
+        Assert.Equal(VaultMoveItemStates.Published, (await _world.Moves.GetItemsAsync(job)).Single().State);
+        Assert.True(File.Exists(Path.Combine(_world.VaultFolder, "Brazil.mkv")));
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
     public async Task AVaultTitle_MovesOutToAFolderLibraryManages_WithProgress_AndNoEveryoneEvent()
     {
         var path = _world.WriteFile(_world.VaultFolder, "Private.mkv", 3000);

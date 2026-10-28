@@ -45,7 +45,7 @@ public sealed class VaultMoveRunner(
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // A job that cannot be carried on is handed to the administrator; its files are as the last saved step left them.
-                logger.LogWarning("A Vault move could not carry on ({Type}); it is waiting for the administrator.", ex.GetType().Name);
+                logger.LogWarning("A library move could not carry on ({Type}); it is waiting for the administrator.", ex.GetType().Name);
                 await moves.UpdateJobAsync(job.Id, VaultMoveStates.Attention, "The move stopped unexpectedly. Nothing was lost; it carries on after the problem is fixed.", clock.GetUtcNow(), ct)
                     .ConfigureAwait(false);
             }
@@ -81,7 +81,7 @@ public sealed class VaultMoveRunner(
             var dto = VaultMoveService.ToDto(job, items);
             var (state, message) = Summarise(dto);
             await moves.UpdateJobAsync(job.Id, state, message, now, ct).ConfigureAwait(false);
-            logger.LogInformation("A Vault move finished: {Moved} moved, {Skipped} left, {Failed} failed.", dto.Moved, dto.Skipped, dto.Failed);
+            logger.LogDebug("A library move finished.");
             return;
         }
 
@@ -129,7 +129,7 @@ public sealed class VaultMoveRunner(
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                logger.LogWarning("A Vault move step could not finish ({Type}).", ex.GetType().Name);
+                logger.LogWarning("A library move step could not finish ({Type}).", ex.GetType().Name);
                 if (item.State == VaultMoveItemStates.Planned)
                 {
                     // Nothing has been changed yet except a half-made copy, which is removed. The original and its title are untouched.
@@ -226,6 +226,13 @@ public sealed class VaultMoveRunner(
             return await SaveAsync(item with { State = VaultMoveItemStates.Failed, Reason = "The item has no title record, so nothing was changed." }, ct).ConfigureAwait(false);
         }
 
+        // The original goes only while its checked copy is still there and still matches. After a restart, or when a drive was unplugged, the copy may
+        // be gone: then the item starts again from the copy step and the original is not touched.
+        if (!await CopyIsIntactAsync(job, item, ct).ConfigureAwait(false))
+        {
+            return await SaveAsync(item with { State = VaultMoveItemStates.Planned, ContentHash = null, FilesJson = null }, ct).ConfigureAwait(false);
+        }
+
         // What each profile had done with the old title is saved first, and only once, because removing the title removes it.
         if (item.SnapshotJson is null)
         {
@@ -248,6 +255,25 @@ public sealed class VaultMoveRunner(
         }
 
         return await SaveAsync(item with { State = VaultMoveItemStates.Retired, OriginalLeft = left, Reason = null }, ct).ConfigureAwait(false);
+    }
+
+    private async Task<bool> CopyIsIntactAsync(VaultMoveJob job, VaultMoveItem item, CancellationToken ct)
+    {
+        var finalPath = Path.Combine(job.DestinationFolder, item.FinalName);
+        var staging = finalPath + VaultMoveService.StagingSuffix;
+        // A copy already published (a crash after the rename) is checked at its final name.
+        var present = File.Exists(staging) ? staging : File.Exists(finalPath) ? finalPath : null;
+        if (present is null || item.ContentHash is null)
+        {
+            return false;
+        }
+
+        if (!string.Equals((await hasher.ComputeAsync(present, ct).ConfigureAwait(false)).Hex, item.ContentHash, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return SidecarsOf(item).All(sidecar => File.Exists(sidecar.Staging) || File.Exists(sidecar.Final));
     }
 
     /// <summary>
@@ -334,7 +360,7 @@ public sealed class VaultMoveRunner(
 
         if (item.SnapshotJson is { } snapshot)
         {
-            await carry.RestoreAsync(snapshot, found.Value.WorkId, found.Value.AssetId, ct).ConfigureAwait(false);
+            await carry.RestoreAsync(snapshot, found.Value.WorkId, found.Value.AssetId, includeHistory: job.Direction != VaultMoveDirections.Out, ct: ct).ConfigureAwait(false);
         }
 
         return await SaveAsync(item with { State = VaultMoveItemStates.Done, NewAssetId = found.Value.AssetId, SnapshotJson = null, Reason = null }, ct).ConfigureAwait(false);
