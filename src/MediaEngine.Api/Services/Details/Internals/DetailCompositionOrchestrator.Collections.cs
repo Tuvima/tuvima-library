@@ -491,8 +491,8 @@ internal sealed partial class DetailCompositionOrchestrator
             Description = longDescription,
             DescriptionAttribution = displayDescription is not null ? BuildLocalDescriptionAttribution() : entityType == DetailEntityType.TvShow
                 ? string.Equals(GetValue(values, MetadataFieldConstants.IdentityProvider), "tvdb", StringComparison.OrdinalIgnoreCase)
-                    ? new DescriptionAttributionViewModel { SourceName = "TheTVDB", SourceTitle = "Series synopsis", SourceUrl = GetValue(values, BridgeIdKeys.TvdbId) is { } tvdbId ? $"https://thetvdb.com/series/{tvdbId}" : "https://thetvdb.com", LicenseName = "TheTVDB terms", LicenseUrl = "https://thetvdb.com/tos" }
-                    : new DescriptionAttributionViewModel { SourceName = "TMDB", SourceTitle = "Series synopsis", SourceUrl = GetValue(values, "tmdb_id") is { } tmdbId ? $"https://www.themoviedb.org/tv/{tmdbId}" : null }
+                    ? new DescriptionAttributionViewModel { SourceName = "TheTVDB", SourceTitle = "Series synopsis", SourceUrl = OutsideLinks.TvdbSeries(GetValue(values, BridgeIdKeys.TvdbId)) ?? "https://thetvdb.com", LicenseName = "TheTVDB terms", LicenseUrl = "https://thetvdb.com/tos" }
+                    : new DescriptionAttributionViewModel { SourceName = "TMDB", SourceTitle = "Series synopsis", SourceUrl = OutsideLinks.Tmdb(GetValue(values, "tmdb_id"), "TV") }
                 : BuildWikipediaDescriptionAttribution(longDescription, GetValue(values, "wikipedia_url")),
             SourceLinks = BuildExternalSourceLinks(row.WikidataQid, GetValue(values, "wikipedia_url"), null, values),
             Facts = BuildCollectionFacts(entityType, displayWorks, values, contributorGroups, row.WikidataQid),

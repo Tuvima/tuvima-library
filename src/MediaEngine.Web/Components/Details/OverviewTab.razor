@@ -22,6 +22,10 @@
             {
                 <p class="tl-overview-section__empty">No biography is available yet.</p>
             }
+            @if (Model.LibraryStatus != MediaEngine.Contracts.Details.LibraryStatus.Owned && Model.MediaGroups.Count == 0 && Model.ContributorGroups.Count == 0)
+            {
+                <p class="tl-overview-section__empty">No items in your Library credit them.</p>
+            }
         </section>
 
         <aside class="tl-overview-section tl-overview-section--secondary tl-overview-section--facts">

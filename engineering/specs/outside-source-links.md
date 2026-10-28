@@ -1,6 +1,6 @@
 # Spec: Links to outside sources
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · Bug log entries F39, F59 (follow-ups.md)
+> **Status:** In progress · **Version:** 2 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · Bug log entries F39, F59 (follow-ups.md)
 
 ## 1. Goal
 
@@ -100,7 +100,8 @@ Root causes found (from reading the code; not yet confirmed on real media):
 
 ## 9. Gaps and drift
 
-- WP1's table goes here once the live addresses are tested.
+- **WP1 (live address check) is parked for SHY-DESKTOP** (Local check L1 in `engineering/validation/batch.md`); the cloud cannot reach thetvdb.com. Until it runs, the build uses TheTVDB's redirect-by-number form (`thetvdb.com/dereferrer/{series|season|episode|people}/{number}`, D3's first choice). Fill the pattern → works / fails table here once tested.
+- **Linked-member matching (D4) already existed:** group members found from Wikidata are created with their Wikidata id and queued for full hydration (`MetadataHarvestingService.ResolveGroupMembersAsync`), so they get Wikipedia text and pictures. No new matching code was needed; the fix was the page refusing to open (WP4).
 
 ## Plain English summary
 

@@ -375,12 +375,10 @@ internal sealed partial class DetailCompositionOrchestrator
             {
                 SourceName = "TheTVDB",
                 SourceTitle = "TV metadata",
-                SourceUrl = !string.IsNullOrWhiteSpace(episodeId)
-                    ? $"https://thetvdb.com/episodes/{episodeId}"
-                    : !string.IsNullOrWhiteSpace(seasonId)
-                        ? $"https://thetvdb.com/seasons/{seasonId}"
-                        : !string.IsNullOrWhiteSpace(seriesId)
-                            ? $"https://thetvdb.com/series/{seriesId}" : "https://thetvdb.com",
+                SourceUrl = OutsideLinks.TvdbEpisode(episodeId)
+                    ?? OutsideLinks.TvdbSeason(seasonId)
+                    ?? OutsideLinks.TvdbSeries(seriesId)
+                    ?? "https://thetvdb.com",
                 LicenseName = "TheTVDB terms",
                 LicenseUrl = "https://thetvdb.com/tos",
                 RetrievedAt = GetCanonicalLastScoredAt(detail,
@@ -512,7 +510,7 @@ internal sealed partial class DetailCompositionOrchestrator
     }
 
     private static string? BuildWikidataEntityUrl(string? qid)
-        => IsWikidataQid(qid) ? $"https://www.wikidata.org/wiki/{NormalizeSequenceContainerId(qid)}" : null;
+        => IsWikidataQid(qid) ? OutsideLinks.Wikidata(NormalizeSequenceContainerId(qid)) : null;
 
 
     private static string? ResolveComicVineIssueUrl(IReadOnlyDictionary<string, string>? values)
@@ -542,23 +540,7 @@ internal sealed partial class DetailCompositionOrchestrator
     }
 
     private static string? BuildComicVineIssueUrl(string? comicVineId)
-    {
-        if (string.IsNullOrWhiteSpace(comicVineId))
-        {
-            return null;
-        }
-
-        var id = comicVineId.Trim();
-        var delimiter = id.IndexOf("::", StringComparison.Ordinal);
-        if (delimiter >= 0)
-        {
-            id = id[..delimiter].Trim();
-        }
-
-        return id.All(char.IsDigit)
-            ? $"https://comicvine.gamespot.com/issue/4000-{Uri.EscapeDataString(id)}/"
-            : null;
-    }
+        => OutsideLinks.ComicVineIssue(comicVineId);
 
     private static PersonDetailFacts BuildPersonDetails(
         MediaEngine.Domain.Entities.Person person,
