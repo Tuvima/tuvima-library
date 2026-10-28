@@ -41,6 +41,53 @@ public sealed class VaultLibraryRepository(IDatabaseConnection database) : IVaul
         return Task.FromResult(found != 0);
     }
 
+    public Task<bool> IsPersonOnlyInVaultAsync(Guid personId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (personId == Guid.Empty)
+        {
+            return Task.FromResult(false);
+        }
+
+        using var connection = database.CreateConnection();
+        // Every file that credits the person, by either record: the canonical credits (worked out for this person's candidate files only,
+        // never the whole library) and the enrichment links. The person is Vault-only when at least one such file is in a Vault library
+        // and none is outside it. A person with no credited file at all is not Vault-only.
+        var candidateAssets = PersonCreditSql.CandidateAssetsCte(
+            "vault_person_candidate_assets",
+            "SELECT id, name, wikidata_qid FROM persons WHERE id = @personId",
+            "vp_");
+        var scopedCredits = PersonCreditSql.ScopedCreditsCte(
+            "vault_person_credit_rows",
+            "SELECT asset_id FROM vault_person_candidate_assets",
+            "vc_");
+        var vaultOnly = connection.ExecuteScalar<long>(
+            $"""
+            WITH {candidateAssets},
+            {scopedCredits},
+            credited_libraries AS MATERIALIZED (
+                SELECT ma.library_id AS library_id
+                FROM vault_person_credit_rows credit
+                JOIN media_assets ma ON ma.id = credit.media_asset_id
+                WHERE credit.person_id = @personId
+                UNION
+                SELECT ma.library_id
+                FROM person_media_links link
+                JOIN media_assets ma ON ma.id = link.media_asset_id
+                WHERE link.person_id = @personId
+            )
+            SELECT EXISTS (
+                       SELECT 1 FROM credited_libraries credited
+                       JOIN vault_libraries vault ON vault.library_id = credited.library_id COLLATE NOCASE)
+                   AND NOT EXISTS (
+                       SELECT 1 FROM credited_libraries credited
+                       WHERE NOT EXISTS (
+                           SELECT 1 FROM vault_libraries vault WHERE vault.library_id = credited.library_id COLLATE NOCASE));
+            """,
+            new { personId = GuidSql.ToBlob(personId) });
+        return Task.FromResult(vaultOnly != 0);
+    }
+
     public Task<bool> HoldsOrdinaryFilesAsync(string folderPath, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

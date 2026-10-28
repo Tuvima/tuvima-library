@@ -39,7 +39,9 @@ public sealed class IntercomAudienceAuthorizer(
 {
     /// <summary>
     /// Events whose payload names a file, a folder or an item, so the audience decides by where it sits: an item or path in a Vault
-    /// library reaches only an unlocked session. Every event in <see cref="SignalREvents"/> is either listed here or in
+    /// library reaches only an unlocked session. A person-enriched event is classified by where the person is credited: a person known
+    /// only from Vault items is a Vault subject, so their name reaches only an unlocked session (security review leak 3). Every event
+    /// in <see cref="SignalREvents"/> is either listed here or in
     /// <see cref="VaultFreeEvents"/> with the reason it cannot carry Vault content; a test fails for a new one that is neither.
     /// </summary>
     public static readonly IReadOnlySet<string> ClassifiedEvents = new HashSet<string>(StringComparer.Ordinal)
@@ -59,6 +61,7 @@ public sealed class IntercomAudienceAuthorizer(
         SignalREvents.WatchFolderActive,
         SignalREvents.InitialSweepStarted,
         SignalREvents.LibraryItemsRemoved,
+        SignalREvents.PersonEnriched,
     };
 
     /// <summary>Events that cannot carry anything about a Vault item, and why. Counts and provider or model state name no item.</summary>
@@ -67,7 +70,6 @@ public sealed class IntercomAudienceAuthorizer(
         [SignalREvents.IngestionQueueProgress] = "Totals and state only; no file or title. Vault files in the totals are an open item for the ingestion packets.",
         [SignalREvents.MediaOperationChanged] = "An operation kind, status and counts; no file or title.",
         [SignalREvents.CapabilityStateChanged] = "A capability kind and state by id; no file or title.",
-        [SignalREvents.PersonEnriched] = "Shared People only; Vault performers live in their own records and are never published.",
         [SignalREvents.FictionalEntityEnriched] = "Universe lore only; a Vault work never joins a Universe.",
         [SignalREvents.ProviderStatusChanged] = "A provider's health.",
         [SignalREvents.ProviderRecoveryFlush] = "A provider's queued retries as a count.",
@@ -182,7 +184,10 @@ public sealed class IntercomAudienceAuthorizer(
             }
         }
 
-        return false;
+        // A person is on the shared people list as soon as one ordinary file credits them; a person credited only on Vault files is not,
+        // and their name must not be broadcast to a session that cannot see the Vault.
+        return payload is PersonEnrichedEvent person
+            && await vaultLibraries.IsPersonOnlyInVaultAsync(person.PersonId, ct).ConfigureAwait(false);
     }
 
     private static IEnumerable<Guid> SubjectIds<T>(T payload, Guid? assetId) where T : notnull

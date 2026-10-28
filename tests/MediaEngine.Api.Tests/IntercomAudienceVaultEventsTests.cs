@@ -144,6 +144,72 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
             new LibraryItemsRemovedEvent([_ordinaryWork, Guid.NewGuid()], [_ordinaryAsset])));
     }
 
+    // Security review leak 3: a person-enriched event names a person, and a person seen only in Vault films must not be broadcast.
+    [Fact]
+    public async Task APersonKnownOnlyFromVaultFiles_IsNeverBroadcast_UntilTheirOwnSessionHasVaultModeOn_AdministratorsIncluded()
+    {
+        await SeedAsync(administrator: true);
+        var person = SeedPerson("Vault Only Performer", "QVAULTONLY", _vaultWork);
+        var authorizer = Authorizer();
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+        var enriched = new PersonEnrichedEvent(person, "Vault Only Performer", "https://example.test/face.jpg", "QVAULTONLY");
+
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched, enriched));
+
+        await UnlockAsync();
+
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched, enriched));
+    }
+
+    [Fact]
+    public async Task APersonAlsoCreditedOnAnOrdinaryFile_IsOnTheSharedPeopleList_SoTheEventStillReachesAnAdministrator()
+    {
+        await SeedAsync(administrator: true);
+        var person = SeedPerson("Shared Performer", "QSHARED", _vaultWork, _ordinaryWork);
+        var authorizer = Authorizer();
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched,
+            new PersonEnrichedEvent(person, "Shared Performer", null, "QSHARED")));
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched,
+            new PersonEnrichedEvent(SeedPerson("Ordinary Performer", "QORDINARY", _ordinaryWork), "Ordinary Performer", null, "QORDINARY")));
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched,
+            new PersonEnrichedEvent(SeedPerson("Uncredited Person", null), "Uncredited Person", null, null)));
+    }
+
+    [Fact]
+    public async Task APersonKnownOnlyFromVaultFiles_IsNeverBroadcastToALockedSession_WhateverTheProfile()
+    {
+        await SeedAsync(administrator: false);
+        var person = SeedPerson("Vault Only Performer", "QVAULTONLY", _vaultWork);
+        var authorizer = Authorizer();
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+        var enriched = new PersonEnrichedEvent(person, "Vault Only Performer", null, "QVAULTONLY");
+
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched, enriched));
+
+        // A Vault subject follows the Vault rule for everyone: it reaches a session that has Vault mode on and the Watch area.
+        await UnlockAsync();
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched, enriched));
+    }
+
+    private Guid SeedPerson(string name, string? qid, params Guid[] creditedWorks)
+    {
+        var person = Guid.NewGuid();
+        using var database = _database.CreateConnection();
+        Dapper.SqlMapper.Execute(database,
+            "INSERT INTO persons(id,name,wikidata_qid,created_at) VALUES(@person,@name,@qid,datetime('now'));",
+            new { person = GuidSql.ToBlob(person), name, qid });
+        foreach (var work in creditedWorks)
+        {
+            Dapper.SqlMapper.Execute(database,
+                "INSERT INTO canonical_value_arrays(entity_id,key,ordinal,value,value_qid) SELECT @work,'cast_member',COALESCE(MAX(ordinal)+1,0),@name,@qid FROM canonical_value_arrays WHERE entity_id=@work AND key='cast_member';",
+                new { work = GuidSql.ToBlob(work), name, qid });
+        }
+
+        return person;
+    }
+
     [Fact]
     public async Task APathBesideTheVaultFolder_IsNotTheVault_AndSlashesAndCaseDoNotMatter()
     {

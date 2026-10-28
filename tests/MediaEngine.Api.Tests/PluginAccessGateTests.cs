@@ -258,6 +258,8 @@ public sealed class PluginAccessGateTests : IDisposable
 
         public Task<bool> IsInVaultAsync(Guid id, CancellationToken ct = default) => Task.FromResult(true);
 
+        public Task<bool> IsPersonOnlyInVaultAsync(Guid personId, CancellationToken ct = default) => Task.FromResult(false);
+
         public Task<bool> HoldsOrdinaryFilesAsync(string folderPath, CancellationToken ct = default) => _inner.HoldsOrdinaryFilesAsync(folderPath, ct);
 
         public Task AddAsync(VaultLibrary library, CancellationToken ct = default) => _inner.AddAsync(library, ct);

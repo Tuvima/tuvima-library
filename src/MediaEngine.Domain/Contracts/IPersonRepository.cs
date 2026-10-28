@@ -14,6 +14,12 @@ public sealed record CharacterPerformerCredit(
     string? LocalHeadshotPath);
 
 /// <summary>
+/// One credit of a person on one owned file, as the presence counts see it: the top-level work it counts towards (the show or album
+/// for an episode or track) and the file itself, so a caller that knows which files a viewer may see can count only those.
+/// </summary>
+public sealed record PersonPresenceCredit(Guid PersonId, string MediaType, Guid DisplayWorkId, Guid AssetId);
+
+/// <summary>
 /// Persistence contract for <see cref="Person"/> records and their links
 /// to media assets.
 ///
@@ -64,7 +70,20 @@ public interface IPersonRepository
     /// Returns per-person media type counts (e.g. how many Books, Movies, etc. each person
     /// is linked to). Used by people surfaces for library presence display.
     /// </summary>
+    /// <remarks>
+    /// Counts owned files outside the Vault only, for no viewer in particular. A read for a person looking at the Library counts through
+    /// <see cref="GetPresenceCreditsAsync"/> and the access service instead, so hidden libraries and content limits apply too.
+    /// </remarks>
     Task<Dictionary<Guid, Dictionary<string, int>>> GetPresenceBatchAsync(
+        IEnumerable<Guid> personIds,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// The credits behind <see cref="GetPresenceBatchAsync"/>, one row per person, file and top-level work, never including a Vault
+    /// file. The viewer-aware presence read keeps the rows whose file the viewer may see and counts the rest, so a count can never
+    /// include a title the viewer could not open (security review leak 2).
+    /// </summary>
+    Task<IReadOnlyList<PersonPresenceCredit>> GetPresenceCreditsAsync(
         IEnumerable<Guid> personIds,
         CancellationToken ct = default);
 

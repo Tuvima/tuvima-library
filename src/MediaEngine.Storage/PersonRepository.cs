@@ -90,7 +90,8 @@ public sealed class PersonRepository : IPersonRepository
     {
         public Guid PersonId { get; init; }
         public string MediaType { get; init; } = "";
-        public int Count { get; init; }
+        public Guid DisplayWorkId { get; init; }
+        public Guid AssetId { get; init; }
     }
 
     public PersonRepository(IDatabaseConnection db)
@@ -880,7 +881,26 @@ public sealed class PersonRepository : IPersonRepository
     }
 
     /// <inheritdoc/>
-    public Task<Dictionary<Guid, Dictionary<string, int>>> GetPresenceBatchAsync(
+    public async Task<Dictionary<Guid, Dictionary<string, int>>> GetPresenceBatchAsync(
+        IEnumerable<Guid> personIds,
+        CancellationToken ct = default)
+    {
+        var credits = await GetPresenceCreditsAsync(personIds, ct).ConfigureAwait(false);
+        var result = new Dictionary<Guid, Dictionary<string, int>>();
+        foreach (var person in credits.GroupBy(credit => credit.PersonId))
+        {
+            result[person.Key] = person
+                .GroupBy(credit => credit.MediaType, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    type => type.First().MediaType,
+                    type => type.Select(credit => credit.DisplayWorkId).Distinct().Count(),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        return result;
+    }
+
+    public Task<IReadOnlyList<PersonPresenceCredit>> GetPresenceCreditsAsync(
         IEnumerable<Guid> personIds,
         CancellationToken ct = default)
     {
@@ -889,7 +909,7 @@ public sealed class PersonRepository : IPersonRepository
         var idList = personIds.Distinct().ToList();
         if (idList.Count == 0)
         {
-            return Task.FromResult(new Dictionary<Guid, Dictionary<string, int>>());
+            return Task.FromResult<IReadOnlyList<PersonPresenceCredit>>([]);
         }
 
         using var conn = _db.CreateConnection();
@@ -910,49 +930,35 @@ public sealed class PersonRepository : IPersonRepository
                 "presence_credit_rows",
                 "SELECT asset_id FROM presence_candidate_assets",
                 "pr_");
+            // A file in a Vault library never counts here, whoever asks: a read with no viewer keeps the Vault out through this
+            // predicate, and a read for a viewer starts from these rows (security review leak 2).
             rows.AddRange(conn.Query<PresenceRow>($"""
                 WITH {candidateAssetsCte},
-                {scopedCreditsCte},
-                credited_works AS (
-                    SELECT p.id AS PersonId,
-                           COALESCE(gp.media_type, parent.media_type, w.media_type) AS MediaType,
-                           CASE
-                               WHEN w.work_kind = 'child' THEN COALESCE(gp.id, parent.id, w.id)
-                               WHEN w.work_kind = 'parent' AND parent.id IS NOT NULL THEN COALESCE(gp.id, parent.id, w.id)
-                               ELSE w.id
-                           END AS DisplayWorkId
-                    FROM persons p
-                    JOIN presence_credit_rows primary_credit ON primary_credit.person_id = p.id
-                    JOIN media_assets ma ON ma.id = primary_credit.media_asset_id
-                    JOIN editions e ON e.id = ma.edition_id
-                    JOIN works w ON w.id = e.work_id
-                    LEFT JOIN works parent ON parent.id = w.parent_work_id
-                    LEFT JOIN works gp ON gp.id = parent.parent_work_id
-                    WHERE p.id IN ({personIdClause})
-                      AND w.ownership = 'Owned'
-                      AND w.is_catalog_only = 0
-                )
-                SELECT PersonId,
-                       MediaType,
-                       COUNT(DISTINCT DisplayWorkId) AS Count
-                FROM credited_works
-                GROUP BY PersonId, MediaType;
+                {scopedCreditsCte}
+                SELECT DISTINCT p.id AS PersonId,
+                       COALESCE(gp.media_type, parent.media_type, w.media_type) AS MediaType,
+                       CASE
+                           WHEN w.work_kind = 'child' THEN COALESCE(gp.id, parent.id, w.id)
+                           WHEN w.work_kind = 'parent' AND parent.id IS NOT NULL THEN COALESCE(gp.id, parent.id, w.id)
+                           ELSE w.id
+                       END AS DisplayWorkId,
+                       ma.id AS AssetId
+                FROM persons p
+                JOIN presence_credit_rows primary_credit ON primary_credit.person_id = p.id
+                JOIN media_assets ma ON ma.id = primary_credit.media_asset_id
+                JOIN editions e ON e.id = ma.edition_id
+                JOIN works w ON w.id = e.work_id
+                LEFT JOIN works parent ON parent.id = w.parent_work_id
+                LEFT JOIN works gp ON gp.id = parent.parent_work_id
+                WHERE p.id IN ({personIdClause})
+                  AND w.ownership = 'Owned'
+                  AND w.is_catalog_only = 0
+                  AND {VaultSql.NotVaultAsset("ma.id")};
                 """, p));
         }
 
-        var result = new Dictionary<Guid, Dictionary<string, int>>();
-        foreach (var row in rows)
-        {
-            var personId = row.PersonId;
-            if (!result.TryGetValue(personId, out var mediaMap))
-            {
-                mediaMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                result[personId] = mediaMap;
-            }
-            mediaMap[row.MediaType] = row.Count;
-        }
-
-        return Task.FromResult(result);
+        return Task.FromResult<IReadOnlyList<PersonPresenceCredit>>(
+            rows.Select(row => new PersonPresenceCredit(row.PersonId, row.MediaType, row.DisplayWorkId, row.AssetId)).ToList());
     }
 
     // -------------------------------------------------------------------------
