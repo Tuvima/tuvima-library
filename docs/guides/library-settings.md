@@ -9,14 +9,16 @@ status: current
 
 # Manage library settings and operations
 
-Use Settings in Tuvima Library to add folders and check background work. This five-minute guide helps you choose safe [sources](../reference/glossary.md#library-folder) and find the right admin page.
+Use Settings in Tuvima Library to create libraries, add folders and check background work. This five-minute guide helps you choose safe [sources](../reference/glossary.md#library-folder) and find the right admin page.
 
 ## Find your way around Libraries
 
 Libraries is **Settings > Libraries**, in two levels. Each has its own address, so Back and a reload keep your place, and the page title and breadcrumb above it show where you are.
 
 1. **The overview** has four tabs, **Watch**, **Listen**, **Read** and **View**. The tabs filter the list: pick one and the table under it shows only that area's libraries, one row per library. A row has the library's name with its icon, its content type, who can see it (**Standard** or **Selected profiles**), its folder and title counts ("3 folders · 1,284 titles", or "Nothing added yet") and a status: **Healthy**, **Needs review** (with the number of files; it opens Needs Review), **Empty**, **Folder offline** (the folders at fault in a tooltip) or **Scanning**. The whole row opens the library, and a chevron and a highlight on hover show that it does. Search and a status filter sit above the table, and an area with nothing in it says "No Watch libraries yet" with one **Add library** button. A Vault-protected library appears, with a lock, only while Vault mode is on for you and your profile may use it; otherwise there is no row and no hint. Under the table is a line for the [Import folder](#import-folder) (it reads "set" or "not set").
-2. **A library page** (for example Movies) shows the library's content type, who can see it, its counts and status, and **Scan now**, **Add folder** and **Add files**. Its tabs are **Folders** (the table of folders), **Access**, **File handling** and **Activity**, plus **Lookup** for a kind that has lookup settings (YouTube). Activity and Lookup are described [below](#see-what-happened-in-one-library). **Scan now** scans this library's folders only (folders with scanning paused or offline are left alone). An amber count and a short **Paused** note on the Folders tab mean a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
+2. **A library page** (for example Movies) shows the library's content type, who can see it, its counts and status, and **Scan now**, **Add folder** and **Add files**. Its tabs are **Folders** (the table of folders), **Access**, **File handling** and **Activity**, plus **Lookup** for a library that has lookup settings (a YouTube library, or a Vault-protected library of a kind that looks details up). Each tab is described below. **Scan now** scans this library's folders only (folders with scanning paused or offline are left alone). An amber count and a short **Paused** note on the Folders tab mean a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
+
+New libraries start from **Add library** on the overview (see [Create a library](#create-a-library)). First-run setup shows this same table in a simpler form (see [First-run setup](#first-run-setup)).
 
 The kinds are:
 
@@ -30,34 +32,40 @@ The kinds are:
 | Read | Other reading | No: loose books and documents, shown by folder and the details inside the files |
 | View | Photos, Personal videos, Documents | No (Documents are read on your computer with text recognition) |
 
-A kind that looks details up has its icon tile in its area's colour; a kind that does not has a quiet grey tile. Several libraries can share one kind (for example Home videos and Other videos): each is its own row. Photos, Personal videos and Documents keep their folders on View's own pages, reached from the View tab. Older addresses (a group such as `/settings/libraries/watch`, or a type such as `/settings/libraries/watch/movies`) still work and land on the matching tab or library. On a phone the rows, counts and status are read-only, with a note to use a desktop or tablet to change folders.
+A kind that looks details up has its icon tile in its area's colour; a kind that does not has a quiet grey tile. Kinds that look nothing up (Videos, Other audio and Other reading) can hold several named libraries, up to five each (for example Lectures and Family recordings): each is its own row. The other kinds hold one library each, and you add more folders to it instead. In Watch, the Videos page in the lanes gathers the YouTube and Videos libraries: with more than one it shows a chip for each library to filter by, and a profile that cannot see a library sees neither its row nor its chip. Photos, Personal videos and Documents open the same page shape as any library (see [View libraries](#view-libraries)). Older addresses (a group such as `/settings/libraries/watch`, or a type such as `/settings/libraries/watch/movies`) still work and land on the matching tab or library. On a phone the rows, counts and status are read-only, with a note to use a desktop or tablet to change folders.
 
-## Add a folder
+## Create a library
 
-Open **Settings > Libraries** with admin access and choose **+ Add folder**: on the front door, on a group's page, or **Add Folder** on a type's page. A short dialog opens. Nothing is created until the last step, **Back** keeps what you chose, and **Cancel** at any step creates nothing.
+Choose **Add library** (on the overview, or in the empty state of an area) with admin access. One short dialog opens; nothing is created until you press **Create**, and **Cancel** creates nothing.
 
-1. **What is it?** Pick Watch, Listen, Read or View (Vault joins them only when it may be shown), then the kind. Each kind is a card with its coloured or grey tile and an (i) that says what belongs there. Opened from a group page, this step starts on that group; opened from a type page, the step is skipped.
-   - Choosing a View kind takes you to View's own add-folder form, which keeps View's settings in one place. (First-run setup is the exception; see below.)
-   - Choosing the Vault goes straight to the folder step; see [The Vault](../explanation/vault.md).
-2. **Library** (only for Videos, Other audio and Other reading). These kinds can hold several libraries, each with a name you choose ("Lectures", "Family recordings"), up to five per kind. Pick an existing library or **New custom library** and type its name. Each named library is its own row on the group page and its own tab when you browse. The other kinds are one library each.
-3. **Folder.** Pick the folder.
-   - The address bar shows the folder as clickable names, like Windows Explorer. Click a name to go there, or the small arrow after it to jump to a folder inside it. Click the empty end of the bar to type or paste a full path instead, then press Enter (Esc puts the names back).
-   - Single-click a folder to select it, and double-click to open it.
-   - Use **Back**, **Forward**, **Up** and the folder search to find a folder by name.
-   - **Selected path** shows what you picked, with a copy button.
-   - Media locations are listed before drives. Only folders are listed, the Library's own folders never appear, and **Next** turns on when the folder is valid.
-   - A Watch folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) gets a hint with **Add to View instead**. Nothing is saved until the last step.
+1. **Media area.** Watch, Listen or Read. (View's three kinds always exist; see [View libraries](#view-libraries).)
+2. **Name.** Up to 80 characters. It is filled in for you from the content type ("Movies", then "Movies 2" if that name is taken) and must be new within its area, so two rows can always be told apart.
+3. **Content type.** Each kind is a row with an (i) that says what belongs there. A kind that holds one library is greyed out once you have it, with "Add a folder to it instead". A kind that holds several (Videos, Other audio, Other reading) stops at five.
+4. **Access.** **Standard** (everyone who can use the area) or **Selected profiles** (only the profiles you tick afterwards on the library's Access tab; the dialog warns that until then only administrators see it). A third choice, **Vault-protected**, appears only for an administrator whose Vault mode is on (see [The Vault](../explanation/vault.md)). For anyone else the dialog holds no Vault word.
+5. **First folder.** The folder picker sits in the dialog. The address bar shows the folder as clickable names, like Windows Explorer: click a name to go there, or the small arrow after it to jump into a folder; click the empty end to type or paste a full path, then press Enter. Single-click selects a folder and double-click opens it. **Back**, **Forward**, **Up** and the folder search help you find one, and media locations are listed before drives. As soon as you pick a folder, Library checks it and says so in plain words: how many media files it found (counting stops at a cap, so a huge folder never freezes the dialog), and a refusal if the folder is the same as, inside or around another library's folder, cannot be read, or does not have enough free space to be used. Create stays off until the folder passes. A short line says how subfolders are treated in this area (in Watch they give structure: a folder of several videos is a series).
+   - A Watch folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) gets a hint with **Add to View instead**.
    - Paths are shown as the server sees them. On Docker that means paths inside the container, such as `/library`, not paths on your computer.
    - If a path does not exist, the picker says so in plain words.
-4. **How.** If the folder already has files, choose **Read-only** (recommended), **Merge into your managed folder**, or **Let Library manage it**. An empty folder only asks whether new media should go there. **Add folder** saves it; the dialog then offers **Go to** the kind or **Add another**.
 
-The kind decides what is looked up. Choosing YouTube looks videos up on YouTube by their ID (only the ID is sent); the Videos, Other audio and Other reading kinds never look anything up and never contact an outside service. There is no YouTube switch. Removing a folder never touches the files.
+**Create** saves the library with that folder, starts a scan and opens the new library's page. You are not asked anything else. The folder is **Read-only** (As-is) unless the kind is one Library normally manages, in which case it is **Managed**; you can switch it later from the folder's menu (see [Choose how a folder is handled](#choose-how-a-folder-is-handled)). Tooltips (the (i) marks) show on top of the dialog.
+
+The kind decides what is looked up. A YouTube library looks videos up on YouTube by their ID (only the ID is sent); the Videos, Other audio and Other reading kinds never look anything up and never contact an outside service. There is no YouTube switch. Removing a folder never touches the files.
+
+## Add a folder to a library
+
+Open the library and choose **Add folder** in its header. The folder picker for this library's content type opens; pick a folder and press **Add**. The new row is highlighted on the Folders tab and one line confirms it. Nothing else is asked, and it is added to this library whatever its kind. A folder inside, around or equal to another library's folder is refused with a plain message.
 
 Every folder row has a **Suitable for limited profiles** switch (not on a Vault folder). Unrated items from that folder, such as saved videos or audiobooks with no rating, are then shown to profiles with a rating limit, whatever their "allow unrated" setting says; rated items still follow each profile's limit, and only a blank rating, NR, Not Rated or Unrated counts as unrated. Without the switch, a limited profile sees an unrated item only if that profile allows unrated. It saves straight away.
 
-Every library has a **Recycle bin** switch (on for Videos). With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
+Every library has a **Recycle bin** switch (on for Videos), on its **File handling** tab. With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
 
-First-run setup asks the same thing in its own words, "What do you have?": tick Watch, Listen, Read or View, then add a folder for each with this same dialog. The Vault is never offered there. View folders can be added once the administrator is signed in, to the household's shared library (the default) or to the administrator's own space; until then View says to add them after setup, in **Settings > Libraries > View**. **Skip for now** still defers the step.
+## First-run setup
+
+First-run setup's Libraries step shows the same table and the same **Add library** dialog as Settings, in a simple mode: Watch, Listen and Read only, Standard access only (no Access choice), no Vault, no Import folder line, and rows that do not open a page (a library's page belongs to Settings). A note reminds you that Photos and personal videos, the Import folder and each library's own settings are added after setup, in **Settings > Libraries**. **Skip for now** still defers the step.
+
+## View libraries
+
+View's three kinds (Photos, Personal videos and Documents) always exist, so the View tab has no **Add library** button. Each opens a page of the same shape as any library: **Folders**, **Access** and **File handling**. The Access tab keeps View's own controls (each profile's View switch and the Shared Library) in place of Standard and Selected profiles, and the File handling tab explains how View stores files. Each folder has a **Show in Photos timeline** switch; turn it off to keep that folder's photos out of the timeline while they stay browsable. There is no separate View Folders page: View's folders are managed here. See [View Personal Space](view-personal-space.md).
 
 ## Choose how a folder is handled
 
@@ -66,9 +74,9 @@ Every folder is handled one of two ways:
 - **Read-only** means Tuvima never moves, renames, tags, overwrites or deletes its files, so other apps are not affected.
 - **Managed** means Tuvima may rename, move and (when the type's tag setting is on) tag the files, including the ones already there. Choose it only for folders no other app depends on.
 
-Each type has one **New media goes here** folder: the managed folder that receives new files. The first managed folder you add becomes it; use a managed folder's row menu to make another the place for new media. There is no priority order.
+Each library has one **Import destination**: the managed folder that receives new files (files you add with **Add files** and files filed from the Import folder). The first managed folder you add becomes it. There is no priority order, and an As-is folder can never be it.
 
-The folder list is a table with Folder, New media and Files columns. Each folder's icon shows how Library treats it: a plain folder for Managed (full access) and a folder with a lock for Read-only; hover it for the words. The row menu offers Make this the place for new media, Organise files now, Merge into, Change what this folder is, Switch to Read-only or Managed, Label and Remove folder. Removing a folder never deletes files.
+The Folders tab is described [below](#the-folders-tab). Each folder's icon shows how Library treats it: a plain folder for Managed (full access) and a folder with a lock for Read-only; hover it for the words. The row menu offers Override file handling for this folder, Pause or Resume scanning, Change what this folder is, Organise files now, Merge into, Switch to Read-only or Managed, Label and Remove folder. Removing a folder never deletes files.
 
 Keep music album folders intact. Tuvima uses tags or fingerprints to identify music before moving it.
 
@@ -77,7 +85,7 @@ Keep music album folders intact. Tuvima uses tags or fingerprints to identify mu
 A folder that you add to a kind that looks details up gets a first check before Library changes anything in it. While the first files are identified (50 by default, or all of them if there are fewer) the row reads "Checking the first files…", and in a Managed folder **nothing is renamed, moved or tagged yet**; files still appear in Library straight away.
 
 - If most of those files match, the check passes. In a Managed folder the moves and tags that were held are queued together and done in the next run (see [When changes reach your files](#when-changes-reach-your-files)).
-- If more than half do not match, the folder is paused. Its row shows an amber line, "Most files in this folder aren't matching: 212 of 300. This is often the wrong kind or the wrong folder.", and the library's row on the group page shows a **Paused** note. Nothing has been touched, so every choice leaves your files exactly as they were: **Keep going** carries on and leaves the files that do not match as Unmatched (they are tried again later), [**Change what this folder is**](#change-what-this-folder-is) picks a better kind, and **Remove the folder** takes it out of Library without touching the files.
+- If more than half do not match, the folder is paused. Its row shows an amber line, "Most files in this folder aren't matching: 212 of 300. This is often the wrong kind or the wrong folder.", and the library's page shows a **Paused** note. Nothing has been touched, so every choice leaves your files exactly as they were: **Keep going** carries on and leaves the files that do not match as Unmatched (they are tried again later), [**Change what this folder is**](#change-what-this-folder-is) picks a better kind, and **Remove the folder** takes it out of Library without touching the files.
 
 Plain kinds (Videos, Other audio, Other reading), the Vault and folders that were already there never get a first check. The first check appears for administrators and not in first-run setup. How many files are checked, and what share may fail, are settings.
 
@@ -97,7 +105,7 @@ Items the Engine found but is unsure about are different: they wait in [Review](
 
 If a folder is the wrong kind (home videos added as Movies, recordings added as Music), you can change it without removing and adding it again.
 
-**Where to find it.** Open the folder's "..." menu on its type page and choose **Change what this folder is…**. A folder that has paused on its first check offers the same choice beside **Keep going** and **Remove the folder**. It is not offered while a job is running on the folder, for Vault folders, in first-run setup, or where folders are read-only (phones and portrait tablets).
+**Where to find it.** Open the folder's "..." menu on the library's Folders tab and choose **Change what this folder is…**. A folder that has paused on its first check offers the same choice beside **Keep going** and **Remove the folder**. It is not offered while a job is running on the folder, for Vault folders, in first-run setup, or where folders are read-only (phones and portrait tablets).
 
 **Same area only.** The dialog first asks "What is this folder?" and offers the other kinds of the folder's own area: from Movies you can pick TV Shows, YouTube or Videos, never a Listen kind, and never the kind it already is. The cards show the same coloured or grey tile, Metadata icons and (i) as elsewhere. A kind that holds several named libraries also asks which library, or **New custom library**; the new library is created only when you confirm.
 
@@ -127,9 +135,21 @@ Open the library and pick its **Access** tab. There are three choices:
 
 - **Standard** is the rule above: everyone with the area sees the library.
 - **Selected profiles** shows the library only to the profiles you tick, and to administrators (who always see everything). Each profile shows its picture; Kids profiles are marked. Every other limit still applies on top: a profile also needs the area, must not have the library hidden, and keeps its content limit and the household ceiling.
-- **Vault-protected** is chosen when a library is made and can never be switched on or off here. It is not available yet, so the choice is greyed out.
+- **Vault-protected** is chosen when a library is made and can never be switched on or off here. It is drawn only for an administrator whose Vault mode is on; for anyone else the tab has no Vault word. A library that is already Vault-protected shows this choice, read-only, with a note that it cannot be changed. See [Vault-protected libraries](#vault-protected-libraries).
 
 Switching a Standard library to **Selected profiles** starts with nobody ticked, and the tab warns that only administrators will see it until you tick someone. A new profile starts with no Selected libraries. Nothing is saved until you press **Save changes** in the bar at the bottom (**Discard** puts the saved choice back, and leaving with unsaved changes asks first). Switching a library between Standard and Selected clears its ticked profiles, and a profile that gains or loses a library signs in again to refresh what it can see. Only administrators can change this, and on a phone the tab shows the choice but cannot change it. You can also pick **Selected profiles** when you add a library; the same warning appears and you tick profiles on its Access tab afterwards.
+
+## Vault-protected libraries
+
+A library can be made **Vault-protected** when you create it (see [Create a library](#create-a-library)). There is no separate Vault section: it is simply a library whose Access is Vault-protected, and each content type can have one ordinary library and one Vault library. The choice is only ever drawn for an administrator whose Vault mode is on. With Vault mode off, for a Kids profile and for everyone else, there is no row, no choice and no hint that the Vault exists. For why Vault folders are kept apart on disk, see [The Vault](../explanation/vault.md).
+
+- **Creating one.** Pick **Vault-protected** under Access in the Add library dialog. The new library is named like "Private Movies" beside "Movies" and its first folder is added as it is (read-only); Library never moves or renames files in it.
+- **Add as a Vault folder.** On an ordinary library, **Add folder** also offers **Add as a Vault folder** to an administrator with Vault mode on. The folder joins the Vault library of that content type, which Library makes first if there is none.
+- **Move to Vault.** An administrator with Vault mode on also sees **Move to Vault** in a folder's "..." menu. For now it only shows a preview: it checks where the items would go, says plainly if there is no Vault library of that content type yet (with **Add a Vault library**, which opens Add library with Vault-protected already chosen) or if the Vault library has no folder Library manages. Nothing is moved. Moving items into the Vault arrives with a later update.
+- **On its page.** A Vault library has no Scan now or Add files. Its Activity tab points to the Vault, where its activity is listed, never here.
+- **Lookup.** A Vault library of a kind that looks details up has a **Look up details online** switch on its Lookup tab, off by default. The switch is stored with the library, but online lookup for the Vault is not running yet, so nothing is sent to any online service whether it is on or off. It starts working with a later update, and the tab says so.
+
+**Adult content** is a Watch content type for adult videos. Its Vault tick is on by default; unticked, it becomes an ordinary Watch library whose access is Selected profiles, never Standard. A folder cannot be changed into or out of Adult content afterwards.
 
 ## Choose how Library treats a library's files
 
@@ -204,9 +224,9 @@ The job moves sidecar files (subtitles, artwork, notes) with their media. Every 
 
 Use a merge to bring all the files of one existing folder into a folder Tuvima manages, once. To keep feeding files in over time, use the Import folder instead.
 
-1. Open **Settings > Libraries** and choose the media type.
-2. Open the folder's menu and choose **Merge into**. When you add a folder that already has files, you can choose **Merge into** there instead.
-3. Choose the managed folder to merge into. The New media folder is chosen for you.
+1. Open **Settings > Libraries** and open the library.
+2. On the Folders tab, open the folder's menu and choose **Merge into**.
+3. Choose the managed folder to merge into. The import destination is chosen for you.
 4. Choose **Copy** or, for a folder Tuvima manages, **Move instead of copy**. Copy never changes your folder. Move removes each file from your folder only after its copy has been checked byte for byte, and frees space on that drive.
 5. Choose **Preview first** to see what would happen, then **Merge**.
 
@@ -228,7 +248,7 @@ If the file is no longer on disk, **Add back** removes the row and nothing is sc
 
 ## Import folder
 
-The **Import folder** is the line under the table on the Libraries overview. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
+The **Import folder** is the line under the table on the Libraries overview. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's import destination. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
 
 ### The Folders tab
 
@@ -240,9 +260,9 @@ The Folders tab is a table with one row per folder: **Folder** (its short name, 
 
 ### Add files by dropping them
 
-Library pages have their own **Add files** that copies server files (see [The Folders tab](#the-folders-tab)); the dropping flow below belongs to the older Watch, Listen and Read pages.
+A library page's **Add files** button copies files that are already on the server (see [The Folders tab](#the-folders-tab)). You can also send files from your computer.
 
-On a Watch, Listen or Read page, or on a type's own page, you can drop files from your computer onto the list, or choose **Add files** beside **Add folder** (a touch screen or a pointer that cannot hover gets the button only; phones and tablets get neither, since libraries are read-only there). The files are sent to the server in pieces and land in the Import folder under that type, where Library files them on its next run. If a file does not fit the page (a film dropped on Music), one dialog asks which kind it is for, with the usual kind cards; a kind with several libraries also asks which library. A file name already in use gets a number added, never an overwrite. A file above `large_upload_warning_bytes` (50 GB by default) first shows an amber warning that large uploads can fail and that copying straight into the Import folder on the server is more reliable, with that folder's path and **Copy path**; **Upload anyway** goes ahead and **Cancel** drops just those files. Each file shows a progress bar with **Cancel**, which deletes the partly sent file; uploads keep going while you move between Libraries pages, if the connection drops the upload carries on from the missing pieces, and after a reload choosing the same file again resumes it. A refusal says why in one sentence and links to the fix, for example **Set an Import folder first**. Adding files to the Vault by dropping is not available yet, and photos go through View's own upload. Only administrators can add files this way, and an administrator can turn it off with `allow_drag_and_drop`.
+On a library's page you can drop files from your computer onto it (not on phones or tablets, where libraries are read-only). The files are sent to the server in pieces and land in the Import folder under that type, where Library files them on its next run. If a file does not fit the page (a film dropped on Music), one dialog asks which kind it is for, with the usual kind cards; a kind with several libraries also asks which library. A file name already in use gets a number added, never an overwrite. A file above `large_upload_warning_bytes` (50 GB by default) first shows an amber warning that large uploads can fail and that copying straight into the Import folder on the server is more reliable, with that folder's path and **Copy path**; **Upload anyway** goes ahead and **Cancel** drops just those files. Each file shows a progress bar with **Cancel**, which deletes the partly sent file; uploads keep going while you move between Libraries pages, if the connection drops the upload carries on from the missing pieces, and after a reload choosing the same file again resumes it. A refusal says why in one sentence and links to the fix, for example **Set an Import folder first**. Adding files to the Vault by dropping is not available yet, and photos go through View's own upload. Only administrators can add files this way, and an administrator can turn it off with `allow_drag_and_drop`.
 
 ## Set up View storage
 

@@ -6,6 +6,8 @@
 
 > Version 33 (2026-10-27): the [Library pages spec](library-pages.md) replaces the front-door cards, the five areas with a Vault card, the three-step Add folder wizard and the Vault root folder. **Superseded by it:** D1, D2, D4 (the Vault as a fifth area), D5, D7, D8 (wizard steps), D13 (Vault card), D20 (Adult content and Private kinds in a Vault area), D32 (Vault root folder), D57, and WP6 (Vault card; the card and tile are removed by Library pages WP8). **Kept:** D6, D9 to D12, D14 to D19, the type-recipe, Unmatched, safety-break and folder picker rules (D17, D34, D35, D43), and drag and drop (now Add files). Local checks L1, L10 and L13 are replaced by the Library pages checks. Approved by Shy on 2026-10-27.
 
+> Superseded-by note (2026-10-28): the [Library pages spec](library-pages.md) is now built. Its overview, Create library dialog and library pages replace this spec's Vault card, three-step Add folder wizard and D32 root folder in the product, and the public docs describe only the new screens. This spec's body is unchanged.
+
 ## Plain-English product walkthrough
 
 **What it feels like today.** Settings > Libraries is one screen: a list of types on the left (Books, Audiobooks, Movies, TV Shows, Music, Comics, Videos, Import folder, Other libraries) and that type's folders on the right. Photos and home videos live on a different page behind a small link at the bottom ("Personal photos & videos settings"). Adding a folder asks a different question depending on where you started. A new person has to know which of nine words fits their folder before they can begin.

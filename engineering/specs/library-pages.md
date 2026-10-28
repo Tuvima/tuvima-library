@@ -1,6 +1,6 @@
 # Spec: Library and folder management pages (one Libraries experience)
 
-> **Status:** Locked · **Version:** 14 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D1, D4, D5, D7, D8, D13, D20, D31, D32, D43, D44, D57) · [Vault sections and Move to Vault](vault-sections-and-move.md) (D26, D28, D29, D33, D34, D35, D36, D39) · [Simpler access](simpler-access.md) (D2, D7, D9, D11) · [Videos](videos.md) (D17, D45, D55) · [Delete groups](delete-groups.md) (D12) · [Batched write-back](batched-writeback.md)
+> **Status:** Built, awaiting your Local checks · **Version:** 14 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D1, D4, D5, D7, D8, D13, D20, D31, D32, D43, D44, D57) · [Vault sections and Move to Vault](vault-sections-and-move.md) (D26, D28, D29, D33, D34, D35, D36, D39) · [Simpler access](simpler-access.md) (D2, D7, D9, D11) · [Videos](videos.md) (D17, D45, D55) · [Delete groups](delete-groups.md) (D12) · [Batched write-back](batched-writeback.md)
 
 > Written 2026-10-27 from Shy's seven target-state screenshots (Libraries overview, Create library, Choose source folder, validated folder, library Folders tab, File handling tab, Add files) and the bug-log items F4, F6, F7, F8, F9, F10, F23, F24 and F33. It **replaces the front-door cards, the three-step Add folder wizard, the Vault card and the Vault tile** from the library setup spec with one simpler model. Shy's key idea: there is no separate "Vault" section; a library simply has an Access setting, and choosing **Vault-protected** when you create it makes it a Vault library. Version 2 records Shy's answers to the first six questions: a library's Vault setting is chosen when it is created and never flipped later (you move items in instead), each content type has at most a normal library and a Vault library, adult content lives under Watch with a Vault tick, Selected profiles starts hidden for new profiles, and Vault libraries are never listed. This is a Draft: it does not change any Locked spec until Shy locks it (see section 9).
 
@@ -229,3 +229,14 @@ Built in the cloud; waves one after another. Wave A needs nothing from the Vault
 ## Plain English summary
 
 Libraries become one simple list: pick Watch, Listen, Read or View, and see your libraries with their health. One dialog adds a library; one page per library has Folders, Access, File handling and Activity. The folder picker checks the folder for you. Nothing is renamed or changed unless you switch that on. A Vault library is just a library whose Access is "Vault-protected", so there is no separate Vault section, and nobody without access can tell it exists. You do not convert a library; you move films into the Vault. First-run setup uses the same screens. No decisions are left open.
+
+## Follow-ups
+
+Added 2026-10-28 when the docs packet (WP10) was written. Nothing here changes the Locked body above; each item is work still to plan or build.
+
+- **Managed import folder for View** (D25, D26): the staging folder, filing by capture date, duplicates and the reject messages need Engine work.
+- **View pages lack Add files and Scan now**: Photos, Personal videos and Documents have Add folder only.
+- **Vault work still to build** (Vault sections WP1 to WP3): the durable Move to Vault job (the dialog shows a preview only today), Managed Vault folders, and the lookup gates that make the "Look up details online" switch send anything.
+- **Needs Review `?library=` filter**: the "Needs review" status link opens Needs Review without filtering to the library.
+- **Galleries for Adult content pictures** (D21).
+- **Settings > Backup page note** (D26).
