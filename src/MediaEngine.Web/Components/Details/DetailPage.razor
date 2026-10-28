@@ -89,8 +89,7 @@ else if (Model is not null)
             <DetailPrimaryModule Model="Model"
                                  SelectedSeasonId="SelectedSeasonId"
                                  OnSeasonSelected="SelectedSeasonChanged"
-                                 OnContainerSelected="HandleContainerSelectedAsync"
-                                 OnEditItem="OpenEpisodeEditorAsync" />
+                                 OnContainerSelected="HandleContainerSelectedAsync" />
             </section>
         }
 
@@ -265,6 +264,13 @@ else if (Model is not null)
                 Snackbar.Add(resume.ResultLine, AppSeverity.Success);
             }
 
+            return;
+        }
+
+        if (resume.SelectRow is { } row)
+        {
+            // A song's Edit: the song is ticked and the Edit panel opens for it, on the page it came from.
+            await RowEditEntry.StartAsync(_editing, _batch, row);
             return;
         }
 
@@ -1143,53 +1149,6 @@ else if (Model is not null)
                 },
             ],
         };
-    }
-
-    private async Task OpenEpisodeEditorAsync(SequenceItemViewModel item)
-    {
-        if (Model is null || !item.IsOwned || !Guid.TryParse(item.Id, out var episodeId))
-            return;
-
-        try
-        {
-            var activeProfile = await Orchestrator.GetActiveProfileAsync();
-            var applied = await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
-            {
-                EntityIds = [episodeId],
-                LaunchEntityId = episodeId,
-                LaunchEntityKind = "Work",
-                ContainerMode = "Canonical",
-                ActiveProfileId = activeProfile?.Id,
-                Mode = SharedMediaEditorMode.Normal,
-                InitialTab = "details",
-                InitialScope = "episode",
-                MediaType = "TV",
-                HeaderTitle = item.Title,
-                HeaderSubtitle = item.GroupTitle ?? item.PositionText ?? Model.Title,
-                CoverUrl = item.ArtworkUrl,
-                OnArtworkChanged = RefreshCurrentDetailAsync,
-                PreviewItems =
-                [
-                    new MediaEditorPreviewItem
-                    {
-                        EntityId = episodeId,
-                        Title = item.Title,
-                        CoverUrl = item.ArtworkUrl,
-                        MediaType = "TV",
-                    },
-                ],
-            });
-
-            if (applied)
-            {
-                await RefreshCurrentDetailAsync();
-                Snackbar.Add("Episode updated.", AppSeverity.Success);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Episode editor could not open: {ex.Message}", AppSeverity.Error);
-        }
     }
 
     private (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) ResolveEditorTarget(Guid fallbackEntityId)

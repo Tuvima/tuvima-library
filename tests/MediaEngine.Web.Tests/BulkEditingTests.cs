@@ -229,12 +229,53 @@ public sealed class BulkEditingTests : AsyncBunitContext
 
     // -- Tick boxes ----------------------------------------------------------------------------
 
-    private async Task<(EditingModeContext Mode, BulkEditSelection Selection)> EditingModeAsync(string formFactor = "desktop")
+    [Fact]
+    public async Task ARowsOwnEdit_StartsEditMode_TicksTheRow_AndOpensTheEditPanel()
+    {
+        var (mode, selection) = await EditingModeAsync(enter: false);
+        var row = new BulkEditRow(Guid.NewGuid(), "Paranoid Android", DetailEntityType.Work, Guid.NewGuid(), "Music");
+
+        Assert.True(await RowEditEntry.StartAsync(mode, selection, row));
+
+        Assert.True(mode.IsOn);
+        Assert.Equal([row.Id], selection.Rows.Select(ticked => ticked.Id));
+        Assert.Equal(BulkPanelKind.Edit, selection.Panel);
+    }
+
+    [Fact]
+    public async Task ARowsOwnEdit_WhenTheRowIsAlreadyTicked_KeepsTheTicksAndOpensThePanel()
+    {
+        var (mode, selection) = await EditingModeAsync();
+        var first = new BulkEditRow(Guid.NewGuid(), "Karma Police", DetailEntityType.Work, null, "Music");
+        var second = new BulkEditRow(Guid.NewGuid(), "No Surprises", DetailEntityType.Work, null, "Music");
+        selection.Toggle(first);
+        selection.Toggle(second);
+
+        Assert.True(await RowEditEntry.StartAsync(mode, selection, second));
+
+        Assert.Equal(2, selection.Count);
+        Assert.Equal(BulkPanelKind.Edit, selection.Panel);
+    }
+
+    [Fact]
+    public async Task ARowsOwnEdit_OffTheDesktop_DoesNothing()
+    {
+        var (mode, selection) = await EditingModeAsync("phone");
+        var row = new BulkEditRow(Guid.NewGuid(), "Paranoid Android", DetailEntityType.Work, null, "Music");
+
+        Assert.False(await RowEditEntry.StartAsync(mode, selection, row));
+
+        Assert.False(mode.IsOn);
+        Assert.Equal(0, selection.Count);
+        Assert.Equal(BulkPanelKind.None, selection.Panel);
+    }
+
+    private async Task<(EditingModeContext Mode, BulkEditSelection Selection)> EditingModeAsync(string formFactor = "desktop", bool enter = true)
     {
         await UseDevice(formFactor);
         var session = new ItemFieldEditSession(Services.GetRequiredService<IEngineApiClient>(), _device);
         var mode = new EditingModeContext(_device, session) { HasPermission = true };
-        if (formFactor == "desktop")
+        if (formFactor == "desktop" && enter)
         {
             Assert.True(await mode.EnterAsync());
         }

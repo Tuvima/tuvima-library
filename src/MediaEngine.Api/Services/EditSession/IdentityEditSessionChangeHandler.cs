@@ -1,5 +1,6 @@
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Domain.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Services.EditSession;
@@ -48,8 +49,33 @@ public sealed class IdentityEditSessionChangeHandler(IServiceScopeFactory scopes
             throw new InvalidOperationException(outcome.Reason);
         }
 
+        await ResolveReviewItemsAsync(scope.ServiceProvider, change.EntityId, ct).ConfigureAwait(false);
         return null;
     }
+
+    // Needs Review's Fix opens the item's own page on the Match tool (spec D16), so a match chosen there has to close the review items it
+    // answers, as the old review pop-up did by carrying the review id. The match is already saved, so a failure here is logged and never fails it.
+    private static async Task ResolveReviewItemsAsync(IServiceProvider services, Guid entityId, CancellationToken ct)
+    {
+        var reviews = services.GetService<IReviewQueueRepository>();
+        if (reviews is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await reviews.ResolveAllByEntityAsync(entityId, ResolvedBy, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            var logger = services.GetService<ILogger<IdentityEditSessionChangeHandler>>();
+            logger?.LogWarning(ex, "The review items of item {EntityId} could not be closed after its match was saved.", entityId);
+        }
+    }
+
+    /// <summary>Who the review items are closed by: the person who chose the match.</summary>
+    internal const string ResolvedBy = "user";
 
     /// <summary>Reads the plain-English reason out of the result the shared retail-match write answers with.</summary>
     internal static (bool Ok, string Reason) ReadOutcome(IResult result)

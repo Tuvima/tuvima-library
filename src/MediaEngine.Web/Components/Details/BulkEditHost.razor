@@ -150,6 +150,9 @@
 
     private void ClosePanel() => _selection.ClosePanel();
 
+    /// <summary>A row's own Edit button: the row is ticked by the list, then this opens the Edit panel for the ticked rows.</summary>
+    public void OpenEditPanel() => _selection.OpenPanel(BulkPanelKind.Edit);
+
     private async Task CancelAsync()
     {
         if (await _session.CancelAsync())

@@ -357,26 +357,49 @@ public sealed class UiCompositionGuardrailTests
         var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "NeedsReviewPageContent.razor"));
         var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
 
+        // The pop-up stays for people (and the Universe editor); a single item edits in place and Needs Review opens its page.
         Assert.Contains("MediaEditorLauncher.OpenAsync", detailPage);
         Assert.DoesNotContain("MediaEditorLauncher.BeginInline", detailPage);
-        Assert.Contains("MediaEditorLauncher.OpenAsync", reviewTab);
+        Assert.DoesNotContain("MediaEditorLauncher", reviewTab);
         Assert.DoesNotContain("MediaEditorInlineSession", launcher);
         Assert.Contains("SharedMediaEditorMode.Normal", detailPage);
-        Assert.Contains("SharedMediaEditorMode.Review", reviewTab);
+        Assert.Contains("EditingSection.Match", reviewTab);
         Assert.Contains("SharedMediaEditorMode.Batch", launcher);
+    }
+
+    // No route opens the old pop-up for a single item (universal editor spec D1 and D17): the only callers left are the person
+    // editor on the detail page and the Universe editor, and the launcher itself refuses any other request.
+    [Fact]
+    public void TheOldPopUpOpensOnlyForAPersonOrAUniverse()
+    {
+        var webSource = Path.Combine(RepoRoot, "src", "MediaEngine.Web");
+        var callers = Directory.EnumerateFiles(webSource, "*.*", SearchOption.AllDirectories)
+            .Where(path => path.EndsWith(".razor", StringComparison.Ordinal) || path.EndsWith(".cs", StringComparison.Ordinal))
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                && !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(path => File.ReadAllText(path).Contains("MediaEditorLauncher.OpenAsync", StringComparison.Ordinal)
+                || File.ReadAllText(path).Contains("MediaEditorLauncher.TryOpenAsync", StringComparison.Ordinal))
+            .Select(ToRelativePath)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+        [
+            "src/MediaEngine.Web/Components/Details/DetailPage.razor",
+            "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor",
+        ], callers);
+
+        var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
+        Assert.Contains("if (sharedTarget is null && !IsPersonRequest(request))", launcher);
     }
 
     [Fact]
     public void InlineEditingSurfaces_RefreshOnlyAfterSuccessfulEditorResult()
     {
         var detailPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
-        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "NeedsReviewPageContent.razor"));
-        var listenPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.cs"));
 
         Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*RefreshCurrentDetailAsync", detailPage);
         Assert.Contains("GetDetailPageAsync", detailPage);
-        Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*LoadReviewsAsync", reviewTab);
-        Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*LoadAsync", listenPage);
     }
 
     [Fact]

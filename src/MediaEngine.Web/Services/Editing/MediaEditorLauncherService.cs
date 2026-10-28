@@ -64,7 +64,15 @@ public sealed class MediaEditorLauncherService
             return EditorLaunchResult.NotAvailable;
         }
 
-        if (string.Equals(request.LaunchEntityKind, "Person", StringComparison.OrdinalIgnoreCase))
+        // A single title, track or episode is edited in place on its own page (the universal editor: the editing bar and the right-hand
+        // panel, spec D1 to D3), never in this pop-up. It stays only for a person and for the Universe editor until those move over
+        // (spec D17, D17a). A request for anything else is refused rather than quietly opened.
+        if (sharedTarget is null && !IsPersonRequest(request))
+        {
+            return EditorLaunchResult.NotAvailable;
+        }
+
+        if (IsPersonRequest(request))
         {
             var personDialog = await _dialogService.ShowAsync<PersonEditorDialog>(
                 "Edit Person",
@@ -110,6 +118,9 @@ public sealed class MediaEditorLauncherService
         var result = await dialog.Result;
         return result is not null && !result.Canceled ? EditorLaunchResult.Applied : EditorLaunchResult.Dismissed;
     }
+
+    private static bool IsPersonRequest(MediaEditorLaunchRequest request) =>
+        string.Equals(request.LaunchEntityKind, "Person", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsValidSharedTarget(SharedEntityEditorTargetDto target)
     {

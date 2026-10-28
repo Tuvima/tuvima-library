@@ -10,4 +10,8 @@ namespace MediaEngine.Web.Services.Navigation;
 /// <param name="EntityId">The surviving item the new page shows.</param>
 /// <param name="Section">The Editing Mode section to reopen (Match and Identity for a move).</param>
 /// <param name="ResultLine">What the move did, in plain words, for the section to show; null when there is nothing to say.</param>
-public sealed record DetailsEditResume(Guid EntityId, EditingSection Section, string? ResultLine);
+/// <param name="SelectRow">
+/// A row of the page's list (a track on an album) to tick, with the Edit panel open for it, instead of opening <paramref name="Section"/>.
+/// It is how a song's Edit button, the lyrics button in the player and Needs Review reach the editor on the page behind them (spec D18, D19).
+/// </param>
+public sealed record DetailsEditResume(Guid EntityId, EditingSection Section, string? ResultLine, BulkEditRow? SelectRow = null);

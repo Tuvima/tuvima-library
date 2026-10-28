@@ -20,8 +20,9 @@
 @implements IDisposable
 
 @inject IEngineApiClient ApiClient
+@inject IServiceProvider Services
+@inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @inject UIOrchestratorService Orchestrator
-@inject MediaEditorLauncherService MediaEditorLauncher
 @inject MediaReactionService Reactions
 @inject PlaybackSessionController Playback
 @inject ListenAudioDragService AudioDrag
@@ -1975,7 +1976,9 @@
             reloadOrigin: true);
     }
 
-    private async Task OpenEditorAsync(
+    // Edit opens the item's own page with the editor already on, on the Details tool (universal editor spec D2): the same bar and panel as
+    // everywhere else, not a pop-up. The list behind keeps its filters, sort and scroll for when the person comes back.
+    private Task OpenEditorAsync(
         Guid entityId,
         string? title,
         string? subtitle,
@@ -1983,43 +1986,16 @@
         string? mediaType,
         bool reloadOrigin)
     {
-        if (entityId == Guid.Empty)
+        if (entityId == Guid.Empty || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        var resolvedTitle = string.IsNullOrWhiteSpace(title) ? "Untitled item" : title!;
-        var normalizedMediaType = NormalizeEditorMediaType(mediaType ?? CurrentTab.MediaType);
-        var applied = await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
-        {
-            EntityIds = [entityId],
-            LaunchEntityId = entityId,
-            LaunchEntityKind = "browse",
-            Mode = SharedMediaEditorMode.Normal,
-            InitialTab = "details",
-            MediaType = normalizedMediaType,
-            HeaderTitle = resolvedTitle,
-            HeaderSubtitle = subtitle,
-            CoverUrl = coverUrl,
-            PreviewItems =
-            [
-                new MediaEditorPreviewItem
-                {
-                    EntityId = entityId,
-                    Title = resolvedTitle,
-                    CoverUrl = coverUrl,
-                    MediaType = normalizedMediaType,
-                },
-            ],
-        });
-
-        if (!applied)
-        {
-            return;
-        }
-
-        await RefreshOriginAsync(reloadOrigin);
-        Snackbar.Add("Media details updated.", AppSeverity.Success);
+        var item = ActiveTableItems.FirstOrDefault(candidate => candidate.EntityId == entityId)
+                   ?? _items.FirstOrDefault(candidate => candidate.EntityId == entityId);
+        Services.GetService<DetailsOverlayState>()?.OfferEditResume(new DetailsEditResume(entityId, EditingSection.History, null));
+        Nav.NavigateTo(item is not null ? MediaNavigation.ForLibraryItem(item) : $"/details/work/{entityId:D}");
+        return Task.CompletedTask;
     }
 
     private async Task RefreshOriginAsync(bool reloadOrigin = true)

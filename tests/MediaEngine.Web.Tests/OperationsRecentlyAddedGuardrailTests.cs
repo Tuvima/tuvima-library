@@ -21,10 +21,12 @@ public sealed class OperationsRecentlyAddedGuardrailTests
         Assert.DoesNotContain("<MediaSectionShell", operations, StringComparison.Ordinal);
         Assert.Contains("GetPendingReviewsAttemptAsync(int.MaxValue)", review, StringComparison.Ordinal);
         Assert.Contains("RefreshReviewCountAsync", review, StringComparison.Ordinal);
-        Assert.Contains("SharedMediaEditorMode.Review", review, StringComparison.Ordinal);
+        Assert.Contains("EditingSection.Match", review, StringComparison.Ordinal);
+        Assert.DoesNotContain("MediaEditorLauncher", review, StringComparison.Ordinal);
         Assert.Contains("<AppOverflowMenu", review, StringComparison.Ordinal);
         Assert.Contains("AppCompactPager", recent, StringComparison.Ordinal);
-        Assert.Contains("SharedMediaEditorMode.Normal", recent, StringComparison.Ordinal);
+        Assert.Contains("OfferEditResume", recent, StringComparison.Ordinal);
+        Assert.DoesNotContain("MediaEditorLauncher", recent, StringComparison.Ordinal);
         Assert.Contains("<AppOverflowMenu", recent, StringComparison.Ordinal);
         Assert.DoesNotContain("review-pinned", recent, StringComparison.Ordinal);
         Assert.DoesNotContain("GetPendingReviews", recent, StringComparison.Ordinal);

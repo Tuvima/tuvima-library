@@ -68,11 +68,12 @@ public sealed class Phase5InlineEditingTests
         var table = ReadSource("src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor");
         var card = ReadSource("src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor");
 
-        Assert.Contains("MediaEditorLauncherService MediaEditorLauncher", browse, StringComparison.Ordinal);
+        // Edit opens the item's own page with the editor on (the universal editor), never the old pop-up.
+        Assert.DoesNotContain("MediaEditorLauncher", browse, StringComparison.Ordinal);
         Assert.Contains("OnEditClicked=\"OpenItemEditorAsync\"", browse, StringComparison.Ordinal);
         Assert.DoesNotContain("OnEditClicked=\"OpenCardEditorAsync\"", browse, StringComparison.Ordinal);
         Assert.DoesNotContain("MediaGroupPage", browse, StringComparison.Ordinal);
-        Assert.Contains("MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest", browse, StringComparison.Ordinal);
+        Assert.Contains("OfferEditResume(new DetailsEditResume(entityId, EditingSection.History", browse, StringComparison.Ordinal);
         Assert.Contains("OnEditClicked.InvokeAsync(item.EntityId)", table, StringComparison.Ordinal);
         Assert.Contains("href=\"@DetailsNavigationUrl\"", card, StringComparison.Ordinal);
         Assert.DoesNotContain("OnEditClicked", card, StringComparison.Ordinal);
@@ -90,13 +91,14 @@ public sealed class Phase5InlineEditingTests
     }
 
     [Fact]
-    public void ReviewQueue_ReviewActionLaunchesEditorInReviewModeWithReviewId()
+    public void ReviewQueue_ReviewActionOpensTheItemsOwnPageOnTheMatchTool()
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor");
 
-        Assert.Contains("Mode = SharedMediaEditorMode.Review", source, StringComparison.Ordinal);
-        Assert.Contains("ReviewItemId = item.Id", source, StringComparison.Ordinal);
+        Assert.Contains("new DetailsEditResume(item.EntityId, EditingSection.Match, null)", source, StringComparison.Ordinal);
         Assert.Contains("Label=\"Review\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MediaEditorLauncher", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SharedMediaEditorMode.Review", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Desktop required", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Open complete review", source, StringComparison.Ordinal);
         Assert.Contains("await LoadReviewsAsync();", source, StringComparison.Ordinal);

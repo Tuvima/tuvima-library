@@ -646,7 +646,6 @@ else
 @code {
     [Parameter, EditorRequired] public SequencePlacementViewModel Placement { get; set; } = default!;
     [Parameter] public EventCallback<SequenceContainerOptionViewModel> OnContainerSelected { get; set; }
-    [Parameter] public EventCallback<SequenceItemViewModel> OnEditItem { get; set; }
 
     /// <summary>The season the page address names; a change to it (for example a link to another season of this show) selects that season.</summary>
     [Parameter] public Guid? RequestedSeasonId { get; set; }
