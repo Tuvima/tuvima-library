@@ -113,7 +113,6 @@ public sealed class VaultSiblingLibraryService(
             return Refused(outcome);
         }
 
-        logger.LogInformation("A Vault library was created by profile {ProfileId}.", adminProfileId);
         return new VaultSiblingOutcome(VaultSiblingStatus.Ok, Library: FindEntry(entryId));
     }
 
@@ -179,7 +178,6 @@ public sealed class VaultSiblingLibraryService(
             }
 
             configuration.SaveLibraries(settings);
-            logger.LogInformation("Online lookup of a Vault library was switched {State}.", enabled ? "on" : "off");
             return new VaultSiblingOutcome(VaultSiblingStatus.Ok, Library: entry);
         }
         finally
@@ -247,7 +245,7 @@ public sealed class VaultSiblingLibraryService(
         catch (InvalidOperationException)
         {
             // Items already sit in the library, so the Vault mark must stay (it is refused to protect them); the half-made library is left for the Vault pages.
-            logger.LogWarning("A Vault library that could not be finished was left in place because it already holds items.");
+            logger.LogDebug("A half-made library was left in place because it already holds items.");
         }
     }
 

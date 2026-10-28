@@ -233,11 +233,11 @@ public partial interface IEngineApiClient
     /// <summary>GET /settings/vault-libraries — the Vault-protected libraries of the content types, for an administrator whose Vault mode is on; null for anyone else (the Engine answers "not found") or when it could not be read.</summary>
     Task<IReadOnlyList<LibraryFolderDto>?> GetVaultSiblingLibrariesAsync(CancellationToken ct = default);
 
-    /// <summary>POST /settings/vault-libraries — makes the Vault-protected library of a content type with its first folder (administrators; no PIN). The new library, or null when the Engine refused (<see cref="LastError"/> says why in plain words).</summary>
-    Task<LibraryFolderDto?> CreateVaultLibraryAsync(CreateVaultLibraryFromKindRequest request, CancellationToken ct = default);
+    /// <summary>POST /settings/vault-libraries — makes the Vault-protected library of a content type with its first folder (administrators; no PIN). The answer carries the new library's id only when the caller may see the Vault right now; null when the Engine refused (<see cref="LastError"/> says so in plain words).</summary>
+    Task<VaultLibraryActionResultDto?> CreateVaultLibraryAsync(CreateVaultLibraryFromKindRequest request, CancellationToken ct = default);
 
-    /// <summary>POST /settings/vault-libraries/folders — adds a folder as a Vault folder of a content type, making that type's Vault library first when it has none (administrators; no PIN). The library it joined, or null when the Engine refused.</summary>
-    Task<LibraryFolderDto?> AddVaultFolderAsync(AddVaultFolderRequest request, CancellationToken ct = default);
+    /// <summary>POST /settings/vault-libraries/folders — adds a folder as a Vault folder of a content type, making that type's Vault library first when it has none (administrators; no PIN). The answer names no library or folder; null when the Engine refused.</summary>
+    Task<VaultLibraryActionResultDto?> AddVaultFolderAsync(AddVaultFolderRequest request, CancellationToken ct = default);
 
     /// <summary>PUT /settings/vault-libraries/{libraryId}/online-lookup — turns "Look up details online" on or off for one Vault library. The library, or null when the Engine refused.</summary>
     Task<LibraryFolderDto?> SetVaultOnlineLookupAsync(string libraryId, bool enabled, CancellationToken ct = default);

@@ -3,11 +3,13 @@ using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.Vault;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
+using MediaEngine.Web.Services.Vault;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
@@ -98,8 +100,10 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.AddVaultFolderAsync), args =>
             {
                 _vaultFolders.Add((AddVaultFolderRequest)args![0]!);
-                return Task.FromResult<LibraryFolderDto?>(VaultMovies());
+                return Task.FromResult<VaultLibraryActionResultDto?>(new VaultLibraryActionResultDto(true, VaultMoviesId));
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetNsfwStatusAsync), _ => Task.FromResult(
+                VaultCall<NsfwStatusDto>.Ok(new NsfwStatusDto { Mode = "allowed", Unlocked = true, HasPin = true, IdleLockMinutes = 60 })));
             stub.SetHandler(nameof(IEngineApiClient.GetVaultMoveDestinationAsync), _ => Task.FromResult(_destination));
             stub.SetHandler(nameof(IEngineApiClient.SetVaultOnlineLookupAsync), args =>
             {
@@ -119,9 +123,17 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
-    private void SignIn(bool administrator) =>
-        Services.GetRequiredService<DashboardSessionAccessor>().Set("token", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            new DashboardAuthorityResponse(Guid.NewGuid(), Guid.NewGuid(), true, true, 1, 1, administrator, administrator, null, 1, [], ["settings.administration"], ["household.manage"]));
+    // An administrator signs in with Vault mode on; the Vault choices are drawn only then.
+    private void SignIn(bool administrator, bool vaultMode = true)
+    {
+        var profile = Guid.NewGuid();
+        Services.GetRequiredService<DashboardSessionAccessor>().Set("token", profile, profile, Guid.NewGuid(),
+            new DashboardAuthorityResponse(Guid.NewGuid(), profile, true, true, 1, 1, administrator, administrator, null, 1, [], ["settings.administration"], ["household.manage"]));
+        if (administrator && vaultMode)
+        {
+            Services.GetRequiredService<NsfwModeState>().RefreshAsync(profile, isKids: false).GetAwaiter().GetResult();
+        }
+    }
 
     private IRenderedComponent<LibraryShell> OpenPage(LibraryFolderDto library, string? tab = null, bool vaultVisible = false)
     {
@@ -179,6 +191,24 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
         dialogs.WaitForAssertion(() => Assert.Contains("Add folder", dialogs.Markup, StringComparison.Ordinal));
         dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Add"));
         Assert.DoesNotContain("Vault", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AnAdministratorWhoseVaultModeIsOffGetsNoVaultSwitchNoMoveToVaultAndNoVaultWord()
+    {
+        SignIn(administrator: true, vaultMode: false);
+        var dialogs = Render<AppDialogHost>();
+        var cut = OpenPage(_configuration.Libraries[0]);
+        cut.WaitForElement(".folder-grid");
+
+        await cut.ClickAsync("[data-source='movies-main'] .app-row-menu__trigger");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role=menuitem]")));
+        Assert.DoesNotContain(cut.FindAll("[role=menuitem]"), item => Text(item).Contains("Vault", StringComparison.OrdinalIgnoreCase));
+
+        await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Add"));
+        Assert.DoesNotContain("Vault", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -247,7 +277,7 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
 
         var lookup = cut.Find("section.vault-lookup");
         Assert.False(lookup.QuerySelector("[role=switch]")!.HasAttribute("checked"));
-        Assert.Contains("Titles from this section will be sent to online services.", lookup.TextContent + cut.Find("[data-testid=vault-lookup-privacy]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("nothing is sent to online services until then", lookup.TextContent + cut.Find("[data-testid=vault-lookup-privacy]").TextContent, StringComparison.Ordinal);
         Assert.Empty(_activityReads);
     }
 

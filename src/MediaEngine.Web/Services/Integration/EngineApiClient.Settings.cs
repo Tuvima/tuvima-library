@@ -468,11 +468,11 @@ public sealed partial class EngineApiClient
     public Task<IReadOnlyList<LibraryFolderDto>?> GetVaultSiblingLibrariesAsync(CancellationToken ct = default) =>
         GetAsync<IReadOnlyList<LibraryFolderDto>>("GET /settings/vault-libraries", "/settings/vault-libraries", logAsWarning: false, ct: ct);
 
-    public Task<LibraryFolderDto?> CreateVaultLibraryAsync(CreateVaultLibraryFromKindRequest request, CancellationToken ct = default) =>
-        PostAsync<CreateVaultLibraryFromKindRequest, LibraryFolderDto>("POST /settings/vault-libraries", "/settings/vault-libraries", request, ct: ct);
+    public Task<VaultLibraryActionResultDto?> CreateVaultLibraryAsync(CreateVaultLibraryFromKindRequest request, CancellationToken ct = default) =>
+        PostAsync<CreateVaultLibraryFromKindRequest, VaultLibraryActionResultDto>("POST /settings/vault-libraries", "/settings/vault-libraries", request, ct: ct);
 
-    public Task<LibraryFolderDto?> AddVaultFolderAsync(AddVaultFolderRequest request, CancellationToken ct = default) =>
-        PostAsync<AddVaultFolderRequest, LibraryFolderDto>("POST /settings/vault-libraries/folders", "/settings/vault-libraries/folders", request, ct: ct);
+    public Task<VaultLibraryActionResultDto?> AddVaultFolderAsync(AddVaultFolderRequest request, CancellationToken ct = default) =>
+        PostAsync<AddVaultFolderRequest, VaultLibraryActionResultDto>("POST /settings/vault-libraries/folders", "/settings/vault-libraries/folders", request, ct: ct);
 
     public Task<LibraryFolderDto?> SetVaultOnlineLookupAsync(string libraryId, bool enabled, CancellationToken ct = default) =>
         PutAsync<SetVaultOnlineLookupRequest, LibraryFolderDto>(

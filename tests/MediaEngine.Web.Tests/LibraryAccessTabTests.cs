@@ -2,9 +2,11 @@ using System.Text.RegularExpressions;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.Vault;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Vault;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +38,8 @@ public sealed class LibraryAccessTabTests : AsyncBunitContext
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler("get_LastError", _ => null);
+            stub.SetHandler(nameof(IEngineApiClient.GetNsfwStatusAsync), _ => Task.FromResult(
+                VaultCall<NsfwStatusDto>.Ok(new NsfwStatusDto { Mode = "allowed", Unlocked = true, HasPin = true, IdleLockMinutes = 60 })));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryAccessAsync), _ => Task.FromResult(_access));
             stub.SetHandler(nameof(IEngineApiClient.MutateLibraryAsync), args =>
             {
@@ -51,9 +55,17 @@ public sealed class LibraryAccessTabTests : AsyncBunitContext
         }));
     }
 
-    private void SignInAsAdministrator() =>
-        Services.GetRequiredService<DashboardSessionAccessor>().Set("token", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            new DashboardAuthorityResponse(Guid.NewGuid(), Guid.NewGuid(), true, true, 1, 1, true, true, null, 1, [], ["settings.administration"], ["household.manage"]));
+    // An administrator signs in with Vault mode on unless told otherwise; the Vault choice is drawn only then.
+    private void SignInAsAdministrator(bool vaultMode = true)
+    {
+        var profile = Guid.NewGuid();
+        Services.GetRequiredService<DashboardSessionAccessor>().Set("token", profile, profile, Guid.NewGuid(),
+            new DashboardAuthorityResponse(Guid.NewGuid(), profile, true, true, 1, 1, true, true, null, 1, [], ["settings.administration"], ["household.manage"]));
+        if (vaultMode)
+        {
+            Services.GetRequiredService<MediaEngine.Web.Services.Vault.NsfwModeState>().RefreshAsync(profile, isKids: false).GetAwaiter().GetResult();
+        }
+    }
 
     private static LibraryAccessGrantsDto Access(string access, params Guid[] chosen) => new(
         Guid.Parse(LibraryId),
@@ -117,6 +129,26 @@ public sealed class LibraryAccessTabTests : AsyncBunitContext
         Assert.NotEmpty(cut.FindAll(".library-access__heading .app-info-tip"));
         Assert.Empty(cut.FindAll("[data-profile]"));
         Assert.Empty(cut.FindAll(".app-save-bar"));
+    }
+
+    [Fact]
+    public void AnAdministratorWhoseVaultModeIsOffSeesTwoChoicesAndNoVaultWordAnywhereOnTheTab()
+    {
+        SignInAsAdministrator(vaultMode: false);
+        var cut = Open();
+
+        Assert.Equal(["Standard", "Selected profiles"], Choices(cut).Select(choice => choice.QuerySelector("strong")!.TextContent).ToArray());
+        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AVaultProtectedLibraryRendersNothingForAnAdministratorWhoseVaultModeIsOff()
+    {
+        SignInAsAdministrator(vaultMode: false);
+        var cut = Render<LibraryAccessTab>(parameters => parameters.Add(x => x.Library, Library("vault")));
+
+        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(cut.FindAll("button"));
     }
 
     [Fact]

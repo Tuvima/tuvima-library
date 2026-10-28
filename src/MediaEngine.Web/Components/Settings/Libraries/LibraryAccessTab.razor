@@ -6,6 +6,7 @@
 @inject IEngineApiClient Api
 @inject IAppToastService Toast
 @inject DashboardSessionAccessor Session
+@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 
 @* A library's Access tab (Library pages D9, D11): who may see it. Three choices are drawn: Standard (everyone who has the area, within each
    profile's limits), Selected profiles (only the profiles ticked below, plus administrators) and Vault-protected (chosen when a library is
@@ -100,8 +101,8 @@ else
 
     private bool IsVaultLibrary => string.Equals(Library.Access, LibraryAccessChoices.Vault, StringComparison.OrdinalIgnoreCase);
 
-    // Only a server administrator is told the Vault choice exists; the Engine decides what they may do with it.
-    private bool CanOfferVault => Session.Authority?.EffectiveAdministrator == true;
+    // Only a server administrator whose Vault mode is on is told the Vault choice exists (with it off, nothing here names the Vault); the Engine decides what they may do with it.
+    private bool CanOfferVault => LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false);
 
     private bool CanSeeVault => CanOfferVault;
 

@@ -11,6 +11,7 @@
 @inject IAppToastService Toast
 @inject IAppDialogService DialogService
 @inject DashboardSessionAccessor Session
+@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 
 @* One library's page (Library pages D7, D17, D18, D19): its content type, access, counts and status, the header actions, and the tab
    strip (Folders, Access, File handling, Activity, plus Lookup for a kind with lookup settings). The Settings frame above carries the
@@ -187,10 +188,11 @@
 
     private bool IsVault => LibraryLookupRules.IsVaultLibrary(Library);
 
-    // The Vault choices on this page (Add as a Vault folder, Move to Vault) are for a server administrator on an ordinary library of a content type that can have a Vault library.
+    // The Vault choices on this page (Add as a Vault folder, Move to Vault) are for a server administrator whose Vault mode is on, on an ordinary library of a content
+    // type that can have a Vault library. With Vault mode off they are not drawn at all, so nothing here tells an administrator the Vault exists (review of WP9).
     private bool CanOfferVault => !ReadOnly
         && !IsVault
-        && Session.Authority?.EffectiveAdministrator == true
+        && LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false)
         && Kinds.Find(Library.KindKey) is { } kind
         && !LibraryTypeCatalog.IsViewKind(kind);
 
@@ -309,7 +311,7 @@
     private async Task AddVaultFolderAsync(ServerFolderValidationResultDto selected)
     {
         var added = await Api.AddVaultFolderAsync(new AddVaultFolderRequest(Library.KindKey, selected.Path));
-        if (added is null)
+        if (added is not { Ok: true })
         {
             Toast.Add(Api.LastError ?? "The folder could not be added. Check it and try again.", AppSeverity.Error);
             return;
@@ -317,7 +319,7 @@
 
         var name = Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         Toast.Add(IsVault ? $"Added {name} to {row_name()}." : "Added as a Vault folder.", AppSeverity.Success);
-        _highlightSourceId = IsVault ? added.Sources.LastOrDefault()?.Id : null;
+        _highlightSourceId = null;
         await FolderAddedAsync();
     }
 

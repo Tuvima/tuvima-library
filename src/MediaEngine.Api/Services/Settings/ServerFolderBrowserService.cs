@@ -760,8 +760,14 @@ public sealed class ServerFolderBrowserService(
             ? NeutralLibraryLabel
             : $"the library \"{name}\"";
 
-    private static bool IsVaultEntryName(string? name) =>
-        string.Equals(name?.Trim(), MediaEngine.Api.Services.Vault.VaultFolderAttachmentService.LibraryName, StringComparison.OrdinalIgnoreCase);
+    // A Vault library is told apart by what it is (its access), never by its name: a Vault sibling library has a name the person chose ("Private Movies").
+    // The legacy Vault entry is also recognised by its fixed name.
+    private static bool IsVaultEntry(LibraryFolderConfig library) =>
+        string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(library.Name?.Trim(), MediaEngine.Api.Services.Vault.VaultFolderAttachmentService.LibraryName, StringComparison.OrdinalIgnoreCase);
+
+    // The one answer for any folder that is, holds or sits inside a Vault folder: it names no library and says nothing about why.
+    private const string VaultPathRefusal = "This folder can't be used. Choose a different folder.";
 
     private static void AddConfiguredPathIssues(
         LibrariesConfiguration configurationSnapshot,
@@ -769,16 +775,16 @@ public sealed class ServerFolderBrowserService(
         string? currentSourceId,
         List<ServerFolderValidationIssueDto> issues)
     {
-        // The Vault's settings entry is never named in a folder message: it reads as "another library" (Videos spec D17, D45).
+        // A Vault library is never named in a folder message, and a folder that is, holds or sits inside one gets one generic answer (Videos spec D17, D45).
         var configured = configurationSnapshot.Libraries
-            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Name: IsVaultEntryName(library.Name) ? NeutralLibraryLabel : library.Name)))
-            .Select(source => (source.Id, source.Path, Label: LibraryLabel(source.Name), source.Name))
+            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Vault: IsVaultEntry(library), Name: IsVaultEntry(library) ? null : library.Name)))
+            .Select(source => (source.Id, source.Path, source.Vault, Label: LibraryLabel(source.Name), source.Name))
             .ToList();
 
         // The import folder is kept apart from every library folder, so it is never offered as one either.
         if (ImportFolderRules.Find(configurationSnapshot) is { } importFolder)
         {
-            configured.Add((ImportFolderRules.LocationId, importFolder.Path, "the import folder", "the import folder"));
+            configured.Add((ImportFolderRules.LocationId, importFolder.Path, false, "the import folder", "the import folder"));
         }
 
         foreach (var source in configured)
@@ -791,6 +797,16 @@ public sealed class ServerFolderBrowserService(
             }
 
             var configuredPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(source.Path));
+            if (source.Vault)
+            {
+                if (PathEquals(configuredPath, selected.Path) || IsWithin(configuredPath, selected.Path) || (!IsDriveRoot(selected.Path) && IsWithin(selected.Path, configuredPath)))
+                {
+                    issues.Add(new ServerFolderValidationIssueDto { Code = "folder_not_allowed", Message = VaultPathRefusal, LibraryName = null });
+                }
+
+                continue;
+            }
+
             if (PathEquals(configuredPath, selected.Path))
             {
                 issues.Add(new ServerFolderValidationIssueDto { Code = "already_configured", Message = $"This folder is already used by {source.Label}. Choose a different folder.", LibraryName = source.Name });

@@ -32,7 +32,7 @@ internal static class VaultLibraryEndpoints
         }).WithName("ListVaultSiblingLibraries").Produces<IReadOnlyList<MediaEngine.Contracts.Settings.LibraryFolderDto>>()
           .RequireAuthorization(AuthPolicies.Authenticated);
 
-        vault.MapPost("/", async (HttpContext http, IRequestAuthorityResolver authorities, VaultSiblingLibraryService siblings) =>
+        vault.MapPost("/", async (HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver access, VaultSiblingLibraryService siblings) =>
         {
             if (await AdministratorAsync(http, authorities) is not { } adminProfileId)
             {
@@ -41,15 +41,16 @@ internal static class VaultLibraryEndpoints
 
             if (await ReadBodyAsync<CreateVaultLibraryFromKindRequest>(http) is not { } request)
             {
-                return ApiErrors.BadRequest("The request could not be read.");
+                return ApiErrors.BadRequest(GenericRefusal);
             }
 
-            return Answer(await siblings.CreateAsync(adminProfileId, request.KindKey, request.Name, request.FolderPath, http.RequestAborted), siblings);
-        }).WithName("CreateVaultSiblingLibrary").Produces<MediaEngine.Contracts.Settings.LibraryFolderDto>()
+            var unlocked = await UnlockedAdministratorAsync(http, authorities, access) is not null;
+            return Answered(await siblings.CreateAsync(adminProfileId, request.KindKey, request.Name, request.FolderPath, http.RequestAborted), unlocked);
+        }).WithName("CreateVaultSiblingLibrary").Produces<VaultLibraryActionResultDto>()
           .ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict)
           .RequireAuthorization(AuthPolicies.Authenticated);
 
-        vault.MapPost("/folders", async (HttpContext http, IRequestAuthorityResolver authorities, VaultSiblingLibraryService siblings) =>
+        vault.MapPost("/folders", async (HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver access, VaultSiblingLibraryService siblings) =>
         {
             if (await AdministratorAsync(http, authorities) is not { } adminProfileId)
             {
@@ -58,17 +59,19 @@ internal static class VaultLibraryEndpoints
 
             if (await ReadBodyAsync<AddVaultFolderRequest>(http) is not { } request)
             {
-                return ApiErrors.BadRequest("The request could not be read.");
+                return ApiErrors.BadRequest(GenericRefusal);
             }
 
-            return Answer(await siblings.AddFolderAsync(adminProfileId, request.KindKey, request.FolderPath, http.RequestAborted), siblings);
-        }).WithName("AddVaultSiblingFolder").Produces<MediaEngine.Contracts.Settings.LibraryFolderDto>()
+            var unlocked = await UnlockedAdministratorAsync(http, authorities, access) is not null;
+            return Answered(await siblings.AddFolderAsync(adminProfileId, request.KindKey, request.FolderPath, http.RequestAborted), unlocked);
+        }).WithName("AddVaultSiblingFolder").Produces<VaultLibraryActionResultDto>()
           .ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict)
           .RequireAuthorization(AuthPolicies.Authenticated);
 
-        vault.MapGet("/destination", async (HttpContext http, IRequestAuthorityResolver authorities, VaultSiblingLibraryService siblings, [FromQuery(Name = "kind_key")] string? kindKey) =>
+        vault.MapGet("/destination", async (HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver access, VaultSiblingLibraryService siblings, [FromQuery(Name = "kind_key")] string? kindKey) =>
         {
-            if (await AdministratorAsync(http, authorities) is null)
+            // The answer says whether a Vault library exists, so it is for the unlocked administrator only; a locked one gets the same answer as anyone else.
+            if (await UnlockedAdministratorAsync(http, authorities, access) is null)
             {
                 return ApiErrors.NotFound("Not found.");
             }
@@ -133,6 +136,28 @@ internal static class VaultLibraryEndpoints
             return null;
         }
     }
+
+    /// <summary>The one refusal a caller who may not see the Vault ever gets, whatever went wrong, so a refusal never tells whether a Vault library exists.</summary>
+    internal const string GenericRefusal = "That can't be done.";
+
+    // Making a library or adding a folder works for any administrator, but what it answers does not: nothing but "worked" unless the caller may see the Vault
+    // right now, and one constant refusal for every failure when they may not.
+    private static IResult Answered(VaultSiblingOutcome outcome, bool unlocked)
+    {
+        if (outcome.Status == VaultSiblingStatus.Ok)
+        {
+            return Results.Ok(new VaultLibraryActionResultDto(true, unlocked ? outcome.Library?.Id : null));
+        }
+
+        return unlocked ? Refusal(outcome) : ApiErrors.BadRequest(GenericRefusal);
+    }
+
+    private static IResult Refusal(VaultSiblingOutcome outcome) => outcome.Status switch
+    {
+        VaultSiblingStatus.Invalid => ApiErrors.BadRequest(outcome.Message ?? GenericRefusal),
+        VaultSiblingStatus.Conflict => ApiErrors.Conflict(outcome.Message ?? GenericRefusal),
+        _ => ApiErrors.NotFound("Not found."),
+    };
 
     private static IResult Answer(VaultSiblingOutcome outcome, VaultSiblingLibraryService siblings) => outcome.Status switch
     {

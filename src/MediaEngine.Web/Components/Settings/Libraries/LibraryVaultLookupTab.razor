@@ -5,11 +5,11 @@
 @inject IAppToastService Toast
 
 @* The Lookup tab of a Vault-protected library of an ordinary content type (Library pages D15; Vault sections D34): one switch, "Look up details
-   online", off by default, with the plain privacy note. Turned on, titles from this library are sent to online services; off, nothing leaves the
-   machine. The switch is the library's own, so Movies and Music in the Vault are set apart. Drawn only for a Vault library, which only someone
+   online", off by default, with the plain privacy note. The choice is kept, but online lookup for the Vault is not running yet, so nothing leaves the
+   machine either way until a later update (the Engine looks nothing up for a Vault library meanwhile). The switch is the library's own, so Movies and Music in the Vault are set apart. Drawn only for a Vault library, which only someone
    who may see the Vault ever reaches. A phone shows the state and changes nothing. *@
 <section class="vault-lookup" aria-label="Lookup">
-    <h3 class="vault-lookup__heading">Look up details online <AppInfoTip Text="Library can fetch covers, descriptions and cast for this library from the same online services as your other libraries. It is off until you switch it on." Label="About online lookup" /></h3>
+    <h3 class="vault-lookup__heading">Look up details online <AppInfoTip Text="Later, Library will be able to fetch covers, descriptions and cast for this library from online services. That is not running yet, so nothing about this library is sent anywhere." Label="About online lookup" /></h3>
     <AppSwitchRow Label="Look up details online"
                   Description="@(_on ? LibraryLookupRules.VaultPrivacyNote : LibraryLookupRules.VaultOffNote)"
                   Value="@_on"

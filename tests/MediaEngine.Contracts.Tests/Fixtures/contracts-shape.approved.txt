@@ -9406,6 +9406,10 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ValidateServerFold
   CurrentSourceId: System.String | nullability=nullable | accessors=get,init
   KindKey: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.VaultLibraryActionResultDto
+  Ok: System.Boolean | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.VaultMoveDestinationDto
   KindKey: System.String | nullability=not-null | accessors=get,init
   State: System.String | nullability=not-null | accessors=get,init

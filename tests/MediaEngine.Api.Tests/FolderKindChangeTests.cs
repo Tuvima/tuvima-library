@@ -780,8 +780,11 @@ public sealed class FolderKindChangeTests : IDisposable
         }
 
         Assert.Contains("Vault", (await Refused(folder.Id, new() { KindKey = "vault_only_kind" })).Message, StringComparison.Ordinal);
-        Assert.Contains("Adult content library instead", (await Refused(folder.Id, new() { KindKey = "adult_content" })).Message, StringComparison.Ordinal);
+        Assert.Contains("into or out of Adult content", (await Refused(folder.Id, new() { KindKey = "adult_content" })).Message, StringComparison.Ordinal);
         Assert.Contains("not in the same area", (await Refused(folder.Id, new() { KindKey = "music" })).Message, StringComparison.Ordinal);
+        // A folder of an Adult content library cannot be turned into a kind whose library is open to everyone.
+        var adultFolder = _w.AddFolder(_w.AddLibrary("Adult", "adult_content", LibraryAreas.Watch, "Videos", plain: true, access: LibraryAccessLevels.Selected), "Private", managed: false);
+        Assert.Contains("into or out of Adult content", (await Refused(adultFolder.Id, new() { KindKey = "other_videos" })).Message, StringComparison.Ordinal);
         Assert.Contains("already is Movies", (await Refused(folder.Id, new() { KindKey = "movies" })).Message, StringComparison.Ordinal);
         Assert.Contains("does not exist", (await Refused(folder.Id, new() { KindKey = "no_such_kind" })).Message, StringComparison.Ordinal);
         Assert.Contains("Choose what", (await Refused(folder.Id, new() { KindKey = " " })).Message, StringComparison.Ordinal);
@@ -1462,7 +1465,7 @@ public sealed class FolderKindChangeTests : IDisposable
                 NullLogger<FolderKindChangeRunner>.Instance, timing: new FolderOrganiseTiming { ProgressInterval = TimeSpan.Zero });
         }
 
-        public string AddLibrary(string name, string kindKey, string area, string mediaType, bool plain = false, bool youtube = false)
+        public string AddLibrary(string name, string kindKey, string area, string mediaType, bool plain = false, bool youtube = false, string access = LibraryAccessLevels.Standard)
         {
             var libraries = Config.LoadLibraries();
             var id = Guid.NewGuid().ToString("D");
@@ -1477,6 +1480,7 @@ public sealed class FolderKindChangeTests : IDisposable
                 Presentation = LibraryPresentations.Catalogue,
                 MetadataPolicy = plain || youtube ? LibraryMetadataPolicies.LocalOnly : LibraryMetadataPolicies.Enriched,
                 YoutubeLookup = youtube,
+                Access = access,
                 MediaTypes = [mediaType],
                 Sources = [],
             });

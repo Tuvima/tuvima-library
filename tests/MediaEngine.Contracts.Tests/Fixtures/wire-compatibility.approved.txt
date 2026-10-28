@@ -45,7 +45,7 @@
 
 [method] AddVaultFolderAsync
   input request | default=required | shape=496178f768b122b78c9f9362d1cc23b685b1e416c7a4144ea10506af9b8be71d
-  response | shape=be5b786646a46f52eae043001dac2211c19b4f1c40395532c8888b00715b1d91
+  response | shape=fe04ccd42d09900e0188935909d2f475f39d0aea0553ad9f71c5781fc84e64ff
 
 [method] AddVaultImagesToGalleryAsync
   input galleryId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
@@ -301,7 +301,7 @@
 
 [method] CreateVaultLibraryAsync
   input request | default=required | shape=ca2fad881405e1cd126333806856c920fb7a5f7b521e9c0036e48349e5241703
-  response | shape=be5b786646a46f52eae043001dac2211c19b4f1c40395532c8888b00715b1d91
+  response | shape=fe04ccd42d09900e0188935909d2f475f39d0aea0553ad9f71c5781fc84e64ff
 
 [method] CreateVaultLibraryAsync
   input request | default=required | shape=9c7982403125d6b3ce627c8c8491e2b798bf9ca75f604adcac6da4b56fd0c4c5
@@ -13911,6 +13911,11 @@ property=sourceHash | nullability=nullable | accessors=get,init | required=no | 
 
 [shape] fdd7e58f6ea636a4fdea906b6d8ea2d3a1641efca22e56653968294b1af47df3
 direction=read | kind=array | item=64f1b81bb043949130ace6eae519c068019f2f76b9527b866877386ad61b1670
+
+[shape] fe04ccd42d09900e0188935909d2f475f39d0aea0553ad9f71c5781fc84e64ff
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=ok | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=library_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 
 [shape] fe737f153d7a91686c7091608ab5a37c152fda25a3da99e87b2b04004a282b58
 direction=read | kind=array | item=770ac8cf266e5f3dc69c0fb624c041564229d6b157374a1cc46f06c2d649b147

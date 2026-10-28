@@ -496,6 +496,21 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
+    public void Validator_OverlapWithAVaultFolder_NamesNeitherTheEntryNorItsPosition()
+    {
+        var config = CreateValidCataloguedLibrary();
+        var vault = OtherVideosLibrary(1, "Private Movies", P(Drive, "media/movies/home"));
+        vault.Access = LibraryAccessLevels.Vault;
+        config.Libraries.Add(vault);
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        var overlap = Assert.Single(errors, error => error.Contains("overlap", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("Two folders must not overlap.", overlap);
+        Assert.DoesNotContain(errors, error => error.Contains("libraries[1]", StringComparison.Ordinal) && error.Contains("overlap", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Validator_RefusesAFolderWithScanningOffThatOverlapsAnother()
     {
         var config = CreateValidCataloguedLibrary();

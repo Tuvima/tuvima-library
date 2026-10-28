@@ -37,8 +37,11 @@ public static class LibraryLookupRules
     /// <summary>The kind whose Vault library looks details up on a Stash-box server, not online (the Vault's own pages hold that setting).</summary>
     public const string AdultContentKindKey = "adult_content";
 
-    /// <summary>The privacy note shown beside the Vault library's online lookup switch.</summary>
-    public const string VaultPrivacyNote = "Titles from this section will be sent to online services.";
+    /// <summary>
+    /// The note shown beside the Vault library's online lookup switch. Online lookup for the Vault is not running yet (it arrives with a later update, which is
+    /// when titles would be sent to online services), so the note says exactly that: the choice is kept, and nothing is sent in the meantime.
+    /// </summary>
+    public const string VaultPrivacyNote = "Online lookup for this section turns on with a later update. Your choice is kept, and nothing is sent to online services until then.";
 
     /// <summary>What the switch says while it is off.</summary>
     public const string VaultOffNote = "Off: nothing about this library leaves this machine.";

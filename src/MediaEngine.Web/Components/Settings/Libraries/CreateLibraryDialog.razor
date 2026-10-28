@@ -7,6 +7,7 @@
 @inject IEngineApiClient Api
 @inject NavigationManager Navigation
 @inject DashboardSessionAccessor Session
+@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 @inject IAppToastService Toasts
 
 @* Add library: one screen. The media area, a name, the content type, who can see it, and the first source folder, checked as it is chosen.
@@ -164,8 +165,9 @@
     private string? _error;
 
     private FolderAddScope Scope => new(Simple, SetupSession);
-    // Only a server administrator is offered Vault-protected, and never in first-run setup. For anyone else the dialog holds no Vault word at all.
-    private bool ShowVaultOption => !Simple && Session.Authority?.EffectiveAdministrator == true;
+    // Only a server administrator whose Vault mode is on is offered Vault-protected (and Adult content), and never in first-run setup. For anyone else, an
+    // administrator with Vault mode off included, the dialog holds no Vault word at all, so nothing here can tell them the Vault exists.
+    private bool ShowVaultOption => !Simple && LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false);
 
     private string AccessTipText => ShowVaultOption
         ? "Standard: everyone who can use this area. Selected profiles: only the profiles you choose. Vault-protected: kept in the Vault, and it cannot be changed later."
@@ -381,16 +383,18 @@
     private async Task CreateVaultAsync(LibraryTypeOption kind, ServerFolderValidationResultDto folder)
     {
         var created = await Api.CreateVaultLibraryAsync(new CreateVaultLibraryFromKindRequest(kind.Key, _name.Trim(), folder.Path));
-        if (created is null || string.IsNullOrWhiteSpace(created.Id))
+        if (created is not { Ok: true })
         {
             _error = Api.LastError ?? "The library could not be created. Check the folder and try again.";
             return;
         }
 
+        // The answer carries the new library's id only when the Engine sees the Vault as open for this person.
+        var id = created.LibraryId ?? string.Empty;
         Toasts.Add($"{_name.Trim()} created.", AppSeverity.Success);
-        if (OnCreated is not null) await OnCreated(created.Id);
-        Dialog.Close(AppDialogResult.Ok(created.Id));
-        if (VaultVisible && OpenCreated) Navigation.NavigateTo($"/settings/libraries/{created.Id}");
+        if (OnCreated is not null) await OnCreated(id);
+        Dialog.Close(AppDialogResult.Ok(id));
+        if (VaultVisible && OpenCreated && id.Length > 0) Navigation.NavigateTo($"/settings/libraries/{id}");
     }
 
     private async Task CreateAsync()

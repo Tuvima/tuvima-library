@@ -159,6 +159,16 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
 
     private static CreateVaultLibraryFromKindRequest Create(string kind, string name, string folder) => new(kind, name, folder);
 
+    // Makes a Vault library as the unlocked administrator and answers its id (the answer to a create carries the id and nothing else).
+    private async Task<string> MakeAsync(string kind, string name, string folder)
+    {
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create(kind, name, folder));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = (await response.Content.ReadFromJsonAsync<VaultLibraryActionResultDto>())!;
+        Assert.True(result.Ok);
+        return Assert.IsType<string>(result.LibraryId);
+    }
+
     [Fact]
     public void EveryRoute_RequiresASignedInCaller()
     {
@@ -207,15 +217,16 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         var response = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var library = (await response.Content.ReadFromJsonAsync<LibraryFolderDto>())!;
-        Assert.Equal("Private Movies", library.Name);
-        Assert.Equal("movies", library.KindKey);
-        Assert.Equal(LibraryAccessLevels.Vault, library.Access);
-        Assert.Equal("local_only", library.MetadataPolicy);
-        Assert.Equal(_privateMovies, Assert.Single(library.Sources).Path);
-        Assert.Equal("read_only", library.Sources[0].AccessMode);
-        Assert.Contains(library.Id, await _vaultLibraries.GetIdsAsync());
-        var saved = _configuration.LoadLibraries().Libraries.Single(item => item.Id == library.Id);
+        var result = (await response.Content.ReadFromJsonAsync<VaultLibraryActionResultDto>())!;
+        Assert.True(result.Ok);
+        var id = Assert.IsType<string>(result.LibraryId);
+        Assert.Contains(id, await _vaultLibraries.GetIdsAsync());
+        var saved = _configuration.LoadLibraries().Libraries.Single(item => item.Id == id);
+        Assert.Equal("Private Movies", saved.Name);
+        Assert.Equal("movies", saved.KindKey);
+        Assert.Equal("local_only", saved.MetadataPolicy);
+        Assert.Equal(_privateMovies, Assert.Single(saved.Sources).Path);
+        Assert.Equal("read_only", saved.Sources[0].AccessMode);
         Assert.Equal(LibraryAccessLevels.Vault, saved.Access);
         Assert.False(saved.OrganizationPolicy.WriteTags);
         Assert.Equal(LibraryOrganizationModes.KeepOriginalNames, saved.OrganizationPolicy.Mode);
@@ -276,9 +287,10 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
-        var library = (await second.Content.ReadFromJsonAsync<LibraryFolderDto>())!;
-        Assert.Equal(LibraryAccessLevels.Vault, library.Access);
-        Assert.Equal(2, library.Sources.Count);
+        var result = (await second.Content.ReadFromJsonAsync<VaultLibraryActionResultDto>())!;
+        var saved = _configuration.LoadLibraries().Libraries.Single(item => item.Id == result.LibraryId);
+        Assert.Equal(LibraryAccessLevels.Vault, saved.Access);
+        Assert.Equal(2, saved.Sources.Count);
         Assert.Single(await _vaultLibraries.GetIdsAsync());
         Assert.Equal(2, _configuration.LoadLibraries().Libraries.Count);
     }
@@ -286,39 +298,36 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
     [Fact]
     public async Task TheListAndTheOnlineLookupSwitch_NeedTheAdministratorsVaultModeToBeOn()
     {
-        var made = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies)))
-            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        var madeId = await MakeAsync("movies", "Private Movies", _privateMovies);
 
         _nsfw.Unlocked = false;
         Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(HttpMethod.Get, "/settings/vault-libraries", "admin")).StatusCode);
-        var lockedSwitch = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{made.Id}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true));
+        var lockedSwitch = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{madeId}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true));
         Assert.Equal(HttpStatusCode.NotFound, lockedSwitch.StatusCode);
-        Assert.Equal("local_only", _configuration.LoadLibraries().Libraries.Single(item => item.Id == made.Id).MetadataPolicy);
+        Assert.Equal("local_only", _configuration.LoadLibraries().Libraries.Single(item => item.Id == madeId).MetadataPolicy);
 
         _nsfw.Unlocked = true;
         var list = (await (await SendAsync(HttpMethod.Get, "/settings/vault-libraries", "admin")).Content.ReadFromJsonAsync<List<LibraryFolderDto>>())!;
-        Assert.Equal(made.Id, Assert.Single(list).Id);
+        Assert.Equal(madeId, Assert.Single(list).Id);
     }
 
     [Fact]
     public async Task TheOnlineLookupSwitch_IsOffByDefault_TurnsOnAndOffForThatLibraryOnly_AndRefusesAnOrdinaryLibrary()
     {
         _nsfw.Unlocked = true;
-        var movies = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies)))
-            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
-        var music = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("music", "Private Music", _privateMusic)))
-            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        var movies = await MakeAsync("movies", "Private Movies", _privateMovies);
+        var music = await MakeAsync("music", "Private Music", _privateMusic);
         var ordinary = _configuration.LoadLibraries().Libraries.First(item => item.Access == LibraryAccessLevels.Standard).Id;
 
-        var on = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{movies.Id}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true));
+        var on = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{movies}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true));
 
         Assert.Equal(HttpStatusCode.OK, on.StatusCode);
         Assert.Equal("enriched", (await on.Content.ReadFromJsonAsync<LibraryFolderDto>())!.MetadataPolicy);
         var saved = _configuration.LoadLibraries().Libraries;
-        Assert.Equal("enriched", saved.Single(item => item.Id == movies.Id).MetadataPolicy);
-        Assert.Equal("local_only", saved.Single(item => item.Id == music.Id).MetadataPolicy);
+        Assert.Equal("enriched", saved.Single(item => item.Id == movies).MetadataPolicy);
+        Assert.Equal("local_only", saved.Single(item => item.Id == music).MetadataPolicy);
 
-        var off = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{movies.Id}/online-lookup", "admin", new SetVaultOnlineLookupRequest(false));
+        var off = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{movies}/online-lookup", "admin", new SetVaultOnlineLookupRequest(false));
         Assert.Equal("local_only", (await off.Content.ReadFromJsonAsync<LibraryFolderDto>())!.MetadataPolicy);
 
         // An ordinary library, and an id that names nothing, are both "not found": the switch is never a way to touch other libraries.
@@ -348,18 +357,17 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
     [Fact]
     public async Task AVaultLibrary_NeverAppearsWhereOrdinaryLibrariesAreListedCountedOrGranted()
     {
-        var made = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies)))
-            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        var madeId = await MakeAsync("movies", "Private Movies", _privateMovies);
         var vaultIds = await _vaultLibraries.GetIdsAsync();
 
         // The ordinary list of libraries, as the settings route and the Dashboard get it, holds no trace.
         var visible = VaultLibrarySettings.WithoutVault(_configuration.LoadLibraries(), vaultIds);
-        Assert.DoesNotContain(visible.Libraries, library => library.Id == made.Id);
+        Assert.DoesNotContain(visible.Libraries, library => library.Id == madeId);
         Assert.DoesNotContain(visible.Libraries.SelectMany(library => library.Sources), source => source.Path == _privateMovies);
 
         // The Selected-profiles catalogue, which every profile's visibility is worked out from, never lists it.
         var selected = await new ConfigurationLibraryAccessCatalog(_configuration).GetSelectedLibraryIdsAsync();
-        Assert.DoesNotContain(Guid.Parse(made.Id), selected);
+        Assert.DoesNotContain(Guid.Parse(madeId), selected);
 
         // And the visibility rule itself says no to everyone, administrators included: the Vault has its own doors.
         Assert.False(LibraryVisibilityRule.MaySee(isAdministrator: true, isVault: true, hasArea: true, isHidden: false));
@@ -369,15 +377,78 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
     [Fact]
     public async Task ASavedVaultLibrary_SurvivesAnOrdinarySaveOfTheLibrariesFile()
     {
-        var made = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies)))
-            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        var madeId = await MakeAsync("movies", "Private Movies", _privateMovies);
         var vaultIds = await _vaultLibraries.GetIdsAsync();
         var current = _configuration.LoadLibraries();
         var proposed = VaultLibrarySettings.WithoutVault(current, vaultIds);
 
         VaultLibrarySettings.KeepVault(current, proposed, vaultIds);
 
-        Assert.Contains(proposed.Libraries, library => library.Id == made.Id && library.Access == LibraryAccessLevels.Vault);
+        Assert.Contains(proposed.Libraries, library => library.Id == madeId && library.Access == LibraryAccessLevels.Vault);
+    }
+
+    [Fact]
+    public async Task AnAdministratorWhoseVaultModeIsOff_CanMakeOneButLearnsNothingAboutTheVault()
+    {
+        _nsfw.Unlocked = false;
+
+        var created = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies));
+        var createdBody = await created.Content.ReadAsStringAsync();
+        var result = System.Text.Json.JsonSerializer.Deserialize<VaultLibraryActionResultDto>(createdBody)!;
+
+        // It worked, and the answer says only that: no library, no id, no name, no folder.
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        Assert.True(result.Ok);
+        Assert.Null(result.LibraryId);
+        Assert.DoesNotContain("Private Movies", createdBody, StringComparison.Ordinal);
+        Assert.DoesNotContain(_root, createdBody, StringComparison.OrdinalIgnoreCase);
+
+        var folder = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", _moviesFolder));
+        var folderResult = (await folder.Content.ReadFromJsonAsync<VaultLibraryActionResultDto>())!;
+        Assert.Equal(HttpStatusCode.OK, folder.StatusCode);
+        Assert.Null(folderResult.LibraryId);
+    }
+
+    [Fact]
+    public async Task AnAdministratorWhoseVaultModeIsOff_GetsOneGenericRefusalWhateverWentWrong_SoARefusalCannotTellWhetherAVaultLibraryExists()
+    {
+        // One Vault library exists, then the administrator's Vault mode goes off.
+        await MakeAsync("movies", "Private Movies", _privateMovies);
+        _nsfw.Unlocked = false;
+
+        var duplicate = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "More movies", _moviesFolder));
+        var ordinaryFolder = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("music", "Private Music", _ordinaryMovies));
+        var noName = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("music", " ", _privateMusic));
+        var badKind = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("photos", "Photos", _privateMusic));
+        var unreadable = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", "not a request");
+        var badFolder = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("music", Path.Combine(_root, "NoSuchFolder")));
+
+        foreach (var response in new[] { duplicate, ordinaryFolder, noName, badKind, unreadable, badFolder })
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(VaultLibraryEndpoints.GenericRefusal, await DetailOf(response));
+        }
+
+        Assert.Single(await _vaultLibraries.GetIdsAsync());
+    }
+
+    [Fact]
+    public async Task TheMoveDestination_AnswersALockedAdministratorExactlyAsAnyoneElse_AndNeverSaysWhetherAVaultLibraryExists()
+    {
+        await MakeAsync("movies", "Private Movies", _privateMovies);
+        _nsfw.Unlocked = false;
+
+        var locked = await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination?kind_key=movies", "admin");
+        var stranger = await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination?kind_key=movies", "user");
+        var lockedBody = await locked.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, locked.StatusCode);
+        Assert.Equal(await stranger.Content.ReadAsStringAsync(), lockedBody);
+        Assert.DoesNotContain("Private Movies", lockedBody, StringComparison.Ordinal);
+
+        _nsfw.Unlocked = true;
+        var open = (await (await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination?kind_key=movies", "admin")).Content.ReadFromJsonAsync<VaultMoveDestinationDto>())!;
+        Assert.Equal("Private Movies", open.LibraryName);
     }
 
     private static async Task<string?> DetailOf(HttpResponseMessage response)
