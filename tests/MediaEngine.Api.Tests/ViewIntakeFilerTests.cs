@@ -189,8 +189,10 @@ public sealed class ViewIntakeFilerTests
         var preview = await fixture.Tidy.GetStatusAsync(sourceId);
         Assert.Equal(2, preview!.WillMove);
 
-        await fixture.Tidy.StartAsync(sourceId, fixture.OwnerProfileId, "now");
-        Assert.True((await fixture.Tidy.GetStatusAsync(sourceId))!.Running);
+        Assert.Null(await fixture.Tidy.GetStatusAsync(sourceId, actor: Guid.NewGuid()));
+        Assert.Null(await fixture.Tidy.StartAsync(sourceId, Guid.NewGuid(), "now", checkOwner: true));
+        await fixture.Tidy.StartAsync(sourceId, fixture.OwnerProfileId, "now", checkOwner: true);
+        Assert.True((await fixture.Tidy.GetStatusAsync(sourceId, actor: fixture.OwnerProfileId))!.Running);
         await fixture.Tidy.RunPendingAsync();
 
         var after = (await fixture.Tidy.GetStatusAsync(sourceId))!;
@@ -448,7 +450,7 @@ public sealed class ViewIntakeFilerTests
             Storage = storage;
             Spaces = spaces;
             Duplicates = new ViewDuplicatesService(Intake, Repository, _configuration, Clock);
-            Tidy = new ViewTidyService(storage, library, new ViewSharedLibraryRepository(_database), TidyRepository, _configuration, Clock,
+            Tidy = new ViewTidyService(storage, library, new ViewSharedLibraryRepository(_database), TidyRepository, Intake, _configuration, Clock,
                 NullLogger<ViewTidyService>.Instance);
             Areas.EnsureFolders();
         }

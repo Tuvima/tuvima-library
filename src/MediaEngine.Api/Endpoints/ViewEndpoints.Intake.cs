@@ -53,10 +53,11 @@ public static partial class ViewEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .RequireEffectiveAdministrator();
 
-        group.MapGet("/admin/tidy/{sourceId:guid}", async (Guid sourceId, [FromServices] ViewTidyService service, CancellationToken ct) =>
-            await service.GetStatusAsync(sourceId, ct) is { } status
+        group.MapGet("/admin/tidy/{sourceId:guid}", async (Guid sourceId, IViewRequestProfileContext identity,
+            [FromServices] ViewTidyService service, CancellationToken ct) =>
+            await service.GetStatusAsync(sourceId, ct, (await identity.ResolveAuthorityAsync(ct)).ActiveProfileId) is { } status
                 ? Results.Ok(status)
-                : ApiErrors.NotFound("Only a managed photos or personal videos folder can be tidied."))
+                : ApiErrors.NotFound("Only a managed photos or personal videos folder of yours can be tidied."))
             .WithName("GetViewTidyStatus")
             .WithSummary("What Tidy this folder would do to a managed folder, or what the current or last run did.")
             .Produces<ViewTidyStatusDto>()
@@ -68,7 +69,7 @@ public static partial class ViewEndpoints
             var authority = await identity.ResolveAuthorityAsync(ct);
             try
             {
-                return await service.StartAsync(sourceId, authority.ActiveProfileId, "now", ct) is { } status
+                return await service.StartAsync(sourceId, authority.ActiveProfileId, "now", ct, checkOwner: true) is { } status
                     ? Results.Ok(status)
                     : ApiErrors.NotFound("Only a managed photos or personal videos folder can be tidied.");
             }
@@ -82,8 +83,8 @@ public static partial class ViewEndpoints
             .RequireEffectiveAdministrator();
 
         group.MapPut("/admin/tidy/{sourceId:guid}/schedule", async (Guid sourceId, ViewTidyScheduleRequest request,
-            [FromServices] ViewTidyService service, CancellationToken ct) =>
-            await service.SetScheduledAsync(sourceId, request.Scheduled, ct) is { } status
+            IViewRequestProfileContext identity, [FromServices] ViewTidyService service, CancellationToken ct) =>
+            await service.SetScheduledAsync(sourceId, request.Scheduled, (await identity.ResolveAuthorityAsync(ct)).ActiveProfileId, ct) is { } status
                 ? Results.Ok(status)
                 : ApiErrors.NotFound("Only a managed photos or personal videos folder can be tidied."))
             .WithName("ScheduleViewTidy")

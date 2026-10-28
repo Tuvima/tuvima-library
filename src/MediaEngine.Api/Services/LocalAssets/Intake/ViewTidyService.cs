@@ -15,6 +15,7 @@ public sealed class ViewTidyService(
     ViewLibraryService library,
     IViewSharedLibraryRepository sharedLibrary,
     IViewTidyRepository tidy,
+    IViewIntakeRepository intake,
     IConfigurationLoader configuration,
     TimeProvider time,
     ILogger<ViewTidyService> logger)
@@ -39,9 +40,9 @@ public sealed class ViewTidyService(
     internal Task<bool> WaitForRequestAsync(TimeSpan timeout, CancellationToken ct) => _wake.WaitAsync(timeout, ct);
 
     /// <summary>What Tidy would do right now, or the state of the run that is going or last finished. Null when the folder cannot be tidied.</summary>
-    public async Task<ViewTidyStatusDto?> GetStatusAsync(Guid sourceId, CancellationToken ct = default)
+    public async Task<ViewTidyStatusDto?> GetStatusAsync(Guid sourceId, CancellationToken ct = default, Guid? actor = null)
     {
-        var target = await ResolveAsync(sourceId, ct).ConfigureAwait(false);
+        var target = await ResolveAsync(sourceId, actor, ct).ConfigureAwait(false);
         if (target is null)
         {
             return null;
@@ -63,9 +64,9 @@ public sealed class ViewTidyService(
     }
 
     /// <summary>Plans the renames and starts the run. Returns null when the folder cannot be tidied; refuses when a run is going or nothing needs tidying.</summary>
-    public async Task<ViewTidyStatusDto?> StartAsync(Guid sourceId, Guid? startedBy, string trigger, CancellationToken ct = default)
+    public async Task<ViewTidyStatusDto?> StartAsync(Guid sourceId, Guid? startedBy, string trigger, CancellationToken ct = default, bool checkOwner = false)
     {
-        var target = await ResolveAsync(sourceId, ct).ConfigureAwait(false);
+        var target = await ResolveAsync(sourceId, checkOwner ? startedBy : null, ct, checkOwner).ConfigureAwait(false);
         if (target is null)
         {
             return null;
@@ -88,9 +89,9 @@ public sealed class ViewTidyService(
         return await GetStatusAsync(sourceId, ct).ConfigureAwait(false);
     }
 
-    public async Task<ViewTidyStatusDto?> SetScheduledAsync(Guid sourceId, bool scheduled, CancellationToken ct = default)
+    public async Task<ViewTidyStatusDto?> SetScheduledAsync(Guid sourceId, bool scheduled, Guid? actor, CancellationToken ct = default)
     {
-        if (await ResolveAsync(sourceId, ct).ConfigureAwait(false) is null)
+        if (await ResolveAsync(sourceId, actor, ct, checkOwner: true).ConfigureAwait(false) is null)
         {
             return null;
         }
@@ -126,7 +127,7 @@ public sealed class ViewTidyService(
 
     private async Task RunAsync(ViewTidyJob job, CancellationToken ct)
     {
-        var target = await ResolveAsync(job.SourceId, ct).ConfigureAwait(false);
+        var target = await ResolveAsync(job.SourceId, null, ct).ConfigureAwait(false);
         if (target is null)
         {
             await tidy.FinishJobAsync(job.Id, ViewTidyStates.Failed, "The folder is no longer there, so nothing was changed.", time.GetUtcNow(), ct).ConfigureAwait(false);
@@ -139,7 +140,8 @@ public sealed class ViewTidyService(
             ct.ThrowIfCancellationRequested();
             try
             {
-                if (!ViewStorageService.Contains(root, move.FromPath) || !ViewStorageService.Contains(root, move.ToPath))
+                if (!ViewStorageService.TryResolveContainedPath(root, move.FromPath, out _, out _)
+                    || !ViewStorageService.TryResolveContainedPath(root, Path.Combine(Path.GetDirectoryName(move.ToPath)!, "x"), out _, out _))
                 {
                     await tidy.FailMoveAsync(job.Id, move.SourceFileId, "outside the folder", ct).ConfigureAwait(false);
                 }
@@ -185,7 +187,7 @@ public sealed class ViewTidyService(
         var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in await tidy.GetSourceFilesAsync(target.SourceId, ct).ConfigureAwait(false))
         {
-            if (!File.Exists(file.FilePath) || !ViewStorageService.Contains(root, file.FilePath))
+            if (!File.Exists(file.FilePath) || !ViewStorageService.TryResolveContainedPath(root, file.FilePath, out _, out _))
             {
                 continue;
             }
@@ -214,13 +216,26 @@ public sealed class ViewTidyService(
         return moves;
     }
 
-    private async Task<Target?> ResolveAsync(Guid sourceId, CancellationToken ct)
+    // An administrator tidies only their own library and their household's Shared Library; another person's private folder is never theirs
+    // to see or rename. The nightly run (no actor) is the system's own.
+    private async Task<Target?> ResolveAsync(Guid sourceId, Guid? actor, CancellationToken ct, bool checkOwner = false)
     {
+        HashSet<Guid>? mine = null;
+        if (checkOwner || actor is not null)
+        {
+            if (actor is not { } profile)
+            {
+                return null;
+            }
+
+            mine = (await intake.GetOwnLibraryIdsAsync(profile, ct).ConfigureAwait(false)).ToHashSet();
+        }
+
         foreach (var (space, source, path) in await storage.GetEnabledSourcesAsync(ct).ConfigureAwait(false))
         {
             if (source.Id == sourceId)
             {
-                return source.StorageMode == ViewSourceStorageMode.Managed && Tidyable(source.ContentKind)
+                return (mine is null || mine.Contains(space.LibraryId)) && source.StorageMode == ViewSourceStorageMode.Managed && Tidyable(source.ContentKind)
                     ? new Target(source.Id, space.LibraryId, path, source.ContentKind, source.Name)
                     : null;
             }
@@ -230,7 +245,7 @@ public sealed class ViewTidyService(
         {
             if (source.Id == sourceId)
             {
-                return source.StorageMode == ViewSourceStorageMode.Managed && Tidyable(source.ContentKind)
+                return (mine is null || mine.Contains(source.LibraryId)) && source.StorageMode == ViewSourceStorageMode.Managed && Tidyable(source.ContentKind)
                     ? new Target(source.Id, source.LibraryId, storage.GetSharedSourcePath(source), source.ContentKind, source.Name)
                     : null;
             }

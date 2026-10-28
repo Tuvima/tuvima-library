@@ -374,7 +374,11 @@ public sealed class ViewIntakeFiler(
         // 3. When was it taken, and is it already there?
         var date = await library.ReadCaptureDateAsync(group.Primary, ct).ConfigureAwait(false);
         var hash = await ViewLibraryService.HashAsync(primaryPath, ct).ConfigureAwait(false);
-        var presence = assets.FindPrimaryContent(IntakeDestination.Personal, stage.Space.LibraryId, stage.Space.Id, hash, ct);
+        // A file for the Shared Library is checked against the Shared Library, not against the staging person's own space.
+        var forShared = destination.ScopeKind == IntakeDestination.Shared;
+        var presence = forShared
+            ? sharedTransfer?.FindInSharedLibrary(stage.Space.OwnerProfileId, hash, ct)
+            : assets.FindPrimaryContent(IntakeDestination.Personal, stage.Space.LibraryId, stage.Space.Id, hash, ct);
         var duplicate = false;
         if (presence is not null)
         {
@@ -383,7 +387,7 @@ public sealed class ViewIntakeFiler(
                 return await RejectGroupAsync(kind, destination, rows, ViewIntakeReasons.DuplicateInTrash, ct, hash).ConfigureAwait(false);
             }
 
-            if (LibraryDuplicatePolicies.DeletesIncomingDuplicate(DuplicatePolicyFor(stage.Space.LibraryId)))
+            if (forShared || LibraryDuplicatePolicies.DeletesIncomingDuplicate(DuplicatePolicyFor(stage.Space.LibraryId)))
             {
                 foreach (var row in rows)
                 {
@@ -589,7 +593,12 @@ public sealed class ViewIntakeFiler(
         var newStrays = 0;
         foreach (var row in await intake.GetExpiredAsync(now, 500, ct).ConfigureAwait(false))
         {
-            TryDelete(row.CurrentPath);
+            // Only a file really inside the Rejected area is ever deleted, whatever the stored path says.
+            if (areas.IsInRejectedArea(row.CurrentPath))
+            {
+                TryDelete(row.CurrentPath);
+            }
+
             await intake.DeleteAsync(row.Id, ct).ConfigureAwait(false);
         }
 

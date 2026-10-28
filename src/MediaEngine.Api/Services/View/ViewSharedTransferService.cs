@@ -33,11 +33,15 @@ public sealed class ViewSharedTransferService(
     /// True when the Shared Library of this person's household already holds a file with exactly these contents and it is not in Trash.
     /// A household with no Shared Library yet holds nothing.
     /// </summary>
-    public bool IsInSharedLibrary(Guid profileId, string contentHash, CancellationToken ct = default)
+    public bool IsInSharedLibrary(Guid profileId, string contentHash, CancellationToken ct = default) =>
+        FindInSharedLibrary(profileId, contentHash, ct) is { InTrash: false };
+
+    /// <summary>The Shared Library item of this person's household with exactly these contents, or null.</summary>
+    public LocalAssetPresence? FindInSharedLibrary(Guid profileId, string contentHash, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(contentHash))
         {
-            return false;
+            return null;
         }
 
         using var connection = database.CreateConnection();
@@ -47,8 +51,7 @@ public sealed class ViewSharedTransferService(
               JOIN view_shared_library sl ON sl.household_id = p.household_id
              WHERE p.id = @profileId;
             """, new { profileId }, cancellationToken: ct));
-        return libraryId is { } shared
-            && assets.FindPrimaryContent("shared", shared, null, contentHash, ct) is { InTrash: false };
+        return libraryId is { } shared ? assets.FindPrimaryContent("shared", shared, null, contentHash, ct) : null;
     }
 
     /// <param name="copyOnly">
