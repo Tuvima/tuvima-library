@@ -226,7 +226,9 @@ public sealed class ServerFolderBrowserService(
             var location = FindLocationForManualPath(snapshot, directory);
             var resolvedDirectory = ResolveManualSelection(location, directory);
             var info = new FileInfo(Path.Combine(resolvedDirectory.Path, Path.GetFileName(full)));
-            if (!info.Exists)
+            var hidden = NormalizeHiddenRoots(hiddenRoots);
+            // A hidden Vault path must answer exactly like a path that does not exist (Videos spec D17).
+            if (IsHidden(hidden, resolvedDirectory.Path) || IsHidden(hidden, info.FullName) || !info.Exists)
             {
                 refusal = "That file is no longer there.";
                 return false;
@@ -241,9 +243,9 @@ public sealed class ServerFolderBrowserService(
 
             var ownFolders = OwnFolderPaths();
             ownFolders.AddRange(OwnLocationRoots(snapshot));
-            if (IsInsideOwnFolder(ownFolders, physical) || IsHidden(NormalizeHiddenRoots(hiddenRoots), physical))
+            if (IsInsideOwnFolder(ownFolders, physical) || IsHidden(hidden, physical))
             {
-                refusal = MissingFolderMessage;
+                refusal = "That file is no longer there.";
                 return false;
             }
 
@@ -252,7 +254,9 @@ public sealed class ServerFolderBrowserService(
         }
         catch (ServerFolderAccessException exception)
         {
-            refusal = exception.Message;
+            // Same wording as a missing file so a hidden Vault folder cannot be told apart from one that is not there.
+            logger.LogDebug(exception, "Add files could not resolve {FilePath}", path);
+            refusal = "That file is no longer there.";
             return false;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
