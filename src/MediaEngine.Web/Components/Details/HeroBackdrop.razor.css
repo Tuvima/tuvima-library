@@ -1,14 +1,14 @@
 /* Detail-only presentation. Native markup is scoped here; retained ::deep
    crosses an existing C# renderer or shared/third-party control boundary. */
-:where(.tl-detail-page) .tl-detail-media-stage__background,
-:where(.tl-detail-page) .tl-detail-media-stage__cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__background,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__cover {
     display: block;
     opacity: 1;
     filter: none;
 }
 
-:where(.tl-detail-page) .tl-detail-hero__artwork,
-:where(.tl-detail-page) .tl-detail-media-stage__background {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero__artwork,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__background {
     position: absolute;
     top: 50%;
     right: 0;
@@ -30,17 +30,17 @@
     mask-size: 100% 100%;
 }
 
-:where(.tl-detail-page) .tl-detail-hero__overlays,
-:where(.tl-detail-page) .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero__overlays,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__overlay {
     position: absolute;
     inset: 0;
     z-index: 1;
     pointer-events: none;
 }
 
-:where(.tl-detail-page) .tl-detail-hero__overlays,
-:where(.tl-detail-page) .tl-detail-media-stage__overlay,
-:where(.tl-detail-page) .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero__overlays,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__overlay,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
     background:
         linear-gradient(
             to right,
@@ -70,8 +70,8 @@
         );
 }
 
-:where(.tl-detail-page) .tl-detail-hero__cover-atmosphere,
-:where(.tl-detail-page) .tl-detail-media-stage__cover-atmosphere {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero__cover-atmosphere,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__cover-atmosphere {
     position: absolute;
     inset: -8%;
     z-index: 0;
@@ -83,7 +83,7 @@
     transform: scale(1.08);
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay {
     background:
         linear-gradient(
             to right,
@@ -115,14 +115,14 @@
         );
 }
 
-:where(.tl-detail-page) .tl-detail-hero--backdrop .tl-detail-media-stage__overlay,
-:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--backdrop .tl-detail-media-stage__overlay,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--watch .tl-detail-media-stage__overlay {
     z-index: 2;
 }
 
-:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__overlays,
-:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-media-stage__overlay,
-:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--watch .tl-detail-hero__overlays,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--watch .tl-detail-media-stage__overlay,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--watch .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
     background:
         linear-gradient(
             to right,
@@ -155,8 +155,8 @@
         );
 }
 
-:where(.tl-detail-page) .tl-detail-hero__foreground-art,
-:where(.tl-detail-page) .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero__foreground-art,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__cover-wrap {
     position: absolute;
     z-index: 2;
     right: clamp(3.5rem, 8vw, 8.75rem);
@@ -170,14 +170,14 @@
     transform: translateY(-50%);
 }
 
-:where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage__cover-wrap {
     right: clamp(3rem, 8vw, 9rem);
     height: min(32rem, 48svh);
     max-width: min(42vw, 40rem);
     overflow: visible;
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__cover {
     width: auto;
     height: 100%;
     max-width: 100%;
@@ -188,7 +188,7 @@
         0 2.25rem 5.625rem rgba(0, 0, 0, 0.56);
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
     width: min(45vw, 42rem);
     max-width: min(45vw, 42rem);
     height: min(50rem, 82vh);
@@ -196,19 +196,19 @@
     overflow: visible;
 }
 
-:where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
     height: min(47rem, 55svh);
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
     width: clamp(16rem, 27vw, 25rem);
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap {
     width: clamp(15rem, 25vw, 23rem);
 }
 
-:where(.tl-detail-page) .tl-detail-hero-brand {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero-brand {
     position: absolute;
     right: clamp(1.4rem, 3.8vw, 4.2rem);
     bottom: clamp(1.4rem, 4vh, 3.4rem);
@@ -221,7 +221,7 @@
     text-shadow: 0 0.3rem 1.2rem rgba(0, 0, 0, 0.62);
 }
 
-:where(.tl-detail-page) .tl-detail-hero-brand img {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero-brand img {
     display: block;
     max-width: clamp(8rem, 12vw, 12.5rem);
     max-height: clamp(2.8rem, 5vh, 4.4rem);
@@ -230,16 +230,16 @@
     filter: drop-shadow(0 0.3rem 1.2rem rgba(0, 0, 0, 0.72));
 }
 
-:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero-brand {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--watch .tl-detail-hero-brand {
     right: clamp(1.4rem, 3.8vw, 4.2rem);
     bottom: clamp(1.4rem, 4vh, 3.4rem);
 }
 
-:where(.tl-detail-page) .tl-detail-hero--person .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--person .tl-detail-media-stage__cover-wrap {
     display: none;
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage--artwork-fallback .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--artwork-fallback .tl-detail-media-stage__overlay {
     background:
         linear-gradient(
             to right,
@@ -270,7 +270,7 @@
         );
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__foreground {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground {
     position: relative;
     height: 100%;
     max-width: 100%;
@@ -279,11 +279,11 @@
     filter: drop-shadow(0 2.3rem 3.8rem rgba(var(--hero-shadow-rgb, 0, 0, 0), 0.68));
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground {
     overflow: visible;
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__foreground .tl-detail-media-stage__cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground .tl-detail-media-stage__cover {
     position: relative;
     z-index: 3;
     width: auto;
@@ -294,44 +294,44 @@
     background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.86);
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__foreground--poster .tl-detail-media-stage__cover,
-:where(.tl-detail-page) .tl-detail-media-stage__foreground--portrait .tl-detail-media-stage__cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground--poster .tl-detail-media-stage__cover,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground--portrait .tl-detail-media-stage__cover {
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 0.72rem;
     box-shadow: 0 2rem 4.5rem rgba(0,0,0,0.62);
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__foreground--cover .tl-detail-media-stage__cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground--cover .tl-detail-media-stage__cover {
     border: 0;
     background: transparent;
     border-radius: 0;
     box-shadow: none;
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__foreground--cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground--cover {
     filter: none;
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__foreground--portrait {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground--portrait {
     width: clamp(9rem, 18vw, 14rem);
     height: auto;
     aspect-ratio: 1;
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__foreground--portrait .tl-detail-media-stage__cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground--portrait .tl-detail-media-stage__cover {
     width: 100%;
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__foreground--album {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground--album {
     width: clamp(18rem, 32vw, 31rem);
     height: auto;
     aspect-ratio: 1 / 1;
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__foreground--album .tl-detail-media-stage__cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground--album .tl-detail-media-stage__cover {
     width: 100%;
     height: 100%;
     border: 1px solid rgba(255,255,255,0.14);
@@ -340,7 +340,7 @@
     box-shadow: 0 2rem 4.5rem rgba(0,0,0,0.62);
 }
 
-:where(.tl-detail-page) .tl-detail-media-stage__vinyl {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__vinyl {
     position: absolute;
     z-index: 1;
     right: -16%;
@@ -354,7 +354,7 @@
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-media-stage--background .tl-detail-media-stage__background {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--background .tl-detail-media-stage__background {
         top: 0;
         right: 0;
         bottom: auto;
@@ -372,8 +372,8 @@
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-hero__overlays,
-:where(.tl-detail-page) .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero__overlays,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
         background:
             linear-gradient(
                 to bottom,
@@ -385,7 +385,7 @@
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-media-stage__cover-atmosphere {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__cover-atmosphere {
         inset: -24%;
         transform: scale(1.45);
         opacity: 0.24;
@@ -393,7 +393,7 @@
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__cover-wrap {
         position: absolute;
         right: 1rem;
         top: 50%;
@@ -406,8 +406,8 @@
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
         width: auto;
         max-width: min(72vw, 22rem);
         height: min(42vh, 23rem);
@@ -416,13 +416,13 @@
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
         height: min(42vh, 23rem);
     }
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay {
         background:
             linear-gradient(
                 to bottom,
@@ -434,28 +434,28 @@
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-hero-brand {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero-brand {
         right: 1rem;
         bottom: 1.25rem;
     }
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-media-stage__foreground--album {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__foreground--album {
         width: min(62vw, 18rem);
     }
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-media-stage__vinyl {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage__vinyl {
         right: -10%;
         width: 68%;
     }
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__overlays,
-:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--watch .tl-detail-hero__overlays,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero--watch .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
         background:
             linear-gradient(
                 to bottom,
@@ -466,23 +466,23 @@
     }
 }
 
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
     width: clamp(12rem, 13.5vw, 14.75rem);
     max-width: clamp(12rem, 13.5vw, 14.75rem);
     height: min(23rem, 44svh);
 }
 
-:where(.tl-detail-page) .tl-detail-stage--with-primary .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--with-primary .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
     width: min(clamp(17.5rem, 22vw, 22rem), calc(100% - 2rem));
     max-width: min(clamp(17.5rem, 22vw, 22rem), calc(100% - 2rem));
     height: min(clamp(17.5rem, 22vw, 22rem), calc(100% - 1.25rem));
 }
 
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
     width: auto;
     max-width: min(13.5rem, 18vw);
     height: min(20rem, calc(100% - 1.25rem));
@@ -490,21 +490,21 @@
 }
 
 @media (min-width: 840px) and (max-height: 800px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
         max-width: 9.75rem;
         height: calc(100% - 0.75rem);
     }
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
 
         max-height: calc(100% - var(--app-topbar-height, 65px) - var(--detail-navigation-height) - 4rem);
 
@@ -512,7 +512,7 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage .tl-detail-media-stage__cover-wrap {
         top: clamp(2.5rem, 5svh, 4rem);
         right: clamp(4rem, 6.5vw, 8rem);
         transform: none;
@@ -520,12 +520,12 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
         width: auto;
         max-width: clamp(15rem, 16vw, 19rem);
         height: clamp(19rem, 35svh, 22rem);
@@ -534,18 +534,18 @@
 }
 
 @media (min-width: 840px) and (max-height: 800px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
         max-width: 13.5rem;
         height: min(20rem, calc(100% - 3rem));
     }
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
         top: 50%;
         right: clamp(4rem, 6.5vw, 8rem);
         width: auto;
@@ -557,9 +557,9 @@
 }
 
 @media (min-width: 840px) and (max-height: 800px) {
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
         top: 50%;
         max-width: clamp(15rem, 17vw, 18rem);
         height: min(22rem, calc(100% - 3rem));
@@ -568,12 +568,12 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--identity-only .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
         top: 50%;
         right: clamp(3rem, 6vw, 8rem);
         width: auto;
@@ -585,7 +585,7 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage .tl-detail-media-stage--background .tl-detail-media-stage__background {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage .tl-detail-media-stage--background .tl-detail-media-stage__background {
         inset: 0 !important;
         width: 100% !important;
         max-width: none !important;
@@ -600,13 +600,13 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--watch .tl-detail-hero-brand {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage .tl-detail-hero--watch .tl-detail-hero-brand {
         bottom: calc(var(--detail-navigation-height, 3.75rem) + 2rem);
     }
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--music-cover-background .tl-detail-media-stage__background {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--music-album .tl-detail-media-stage--music-cover-background .tl-detail-media-stage__background {
         object-position: center !important;
         filter: blur(clamp(2.2rem, 3.4vw, 4rem)) saturate(92%) brightness(70%) !important;
         transform: scale(1.12) !important;
@@ -614,7 +614,7 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--music-cover-background .tl-detail-media-stage__overlay {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--music-album .tl-detail-media-stage--music-cover-background .tl-detail-media-stage__overlay {
         background:
             linear-gradient(90deg, rgba(5, 8, 17, 0.94) 0%, rgba(6, 9, 19, 0.72) 32%, rgba(8, 10, 23, 0.16) 62%, rgba(7, 9, 19, 0.34) 100%),
             linear-gradient(180deg, rgba(5, 7, 15, 0.66) 0%, rgba(7, 8, 18, 0.03) 27%, rgba(6, 8, 17, 0.22) 64%, rgba(5, 7, 15, 0.97) 100%);
@@ -622,7 +622,7 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
         top: 50% !important;
         right: 8vw !important;
         width: min(34vw, 58svh) !important;
@@ -634,7 +634,7 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage__foreground--album {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--music-album .tl-detail-media-stage__foreground--album {
         width: 100% !important;
         height: 100% !important;
         max-width: none !important;
@@ -642,7 +642,7 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
         top: 50% !important;
         right: 6vw !important;
         width: auto !important;
@@ -655,7 +655,7 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage__foreground--cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--audiobook .tl-detail-media-stage__foreground--cover {
         width: 100% !important;
         height: 100% !important;
         max-width: none !important;
@@ -664,7 +664,7 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage__foreground--cover .tl-detail-media-stage__cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--audiobook .tl-detail-media-stage__foreground--cover .tl-detail-media-stage__cover {
         width: 100% !important;
         height: 100% !important;
         max-height: 100% !important;
@@ -674,7 +674,7 @@
 
 @media (min-width: 840px) and (max-width: 1180px),
        (min-width: 840px) and (max-height: 760px) {
-:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
         right: 6vw !important;
         width: min(32vw, 52svh) !important;
         height: min(32vw, 52svh) !important;
@@ -683,7 +683,7 @@
 
 @media (min-width: 840px) and (max-width: 1180px),
        (min-width: 840px) and (max-height: 760px) {
-:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
         top: 50% !important;
         right: 6vw !important;
         width: auto !important;
@@ -694,7 +694,7 @@
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
         top: calc(var(--app-topbar-height, 65px) + 1rem) !important;
         right: 4vw !important;
         bottom: auto !important;
@@ -708,7 +708,7 @@
 }
 
 @media (width < 840px) {
-:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
         top: calc(var(--app-topbar-height, 65px) + 1rem) !important;
         right: 4vw !important;
         bottom: auto !important;
@@ -722,8 +722,8 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
         top: 50% !important;
         right: clamp(3rem, 6vw, 8rem) !important;
         width: auto !important;
@@ -735,7 +735,7 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground {
         width: auto !important;
         max-width: 100% !important;
         height: 100% !important;
@@ -744,14 +744,14 @@
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground--poster {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground--poster {
         grid-template-rows: minmax(0, 1fr) !important;
         overflow: hidden !important;
     }
 }
 
 @media (min-width: 840px) {
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover {
         width: auto !important;
         max-width: 100% !important;
         min-height: 0 !important;
@@ -762,8 +762,8 @@
 }
 
 @media (min-width: 840px) and (max-height: 760px) {
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap,
-:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
         right: clamp(2.5rem, 5vw, 6rem) !important;
         max-width: min(33vw, 34rem) !important;
         height: min(58svh, calc(100% - var(--app-topbar-height, 65px) - 5.5rem)) !important;

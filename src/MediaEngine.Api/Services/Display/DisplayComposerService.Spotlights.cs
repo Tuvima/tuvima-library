@@ -11,6 +11,7 @@ public sealed partial class DisplayComposerService
         IReadOnlyList<DisplayWorkRow> works,
         IReadOnlyDictionary<Guid, DisplayJourneyRow> states,
         IReadOnlyList<DisplayCardDto> shows,
+        IReadOnlyList<DisplayCardDto> continueCards,
         IReadOnlyList<DisplayCardDto> candidates)
     {
         // A hero is the first thing on Home, so it only features items that have finished settling and
@@ -49,7 +50,7 @@ public sealed partial class DisplayComposerService
                     TvEpisodeSelectionReason.Resume => "Resume Episode",
                     TvEpisodeSelectionReason.NextOwned or TvEpisodeSelectionReason.RemainingOwned => "Watch Next Episode",
                     TvEpisodeSelectionReason.AllOwnedCompleted => "Restart Episode",
-                    _ => "Watch Episode",
+                    _ => "Start watching",
                 }
             };
             if (context.Reason == TvEpisodeSelectionReason.AllOwnedCompleted)
@@ -107,33 +108,40 @@ public sealed partial class DisplayComposerService
             .Where(state => state is { ProgressPct: > 0 })
             .Select(state => (DateTimeOffset?)state!.LastAccessed).Max();
 
-        var rankedShows = showHeroes.OrderByDescending(LastStarted).ToList();
-        var ranked = rankedShows.Where(hero => LastStarted(hero).HasValue)
-            .Concat(candidates.Where(card => card.MediaType != "TV").Select(card => DisplayCardBuilder.ToHero(card,
-                card.Progress is null ? "Featured Content" : "Continue Across Media")))
-            .Concat(rankedShows)
+        // Hero order: everything the person is in the middle of comes first, most recently touched first,
+        // then newly added items, newest first. A show is one slide; one never started shows as the series.
+        var slides = new List<(DisplayHeroDto Hero, bool Continued, DateTimeOffset At)>();
+        foreach (var hero in showHeroes)
+        {
+            var touched = LastStarted(hero);
+            var inTheMiddle = touched.HasValue && hero.ContinuationState != DisplayContinuationState.Completed
+                && hero.Actions[0].Label != "Restart Episode";
+            var showCard = shows.First(card => card.Id == hero.EpisodeContext!.ShowWorkId);
+            slides.Add((hero with { IsContinued = inTheMiddle }, inTheMiddle, inTheMiddle ? touched!.Value : showCard.SortTimestamp));
+        }
+        var continuedIds = continueCards
+            .Where(card => card.MediaType != "TV")
+            .Select(card => card.Id).ToHashSet();
+        foreach (var card in continueCards.Where(card => card.MediaType != "TV" && IsHeroReady(card)))
+        {
+            slides.Add((DisplayCardBuilder.ToHero(card, "Continue Across Media") with { IsContinued = true }, true, card.SortTimestamp));
+        }
+        foreach (var card in candidates.Where(card => card.MediaType != "TV" && !continuedIds.Contains(card.Id)))
+        {
+            slides.Add((DisplayCardBuilder.ToHero(card, "Featured Content") with { IsContinued = false }, false, card.SortTimestamp));
+        }
+
+        return slides
+            .OrderByDescending(slide => slide.Continued)
+            .ThenByDescending(slide => slide.At)
+            .Select(slide => slide.Hero)
             .DistinctBy(hero => hero.EpisodeContext is { } episode ? $"show:{episode.ShowWorkId:D}" :
                 hero.Subject == DisplaySubjectKind.Album ? $"album:{hero.Id}" : $"work:{hero.WorkId ?? hero.Id}")
+            .Take(MaxHomeSpotlights)
             .ToList();
-        static string Bucket(DisplayHeroDto hero) => hero.Subject == DisplaySubjectKind.TvShow ? "TV"
-            : hero.Subject == DisplaySubjectKind.Album ? "Album"
-            : DisplayMediaRules.NormalizeDisplayKind(hero.MediaType) switch
-            {
-                "Book" or "Comic" => "Read",
-                var kind => kind,
-            };
-        var selected = new List<DisplayHeroDto>();
-        foreach (var bucket in new[] { "TV", "Movie", "Read", "Album", "Audiobook" })
-        {
-            var representative = ranked.FirstOrDefault(hero => Bucket(hero) == bucket);
-            if (representative is not null)
-            {
-                selected.Add(representative);
-            }
-        }
-        selected.AddRange(ranked.Where(hero => !selected.Contains(hero)).Take(5 - selected.Count));
-        return selected;
     }
+
+    private const int MaxHomeSpotlights = 5;
 
     private static bool HasStoredArtwork(DisplayWorkRow work) =>
         new[]

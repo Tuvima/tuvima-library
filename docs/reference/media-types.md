@@ -33,7 +33,7 @@ Provider stages are strict: Stage 1 provider metadata uses active configured pro
 
 **Library kind:** Videos, in Watch. It is the plain Watch kind for files that are not films, TV shows or YouTube downloads:
 lectures, courses and talks, with nothing looked up. A kind can hold several named libraries (up to five). You add it by
-choosing Watch and then Videos in the Add folder dialog; saved YouTube channels are the YouTube kind, and phone and home
+choosing Watch and then Videos in the Add library dialog; saved YouTube channels are the YouTube kind, and phone and home
 footage belongs under View (Personal videos), where a folder of untouched phone footage is offered **Add to View instead**.
 
 ### Supported formats
@@ -69,7 +69,7 @@ Only for a library of the YouTube kind (the kind decides; there is no switch), a
 sends **only that 11-character ID**, never your file or its path. Without a key it fills the title, channel and thumbnail;
 with your own free YouTube Data API key (kept in the secrets store, never shown again) it also fills the description
 and upload date. It fills what is missing and never replaces something you edited. To stop it, keep the folder in a
-Videos library instead (**Settings > Libraries**, Add folder).
+Videos library instead (**Settings > Libraries**, Add library).
 
 ### Ratings and the Explicit mark
 

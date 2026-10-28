@@ -63,6 +63,9 @@ public sealed record DisplayHeroDto(
     public IReadOnlyList<string> Genres { get; init; } = [];
     public IReadOnlyList<DisplayCardPreviewItemDto> PreviewItems { get; init; } = [];
     public int? PreviewTotalCount { get; init; }
+
+    /// <summary>True when the person is in the middle of this item (Home hero "started"); false for newly added ("new").</summary>
+    public bool IsContinued { get; init; }
 }
 
 public sealed record DisplayShelfDto(
