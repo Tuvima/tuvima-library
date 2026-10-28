@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.Details.Internals;
 
@@ -32,7 +33,7 @@ internal sealed class ProviderSourceLinkResolver(
                     continue;
                 }
 
-                var url = ExpandTemplate(
+                var url = OutsideLinks.Expand(
                     linkConfig.UrlTemplate,
                     identifierKey,
                     identifierValue,
@@ -58,32 +59,4 @@ internal sealed class ProviderSourceLinkResolver(
 
         return links;
     }
-
-    private static string? ExpandTemplate(
-        string template,
-        string identifierKey,
-        string rawValue,
-        string? mediaType)
-    {
-        var value = rawValue.Trim();
-        var templateValue = Uri.TryCreate(value, UriKind.Absolute, out var absolute)
-                            && absolute.Scheme is "http" or "https"
-            ? value
-            : Uri.EscapeDataString(value);
-        var url = template
-            .Replace($"{{{identifierKey}}}", templateValue, StringComparison.OrdinalIgnoreCase)
-            .Replace("{value}", templateValue, StringComparison.OrdinalIgnoreCase)
-            .Replace("{media_type}", ResolveMediaTypePath(mediaType), StringComparison.OrdinalIgnoreCase);
-
-        return Uri.TryCreate(url, UriKind.Absolute, out var resolved)
-               && resolved.Scheme is "http" or "https"
-            ? resolved.ToString()
-            : null;
-    }
-
-    private static string ResolveMediaTypePath(string? mediaType) =>
-        !string.IsNullOrWhiteSpace(mediaType)
-        && mediaType.Contains("TV", StringComparison.OrdinalIgnoreCase)
-            ? "tv"
-            : "movie";
 }

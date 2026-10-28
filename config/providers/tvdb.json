@@ -902,9 +902,9 @@
     "requires_key": true,
     "auth_type": "api_key",
     "external_links": {
-      "tvdb_id": { "label": "TheTVDB series", "url_template": "https://thetvdb.com/series/{value}", "tooltip": "Open the matched series on TheTVDB." },
-      "tvdb_season_id": { "label": "TheTVDB season", "url_template": "https://thetvdb.com/seasons/{value}", "tooltip": "Open the matched season on TheTVDB." },
-      "tvdb_episode_id": { "label": "TheTVDB episode", "url_template": "https://thetvdb.com/episodes/{value}", "tooltip": "Open the matched episode on TheTVDB." }
+      "tvdb_id": { "label": "TheTVDB series", "url_template": "https://thetvdb.com/dereferrer/series/{value}", "tooltip": "Open the matched series on TheTVDB." },
+      "tvdb_season_id": { "label": "TheTVDB season", "url_template": "https://thetvdb.com/dereferrer/season/{value}", "tooltip": "Open the matched season on TheTVDB." },
+      "tvdb_episode_id": { "label": "TheTVDB episode", "url_template": "https://thetvdb.com/dereferrer/episode/{value}", "tooltip": "Open the matched episode on TheTVDB." }
     }
   },
   "onboarding": {

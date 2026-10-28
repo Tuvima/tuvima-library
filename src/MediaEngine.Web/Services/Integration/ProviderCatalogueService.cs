@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Ui;
@@ -336,7 +337,7 @@ public sealed class ProviderCatalogueService
                     continue;
                 }
 
-                var url = ExpandExternalUrlTemplate(
+                var url = OutsideLinks.Expand(
                     linkConfig.UrlTemplate,
                     identifierKey,
                     value,
@@ -404,38 +405,6 @@ public sealed class ProviderCatalogueService
     }
 
     // -- Private helpers -------------------------------------------------------
-
-    private static string ResolveMediaTypePath(string? mediaType)
-    {
-        if (string.IsNullOrWhiteSpace(mediaType))
-        {
-            return "movie";
-        }
-
-        return mediaType.Contains("TV", StringComparison.OrdinalIgnoreCase) ? "tv" : "movie";
-    }
-
-    private static string? ExpandExternalUrlTemplate(
-        string template,
-        string identifierKey,
-        string rawValue,
-        string? mediaType)
-    {
-        var value = rawValue.Trim();
-        var templateValue = Uri.TryCreate(value, UriKind.Absolute, out var absolute)
-                            && absolute.Scheme is "http" or "https"
-            ? value
-            : Uri.EscapeDataString(value);
-        var url = template
-            .Replace($"{{{identifierKey}}}", templateValue, StringComparison.OrdinalIgnoreCase)
-            .Replace("{value}", templateValue, StringComparison.OrdinalIgnoreCase)
-            .Replace("{media_type}", ResolveMediaTypePath(mediaType), StringComparison.OrdinalIgnoreCase);
-
-        return Uri.TryCreate(url, UriKind.Absolute, out var resolved)
-               && resolved.Scheme is "http" or "https"
-            ? resolved.ToString()
-            : null;
-    }
 
     private static bool ProviderMatches(ProviderCatalogueDto provider, string providerName)
     {

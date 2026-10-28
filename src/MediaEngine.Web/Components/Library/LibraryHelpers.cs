@@ -1,5 +1,6 @@
 using System.Globalization;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.LibraryItems;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -365,30 +366,22 @@ public static class LibraryHelpers
             return null;
         }
 
-        return key.ToLowerInvariant() switch
+        var normalized = value.Trim();
+        (string Label, string? Url)? link = key.ToLowerInvariant() switch
         {
-            BridgeIdKeys.TmdbId when (mediaType ?? "").Contains("TV", StringComparison.OrdinalIgnoreCase)
-                => ("View on TMDB", $"https://www.themoviedb.org/tv/{value}"),
-            BridgeIdKeys.TmdbId
-                => ("View on TMDB", $"https://www.themoviedb.org/movie/{value}"),
-            BridgeIdKeys.TvdbId when value.All(char.IsDigit)
-                => ("View on TheTVDB", $"https://thetvdb.com/series/{value}"),
-            BridgeIdKeys.TvdbSeasonId when value.All(char.IsDigit)
-                => ("View on TheTVDB", $"https://thetvdb.com/seasons/{value}"),
-            BridgeIdKeys.TvdbEpisodeId when value.All(char.IsDigit)
-                => ("View on TheTVDB", $"https://thetvdb.com/episodes/{value}"),
-            BridgeIdKeys.OpenLibraryId or "olid"
-                => ("View on Open Library", $"https://openlibrary.org/works/{value}"),
-            BridgeIdKeys.MusicBrainzId
-                => ("View on MusicBrainz", $"https://musicbrainz.org/release/{value}"),
-            BridgeIdKeys.WikidataQid when value.StartsWith("Q", StringComparison.OrdinalIgnoreCase)
-                => ("View on Wikidata", $"https://www.wikidata.org/wiki/{value}"),
-            BridgeIdKeys.ImdbId when value.StartsWith("tt", StringComparison.OrdinalIgnoreCase)
-                => ("View on IMDb", $"https://www.imdb.com/title/{value}"),
-            BridgeIdKeys.AppleBooksId
-                => ("View on Apple Books", $"https://books.apple.com/book/id{value}"),
+            BridgeIdKeys.TmdbId => ("View on TMDB", OutsideLinks.Tmdb(normalized, mediaType)),
+            BridgeIdKeys.TvdbId => ("View on TheTVDB", OutsideLinks.TvdbSeries(normalized)),
+            BridgeIdKeys.TvdbSeasonId => ("View on TheTVDB", OutsideLinks.TvdbSeason(normalized)),
+            BridgeIdKeys.TvdbEpisodeId => ("View on TheTVDB", OutsideLinks.TvdbEpisode(normalized)),
+            BridgeIdKeys.OpenLibraryId or "olid" => ("View on Open Library", OutsideLinks.OpenLibraryWork(normalized)),
+            BridgeIdKeys.MusicBrainzId => ("View on MusicBrainz", OutsideLinks.MusicBrainz("release", normalized)),
+            BridgeIdKeys.WikidataQid => ("View on Wikidata", OutsideLinks.Wikidata(normalized)),
+            BridgeIdKeys.ImdbId => ("View on IMDb", OutsideLinks.Imdb(normalized)),
+            BridgeIdKeys.AppleBooksId => ("View on Apple Books", OutsideLinks.AppleBooks(normalized)),
             _ => null,
         };
+
+        return link is { Url: { } url } ? (link.Value.Label, url) : null;
     }
 
     /// <summary>Formats a claim key (snake_case field name) into a human-readable label.</summary>

@@ -156,7 +156,7 @@ public static partial class MetadataEndpoints
                             number.Value, null, TvdbText(node, "firstAired"),
                             TvdbText(english, "overview"),
                             TvdbText(node, "image") ?? TvdbText(detail, "image") ?? TvdbText(show, "image"), selectedSeasonType,
-                            $"https://thetvdb.com/seasons/{id}"));
+                            OutsideLinks.TvdbSeason(id) ?? "https://thetvdb.com"));
                     }
                     candidates = results;
                 }
@@ -208,7 +208,7 @@ public static partial class MetadataEndpoints
                             TvdbText(node, "aired"), TvdbText(english, "overview")
                                 ?? TvdbText(node, "overview") ?? TvdbText(detail, "overview"),
                             TvdbText(node, "image") ?? TvdbText(detail, "image"), selectedSeasonType,
-                            $"https://thetvdb.com/episodes/{id}"));
+                            OutsideLinks.TvdbEpisode(id) ?? "https://thetvdb.com"));
                     }
                     candidates = results;
                 }

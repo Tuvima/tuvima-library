@@ -86,7 +86,13 @@ internal sealed partial class DetailCompositionOrchestrator
             credits = PersonLibraryCreditAuthorizationPolicy.Filter(credits, authorizedWorks);
             if (credits.Count == 0)
             {
-                return null;
+                // A linked person (band member, group, pen name) that no file in the Library credits still opens as a light page.
+                // Someone credited only on titles this viewer cannot see stays hidden, exactly as before.
+                var visibleToViewer = await LinkedPersonVisibility.VisibleAsync(_persons, [personId], viewer, ct);
+                if (!visibleToViewer.Contains(personId))
+                {
+                    return null;
+                }
             }
         }
         // A musical group exposes members. Old P527 data may have been written
@@ -120,14 +126,27 @@ internal sealed partial class DetailCompositionOrchestrator
         var shortDescription = await _reader.LoadPersonShortDescriptionAsync(personId, person.WikidataQid, ct);
         var tvdbPersonId = _bridgeIds is null ? null
             : (await _bridgeIds.FindAsync(personId, BridgeIdKeys.TvdbPersonId, ct))?.IdValue;
+        var musicBrainzArtistId = _bridgeIds is null ? null
+            : (await _bridgeIds.FindAsync(personId, BridgeIdKeys.MusicBrainzArtistId, ct))?.IdValue;
         var personSourceLinks = BuildExternalSourceLinks(person.WikidataQid, wikipediaUrl, null).ToList();
-        if (!string.IsNullOrWhiteSpace(tvdbPersonId) && tvdbPersonId.All(char.IsDigit))
+        if (OutsideLinks.MusicBrainz("artist", musicBrainzArtistId) is { } musicBrainzArtistUrl)
+        {
+            personSourceLinks.Add(new ExternalSourceLinkViewModel
+            {
+                Key = BridgeIdKeys.MusicBrainzArtistId,
+                Label = "MusicBrainz Artist",
+                Url = musicBrainzArtistUrl,
+                SourceName = "MusicBrainz",
+                Tooltip = "Open the artist identity on MusicBrainz.",
+            });
+        }
+        if (OutsideLinks.TvdbPerson(tvdbPersonId) is { } tvdbPersonUrl)
         {
             personSourceLinks.Add(new ExternalSourceLinkViewModel
             {
                 Key = BridgeIdKeys.TvdbPersonId,
                 Label = "View on TheTVDB",
-                Url = $"https://thetvdb.com/people/{tvdbPersonId}",
+                Url = tvdbPersonUrl,
                 SourceName = "TheTVDB",
             });
         }
@@ -147,13 +166,13 @@ internal sealed partial class DetailCompositionOrchestrator
             Title = person.Name,
             Subtitle = person.IsGroup ? "Group" : string.Join(" • ", displayRoles.Take(3)),
             Description = shortDescription,
-            DescriptionAttribution = !string.IsNullOrWhiteSpace(tvdbPersonId)
+            DescriptionAttribution = OutsideLinks.TvdbPerson(tvdbPersonId) is { } tvdbPersonProfileUrl
                 && string.IsNullOrWhiteSpace(person.WikidataQid)
                 ? new DescriptionAttributionViewModel
                 {
                     SourceName = "TheTVDB",
                     SourceTitle = "Person profile",
-                    SourceUrl = $"https://thetvdb.com/people/{tvdbPersonId}",
+                    SourceUrl = tvdbPersonProfileUrl,
                     LicenseName = "TheTVDB terms",
                     LicenseUrl = "https://thetvdb.com/tos",
                 }
