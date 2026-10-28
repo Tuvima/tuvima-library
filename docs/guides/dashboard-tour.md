@@ -13,9 +13,13 @@ Take five minutes to find your media and tools in Tuvima Library. Start on Home,
 
 ## Start on Home
 
-Home shows a featured item and shelves such as Continue Across Media and Recently Added. Select a card for details. Use the featured action to start or resume it.
+Home shows a banner at the top, a **Pick up where you left off** row, and shelves such as Recently Added. Select a card for details. Use the banner's action to start or resume it.
 
-Recently Added offers All, Watch, Read, Listen, or View items you can access. It shows when media joined your library. A title may also appear on another Home shelf.
+The banner puts what you are in the middle of first, most recently touched first, then newly added items. It shows up to five slides. A show you have never played appears as the series with **Start watching**; once you play an episode it appears as that episode with **Resume**. To change what the banner may show (turn it off, show fewer slides, leave out books or music, or show only things you have started), open **Settings, Preferences, Home**. A plugin may suggest an item for the banner; its slide says "Suggested by" and the plugin's name, and you can switch each plugin's slides off on the same page.
+
+**Pick up where you left off** is one row of cards, one for each thing you started: the cover, the type, a progress line such as "42% watched" and a round play button. Nothing started means the row is not shown.
+
+Recently Added offers All, Watch, Read, Listen, and View as switches you can combine; a type you have nothing of has no switch. It shows when media joined your library. A title may also appear on another Home shelf.
 
 Each shelf shows up to 20 titles. Choose **View all** (the last tile in the row, or the link beside the shelf title) to see the whole list as a grid. Sort it by Recently added, Title A-Z, Year or Recently played, and narrow it with the filters that apply, such as media type, genre, format or progress. More titles load as you scroll. Your sort is remembered for each lane on every device. On a phone, sort and filters are under **Filters**.
 

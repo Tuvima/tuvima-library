@@ -3,8 +3,8 @@ using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services.Display;
 
-/// <summary>One slide the Home hero could show, with what the orderers need to rank it.</summary>
-public sealed record HeroSlideCandidate(DisplayHeroDto Hero, bool Continued, DateTimeOffset At);
+/// <summary>One slide the Home hero could show, with what the orderers need to rank it. <paramref name="Suggested"/> is how strongly a plugin suggested it (0 to 100), or 0.</summary>
+public sealed record HeroSlideCandidate(DisplayHeroDto Hero, bool Continued, DateTimeOffset At, int Suggested = 0);
 
 /// <summary>
 /// The second step of the Home hero (Home page redesign spec D6): puts the allowed slides in order. The default rules are one
@@ -17,12 +17,16 @@ public interface IHeroOrderer
 
 /// <summary>
 /// The default hero rules: everything the person is in the middle of first, most recently touched first, then newly added items,
-/// newest first. This is also what runs when a smarter orderer is off or fails.
+/// newest first. A plugin's suggestion only lifts an item inside the "new" group (strongest first); it can never move anything ahead of
+/// something the person is in the middle of. This is also what runs when a smarter orderer is off or fails.
 /// </summary>
 public sealed class DefaultHeroOrderer : IHeroOrderer
 {
     public IReadOnlyList<HeroSlideCandidate> Order(IReadOnlyList<HeroSlideCandidate> allowed) =>
-        allowed.OrderByDescending(slide => slide.Continued).ThenByDescending(slide => slide.At).ToList();
+        allowed.OrderByDescending(slide => slide.Continued)
+            .ThenByDescending(slide => slide.Continued ? 0 : slide.Suggested)
+            .ThenByDescending(slide => slide.At)
+            .ToList();
 }
 
 /// <summary>

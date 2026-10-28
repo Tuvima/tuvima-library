@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Display;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Playback;
@@ -19,6 +20,7 @@ public sealed partial class DisplayComposerService
     private readonly IUnmatchedAssetRepository? _unmatched;
     private readonly IProfileHeroSettingsRepository? _heroSettings;
     private readonly IHeroOrderer _heroOrderer;
+    private readonly IHeroPluginSlides? _heroPluginSlides;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
@@ -32,8 +34,10 @@ public sealed partial class DisplayComposerService
         ICollectionRepository? collections = null,
         IUnmatchedAssetRepository? unmatched = null,
         IProfileHeroSettingsRepository? heroSettings = null,
-        IHeroOrderer? heroOrderer = null)
+        IHeroOrderer? heroOrderer = null,
+        IHeroPluginSlides? heroPluginSlides = null)
     {
+        _heroPluginSlides = heroPluginSlides;
         _heroSettings = heroSettings;
         _heroOrderer = heroOrderer ?? new DefaultHeroOrderer();
         _readService = readService;
@@ -61,7 +65,7 @@ public sealed partial class DisplayComposerService
             .OrderByDescending(row => row.LastAccessed)
             .ToList();
 
-    public async Task<DisplayPageDto> BuildHomeAsync(bool includeCatalog = true, Guid? profileId = null, CancellationToken ct = default, int shelfLimit = 20)
+    public async Task<DisplayPageDto> BuildHomeAsync(bool includeCatalog = true, Guid? profileId = null, CancellationToken ct = default, int shelfLimit = 20, PluginAudience? requester = null)
     {
         var worksTask = _readService.LoadHomeWorksAsync(ct);
         var journeyTask = _readService.LoadJourneyAsync(profileId, null, ct);
@@ -139,8 +143,11 @@ public sealed partial class DisplayComposerService
         var heroSettings = _heroSettings is not null && profileId is { } heroProfile
             ? await _heroSettings.GetAsync(heroProfile, ct)
             : ProfileHeroSettings.Default;
+        var nominations = heroSettings.Enabled && _heroPluginSlides is not null
+            ? await _heroPluginSlides.NominationsAsync(profileId, requester, ct)
+            : [];
         var spotlights = BuildHomeSpotlights(works, progressByWork, tvShowCards, continueCards,
-            continueCards.Concat(watchCards).Concat(readCards).Concat(listenCards).Concat(freshCandidates).ToList(), heroSettings);
+            continueCards.Concat(watchCards).Concat(readCards).Concat(listenCards).Concat(freshCandidates).ToList(), heroSettings, nominations);
 
         return new DisplayPageDto(
             Key: "home",

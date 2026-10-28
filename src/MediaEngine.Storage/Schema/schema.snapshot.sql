@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0060 profile_hero_settings).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0061 profile_hero_plugin_switches).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2196,6 +2196,13 @@ CREATE TABLE profile_grid_preferences (
     sort        TEXT NOT NULL CHECK (sort IN ('added', 'title', 'year', 'played')),
     updated_at  TEXT NOT NULL,   -- ISO 8601 UTC
     PRIMARY KEY (profile_id, grid_key)
+);
+
+CREATE TABLE profile_hero_plugin_switches (
+    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    plugin_id  TEXT NOT NULL,
+    updated_at TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (profile_id, plugin_id)
 );
 
 CREATE TABLE profile_hero_settings (

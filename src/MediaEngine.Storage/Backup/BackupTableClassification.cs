@@ -29,6 +29,7 @@ public static partial class BackupTableClassification
         Config("profile_credentials", "Profile PIN hashes, needed to switch profile after a restore."),
         Config("profile_grid_preferences", "How a profile sorts each grid."),
         Config("profile_hero_settings", "How a profile wants the Home hero to behave."),
+        Config("profile_hero_plugin_switches", "Which plugins' Home slides a profile switched off."),
         Config("profile_notice_dismissals", "Notices a profile has dismissed, so they do not return."),
         Config("profile_sequence_preferences", "Whether a profile shows missing items in a series or sequence.", refs: [Other("container_key")]),
         Config("profile_view_policies", "What a profile may do in View (access, sharing, documents)."),

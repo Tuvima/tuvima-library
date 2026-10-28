@@ -17,11 +17,11 @@ public sealed class HomeHeroPickerTests
     };
 
     private static DisplayComposerService Composer(
-        IReadOnlyList<DisplayWorkRow> works, ProfileHeroSettings settings, IHeroOrderer? orderer = null)
+        IReadOnlyList<DisplayWorkRow> works, ProfileHeroSettings settings, IHeroOrderer? orderer = null, IHeroPluginSlides? pluginSlides = null)
     {
         var cards = new DisplayCardBuilder();
         return new(new Repository(works), cards, new DisplayShelfBuilder(cards),
-            heroSettings: new FixedSettings(settings), heroOrderer: orderer);
+            heroSettings: new FixedSettings(settings), heroOrderer: orderer, heroPluginSlides: pluginSlides);
     }
 
     [Fact]
@@ -89,6 +89,68 @@ public sealed class HomeHeroPickerTests
         Assert.Equal("A book", Assert.Single(home.Spotlights).Title);
     }
 
+    [Fact]
+    public async Task APluginSuggestion_LabelsAndLiftsANewItem_ButNeverPassesSomethingYouAreIn()
+    {
+        var suggested = Work("Movie", "Older but suggested", 20);
+        var newer = Work("Movie", "Newer movie", 1);
+        var slides = new FixedSlides(new HeroPluginNomination(suggested.WorkId, "plugin.x", "Mood Match", "Because you liked Dune", 80, false));
+
+        var home = await Composer([newer, suggested], ProfileHeroSettings.Default, null, slides).BuildHomeAsync(profileId: Guid.NewGuid());
+
+        Assert.Equal(["Older but suggested", "Newer movie"], home.Spotlights.Select(hero => hero.Title));
+        Assert.Equal("Mood Match", home.Spotlights[0].SuggestedBy);
+        Assert.Equal("Because you liked Dune", home.Spotlights[0].SuggestedReason);
+        Assert.Null(home.Spotlights[1].SuggestedBy);
+    }
+
+    [Fact]
+    public async Task APluginSuggestion_CannotAddAnItemTheSettingsExclude()
+    {
+        var book = Work("Book", "A book");
+        var slides = new FixedSlides(new HeroPluginNomination(book.WorkId, "plugin.x", "Mood Match", "Because", 80, false));
+        var settings = ProfileHeroSettings.Default with { AllowRead = false };
+
+        var home = await Composer([book, Work("Movie", "A movie", 3)], settings, null, slides).BuildHomeAsync(profileId: Guid.NewGuid());
+
+        Assert.Equal(["A movie"], home.Spotlights.Select(hero => hero.Title));
+    }
+
+    [Fact]
+    public async Task APluginSuggestion_ForAnItemThatIsNotReady_IsIgnored()
+    {
+        var slides = new FixedSlides(new HeroPluginNomination(Guid.NewGuid(), "plugin.x", "Mood Match", "Because", 80, false));
+
+        var home = await Composer([Work("Movie", "A movie")], ProfileHeroSettings.Default, null, slides).BuildHomeAsync(profileId: Guid.NewGuid());
+
+        Assert.Equal(["A movie"], home.Spotlights.Select(hero => hero.Title));
+        Assert.Null(home.Spotlights[0].SuggestedBy);
+    }
+
+    [Fact]
+    public async Task WithTheHeroOff_NoPluginIsEvenAsked()
+    {
+        var slides = new FixedSlides();
+
+        await Composer([Work("Movie", "A movie")], ProfileHeroSettings.Default with { Enabled = false }, null, slides).BuildHomeAsync(profileId: Guid.NewGuid());
+
+        Assert.Equal(0, slides.Asked);
+    }
+
+    private sealed class FixedSlides(params HeroPluginNomination[] nominations) : IHeroPluginSlides
+    {
+        public int Asked { get; private set; }
+
+        public Task<IReadOnlyList<HeroPluginNomination>> NominationsAsync(Guid? profileId, MediaEngine.Domain.Configuration.PluginAudience? requester, CancellationToken ct)
+        {
+            Asked++;
+            return Task.FromResult<IReadOnlyList<HeroPluginNomination>>(nominations);
+        }
+
+        public Task<IReadOnlyList<(string PluginId, string Name, bool Enabled)>> PluginsAsync(Guid profileId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<(string PluginId, string Name, bool Enabled)>>([]);
+    }
+
     private sealed class ReverseOrderer : IHeroOrderer
     {
         public IReadOnlyList<HeroSlideCandidate> Order(IReadOnlyList<HeroSlideCandidate> allowed) =>
@@ -99,6 +161,8 @@ public sealed class HomeHeroPickerTests
     {
         public Task<ProfileHeroSettings> GetAsync(Guid profileId, CancellationToken ct = default) => Task.FromResult(settings);
         public Task SaveAsync(Guid profileId, ProfileHeroSettings value, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlySet<string>> GetSwitchedOffPluginsAsync(Guid profileId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task SetPluginSlidesAsync(Guid profileId, string pluginId, bool enabled, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class Repository(IReadOnlyList<DisplayWorkRow> works) : IDisplayProjectionReadService

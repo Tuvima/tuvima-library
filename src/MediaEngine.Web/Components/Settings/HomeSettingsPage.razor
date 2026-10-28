@@ -64,6 +64,19 @@ else
                     @SwitchRow("Music and audiobooks", "Things to listen to.", _settings.AllowListen, value => SaveAsync(_settings with { AllowListen = value }))
                 </SettingsSectionPanel>
             }
+
+            @if (_settings.Enabled && _settings.Plugins.Count > 0)
+            {
+                <SettingsSectionPanel Title="Suggestions from plugins"
+                                      Description="Plugins can suggest items for the banner. Their slides are labelled with the plugin's name, and never come before something you are in the middle of."
+                                      Class="tl-card settings-section-card listening-settings-card">
+                    @foreach (var plugin in _settings.Plugins)
+                    {
+                        var current = plugin;
+                        @SwitchRow(current.Name, "Show slides from this plugin.", current.Enabled, value => SavePluginAsync(current, value))
+                    }
+                </SettingsSectionPanel>
+            }
         </div>
     </div>
 }
@@ -92,6 +105,22 @@ else
                       Color="AppColor.Primary"
                       AriaLabel="@title" />
     </div>;
+
+    private async Task SavePluginAsync(DisplayHeroPluginDto plugin, bool enabled)
+    {
+        var settings = _settings;
+        if (settings is null)
+        {
+            return;
+        }
+
+        _settings = settings with { Plugins = settings.Plugins.Select(p => p.PluginId == plugin.PluginId ? p with { Enabled = enabled } : p).ToList() };
+        if (!await ApiClient.SetDisplayHeroPluginSlidesAsync(plugin.PluginId, enabled))
+        {
+            _settings = settings;
+            Snackbar.Add($"The {plugin.Name} setting could not be saved. Nothing was changed.", AppSeverity.Error);
+        }
+    }
 
     // The page shows the change at once and puts it back when the Engine could not keep it.
     private async Task SaveAsync(DisplayHeroSettingsDto next)

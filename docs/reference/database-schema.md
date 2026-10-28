@@ -1875,6 +1875,16 @@ How a person wants the Home hero (the big banner at the top of Home) to behave. 
 | `continued_only` | INTEGER | 1 shows only things the person has started; 0 adds new items after them. |
 | `updated_at` | TEXT | ISO 8601 UTC. |
 
+### profile_hero_plugin_switches
+
+Which plugins' Home slides a person switched off for themselves (Home page redesign spec WP8). Added by upgrade step `0061_profile_hero_plugin_switches`. A row means the profile does not want that plugin's slides; no row means they are on. Deleting a profile removes its rows.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `profile_id` | BLOB | The profile. References `profiles(id)` with `ON DELETE CASCADE`. Part of the primary key. |
+| `plugin_id` | TEXT | The plugin's manifest id. Part of the primary key. |
+| `updated_at` | TEXT | ISO 8601 UTC. |
+
 ### profile_grid_preferences
 
 The order a person last chose on each "View all" grid (Watch, Read, Listen, My list, Liked), remembered per profile so it follows them to every device. Added by upgrade step `0016_profile_grid_preferences`. One row per profile and grid; a grid with no row uses its default order. Deleting a profile removes its rows.

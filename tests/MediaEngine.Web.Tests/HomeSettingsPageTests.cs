@@ -13,6 +13,7 @@ public sealed class HomeSettingsPageTests : AsyncBunitContext
     private DisplayHeroSettingsDto? _remote = new(true, 5, true, true, true, false);
     private readonly List<DisplayHeroSettingsDto> _saved = [];
     private bool _saveFails;
+    private readonly List<(string Plugin, bool Enabled)> _pluginSaves = [];
 
     public HomeSettingsPageTests()
     {
@@ -22,6 +23,11 @@ public sealed class HomeSettingsPageTests : AsyncBunitContext
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetDisplayHeroSettingsAsync), _ => Task.FromResult(_remote));
+            stub.SetHandler(nameof(IEngineApiClient.SetDisplayHeroPluginSlidesAsync), args =>
+            {
+                _pluginSaves.Add(((string)args![0]!, (bool)args[1]!));
+                return Task.FromResult(!_saveFails);
+            });
             stub.SetHandler(nameof(IEngineApiClient.SetDisplayHeroSettingsAsync), args =>
             {
                 _saved.Add((DisplayHeroSettingsDto)args![0]!);
@@ -86,6 +92,23 @@ public sealed class HomeSettingsPageTests : AsyncBunitContext
             Assert.Single(_saved);
             Assert.True(cut.Find("input[aria-label='Books and comics']").HasAttribute("checked"));
         });
+    }
+
+    [Fact]
+    public void PluginsThatOfferSlides_GetTheirOwnSwitch_AndNoneMeansNoSection()
+    {
+        _remote = new DisplayHeroSettingsDto(true, 5, true, true, true, false) { Plugins = [new("tuvima.mood", "Mood Match", true)] };
+        var cut = Render<HomeSettingsPage>();
+        cut.WaitForAssertion(() => cut.Find("input[aria-label='Mood Match']"));
+
+        cut.Find("input[aria-label='Mood Match']").Change(false);
+
+        cut.WaitForAssertion(() => Assert.Equal(("tuvima.mood", false), Assert.Single(_pluginSaves)));
+
+        _remote = new DisplayHeroSettingsDto(true, 5, true, true, true, false);
+        var none = Render<HomeSettingsPage>();
+        none.WaitForAssertion(() => none.Find("input[aria-label='Show the top banner']"));
+        Assert.DoesNotContain("Suggestions from plugins", none.Markup);
     }
 
     [Fact]

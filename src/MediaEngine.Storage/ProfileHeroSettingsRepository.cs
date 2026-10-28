@@ -64,4 +64,46 @@ public sealed class ProfileHeroSettingsRepository(IDatabaseConnection db) : IPro
                 transaction, cancellationToken: token));
         }, ct);
     }
+
+    public Task<IReadOnlySet<string>> GetSwitchedOffPluginsAsync(Guid profileId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var ids = connection.Query<string>(new CommandDefinition(
+            "SELECT plugin_id FROM profile_hero_plugin_switches WHERE profile_id = @profileId;",
+            new { profileId }, cancellationToken: ct));
+        return Task.FromResult<IReadOnlySet<string>>(ids.ToHashSet(StringComparer.OrdinalIgnoreCase));
+    }
+
+    public Task SetPluginSlidesAsync(Guid profileId, string pluginId, bool enabled, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
+        return db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (connection.ExecuteScalar<long>(new CommandDefinition(
+                    "SELECT COUNT(1) FROM profiles WHERE id = @profileId;",
+                    new { profileId }, transaction, cancellationToken: token)) == 0)
+            {
+                throw new KeyNotFoundException($"Profile '{profileId:D}' was not found.");
+            }
+
+            if (enabled)
+            {
+                connection.Execute(new CommandDefinition(
+                    "DELETE FROM profile_hero_plugin_switches WHERE profile_id = @profileId AND plugin_id = @pluginId;",
+                    new { profileId, pluginId }, transaction, cancellationToken: token));
+                return;
+            }
+
+            connection.Execute(new CommandDefinition(
+                """
+                INSERT INTO profile_hero_plugin_switches (profile_id, plugin_id, updated_at)
+                VALUES (@profileId, @pluginId, @updatedAt)
+                ON CONFLICT(profile_id, plugin_id) DO UPDATE SET updated_at = excluded.updated_at;
+                """,
+                new { profileId, pluginId, updatedAt = DateTimeOffset.UtcNow.ToString("O") },
+                transaction, cancellationToken: token));
+        }, ct);
+    }
 }

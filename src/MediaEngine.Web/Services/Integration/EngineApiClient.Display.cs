@@ -295,4 +295,11 @@ public sealed partial class EngineApiClient
     public Task<bool> SetDisplayHeroSettingsAsync(DisplayHeroSettingsDto settings, CancellationToken ct = default) =>
         PutAsync("PUT /api/v1/display/hero-settings", "/api/v1/display/hero-settings", settings, ct: ct);
 
+    public Task<bool> SetDisplayHeroPluginSlidesAsync(string pluginId, bool enabled, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /api/v1/display/hero-settings/plugins/{pluginId}",
+            $"/api/v1/display/hero-settings/plugins/{Uri.EscapeDataString(pluginId)}",
+            new DisplayHeroPluginSwitchRequest(enabled),
+            ct: ct);
+
 }

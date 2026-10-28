@@ -95,6 +95,43 @@ public sealed class ProfileHeroSettingsRepositoryTests : IDisposable
             "INSERT INTO profile_hero_settings (profile_id, slide_count, updated_at) VALUES (@profile, 6, 'now');", new { profile }));
     }
 
+    [Fact]
+    public async Task APluginSwitchedOff_IsListedForThatProfileOnly_AndSwitchingBackOnRemovesIt()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+
+        await _repository.SetPluginSlidesAsync(alex, "tuvima.mood", enabled: false);
+        await _repository.SetPluginSlidesAsync(alex, "tuvima.mood", enabled: false);
+
+        Assert.Equal(["tuvima.mood"], await _repository.GetSwitchedOffPluginsAsync(alex));
+        Assert.Empty(await _repository.GetSwitchedOffPluginsAsync(bea));
+
+        await _repository.SetPluginSlidesAsync(alex, "tuvima.mood", enabled: true);
+
+        Assert.Empty(await _repository.GetSwitchedOffPluginsAsync(alex));
+    }
+
+    [Fact]
+    public async Task SwitchingAPluginForAProfileThatDoesNotExist_Fails()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _repository.SetPluginSlidesAsync(Guid.NewGuid(), "tuvima.mood", enabled: false));
+    }
+
+    [Fact]
+    public async Task DeletingAProfile_RemovesItsPluginSwitches()
+    {
+        var alex = SeedProfile("Alex");
+        await _repository.SetPluginSlidesAsync(alex, "tuvima.mood", enabled: false);
+
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("DELETE FROM profiles WHERE id = @alex;", new { alex });
+        }
+
+        Assert.Empty(await _repository.GetSwitchedOffPluginsAsync(alex));
+    }
+
     private int RowCount(Guid profileId)
     {
         using var connection = _database.CreateConnection();

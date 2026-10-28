@@ -69,6 +69,26 @@ public sealed class PluginDisplayRepository : IPluginDisplayRepository
         }, ct);
     }
 
+    public Task<IReadOnlyList<PluginDisplayRow>> ListSlotAsync(string slot, int limit, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(slot);
+        ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        IReadOnlyList<PluginDisplayRow> rows = conn.Query<(string PluginId, string Slot, string SubjectId, string Key, string? Title, string Text, string? Icon, int Strength, int Ai, string UpdatedAt)>(
+                """
+                SELECT plugin_id, slot, subject_id, key, title, text, icon, strength, from_local_ai, updated_at
+                FROM plugin_display_contributions WHERE slot = @slot AND subject_id <> ''
+                ORDER BY strength DESC, updated_at DESC, plugin_id, key LIMIT @limit;
+                """,
+                new { slot, limit })
+            .Select(row => new PluginDisplayRow(
+                row.PluginId, row.Slot, row.SubjectId, row.Key, row.Title, row.Text, row.Icon, row.Strength, row.Ai != 0,
+                DateTimeOffset.Parse(row.UpdatedAt, CultureInfo.InvariantCulture)))
+            .ToList();
+        return Task.FromResult(rows);
+    }
+
     public Task<IReadOnlyList<PluginDisplayRow>> ListAsync(string slot, string subjectId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slot);

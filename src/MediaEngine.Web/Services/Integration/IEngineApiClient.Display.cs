@@ -86,4 +86,7 @@ public partial interface IEngineApiClient
     /// <summary>PUT /api/v1/display/hero-settings - remembers how the active profile wants the Home hero to behave.</summary>
     Task<bool> SetDisplayHeroSettingsAsync(DisplayHeroSettingsDto settings, CancellationToken ct = default);
 
+    /// <summary>PUT /api/v1/display/hero-settings/plugins/{pluginId} - switches one plugin's Home slides on or off for the active profile.</summary>
+    Task<bool> SetDisplayHeroPluginSlidesAsync(string pluginId, bool enabled, CancellationToken ct = default);
+
 }

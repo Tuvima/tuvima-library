@@ -8,6 +8,11 @@ public sealed class DiscoveryHeroViewModel
     public DisplayContinuationState ContinuationState { get; init; }
     public DisplayEpisodeContextDto? EpisodeContext { get; init; }
     public string Eyebrow { get; init; } = string.Empty;
+
+    /// <summary>The plugin that suggested this slide, and its short reason; both null for slides the Library chose.</summary>
+    public string? SuggestedBy { get; init; }
+    public string? SuggestedReason { get; init; }
+    public bool SuggestedByAi { get; init; }
     public string Title { get; init; } = string.Empty;
     public string? Subtitle { get; init; }
     public string? Tagline { get; init; }

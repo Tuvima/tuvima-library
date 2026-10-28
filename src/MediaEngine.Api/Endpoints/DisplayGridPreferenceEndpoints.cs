@@ -1,9 +1,11 @@
 using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Contracts;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -97,7 +99,8 @@ public static class DisplayGridPreferenceEndpoints
 
         hero.MapGet("", async (
             ClaimsPrincipal user,
-            IProfileHeroSettingsRepository repository,
+            [FromServices] IProfileHeroSettingsRepository repository,
+            [FromServices] IHeroPluginSlides pluginSlides,
             CancellationToken ct) =>
         {
             if (ProfileId(user) is not { } profileId)
@@ -106,8 +109,11 @@ public static class DisplayGridPreferenceEndpoints
             }
 
             var settings = await repository.GetAsync(profileId, ct);
+            var plugins = (await pluginSlides.PluginsAsync(profileId, ct))
+                .Select(plugin => new DisplayHeroPluginDto(plugin.PluginId, plugin.Name, plugin.Enabled)).ToList();
             return Results.Ok(new DisplayHeroSettingsDto(
-                settings.Enabled, settings.SlideCount, settings.AllowWatch, settings.AllowRead, settings.AllowListen, settings.ContinuedOnly));
+                settings.Enabled, settings.SlideCount, settings.AllowWatch, settings.AllowRead, settings.AllowListen, settings.ContinuedOnly)
+            { Plugins = plugins });
         })
             .WithName("GetDisplayHeroSettings")
             .WithSummary("Returns how the active profile wants the Home hero to behave.")
@@ -118,7 +124,7 @@ public static class DisplayGridPreferenceEndpoints
         hero.MapPut("", async (
             DisplayHeroSettingsDto request,
             ClaimsPrincipal user,
-            IProfileHeroSettingsRepository repository,
+            [FromServices] IProfileHeroSettingsRepository repository,
             CancellationToken ct) =>
         {
             if (ProfileId(user) is not { } profileId)
@@ -147,6 +153,44 @@ public static class DisplayGridPreferenceEndpoints
             .WithSummary("Remembers how the active profile wants the Home hero to behave.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireClientScope(ClientApiScopes.ProgressWrite);
+
+        hero.MapPut("/plugins/{pluginId}", async (
+            string pluginId,
+            DisplayHeroPluginSwitchRequest request,
+            ClaimsPrincipal user,
+            [FromServices] IProfileHeroSettingsRepository repository,
+            [FromServices] IHeroPluginSlides pluginSlides,
+            CancellationToken ct) =>
+        {
+            if (ProfileId(user) is not { } profileId)
+            {
+                return Unauthenticated();
+            }
+
+            // Only a plugin that really offers slides can be switched, so the table never fills with made-up names.
+            var id = pluginId.Trim();
+            if (request is null || !(await pluginSlides.PluginsAsync(profileId, ct)).Any(plugin => string.Equals(plugin.PluginId, id, StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiErrors.NotFound("That plugin does not offer Home slides.");
+            }
+
+            try
+            {
+                await repository.SetPluginSlidesAsync(profileId, id, request.Enabled, ct);
+            }
+            catch (KeyNotFoundException)
+            {
+                return ApiErrors.NotFound("The profile was not found.");
+            }
+
+            return Results.NoContent();
+        })
+            .WithName("SetDisplayHeroPluginSlides")
+            .WithSummary("Switches one plugin's Home slides on or off for the active profile.")
+            .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireClientScope(ClientApiScopes.ProgressWrite);

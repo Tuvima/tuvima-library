@@ -14,7 +14,8 @@ public sealed partial class DisplayComposerService
         IReadOnlyList<DisplayCardDto> shows,
         IReadOnlyList<DisplayCardDto> continueCards,
         IReadOnlyList<DisplayCardDto> candidates,
-        ProfileHeroSettings? settings = null)
+        ProfileHeroSettings? settings = null,
+        IReadOnlyList<HeroPluginNomination>? nominations = null)
     {
         settings ??= ProfileHeroSettings.Default;
         if (!settings.Enabled)
@@ -139,6 +140,26 @@ public sealed partial class DisplayComposerService
             slides.Add(new(DisplayCardBuilder.ToHero(card, "Featured Content") with { IsContinued = false }, false, card.SortTimestamp));
         }
 
+        // Plugin suggestions only label and lift items that are already allowed on the hero; a plugin cannot add an item that is still
+        // settling, has no artwork or is outside what this person may see.
+        foreach (var nomination in nominations ?? [])
+        {
+            var index = slides.FindIndex(slide => slide.Suggested == 0 && IsItem(slide.Hero, nomination.ItemId));
+            if (index >= 0)
+            {
+                slides[index] = slides[index] with
+                {
+                    Hero = slides[index].Hero with
+                    {
+                        SuggestedBy = nomination.PluginName,
+                        SuggestedReason = nomination.Reason,
+                        SuggestedByAi = nomination.FromLocalAi,
+                    },
+                    Suggested = Math.Max(1, nomination.Strength),
+                };
+            }
+        }
+
         // Two steps (D6): the person's settings decide what is allowed, then the orderer ranks only those.
         return _heroOrderer.Order(HomeHeroAllowedItems.Filter(slides, settings))
             .Select(slide => slide.Hero)
@@ -149,6 +170,9 @@ public sealed partial class DisplayComposerService
     }
 
     private const int MaxHomeSpotlights = 5;
+
+    private static bool IsItem(DisplayHeroDto hero, Guid itemId) =>
+        hero.Id == itemId || hero.WorkId == itemId || hero.EpisodeContext?.ShowWorkId == itemId;
 
     private static bool HasStoredArtwork(DisplayWorkRow work) =>
         new[]

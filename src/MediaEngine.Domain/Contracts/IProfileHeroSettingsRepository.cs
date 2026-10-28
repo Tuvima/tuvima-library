@@ -20,4 +20,10 @@ public interface IProfileHeroSettingsRepository
 
     /// <summary>Remembers (or replaces) the settings. Throws <see cref="KeyNotFoundException"/> when the profile does not exist.</summary>
     Task SaveAsync(Guid profileId, ProfileHeroSettings settings, CancellationToken ct = default);
+
+    /// <summary>The ids of the plugins whose Home slides this profile switched off. A plugin that is not listed is on.</summary>
+    Task<IReadOnlySet<string>> GetSwitchedOffPluginsAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>Switches one plugin's Home slides on or off for the profile. Throws <see cref="KeyNotFoundException"/> when the profile does not exist.</summary>
+    Task SetPluginSlidesAsync(Guid profileId, string pluginId, bool enabled, CancellationToken ct = default);
 }

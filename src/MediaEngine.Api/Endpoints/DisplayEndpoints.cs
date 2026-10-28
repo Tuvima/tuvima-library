@@ -3,6 +3,7 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Authentication;
@@ -10,6 +11,7 @@ using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
 using Microsoft.AspNetCore.Mvc;
@@ -23,8 +25,16 @@ public static class DisplayEndpoints
         var group = app.MapGroup("/api/v1/display")
             .WithTags("Display");
 
-        group.MapGet("/home", async (bool? includeCatalog, ClaimsPrincipal user, DisplayComposerService display, CancellationToken ct) =>
-            Results.Ok(await display.BuildHomeAsync(includeCatalog ?? true, ProfileId(user), ct)))
+        group.MapGet("/home", async (
+            bool? includeCatalog,
+            HttpContext http,
+            ClaimsPrincipal user,
+            DisplayComposerService display,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+            Results.Ok(await display.BuildHomeAsync(
+                includeCatalog ?? true, ProfileId(user), ct,
+                requester: PluginAccessGate.RequesterOf(await authorityResolver.ResolveAsync(http, ct)))))
             .WithName("GetDisplayHome")
             .WithSummary("Returns the cross-platform consumer Home display model.")
             .Produces<DisplayPageDto>(StatusCodes.Status200OK)

@@ -70,6 +70,24 @@ Approved by the product owner on 2026-10-16 and 2026-10-20.
 
 **Who sees what.** Grids are read from the same authorized projection as lane pages: the profile's content limit, its lane (area) access and the libraries hidden from the profile apply, Documents never appear, a format from a copy in a library the account can't see is never offered or counted, and My List and Liked only ever show the signed-in profile's own lists (another profile's private collection or playlist never appears even if its id was saved). The TV app's "See all" reads the same full list.
 
+## Home page: top banner, pick-up row, filters and hover (October 2026)
+
+Approved by the product owner on 2026-10-27 (Home page redesign spec, decisions D1 to D6).
+
+**Top banner (the hero).** It holds at most five slides. Everything the person is in the middle of comes first, most recently touched first, then newly added items, newest first. A show is one slide: a show with an episode started shows that episode (Resume, or Watch Next Episode when the last one is finished) with the show's logo; a show never started shows the series with "Start watching". Book covers in the banner are the same size as on the item's own page. Only items that have finished matching and have real artwork appear. The banner is built in two steps: the person's settings decide which items are allowed, then an orderer puts only those in order. The default orderer is the order above; a plugin's suggestion can lift a new item inside the "new" group but never ahead of something in progress. If a smarter orderer is added later and is off or fails, the default order applies.
+
+**Banner settings (Settings, Preferences, Home).** Each profile can turn the banner off (Home then starts at its first row), choose one to five slides, allow or block Watch, Read and Listen items, and choose "continued plus new" or "continued only". They only narrow what the banner picks from. The Engine applies them, so phones, TVs and browsers agree.
+
+**Plugin slides.** A plugin may suggest an item for the banner with a short reason. The slide is drawn by the Library, labelled "Suggested by {plugin}" (plus "AI" when Local AI produced it) with the reason on hover, and only appears for an item that already passes every check above. Text with markup, script or an address, and icons that are not a plain icon name, are refused and the reason is logged. Each profile can switch a plugin's slides off.
+
+**Pick up where you left off.** One horizontal row of cards, one card per thing started, whatever its type (a show once, an album as "Recently played"). Each card has the cover, the type with its icon, the title, a subtitle, a progress bar with a line such as "42% watched", and a round play button. The title opens the item's page. With nothing started the row is not shown.
+
+**Recently Added filters.** The pills are toggles: All, Watch, Read, Listen, View. A type with nothing in the library has no pill, and two or more can be on at once. The tiles are 25 percent smaller than shelf tiles.
+
+**One hover.** Movie and TV tiles on Home and Watch share one hover: after a short pause the tile lifts a little and the preview fades in over it. The tile never changes width, so neighbours do not move. Pause, fade and hide use one set of timings, and moving straight from one tile to the next skips the pause. Nothing happens on touch screens or with reduced motion on.
+
+**Opening an item.** Clicking a tile hands its cover, logo and backdrop to the item's page, so the page shows the real picture and title straight away instead of grey boxes while the rest loads. A link typed or reloaded keeps the grey stand-ins.
+
 ## When an item appears: Ready
 
 Every library surface (Home, the hero, the shelves and lanes, Watch, Read, Listen, collections, People pages and the Library list) shows an item only when it is **Ready**. An item is Ready when it has been matched to a real title, is placed in its show or album (an episode under its show, a track under its album; books and comics that belong to no series stand alone), has its artwork (found, or searched for and settled), is not waiting in Needs Review, and has not been rejected. Wikidata and the later enrichment steps are not required, so items appear quickly and fill in by themselves while you already watch or read.
