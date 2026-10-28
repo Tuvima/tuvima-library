@@ -170,7 +170,11 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
 
     [Fact]
     public void SlotsThePickerDoesNotEditAreLeftOut() =>
-        Assert.Equal(["Background", "Logo"], ArtworkPickerRules.TabsFor(["Logo", "Headshot", "Background"], "Movies").Select(tab => tab.Slot));
+        Assert.Equal(["Background", "Logo"], ArtworkPickerRules.TabsFor(["Logo", "Banner", "Background"], "Movies").Select(tab => tab.Slot));
+
+    [Fact]
+    public void APersonsPhotoIsAPickerTabCalledPhoto() =>
+        Assert.Equal("Photo", Assert.Single(ArtworkPickerRules.TabsFor(["Headshot"], "person")).Label);
 
     // -- Picking previews, Use stages --------------------------------------------------------------
 

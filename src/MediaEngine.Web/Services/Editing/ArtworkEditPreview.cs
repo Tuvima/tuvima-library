@@ -108,7 +108,8 @@ public sealed class ArtworkEditPreview
         var cover = Url("CoverArt");
         var background = Url("Background");
         var logo = Url("Logo");
-        if (cover is null && background is null && logo is null)
+        var headshot = Url("Headshot");
+        if (cover is null && background is null && logo is null && headshot is null)
         {
             return artwork;
         }
@@ -121,7 +122,7 @@ public sealed class ArtworkEditPreview
             PosterUrl = cover ?? artwork.PosterUrl,
             CoverUrl = cover ?? artwork.CoverUrl,
             LogoUrl = logo ?? artwork.LogoUrl,
-            PortraitUrl = artwork.PortraitUrl,
+            PortraitUrl = headshot ?? artwork.PortraitUrl,
             RelatedArtworkUrls = artwork.RelatedArtworkUrls,
             DominantColors = artwork.DominantColors,
             PrimaryColor = artwork.PrimaryColor,

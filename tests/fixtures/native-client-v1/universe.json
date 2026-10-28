@@ -2,6 +2,8 @@
   "qid": "Q4242",
   "name": "Test Universe",
   "description": null,
+  "cover_url": null,
+  "background_url": null,
   "group_type": "universe",
   "item_count": 5,
   "series_count": 3,

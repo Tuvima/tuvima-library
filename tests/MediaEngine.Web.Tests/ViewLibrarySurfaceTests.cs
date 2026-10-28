@@ -145,7 +145,6 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("<MediaViewerShell", Read("src/MediaEngine.Web/Components/MediaEditor/MediaEditorArtworkLightbox.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("MediaEditorLauncher.OpenAsync", artwork, StringComparison.Ordinal);
         Assert.Contains("<ArtworkWorkspace", Read("src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor"), StringComparison.Ordinal);
-        Assert.Contains("<ArtworkWorkspace", Read("src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor"), StringComparison.Ordinal);
         Assert.Contains("<ArtworkWorkspace", Read("src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor"), StringComparison.Ordinal);
         Assert.Contains("/api/v1/display/artwork", client, StringComparison.Ordinal);
         Assert.Contains("ArtworkAssetQuery request", client, StringComparison.Ordinal);

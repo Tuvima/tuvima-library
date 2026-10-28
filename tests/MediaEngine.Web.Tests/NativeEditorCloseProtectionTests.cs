@@ -29,27 +29,6 @@ public sealed class NativeEditorCloseProtectionTests : AsyncBunitContext
         Services.AddSingleton<ICollectionPersonalMediaClient>(new EmptyPersonalMediaClient());
     }
 
-    [Fact]
-    public async Task NativePersonCloseKeepsDirtyDraftOpenAndAllowsCloseAfterReset()
-    {
-        var host = Render<AppDialogHost>();
-        var service = Services.GetRequiredService<AppDialogService>();
-        var reference = await host.InvokeAsync(() => service.ShowAsync<PersonEditorDialog>("Person", new AppDialogParameters<PersonEditorDialog> { { editor => editor.Request, new MediaEditorLaunchRequest() } }));
-        host.WaitForAssertion(() => Assert.NotNull(host.FindComponent<PersonEditorDialog>()));
-        var editor = host.FindComponent<PersonEditorDialog>();
-        SetField(editor.Instance, "_dirty", true);
-        var frame = host.FindComponent<AppDialogFrame>();
-        await frame.InvokeAsync(frame.Instance.RequestCancel);
-        Assert.False(reference.Result.IsCompleted);
-        Assert.True(GetField<bool>(editor.Instance, "_dirty"));
-        Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts,
-            toast => toast.Message == "Save or reset your person changes before closing.");
-
-        SetField(editor.Instance, "_dirty", false);
-        await frame.InvokeAsync(frame.Instance.RequestCancel);
-        Assert.True((await reference.Result)!.Canceled);
-    }
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

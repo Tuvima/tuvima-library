@@ -20,6 +20,7 @@ public static class EditSessionReasons
     public const string NoFiles = "This item has no files to move.";
     public const string FilesStayPut = "The files do not need to move.";
     public const string NotAllowedToEdit = "You do not have permission to edit this item.";
+    public const string SubjectUnavailable = "This cannot be opened for editing.";
     public const string BadPosition = "The track number is not valid. Use a whole number from 1 to 9999.";
     public const string NotInThatAlbum = "This song is no longer in that album.";
 

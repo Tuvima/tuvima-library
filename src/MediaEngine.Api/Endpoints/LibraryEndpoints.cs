@@ -216,7 +216,7 @@ public static class LibraryEndpoints
         group.MapPost("/edit-session", async (
             EditSessionRequest request,
             IEditSessionService editSession,
-            LibraryBatchEditAccessService access,
+            EditSessionAccessService access,
             [FromServices] EditSessionCallerAccessor callers,
             [FromServices] IRequestAuthorityResolver authorityResolver,
             [FromServices] IProfileRepository profiles,
@@ -258,6 +258,61 @@ public static class LibraryEndpoints
         .WithSummary("Check, or check and save, everything staged in the universal editor: all data changes together or none, file moves last.")
         .Produces<EditSessionResult>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministrator();
+
+        // ── GET /library/editor-subjects/{id} and /library/editor-subjects/universes/{qid} ─────
+        // What the universal editor opens on for a person, Series, curated collection or Universe (spec D17, D17a): the Details fields
+        // with their current and canonical values, and the pictures the subject can have.
+        group.MapGet("/editor-subjects/{id:guid}", async (
+            Guid id,
+            EditSubjectDirectory subjects,
+            EditSessionAccessService access,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            var refusals = await access.FindRefusalsAsync(http, [id], ct);
+            if (refusals.TryGetValue(id, out var refusal))
+            {
+                return ApiErrors.Forbidden(refusal);
+            }
+
+            var subject = await subjects.LoadAsync(id, ct);
+            return subject is null ? ApiErrors.NotFound(EditSessionReasons.SubjectUnavailable) : Results.Ok(subject);
+        })
+        .WithName("GetEditorSubject")
+        .WithSummary("The Details fields and picture slots the universal editor shows for a person, Series, curated collection or Universe.")
+        .Produces<EditorSubjectDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministrator();
+
+        group.MapGet("/editor-subjects/universes/{qid}", async (
+            string qid,
+            ICollectionRepository collections,
+            EditSubjectDirectory subjects,
+            EditSessionAccessService access,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            var normalized = UniverseClientReadService.NormalizeQid(qid);
+            var universe = normalized is null ? null : await collections.FindUniverseByQidAsync(normalized, ct);
+            if (universe is null)
+            {
+                return ApiErrors.NotFound(EditSessionReasons.SubjectUnavailable);
+            }
+
+            var refusals = await access.FindRefusalsAsync(http, [universe.Id], ct);
+            if (refusals.TryGetValue(universe.Id, out var refusal))
+            {
+                return ApiErrors.Forbidden(refusal);
+            }
+
+            var subject = await subjects.LoadAsync(universe.Id, ct);
+            return subject is null ? ApiErrors.NotFound(EditSessionReasons.SubjectUnavailable) : Results.Ok(subject);
+        })
+        .WithName("GetUniverseEditorSubject")
+        .WithSummary("The universal editor's subject for a Universe, found by its Wikidata ID.")
+        .Produces<EditorSubjectDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministrator();
 
         return app;

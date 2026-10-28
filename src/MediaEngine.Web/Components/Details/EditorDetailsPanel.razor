@@ -32,13 +32,15 @@
         @if (facts.Count > 0)
         {
             <section class="tl-editor-details__group" aria-label="Provider facts">
-                <h3 class="tl-editor-details__heading">From providers</h3>
+                <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
                 @foreach (var field in facts)
                 {
                     @FactRow(field)
                 }
             </section>
         }
+
+        @ChildContent
     </div>
 }
 
@@ -48,6 +50,11 @@
     [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
 
     [Parameter, EditorRequired] public EditSessionState? Session { get; set; }
+
+    /// <summary>Extra read-only content shown under the fields (the Universe's Series list).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private static string Canonical(MediaEditorDetailsFieldPresentation field) => field.CanonicalName ?? "provider's";
 
     private RenderFragment EditableRow(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field) => __builder =>
     {
@@ -63,7 +70,7 @@
                 <span>@field.Label</span>
                 @if (overridden)
                 {
-                    <span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} is changed")" title="Changed from the provider's value"></span>
+                    <span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} is changed")" title="@($"Changed from the {Canonical(field)} value")"></span>
                 }
             </div>
             @if (field.IsChips)
@@ -88,14 +95,14 @@
             }
             @if (isReset)
             {
-                <span class="tl-editor-field__note">Goes back to the provider's value when you save.
+                <span class="tl-editor-field__note">Goes back to the @Canonical(field) value when you save.
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                                OnClick="@(() => Undo(fields, session, field))">Undo</AppButton></span>
             }
             else if (field.CanRevert)
             {
                 <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                           Class="tl-editor-field__reset" OnClick="@(() => Reset(fields, session, field))">Reset to provider value</AppButton>
+                           Class="tl-editor-field__reset" OnClick="@(() => Reset(fields, session, field))">Reset to @(field.CanonicalName ?? "provider") value</AppButton>
             }
         </div>
     };
