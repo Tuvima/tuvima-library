@@ -90,9 +90,8 @@ public sealed class PlainKindEditorRefusalTests : IDisposable
     [Fact]
     public void TheRetailMatchRoute_RefusesBeforeItValidatesOrWritesAnything()
     {
-        var source = File.ReadAllText(RepoFile("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
-        var route = source[source.IndexOf("/{entityId:guid}/retail-match\"", StringComparison.Ordinal)..];
-        route = route[..route.IndexOf("/{entityId:guid}/wikidata-match", StringComparison.Ordinal)];
+        // The retail-match write (shared by the route and the edit session) lives in its own file.
+        var route = File.ReadAllText(RepoFile("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.RetailMatch.cs"));
 
         var refusal = route.IndexOf("RefuseInLibraryThatNeverLooksAnythingUpAsync", StringComparison.Ordinal);
         Assert.True(refusal >= 0);

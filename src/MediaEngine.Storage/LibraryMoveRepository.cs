@@ -445,8 +445,8 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         LibraryMoveCommitOutcome? refusal = plan.DestinationKind switch
         {
             LibraryMoveKinds.Collection => CommitIntoCollection(connection, transaction, destination, ordered, outcomes),
-            LibraryMoveKinds.Audiobook => CommitParts(connection, transaction, destination, ordered, outcomes, ownedFiles, token, now),
-            _ => CommitIntoParent(connection, transaction, destination, ordered, outcomes, removedContainers, ownedFiles, token, now),
+            LibraryMoveKinds.Audiobook => CommitParts(connection, transaction, destination, ordered, outcomes, ownedFiles, token, now, plan.RequestFileMoves),
+            _ => CommitIntoParent(connection, transaction, destination, ordered, outcomes, removedContainers, ownedFiles, token, now, plan.RequestFileMoves),
         };
         if (refusal is not null)
         {
@@ -526,7 +526,8 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         List<LibraryMoveRowOutcome> outcomes,
         List<string> ownedFiles,
         string token,
-        string now)
+        string now,
+        bool requestFileMoves)
     {
         if (ordered.Any(pair => !pair.Item.IsEdition))
         {
@@ -611,7 +612,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 transaction);
             BumpRevision(connection, transaction, destination.Id, now);
             BumpRevision(connection, transaction, item.WorkId, now);
-            MarkWritebackPending(connection, transaction, assets, token, now);
+            MarkWritebackPending(connection, transaction, assets, token, now, requestFileMoves);
             emptiedSources.Add(item);
             outcomes.Add(new LibraryMoveRowOutcome(
                 item.ItemId,
@@ -647,7 +648,8 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         List<string> removedContainers,
         List<string> ownedFiles,
         string token,
-        string now)
+        string now,
+        bool requestFileMoves)
     {
         if (ordered.Any(pair => pair.Item.IsEdition))
         {
@@ -732,7 +734,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             }
 
             BumpRevision(connection, transaction, row.Target.ExistingWorkId ?? item.WorkId, now);
-            MarkWritebackPending(connection, transaction, item.AssetIds, token, now);
+            MarkWritebackPending(connection, transaction, item.AssetIds, token, now, requestFileMoves);
         }
 
         return null;
@@ -941,7 +943,8 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         SqliteTransaction transaction,
         IReadOnlyList<Guid> workAndAssetIds,
         string token,
-        string now)
+        string now,
+        bool requestFileMoves)
     {
         var assets = connection.Query<Guid>(
             "SELECT id FROM media_assets WHERE id IN @ids;",
@@ -962,7 +965,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             // only the tags it brings up to date wait for the scheduled run.
             MediaFileWriteIntentRepository.UpsertAsset(
                 connection, transaction, assetId, MediaFileWriteTriggers.LibraryMove, token,
-                DateTimeOffset.Parse(now, CultureInfo.InvariantCulture), requestMove: true);
+                DateTimeOffset.Parse(now, CultureInfo.InvariantCulture), requestMove: requestFileMoves);
         }
     }
 

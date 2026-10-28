@@ -10,7 +10,7 @@
    History; Details for the Universe editor), directly below the hero at the full width of the page. It is the existing media
    editor shell hosted in line with no header and no section rail, and with a height cap so the page below stays reachable.
    Pressing the open section's banner button again, the close button here, or Done closes it; Esc closes it from the overlay. *@
-@if (Mode is { SectionOpen: true } mode && _request is not null)
+@if (Mode is { SectionOpen: true } mode && _request is not null && !(InPanel && mode.OpenSectionKind == EditingSection.Match))
 {
     <section @ref="_root"
              id="tl-editing-slot"

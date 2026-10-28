@@ -33,6 +33,6 @@ public partial interface IEngineApiClient
     Task<ArtworkWritebackSettingsDto?> UpdateArtworkWritebackSettingsAsync(UpdateArtworkWritebackSettingsDto settings, CancellationToken ct = default);
     Task<ArtworkEntityWorkspaceDto?> LinkArtworkAssetAsync(string entityType, Guid entityId, ArtworkLinkRequest request, CancellationToken ct = default);
     Task<ArtworkAssetDto?> AddArtworkFromUrlAsync(string entityType, Guid entityId, ArtworkFromUrlRequest request, CancellationToken ct = default);
-    Task<ArtworkAssetDto?> UploadCanonicalArtworkAsync(string entityType, Guid entityId, string role, Stream stream, string fileName, string? entityLabel = null, string? mediaType = null, string? year = null, string? sourceAssetType = null, CancellationToken ct = default);
+    Task<ArtworkAssetDto?> UploadCanonicalArtworkAsync(string entityType, Guid entityId, string role, Stream stream, string fileName, string? entityLabel = null, string? mediaType = null, string? year = null, string? sourceAssetType = null, bool preferred = true, CancellationToken ct = default);
     Task<bool> RemoveArtworkLinkAsync(Guid linkId, CancellationToken ct = default);
 }

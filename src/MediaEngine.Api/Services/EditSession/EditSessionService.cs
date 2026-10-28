@@ -6,8 +6,8 @@ namespace MediaEngine.Api.Services.EditSession;
 /// <see cref="IEditSessionService"/> over the kind handlers. Order matters and is the whole point of the class:
 /// <list type="number">
 /// <item>Every change is checked first. If any check fails nothing is written and every other change says why it was not saved.</item>
-/// <item>The data changes (details, identity, relationships, artwork) are written one after another, and if one fails the ones already
-/// written are undone in reverse order, so the library ends up with all of them or none of them.</item>
+/// <item>The data changes (details, identity, relationships, artwork) are written one after another, with identity last because it
+/// cannot be undone, and if one fails the ones already written are undone in reverse order, so the library ends up with all of them or none of them.</item>
 /// <item>File moves run last, one at a time. A move on disk cannot be undone like a data change, so a failed move leaves the data
 /// saved and is reported by name.</item>
 /// </list>
@@ -109,7 +109,13 @@ public sealed class EditSessionService(
 
     private async Task<EditSessionResult> ApplyAsync(IReadOnlyList<EditSessionChange> changes, CancellationToken ct)
     {
-        var dataChanges = changes.Where(change => EditSessionChangeKinds.IsDataChange(change.Kind)).ToList();
+        // Changes that can be put back go first and an identity change goes last: it cannot be undone (see the identity handler), so by
+        // the time it runs everything before it is already saved, and if it fails those are undone. OrderBy is stable, so the
+        // Dashboard's order is kept within each kind.
+        var dataChanges = changes
+            .Where(change => EditSessionChangeKinds.IsDataChange(change.Kind))
+            .OrderBy(change => change.Kind == EditSessionChangeKinds.Identity ? 1 : 0)
+            .ToList();
         var moves = changes.Where(change => change.Kind == EditSessionChangeKinds.FileMove).ToList();
         var outcomes = new Dictionary<string, EditSessionChangeResult>(StringComparer.Ordinal);
         var undos = new Stack<(EditSessionChange Change, Func<CancellationToken, Task> Undo)>();

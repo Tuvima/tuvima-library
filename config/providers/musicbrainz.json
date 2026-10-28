@@ -106,6 +106,7 @@
     },
     {
       "name": "recording_album_search",
+      "search_scopes": ["track"],
       "priority": 3,
       "required_fields": ["title", "album"],
       "url_template": "{base_url}/recording?query={query}&fmt=json&limit={limit}",
@@ -153,6 +154,7 @@
     },
     {
       "name": "recording_artist_search",
+      "search_scopes": ["track"],
       "priority": 4,
       "required_fields": ["title", "artist"],
       "url_template": "{base_url}/recording?query={query}&fmt=json&limit={limit}",
@@ -191,6 +193,7 @@
     },
     {
       "name": "recording_album_only_search",
+      "search_scopes": ["track"],
       "priority": 5,
       "required_fields": ["title", "album"],
       "url_template": "{base_url}/recording?query={query}&fmt=json&limit={limit}",
@@ -236,8 +239,65 @@
       }
     },
     {
-      "name": "recording_identity_search",
+      "name": "recording_title_search",
+      "search_scopes": ["track"],
       "priority": 6,
+      "scope_only": true,
+      "required_fields": ["title"],
+      "url_template": "{base_url}/recording?query={query}&fmt=json&limit={limit}",
+      "query": {
+        "syntax": "lucene",
+        "operator": "AND",
+        "clauses": [
+          { "field": "recording", "value": "title", "match": "phrase", "required": true }
+        ]
+      },
+      "results_path": "recordings",
+      "fetch_limit": 25,
+      "max_results": 25,
+      "candidate_selection": {
+        "title_paths": ["title"],
+        "creator_paths": ["artist-credit[*].name", "artist-credit[0].name"],
+        "minimum_title_score": 0.6,
+        "minimum_creator_score": 0.0,
+        "require_nested_selection": false
+      },
+      "release_selection": {
+        "path": "releases",
+        "filters": [
+          { "path": "status", "equals": "Official" }
+        ],
+        "sort": [
+          { "path": "date", "direction": "asc" }
+        ],
+        "prefer": [
+          { "path": "cover-art-archive.artwork", "equals": true }
+        ]
+      }
+    },
+    {
+      "name": "release_album_search",
+      "search_scopes": ["album"],
+      "priority": 7,
+      "scope_only": true,
+      "required_fields": ["album"],
+      "url_template": "{base_url}/release?query={query}&fmt=json&limit={limit}",
+      "query": {
+        "syntax": "lucene",
+        "operator": "AND",
+        "clauses": [
+          { "field": "release", "value": "album", "match": "phrase", "required": true },
+          { "field": "artist", "value": "artist", "match": "phrase", "required": false }
+        ]
+      },
+      "results_path": "releases",
+      "fetch_limit": 25,
+      "max_results": 25
+    },
+    {
+      "name": "recording_identity_search",
+      "search_scopes": ["track"],
+      "priority": 8,
       "required_fields": ["title", "artist"],
       "url_template": "{base_url}/recording?query={query}&fmt=json&limit={limit}",
       "query": {
