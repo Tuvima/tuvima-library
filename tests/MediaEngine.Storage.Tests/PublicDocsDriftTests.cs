@@ -7,10 +7,10 @@ internal static class PublicDocsCheckout
 {
     public const string Variable = "TUVIMA_DOCS_DIR";
 
-    private const string LibraryPages = "content/products/library";
+    private const string PagesFolder = "content/products/library";
 
-    /// <summary>The folder holding Library's pages, or null when the docs repository is not checked out next to this one.</summary>
-    public static string? FindLibraryPages()
+    /// <summary>The folder holding the product pages, or null when the docs repository is not checked out next to this one.</summary>
+    public static string? FindPages()
     {
         var configured = Environment.GetEnvironmentVariable(Variable);
         var candidates = new List<string>();
@@ -31,13 +31,13 @@ internal static class PublicDocsCheckout
         }
 
         return candidates
-            .Select(candidate => Path.Combine(candidate, LibraryPages))
+            .Select(candidate => Path.Combine(candidate, PagesFolder))
             .FirstOrDefault(Directory.Exists);
     }
 
     public static string ReadPage(string relativePath)
     {
-        var root = FindLibraryPages() ?? throw new DirectoryNotFoundException($"Set {Variable} to the tuvima-docs checkout.");
+        var root = FindPages() ?? throw new DirectoryNotFoundException($"Set {Variable} to the tuvima-docs checkout.");
         var path = Path.Combine(root, relativePath);
         Assert.True(File.Exists(path), $"The public docs page {relativePath} is missing from the tuvima-docs repository. Update the page, or this check if the page moved.");
         return File.ReadAllText(path);
@@ -49,7 +49,7 @@ public sealed class PublicDocsFactAttribute : FactAttribute
 {
     public PublicDocsFactAttribute()
     {
-        if (PublicDocsCheckout.FindLibraryPages() is null)
+        if (PublicDocsCheckout.FindPages() is null)
         {
             Skip = $"Check out Tuvima/tuvima-docs next to this repository, or set {PublicDocsCheckout.Variable} to it, to run the public docs drift checks.";
         }
