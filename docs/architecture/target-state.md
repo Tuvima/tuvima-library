@@ -44,7 +44,7 @@ Route: `/read/{assetId}`
 - Resume from last position
 - Keyboard navigation, mobile swipe gestures
 
-Content served via `GET /read/{assetId}/chapter/{index}` - EPUB chapter HTML/XHTML with embedded images and CSS.
+The browser opens the book file through the Dashboard's `/engine-book/{assetId}/file` route (HTTP byte ranges) and unpacks chapters, images and styles itself.
 
 ### Comic Viewer
 

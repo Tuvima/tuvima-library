@@ -128,9 +128,6 @@ public partial interface IEngineApiClient
     /// <summary>GET /read/{assetId}/toc  -  table of contents.</summary>
     Task<List<EpubTocEntryDto>> GetTableOfContentsAsync(Guid assetId, CancellationToken ct = default);
 
-    /// <summary>GET /read/{assetId}/chapter/{index}  -  chapter HTML.</summary>
-    Task<EpubChapterContentDto?> GetChapterContentAsync(Guid assetId, int chapterIndex, CancellationToken ct = default);
-
     /// <summary>GET /read/{assetId}/search?q={query}  -  full-text search.</summary>
     Task<List<EpubSearchHitDto>> SearchEpubAsync(Guid assetId, string query, CancellationToken ct = default);
 

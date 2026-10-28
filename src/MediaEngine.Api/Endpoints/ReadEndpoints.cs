@@ -10,12 +10,9 @@ using Microsoft.Net.Http.Headers;
 namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
-/// EPUB reader content endpoints — serves chapters, embedded resources, TOC,
-/// search results, and metadata from EPUB files in the library.
-///
-/// All resource URLs in chapter HTML are rewritten to point at the
-/// <c>/read/{assetId}/resource/{path}</c> endpoint so images, CSS,
-/// and fonts render correctly in the reader iframe.
+/// Reader endpoints — serves the book file with byte ranges (the browser reader opens it and
+/// unpacks pictures, styles and fonts itself), plus TOC, search results and metadata from
+/// EPUB files in the library.
 /// </summary>
 public static class ReadEndpoints
 {
@@ -92,97 +89,6 @@ public static class ReadEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.LibraryRead)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead);
-
-        // ── Chapter content ──────────────────────────────────────────────
-
-        group.MapGet("/{assetId:guid}/chapter/{index:int}", async (
-            Guid assetId,
-            int index,
-            HttpContext ctx,
-            IMediaAssetRepository assetRepo,
-            IEpubContentService epubService,
-            CancellationToken ct) =>
-        {
-            var asset = await assetRepo.FindByIdAsync(assetId, ct);
-            if (asset is null)
-            {
-                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
-            }
-
-            if (!File.Exists(asset.FilePathRoot))
-            {
-                return Results.Problem(
-                    detail: "File not found on disk.",
-                    statusCode: StatusCodes.Status500InternalServerError);
-            }
-
-            // Build resource base URL relative to this request.
-            var scheme = ctx.Request.Scheme;
-            var host = ctx.Request.Host;
-            var resourceBaseUrl = $"{scheme}://{host}/read/{assetId}/resource/";
-
-            var chapter = await epubService.GetChapterContentAsync(
-                asset.FilePathRoot, index, resourceBaseUrl, ct);
-
-            if (chapter is null)
-            {
-                return ApiErrors.NotFound($"Chapter {index} not found.");
-            }
-
-            return Results.Ok(new EpubChapterContentDto(
-                chapter.Index,
-                chapter.Title,
-                chapter.HtmlContent,
-                chapter.WordCount));
-        })
-        .WithName("GetChapterContent")
-        .WithSummary("Returns chapter HTML with resource URLs rewritten for the reader.")
-        .Produces<EpubChapterContentDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireClientScope(ClientApiScopes.LibraryRead)
-        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead);
-
-        // ── Embedded resources (images, CSS, fonts) ──────────────────────
-
-        group.MapGet("/{assetId:guid}/resource/{**path}", async (
-            Guid assetId,
-            string path,
-            IMediaAssetRepository assetRepo,
-            IEpubContentService epubService,
-            CancellationToken ct) =>
-        {
-            var asset = await assetRepo.FindByIdAsync(assetId, ct);
-            if (asset is null)
-            {
-                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
-            }
-
-            if (!File.Exists(asset.FilePathRoot))
-            {
-                return Results.Problem(
-                    detail: "File not found on disk.",
-                    statusCode: StatusCodes.Status500InternalServerError);
-            }
-
-            var resource = await epubService.GetResourceAsync(asset.FilePathRoot, path, ct);
-            if (resource is null)
-            {
-                return ApiErrors.NotFound($"Resource '{path}' not found in EPUB.");
-            }
-
-            return Results.File(
-                resource.Data,
-                resource.ContentType,
-                resource.FileName,
-                enableRangeProcessing: false);
-        })
-        .WithName("GetEpubResource")
-        .WithSummary("Serves an embedded EPUB resource (image, CSS, font).")
-        .Produces(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireClientScope(ClientApiScopes.LibraryRead)
-        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead)
-        .RequireRateLimiting("streaming");
 
         // ── The book file itself, with byte ranges ───────────────────────
 

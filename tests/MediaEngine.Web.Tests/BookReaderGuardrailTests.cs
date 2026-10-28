@@ -148,16 +148,36 @@ public sealed class BookReaderGuardrailTests
     }
 
     [Fact]
-    public void EpubReaderRoute_SwitchesToTheNewReaderOnlyOnRequest()
+    public void EpubReaderRoute_AlwaysOpensTheNewReader_AndTheOldReaderIsGone()
     {
         var page = Read($"{Web}/Components/Pages/EpubReader.razor");
 
-        Assert.Contains("Query.String(\"reader\")", page);
-        Assert.Contains("\"new\"", page);
         Assert.Contains("<BookReader ", page);
-        // The choice is made once when the page opens.
-        Assert.Contains("private bool _useNewReader;", page);
-        Assert.DoesNotContain("UseNewReader =>", page);
+        // One reader opens every book: no switch on the address, no second code path.
+        Assert.DoesNotContain("reader=new", page);
+        Assert.DoesNotContain("Query.String(\"reader\")", page);
+        Assert.DoesNotContain("_useNewReader", page);
+        Assert.False(File.Exists(Path.Combine(RepoRoot, Web, "wwwroot", "js", "epub-reader.js")));
+        Assert.False(File.Exists(Path.Combine(RepoRoot, Web, "wwwroot", "css", "epub-reader.css")));
+    }
+
+    [Fact]
+    public void TheEngine_NoLongerRewritesPictureAddressesToItsOwnRoute()
+    {
+        // Pictures the browser asked the Engine for one by one carried no sign-in and could not be reached from other
+        // devices; the reader now unpacks them from the book file it already holds.
+        var endpoints = Read("src/MediaEngine.Api/Endpoints/ReadEndpoints.cs");
+        Assert.DoesNotContain("/resource/", endpoints);
+        Assert.DoesNotContain("/chapter/", endpoints);
+        Assert.DoesNotContain("RewriteResourceUrls", Read("src/MediaEngine.Processors/EpubContentService.cs"));
+    }
+
+    [Fact]
+    public void ThePictureHelpers_StayInTheirOwnModuleAndNeverTouchTheLibrary()
+    {
+        var module = Read($"{Web}/wwwroot/js/book-reader-pictures.js");
+        Assert.DoesNotContain("foliate", module);
+        Assert.Contains("book-reader-pictures.js", Read($"{Web}/wwwroot/js/book-reader.js"));
     }
 
     [Fact]

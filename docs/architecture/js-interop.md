@@ -38,7 +38,7 @@ Dashboard components that register JavaScript callbacks must also unregister the
 
 ## Route-Scoped Script Loading
 
-Large, single-route scripts are not loaded globally from `App.razor`. Cytoscape (`lib/cytoscape/cytoscape.min.js` + `js/cytoscape-interop.js`) is loaded on demand by the Chronicle Explorer page, and `js/epub-reader.js` by the EPUB reader page, through the shared `window.lazyLoad.loadScript(src)` helper in `js/lazy-load.js` (dedupes by src, preserves insertion order for UMD bundles). Pages that lazy-load a script must guard their disposal calls behind a loaded flag so navigating away before the script loads does not throw.
+Large, single-route scripts are not loaded globally from `App.razor`. Cytoscape (`lib/cytoscape/cytoscape.min.js` + `js/cytoscape-interop.js`) is loaded on demand by the Chronicle Explorer page, through the shared `window.lazyLoad.loadScript(src)` helper in `js/lazy-load.js` (dedupes by src, preserves insertion order for UMD bundles). Pages that lazy-load a script must guard their disposal calls behind a loaded flag so navigating away before the script loads does not throw.
 
 Avoid adding fire-and-forget JavaScript cleanup from synchronous `Dispose`; use `IAsyncDisposable` when JS interop is involved.
 
@@ -104,7 +104,7 @@ document loads can exhaust the fixture's connection limiter even with spacing.
 
 ## Book reader module (foliate-js)
 
-`js/book-reader.js` is the only file that touches the book. `Components/Pages/BookReader.razor` (shown by the `/read/{AssetId}` route while the address carries `?reader=new`) owns the chrome and the saved position; it calls the module's `open`, `setAppearance`, `next`, `prev`, `goTo`, `getLocation`, `getStats` and `dispose`, and the module calls back through one `DotNetObjectReference` (`OnRelocated`, `OnToggleChrome`, `OnEscape`).
+`js/book-reader.js` is the only file that touches the book. `Components/Pages/BookReader.razor` (shown by the `/read/{AssetId}` route for every EPUB) owns the chrome and the saved position; it calls the module's `open`, `setAppearance`, `next`, `prev`, `goTo`, `getLocation`, `getStats` and `dispose`, and the module calls back through one `DotNetObjectReference` (`OnRelocated`, `OnToggleChrome`, `OnEscape`).
 
 - **One adapter.** The pinned foliate-js copy lives in `wwwroot/lib/foliate-js/` (see its `PINNED.md` for the exact commit and what was left out) and is only edited by the one documented safety patch. Nothing but `js/book-reader.js` imports it; `BookReaderGuardrailTests` enforces this, so a library upgrade is one file plus the pin.
 - **The browser reads the book, not the Engine.** The module opens the EPUB straight from the Dashboard book connection (`/engine-book/{id}/file`) with HTTP range requests, so only the parts being read are downloaded and the Engine never unpacks the book. Chapters, pictures and styles are turned into in-memory `blob:` addresses by the library, so they never become separate authenticated requests and a missing resource inside a book is a plain missing picture, not a sign-in error.

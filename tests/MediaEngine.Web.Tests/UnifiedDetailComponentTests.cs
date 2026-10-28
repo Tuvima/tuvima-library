@@ -1659,7 +1659,7 @@ public sealed class UnifiedDetailComponentTests
     public void AppHeadOutlet_IsInteractiveSoPageTitlesFollowClientNavigation()
     {
         var app = ReadSource("src/MediaEngine.Web/Components/App.razor");
-        var reader = ReadSource("src/MediaEngine.Web/Components/Pages/EpubReader.razor");
+        var reader = ReadSource("src/MediaEngine.Web/Components/Pages/BookReader.razor");
 
         Assert.Contains("<HeadOutlet @rendermode=\"new InteractiveServerRenderMode(prerender: false)\" />", app);
         Assert.Contains("<Routes @rendermode=\"new InteractiveServerRenderMode(prerender: false)\"", app);

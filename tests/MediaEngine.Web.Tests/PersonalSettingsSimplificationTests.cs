@@ -55,14 +55,12 @@ public sealed class PersonalSettingsSimplificationTests
     [Fact]
     public void Reader_OffersPersistedAppearanceChoicesAndKeepsSessionControlsInTheReader()
     {
-        var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Pages", "EpubReader.razor");
+        var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Pages", "BookReader.razor");
         var settings = ReadRepoFile("src", "MediaEngine.Web", "Models", "ViewDTOs", "EpubReaderDtos.cs");
 
-        Assert.Contains("reader-theme-@ReaderTheme", source, StringComparison.Ordinal);
-        Assert.Contains("reader-width-@ReaderWidth", source, StringComparison.Ordinal);
-        Assert.Contains("Reading Settings", source, StringComparison.Ordinal);
-        Assert.Contains("SetTheme", source, StringComparison.Ordinal);
-        Assert.Contains("SetContentWidth", source, StringComparison.Ordinal);
+        Assert.Contains("br-theme-@ThemeClass", source, StringComparison.Ordinal);
+        Assert.Contains("Reading settings", source, StringComparison.Ordinal);
+        Assert.Contains("SetThemeAsync", source, StringComparison.Ordinal);
         Assert.Contains("Theme {", settings, StringComparison.Ordinal);
         Assert.Contains("ContentWidth {", settings, StringComparison.Ordinal);
     }

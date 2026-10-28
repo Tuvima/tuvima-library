@@ -48,7 +48,6 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetBookFile",
         "GetCollectionArtwork",
         "GetEntityCover",
-        "GetEpubResource",
         "GetProfileAvatar",
         "GetTvdbMatchPreview",
         "GetPersonHeadshot",

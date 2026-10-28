@@ -19,6 +19,7 @@ import { configure, ZipReader, BlobReader, BlobWriter, TextWriter } from '../lib
 import { EPUB } from '../lib/foliate-js/epub.js';
 import '../lib/foliate-js/view.js'; // registers <foliate-view>
 import { Overlayer } from '../lib/foliate-js/overlayer.js';
+import { inferPictureType, markBrokenPictures } from './book-reader-pictures.js';
 import { mergeSettings, readDeviceSettings, writeDeviceSettings, clearDeviceSettings } from './book-reader-settings.js';
 
 configure({ useWebWorkers: false });
@@ -546,9 +547,14 @@ export function hardenSvgAsPage(text) {
  * those are XHTML, HTML or SVG and always pass through the hardening, whatever their data looks like (text or a Blob)
  * and however their type was spelled; anything else is replaced by a plain notice.
  * Every other resource must be a picture, font, sound, video or style sheet; anything else is an opaque download.
+ * A resource whose declared type is missing or not one of those (books ship `media-type=""` and "application/octet-stream")
+ * gets its picture type from its first bytes or its file name (`name`), so the picture still shows.
  */
-export async function hardenResource(data, mediaType, asPage = false) {
-    const type = normalizeType(mediaType);
+export async function hardenResource(data, mediaType, asPage = false, name = '') {
+    let type = normalizeType(mediaType);
+    if (!asPage && !isXhtmlOrHtml(type) && type !== SVG_TYPE && !isSafeResourceType(type)) {
+        type = (await inferPictureType(name, data)) || type;
+    }
     const isPageType = isXhtmlOrHtml(type) || type === SVG_TYPE;
     if (!isPageType) {
         if (asPage || !type) return asPage ? { data: BLOCKED_PAGE, type: XHTML_TYPE } : { data: '', type: 'application/octet-stream' };
@@ -590,7 +596,7 @@ function secureBook(book) {
         const mediaType = detail.type;
         const asPage = pages.has(detail.name);
         const outcome = Promise.resolve(detail.data).then(
-            data => hardenResource(data, mediaType, asPage),
+            data => hardenResource(data, mediaType, asPage, detail.name),
             error => {
                 console.error(new Error('Failed to load ' + detail.name, { cause: error }));
                 return asPage ? { data: BLOCKED_PAGE, type: XHTML_TYPE } : { data: '', type: 'application/octet-stream' };
@@ -878,6 +884,7 @@ export function unwrapNoWrap(doc) {
 function onSectionLoad(state, doc, index) {
     if (state.disposed) return;
     guardLinks(doc, openExternalLink);
+    markBrokenPictures(doc);
     const win = doc.defaultView;
     const frame = win?.frameElement;
     if (!state.view?.isFixedLayout) unwrapNoWrap(doc);

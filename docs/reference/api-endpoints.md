@@ -770,8 +770,6 @@ The action itself enforces the rule, so an application (a non-Dashboard caller h
 |---|---|---|---|
 | GET | `/read/{assetId}/metadata` | EPUB metadata - title, author, language, cover | Required |
 | GET | `/read/{assetId}/toc` | Table of contents | Required |
-| GET | `/read/{assetId}/chapter/{index}` | Chapter content by index | Required |
-| GET | `/read/{assetId}/resource/{path}` | Embedded resource (CSS, image) by path within the EPUB | Required |
 | GET | `/read/{assetId}/file` | The book or comic file itself (`.epub`, `.cbz`, `.cbr`, `.pdf`) with HTTP byte-range support (`206`, `Accept-Ranges`, `ETag`, `If-Range`, `304`). Same library-read scope, asset access and profile content limit as the other reader calls, and its own `reader_files` rate limit counted per signed-in session (default 600 a minute, `rate_limiting.reader_files` in `config/core.json`); any other kind of file answers `404`. Responses are `Cache-Control: private, no-cache` with `nosniff` and a sandbox policy. Browsers reach it through the Dashboard route `/engine-book/{assetId}/file`, never directly | Required |
 | GET | `/read/{assetId}/search` | Full-text search within EPUB content | Required |
 | GET | `/reader/{assetId}/bookmarks` | List bookmarks for an asset | Required |

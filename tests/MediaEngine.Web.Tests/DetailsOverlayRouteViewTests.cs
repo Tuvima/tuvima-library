@@ -517,7 +517,7 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
         RouterShows(view, Underlay());
         if (case_ == "anotherPageFirst")
         {
-            _nav.NavigateTo("/read/abc?reader=new");
+            _nav.NavigateTo("/read/abc");
             RouterShows(view, Underlay());
         }
 

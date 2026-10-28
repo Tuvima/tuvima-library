@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { buildBigEpub, buildHostileEpub, buildFrontMatterEpub, buildLinkEpub, buildPictureEpub, buildRegressionEpub, FORM_PAGES, FRONT_MATTER_PAGES, LINK_PAGES, PICTURE_PAGES, linkPageText } from './epub-fixtures.mjs';
+import { buildBigEpub, buildHostileEpub, buildFrontMatterEpub, buildLinkEpub, buildPictureEpub, buildRegressionEpub, buildUntypedPictureEpub, FORM_PAGES, FRONT_MATTER_PAGES, LINK_PAGES, PICTURE_PAGES, linkPageText } from './epub-fixtures.mjs';
 import { startServer } from './serve.mjs';
 import {
     GUIDS, bookFrames, bookUrl, ensureDir, fixturesDir, frameWith, lastRelocation, loadPlaywright,
@@ -39,6 +39,7 @@ const epub = path.join(dir, 'regression.epub');
 const hostile = path.join(dir, 'hostile.epub');
 const big = path.join(dir, 'big-3mb.epub');
 const pictures = path.join(dir, 'pictures.epub');
+const untyped = path.join(dir, 'untyped-pictures.epub');
 const frontMatter = path.join(dir, 'front-matter.epub');
 const links = path.join(dir, 'links.epub');
 const forms = path.join(dir, 'forms.epub');
@@ -55,11 +56,12 @@ console.log(`Browser: ${browserName} ${browser.version()}`);
 
 // The "web" (an outside tracker) is a second server so we can see whether the book ever reaches out.
 const outside = await startServer();
-const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big, [GUIDS.pictures]: pictures, [GUIDS.frontMatter]: frontMatter, [GUIDS.links]: links, [GUIDS.forms]: forms } });
+const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big, [GUIDS.pictures]: pictures, [GUIDS.untyped]: untyped, [GUIDS.frontMatter]: frontMatter, [GUIDS.links]: links, [GUIDS.forms]: forms } });
 buildRegressionEpub(epub, { trackerOrigin: outside.origin });
 buildHostileEpub(hostile);
 buildBigEpub(big, 3);
 buildPictureEpub(pictures);
+buildUntypedPictureEpub(untyped);
 buildFrontMatterEpub(frontMatter);
 buildLinkEpub(links);
 buildLinkEpub(forms, FORM_PAGES, 'Form Fixture');
@@ -181,13 +183,41 @@ await check('an outside image is never fetched and the layout survives', () => w
     assert(box[0] === 120 && box[1] === 80, `layout shifted: ${box}`);
 }));
 
-await check('a genuinely missing picture is just missing (no auth error, nothing requested)', () => withBook(phone, {}, async ({ page }) => {
+await check('pictures with an empty or generic type still show, and one damaged picture gets the "Picture unavailable" note only there', async () => {
+    const context = await browser.newContext(phone);
+    const { page } = await openCheckPage(context, server.origin);
+    try {
+        const opened = await openBook(page, bookUrl(GUIDS.untyped), {});
+        assert(opened.ok, `open failed: ${opened.code} ${opened.message}`);
+        const frame = await frameWith(page, '#after');
+        const state = await waitFor(async () => {
+            const found = await frame.evaluate(() => {
+                const loaded = id => { const el = document.getElementById(id); return !!el && el.complete && el.naturalWidth > 0; };
+                return {
+                    emptyLabel: loaded('empty-label'), binaryLabel: loaded('binary-label'), namelessLabel: loaded('nameless-label'), proper: loaded('proper'),
+                    damagedStillThere: !!document.getElementById('damaged'),
+                    notes: Array.from(document.querySelectorAll('.tuvima-picture-unavailable')).map(n => n.textContent),
+                    after: !!document.getElementById('after'),
+                };
+            });
+            return found.emptyLabel && found.binaryLabel && found.namelessLabel && found.proper && found.notes.length > 0 ? found : null;
+        }, { label: 'the untyped pictures and the note for the damaged one' });
+        assert(!state.damagedStillThere, 'the damaged picture is still an empty gap');
+        assert(state.notes.length === 1 && state.notes[0] === 'Picture unavailable', `expected exactly one note, got ${JSON.stringify(state.notes)}`);
+        assert(state.after, 'the rest of the page is missing');
+        return 'empty, generic and nameless types show; one note for the damaged file';
+    } finally {
+        await context.close();
+    }
+});
+
+await check('a genuinely missing picture shows the "Picture unavailable" note (no auth error, nothing requested)', () => withBook(phone, {}, async ({ page }) => {
     server.clearLog();
     await page.evaluate(() => window.br.goTo(1));
-    const frame = await frameWith(page, '#missing-img');
-    await sleep(500);
-    const info = await imageLoads(page, frame, '#missing-img');
-    assert(info.naturalWidth === 0, 'a missing picture claims to be loaded');
+    const frame = await frameWith(page, '#missing-wrap');
+    const note = await waitFor(() => frame.evaluate(() => document.querySelector('#missing-wrap .tuvima-picture-unavailable')?.textContent ?? null), { label: 'the note for the missing picture' });
+    assert(note === 'Picture unavailable', `the missing picture left "${note}"`);
+    assert(await frame.evaluate(() => !document.getElementById('missing-img')), 'the missing picture is still an empty gap');
     const bad = server.log.filter(e => e.status === 401 || e.path.includes('missing'));
     assert(bad.length === 0, `unexpected requests: ${JSON.stringify(bad)}`);
 }));
@@ -198,7 +228,11 @@ await check('book scripts never run (inline, handler attributes, external file)'
     // Non-bubbling events reach the element's own handler attribute but not the reader's tap zones.
     await frame.evaluate(() => {
         document.querySelector('#onclick-p').dispatchEvent(new MouseEvent('click'));
-        document.querySelector('#onerror-img').dispatchEvent(new Event('error'));
+        // The book's own broken picture is swapped for a note by now, so give its handler attribute a fresh target.
+        const probe = document.createElement('img');
+        probe.setAttribute('onerror', "window.__pwned='onerror-handler'");
+        document.body.append(probe);
+        probe.dispatchEvent(new Event('error'));
     });
     await sleep(300);
     const pwned = await page.evaluate(() => window.__pwned ?? null);

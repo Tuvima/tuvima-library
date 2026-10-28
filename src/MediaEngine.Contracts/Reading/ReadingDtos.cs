@@ -23,13 +23,6 @@ public sealed class EpubTocEntryDto
     public List<EpubTocEntryDto> Children { get; init; } = [];
 }
 
-/// <summary>Rendered HTML and metadata for one EPUB chapter.</summary>
-public sealed record EpubChapterContentDto(
-    int Index,
-    string Title,
-    string HtmlContent,
-    int WordCount);
-
 /// <summary>A full-text search match inside an EPUB.</summary>
 public sealed record EpubSearchHitDto(
     int ChapterIndex,

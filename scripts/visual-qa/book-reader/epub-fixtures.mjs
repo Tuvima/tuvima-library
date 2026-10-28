@@ -481,3 +481,43 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         console.log(`big-${size}mb.epub (${info.chapters} chapters)`);
     }
 }
+
+/**
+ * Pictures as real publishers ship them: labelled with an empty type, a generic "binary" type or no label that matches,
+ * plus one file that is not a picture at all (it must show the "Picture unavailable" note and nothing else).
+ */
+const SMALL_JPEG = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAAoADwDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDOoooqDwgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Z', 'base64');
+export const UNTYPED_PICTURE_PAGES = ['untyped'];
+export function buildUntypedPictureEpub(file) {
+    const zip = new ZipFile(file);
+    zip.add('mimetype', 'application/epub+zip', { store: true });
+    zip.add('META-INF/container.xml', CONTAINER);
+    const extra = [
+        ['png-empty', 'images/empty-label.png', ''],
+        ['jpg-binary', 'images/binary-label.jpg', 'application/octet-stream'],
+        ['jpg-nameless', 'images/nameless-label', 'binary/octet-stream'],
+        ['png-ok', 'images/proper.png', 'image/png'],
+        ['broken', 'images/damaged.png', 'image/png'],
+        ['css', 'css/style.css', 'text/css'],
+    ].map(([id, href, type]) => `<item id="${id}" href="${href}" media-type="${type}"/>`).join('');
+    zip.add('OEBPS/content.opf', opf({ title: 'Untyped Picture Fixture', chapters: UNTYPED_PICTURE_PAGES, extraManifest: extra }));
+    zip.add('OEBPS/nav.xhtml', nav(UNTYPED_PICTURE_PAGES));
+    zip.add('OEBPS/images/empty-label.png', makePng(120, 80, [200, 40, 40]), { store: true });
+    zip.add('OEBPS/images/binary-label.jpg', SMALL_JPEG, { store: true });
+    zip.add('OEBPS/images/nameless-label', SMALL_JPEG, { store: true });
+    zip.add('OEBPS/images/proper.png', makePng(120, 80, [40, 40, 200]), { store: true });
+    zip.add('OEBPS/images/damaged.png', 'this is not a picture at all', { store: true });
+    zip.add('OEBPS/css/style.css', 'img { display: block; }');
+    const link = '<link rel="stylesheet" type="text/css" href="../css/style.css"/>';
+    const body = [
+        '<h1>Untyped pictures</h1>',
+        '<img id="empty-label" src="../images/empty-label.png" alt="a" width="120" height="80"/>',
+        '<img id="binary-label" src="../images/binary-label.jpg" alt="b" width="60" height="40"/>',
+        '<img id="nameless-label" src="../images/nameless-label" alt="c" width="60" height="40"/>',
+        '<img id="proper" src="../images/proper.png" alt="d" width="120" height="80"/>',
+        '<img id="damaged" src="../images/damaged.png" alt="e" width="120" height="80"/>',
+        `<p id="after">${paragraph(21, 2)}</p>`,
+    ].join('');
+    zip.add('OEBPS/text/untyped.xhtml', xhtml('untyped', body, link));
+    zip.close();
+}

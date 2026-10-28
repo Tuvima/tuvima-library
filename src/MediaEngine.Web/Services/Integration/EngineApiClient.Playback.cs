@@ -816,25 +816,6 @@ public sealed partial class EngineApiClient
         catch (Exception ex) { RecordExceptionFailure(endpoint, ex); return []; }
     }
 
-    public async Task<EpubChapterContentDto?> GetChapterContentAsync(Guid assetId, int chapterIndex, CancellationToken ct = default)
-    {
-        var endpoint = $"GET /read/{assetId}/chapter/{chapterIndex}";
-        try
-        {
-            var response = await _http.GetAsync($"read/{assetId}/chapter/{chapterIndex}", ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                await RecordHttpFailureAsync(endpoint, response, ct);
-                return null;
-            }
-
-            var chapter = await response.Content.ReadFromJsonAsync<EpubChapterContentDto>(cancellationToken: ct);
-            ClearFailure(endpoint);
-            return chapter;
-        }
-        catch (Exception ex) { RecordExceptionFailure(endpoint, ex); return null; }
-    }
-
     public async Task<List<EpubSearchHitDto>> SearchEpubAsync(Guid assetId, string query, CancellationToken ct = default)
     {
         try

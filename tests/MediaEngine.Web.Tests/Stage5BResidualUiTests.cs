@@ -12,7 +12,7 @@ public sealed class Stage5BResidualUiTests
 
     [Theory]
     [InlineData(@"src/MediaEngine.Web/Components/Collections/CollectionsPage.razor")]
-    [InlineData(@"src/MediaEngine.Web/Components/Pages/EpubReader.razor")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/BookReader.razor")]
     [InlineData(@"src/MediaEngine.Web/Components/Pages/ForMe.razor")]
     [InlineData(@"src/MediaEngine.Web/Components/Pages/Settings.razor")]
     [InlineData(@"src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor")]
@@ -26,7 +26,6 @@ public sealed class Stage5BResidualUiTests
     }
 
     [Theory]
-    [InlineData(@"src/MediaEngine.Web/Components/Pages/EpubReader.razor")]
     [InlineData(@"src/MediaEngine.Web/Components/Pages/ForMe.razor")]
     [InlineData(@"src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor")]
     public void RetryableFailures_KeepRicherAppErrorState(string relativePath)

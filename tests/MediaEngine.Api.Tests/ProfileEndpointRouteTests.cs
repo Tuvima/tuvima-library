@@ -38,7 +38,7 @@ public sealed class ProfileEndpointRouteTests
         var watchSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor"));
         var videoHostSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
         var playerServiceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Playback/PlayerService.cs"));
-        var readerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/EpubReader.razor"));
+        var readerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/BookReader.razor"));
 
         Assert.Contains("Playback.PlayVideoAsync", watchSource, StringComparison.Ordinal);
         Assert.Contains("Playback.ReportHeartbeatAsync", videoHostSource, StringComparison.Ordinal);

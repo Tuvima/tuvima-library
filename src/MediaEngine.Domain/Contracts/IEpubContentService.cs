@@ -3,7 +3,7 @@ using MediaEngine.Domain.Models;
 namespace MediaEngine.Domain.Contracts;
 
 /// <summary>
-/// Reads and serves EPUB content — chapters, embedded resources, TOC, and full-text search.
+/// Reads EPUB content — metadata, TOC and full-text search. (The book file itself is read in the browser.)
 /// Uses an LRU memory cache to avoid re-parsing the same book on every request.
 /// </summary>
 public interface IEpubContentService
@@ -18,21 +18,6 @@ public interface IEpubContentService
     /// Falls back to a flat list based on reading order if no navigation is present.
     /// </summary>
     Task<List<EpubTocEntry>> GetTableOfContentsAsync(string filePath, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns the HTML content of a single chapter by reading-order index.
-    /// Relative resource URLs are rewritten to point at <paramref name="resourceBaseUrl"/>.
-    /// </summary>
-    Task<EpubChapterContent?> GetChapterContentAsync(
-        string filePath,
-        int chapterIndex,
-        string resourceBaseUrl,
-        CancellationToken ct = default);
-
-    /// <summary>
-    /// Extracts an embedded resource (image, CSS, font) from the EPUB by its internal path.
-    /// </summary>
-    Task<EpubResourceResult?> GetResourceAsync(string filePath, string resourcePath, CancellationToken ct = default);
 
     /// <summary>
     /// Searches all chapters for the given query string (case-insensitive substring match).
