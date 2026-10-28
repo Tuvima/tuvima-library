@@ -363,9 +363,7 @@ public sealed class PluginCompatibilityTests
     [
         new CommercialSkipPlugin(),
         new FandomLorePlugin(),
-        new IntroSkipPlugin(),
-        new CreditsDetectionPlugin(),
-        new RecapDetectionPlugin(),
+        new SkipMarkersPlugin(),
     ];
 
     private static PluginManifest Manifest(

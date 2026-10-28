@@ -1,5 +1,11 @@
+using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Plugin.CommercialSkip;
+using MediaEngine.Plugin.FandomLore;
+using MediaEngine.Plugin.MediaSegments;
+using MediaEngine.Plugins;
 using MediaEngine.Storage;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Api.Tests;
 
@@ -32,6 +38,73 @@ public sealed class PluginDeclarationGuardrailTests : IDisposable
             Assert.True(source.UiMetadata is not null && !string.IsNullOrWhiteSpace(source.UiMetadata.Category), $"Source '{source.Name}' has no category.");
             Assert.Empty(PluginDeclarationRules.Validate(declaration));
         }
+    }
+
+    [Fact]
+    public void EveryBuiltInPlugin_StatesItsAudienceWeightFailureNoticeAndChangelog_AndHasASettingsFormWhenItHasSettings()
+    {
+        var plugins = BuiltInPlugins();
+        Assert.True(plugins.Count >= 7, "The built-in plugin scan found fewer plugins than ship.");
+
+        foreach (var plugin in plugins)
+        {
+            var id = plugin.Manifest.Id;
+            var declaration = plugin.Manifest.Declaration;
+            Assert.True(declaration is not null, $"{id} has no declaration block.");
+            Assert.True(!string.IsNullOrWhiteSpace(declaration!.Audience), $"{id} does not say who may use it.");
+            Assert.True(!string.IsNullOrWhiteSpace(declaration.WeightClass), $"{id} does not say how heavy it is.");
+            Assert.True(!string.IsNullOrWhiteSpace(declaration.OnFailure), $"{id} does not say what happens when it fails.");
+            Assert.True(!string.IsNullOrWhiteSpace(declaration.Notify), $"{id} does not say whether to tell the administrator.");
+            Assert.True(!string.IsNullOrWhiteSpace(declaration.Changelog), $"{id} has no changelog line.");
+            Assert.True(!string.IsNullOrWhiteSpace(declaration.Stores?.SavedOutput) || declaration.Stores?.Records == true, $"{id} does not say what it keeps.");
+            Assert.Empty(PluginDeclarationRules.Validate(declaration));
+            Assert.True(
+                plugin.Manifest.DefaultSettings.Count == 0 || plugin.Manifest.SettingsSchema is not null,
+                $"{id} has settings but no settings form.");
+        }
+    }
+
+    [Fact]
+    public void ThePluginsThatNeedLocalAi_SayTheyDo()
+    {
+        var plugins = BuiltInPlugins().Where(plugin => plugin.Manifest.AiPermissions.Count > 0);
+
+        Assert.All(plugins, plugin =>
+            Assert.Contains(plugin.Manifest.Declaration!.Requires, requirement => requirement.Kind == "local_ai"));
+    }
+
+    [Fact]
+    public void TheShippedPlugins_AreTheSevenAgreed()
+    {
+        Assert.Equal(
+            [
+                "tuvima.ai-description-insights",
+                "tuvima.ai-series-order",
+                "tuvima.ai-smart-filing",
+                "tuvima.ai-taste-summary",
+                "tuvima.commercial-skip",
+                "tuvima.fandom-lore",
+                "tuvima.skip-markers",
+            ],
+            BuiltInPlugins().Select(plugin => plugin.Manifest.Id).Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>Every plugin class that ships in the Engine or in one of the plugin projects, found by scanning, so a new one cannot be missed.</summary>
+    private static List<ITuvimaPlugin> BuiltInPlugins()
+    {
+        var services = new ServiceCollection().BuildServiceProvider();
+        Type[] assemblyMarkers = [typeof(AiFeaturePluginIds), typeof(SkipMarkersPlugin), typeof(CommercialSkipPlugin), typeof(FandomLorePlugin)];
+        return assemblyMarkers
+            .Select(marker => marker.Assembly)
+            .Distinct()
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type => type is { IsAbstract: false, IsInterface: false } && typeof(ITuvimaPlugin).IsAssignableFrom(type))
+            // The loaders for plugins from outside (declarative, service, sandboxed) take a manifest and are not built-ins.
+            .Where(type => type.GetConstructor(Type.EmptyTypes) is not null || type.GetConstructor([typeof(IServiceProvider)]) is not null)
+            .Select(type => (ITuvimaPlugin)(type.GetConstructor(Type.EmptyTypes) is not null
+                ? Activator.CreateInstance(type)!
+                : Activator.CreateInstance(type, services)!))
+            .ToList();
     }
 
     [Fact]

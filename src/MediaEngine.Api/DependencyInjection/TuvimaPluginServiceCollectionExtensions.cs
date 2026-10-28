@@ -26,10 +26,10 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<ITuvimaPlugin, SmartFilingPlugin>();
         services.AddSingleton<ITuvimaPlugin, TasteSummaryPlugin>();
         services.AddSingletonImplementations<ITuvimaPlugin>(
-            expectedCount: 5,
+            expectedCount: 3,
             typeof(CommercialSkipPlugin).Assembly,
             typeof(FandomLorePlugin).Assembly,
-            typeof(IntroSkipPlugin).Assembly);
+            typeof(SkipMarkersPlugin).Assembly);
         services.AddSingleton<AiFeatureRetractionService>();
         services.AddSingleton<DeclarativeAiStepRunner>();
         services.AddSingleton<PluginSettingsService>();

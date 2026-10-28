@@ -67,7 +67,7 @@ public sealed class PluginHostServicesPermissionTests : IDisposable
             PluginPermissionIds.PluginRecords, PluginPermissionIds.ScheduledWork, PluginPermissionIds.LibraryEvents,
             PluginPermissionIds.WatchActivity, PluginPermissionIds.BackgroundWork,
         };
-        var shipped = new ITuvimaPlugin[] { new CommercialSkipPlugin(), new FandomLorePlugin(), new IntroSkipPlugin() };
+        var shipped = new ITuvimaPlugin[] { new CommercialSkipPlugin(), new FandomLorePlugin(), new SkipMarkersPlugin() };
 
         Assert.All(shipped, plugin => Assert.Empty(plugin.Manifest.Permissions.Intersect(hostServices)));
     }

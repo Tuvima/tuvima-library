@@ -109,13 +109,13 @@ public sealed class ScheduledTaskRunnerTests
             "plugin_segment_detection",
             _ => Task.FromResult(TaskRunResult.Failed("ffmpeg is missing", 3)),
             CancellationToken.None,
-            pluginId: "tuvima.intro-skip");
+            pluginId: "tuvima.skip-markers");
 
         var stored = Assert.Single(runs.Finished);
         Assert.Equal(ScheduledTaskOutcomes.Failed, stored.Outcome);
-        Assert.Equal("tuvima.intro-skip", stored.PluginId);
+        Assert.Equal("tuvima.skip-markers", stored.PluginId);
         Assert.Equal(3, stored.ItemsProcessed);
-        Assert.Equal("tuvima.intro-skip", run.PluginId);
+        Assert.Equal("tuvima.skip-markers", run.PluginId);
     }
 
     [Fact]
