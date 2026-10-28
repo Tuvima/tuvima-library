@@ -14,6 +14,7 @@ using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -779,7 +780,7 @@ internal static class PluginEndpoints
                 ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 : (await secrets.ListNamesAsync(owner, ct).ConfigureAwait(false))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            return Results.Ok(plugin.Manifest.Secrets.Select(secret => new PluginSecretStatusResponse
+            return Results.Ok(plugin.Manifest.Secrets.Where(secret => !PluginDeclarationRules.IsPersonalCredential(plugin.Manifest.Declaration, secret.Name)).Select(secret => new PluginSecretStatusResponse
             {
                 Name = secret.Name,
                 Label = secret.Label,
@@ -815,9 +816,7 @@ internal static class PluginEndpoints
             return ApiErrors.BadRequest($"Plugin '{plugin.Manifest.Id}' does not declare a secret named '{name}'.");
         }
 
-        if (plugin.Manifest.Declaration?.CredentialScopes is { } scopes
-            && scopes.TryGetValue(declared.Name, out var credentialScope)
-            && string.Equals(credentialScope?.Trim(), "personal", StringComparison.OrdinalIgnoreCase))
+        if (PluginDeclarationRules.IsPersonalCredential(plugin.Manifest.Declaration, declared.Name))
         {
             return ApiErrors.BadRequest($"'{declared.Name}' is linked by each person on their own profile, not for the whole household.");
         }

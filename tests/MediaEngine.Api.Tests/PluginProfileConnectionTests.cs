@@ -165,6 +165,47 @@ public sealed class PluginProfileConnectionTests : IDisposable
         Assert.Equal(404, outcome.Status);
     }
 
+    [Fact]
+    public async Task ACiphertextCopiedToAnotherProfilesRow_ReadsAsNothing()
+    {
+        await _service.LinkAsync(PluginId, _ana, "user_token", Token, default);
+        var stolen = await _repository.GetCiphertextAsync(PluginId, _ana, "user_token");
+        await _repository.UpsertAsync(PluginId, _ben, "user_token", stolen!, DateTimeOffset.UtcNow);
+
+        Assert.Null(await _service.ReadForHostAsync(PluginId, _ben, "user_token", default));
+        Assert.Equal(Token, await _service.ReadForHostAsync(PluginId, _ana, "user_token", default));
+    }
+
+    [Fact]
+    public async Task TheHostReadFindsTheLink_WhateverTheCaseOfTheIdAndName()
+    {
+        await _service.LinkAsync(PluginId, _ana, "USER_TOKEN", Token, default);
+
+        Assert.Equal(Token, await _service.ReadForHostAsync(PluginId.ToUpperInvariant(), _ana, "User_Token", default));
+    }
+
+    [Fact]
+    public void ACredentialScopeFromJson_IsPersonalWhateverTheCaseOrSpacing()
+    {
+        var declaration = JsonSerializer.Deserialize<PluginDeclaration>("""{ "credential_scopes": { " User_Token ": " Personal " } }""")!;
+
+        Assert.True(PluginDeclarationRules.IsPersonalCredential(declaration, "user_token"));
+        Assert.False(PluginDeclarationRules.IsPersonalCredential(declaration, "api_key"));
+        Assert.False(PluginDeclarationRules.IsPersonalCredential(null, "user_token"));
+    }
+
+    [Fact]
+    public async Task APluginReadingItsSecrets_NeverGetsAPersonalCredentialFromTheHouseholdFile()
+    {
+        var secrets = new Storage.Secrets.ConfigFolderSecretsStore(Path.Combine(_root, "config"));
+        await secrets.SetAsync(MediaEngine.Domain.Contracts.SecretOwner.Plugin(PluginId), new Dictionary<string, string> { ["user_token"] = "old-shared", ["api_key"] = "house-key" });
+        _catalog.SetEnabled(PluginId, true);
+        var bound = new BoundPluginSecrets(PluginId, new PluginPermissionGate(_catalog), secrets);
+
+        Assert.Null(await bound.GetAsync("user_token"));
+        Assert.Equal("house-key", await bound.GetAsync("api_key"));
+    }
+
     private static IRequestAuthorityResolver ResolverFor(Guid? profileId) => new FixedResolver(new RequestAuthority(PrincipalKind.Human, true, Guid.NewGuid(), profileId));
 
     private void AddProfile(Guid id, string name)

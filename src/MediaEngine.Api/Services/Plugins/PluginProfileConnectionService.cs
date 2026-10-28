@@ -23,14 +23,13 @@ public sealed class PluginProfileConnectionService(
     public IReadOnlyList<PluginSecretDeclaration> PersonalCredentials(string pluginId)
     {
         var registration = catalog.Get(pluginId);
-        var scopes = registration?.Manifest.Declaration?.CredentialScopes;
-        if (registration is null || scopes is null or { Count: 0 })
+        if (registration is null)
         {
             return [];
         }
 
         return registration.Manifest.Secrets
-            .Where(secret => scopes.TryGetValue(secret.Name, out var scope) && IsPersonal(scope))
+            .Where(secret => PluginDeclarationRules.IsPersonalCredential(registration.Manifest.Declaration, secret.Name))
             .ToList();
     }
 
@@ -78,8 +77,9 @@ public sealed class PluginProfileConnectionService(
             return ConnectionOutcome.BadValue;
         }
 
+        var canonicalId = catalog.Get(pluginId)!.Manifest.Id;
         await repository.UpsertAsync(
-            catalog.Get(pluginId)!.Manifest.Id, profileId, declared.Name, protector.Encrypt(value.Trim()), clock.GetUtcNow(), ct).ConfigureAwait(false);
+            canonicalId, profileId, declared.Name, protector.Encrypt(Bind(canonicalId, profileId, declared.Name, value.Trim())), clock.GetUtcNow(), ct).ConfigureAwait(false);
         return ConnectionOutcome.Done;
     }
 
@@ -101,17 +101,23 @@ public sealed class PluginProfileConnectionService(
     /// </summary>
     internal async Task<string?> ReadForHostAsync(string pluginId, Guid profileId, string name, CancellationToken ct)
     {
-        if (!IsPersonalCredential(pluginId, name))
+        var declared = PersonalCredentials(pluginId).FirstOrDefault(secret => string.Equals(secret.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (declared is null)
         {
             return null;
         }
 
-        var ciphertext = await repository.GetCiphertextAsync(pluginId, profileId, name, ct).ConfigureAwait(false);
-        var value = ciphertext is null ? null : protector.Decrypt(ciphertext);
-        return string.IsNullOrEmpty(value) ? null : value;
+        var canonicalId = catalog.Get(pluginId)!.Manifest.Id;
+        var ciphertext = await repository.GetCiphertextAsync(canonicalId, profileId, declared.Name, ct).ConfigureAwait(false);
+        var plain = ciphertext is null ? null : protector.Decrypt(ciphertext);
+        var prefix = Bind(canonicalId, profileId, declared.Name, "");
+
+        // A value copied from another row or profile no longer matches the plugin, profile and name it was stored for.
+        return string.IsNullOrEmpty(plain) || !plain.StartsWith(prefix, StringComparison.Ordinal) ? null : plain[prefix.Length..];
     }
 
-    private static bool IsPersonal(string? scope) => string.Equals(scope?.Trim(), "personal", StringComparison.OrdinalIgnoreCase);
+    /// <summary>The value with who it belongs to, so the stored text only decrypts to a usable value for its own row.</summary>
+    private static string Bind(string pluginId, Guid profileId, string name, string value) => $"{pluginId}\n{profileId:N}\n{name}\n{value}";
 }
 
 /// <summary>How a link or unlink request ended.</summary>

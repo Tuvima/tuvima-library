@@ -73,6 +73,13 @@ public static partial class PluginDeclarationRules
 
     public static readonly IReadOnlyList<string> CredentialScopeWords = ["household", "personal"];
 
+    /// <summary>True when the declaration lists the credential as <c>personal</c> (each profile links its own), whatever the case or spacing.</summary>
+    public static bool IsPersonalCredential(PluginDeclaration? declaration, string? name) =>
+        !string.IsNullOrWhiteSpace(name)
+        && declaration?.CredentialScopes.Any(pair =>
+            string.Equals(pair.Key?.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)
+            && string.Equals(pair.Value?.Trim(), "personal", StringComparison.OrdinalIgnoreCase)) == true;
+
     private static readonly string[] KnownMediaTypes = ["books", "comics", "audiobooks", "movies", "tv", "music", "photos"];
 
     /// <summary>The plain words for an audience, as plugin pages already use them.</summary>

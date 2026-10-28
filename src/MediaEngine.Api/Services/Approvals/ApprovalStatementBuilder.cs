@@ -218,7 +218,7 @@ internal static class ApprovalStatementBuilder
 
         foreach (var (name, scope) in declaration?.CredentialScopes ?? [])
         {
-            if (string.Equals(scope, "personal", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(scope?.Trim(), "personal", StringComparison.OrdinalIgnoreCase))
             {
                 yield return $"Each profile links its own {name}";
             }
