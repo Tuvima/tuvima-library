@@ -104,6 +104,27 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         cut.Find($"input[role=switch][aria-label='{label}']").HasAttribute("checked");
 
     [Fact]
+    public void ChoosingAResult_MovesFocusToTheReview_AndBackToResults_PutsItOnThatResultsSelectButton()
+    {
+        var cut = RenderPanel();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".tl-match__row").Count));
+        Assert.Equal("tl-match-select-1", cut.FindAll("button").Where(button => button.TextContent.Trim() == "Select").ElementAt(1).Id);
+
+        Select(cut, 1);
+        cut.WaitForAssertion(() => Assert.Equal("tl-match-review", LastFocusedId()));
+        Assert.Equal("group", cut.Find("#tl-match-review").GetAttribute("role"));
+        Assert.Equal("Review selected match", cut.Find("#tl-match-review").GetAttribute("aria-label"));
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Back to results").Click();
+        cut.WaitForAssertion(() => Assert.Equal("tl-match-select-1", LastFocusedId()));
+    }
+
+    private string? LastFocusedId() => JSInterop.Invocations
+        .Where(call => call.Identifier == "tuvimaFocusById")
+        .Select(call => call.Arguments[0] as string)
+        .LastOrDefault();
+
+    [Fact]
     public void StepOne_SearchesFromTheItem_AndTagsOnlyTheTopResultAsABestGuess()
     {
         var cut = RenderPanel();

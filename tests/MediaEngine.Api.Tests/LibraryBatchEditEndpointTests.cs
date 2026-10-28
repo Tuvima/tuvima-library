@@ -11,6 +11,7 @@ using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.Services;
+using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
@@ -28,7 +29,7 @@ using Microsoft.Extensions.Options;
 
 namespace MediaEngine.Api.Tests;
 
-/// <summary>Drives the two batch edit routes over HTTP with the real services, real repositories and the real resource check.</summary>
+/// <summary>Drives the two batch edit routes and the universal editor's edit-session route over HTTP with the real services, real repositories and the real resource check.</summary>
 public sealed class LibraryBatchEditEndpointTests : IDisposable
 {
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima-batch-edit-http-{Guid.NewGuid():N}.db");
@@ -227,7 +228,69 @@ public sealed class LibraryBatchEditEndpointTests : IDisposable
         Assert.Equal(notAllowed[0].WorkId.ToString(), unavailable.GetProperty("entity_id").GetString());
     }
 
+    [Fact]
+    public async Task EditSession_RefusesACallerWhoIsNotAnAdministrator_AndWritesNothing()
+    {
+        var episodes = SeedEpisodes(1, _allowedLibrary);
+        await using var app = await StartAsync();
+        using var client = app.CreateClient(administrator: false);
+
+        using var preview = await client.PostAsync("/library/edit-session", Json(SessionBody(previewOnly: true, (episodes[0].WorkId, "c1"))));
+        using var apply = await client.PostAsync("/library/edit-session", Json(SessionBody(previewOnly: false, (episodes[0].WorkId, "c1"))));
+
+        Assert.Equal(HttpStatusCode.Forbidden, preview.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, apply.StatusCode);
+        Assert.Empty(OverridesOf(episodes[0].WorkId));
+    }
+
+    [Fact]
+    public async Task EditSession_ForAnItemInALibraryTheCallerCannotEdit_RefusesThatChangeByName_AndSavesNothing()
+    {
+        var allowed = SeedEpisodes(1, _allowedLibrary);
+        var notAllowed = SeedEpisodes(1, _otherLibrary);
+        await using var app = await StartAsync();
+        using var client = app.CreateClient(administrator: true);
+
+        using var response = await client.PostAsync("/library/edit-session", Json(SessionBody(
+            previewOnly: false, (allowed[0].WorkId, "mine"), (notAllowed[0].WorkId, "theirs"))));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.False(json.RootElement.GetProperty("valid").GetBoolean());
+        Assert.False(json.RootElement.GetProperty("data_saved").GetBoolean());
+        var rows = json.RootElement.GetProperty("changes").EnumerateArray().ToDictionary(row => row.GetProperty("id").GetString()!);
+        Assert.Equal(EditSessionChangeStatuses.Invalid, rows["theirs"].GetProperty("status").GetString());
+        Assert.Equal(LibraryBatchEditReasons.NotAllowed, rows["theirs"].GetProperty("reason").GetString());
+        Assert.Equal(EditSessionChangeStatuses.NotApplied, rows["mine"].GetProperty("status").GetString());
+        // All or none: the allowed item's change is held back too, and neither item was written.
+        Assert.Empty(OverridesOf(allowed[0].WorkId));
+        Assert.Empty(OverridesOf(notAllowed[0].WorkId));
+    }
+
+    [Fact]
+    public async Task EditSession_ForAnItemTheCallerMayEdit_SavesTheDetails()
+    {
+        var allowed = SeedEpisodes(1, _allowedLibrary);
+        await using var app = await StartAsync();
+        using var client = app.CreateClient(administrator: true);
+
+        using var response = await client.PostAsync("/library/edit-session", Json(SessionBody(previewOnly: false, (allowed[0].WorkId, "mine"))));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.GetProperty("data_saved").GetBoolean());
+        Assert.Equal("Renamed", OverridesOf(allowed[0].WorkId)["title"]);
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────────
+
+    private static string SessionBody(bool previewOnly, params (Guid EntityId, string Id)[] changes)
+    {
+        var rows = changes.Select(change =>
+            "{\"id\":\"" + change.Id + "\",\"kind\":\"details\",\"entity_id\":\"" + change.EntityId
+            + "\",\"fields\":[{\"key\":\"title\",\"value\":\"Renamed\"}]}");
+        return "{\"preview_only\":" + (previewOnly ? "true" : "false") + ",\"changes\":[" + string.Join(",", rows) + "]}";
+    }
 
     private static StringContent Json(string body) => new(body, Encoding.UTF8, "application/json");
 
@@ -331,6 +394,8 @@ public sealed class LibraryBatchEditEndpointTests : IDisposable
         builder.Services.AddScoped<EditSessionAccessService>();
         builder.Services.AddSingleton(new EditSubjectDirectory([]));
         builder.Services.AddSingleton<IEditSessionService, EditSessionService>();
+        builder.Services.AddSingleton<IEditSessionChangeHandler, DetailsEditSessionChangeHandler>();
+        builder.Services.AddSingleton<EditSessionCallerAccessor>();
         builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(authority));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new LibraryAccess(_allowedLibrary));
@@ -341,8 +406,8 @@ public sealed class LibraryBatchEditEndpointTests : IDisposable
         builder.Services.AddSingleton<ILibraryOverviewReadService>(_ => null!);
         builder.Services.AddSingleton<ILibraryWorkFeedReadService>(_ => null!);
         builder.Services.AddSingleton<IDisplayProjectionReadService>(_ => null!);
-        builder.Services.AddSingleton<ICollectionRepository>(_ => null!);
-        builder.Services.AddSingleton<IProfileRepository>(_ => null!);
+        builder.Services.AddSingleton<ICollectionRepository>(new CollectionRepository(_db));
+        builder.Services.AddSingleton<IProfileRepository>(new ProfileRepository(_db));
 
         var app = builder.Build();
         app.UseDeveloperExceptionPage();

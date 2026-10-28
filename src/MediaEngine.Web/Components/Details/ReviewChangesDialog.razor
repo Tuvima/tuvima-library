@@ -70,7 +70,10 @@
                                 @if (!_finished)
                                 {
                                     <div class="review-changes__actions">
-                                        <AppButton Label="Edit" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" aria-label="@($"Edit {row.What} for {row.Item}")" OnClick="@(() => EditAsync(row))" />
+                                        @if (Source.CanJumpTo(row))
+                                        {
+                                            <AppButton Label="Edit" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" aria-label="@($"Edit {row.What} for {row.Item}")" OnClick="@(() => EditAsync(row))" />
+                                        }
                                         <AppRowMenu AriaLabel="@($"More actions for {row.What}")" Items="@MenuFor(row)" />
                                     </div>
                                 }
@@ -229,6 +232,11 @@
 
     private async Task EditAsync(EditReviewRow row)
     {
+        if (!Source.CanJumpTo(row))
+        {
+            return;
+        }
+
         await Source.JumpToAsync(row);
         await Dialog.CloseAsync(AppDialogResult.Ok(ReviewChangesOutcome.Edit));
     }

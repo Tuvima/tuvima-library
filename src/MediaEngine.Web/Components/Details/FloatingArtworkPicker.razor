@@ -18,11 +18,12 @@
     var tabs = picker.Tabs;
     <section @ref="_root"
              class="@($"tl-art-picker{(_minimised ? " is-minimised" : string.Empty)}")"
-             role="region"
-             aria-label="Artwork picker">
+             role="dialog"
+             aria-modal="false"
+             aria-labelledby="tl-art-picker-title">
         <header @ref="_handle" class="tl-art-picker__header">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppSize.Small" />
-            <strong class="tl-art-picker__title">Artwork</strong>
+            <strong id="tl-art-picker-title" class="tl-art-picker__title" tabindex="-1">Artwork</strong>
             @if (_minimised)
             {
                 <span class="tl-art-picker__chip-label">@ArtworkPickerRules.LabelFor(slot)@(staged ? " · changed" : string.Empty)</span>
@@ -246,6 +247,8 @@
         {
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/floating-picker.js");
             await _module.InvokeVoidAsync("attach", _root, _handle);
+            // The picker is a non-modal dialog: focus moves into it when it opens (the editing bar puts it back on the Artwork button when it closes).
+            await JS.InvokeVoidAsync("tuvimaFocusById", "tl-art-picker-title");
         }
         catch (JSDisconnectedException)
         {
@@ -277,7 +280,7 @@
                 <p class="tl-art-picker__hint">@picker.Provider.Message</p>
             }
 
-            <div class="tl-art-picker__grid" role="list">
+            <div class="tl-art-picker__grid" role="group" aria-label="Provider pictures">
                 @foreach (var candidate in picker.Provider.Items)
                 {
                     var picked = picker.PickedTarget == "provider:" + candidate.Id;
@@ -307,7 +310,7 @@
         }
         else
         {
-            <div class="tl-art-picker__grid" role="list">
+            <div class="tl-art-picker__grid" role="group" aria-label="Saved pictures">
                 @foreach (var picture in picker.Saved)
                 {
                     var picked = picker.PickedTarget == picture.AssetId.ToString("D");

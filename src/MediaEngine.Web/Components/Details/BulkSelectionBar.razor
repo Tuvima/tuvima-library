@@ -22,6 +22,7 @@
                 <AppButton Label="Edit"
                            StartIcon="@AppMaterialIcons.Outlined.Edit"
                            Class="tl-batch__edit"
+                           id="@ButtonId(BulkPanelKind.Edit)"
                            ButtonStyle="@Style(selection, BulkPanelKind.Edit)"
                            Tone="@ToneOf(selection, BulkPanelKind.Edit)"
                            Disabled="@busy"
@@ -32,6 +33,7 @@
                     <AppButton Label="Match"
                                StartIcon="@AppMaterialIcons.Outlined.TravelExplore"
                                Class="tl-batch__match"
+                           id="@ButtonId(BulkPanelKind.Match)"
                                ButtonStyle="@Style(selection, BulkPanelKind.Match)"
                                Tone="@ToneOf(selection, BulkPanelKind.Match)"
                                Disabled="@busy"
@@ -44,6 +46,7 @@
                     <AppButton Label="@BulkEditRules.MoveLabel(rows, selection.MediaType)"
                                StartIcon="@AppMaterialIcons.Outlined.AccountTree"
                                Class="tl-batch__move"
+                           id="@ButtonId(BulkPanelKind.Move)"
                                ButtonStyle="@Style(selection, BulkPanelKind.Move)"
                                Tone="@ToneOf(selection, BulkPanelKind.Move)"
                                Disabled="@busy"
@@ -68,6 +71,9 @@
 }
 
 @code {
+    /// <summary>The id of the bar's button for a panel, so focus can come back to it when that panel closes.</summary>
+    public static string ButtonId(BulkPanelKind panel) => $"tl-batch-{panel.ToString().ToLowerInvariant()}";
+
     private EditingModeContext? _mode;
     private BulkEditSelection? _selection;
     private bool _deleting;
