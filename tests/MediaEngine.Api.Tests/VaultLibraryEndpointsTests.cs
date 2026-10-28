@@ -355,6 +355,69 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AManagedVaultFolder_IsWritableAndManaged_AndMakesTheMoveDestinationReady_WhileAReadOnlyOneDoesNot()
+    {
+        await MakeAsync("movies", "Private Movies", _privateMovies);
+
+        var managed = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", _managedFolder, Managed: true));
+
+        Assert.Equal(HttpStatusCode.OK, managed.StatusCode);
+        var entry = _configuration.LoadLibraries().Libraries.Single(item => item.KindKey == "movies" && item.Access == LibraryAccessLevels.Vault);
+        var readOnly = entry.Sources.Single(source => source.Path == _privateMovies);
+        var writable = entry.Sources.Single(source => source.Path == _managedFolder);
+        Assert.False(readOnly.AllowsFileMutation);
+        Assert.True(writable.AllowsFileMutation);
+        var destination = (await (await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination?kind_key=movies", "admin")).Content.ReadFromJsonAsync<VaultMoveDestinationDto>())!;
+        Assert.Equal(VaultMoveDestinationStates.Ready, destination.State);
+        Assert.Equal(1, destination.ManagedFolders);
+    }
+
+    [Fact]
+    public async Task AVaultFolderHoldingALink_IsRefused_BecauseTheLinkCouldReachANormalLibrary()
+    {
+        await MakeAsync("movies", "Private Movies", _privateMovies);
+        var withLink = Path.Combine(_root, "WithLink");
+        Directory.CreateDirectory(withLink);
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(withLink, "shortcut"), _ordinaryMovies);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            return;
+        }
+
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", withLink));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(VaultFolderAttachmentService.FolderHoldsLinksMessage, await DetailOf(response));
+        Assert.DoesNotContain(_configuration.LoadLibraries().Libraries.SelectMany(item => item.Sources), source => source.Path == withLink);
+    }
+
+    [Fact]
+    public async Task AVaultFolderHoldingIndexedPhotos_IsRefused_LikeOneHoldingOrdinaryFiles()
+    {
+        await MakeAsync("movies", "Private Movies", _privateMovies);
+        var photos = Path.Combine(_root, "Photos");
+        Directory.CreateDirectory(photos);
+        var fileId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO local_files(id,content_hash,byte_size,mime_type,extension,created_at) VALUES(@id,'abc123',1,'image/jpeg','jpg',@now);",
+                new { id = fileId, now = DateTimeOffset.UtcNow.ToString("O") });
+            connection.Execute(
+                "INSERT INTO local_file_sources(id,file_id,library_id,file_path,modified_at,indexed_at) VALUES(@id,@file,@library,@path,@now,@now);",
+                new { id = Guid.NewGuid(), file = fileId, library = Guid.NewGuid(), path = Path.Combine(photos, "a.jpg"), now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", photos));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(VaultFolderAttachmentService.FolderHoldsOrdinaryFilesMessage, await DetailOf(response));
+    }
+
+    [Fact]
     public async Task AVaultLibrary_NeverAppearsWhereOrdinaryLibrariesAreListedCountedOrGranted()
     {
         var madeId = await MakeAsync("movies", "Private Movies", _privateMovies);

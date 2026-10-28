@@ -273,7 +273,7 @@
         var selected = choice.Folder;
         if (choice.AsVault)
         {
-            await AddVaultFolderAsync(selected);
+            await AddVaultFolderAsync(selected, choice.ManagedVault);
             return;
         }
 
@@ -308,9 +308,9 @@
 
     // A Vault folder joins the Vault-protected library of this content type, which the Engine makes first when there is none. An administrator is enough, with no PIN.
     // The Engine starts watching and scanning the folder when it saves it, so nothing is asked of the Dashboard afterwards.
-    private async Task AddVaultFolderAsync(ServerFolderValidationResultDto selected)
+    private async Task AddVaultFolderAsync(ServerFolderValidationResultDto selected, bool managedVault)
     {
-        var added = await Api.AddVaultFolderAsync(new AddVaultFolderRequest(Library.KindKey, selected.Path));
+        var added = await Api.AddVaultFolderAsync(new AddVaultFolderRequest(Library.KindKey, selected.Path, managedVault));
         if (added is not { Ok: true })
         {
             Toast.Add(Api.LastError ?? "The folder could not be added. Check it and try again.", AppSeverity.Error);

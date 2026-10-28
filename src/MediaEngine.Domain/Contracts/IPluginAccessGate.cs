@@ -51,8 +51,8 @@ public interface IVaultSectionOnlineLookup
 }
 
 /// <summary>
-/// The answer until the Vault sections build adds the per-section setting: always off, so nothing that sends details out ever works on
-/// a Vault item. Failing closed keeps Vault items private while the setting does not exist yet.
+/// The always-off answer, for tests and any host without the per-section setting: nothing that sends details out ever works on a Vault item.
+/// The Engine uses <c>VaultSectionOnlineLookup</c>, which reads the section's stored switch.
 /// </summary>
 public sealed class VaultSectionOnlineLookupOff : IVaultSectionOnlineLookup
 {

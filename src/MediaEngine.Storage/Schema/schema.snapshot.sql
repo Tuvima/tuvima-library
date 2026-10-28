@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0061 profile_hero_plugin_switches).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0062 vault_section_grants).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2887,6 +2887,14 @@ CREATE TABLE vault_performers (
     UNIQUE (library_id, name)
 );
 
+CREATE TABLE vault_section_grants (
+    library_id            TEXT NOT NULL COLLATE NOCASE REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
+    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at            TEXT NOT NULL,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    PRIMARY KEY (library_id, profile_id)
+);
+
 CREATE TABLE vault_studios (
     id         BLOB NOT NULL PRIMARY KEY,
     library_id TEXT NOT NULL REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
@@ -3870,6 +3878,8 @@ CREATE INDEX ix_vault_image_items_library ON vault_image_items(library_id, item_
 
 CREATE INDEX ix_vault_image_tags_tag      ON vault_image_tags(tag_id, item_id);
 
+CREATE INDEX ix_vault_section_grants_profile ON vault_section_grants(profile_id);
+
 CREATE INDEX ix_view_devices_space_backup
     ON view_devices(personal_space_id, last_backup_at DESC, id);
 
@@ -4118,6 +4128,13 @@ BEGIN
     DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.id;
 END;
 
+CREATE TRIGGER trg_profiles_vault_sections_withdrawn
+AFTER UPDATE OF role, content_limit ON profiles
+WHEN NEW.role = 'RestrictedProfile' OR NEW.content_limit IS NOT NULL
+BEGIN
+    DELETE FROM vault_section_grants WHERE profile_id = NEW.id;
+END;
+
 CREATE TRIGGER trg_vault_activity_vault_only
 BEFORE INSERT ON vault_activity
 WHEN NOT EXISTS (
@@ -4210,6 +4227,11 @@ BEFORE INSERT ON vault_matches
 WHEN NOT EXISTS (
     SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
 BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have a Vault match.'); END;
+
+CREATE TRIGGER trg_vault_section_grants_eligible
+BEFORE INSERT ON vault_section_grants
+WHEN EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
+BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot open a Vault section.'); END;
 
 CREATE TRIGGER trg_view_galleries_cover_no_vault_image_insert
 BEFORE INSERT ON view_galleries

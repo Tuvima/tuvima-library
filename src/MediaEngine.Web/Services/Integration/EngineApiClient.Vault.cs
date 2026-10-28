@@ -91,6 +91,21 @@ public sealed partial class EngineApiClient
         return attached is null ? FailedVaultCall<VaultLibraryDto>() : VaultCall<VaultLibraryDto>.Ok(attached);
     }
 
+    public async Task<VaultCall<ProfileVaultSectionsDto>> GetProfileVaultSectionsAsync(Guid profileId, CancellationToken ct = default)
+    {
+        var sections = await GetAsync<ProfileVaultSectionsDto>(
+            "GET /api/v1/profiles/{id}/vault-sections", $"/api/v1/profiles/{profileId:D}/vault-sections", logAsWarning: false, ct: ct);
+        return sections is null ? FailedVaultCall<ProfileVaultSectionsDto>() : VaultCall<ProfileVaultSectionsDto>.Ok(sections);
+    }
+
+    public async Task<VaultCall<ProfileVaultSectionsDto>> SetProfileVaultSectionsAsync(Guid profileId, IReadOnlyList<string> libraryIds, CancellationToken ct = default)
+    {
+        var sections = await PutAsync<SetProfileVaultSectionsRequest, ProfileVaultSectionsDto>(
+            "PUT /api/v1/profiles/{id}/vault-sections", $"/api/v1/profiles/{profileId:D}/vault-sections",
+            new SetProfileVaultSectionsRequest { LibraryIds = libraryIds }, logAsWarning: false, ct: ct);
+        return sections is null ? FailedVaultCall<ProfileVaultSectionsDto>() : VaultCall<ProfileVaultSectionsDto>.Ok(sections);
+    }
+
     public async Task<VaultCall<bool>> RemoveVaultLibraryAsync(string libraryId, RemoveVaultLibraryRequest request, CancellationToken ct = default) =>
         await PostAsync(
             "POST /api/v1/vault/libraries/{id}/remove", $"{VaultLibrariesPath}/{Uri.EscapeDataString(libraryId)}/remove", request, logAsWarning: false, ct: ct)

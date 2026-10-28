@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Api.Services.Plugins.Pages;
@@ -68,7 +69,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginCircuitBreaker>();
         services.AddSingleton<PluginActivityService>();
         services.AddSingleton<PluginLibraryLimitService>();
-        services.AddSingleton<IVaultSectionOnlineLookup, VaultSectionOnlineLookupOff>();
+        services.AddSingleton<IVaultSectionOnlineLookup, VaultSectionOnlineLookup>();
         services.AddSingleton<IPluginAccessGate, PluginAccessGate>();
         services.AddSingleton<PluginRemovalService>();
         services.AddSingleton<PluginCheckNowService>();

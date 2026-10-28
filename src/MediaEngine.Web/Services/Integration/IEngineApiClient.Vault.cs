@@ -38,6 +38,12 @@ public partial interface IEngineApiClient
     /// <summary>POST /api/v1/vault/libraries/{id}/folders - put a server folder into the Vault library (asks for the administrator's own PIN). The path travels in the body, never in the address.</summary>
     Task<VaultCall<VaultLibraryDto>> AttachVaultFolderAsync(string libraryId, AttachVaultFolderRequest request, CancellationToken ct = default);
 
+    /// <summary>GET /api/v1/profiles/{id}/vault-sections - the Vault sections and which of them this profile may open (an administrator whose Vault mode is on).</summary>
+    Task<VaultCall<ProfileVaultSectionsDto>> GetProfileVaultSectionsAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/profiles/{id}/vault-sections - replace the Vault sections this profile may open. Nothing is ticked by default.</summary>
+    Task<VaultCall<ProfileVaultSectionsDto>> SetProfileVaultSectionsAsync(Guid profileId, IReadOnlyList<string> libraryIds, CancellationToken ct = default);
+
     /// <summary>POST /api/v1/vault/libraries/{id}/remove - remove a Vault library.</summary>
     Task<VaultCall<bool>> RemoveVaultLibraryAsync(string libraryId, RemoveVaultLibraryRequest request, CancellationToken ct = default);
 

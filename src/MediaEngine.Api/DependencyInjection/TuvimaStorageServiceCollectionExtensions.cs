@@ -122,6 +122,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         // and the Vault's own name and artwork records. VaultAccessResolver is what every catalogue check asks first.
         services.AddSingleton<IVaultLibraryRepository, VaultLibraryRepository>();
         services.AddSingleton<INsfwAccessRepository, NsfwAccessRepository>();
+        services.AddSingleton<IVaultSectionGrantRepository, VaultSectionGrantRepository>();
         services.AddSingleton<IVaultNameRepository, VaultNameRepository>();
         services.AddSingleton<IVaultArtworkRepository, VaultArtworkRepository>();
         // How each Vault video was matched, where its fields came from, its fingerprints and the quiet Vault activity list (WP12).

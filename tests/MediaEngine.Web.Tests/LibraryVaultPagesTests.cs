@@ -277,7 +277,7 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
 
         var lookup = cut.Find("section.vault-lookup");
         Assert.False(lookup.QuerySelector("[role=switch]")!.HasAttribute("checked"));
-        Assert.Contains("nothing is sent to online services until then", lookup.TextContent + cut.Find("[data-testid=vault-lookup-privacy]").TextContent, StringComparison.Ordinal);
+        Assert.Contains(LibraryLookupRules.VaultPrivacyNote, cut.Find("[data-testid=vault-lookup-privacy]").TextContent, StringComparison.Ordinal);
         Assert.Empty(_activityReads);
     }
 
@@ -306,7 +306,7 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AddFolderDialogOnAVaultLibraryAlwaysAddsToTheVaultAndDrawsNoSwitch()
+    public void AddFolderDialogOnAVaultLibraryAlwaysAddsToTheVaultAndOffersOnlyTheManagedFolderSwitchOffByDefault()
     {
         var dialogs = Render<AppDialogHost>();
         Services.GetRequiredService<IAppDialogService>();
@@ -318,7 +318,9 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
         _ = Services.GetRequiredService<IAppDialogService>().ShowAsync<LibraryAddFolderDialog>(string.Empty, parameters, LibraryAddFolderDialog.DialogOptions);
 
         dialogs.WaitForElement(".add-folder");
-        Assert.Empty(dialogs.FindAll("[role=switch]"));
+        var switches = dialogs.FindAll("[role=switch]");
+        Assert.Single(switches);
+        Assert.False(switches[0].HasAttribute("checked"));
     }
 
     [Fact]

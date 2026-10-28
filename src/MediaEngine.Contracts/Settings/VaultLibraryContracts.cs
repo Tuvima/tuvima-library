@@ -11,15 +11,18 @@ namespace MediaEngine.Contracts.Settings;
 public sealed record CreateVaultLibraryFromKindRequest(
     [property: JsonPropertyName("kind_key")] string KindKey,
     [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("folder_path")] string FolderPath);
+    [property: JsonPropertyName("folder_path")] string FolderPath,
+    [property: JsonPropertyName("managed")] bool Managed = false);
 
 /// <summary>
 /// Adds a folder as a Vault folder (<c>POST /settings/vault-libraries/folders</c>; Library pages D10, administrators only, no PIN). The folder joins
 /// the Vault library of the content type <c>kind_key</c>; when there is none yet the Engine makes it first, named for the content type.
+/// <c>managed</c> (default false) adds a Managed Vault folder, one Library may write to; only a Managed folder can receive Move to Vault (Vault sections D33).
 /// </summary>
 public sealed record AddVaultFolderRequest(
     [property: JsonPropertyName("kind_key")] string KindKey,
-    [property: JsonPropertyName("folder_path")] string FolderPath);
+    [property: JsonPropertyName("folder_path")] string FolderPath,
+    [property: JsonPropertyName("managed")] bool Managed = false);
 
 /// <summary>
 /// The answer to making a Vault library or adding a Vault folder. It carries no library, name or folder: <c>library_id</c> is set only when the
