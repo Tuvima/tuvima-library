@@ -20,7 +20,10 @@ public static class EditorSubjectKinds
     /// <summary>A Universe: a local name and description override (the canonical ones are never changed), a cover and a background.</summary>
     public const string Universe = "universe";
 
-    public static readonly IReadOnlyList<string> All = [Person, Series, Collection, Universe];
+    /// <summary>A character, place or organisation of a Universe (the Chronicle explorer): a name and description kept locally, and a portrait and background.</summary>
+    public const string FictionalEntity = "fictional-entity";
+
+    public static readonly IReadOnlyList<string> All = [Person, Series, Collection, Universe, FictionalEntity];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 }

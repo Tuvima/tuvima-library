@@ -354,7 +354,7 @@ public partial class SharedMediaEditorShell
             .OrderBy(scope => scope.Order)
             .ToList();
     protected int ActiveTabIndex => GetSelectedIndex(Tabs.Select(tab => tab.Id), _activeTab);
-    protected bool IsSingleItem => IsSharedEntityMode || Request.EntityIds.Count == 1;
+    protected bool IsSingleItem => Request.EntityIds.Count == 1;
     protected Guid LaunchEntityId => Request.LaunchEntityId ?? Request.EntityIds.FirstOrDefault();
     protected MediaEditorIdentityIntent EffectiveIdentityIntent =>
         _identityIntent == MediaEditorIdentityIntent.None ? Request.IdentityIntent : _identityIntent;
@@ -366,8 +366,7 @@ public partial class SharedMediaEditorShell
                               || _pendingArtworkFiles.Count > 0
                               || _unifiedArtworkPending
                               || _audiobookChapterEdits.Count > 0
-                              || _audiobookChapterResetKeys.Count > 0
-                              || _sharedEntityDirty;
+                              || _audiobookChapterResetKeys.Count > 0;
     protected bool HasStagedEditorChanges => IsDirty;
     protected bool HasMatchDraft => _selectedRetailCandidateId is not null || _selectedWikidataCandidateId is not null || _selectedTvdbCandidate is not null;
     protected bool HasPendingNavigationChanges => HasStagedEditorChanges || HasPendingDetailsInlineEdit || HasMatchDraft;
@@ -384,8 +383,7 @@ public partial class SharedMediaEditorShell
         && !HasPendingDetailsInlineEdit
         && !_unifiedArtworkPending
         && _audiobookChapterEdits.Count == 0
-        && _audiobookChapterResetKeys.Count == 0
-        && !_sharedEntityDirty;
+        && _audiobookChapterResetKeys.Count == 0;
     protected bool IsOnlyArtworkUploadInFlight => IsSection && OnlyArtworkUploadsStaged && _artworkApplyingKeys.Count > 0;
     protected bool ShowArtworkUploadRetryFooter => IsSection && OnlyArtworkUploadsStaged && _artworkApplyingKeys.Count == 0;
 
@@ -588,22 +586,18 @@ public partial class SharedMediaEditorShell
     protected string BreadcrumbText => BuildBreadcrumbText();
 
     protected string HeaderKicker =>
-        IsSharedEntityMode
-            ? "Universe"
-            : ActiveScope?.Label ?? NavigatorRootNode?.Label ?? _schema.MediaType;
+        ActiveScope?.Label ?? NavigatorRootNode?.Label ?? _schema.MediaType;
 
     protected string HeaderTitle =>
-        (IsSharedEntityMode ? _sharedEntityContext?.breadcrumb?.FirstOrDefault() ?? _sharedEntityContext?.label : ActiveScope?.DisplayTitle ?? SelectedNavigatorNode?.Title ?? NavigatorRootNode?.Title)
+        (ActiveScope?.DisplayTitle ?? SelectedNavigatorNode?.Title ?? NavigatorRootNode?.Title)
         ?? Request.HeaderTitle
         ?? _detail?.Title
         ?? "Edit Item";
 
     protected string? HeaderSubtitle =>
-        (IsSharedEntityMode ? SharedEntityHeaderSubtitle : ActiveScope?.DisplaySubtitle ?? SelectedNavigatorNode?.Subtitle ?? NavigatorRootNode?.Subtitle)
+        (ActiveScope?.DisplaySubtitle ?? SelectedNavigatorNode?.Subtitle ?? NavigatorRootNode?.Subtitle)
         ?? Request.HeaderSubtitle
         ?? (IsSingleItem ? BuildHeaderSubtitle() : string.Join(" | ", Request.PreviewItems.Take(3).Select(x => x.Title)));
-
-    private string? SharedEntityHeaderSubtitle => Request.SharedEntityTarget?.UniverseQid;
 
     protected string EditorPageTitle => _activeTab switch
     {
@@ -729,13 +723,6 @@ public partial class SharedMediaEditorShell
     {
         _tabState.Initialize(string.IsNullOrWhiteSpace(Request.InitialTab) ? "details" : Request.InitialTab);
         _schema = MediaEditorSchemaCatalog.Resolve(Request.MediaType);
-        InitializeSharedEntityMode();
-
-        if (IsSharedEntityMode)
-        {
-            _loading = false;
-            return;
-        }
 
         try
         {
@@ -2013,32 +2000,6 @@ public partial class SharedMediaEditorShell
 
     private async Task SaveAsyncCore()
     {
-        if (IsSharedEntityMode)
-        {
-            if (_sharedEntityWorkspace is null || !IsDirty)
-            {
-                return;
-            }
-            _saving = true;
-            try
-            {
-                if (await _sharedEntityWorkspace.SaveAsync())
-                {
-                    _hasCommittedChanges = true;
-                    if (_saveAndNavigate)
-                    {
-                        await NavigateAfterSaveAsync();
-                    }
-                }
-            }
-            finally
-            {
-                _saving = false;
-                StateHasChanged();
-            }
-            return;
-        }
-
         if (!HasStagedEditorChanges)
         {
             if (Request.Mode == SharedMediaEditorMode.Review)
@@ -2662,14 +2623,6 @@ public partial class SharedMediaEditorShell
         {
             _navigationGuard.Stay();
         }
-        if (IsSharedEntityMode)
-        {
-            _sharedEntityWorkspace?.ResetEditorChanges();
-            _sharedEntityDirty = false;
-            StateHasChanged();
-            return;
-        }
-
         _editedValues.Clear();
         _pendingArtworkFiles.Clear();
         _pendingArtworkPreviewUrls.Clear();

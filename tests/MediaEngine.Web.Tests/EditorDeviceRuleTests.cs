@@ -55,13 +55,6 @@ public sealed class EditorDeviceRuleTests
         _ => DesktopAsync(),
     };
 
-    // The pop-up no longer opens for a single title, so the launcher is exercised with the Universe editor, which still uses it.
-    private static MediaEditorLaunchRequest MediaRequest() => new()
-    {
-        SharedEntityTarget = new SharedEntityEditorTargetDto(SharedEntityEditorTargetKinds.Universe, "Q1", null, "Q1"),
-        Mode = SharedMediaEditorMode.Normal,
-    };
-
     [Theory]
     [MemberData(nameof(Matrix))]
     public async Task OnlyADesktopWithAFineHoverPointerCanEdit(
@@ -100,89 +93,17 @@ public sealed class EditorDeviceRuleTests
         Assert.True(changes >= 1);
     }
 
-    [Theory]
-    [InlineData("phone")]
-    [InlineData("tablet")]
-    [InlineData("tv")]
-    public async Task MediaLauncherRefusesOffTheDesktopOpensNothingAndShowsTheNote(string formFactor)
-    {
-        var dialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
-        var spy = (DialogSpy)(object)dialogs;
-        var toasts = new AppToastService();
-        var launcher = new MediaEditorLauncherService(dialogs, null, await DeviceFor(formFactor), toasts);
-
-        var result = await launcher.TryOpenAsync(MediaRequest());
-
-        Assert.Equal(EditorLaunchResult.NotAvailableOnThisDevice, result);
-        Assert.False(await launcher.OpenAsync(MediaRequest()));
-        Assert.Equal(0, spy.ShowCount);
-        Assert.NotEmpty(toasts.Toasts);
-        Assert.All(toasts.Toasts, toast => Assert.Equal("Edit on a computer", toast.Message));
-    }
-
     [Fact]
-    public async Task EveryLauncherRefusesWithoutADeviceContextAndOpensOnADesktopWithAMouse()
+    public async Task EveryLauncherOpensOnADesktopWithAMouse()
     {
-        var noDeviceDialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
-        var noDeviceSpy = (DialogSpy)(object)noDeviceDialogs;
-        Assert.Equal(EditorLaunchResult.NotAvailableOnThisDevice,
-            await new MediaEditorLauncherService(noDeviceDialogs).TryOpenAsync(MediaRequest()));
-        Assert.Equal(0, noDeviceSpy.ShowCount);
-
         var desktopDialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
         var desktopSpy = (DialogSpy)(object)desktopDialogs;
         var desktop = await DesktopAsync();
         Assert.Equal(EditorLaunchResult.Applied,
-            await new MediaEditorLauncherService(desktopDialogs, null, desktop, new AppToastService()).TryOpenAsync(MediaRequest()));
-        Assert.Equal(typeof(SharedMediaEditorShell), desktopSpy.LastShell);
-        Assert.Equal(EditorLaunchResult.Applied,
             await new CollectionEditorLauncherService(desktopDialogs, null, desktop, new AppToastService()).TryOpenAsync(new CollectionEditorLaunchRequest()));
         Assert.Equal(EditorLaunchResult.Applied,
             await new GalleryEditorLauncherService(desktopDialogs, desktop, new AppToastService()).TryOpenAsync(new GalleryEditorLaunchRequest()));
-        Assert.Equal(3, desktopSpy.ShowCount);
-    }
-
-    [Fact]
-    public async Task TheOldPopUpIsRefusedForASingleItem_EvenOnADesktop()
-    {
-        var dialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
-        var spy = (DialogSpy)(object)dialogs;
-        var launcher = new MediaEditorLauncherService(dialogs, null, await DesktopAsync(), new AppToastService());
-        var itemId = Guid.Parse("22222222-3333-4444-5555-666666666666");
-
-        foreach (var kind in new[] { "Work", "Edition", "Collection", "MediaAsset" })
-        {
-            var result = await launcher.TryOpenAsync(new MediaEditorLaunchRequest
-            {
-                EntityIds = [itemId],
-                LaunchEntityId = itemId,
-                LaunchEntityKind = kind,
-                Mode = SharedMediaEditorMode.Normal,
-            });
-            Assert.Equal(EditorLaunchResult.NotAvailable, result);
-        }
-
-        Assert.Equal(0, spy.ShowCount);
-    }
-
-    [Fact]
-    public async Task ThePersonRequestIsRefusedBecauseThePersonEditsInPlace()
-    {
-        var dialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
-        var spy = (DialogSpy)(object)dialogs;
-        var launcher = new MediaEditorLauncherService(dialogs, null, await DesktopAsync(), new AppToastService());
-        var personId = Guid.Parse("33333333-3333-4444-5555-666666666666");
-
-        var personResult = await launcher.TryOpenAsync(new MediaEditorLaunchRequest
-        {
-            EntityIds = [personId],
-            LaunchEntityId = personId,
-            LaunchEntityKind = "Person",
-            Mode = SharedMediaEditorMode.Normal,
-        });
-
-        Assert.Equal(EditorLaunchResult.NotAvailable, personResult);
-        Assert.Equal(0, spy.ShowCount);
+        Assert.Equal(2, desktopSpy.ShowCount);
     }
 
     [Theory]

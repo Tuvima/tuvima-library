@@ -190,7 +190,7 @@ the Engine:
 The canonical edit path is:
 
 ```text
-media surface -> MediaEditorLauncherService -> SharedMediaEditorShell
+media surface -> item page -> universal editor (editing bar + side panel)
 ```
 
 Normal mode is launched from detail pages, browse rows/cards, book details, listen tables, albums, tracks, movies, shows, and search/detail contexts. Review mode is launched from Review Queue. Batch mode is used only where a real selection exists.
@@ -309,7 +309,7 @@ indented. Developer Tools requires both the Administrator role and the internal-
 - Do not add all-in-one management routes, tabs, CSS prefixes, or docs that describe removed workflows as current product behavior.
 - Do not restore removed all-in-one management implementation types.
 - Do not route normal media fixes through a management workbench.
-- Use `MediaEditorLauncherService` and `SharedMediaEditorShell` for normal, review, and batch edit flows.
+- Use the universal editor on the item's own page for normal, review and ticked-row edit flows.
 - Refresh the current surface only after the shared editor returns a successful result; canceled edits should not mutate UI state.
 
 ## Collections and person consistency
