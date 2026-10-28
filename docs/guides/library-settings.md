@@ -131,6 +131,17 @@ Open the library and pick its **Access** tab. There are three choices:
 
 Switching a Standard library to **Selected profiles** starts with nobody ticked, and the tab warns that only administrators will see it until you tick someone. A new profile starts with no Selected libraries. Nothing is saved until you press **Save changes** in the bar at the bottom (**Discard** puts the saved choice back, and leaving with unsaved changes asks first). Switching a library between Standard and Selected clears its ticked profiles, and a profile that gains or loses a library signs in again to refresh what it can see. Only administrators can change this, and on a phone the tab shows the choice but cannot change it. You can also pick **Selected profiles** when you add a library; the same warning appears and you tick profiles on its Access tab afterwards.
 
+## Choose how Library treats a library's files
+
+Open the library and pick its **File handling** tab. It has four cards, each with one (i) on its heading and an **Example** line that shows what the choice does:
+
+- **Organization**: **Preserve original names** (the default; every file and folder keeps its name), **Library standard** or **Custom pattern**. A custom pattern is checked by the Library server as you type, and a pattern it does not accept shows its error under the field and cannot be saved.
+- **File changes**: two switches, both off for a new library. **Rename or move files automatically** lets Library rename and move the files in all of the library's folders that can be changed (off means they are left read-only). **Write metadata into media files** writes titles, people and artwork into the files themselves; it is separate from renaming and waits for a regular pass over your files (see [when changes reach your files](#when-changes-reach-your-files)). Both switches are greyed out, with the reason, for a Vault-protected library and for a type Library never changes.
+- **Duplicates**: **Keep one copy** (Library compares what is inside the files, so a renamed copy counts) or **Keep both**. **Use server default** removes the library's own choice, and the tab says "Using the server default (Keep one copy)" while it follows the server.
+- **Deleted files**: the **Use Recycle bin** switch (on for Videos, off for the other types).
+
+Nothing is saved until you press **Save changes** in the bar at the bottom (**Discard** puts the saved values back, and leaving with unsaved changes asks first). Turning **Rename or move files automatically** on for a library that already has files shows how many files will be renamed or moved; when you press **Save changes**, Library asks the same question as converting a folder (it can take hours and cannot be undone automatically, though a full log of every move is kept) and starts the visible background job only after you confirm. Turning it off asks first and stops any organising that is running; files already renamed keep their new names. A folder can still override duplicates and metadata from its menu on the **Folders** tab. On a phone the tab shows the values but cannot change them.
+
 ## Advanced settings
 
 Each type has an **Advanced** section with its naming template (**Naming template**, **Apply template**) and **Update tags inside files** (only affects managed folders). The section **File handling for every type** holds the library-wide rules **When the same file arrives twice** (**Keep one copy** or **Keep both**) and **Embed artwork in files**.
