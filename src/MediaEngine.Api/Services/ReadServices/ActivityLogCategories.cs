@@ -14,6 +14,7 @@ public static class ActivityLogCategories
     [
         SystemActionType.MediaAdded,
         SystemActionType.PersonalMediaAdded,
+        SystemActionType.PersonalMediaSkipped,
     ];
 
     private static readonly string[] ReviewTypes =
@@ -27,6 +28,8 @@ public static class ActivityLogCategories
         SystemActionType.MediaFailed,
         SystemActionType.FileQuarantined,
         SystemActionType.ArtworkWritebackFailed,
+        SystemActionType.PersonalMediaRefused,
+        SystemActionType.PersonalMediaStray,
     ];
 
     private static readonly string[] SystemTypes =

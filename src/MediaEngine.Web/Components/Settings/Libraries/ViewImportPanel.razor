@@ -1,0 +1,191 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@using Microsoft.AspNetCore.Components.Forms
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+@* The Import area of a View kind (Photo and video filing spec D1, D6, D9, D10, D11): the one place photos and videos are copied into, how
+   many are waiting, Scan now and Add files, and the files that were refused with their plain reasons. The Import area sits outside every
+   library folder, so a library folder only ever holds filed photos. *@
+<SettingsSectionPanel Title="Import" Description="@Description">
+    <Actions>
+        <AppButton Label="Scan now" StartIcon="@AppMaterialIcons.Outlined.Sync" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="ScanAsync" />
+        @if (!ReadOnly)
+        {
+            <label class="view-import__add@(_busy ? " is-busy" : string.Empty)" aria-disabled="@_busy">
+                <InputFile class="view-import__input" OnChange="AddFilesAsync" multiple disabled="@_busy" accept="@Accept" />
+                <span class="view-import__add-label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_busy ? "Working…" : "Add files")</span>
+            </label>
+        }
+    </Actions>
+    <ChildContent>
+        @if (_summary is null)
+        {
+            <p role="status">@(_failed ? "The Import area could not be read." : "Loading the Import area…")</p>
+        }
+        else
+        {
+            @if (!_summary.Available)
+            {
+                <AppAlert Tone="AppUiTone.Warning">The Import folder can't be reached right now, so nothing is filed until it is back. Files already in the library are not affected.</AppAlert>
+            }
+            <div class="view-import__where">
+                <span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
+                <div>
+                    <strong>@KindLabel Import folder</strong>
+                    <code>@_summary.ImportPath</code>
+                    <small>Copy @KindNoun here. A file in a folder named <em>Shared</em> goes to the Shared Library, and a folder named after a person goes to that person's library; anything else goes to the first administrator's own library.</small>
+                </div>
+            </div>
+            <p class="view-import__waiting" data-testid="view-import-waiting">
+                @if (_summary.Waiting == 0)
+                {
+                    <span>Nothing is waiting to be filed.</span>
+                }
+                else
+                {
+                    <strong>@_summary.Waiting.ToString("N0") waiting</strong>
+                    <span> to be filed.</span>
+                    @if (!string.IsNullOrWhiteSpace(_summary.WaitingNote))
+                    {
+                        <AppInfoTip Text="@_summary.WaitingNote" Label="Why files are waiting" />
+                    }
+                }
+            </p>
+            <p class="view-import__layout">
+                Filed by the day they were taken, as <code>@_summary.LayoutPattern</code>. Change this on the File handling tab.
+            </p>
+            @if (_summary.Rejected.Count > 0)
+            {
+                <h4>Refused</h4>
+                <p class="view-import__refused-note">These were not added. Each stays in the Rejected area for @_summary.RetentionDays days, then is removed.</p>
+                <ul class="view-import__refused" aria-label="Refused files">
+                    @foreach (var file in _summary.Rejected)
+                    {
+                        <li @key="file.Id" data-testid="view-import-refused">
+                            <span class="view-import__refused-icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" /></span>
+                            <span class="view-import__refused-text">
+                                <strong>@file.FileName</strong>
+                                <small>@Capitalise(file.Reason)@(file.ExpiresAt is { } expires ? $" · removed {expires.ToLocalTime():MMM d}" : string.Empty)</small>
+                            </span>
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Remove {file.FileName} now")" Tooltip="Remove now" Disabled="@(ReadOnly || _busy)" OnClick="@(() => RemoveAsync(file))" />
+                        </li>
+                    }
+                </ul>
+                <small>Rejected area: <code>@_summary.RejectedPath</code></small>
+            }
+            @if (_summary.StrayCount > 0)
+            {
+                <AppAlert Tone="AppUiTone.Info">@(_summary.StrayCount == 1 ? "1 file in the Rejected area was not put there by Library." : $"{_summary.StrayCount:N0} files in the Rejected area were not put there by Library.") They were left as they are.</AppAlert>
+            }
+        }
+        @if (_error is not null) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
+    </ChildContent>
+</SettingsSectionPanel>
+
+@code {
+    /// <summary>The View kind: photos or personal_videos.</summary>
+    [Parameter, EditorRequired] public string Kind { get; set; } = string.Empty;
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Raised after files were filed, so the page's counts and folders can be read again.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private ViewIntakeSummaryDto? _summary;
+    private string? _loadedFor;
+    private string? _error;
+    private bool _busy, _failed;
+
+    private bool IsVideos => Kind == "personal_videos";
+    private string KindLabel => IsVideos ? "Personal videos" : "Photos";
+    private string KindNoun => IsVideos ? "videos" : "photos";
+    private string Accept => IsVideos ? "video/*" : "image/*";
+    private string Description => $"Copy {KindNoun} into one place and Library files them for you, checking each one first.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == Kind)
+        {
+            return;
+        }
+
+        _loadedFor = Kind;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _summary = await ApiClient.GetViewIntakeSummaryAsync(Kind);
+        _failed = _summary is null;
+    }
+
+    private async Task ScanAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            var result = await ApiClient.ScanViewImportAreaAsync();
+            if (result is null) _error = ApiClient.LastError ?? "The Import area could not be scanned.";
+            else
+            {
+                Snackbar.Add(result.Message, AppSeverity.Info);
+                await LoadAsync();
+                await Changed.InvokeAsync();
+            }
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task AddFilesAsync(InputFileChangeEventArgs args)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        int added = 0, already = 0, failed = 0;
+        string? firstProblem = null;
+        try
+        {
+            foreach (var file in args.GetMultipleFiles(500))
+            {
+                try
+                {
+                    await using var stream = file.OpenReadStream(file.Size);
+                    var result = await ApiClient.UploadViewMediaAsync(stream, file.Name, file.ContentType);
+                    if (!result.Success) { failed++; firstProblem ??= result.ErrorMessage; }
+                    else if (result.Upload?.Outcome == "duplicate") already++;
+                    else added++;
+                }
+                catch (Exception ex) when (ex is IOException or InvalidOperationException)
+                {
+                    failed++;
+                    firstProblem ??= $"{file.Name} could not be read.";
+                }
+            }
+
+            var parts = new List<string>();
+            if (added > 0) parts.Add($"{added:N0} added");
+            if (already > 0) parts.Add($"{already:N0} already in your library");
+            if (failed > 0) parts.Add($"{failed:N0} not added");
+            Snackbar.Add(parts.Count == 0 ? "No files were chosen." : string.Join(", ", parts) + ".", failed > 0 ? AppSeverity.Warning : AppSeverity.Success);
+            if (firstProblem is not null) _error = firstProblem;
+            await LoadAsync();
+            await Changed.InvokeAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task RemoveAsync(ViewIntakeRejectedDto file)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            if (await ApiClient.RemoveViewRejectedFileAsync(file.Id)) { await LoadAsync(); Snackbar.Add("Removed.", AppSeverity.Success); }
+            else _error = ApiClient.LastError ?? "The file could not be removed.";
+        }
+        finally { _busy = false; }
+    }
+
+    private static string Capitalise(string text) => string.IsNullOrEmpty(text) ? text : char.ToUpperInvariant(text[0]) + text[1..];
+}

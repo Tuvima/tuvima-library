@@ -58,7 +58,8 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         Func<ReviewListAttempt> reviews,
         Func<Task<bool>>? dismiss = null,
         Func<Task<bool>>? skipUniverse = null,
-        DashboardAuthorityResponse? authority = null)
+        DashboardAuthorityResponse? authority = null,
+        Func<string, ReviewListAttempt>? libraryReviews = null)
     {
         var result = new Registered([], [], []);
         var session = new DashboardSessionAccessor();
@@ -68,6 +69,10 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         {
             result.EngineCalls = stub.Calls;
             stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), _ => Task.FromResult(reviews()));
+            if (libraryReviews is not null)
+            {
+                stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsForLibraryAttemptAsync), args => Task.FromResult(libraryReviews((string)args![0]!)));
+            }
             stub.SetHandler(nameof(IEngineApiClient.DismissReviewItemAsync), args =>
             {
                 result.Dismissed.Add((Guid)args![0]!);
@@ -322,6 +327,24 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         Assert.Contains("Needs Review", cut.Markup);
         Assert.Contains(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), registered.EngineCalls);
         Assert.Contains(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+    }
+
+    [Fact]
+    public void WithALibrary_TheListIsRequestedForThatLibrary_AndTheChipShowsAndClears()
+    {
+        var asked = new List<string>();
+        var registered = Register(
+            () => Loaded(Item(FirstId, "Pending Book"), Item(SecondId, "Other Library Book")),
+            libraryReviews: library => { asked.Add(library); return Loaded(Item(FirstId, "Pending Book")); });
+
+        var cut = Render<NeedsReviewPageContent>(parameters => parameters.Add(p => p.Library, "library-a"));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
+        Assert.Equal(["library-a"], asked);
+        Assert.Contains("Showing:", cut.Markup);
+        Assert.Contains(nameof(IEngineApiClient.GetPendingReviewsForLibraryAttemptAsync), registered.EngineCalls);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), registered.EngineCalls);
+        Assert.Single(cut.FindAll("[data-needs-review-scope=library]"));
     }
 
     [Fact]

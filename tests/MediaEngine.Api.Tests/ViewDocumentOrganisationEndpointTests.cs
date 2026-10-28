@@ -9,6 +9,7 @@ using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Filing;
+using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Authorization;
@@ -1492,6 +1493,9 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
                 services.AddSingleton(storage);
                 services.AddSingleton(library);
                 services.AddSingleton((PhoneBackupProfileService)RuntimeHelpers.GetUninitializedObject(typeof(PhoneBackupProfileService)));
+                services.AddSingleton(new ViewIntakeFiler(new ViewIntakeAreas(configuration, new ProfileRepository(_database)),
+                    new ViewIntakeRepository(_database), library, storage, _assets, configuration, TimeProvider.System,
+                    NullLogger<ViewIntakeFiler>.Instance));
             });
         try
         {
@@ -1516,10 +1520,10 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
             Assert.Equal(HttpStatusCode.Forbidden, await UploadAsync(blocked, "notes.txt", 5, 6, 7));
             Assert.Equal(0, ItemsOf(blocked));
 
-            // Photos still upload for both.
-            Assert.Equal(HttpStatusCode.OK, await UploadAsync(blocked, "Beach.jpg", 9, 8, 7, 6));
+            // Photos still upload for both (a whole JPEG: photos are checked before they are filed).
+            Assert.Equal(HttpStatusCode.OK, await UploadAsync(blocked, "Beach.jpg", WholeJpeg(1)));
             Assert.Equal(1, ItemsOf(blocked));
-            Assert.Equal(HttpStatusCode.OK, await UploadAsync(allowed, "Hill.jpg", 4, 3, 2, 1));
+            Assert.Equal(HttpStatusCode.OK, await UploadAsync(allowed, "Hill.jpg", WholeJpeg(2)));
         }
         finally
         {
@@ -1658,6 +1662,9 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     private const string ContributionService = "AReviewerWithoutDocumentsNeverSeesADocumentInAContribution";
     private const string ContributionSend = "AProfileWithoutDocumentsCannotPreviewSubmitOrDirectAddADocument";
     private const string Discovery = "Places_Atlas_PlaceMediaAndPeople_NeverIncludeADocumentEvenWithLocationOrPersonMetadata";
+    private static byte[] WholeJpeg(int seed) =>
+        [0xFF, 0xD8, 0xFF, 0xE0, .. Enumerable.Range(0, 32).Select(i => (byte)((i * 7 + seed) & 0x7F)), 0xFF, 0xD9];
+
     private const string UploadRefusal = "ADocumentUploadIsRefusedBeforeAnythingIsStoredForAProfileWithoutDocuments";
     private const string ClientDocuments = "AProfileWithoutDocumentsLearnsOfNoDocumentThroughTimelineGalleriesCountsPeoplePlacesItemsOrFiles";
     private const string TrashWithoutDocuments = "AProfileWithoutDocuments_NeverSeesDocumentsInItsTrash";
@@ -1676,6 +1683,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     {
         ["DELETE /view/admin/profiles/{profileId:guid}/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
         ["DELETE /view/admin/shared/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
+        ["DELETE /view/admin/intake/rejected/{id:guid}"] = NoItems + "administrator Import area for photos and videos, never documents",
         ["DELETE /view/correspondents/{id:guid}"] = Refused,
         ["DELETE /view/document-fields/{id:guid}"] = Refused,
         ["DELETE /view/document-rules/{id:guid}"] = Refused,
@@ -1683,6 +1691,11 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["DELETE /view/galleries/{id:guid}"] = NoItems + "deletes the Gallery and returns nothing",
         ["DELETE /view/galleries/{id:guid}/items"] = Covers(GalleryWrite, "HttpMethod.Delete"),
         ["DELETE /view/tags/{id:guid}"] = Refused,
+        ["GET /view/admin/duplicates"] = NoItems + "administrator report of photo and video copies in the Shared Library or the administrator's own library, never documents",
+        ["GET /view/admin/intake/layout"] = NoItems + "administrator filing layout, no items",
+        ["GET /view/admin/intake/{kind}"] = NoItems + "administrator Import area summary for photos and videos, never documents",
+        ["GET /view/admin/intake/{kind}/activity"] = NoItems + "administrator Activity for photos and videos as counts and reasons, never documents",
+        ["GET /view/admin/tidy/{sourceId:guid}"] = NoItems + "administrator Tidy status of a photos or videos folder, no items",
         ["GET /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/admin/shared/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/assets"] = Refused,
@@ -1717,6 +1730,13 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["GET /view/shared/contributions/{id:guid}"] = Covers(ContributionRoutes, "contributions/{documentsOnly"),
         ["GET /view/tag-suggestions"] = Covers(TagSuggestions, "/view/tag-suggestions"),
         ["GET /view/trash/summary"] = Covers(TrashWithoutDocuments, "/view/trash/summary"),
+        ["POST /view/admin/duplicates/{id:guid}/dismiss"] = NoItems + "administrator duplicate groups of photos and videos only, never documents",
+        ["POST /view/admin/duplicates/{id:guid}/keep"] = NoItems + "administrator duplicate groups of photos and videos only, never documents",
+        ["POST /view/admin/duplicates/scan"] = NoItems + "administrator duplicate groups of photos and videos only, never documents",
+        ["POST /view/admin/intake/scan"] = NoItems + "administrator Import area scan, file totals only, no item data",
+        ["POST /view/admin/tidy/{sourceId:guid}/run"] = NoItems + "administrator Tidy of a photos or videos folder, no items",
+        ["PUT /view/admin/intake/layout"] = NoItems + "administrator filing layout, no items",
+        ["PUT /view/admin/tidy/{sourceId:guid}/schedule"] = NoItems + "administrator Tidy schedule of a photos or videos folder, no items",
         ["POST /view/admin/profiles/{profileId:guid}/reconcile"] = NoItems + "administrator scan, file totals only, no item data",
         ["POST /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
         ["POST /view/admin/shared/reconcile"] = NoItems + "administrator scan, file totals only, no item data",

@@ -72,6 +72,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     private const string DisambiguationFileName = "disambiguation.json";
     private const string TranscodingFileName = "transcoding.json";
     private const string OcrFileName = "ocr.json";
+    private const string PhotoFilingFileName = "photo_filing.json";
     private const string ToolDownloadsFileName = "tool_downloads.json";
     private const string NetworkFileName = "network.json";
     private const string FieldPrioritiesFileName = "field_priorities.json";
@@ -185,6 +186,14 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     /// <inheritdoc/>
     public void SaveOcr(OcrSettings settings) =>
         SaveFile(OcrFileName, settings);
+
+    /// <inheritdoc/>
+    public PhotoFilingSettings LoadPhotoFiling() =>
+        LoadFile<PhotoFilingSettings>(PhotoFilingFileName) ?? new();
+
+    /// <inheritdoc/>
+    public void SavePhotoFiling(PhotoFilingSettings settings) =>
+        SaveFile(PhotoFilingFileName, settings);
 
     /// <inheritdoc/>
     public ToolDownloadSettings LoadToolDownloads()

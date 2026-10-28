@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.LocalAssets;
+using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Paging;
@@ -343,7 +344,7 @@ public static partial class ViewEndpoints
 
         group.MapPost("/uploads", async (IFormFile file,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            ViewLibraryService service, ViewStorageService storage,
+            ViewLibraryService service, ViewStorageService storage, [FromServices] ViewIntakeFiler filer,
             [FromServices] PhoneBackupProfileService backup, [FromServices] IViewProfileRepository policies,
             CancellationToken ct) =>
         {
@@ -409,11 +410,33 @@ public static partial class ViewEndpoints
             try
             {
                 await using var input = file.OpenReadStream();
+                // Photos and personal videos go through the one filer: checked, dated, filed by day and checked for an exact copy.
                 // The item is recorded as added by the profile making the request, even when a paired phone's backup lands in
                 // someone else's space.
+                if (ViewLibraryService.OwnKindOfFileName(file.FileName) is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos)
+                {
+                    var filed = await filer.FileUploadAsync(profileId, file.FileName, input, requesterProfileId, ct);
+                    return filed.Outcome switch
+                    {
+                        IntakeOutcomes.Rejected => ApiErrors.Unprocessable(
+                            $"\"{filed.FileName}\" was not added: it is {filed.ReasonText}. It is kept in the Rejected area for a while."),
+                        IntakeOutcomes.Deferred => ApiErrors.Problem(StatusCodes.Status503ServiceUnavailable, "Not filed yet",
+                            filed.ReasonText ?? "The file could not be filed yet."),
+                        IntakeOutcomes.Duplicate => Results.Ok(new ViewUploadResponseDto(
+                            filed.ItemId ?? Guid.Empty, false, 0, 0, IntakeOutcomes.Duplicate,
+                            $"\"{filed.FileName}\" is already in your library.")),
+                        _ => Results.Ok(new ViewUploadResponseDto(
+                            filed.ItemId ?? Guid.Empty, filed.ItemAdded, filed.FilesAdded, filed.SourcesAdded)),
+                    };
+                }
+
                 var result = await service.UploadAsync(profileId, file.FileName, input, ct, requesterProfileId);
                 return Results.Ok(new ViewUploadResponseDto(
                     result.ItemId, result.ItemAdded, result.FilesAdded, result.SourcesAdded));
+            }
+            catch (IntakeRefusedException refused)
+            {
+                return ApiErrors.Problem(refused.StatusCode, "Not added", refused.Message);
             }
             catch (Exception exception) when (exception is ArgumentException or InvalidDataException or InvalidOperationException)
             {
@@ -643,6 +666,7 @@ public static partial class ViewEndpoints
         MapDocumentFiling(group);
         MapDocumentBulk(group);
         MapTrash(group);
+        MapIntake(group);
 
         group.MapPut("/items/{id:guid}/people", async (Guid id,
             UpdateLocalAssetPeopleRequest request, IViewRequestProfileContext identity,

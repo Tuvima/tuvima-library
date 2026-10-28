@@ -1,0 +1,125 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+@* The duplicates report (Photo and video filing spec D16): exact copies already inside the Shared Library or this administrator's own library.
+   Keep one sends the rest to Trash (never straight to deletion); Leave them dismisses the group until more copies turn up. Nothing here
+   removes anything by itself. *@
+<SettingsSectionPanel Title="Duplicates" Description="Exact copies that are already in the Shared Library or in your own library. Nothing is removed unless you choose to.">
+    <Actions>
+        <AppButton Label="Look for duplicates" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Outlined" Loading="@_busy" Disabled="@(ReadOnly || _busy)" OnClick="ScanAsync" />
+    </Actions>
+    <ChildContent>
+        @if (_report is null)
+        {
+            <p role="status">@(_failed ? "The duplicates report could not be read." : "Loading the duplicates report…")</p>
+        }
+        else
+        {
+            <p class="view-duplicates__when">
+                @if (!_report.Enabled)
+                {
+                    <span>The nightly look is switched off.</span>
+                }
+                else
+                {
+                    <span>Looked for every night at @HourText(_report.ScanHour).</span>
+                }
+                @if (_report.LastScanAt is { } last)
+                {
+                    <span> Last looked @last.ToLocalTime().ToString("MMM d, h:mm tt").</span>
+                }
+            </p>
+            @if (_report.Groups.Count == 0)
+            {
+                <AppAlert Tone="AppUiTone.Success">No exact copies found.</AppAlert>
+            }
+            else
+            {
+                <ul class="view-duplicates__groups" aria-label="Groups of exact copies">
+                    @foreach (var group in _report.Groups)
+                    {
+                        <li @key="group.Id" data-testid="view-duplicates-group">
+                            <strong>@group.Copies.Count copies in @(group.Scope == "shared" ? "the Shared Library" : "your library")</strong>
+                            <ul class="view-duplicates__copies">
+                                @foreach (var copy in group.Copies)
+                                {
+                                    <li @key="copy.ItemId">
+                                        <span class="view-duplicates__name">@copy.FileName<small>@Describe(copy)</small></span>
+                                        <AppButton Label="Keep this one" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="@(() => KeepAsync(group, copy))" />
+                                    </li>
+                                }
+                            </ul>
+                            <AppButton Label="Leave them" ButtonStyle="AppButtonStyle.Text" Disabled="@(ReadOnly || _busy)" OnClick="@(() => DismissAsync(group))" />
+                        </li>
+                    }
+                </ul>
+            }
+        }
+        @if (_error is not null) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
+    </ChildContent>
+</SettingsSectionPanel>
+
+@code {
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private ViewDuplicateReportDto? _report;
+    private string? _error;
+    private bool _busy, _failed;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _report = await ApiClient.GetViewDuplicatesAsync();
+        _failed = _report is null;
+    }
+
+    private async Task ScanAsync()
+    {
+        await RunAsync(async () =>
+        {
+            _report = await ApiClient.ScanViewDuplicatesAsync();
+            if (_report is null) _error = ApiClient.LastError ?? "The duplicates could not be looked for.";
+            else Snackbar.Add(_report.Groups.Count == 0 ? "No exact copies found." : $"{_report.Groups.Count:N0} groups of exact copies found.", AppSeverity.Info);
+        });
+    }
+
+    private async Task KeepAsync(ViewDuplicateGroupDto group, ViewDuplicateCopyDto copy)
+    {
+        await RunAsync(async () =>
+        {
+            var result = await ApiClient.KeepOneViewDuplicateAsync(group.Id, copy.ItemId);
+            if (result is null) { _error = ApiClient.LastError ?? "That could not be done."; return; }
+            Snackbar.Add(result.MovedToTrash == 1 ? "1 copy moved to Trash." : $"{result.MovedToTrash:N0} copies moved to Trash.", AppSeverity.Success);
+            await LoadAsync();
+        });
+    }
+
+    private async Task DismissAsync(ViewDuplicateGroupDto group)
+    {
+        await RunAsync(async () =>
+        {
+            if (!await ApiClient.DismissViewDuplicateAsync(group.Id)) { _error = ApiClient.LastError ?? "That could not be done."; return; }
+            await LoadAsync();
+        });
+    }
+
+    private async Task RunAsync(Func<Task> work)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        try { await work(); }
+        finally { _busy = false; }
+    }
+
+    private static string HourText(int hour) => DateTime.Today.AddHours(hour).ToString("h tt");
+
+    private static string Describe(ViewDuplicateCopyDto copy)
+    {
+        var size = copy.SizeBytes >= 1_048_576 ? $"{copy.SizeBytes / 1_048_576d:0.#} MB" : $"{Math.Max(1, copy.SizeBytes / 1024):N0} KB";
+        return DateTimeOffset.TryParse(copy.AddedAt, out var added) ? $"{size} · added {added.ToLocalTime():MMM d, yyyy}" : size;
+    }
+}

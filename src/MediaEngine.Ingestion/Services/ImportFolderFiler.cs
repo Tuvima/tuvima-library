@@ -78,7 +78,7 @@ public sealed class ImportFolderFiler : IImportFolderFiler
         try
         {
             files = SafeEnumerate(Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories), root)
-                .Where(file => !_importFolders.IsWorkingPath(file))
+                .Where(file => !_importFolders.IsWorkingPath(file) && !_importFolders.IsViewSectionPath(file))
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }

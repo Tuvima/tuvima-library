@@ -59,6 +59,10 @@
                 {
                     <ViewAccessTab Kind="@Kind" KindNoun="@KindNoun" ReadOnly="@ReadOnly" Profiles="@_profiles" />
                 }
+                else if (tab.Slug == LibraryShell.ActivityTab)
+                {
+                    <ViewActivityTab Kind="@Kind" />
+                }
                 else
                 {
                     <ViewFileHandlingTab Kind="@Kind" ReadOnly="@ReadOnly" />
@@ -101,11 +105,22 @@
 
     private sealed record TabDef(string Slug, string Label);
 
-    private static readonly IReadOnlyList<TabDef> Tabs =
+    // Photos and Personal videos have an Activity tab; Documents do not (nothing is filed by day there).
+    private IReadOnlyList<TabDef> Tabs => Kind == ViewContentKinds.Documents ? DocumentTabs : MediaTabs;
+
+    private static readonly IReadOnlyList<TabDef> DocumentTabs =
     [
         new(LibraryShell.FoldersTab, "Folders"),
         new(LibraryShell.AccessTab, "Access"),
         new(LibraryShell.FileHandlingTab, "File handling"),
+    ];
+
+    private static readonly IReadOnlyList<TabDef> MediaTabs =
+    [
+        new(LibraryShell.FoldersTab, "Folders"),
+        new(LibraryShell.AccessTab, "Access"),
+        new(LibraryShell.FileHandlingTab, "File handling"),
+        new(LibraryShell.ActivityTab, "Activity"),
     ];
 
     private int ActiveIndex => Math.Max(Tabs.ToList().FindIndex(tab => string.Equals(tab.Slug, Tab?.Trim(), StringComparison.OrdinalIgnoreCase)), 0);
