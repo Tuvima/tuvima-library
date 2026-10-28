@@ -73,7 +73,7 @@ public sealed class VaultPersonCreditsStorageTests : IDisposable
         var person = SeedPerson("Vault Only Performer", "QVAULTONLY");
         SeedWork("Movies", _vaultLibrary, "Vault Only Performer");
 
-        Assert.True(await new VaultLibraryRepository(_db).IsPersonOnlyInVaultAsync(person));
+        Assert.True(await new VaultLibraryRepository(_db).MayPersonBeVaultOnlyAsync(person));
     }
 
     [Fact]
@@ -83,21 +83,67 @@ public sealed class VaultPersonCreditsStorageTests : IDisposable
         SeedWork("Movies", _vaultLibrary, "Shared Performer");
         SeedWork("Movies", _ordinaryLibrary, "Shared Performer");
 
-        Assert.False(await new VaultLibraryRepository(_db).IsPersonOnlyInVaultAsync(person));
+        Assert.False(await new VaultLibraryRepository(_db).MayPersonBeVaultOnlyAsync(person));
     }
 
     [Fact]
-    public async Task APersonWithNoCreditedFile_OrOnlyOrdinaryFiles_IsNotVaultOnly()
+    public async Task APersonWithNoCreditedFileYet_IsTreatedAsUnknown_AndOnlyAnOrdinaryCreditedFileClearsThem()
     {
         var ordinaryOnly = SeedPerson("Ordinary Performer", "QORDINARY");
         SeedWork("Movies", _ordinaryLibrary, "Ordinary Performer");
         var uncredited = SeedPerson("Nobody Yet", null);
         var repository = new VaultLibraryRepository(_db);
 
-        Assert.False(await repository.IsPersonOnlyInVaultAsync(ordinaryOnly));
-        Assert.False(await repository.IsPersonOnlyInVaultAsync(uncredited));
-        Assert.False(await repository.IsPersonOnlyInVaultAsync(Guid.Empty));
-        Assert.False(await repository.IsPersonOnlyInVaultAsync(Guid.NewGuid()));
+        Assert.False(await repository.MayPersonBeVaultOnlyAsync(ordinaryOnly));
+        // No credited file is known yet (credits are written after the person), so the answer fails closed.
+        Assert.True(await repository.MayPersonBeVaultOnlyAsync(uncredited));
+        Assert.True(await repository.MayPersonBeVaultOnlyAsync(Guid.Empty));
+        Assert.True(await repository.MayPersonBeVaultOnlyAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task AFileWithNoLibraryYet_DoesNotProveAPersonIsOnTheSharedList()
+    {
+        var person = SeedPerson("Unplaced Performer", "QUNPLACED");
+        SeedWork("Movies", _vaultLibrary, "Unplaced Performer");
+        var unplaced = SeedWork("Movies", _ordinaryLibrary, "Unplaced Performer");
+        var repository = new VaultLibraryRepository(_db);
+        Assert.False(await repository.MayPersonBeVaultOnlyAsync(person));
+
+        using (var connection = _db.CreateConnection())
+        {
+            connection.Execute("UPDATE media_assets SET library_id = NULL WHERE id = @asset;", new { asset = unplaced.AssetId });
+        }
+
+        Assert.True(await repository.MayPersonBeVaultOnlyAsync(person));
+    }
+
+    [Fact]
+    public async Task CreditedFiles_IncludeVaultFiles_SoAReadCanTellAHiddenPersonFromOneWithNoCredits()
+    {
+        var person = SeedPerson("Shared Performer", "QSHARED");
+        var ordinary = SeedWork("Movies", _ordinaryLibrary, "Shared Performer");
+        var secret = SeedWork("Movies", _vaultLibrary, "Shared Performer");
+        var none = SeedPerson("Nobody Yet", null);
+
+        var files = await new PersonRepository(_db).GetCreditedFilesAsync([person, none]);
+
+        Assert.Contains(files, file => file.PersonId == person && file.AssetId == ordinary.AssetId && file.WorkId == ordinary.WorkId
+            && string.Equals(file.LibraryId, _ordinaryLibrary, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(files, file => file.PersonId == person && file.AssetId == secret.AssetId);
+        Assert.DoesNotContain(files, file => file.PersonId == none);
+    }
+
+    [Fact]
+    public async Task PresenceCredits_CarryTheWorkAndLibrary_SoAnotherFileOfAVisibleWorkCanBeRecognised()
+    {
+        var person = SeedPerson("Shared Performer", "QSHARED");
+        var ordinary = SeedWork("Movies", _ordinaryLibrary, "Shared Performer");
+
+        var credit = Assert.Single(await new PersonRepository(_db).GetPresenceCreditsAsync([person]));
+
+        Assert.Equal(ordinary.WorkId, credit.WorkId);
+        Assert.Equal(_ordinaryLibrary, credit.LibraryId, ignoreCase: true);
     }
 
     [Fact]
@@ -109,10 +155,10 @@ public sealed class VaultPersonCreditsStorageTests : IDisposable
         var repository = new VaultLibraryRepository(_db);
 
         Link(person, secret.AssetId);
-        Assert.True(await repository.IsPersonOnlyInVaultAsync(person));
+        Assert.True(await repository.MayPersonBeVaultOnlyAsync(person));
 
         Link(person, ordinary.AssetId);
-        Assert.False(await repository.IsPersonOnlyInVaultAsync(person));
+        Assert.False(await repository.MayPersonBeVaultOnlyAsync(person));
     }
 
     private Guid SeedPerson(string name, string? qid)

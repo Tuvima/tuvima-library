@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
@@ -73,7 +74,8 @@ public sealed class DetailComposerService
         IReadOnlyList<Guid>? authorizedAssetIds = null,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks = null,
         SequenceWindowRequest? sequenceWindow = null,
-        UniverseLinkResolver? universeLinks = null)
+        UniverseLinkResolver? universeLinks = null,
+        ViewerCatalogue? viewerCatalogue = null)
         => _composer.BuildAsync(
             entityType,
             id,
@@ -85,7 +87,8 @@ public sealed class DetailComposerService
             authorizedAssetIds,
             authorizedWorks,
             sequenceWindow,
-            universeLinks);
+            universeLinks,
+            viewerCatalogue);
 
     public static bool TryParseEntityType(string value, out DetailEntityType entityType)
         => DetailPresentationPolicy.TryParseEntityType(value, out entityType);

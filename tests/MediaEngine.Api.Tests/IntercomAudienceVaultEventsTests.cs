@@ -173,8 +173,100 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
             new PersonEnrichedEvent(person, "Shared Performer", null, "QSHARED")));
         Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched,
             new PersonEnrichedEvent(SeedPerson("Ordinary Performer", "QORDINARY", _ordinaryWork), "Ordinary Performer", null, "QORDINARY")));
-        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched,
-            new PersonEnrichedEvent(SeedPerson("Uncredited Person", null), "Uncredited Person", null, null)));
+    }
+
+    [Fact]
+    public async Task APersonWithNoCreditedFileYet_IsHeldBack_FromEverySessionWithoutVaultMode_AdministratorsIncluded()
+    {
+        // Credits are written after the person is created, so "no credited file known" is unknown, not "shared": it fails closed.
+        await SeedAsync(administrator: true);
+        var uncredited = SeedPerson("Uncredited Person", null);
+        var authorizer = Authorizer();
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+        var enriched = new PersonEnrichedEvent(uncredited, "Uncredited Person", null, null);
+
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched, enriched));
+
+        await UnlockAsync();
+
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched, enriched));
+    }
+
+    [Fact]
+    public async Task APersonOnlyLinkedToFilesWithNoLibraryYet_IsHeldBack_UntilAFileInAKnownOrdinaryLibraryCreditsThem()
+    {
+        await SeedAsync(administrator: true);
+        var person = SeedPerson("Unplaced Person", "QUNPLACED", _vaultWork, _ordinaryWork);
+        using (var database = _database.CreateConnection())
+        {
+            // The only ordinary file has no library recorded yet, so it cannot prove the person is on the shared list.
+            Dapper.SqlMapper.Execute(database, "UPDATE media_assets SET library_id = NULL WHERE id = @asset;", new { asset = GuidSql.ToBlob(_ordinaryAsset) });
+        }
+
+        var authorizer = Authorizer();
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.PersonEnriched,
+            new PersonEnrichedEvent(person, "Unplaced Person", null, "QUNPLACED")));
+    }
+
+    [Fact]
+    public async Task ThePersonAnswer_IsWorkedOutOncePerEvent_NotOncePerConnectedSession()
+    {
+        await SeedAsync(administrator: true);
+        var person = SeedPerson("Shared Performer", "QSHARED", _vaultWork, _ordinaryWork);
+        var counting = CountingVaultLibraries.Wrap(new VaultLibraryRepository(_database));
+        var authorizer = new IntercomAudienceAuthorizer(
+            _identities, _accounts, new ProfileAccessRepository(_database),
+            new Resources(_vaultAsset, _vaultLibrary, _ordinaryAsset, _ordinaryLibrary), TimeProvider.System,
+            counting.Repository, new NsfwAccessRepository(_database),
+            new VaultPathClassifier(new VaultLibraryRepository(_database), _configuration),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+        var first = new IntercomAudienceConnection("first", _sessionId, _accountId);
+        var second = new IntercomAudienceConnection("second", _sessionId, _accountId);
+        var enriched = new PersonEnrichedEvent(person, "Shared Performer", null, "QSHARED");
+
+        Assert.True(await authorizer.CanReceiveAsync(first, SignalREvents.PersonEnriched, enriched));
+        Assert.True(await authorizer.CanReceiveAsync(second, SignalREvents.PersonEnriched, enriched));
+        Assert.Equal(1, counting.Calls("MayPersonBeVaultOnlyAsync"));
+
+        Assert.True(await authorizer.CanReceiveAsync(first, SignalREvents.PersonEnriched, enriched with { Name = "Shared Performer" }));
+        Assert.Equal(2, counting.Calls("MayPersonBeVaultOnlyAsync"));
+    }
+
+    /// <summary>Counts the calls made to a real Vault library repository, without a hand-written copy of its whole contract.</summary>
+    private class CountingVaultLibraries : DispatchProxy
+    {
+        private readonly Dictionary<string, int> _calls = new(StringComparer.Ordinal);
+        private IVaultLibraryRepository _inner = null!;
+
+        public static (IVaultLibraryRepository Repository, Func<string, int> Calls) Wrap(IVaultLibraryRepository inner) => WrapCore(inner);
+
+        private static (IVaultLibraryRepository, Func<string, int>) WrapCore(IVaultLibraryRepository inner)
+        {
+            var proxy = Create<IVaultLibraryRepository, CountingVaultLibraries>();
+            var counter = (CountingVaultLibraries)(object)proxy;
+            counter._inner = inner;
+            return (proxy, name => counter._calls.GetValueOrDefault(name));
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            ArgumentNullException.ThrowIfNull(targetMethod);
+            lock (_calls)
+            {
+                _calls[targetMethod.Name] = _calls.GetValueOrDefault(targetMethod.Name) + 1;
+            }
+
+            try
+            {
+                return targetMethod.Invoke(_inner, args);
+            }
+            catch (TargetInvocationException exception) when (exception.InnerException is not null)
+            {
+                throw exception.InnerException;
+            }
+        }
     }
 
     [Fact]

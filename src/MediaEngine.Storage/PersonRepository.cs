@@ -92,6 +92,8 @@ public sealed class PersonRepository : IPersonRepository
         public string MediaType { get; init; } = "";
         public Guid DisplayWorkId { get; init; }
         public Guid AssetId { get; init; }
+        public Guid WorkId { get; init; }
+        public string? LibraryId { get; init; }
     }
 
     public PersonRepository(IDatabaseConnection db)
@@ -942,7 +944,9 @@ public sealed class PersonRepository : IPersonRepository
                            WHEN w.work_kind = 'parent' AND parent.id IS NOT NULL THEN COALESCE(gp.id, parent.id, w.id)
                            ELSE w.id
                        END AS DisplayWorkId,
-                       ma.id AS AssetId
+                       ma.id AS AssetId,
+                       w.id AS WorkId,
+                       ma.library_id AS LibraryId
                 FROM persons p
                 JOIN presence_credit_rows primary_credit ON primary_credit.person_id = p.id
                 JOIN media_assets ma ON ma.id = primary_credit.media_asset_id
@@ -958,7 +962,7 @@ public sealed class PersonRepository : IPersonRepository
         }
 
         return Task.FromResult<IReadOnlyList<PersonPresenceCredit>>(
-            rows.Select(row => new PersonPresenceCredit(row.PersonId, row.MediaType, row.DisplayWorkId, row.AssetId)).ToList());
+            rows.Select(row => new PersonPresenceCredit(row.PersonId, row.MediaType, row.DisplayWorkId, row.AssetId, row.WorkId, row.LibraryId)).ToList());
     }
 
     // -------------------------------------------------------------------------
@@ -985,6 +989,62 @@ public sealed class PersonRepository : IPersonRepository
             """, p);
 
         return Task.CompletedTask;
+    }
+
+    private sealed record CreditedFileRow
+    {
+        public Guid PersonId { get; init; }
+        public Guid WorkId { get; init; }
+        public Guid AssetId { get; init; }
+        public string? LibraryId { get; init; }
+    }
+
+    public Task<IReadOnlyList<PersonCreditedFile>> GetCreditedFilesAsync(
+        IEnumerable<Guid> personIds,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var idList = personIds.Distinct().ToList();
+        if (idList.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<PersonCreditedFile>>([]);
+        }
+
+        using var conn = _db.CreateConnection();
+        var rows = new List<CreditedFileRow>();
+        foreach (var batch in idList.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            ct.ThrowIfCancellationRequested();
+            var p = new DynamicParameters();
+            var personIdClause = AddGuidBlobList(p, "personId", batch);
+            var candidateAssetsCte = PersonCreditSql.CandidateAssetsCte(
+                "footprint_candidate_assets",
+                $"SELECT id, name, wikidata_qid FROM persons WHERE id IN ({personIdClause})",
+                "fc_");
+            var scopedCreditsCte = PersonCreditSql.ScopedCreditsCte(
+                "footprint_credit_rows",
+                "SELECT asset_id FROM footprint_candidate_assets",
+                "ff_");
+            // Deliberately no Vault predicate: the caller needs to know a person IS credited somewhere the viewer cannot see.
+            rows.AddRange(conn.Query<CreditedFileRow>($"""
+                WITH {candidateAssetsCte},
+                {scopedCreditsCte}
+                SELECT DISTINCT credit.person_id AS PersonId, w.id AS WorkId, ma.id AS AssetId, ma.library_id AS LibraryId
+                FROM (
+                    SELECT person_id, media_asset_id FROM footprint_credit_rows WHERE person_id IN ({personIdClause})
+                    UNION
+                    SELECT person_id, media_asset_id FROM person_media_links WHERE person_id IN ({personIdClause})
+                ) credit
+                JOIN media_assets ma ON ma.id = credit.media_asset_id
+                JOIN editions e ON e.id = ma.edition_id
+                JOIN works w ON w.id = e.work_id
+                WHERE ma.is_orphaned = 0;
+                """, p));
+        }
+
+        return Task.FromResult<IReadOnlyList<PersonCreditedFile>>(
+            rows.Select(row => new PersonCreditedFile(row.PersonId, row.WorkId, row.AssetId, row.LibraryId)).ToList());
     }
 
     /// <inheritdoc/>

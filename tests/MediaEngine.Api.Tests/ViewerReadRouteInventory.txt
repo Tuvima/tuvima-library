@@ -44,7 +44,11 @@
 /entity-editor/universes/* | display-projection | Endpoints/SharedEntityEditorEndpoints.cs | universe pages over the authorized projection and per-entity checks
 /library/works | display-projection | Endpoints/LibraryEndpoints.cs | the works the viewer may see
 /network/* | system | Endpoints/NetworkEndpoints.cs | network facts of this machine
-/persons* | viewer-access-service | Endpoints/PersonEndpoints.cs | the people list, role counts and presence counts start from the viewer's catalogue (leak 2)
+/persons | viewer-access-service | Endpoints/PersonEndpoints.cs | the people list starts from the viewer's catalogue (leak 2)
+/persons/presence | viewer-access-service | Endpoints/PersonEndpoints.cs | presence counts start from the viewer's catalogue (leak 2)
+/persons/role-counts | viewer-access-service | Endpoints/PersonEndpoints.cs | role counts start from the viewer's catalogue (leak 2)
+# Every other /persons route is checked per person (RequireCatalogueEntityAccess). PersonRoutesAreReviewedOneByOne pins each one, and the
+# people a route reaches through a link (aliases, group members) go through the viewer's catalogue as well.
 /plugin-host/v1/* | plugin | Endpoints/PluginHostEndpoints.cs | the plugin host's own records
 /plugin-pages/* | plugin | Endpoints/PluginPageEndpoints.cs | plugin pages and menu
 /plugins/* | plugin | Endpoints/PluginEndpoints.cs | a plugin's connection state for the caller

@@ -247,6 +247,7 @@ public static class PersonEndpoints
             IEntityAssetRepository assetRepo,
             IPersonCreditReadService personCreditReadService,
             PersonEditorReadService editorData,
+            IViewerAccessService viewerAccess,
             CancellationToken ct) =>
         {
             var person = await personRepo.FindByIdAsync(id, ct);
@@ -255,8 +256,9 @@ public static class PersonEndpoints
                 return ApiErrors.NotFound($"Person '{id}' not found.");
             }
 
-            var groupMembers = await personCreditReadService.GetGroupMembersAsync(id, person.IsGroup, ct);
-            var memberOfGroups = await personCreditReadService.GetGroupMembersAsync(id, false, ct);
+            var viewer = await viewerAccess.GetCatalogueAsync(ct);
+            var groupMembers = await personCreditReadService.GetGroupMembersAsync(id, person.IsGroup, viewer, ct);
+            var memberOfGroups = await personCreditReadService.GetGroupMembersAsync(id, false, viewer, ct);
             var preferredBackground = await assetRepo.GetPreferredAsync(id.ToString(), "Background", ct);
             var preferredLogo = await assetRepo.GetPreferredAsync(id.ToString(), "Logo", ct);
             var preferredHeadshot = await assetRepo.GetPreferredAsync(id.ToString(), "Headshot", ct);
@@ -304,9 +306,10 @@ public static class PersonEndpoints
         group.MapGet("/{id:guid}/aliases", async (
             Guid id,
             IPersonAliasReadService aliasReadService,
+            IViewerAccessService viewerAccess,
             CancellationToken ct) =>
         {
-            var response = await aliasReadService.GetAliasesAsync(id, ct);
+            var response = await aliasReadService.GetAliasesAsync(id, await viewerAccess.GetCatalogueAsync(ct), ct);
             return response is null
                 ? ApiErrors.NotFound($"Person '{id}' not found.")
                 : Results.Ok(response);

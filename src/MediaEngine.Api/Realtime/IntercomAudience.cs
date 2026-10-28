@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
@@ -40,7 +41,7 @@ public sealed class IntercomAudienceAuthorizer(
     /// <summary>
     /// Events whose payload names a file, a folder or an item, so the audience decides by where it sits: an item or path in a Vault
     /// library reaches only an unlocked session. A person-enriched event is classified by where the person is credited: a person known
-    /// only from Vault items is a Vault subject, so their name reaches only an unlocked session (security review leak 3). Every event
+    /// only from Vault items, or not yet known from any file, is a Vault subject, so their name reaches only an unlocked session (security review leak 3). Every event
     /// in <see cref="SignalREvents"/> is either listed here or in
     /// <see cref="VaultFreeEvents"/> with the reason it cannot carry Vault content; a test fails for a new one that is neither.
     /// </summary>
@@ -184,11 +185,20 @@ public sealed class IntercomAudienceAuthorizer(
             }
         }
 
-        // A person is on the shared people list as soon as one ordinary file credits them; a person credited only on Vault files is not,
-        // and their name must not be broadcast to a session that cannot see the Vault.
+        // A person is on the shared people list as soon as one ordinary file credits them; a person credited only on Vault files, or whose
+        // credits are not known yet, is held back from a session that cannot see the Vault (it fails closed). The answer is worked out
+        // once per event, not once per connected session.
         return payload is PersonEnrichedEvent person
-            && await vaultLibraries.IsPersonOnlyInVaultAsync(person.PersonId, ct).ConfigureAwait(false);
+            && await PersonMayBeVaultOnlyAsync(person, ct).ConfigureAwait(false);
     }
+
+    private readonly ConditionalWeakTable<PersonEnrichedEvent, Lazy<Task<bool>>> _personAnswers = new();
+
+    private Task<bool> PersonMayBeVaultOnlyAsync(PersonEnrichedEvent person, CancellationToken ct) =>
+        _personAnswers.GetValue(
+            person,
+            key => new Lazy<Task<bool>>(() => vaultLibraries.MayPersonBeVaultOnlyAsync(key.PersonId, CancellationToken.None))).Value
+            .WaitAsync(ct);
 
     private static IEnumerable<Guid> SubjectIds<T>(T payload, Guid? assetId) where T : notnull
     {

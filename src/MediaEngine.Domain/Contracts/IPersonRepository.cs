@@ -17,7 +17,10 @@ public sealed record CharacterPerformerCredit(
 /// One credit of a person on one owned file, as the presence counts see it: the top-level work it counts towards (the show or album
 /// for an episode or track) and the file itself, so a caller that knows which files a viewer may see can count only those.
 /// </summary>
-public sealed record PersonPresenceCredit(Guid PersonId, string MediaType, Guid DisplayWorkId, Guid AssetId);
+public sealed record PersonPresenceCredit(Guid PersonId, string MediaType, Guid DisplayWorkId, Guid AssetId, Guid WorkId, string? LibraryId);
+
+/// <summary>One file that credits a person, with the work it belongs to and the library it sits in. Includes Vault files.</summary>
+public sealed record PersonCreditedFile(Guid PersonId, Guid WorkId, Guid AssetId, string? LibraryId);
 
 /// <summary>
 /// Persistence contract for <see cref="Person"/> records and their links
@@ -84,6 +87,15 @@ public interface IPersonRepository
     /// include a title the viewer could not open (security review leak 2).
     /// </summary>
     Task<IReadOnlyList<PersonPresenceCredit>> GetPresenceCreditsAsync(
+        IEnumerable<Guid> personIds,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Every file that credits each person, by the canonical credits or the enrichment links, <b>including files in the Vault</b>.
+    /// It exists only so a viewer-aware read can tell a person with no credited file at all (always shown, as before) from a person
+    /// whose credited files the viewer cannot see (hidden). Never return its rows to a caller; reduce them to a yes or no for a viewer.
+    /// </summary>
+    Task<IReadOnlyList<PersonCreditedFile>> GetCreditedFilesAsync(
         IEnumerable<Guid> personIds,
         CancellationToken ct = default);
 

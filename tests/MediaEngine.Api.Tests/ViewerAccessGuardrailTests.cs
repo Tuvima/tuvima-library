@@ -49,6 +49,7 @@ public sealed class ViewerAccessGuardrailTests
     private static readonly Dictionary<string, (string Mechanism, string Why)> ReviewedReaders = new(StringComparer.Ordinal)
     {
         ["src/MediaEngine.Api/Services/ReadServices/PersonReadServices.cs"] = ("viewer-catalogue", "people and presence reads take the viewer's catalogue"),
+        ["src/MediaEngine.Api/Services/ReadServices/LinkedPersonVisibility.cs"] = ("viewer-catalogue", "people reached through a link are shown only when the viewer could open them"),
         ["src/MediaEngine.Api/Endpoints/PersonEndpoints.cs"] = ("viewer-catalogue", "asks the access service for the catalogue and passes it on"),
         ["src/MediaEngine.Api/Services/Display/ContributorShelfReadService.cs"] = ("viewer-scoped", "credits are kept only for files of the authorized works list"),
         ["src/MediaEngine.Api/Services/ReadServices/CollectionBrowseReadService.cs"] = ("vault-predicate", "raw reads carry the Vault predicate; grouped reads are scoped by the viewer's work ids"),
@@ -85,7 +86,7 @@ public sealed class ViewerAccessGuardrailTests
 
     private static readonly string[] PeopleReads =
     [
-        "GetPresenceBatchAsync", "GetPresenceCreditsAsync", "IPersonPresenceReadService", "IPersonAssetScopeReadService",
+        "GetPresenceBatchAsync", "GetPresenceCreditsAsync", "GetCreditedFilesAsync", "IPersonPresenceReadService", "IPersonAssetScopeReadService",
         "PersonPresenceReadService", "PersonAssetScopeReadService", "GetPresenceAsync", "GetCanonicalPersonIdsAsync", "GetCanonicalRoleCountsAsync",
     ];
 
@@ -104,6 +105,79 @@ public sealed class ViewerAccessGuardrailTests
             "These GET routes can be called by a viewer and neither check the resource nor appear in " + InventoryFile
             + ". Route them through IViewerAccessService, the authorized display projection or a catalogue check, then list them with the mechanism: "
             + string.Join(", ", unlisted));
+    }
+
+    // Every route under /persons, one by one. A route that returns people, counts or the people linked to a person (aliases, group
+    // members) must hand its handler the viewer's catalogue from IViewerAccessService; a route that returns no other person says why.
+    // A new /persons route fails until it is added to one of these two lists.
+    private static readonly string[] PersonRoutesThatAskTheViewerAccessService =
+    [
+        "/", "/presence", "/role-counts", "/by-collection/{collectionId:guid}", "/by-work/{workId:guid}",
+        "/{id:guid}", "/{id:guid}/aliases", "/{id:guid}/library-credits", "/{id:guid}/works",
+    ];
+
+    private static readonly string[] PersonRoutesThatReturnNoOtherPerson =
+    [
+        "/{id:guid}/editor", "/{id:guid}/artwork", "/{id:guid}/headshot",
+    ];
+
+    [Fact]
+    public void PersonRoutesAreReviewedOneByOne_AndTheLinkedPeopleOnesCallTheViewerAccessService()
+    {
+        var text = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Api", "Endpoints", "PersonEndpoints.cs"));
+
+        var problems = FindUnreviewedPersonRoutes(text);
+
+        Assert.True(problems.Count == 0, "PersonEndpoints.cs changed without review: " + string.Join("; ", problems));
+    }
+
+    [Fact]
+    public void ThePersonRouteScanner_FlagsANewRoute_AndAViewerRouteThatNeverCallsTheService()
+    {
+        var problems = FindUnreviewedPersonRoutes(
+            "group.MapGet(\"/{id:guid}/relatives\", async () => { var x = 1; })\n"
+            + "group.MapGet(\"/presence\", async (IViewerAccessService viewerAccess) => { var viewer = 1; })\n"
+            + "group.MapGet(\"/{id:guid}/aliases\", async (IViewerAccessService viewerAccess) => { await viewerAccess.GetCatalogueAsync(ct); })\n");
+
+        Assert.Contains(problems, problem => problem.Contains("/relatives", StringComparison.Ordinal));
+        Assert.Contains(problems, problem => problem.Contains("/presence", StringComparison.Ordinal) && problem.Contains("viewerAccess", StringComparison.Ordinal));
+        Assert.DoesNotContain(problems, problem => problem.Contains("/aliases", StringComparison.Ordinal) && problem.Contains("viewerAccess", StringComparison.Ordinal));
+    }
+
+    private static List<string> FindUnreviewedPersonRoutes(string text)
+    {
+        var problems = new List<string>();
+        var matches = System.Text.RegularExpressions.Regex.Matches(text, "group\\.MapGet\\(\"(?<route>[^\"]*)\"");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < matches.Count; index++)
+        {
+            var route = matches[index].Groups["route"].Value;
+            seen.Add(route);
+            var end = index + 1 < matches.Count ? matches[index + 1].Index : text.Length;
+            var handler = text[matches[index].Index..end];
+            if (PersonRoutesThatAskTheViewerAccessService.Contains(route))
+            {
+                if (!handler.Contains("viewerAccess.Get", StringComparison.Ordinal))
+                {
+                    problems.Add($"{route} is reviewed as asking the access service but its handler never calls viewerAccess.Get...");
+                }
+            }
+            else if (!PersonRoutesThatReturnNoOtherPerson.Contains(route))
+            {
+                problems.Add($"{route} is a new /persons route; review it and list it");
+            }
+        }
+
+        // Only the real file maps them all; the seeded samples above map a few.
+        if (matches.Count >= PersonRoutesThatAskTheViewerAccessService.Length)
+        {
+            foreach (var route in PersonRoutesThatAskTheViewerAccessService.Concat(PersonRoutesThatReturnNoOtherPerson).Where(route => !seen.Contains(route)))
+            {
+                problems.Add($"{route} is listed but no longer mapped");
+            }
+        }
+
+        return problems;
     }
 
     [Fact]
@@ -266,7 +340,10 @@ public sealed class ViewerAccessGuardrailTests
         var offenders = typeof(IViewerAccessService).Assembly.GetTypes()
             .SelectMany(type => type.GetConstructors(all).Cast<MethodBase>().Concat(type.GetMethods(all)).Select(method => (type, method)))
             .Where(entry => entry.method.GetParameters().Any(parameter =>
-                parameter.IsOptional && (parameter.ParameterType == typeof(IViewerAccessService) || parameter.ParameterType == typeof(ViewerCatalogue))))
+                parameter.IsOptional && (parameter.ParameterType == typeof(IViewerAccessService) || parameter.ParameterType == typeof(ViewerCatalogue))
+                // The detail page pipeline takes the catalogue as an optional argument only because its many callers pass nothing for
+                // other entity types; a person page given none treats the viewer as seeing nothing (it fails closed).
+                && !(parameter.Name == "viewerCatalogue" && entry.type.Name is "DetailComposerService" or "DetailCompositionOrchestrator")))
             .Select(entry => $"{entry.type.Name}.{entry.method.Name}")
             .ToList();
 

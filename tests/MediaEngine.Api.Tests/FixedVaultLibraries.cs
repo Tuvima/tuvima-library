@@ -22,7 +22,7 @@ internal sealed class FixedVaultLibraries(params string[] ids) : IVaultLibraryRe
 
     public Task<bool> IsInVaultAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);
 
-    public Task<bool> IsPersonOnlyInVaultAsync(Guid personId, CancellationToken ct = default) => Task.FromResult(false);
+    public Task<bool> MayPersonBeVaultOnlyAsync(Guid personId, CancellationToken ct = default) => Task.FromResult(false);
 
     public Task AddAsync(VaultLibrary library, CancellationToken ct = default) => throw new NotSupportedException();
 

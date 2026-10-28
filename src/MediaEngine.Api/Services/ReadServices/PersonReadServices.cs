@@ -20,8 +20,9 @@ public sealed class PersonAliasReadService : IPersonAliasReadService
         _db = db;
     }
 
-    public async Task<PersonAliasResponse?> GetAliasesAsync(Guid personId, CancellationToken ct)
+    public async Task<PersonAliasResponse?> GetAliasesAsync(Guid personId, ViewerCatalogue viewer, CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(viewer);
         var person = await _personRepo.FindByIdAsync(personId, ct);
         if (person is null)
         {
@@ -35,11 +36,20 @@ public sealed class PersonAliasReadService : IPersonAliasReadService
             : "SELECT pseudonym_person_id FROM person_aliases WHERE real_person_id = @id";
         cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob).Value = GuidSql.ToBlob(personId);
 
-        var aliases = new List<PersonAliasItemResponse>();
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read())
+        var linkedIds = new List<Guid>();
+        using (var reader = cmd.ExecuteReader())
         {
-            var aliasId = GuidSql.FromDb(reader.GetValue(0));
+            while (reader.Read())
+            {
+                linkedIds.Add(GuidSql.FromDb(reader.GetValue(0)));
+            }
+        }
+
+        // A linked person is shown only when the viewer could open them (see LinkedPersonVisibility).
+        var visible = await LinkedPersonVisibility.VisibleAsync(_personRepo, linkedIds, viewer, ct);
+        var aliases = new List<PersonAliasItemResponse>();
+        foreach (var aliasId in linkedIds.Where(visible.Contains))
+        {
             var aliasPerson = await _personRepo.FindByIdAsync(aliasId, ct);
             if (aliasPerson is null)
             {
@@ -88,7 +98,7 @@ public sealed class PersonPresenceReadService : IPersonPresenceReadService
         // content limit adds nothing. A person with no visible credit has no entry at all (Vault sections spec D27, D32).
         var credits = await _personRepo.GetPresenceCreditsAsync(personIds, ct);
         return credits
-            .Where(credit => viewer.CanSeeAsset(credit.AssetId))
+            .Where(credit => viewer.CanSeeCredit(credit.WorkId, credit.AssetId, credit.LibraryId))
             .GroupBy(credit => credit.PersonId)
             .ToDictionary(
                 person => person.Key.ToString(),

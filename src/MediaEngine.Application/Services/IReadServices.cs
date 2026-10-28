@@ -15,7 +15,7 @@ public interface IJourneyReadService
 
 public interface IPersonAliasReadService
 {
-    Task<PersonAliasResponse?> GetAliasesAsync(Guid personId, CancellationToken ct);
+    Task<PersonAliasResponse?> GetAliasesAsync(Guid personId, ViewerCatalogue viewer, CancellationToken ct);
 }
 
 public interface IPersonPresenceReadService

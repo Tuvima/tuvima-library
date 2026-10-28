@@ -920,8 +920,8 @@ public sealed class PersonCreditReadServiceTests : IDisposable
 
         var service = CreateService();
 
-        var members = await service.GetGroupMembersAsync(groupId, isGroup: true, CancellationToken.None);
-        var groups = await service.GetGroupMembersAsync(firstMemberId, isGroup: false, CancellationToken.None);
+        var members = await service.GetGroupMembersAsync(groupId, isGroup: true, MediaEngine.Application.Services.ViewerCatalogue.Nothing, CancellationToken.None);
+        var groups = await service.GetGroupMembersAsync(firstMemberId, isGroup: false, MediaEngine.Application.Services.ViewerCatalogue.Nothing, CancellationToken.None);
 
         Assert.Equal(["Amy Member", "Zed Member"], members.Select(member => member.Name));
         Assert.All(members, member => Assert.Contains($"/persons/{member.Id:D}/headshot", member.HeadshotUrl));
