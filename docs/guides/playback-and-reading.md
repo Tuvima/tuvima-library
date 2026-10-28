@@ -27,7 +27,7 @@ The EPUB reader opens supported ebooks in the browser. Reading tools and progres
 3. Use the bottom audio dock to play, pause, or seek.
 4. Expand the player for more room and tools.
 
-**Queue** shows upcoming songs. **History** shows past playback. **Lyrics** shows text when available. It highlights words or lines when the source has valid timing. Untimed lyrics stay readable text.
+**Queue** shows upcoming songs. **History** shows past playback. **Lyrics** shows text when available and has a close button on a computer. It highlights words or lines when the source has valid timing. Untimed lyrics stay readable text. A small line under the lyrics says where they came from (LRCLIB, or a file next to the song). When a song has none, the panel explains that lyrics come from a .lrc file beside the song or from LRCLIB, and anyone can choose **Look up lyrics now** or **Add a lyrics file**. In **Up Next**, drag a song by the handle on its left; **History** shows when each song was played. Moving a song announces itself to screen readers only; a failed move shows a short notice.
 
 ## Listen to an audiobook
 

@@ -1,6 +1,6 @@
 # Spec: Music player, queue, lyrics and Songs list
 
-> **Status:** Locked (Shy, 2026-10-27) · **Version:** 2 (replaces v1, same day; nothing was built on v1) · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Design system](../design/design-system.md) · bug log items F44, F52, F53, F54, F55, F56, F57, F64, F65 (also touches F45, F46, F48)
+> **Status:** Built, awaiting Local checks (see engineering/validation/batch.md); Locked by Shy 2026-10-27 · **Version:** 2 (replaces v1, same day; nothing was built on v1) · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Design system](../design/design-system.md) · bug log items F44, F52, F53, F54, F55, F56, F57, F64, F65 (also touches F45, F46, F48)
 
 ## 1. Goal
 
