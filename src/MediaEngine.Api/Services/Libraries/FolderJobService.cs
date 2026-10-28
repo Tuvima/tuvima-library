@@ -95,7 +95,7 @@ public sealed class FolderJobService
                 VideoFiles = count.Video,
                 Examined = 0,
                 Complete = false,
-                DuplicatePolicy = libraries.FileHandling.DuplicatePolicy,
+                DuplicatePolicy = library.ResolveDuplicatePolicy(FindSource(libraries, sourceId), libraries.FileHandling.DuplicatePolicy),
                 EstimatedSeconds = EstimateSeconds(count.Video, count.Total - count.Video, measured),
             };
         }

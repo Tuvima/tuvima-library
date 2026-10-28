@@ -357,10 +357,11 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
     [Fact]
     public void TheTypePageOffersAddFilesBesideAddFolder()
     {
-        var typePage = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "watch").Add(x => x.Detail, "movies"));
-        typePage.WaitForElement(".library-folders__add");
+        var typePage = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, MoviesId));
+        typePage.WaitForElement(".libpage__actions");
 
-        Assert.Contains(typePage.FindAll(".library-folders__detail-actions button"), button => Text(button) == "Add files");
+        Assert.Contains(typePage.FindAll(".libpage__actions button"), button => Text(button) == "Add files");
+        Assert.Contains(typePage.FindAll(".libpage__actions button"), button => Text(button) == "Add folder");
     }
 
     private static UploadOutcome Large(string path = "E:\\Import\\Movies") => new()

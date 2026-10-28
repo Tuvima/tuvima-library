@@ -374,7 +374,7 @@ public sealed partial class IngestionEngine
                                 && File.Exists(existing.FilePathRoot)
                                 && !string.Equals(Path.GetFullPath(candidate.Path), Path.GetFullPath(existing.FilePathRoot), StringComparison.OrdinalIgnoreCase)
                                 && !MediaEngine.Ingestion.Organise.FileIdentity.AreSameFile(candidate.Path, existing.FilePathRoot)
-                                && MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.DeletesIncomingDuplicate(_options.DuplicatePolicy)
+                                && MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.DeletesIncomingDuplicate(resolvedSource.Library.ResolveDuplicatePolicy(resolvedSource.Source, _options.DuplicatePolicy))
                                 && _sourceMutationPolicyGate?.Evaluate(new SourceMutationRequest
                                 {
                                     Source = FileSourceMutationPolicyFactory.Create(

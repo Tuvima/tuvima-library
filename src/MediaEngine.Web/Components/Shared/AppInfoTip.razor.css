@@ -1,0 +1,10 @@
+.app-info-tip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--tl-tap-target-min, 2.75rem);
+    min-height: var(--tl-tap-target-min, 2.75rem);
+    margin: -0.6rem 0;
+    color: var(--tl-text-muted);
+    cursor: help;
+}

@@ -132,7 +132,7 @@ The polling fallback is started once at startup, and only when `Ingestion:PollIn
 
 ```json
 {
-  "schema_version": "8.0",
+  "schema_version": "9.0",
   "file_handling": { "duplicate_policy": "keep_one" },
   "libraries": [
     {
@@ -152,15 +152,21 @@ The polling fallback is started once at startup, and only when `Ingestion:PollIn
         "include_subdirectories": true,
         "access_mode": "writable",
         "conversion_state": "none",
-        "merge_state": "none"
+        "merge_state": "none",
+        "scan_enabled": true,
+        "file_handling_override": null
       }],
       "primary_destination_source_id": "44444444-aaaa-4444-8444-444444444444",
+      "access": "standard",
+      "file_handling": { "duplicate_policy": null },
       "accepted_intake_modes": ["incoming_folder", "browser_upload"],
       "organization_policy": { "mode": "tuvima_standard", "write_tags": true }
     }
   ]
 }
 ```
+
+Format 9.0 added four settings. A library's `access` is `standard` (default), `selected` or `vault` (Vault libraries live in the Vault tables, so `vault` is accepted but not written for normal libraries). A library's `file_handling.duplicate_policy` (`keep_one` or `keep_both`) overrides the server-wide `file_handling.duplicate_policy`; leaving it `null` follows the server. A folder's `file_handling_override` (`duplicate_policy` and `write_tags`, each nullable) overrides its library, and an override with every field null is dropped on save. A folder with `scan_enabled: false` is neither watched nor swept nor resolved for new files, but what it already holds stays catalogued (profile limits and the library's folder list still count it). The duplicate rule that applies to a file is the folder's override, else the library's, else the server's. Structured kinds (Movies, TV, Music, Books and so on) stay one library each, with several folders merged into it; only the catch-all kinds (`other_videos`, `other_audio`, `other_reading`) allow several libraries.
 
 The `category` tells the Engine where to organise files on disk. The `media_types` tell it how to process them - which processor to use, which metadata providers to query, and what confidence prior to apply during identification. A library folder designated for Movies gives any MP4 it finds an 0.80 prior confidence for that media type, skipping much of the heuristic disambiguation that would otherwise be needed.
 

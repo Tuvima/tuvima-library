@@ -178,7 +178,7 @@ public sealed class CoreSettingsWireContractTests
         var storage = SettingsContractMapper.ToStorage(request);
         var contract = SettingsContractMapper.ToContract(storage);
 
-        Assert.Equal("8.0", storage.SchemaVersion);
+        Assert.Equal("9.0", storage.SchemaVersion);
         Assert.Equal("keep_both", storage.FileHandling.DuplicatePolicy);
         Assert.Equal("keep_both", contract.FileHandling.DuplicatePolicy);
         Assert.Equal(@"D:\Media", storage.StorageLocations.Single().Path);
@@ -189,6 +189,71 @@ public sealed class CoreSettingsWireContractTests
         Assert.False(contract.PersonalLibraryPolicy.AllowConnectedDeviceImport);
         Assert.Contains("personal_library_policy", JsonSerializer.Serialize(contract, JsonOptions), StringComparison.Ordinal);
         Assert.DoesNotContain("source_paths", JsonSerializer.Serialize(contract, JsonOptions), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LibrarySettingsMapper_RoundTripsLibraryAccessFileHandlingFolderScanAndOverride()
+    {
+        var request = new UpdateLibrariesRequest
+        {
+            StorageLocations = [new ServerStorageLocationDto { Id = "media", Label = "Media", Path = @"D:\Media", AllowWrite = true }],
+            ViewStorage = new ViewStorageDto { StorageLocationId = "media", RelativeRoot = "View" },
+            Libraries =
+            [
+                new LibraryFolderDto
+                {
+                    Id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                    Name = "Movies",
+                    Category = "Movies",
+                    KindKey = "movies",
+                    Area = "watch",
+                    MediaTypes = ["Movies"],
+                    Access = "selected",
+                    FileHandling = new LibraryFileHandlingDto { DuplicatePolicy = "keep_both" },
+                    Sources =
+                    [
+                        new LibrarySourceDto
+                        {
+                            Id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                            Path = @"D:\Media\Movies",
+                            ManagementMode = "managed_by_tuvima",
+                            AccessMode = "writable",
+                            ScanEnabled = false,
+                            FileHandlingOverride = new LibrarySourceFileHandlingOverrideDto { DuplicatePolicy = "keep_one", WriteTags = false },
+                        },
+                        new LibrarySourceDto
+                        {
+                            Id = "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                            Path = @"D:\Media\More",
+                            FileHandlingOverride = new LibrarySourceFileHandlingOverrideDto(),
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var storage = SettingsContractMapper.ToStorage(request);
+        var contract = SettingsContractMapper.ToContract(storage);
+
+        var library = storage.Libraries.Single();
+        Assert.Equal("selected", library.Access);
+        Assert.Equal("keep_both", library.FileHandling.DuplicatePolicy);
+        Assert.False(library.Sources[0].ScanEnabled);
+        Assert.Equal("keep_one", library.Sources[0].FileHandlingOverride!.DuplicatePolicy);
+        Assert.False(library.Sources[0].FileHandlingOverride!.WriteTags);
+        Assert.True(library.Sources[1].ScanEnabled);
+        // An override that sets nothing is dropped on the way in.
+        Assert.Null(library.Sources[1].FileHandlingOverride);
+        var dto = contract.Libraries.Single();
+        Assert.Equal("selected", dto.Access);
+        Assert.Equal("keep_both", dto.FileHandling.DuplicatePolicy);
+        Assert.False(dto.Sources[0].ScanEnabled);
+        Assert.Equal("keep_one", dto.Sources[0].FileHandlingOverride!.DuplicatePolicy);
+        Assert.False(dto.Sources[0].FileHandlingOverride!.WriteTags);
+        var json = JsonSerializer.Serialize(contract, JsonOptions);
+        Assert.Contains("\"access\":\"selected\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"scan_enabled\":false", json, StringComparison.Ordinal);
+        Assert.Contains("\"file_handling_override\":{\"duplicate_policy\":\"keep_one\",\"write_tags\":false}", json, StringComparison.Ordinal);
     }
 
     [Fact]

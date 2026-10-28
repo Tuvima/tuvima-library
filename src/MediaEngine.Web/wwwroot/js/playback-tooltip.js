@@ -1,6 +1,13 @@
 const states = new WeakMap();
 let nextId = 0;
 
+// A tooltip lives in the browser's top layer (popover="manual" + showPopover()), inside the open modal dialog when there is one, so a
+// dialog or its backdrop can never cover it (F9). Without a dialog it goes in the fullscreen element, else the body.
+function tooltipHost() {
+    const dialogs = [...document.querySelectorAll('dialog[open]')].filter(dialog => dialog.matches(':modal'));
+    return dialogs.at(-1) || document.fullscreenElement || document.body;
+}
+
 export function attach(root) {
     if (!root || states.has(root)) return;
     let timer, tooltip, target, description;
@@ -25,7 +32,11 @@ export function attach(root) {
         tooltip.id = `playback-tooltip-${++nextId}`;
         tooltip.className = 'playback-tooltip'; tooltip.role = 'tooltip';
         tooltip.textContent = root.dataset.playbackTooltip;
-        (document.fullscreenElement || document.body).append(tooltip);
+        tooltip.setAttribute('popover', 'manual');
+        // The browser's own popover box (centred, inset 0, scrolling) is replaced by the plain fixed box the position below is worked out for.
+        tooltip.style.inset = 'auto'; tooltip.style.margin = '0'; tooltip.style.overflow = 'visible';
+        tooltipHost().append(tooltip);
+        if (typeof tooltip.showPopover === 'function') tooltip.showPopover();
         description = target.getAttribute('aria-describedby');
         target.setAttribute('aria-describedby', [description, tooltip.id].filter(Boolean).join(' '));
         const box = target.getBoundingClientRect(), tip = tooltip.getBoundingClientRect();

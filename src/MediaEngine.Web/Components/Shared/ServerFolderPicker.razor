@@ -3,6 +3,7 @@
 @inject IJSRuntime JS
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @using Microsoft.JSInterop
+@using MediaEngine.Web.Services.Formatting
 @implements IDisposable
 
 
@@ -228,19 +229,15 @@ else
                     {
                         <div class="server-folder-picker__issues" aria-live="assertive"><div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><span>@problem</span></div></div>
                     }
+                    @if (FolderResultText is { } folderResult)
+                    {
+                        <AppAlert Tone="AppUiTone.Success" data-folder-result="accessible">@folderResult</AppAlert>
+                    }
                     @if (_validation?.Issues.Count > 0)
                     {
-                        <div class="server-folder-picker__issues" aria-live="assertive">
-                            @if (_validation.Issues.Any(issue => issue.LibraryName is not null))
-                            {
-                                <strong>Already used by other libraries</strong>
-                                <p>Choose a folder that does not overlap these configured sources.</p>
-                                <div class="server-folder-picker__conflicts">
-                                    @foreach (var name in _validation.Issues.Where(issue => issue.LibraryName is not null).Select(issue => issue.LibraryName).Distinct())
-                                    { <span>@name</span> }
-                                </div>
-                            }
-                            @foreach (var issue in _validation.Issues.Where(issue => issue.LibraryName is null))
+                        @* The Engine's refusals are plain sentences that already name the other library, so they are shown as they come. *@
+                        <div class="server-folder-picker__issues" aria-live="assertive" data-folder-result="refused">
+                            @foreach (var issue in _validation.Issues)
                             {
                                 <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><span>@issue.Message</span></div>
                             }
@@ -274,11 +271,14 @@ else
                 {
                     <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
                 }
-                <AppButton Label="@ConfirmLabel"
-                           ButtonStyle="AppButtonStyle.Filled"
-                           Tone="AppUiTone.Primary"
-                           Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse)"
-                           OnClick="Confirm" />
+                @if (!HideConfirm)
+                {
+                    <AppButton Label="@ConfirmLabel"
+                               ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse)"
+                               OnClick="Confirm" />
+                }
             </AppActionBar>
         </div>
     </text>;
@@ -298,6 +298,12 @@ else
     [Parameter] public bool Inline { get; set; }
     /// <summary>Called with the validated folder when the person confirms while <see cref="Inline"/> is true; the dialog form closes with the same result instead.</summary>
     [Parameter] public EventCallback<ServerFolderValidationResultDto> OnConfirmed { get; set; }
+    /// <summary>The library kind the folder is for (for example <c>movies</c>): the Engine counts that kind's supported files and the result card says how many were found.</summary>
+    [Parameter] public string? KindKey { get; set; }
+    /// <summary>Leaves out the confirm button, for a host (the Create library dialog) that has its own button and reads <see cref="OnValidationChanged"/> instead.</summary>
+    [Parameter] public bool HideConfirm { get; set; }
+    /// <summary>Called whenever the checked folder changes: the Engine's answer for the selected folder, or null while it is being checked or nothing is selected.</summary>
+    [Parameter] public EventCallback<ServerFolderValidationResultDto?> OnValidationChanged { get; set; }
 
     private const string CantOpenMessage = "The Library can't open that folder.";
     private const string NotFoundMessage = "That folder doesn't exist.";
@@ -344,6 +350,26 @@ else
     private bool _rootsFailed;
     private bool _loadingBrowse;
     private bool _validating;
+    private ServerFolderValidationResultDto? _reportedValidation;
+
+    // The result card for a folder that can be used: it says so and, when the Engine counted them, how many supported files it holds.
+    private string? FolderResultText
+    {
+        get
+        {
+            if (_validating || _validation is not { CanSelect: true, Exists: true, HasRead: true } result) return null;
+            if (result.SupportedFileCountUnavailable) return "Folder accessible. The file count isn't available right now.";
+            if (result.SupportedFileCount is not { } count || string.IsNullOrWhiteSpace(result.SupportedFileKindLabel)) return "Folder accessible";
+            var noun = result.SupportedFileKindLabel;
+            if (result.SupportedFileCountCapped) return $"Folder accessible, {DisplayFormat.FormatCount(count)}+ {noun} files found";
+            return count switch
+            {
+                0 => $"Folder accessible, no {noun} files found yet",
+                1 => $"Folder accessible, 1 {noun} file found",
+                _ => $"Folder accessible, {DisplayFormat.FormatCount(count)} {noun} files found",
+            };
+        }
+    }
 
     // Drives and the server root are discovered automatically; anything else in the list is a configured media location.
     // Tuvima's own folders are never sent by the Engine, so there is nothing to hide or rename here.
@@ -412,6 +438,7 @@ else
                 ManualPath = InitialPath,
                 SelectionMode = SelectionMode,
                 CurrentSourceId = CurrentSourceId,
+                KindKey = KindKey,
             };
             var initial = string.IsNullOrWhiteSpace(SetupSession)
                 ? await ApiClient.ValidateServerFolderAsync(request, _lifetime.Token)
@@ -615,6 +642,7 @@ else
             RelativePath = _selectedRelativePath,
             SelectionMode = SelectionMode,
             CurrentSourceId = CurrentSourceId,
+            KindKey = KindKey,
         };
         ServerFolderValidationResultDto? validation;
         try
@@ -649,7 +677,7 @@ else
         _validating = true;
         _error = null;
         _pathMessage = null;
-        var request = new ValidateServerFolderRequest { ManualPath = _pathText, SelectionMode = SelectionMode, CurrentSourceId = CurrentSourceId };
+        var request = new ValidateServerFolderRequest { ManualPath = _pathText, SelectionMode = SelectionMode, CurrentSourceId = CurrentSourceId, KindKey = KindKey };
         ServerFolderValidationResultDto? validation;
         try
         {
@@ -836,6 +864,12 @@ else
     {
         // Each focus request is a flag set while handling an event; it runs here, once the elements have rendered.
         if (_lifetime.IsCancellationRequested) return;
+        if (!ReferenceEquals(_reportedValidation, _validation))
+        {
+            _reportedValidation = _validation;
+            await OnValidationChanged.InvokeAsync(_validation);
+        }
+
         if (_focusPathInput && _editingPath)
         {
             _focusPathInput = false;

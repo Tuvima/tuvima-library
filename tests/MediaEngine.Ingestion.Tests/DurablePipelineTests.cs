@@ -620,6 +620,30 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM media_assets;"));
     }
 
+    [Theory]
+    [InlineData(LibraryDuplicatePolicies.KeepOne, LibraryDuplicatePolicies.KeepBoth, 2)]
+    [InlineData(LibraryDuplicatePolicies.KeepBoth, LibraryDuplicatePolicies.KeepOne, 1)]
+    public async Task IngestionEngine_ExactDuplicate_FollowsTheLibraryRuleOverTheServerOne(
+        string serverPolicy, string libraryPolicy, int expectedCopiesLeft)
+    {
+        var firstPath = CreateWatchFile("Dune.epub", "same bytes");
+        CreateWatchFile("Dune Copy.epub", "same bytes");
+
+        _processors.QueueResult(new ProcessorResult
+        {
+            FilePath = firstPath,
+            DetectedType = MediaType.Books,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Dune", Confidence = 0.95 }],
+        });
+
+        await RunPipelineAsync(duplicatePolicy: serverPolicy, managedWatchFolder: true, libraryDuplicatePolicy: libraryPolicy);
+
+        var copies = Directory.EnumerateFiles(_tempRoot, "*.epub", SearchOption.AllDirectories).Count();
+        Assert.Equal(expectedCopiesLeft, copies);
+        using var conn = _dbFactory.Connection.CreateConnection();
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM media_assets;"));
+    }
+
     [Fact]
     public async Task IngestionEngine_DuplicateDifferentPath_RecordsDuplicateOutcome()
     {
@@ -1711,7 +1735,8 @@ public sealed class DurablePipelineTests : IDisposable
         ILogger<IngestionEngine>? logger = null,
         string duplicatePolicy = LibraryDuplicatePolicies.KeepOne,
         bool managedWatchFolder = false,
-        bool expectNoWork = false)
+        bool expectNoWork = false,
+        string? libraryDuplicatePolicy = null)
     {
         var libraryId = localOnly
             ? "99999999-9999-4999-8999-999999999999"
@@ -1755,6 +1780,7 @@ public sealed class DurablePipelineTests : IDisposable
                         },
                     ],
                     PrimaryDestinationSourceId = $"{libraryId}-destination",
+                    DuplicatePolicy = libraryDuplicatePolicy,
                     MediaTypes = !applyMediaTypePrior
                         ? []
                         : localOnly ? [MediaType.Movies] : [MediaType.Books],

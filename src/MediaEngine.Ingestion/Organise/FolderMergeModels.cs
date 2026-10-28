@@ -258,7 +258,8 @@ public sealed class FolderMergeContext
         }
 
         check = FolderMergeCheck.Ok;
-        return new FolderMergeContext(operationId, library, source, target, sourceRoot, targetRoot, isMove, libraries.FileHandling.DuplicatePolicy);
+        return new FolderMergeContext(operationId, library, source, target, sourceRoot, targetRoot, isMove,
+            library.ResolveDuplicatePolicy(target, libraries.FileHandling.DuplicatePolicy));
     }
 
     private static LibrarySourceConfig? Find(LibrariesConfiguration libraries, Guid sourceId, out LibraryFolderConfig? library)

@@ -673,11 +673,12 @@ public static class SettingsNav
     }
 
     /// <summary>
-    /// The first address segment under /settings/libraries that names a level of the Libraries screen: a group (watch, listen,
-    /// read, view, vault), the Import folder, or "other" (a library with no known area). The Vault is only shown when the page allows it.
+    /// The first address segment under /settings/libraries that names a level of the Libraries screen: a library's own Id (its page),
+    /// the Import folder, View (its kinds), or an older group address (watch, listen, read, vault, "other") that redirects.
     /// </summary>
     public static bool IsLibraryRouteSegment(string? value) =>
-        value?.Trim().ToLowerInvariant() is "watch" or "listen" or "read" or "view" or "vault" or "import" or "other";
+        value?.Trim().ToLowerInvariant() is "watch" or "listen" or "read" or "view" or "vault" or "import" or "other"
+        || Guid.TryParse(value?.Trim(), out _);
 
     public static bool IsMobileSubsectionAvailable(SettingsSection section, string subsection) =>
         IsMobileRouteAvailable(section, subsection);

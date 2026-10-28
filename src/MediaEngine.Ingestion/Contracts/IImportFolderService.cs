@@ -48,6 +48,12 @@ public interface IImportFolderService
     string DuplicatePolicy { get; }
 
     /// <summary>
+    /// The duplicate rule that applies to an import copy whose exact twin is already held at <paramref name="heldCopyPath"/>:
+    /// the rule of the folder (or library) holding that copy when it sets one, otherwise <see cref="DuplicatePolicy"/>.
+    /// </summary>
+    string ResolveDuplicatePolicy(string heldCopyPath);
+
+    /// <summary>
     /// The mutation policy for the import folder itself, so moving a file out of it, and removing an exact duplicate
     /// copy of it, go through the same source-policy gate as every other change to files. <see langword="null"/> when
     /// no import folder is set.

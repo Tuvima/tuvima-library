@@ -8476,6 +8476,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrariesConfigura
   FileHandling: MediaEngine.Contracts.Settings.FileHandlingDto | nullability=not-null | accessors=get,init
   ImportFolderStatus: MediaEngine.Contracts.Settings.ImportFolderStatusDto | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFileHandlingDto
+  DuplicatePolicy: System.String | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   Id: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
@@ -8488,6 +8491,8 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   YoutubeLookup: System.Boolean | nullability=not-null | accessors=get,set
   RecycleBin: System.Boolean | nullability=not-null | accessors=get,set
+  Access: System.String | nullability=not-null | accessors=get,set
+  FileHandling: MediaEngine.Contracts.Settings.LibraryFileHandlingDto | nullability=not-null | accessors=get,set
   Sources: System.Collections.Generic.List<MediaEngine.Contracts.Settings.LibrarySourceDto> | nullability=not-null | accessors=get,set
   PrimaryDestinationSourceId: System.String | nullability=nullable | accessors=get,set
   AcceptedIntakeModes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -8558,10 +8563,16 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrarySourceDto
   MergeTargetSourceId: System.String | nullability=nullable | accessors=get,set
   MergeMode: System.String | nullability=nullable | accessors=get,set
   MergedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  ScanEnabled: System.Boolean | nullability=not-null | accessors=get,set
+  FileHandlingOverride: MediaEngine.Contracts.Settings.LibrarySourceFileHandlingOverrideDto | nullability=nullable | accessors=get,set
   Notes: System.String | nullability=nullable | accessors=get,set
   DeviceId: System.String | nullability=nullable | accessors=get,set
   ProfileId: System.String | nullability=nullable | accessors=get,set
   FirstCheck: MediaEngine.Contracts.Library.FolderFirstCheckDto | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrarySourceFileHandlingOverrideDto
+  DuplicatePolicy: System.String | nullability=nullable | accessors=get,set
+  WriteTags: System.Boolean? | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LocalNetworkSettingsDto
   Port: System.Int32 | nullability=not-null | accessors=get,set
@@ -9014,6 +9025,10 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerFolderValida
   AvailableBytes: System.Int64? | nullability=nullable | accessors=get,init
   FileSystem: System.String | nullability=nullable | accessors=get,init
   CanSelect: System.Boolean | nullability=not-null | accessors=get,init
+  SupportedFileCount: System.Int32? | nullability=nullable | accessors=get,init
+  SupportedFileCountCapped: System.Boolean | nullability=not-null | accessors=get,init
+  SupportedFileCountUnavailable: System.Boolean | nullability=not-null | accessors=get,init
+  SupportedFileKindLabel: System.String | nullability=nullable | accessors=get,init
   Issues: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFolderValidationIssueDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerGeneralSettingsDto
@@ -9303,6 +9318,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ValidateServerFold
   ManualPath: System.String | nullability=nullable | accessors=get,init
   SelectionMode: System.String | nullability=not-null | accessors=get,init
   CurrentSourceId: System.String | nullability=nullable | accessors=get,init
+  KindKey: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ViewStorageDto
   StorageLocationId: System.String | nullability=not-null | accessors=get,set

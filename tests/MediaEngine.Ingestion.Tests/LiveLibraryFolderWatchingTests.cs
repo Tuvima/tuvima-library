@@ -61,6 +61,28 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
     }
 
     [Fact]
+    public async Task A_folder_with_scanning_off_is_not_watched_or_scanned_until_scanning_is_switched_on()
+    {
+        var h = NewHarness();
+        var watcher = new RecordingFileWatcher();
+        var bookPath = WriteFile(h.AsIsDir, "Dune.epub", "dune book");
+        var run = await StartAsync(h, watcher, BooksProcessor(bookPath), BuildOptions(h));
+        var paused = AsIsSource(h.AsIsDir);
+        paused.ScanEnabled = false;
+
+        run.Monitor.Publish(BuildOptions(h, BooksLibrary(paused)));
+        await Task.Delay(2000);
+
+        Assert.False(watcher.IsWatching(h.AsIsDir));
+        Assert.Null(await h.Assets.FindByPathRootAsync(bookPath));
+
+        run.Monitor.Publish(BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))));
+
+        await WaitUntilAsync(() => Task.FromResult(watcher.IsWatching(h.AsIsDir)));
+        await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(bookPath) is not null);
+    }
+
+    [Fact]
     public async Task A_folder_removed_and_added_back_skips_files_the_known_path_filter_already_knows()
     {
         var h = NewHarness();

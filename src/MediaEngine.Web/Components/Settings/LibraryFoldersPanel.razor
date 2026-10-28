@@ -193,21 +193,24 @@
                 <LibraryUploadZone Kinds="@Kinds"
                                    Configuration="@_configuration"
                                    Type="@_selected"
-                                   ReadOnly="@(ReadOnly || !UploadsOffered)"
+                                   ReadOnly="@(ReadOnly || !UploadsOffered || HostOwnsActions)"
                                    Embedded="@Embedded"
                                    FolderAdded="@(EventCallback.Factory.Create(this, () => FolderAddedAsync(null)))">
                 @* The type's name is already the selected entry in the list on the left, so the pane starts with the folders. *@
-                <header class="library-folders__detail-header">
-                    <div class="library-folders__detail-actions">
-                        <AppButton Label="Add Folder"
-                                   Class="@(_highlightAdd ? "library-folders__add is-highlighted" : "library-folders__add")"
-                                   StartIcon="@AppMaterialIcons.Outlined.Add"
-                                   ButtonStyle="AppButtonStyle.Outlined"
-                                   Disabled="@(_saving || ReadOnly)"
-                                   OnClick="AddFolderAsync" />
-                        <LibraryAddFilesButton />
-                    </div>
-                </header>
+                @if (!HostOwnsActions)
+                {
+                    <header class="library-folders__detail-header">
+                        <div class="library-folders__detail-actions">
+                            <AppButton Label="Add Folder"
+                                       Class="@(_highlightAdd ? "library-folders__add is-highlighted" : "library-folders__add")"
+                                       StartIcon="@AppMaterialIcons.Outlined.Add"
+                                       ButtonStyle="AppButtonStyle.Outlined"
+                                       Disabled="@(_saving || ReadOnly)"
+                                       OnClick="AddFolderAsync" />
+                            <LibraryAddFilesButton />
+                        </div>
+                    </header>
+                }
 
                 @if (!string.IsNullOrWhiteSpace(_notice))
                 {
@@ -288,6 +291,10 @@
     [Parameter] public bool HighlightAddFolder { get; set; }
     /// <summary>Raised after any saved change so the host can refresh its own state.</summary>
     [Parameter] public EventCallback Changed { get; set; }
+    /// <summary>Shows this one library (by its Id) instead of the kind's libraries, when the type list is not drawn: a library page holds one library, even when its kind holds several.</summary>
+    [Parameter] public string? LibraryId { get; set; }
+    /// <summary>The host draws Add folder and Add files itself and wraps this panel in its own upload zone, so the panel draws neither.</summary>
+    [Parameter] public bool HostOwnsActions { get; set; }
 
     private LibrariesConfigurationDto? _configuration;
     private string _baseline = string.Empty;
@@ -337,7 +344,7 @@
         if (!ShowTypeNav)
         {
             // The host's address names the type; an unknown name shows a small state instead of a different type.
-            var chosen = ResolveTypeKey(TypeKey);
+            var chosen = string.IsNullOrWhiteSpace(LibraryId) ? ResolveTypeKey(TypeKey) : ResolveLibrary(LibraryId);
             _unknownType = chosen is null;
             if (chosen is not null) _selected = chosen;
         }
@@ -383,6 +390,16 @@
     // type) still show here, so their folders can be seen and removed instead of silently hiding.
     private IReadOnlyList<LibraryTypeOption> OtherLibraries => LibraryRollup.OtherLibraries(Kinds, _configuration);
 
+    // One library by its Id: its kind with the library's own name and Id, so the folders shown are this library's alone.
+    private LibraryTypeOption? ResolveLibrary(string id)
+    {
+        var library = _configuration?.Libraries.FirstOrDefault(item => LibraryRollup.IsCatalogued(item) && string.Equals(item.Id, id, StringComparison.OrdinalIgnoreCase));
+        if (library is null) return null;
+        var type = LibraryListing.TypeOf(Kinds, library);
+        var name = string.IsNullOrWhiteSpace(library.Name) ? type.Label : library.Name;
+        return type with { Label = name, PluralLabel = name, LibraryId = library.Id };
+    }
+
     private LibraryTypeOption? ResolveTypeKey(string? key)
     {
         if (string.IsNullOrWhiteSpace(key)) return null;
@@ -404,9 +421,9 @@
     // On its own address (no type list), the jump is a navigation to that type's address instead.
     private void ChooseDestinationType(LibraryTypeOption type)
     {
-        if (!ShowTypeNav && Kinds.GroupFor(type.Key) is { } group)
+        if (!ShowTypeNav && PrimaryLibraryFor(type) is { } library)
         {
-            Navigation.NavigateTo(LibraryGroupCatalog.TypeAddress(group, type.Key) + "?highlight=add");
+            Navigation.NavigateTo(LibraryListing.AddressOf(library.Id) + "?highlight=add");
             return;
         }
 

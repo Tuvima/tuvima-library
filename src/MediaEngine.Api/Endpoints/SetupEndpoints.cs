@@ -361,7 +361,7 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(service.Validate(request, await context.HiddenVaultFolderRootsAsync(ct).ConfigureAwait(false))); }
+            try { return Results.Ok(service.Validate(request, await context.HiddenVaultFolderRootsAsync(ct).ConfigureAwait(false), ct)); }
             catch (ServerFolderAccessException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).Produces<ServerFolderValidationResultDto>();
 

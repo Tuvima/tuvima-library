@@ -47,7 +47,7 @@ public sealed class BrowseLibraryListService(
                 entry.Library.KindKey,
                 entry.Library.Area,
                 entry.MediaType,
-                entry.Library.ScannableSources.Any()))
+                entry.Library.CataloguedSources.Any()))
             .ToList();
     }
 }
