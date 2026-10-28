@@ -180,6 +180,7 @@ public static partial class BackupTableClassification
         // ---------------------------------------------------------------------------------------------------------
         Transient("auth_sessions", "Sign-in sessions."),
         Transient("client_tokens", "Device and application tokens."),
+        Transient("plugin_outbox", "Messages a plugin queued to send to an outside service; a queued share is worth little after a restore."),
         Transient("plugin_profile_connections", "Accounts a person linked to a plugin for their own profile; the values are protected with this computer's key, so each person links again after a restore."),
         Transient("service_credentials", "Service credentials; they are issued again."),
         Transient("account_invitations", "One-time invitation tokens."),

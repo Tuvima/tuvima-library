@@ -326,6 +326,7 @@ None of these are kept.
 |---|---|
 | `auth_sessions` | Sign-in sessions. |
 | `client_tokens` | Device and application tokens. |
+| `plugin_outbox` | Messages a plugin queued to send to an outside service; a queued share is worth little after a restore. |
 | `plugin_profile_connections` | Accounts a person linked to a plugin for their own profile; the values are protected with this computer's key, so each person links again after a restore. |
 | `service_credentials` | Service credentials; they are issued again. |
 | `account_invitations` | One-time invitation tokens. |

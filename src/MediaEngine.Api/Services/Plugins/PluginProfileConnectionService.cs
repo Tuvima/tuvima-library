@@ -14,6 +14,7 @@ namespace MediaEngine.Api.Services.Plugins;
 public sealed class PluginProfileConnectionService(
     PluginCatalog catalog,
     IPluginProfileConnectionRepository repository,
+    IPluginOutboxRepository outbox,
     ISecretStore protector,
     TimeProvider clock)
 {
@@ -91,7 +92,15 @@ public sealed class PluginProfileConnectionService(
             return ConnectionOutcome.NotAsked;
         }
 
-        await repository.DeleteAsync(catalog.Get(pluginId)!.Manifest.Id, profileId, declared.Name, ct).ConfigureAwait(false);
+        var canonicalId = catalog.Get(pluginId)!.Manifest.Id;
+        await repository.DeleteAsync(canonicalId, profileId, declared.Name, ct).ConfigureAwait(false);
+
+        // With no account left linked, nothing queued for this profile should still go out.
+        if ((await repository.ListAsync(canonicalId, profileId, ct).ConfigureAwait(false)).Count == 0)
+        {
+            await outbox.DeleteForProfileAsync(canonicalId, profileId, ct).ConfigureAwait(false);
+        }
+
         return ConnectionOutcome.Done;
     }
 
