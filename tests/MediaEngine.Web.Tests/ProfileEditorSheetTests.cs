@@ -399,6 +399,20 @@ public sealed class ProfileEditorSheetTests
     }
 
     [Fact]
+    public void TheInitialIsCentredByItsCapHeight_NotByItsTextBox()
+    {
+        using var ctx = new BunitContext();
+        var cut = ctx.Render<ProfileAvatar>(parameters => parameters.Add(p => p.DisplayName, "Maya"));
+
+        var letter = cut.Find("text");
+        Assert.Equal("middle", letter.GetAttribute("text-anchor"));
+        Assert.Equal("50", letter.GetAttribute("x"));
+        // 50 + 44 x 0.714 / 2: the middle of a capital letter sits on the circle's centre (one-look spec WP7, F42).
+        Assert.Equal("alphabetic", letter.GetAttribute("dominant-baseline"));
+        Assert.Equal("65.7", letter.GetAttribute("y"));
+    }
+
+    [Fact]
     public void SelfEdit_OffersOnlyTheNameAndThePicture_NotKidsLimitPinOrDelete()
     {
         using var ctx = new BunitContext();

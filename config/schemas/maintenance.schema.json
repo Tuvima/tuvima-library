@@ -4,6 +4,7 @@
   "type": "object",
   "properties": {
     "activity_retention_days": { "type": "integer", "minimum": 1, "maximum": 3650 },
+    "plugin_people_action_retention_days": { "type": "integer", "minimum": 1, "maximum": 3650 },
     "activity_max_events": { "type": "integer", "minimum": 1000, "maximum": 10000000 },
     "log_retention_days": { "type": "integer", "minimum": 1, "maximum": 3650 },
     "log_max_total_mb": { "type": "integer", "minimum": 100, "maximum": 102400 },

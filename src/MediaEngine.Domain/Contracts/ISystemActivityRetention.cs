@@ -11,4 +11,10 @@ public interface ISystemActivityRetention
     /// Returns the number of rows deleted (0 when the ledger is already within the cap).
     /// </summary>
     Task<int> PruneToMaxEventsAsync(long maxEvents, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes entries of one action type older than <paramref name="retentionDays"/> days. Used for the record of what people did with
+    /// plugins, which has its own retention and is left out of the general age and size pruning.
+    /// </summary>
+    Task<int> PruneActionTypeOlderThanAsync(string actionType, int retentionDays, CancellationToken ct = default);
 }

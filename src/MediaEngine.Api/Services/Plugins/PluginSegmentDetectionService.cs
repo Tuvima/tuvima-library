@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Plugins;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins;
@@ -13,14 +14,17 @@ public sealed class PluginSegmentDetectionService
     private readonly IMediaAssetRepository _assets;
     private readonly IPluginExecutionContextFactory _contexts;
     private readonly ILogger<PluginSegmentDetectionService> _logger;
+    private readonly PluginActivityService? _activity;
 
     public PluginSegmentDetectionService(
         PluginCatalog catalog,
         IPlaybackSegmentRepository segments,
         IMediaAssetRepository assets,
         IPluginExecutionContextFactory contexts,
-        ILogger<PluginSegmentDetectionService> logger)
+        ILogger<PluginSegmentDetectionService> logger,
+        PluginActivityService? activity = null)
     {
+        _activity = activity;
         _catalog = catalog;
         _segments = segments;
         _assets = assets;
@@ -55,6 +59,14 @@ public sealed class PluginSegmentDetectionService
                 continue;
             }
 
+            var activityContext = new PluginActivityContext(registration.Manifest.Id, registration.Manifest.Version);
+            // A detector that keeps failing is paused for a while; the rest of the Library carries on without it (D7, C10).
+            if (_activity is not null && !_activity.Allow(registration.Manifest.Id))
+            {
+                continue;
+            }
+
+            var detectedBefore = detected.Count;
             try
             {
                 await using var execution = _contexts.CreateForMedia(registration.Manifest.Id, "segment-detection", context);
@@ -80,10 +92,19 @@ public sealed class PluginSegmentDetectionService
                         ReviewStatus = result.ReviewStatus,
                     }));
                 }
+
+                if (_activity is not null)
+                {
+                    await _activity.RecordRunAsync(activityContext, detected.Count - detectedBefore, $"Looked for skip markers and found {detected.Count - detectedBefore}.", ct).ConfigureAwait(false);
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Plugin segment detection failed for {PluginId} asset {AssetId}", registration.Manifest.Id, assetId);
+                if (_activity is not null)
+                {
+                    await _activity.RecordFailureAsync(activityContext, PluginFailureClassifier.Classify(ex), exception: ex, itemId: assetId, ct: ct).ConfigureAwait(false);
+                }
             }
         }
 

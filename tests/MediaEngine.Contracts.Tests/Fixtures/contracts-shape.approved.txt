@@ -6992,6 +6992,24 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginActionDto
   Priority: System.Int32 | nullability=not-null | accessors=get,set
   Edits: System.Boolean | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginActivityEntryDto
+  Id: System.Int64 | nullability=not-null | accessors=get,set
+  OccurredAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  PluginVersion: System.String | nullability=not-null | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Reason: System.String | nullability=nullable | accessors=get,set
+  ReasonGroup: System.String | nullability=nullable | accessors=get,set
+  ReasonWords: System.String | nullability=nullable | accessors=get,set
+  ItemId: System.Guid? | nullability=nullable | accessors=get,set
+  ItemsChanged: System.Int32 | nullability=not-null | accessors=get,set
+  Summary: System.String | nullability=not-null | accessors=get,set
+  Detail: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginActivityResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Entries: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginActivityEntryDto> | nullability=not-null | accessors=get,set
+  PausedUntil: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginAiPermissionDto
   Role: System.String | nullability=not-null | accessors=get,set
   MaxTokens: System.Int32 | nullability=not-null | accessors=get,set
@@ -7206,6 +7224,20 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageSubmitRequ
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageSubmitResponse
   Saved: System.Boolean | nullability=not-null | accessors=get,set
   RecordKey: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPeopleActionDto
+  OccurredAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  ProfileId: System.Guid? | nullability=nullable | accessors=get,set
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Action: System.String | nullability=not-null | accessors=get,set
+  Summary: System.String | nullability=not-null | accessors=get,set
+  ItemId: System.Guid? | nullability=nullable | accessors=get,set
+  Before: System.String | nullability=nullable | accessors=get,set
+  After: System.String | nullability=nullable | accessors=get,set
+  Device: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPeopleActionsResponse
+  Actions: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginPeopleActionDto> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalImpactResponse
   PluginId: System.String | nullability=not-null | accessors=get,set

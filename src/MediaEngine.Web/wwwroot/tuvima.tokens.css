@@ -232,6 +232,11 @@
     --tl-space-8: 32px;
     --tl-space-10: 40px;
 
+    /* Lists and tables (one-look spec D4): a column never touches its neighbour. */
+    --tl-list-column-gap: 16px;
+    --tl-list-row-height: 56px;
+    --tl-list-row-height-compact: 2.7rem;
+
     --tl-control-height-sm: 36px;
     --tl-control-height-md: 42px;
     --tl-control-height-lg: 48px;

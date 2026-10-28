@@ -12,6 +12,7 @@ using MediaEngine.Plugin.MediaSegments;
 using MediaEngine.Plugins;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace MediaEngine.Api.DependencyInjection;
 
@@ -61,6 +62,12 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginHostStatusRegistry>();
         services.AddSingleton<PluginHttpRateLimiter>();
         services.AddSingleton<PluginHostServicesReader>();
+
+        // Activity, failure reasons, the automatic pause and the People-action log (Plugin architecture spec D10, C10, C17, C25).
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<PluginCircuitBreaker>();
+        services.AddSingleton<PluginActivityService>();
+        services.AddSingleton<PluginPeopleActionLog>();
         services.AddSingleton<PluginJobScheduler>();
         services.AddSingleton<IScheduledTaskDescriptorSource>(sp => sp.GetRequiredService<PluginJobScheduler>());
         services.AddSingleton<PluginEventDispatcher>();

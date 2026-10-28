@@ -23,7 +23,7 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed class ListenSongTableDeleteTests : AsyncBunitContext
 {
-    private const string RowDeleteSelector = "button[title='Delete from library…']";
+    private const string RowMenuTrigger = ".listen-song-table__options button[aria-haspopup='menu']";
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly DashboardSessionAccessor _session = new();
@@ -102,10 +102,20 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
     private static IReadOnlyList<AngleSharp.Dom.IElement> Checkboxes(IRenderedComponent<ListenSongTable> cut) =>
         cut.FindAll(".listen-song-table__select input[type='checkbox']");
 
+    // Delete from library is the last, red item of a row's "..." menu (one-look spec WP6, F45): open that row's menu to see it.
+    private static IReadOnlyList<AngleSharp.Dom.IElement> OpenRowMenuItems(IRenderedComponent<ListenSongTable> cut, int row)
+    {
+        cut.FindAll(RowMenuTrigger)[row].Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        return cut.FindAll("[role='menuitem']");
+    }
+
+    private static bool IsDelete(AngleSharp.Dom.IElement item) => item.TextContent.Trim() == "Delete from library…";
+
     // -- Who sees it ---------------------------------------------------------------------------
 
     [Fact]
-    public async Task AnAdministratorOnADesktopSeesACheckboxAndADeleteIconOnEveryRow()
+    public async Task AnAdministratorOnADesktopSeesACheckboxOnEveryRowAndDeleteAsTheLastMenuItem()
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
@@ -113,10 +123,11 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var cut = RenderTable(Songs(3));
 
         Assert.Equal(3, Checkboxes(cut).Count);
-        var icons = cut.FindAll(RowDeleteSelector);
-        Assert.Equal(3, icons.Count);
-        Assert.All(icons, icon => Assert.StartsWith("Delete Song ", icon.GetAttribute("aria-label")));
-        Assert.All(icons, icon => Assert.EndsWith(" from library…", icon.GetAttribute("aria-label")));
+        Assert.Empty(cut.FindAll(".listen-song-table__delete"));
+        var items = OpenRowMenuItems(cut, 0);
+        var delete = Assert.Single(items, IsDelete);
+        Assert.Same(items[^1], delete);
+        Assert.Contains("app-tone--error", delete.ClassList);
         Assert.Equal(["Select Song 1", "Select Song 2", "Select Song 3"], Checkboxes(cut).Select(box => box.GetAttribute("aria-label")));
         Assert.Empty(cut.FindAll(".listen-song-table__selection"));
     }
@@ -130,7 +141,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var cut = RenderTable(Songs(3));
 
         Assert.Empty(Checkboxes(cut));
-        Assert.Empty(cut.FindAll(RowDeleteSelector));
+        Assert.DoesNotContain(OpenRowMenuItems(cut, 0), IsDelete);
         Assert.DoesNotContain("Delete from library", cut.Markup, StringComparison.Ordinal);
     }
 
@@ -142,7 +153,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var cut = RenderTable(Songs(2));
 
         Assert.Empty(Checkboxes(cut));
-        Assert.Empty(cut.FindAll(RowDeleteSelector));
+        Assert.DoesNotContain(OpenRowMenuItems(cut, 0), IsDelete);
     }
 
     [Theory]
@@ -159,7 +170,6 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var cut = RenderTable(Songs(3));
 
         Assert.Empty(Checkboxes(cut));
-        Assert.Empty(cut.FindAll(RowDeleteSelector));
         Assert.DoesNotContain("Delete from library", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("checkbox", cut.Markup, StringComparison.Ordinal);
     }
@@ -181,7 +191,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheRowDeleteIconOpensOneDialogForThatSongAndAsksTheEngineAboutOnlyIt()
+    public async Task TheRowMenuDeleteItemOpensOneDialogForThatSongAndAsksTheEngineAboutOnlyIt()
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
@@ -189,7 +199,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var host = Render<AppDialogHost>();
         var cut = RenderTable(songs);
 
-        cut.FindAll(RowDeleteSelector)[1].Click();
+        OpenRowMenuItems(cut, 1).Single(IsDelete).Click();
 
         host.WaitForElement(".delete-library__section");
         Assert.Equal([songs[1].Id], Assert.Single(_previewRequests));

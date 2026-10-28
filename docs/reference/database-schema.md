@@ -1231,6 +1231,25 @@ The records a plugin keeps for itself, written through the plugin's own record s
 
 **Key:** `PRIMARY KEY (plugin_id, collection, record_key)`. Added by upgrade step `0023_plugin_host_services`.
 
+### plugin_activity
+
+Each plugin's or metadata source's Activity list (Plugin architecture spec D10 and C17): one row per run that changed items, failure, deliberate skip (a Vault item, an audience, a library limit) or note. A failure always carries a cause from one fixed list in `reason` (`plugin_crashed`, `service_unreachable`, `service_refused`, `service_rate_limited`, `key_rejected`, `key_expired`, `tool_missing`, `local_ai_off`, `local_ai_busy`, `local_ai_over_allowance`, `item_unreadable`, `item_unsupported`, `limit_storage`, `limit_records`, `limit_requests`, `not_allowed_audience`, `not_allowed_vault`, `not_allowed_permission`, `dependency_off`, `library_data_store`, `library_disk`). The `detail` line is redacted of keys and personal paths before it is written, and a Vault item is recorded without its id. The Library keeps the newest 1,000 rows per plugin. Not part of backups; it fills again as plugins run.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | INTEGER | Primary key, auto-increment |
+| `occurred_at` | TEXT | ISO 8601 UTC |
+| `plugin_id` | TEXT | The plugin's manifest id, or the source's name |
+| `plugin_version` | TEXT | The version that wrote the row |
+| `kind` | TEXT | `run`, `failure`, `skipped` or `note` |
+| `reason` | TEXT | The cause of a failure or skip; null otherwise |
+| `item_id` | BLOB | The item concerned, null when none or when it is in a Vault section |
+| `items_changed` | INTEGER | How many items a run changed |
+| `summary` | TEXT | One plain sentence |
+| `detail` | TEXT | A technical line, redacted |
+
+**Indexes:** `(plugin_id, id DESC)` and `(occurred_at)`. Added by upgrade step `0051_plugin_activity`.
+
 ### plugin_event_cursors
 
 Where each plugin has got to in the Library's event list (`application_events`): the sequence of the newest event already handed to it. The plugin event dispatcher reads events after this sequence, so a restart carries on where it stopped. A plugin that subscribes for the first time, or that is switched off and on again, starts at the newest event with no backlog.

@@ -1,12 +1,13 @@
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services;
 
 /// <summary>What one system activity prune removed.</summary>
-public sealed record ActivityPruneResult(int DeletedForAge, int DeletedForCap, int RetentionDays, int MaxEvents)
+public sealed record ActivityPruneResult(int DeletedForAge, int DeletedForCap, int RetentionDays, int MaxEvents, int DeletedPeopleActions = 0)
 {
-    public int Total => DeletedForAge + DeletedForCap;
+    public int Total => DeletedForAge + DeletedForCap + DeletedPeopleActions;
 }
 
 /// <summary>
@@ -37,6 +38,11 @@ public sealed class ActivityRetentionPruner
             ? await _retention.PruneToMaxEventsAsync(settings.ActivityMaxEvents, ct).ConfigureAwait(false)
             : 0;
 
-        return new ActivityPruneResult(forAge, forCap, settings.ActivityRetentionDays, settings.ActivityMaxEvents);
+        // What people did with plugins has its own, longer retention (Plugin architecture spec C25).
+        var forPeople = settings.PluginPeopleActionRetentionDays > 0
+            ? await _retention.PruneActionTypeOlderThanAsync(SystemActionType.PluginPeopleAction, settings.PluginPeopleActionRetentionDays, ct).ConfigureAwait(false)
+            : 0;
+
+        return new ActivityPruneResult(forAge, forCap, settings.ActivityRetentionDays, settings.ActivityMaxEvents, forPeople);
     }
 }

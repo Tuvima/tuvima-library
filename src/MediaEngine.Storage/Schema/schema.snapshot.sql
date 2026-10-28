@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0050 folder_kind_changes).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0051 plugin_activity).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2010,6 +2010,19 @@ CREATE TABLE player_sessions (
     last_heartbeat_at     TEXT
 );
 
+CREATE TABLE plugin_activity (
+    id             INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    occurred_at    TEXT    NOT NULL,   -- ISO 8601 UTC
+    plugin_id      TEXT    NOT NULL,   -- the plugin's manifest id, or the metadata source's name
+    plugin_version TEXT    NOT NULL,
+    kind           TEXT    NOT NULL CHECK (kind IN ('run', 'failure', 'skipped', 'note')),
+    reason         TEXT,               -- the cause of a failure or skip, one of the fixed words (service_unreachable, tool_missing, ...)
+    item_id        BLOB,               -- the item it concerned, when there is one and it is not in a Vault section
+    items_changed  INTEGER NOT NULL DEFAULT 0,
+    summary        TEXT    NOT NULL,   -- one plain sentence
+    detail         TEXT                -- a technical line, redacted of keys and personal paths
+);
+
 CREATE TABLE plugin_event_cursors (
     plugin_id      TEXT    NOT NULL PRIMARY KEY,   -- the plugin's manifest id
     last_sequence  INTEGER NOT NULL,               -- the newest application_events.sequence already delivered
@@ -3466,6 +3479,10 @@ CREATE INDEX idx_player_queue_items_profile_position
 
 CREATE INDEX idx_player_sessions_heartbeat
     ON player_sessions(last_heartbeat_at);
+
+CREATE INDEX idx_plugin_activity_plugin ON plugin_activity (plugin_id, id DESC);
+
+CREATE INDEX idx_plugin_activity_time ON plugin_activity (occurred_at);
 
 CREATE INDEX idx_plugin_lore_entities_qid
     ON plugin_lore_entities (wikidata_qid) WHERE wikidata_qid IS NOT NULL;

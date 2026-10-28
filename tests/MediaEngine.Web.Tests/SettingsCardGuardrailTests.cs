@@ -16,7 +16,6 @@ public sealed partial class SettingsCardGuardrailTests
     /// <summary>Settings components that may still use <c>AppPanel</c>, each with the reason it is not a page content block.</summary>
     private static readonly IReadOnlyDictionary<string, string> AppPanelAllowlist = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["CuratorsDrawer.razor"] = "A side drawer, not a Settings page.",
         ["EnrichmentTesterToolTab.razor"] = "Developer tool; the Developer tools spec replaces it.",
         ["ProviderTesterToolTab.razor"] = "Developer tool; the Developer tools spec replaces it.",
         ["MetadataPipelineStrip.razor"] = "Strip for a library detail view; no Settings page renders it.",

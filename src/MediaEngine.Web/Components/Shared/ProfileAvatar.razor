@@ -15,7 +15,8 @@ else
         }
         else
         {
-            <g><text x="50" y="52" text-anchor="middle" dominant-baseline="central" font-size="44" font-weight="700" fill="@Ink">@Initial</text></g>
+            @* A capital letter is centred by its cap height (about 0.714 of the font size) on the alphabetic baseline; "central" centres the text box and looks low. *@
+            <g><text x="50" y="@InitialBaselineY" text-anchor="middle" dominant-baseline="alphabetic" font-size="44" font-weight="700" fill="@Ink">@Initial</text></g>
         }
     </svg>
 }
@@ -29,6 +30,9 @@ else
 
     /// <summary>Key of a built-in icon drawn instead of the initial; ignored when a photo is set.</summary>
     [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Baseline that puts the middle of a capital letter on the circle's centre (50): 50 + 44 x 0.714 / 2.</summary>
+    internal const string InitialBaselineY = "65.7";
 
     private string Initial => string.IsNullOrWhiteSpace(DisplayName) ? "?" : DisplayName.Trim()[..1].ToUpperInvariant();
 

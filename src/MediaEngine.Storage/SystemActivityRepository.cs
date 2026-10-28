@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
@@ -99,9 +100,9 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
         using var conn = _db.CreateConnection();
         var deleted = conn.Execute("""
             DELETE FROM system_activity
-            WHERE occurred_at < @cutoff;
+            WHERE occurred_at < @cutoff AND action_type <> @peopleActions;
             """,
-            new { cutoff });
+            new { cutoff, peopleActions = SystemActionType.PluginPeopleAction });
 
         return Task.FromResult(deleted);
     }
@@ -118,9 +119,24 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
         // The row just past the newest N is the newest one to drop; ids only grow, so everything at or below it is older.
         var deleted = conn.Execute("""
             DELETE FROM system_activity
-            WHERE id <= (SELECT id FROM system_activity ORDER BY id DESC LIMIT 1 OFFSET @maxEvents);
+            WHERE id <= (SELECT id FROM system_activity ORDER BY id DESC LIMIT 1 OFFSET @maxEvents)
+              AND action_type <> @peopleActions;
             """,
-            new { maxEvents });
+            new { maxEvents, peopleActions = SystemActionType.PluginPeopleAction });
+
+        return Task.FromResult(deleted);
+    }
+
+    /// <inheritdoc/>
+    public Task<int> PruneActionTypeOlderThanAsync(string actionType, int retentionDays, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actionType);
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-retentionDays).ToString("O");
+
+        using var conn = _db.CreateConnection();
+        var deleted = conn.Execute(
+            "DELETE FROM system_activity WHERE action_type = @actionType AND occurred_at < @cutoff;",
+            new { actionType, cutoff });
 
         return Task.FromResult(deleted);
     }

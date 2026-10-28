@@ -23,6 +23,7 @@
                 @foreach (var item in Items)
                 {
                     <AppMenuItem Label="@item.Label" Icon="@item.Icon" Disabled="@item.Disabled"
+                                 DividerBefore="@DividerFor(item)"
                                  Tone="@ToneFor(item)" OnClick="@SelectCallback(item)" />
                 }
                 @if (ChildContent is not null)
@@ -41,6 +42,7 @@ else
         @foreach (var item in Items)
         {
             <AppMenuItem Label="@item.Label" Icon="@item.Icon" Disabled="@item.Disabled"
+                         DividerBefore="@DividerFor(item)"
                          Tone="@ToneFor(item)" OnClick="@item.OnClick" />
         }
         @ChildContent
@@ -49,6 +51,13 @@ else
 
 @code {
     private bool _open;
+
+    // Destructive items sit last, after a divider (one-look spec D3); only the first of a run of them gets the line.
+    private bool DividerFor(AppRowMenuItem item)
+    {
+        var index = Items.ToList().IndexOf(item);
+        return item.Destructive && index > 0 && !Items[index - 1].Destructive;
+    }
 
     /// <summary>Accessible name of the "more" button and of the menu.</summary>
     [Parameter] public string AriaLabel { get; set; } = "More actions";

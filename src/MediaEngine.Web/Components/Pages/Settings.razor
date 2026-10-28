@@ -260,12 +260,6 @@ else
 </MediaSectionShell>
 }
 
-<CuratorsDrawer Open="@_drawerOpen"
-                OpenChanged="@OnDrawerOpenChanged"
-                EntityId="@_drawerEntityId"
-                CurrentTitle="@_drawerTitle"
-                OnCorrected="@OnDrawerCorrected" />
-
 @code {
     [Parameter] public string? Section { get; set; }
     [Parameter] public string? Subsection { get; set; }
@@ -320,9 +314,6 @@ else
     private bool _shellStateLoading = true;
     private bool _developmentToolsLoading = true;
 
-    private bool _drawerOpen;
-    private Guid _drawerEntityId;
-    private string _drawerTitle = string.Empty;
     private ElementReference _contentElement;
     private bool _scrollToTopPending;
     private bool _wasAdministrationRoute;
@@ -539,14 +530,6 @@ else
         {
             // The bounded server unlock lease handles a disconnected Dashboard.
         }
-    }
-
-    public void OpenCuratorsDrawer(Guid entityId, string title)
-    {
-        _drawerEntityId = entityId;
-        _drawerTitle = title;
-        _drawerOpen = true;
-        StateHasChanged();
     }
 
     private async Task LoadShellStateAsync()
@@ -793,18 +776,6 @@ else
             ResolveSectionAndNormalize();
             StateHasChanged();
         });
-    }
-
-    private async Task OnDrawerOpenChanged(bool open)
-    {
-        _drawerOpen = open;
-        await Task.CompletedTask;
-    }
-
-    private void OnDrawerCorrected()
-    {
-        _drawerOpen = false;
-        StateHasChanged();
     }
 
     private void OnDeviceContextChanged() => InvokeAsync(StateHasChanged);

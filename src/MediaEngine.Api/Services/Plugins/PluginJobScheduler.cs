@@ -29,6 +29,7 @@ internal sealed class PluginJobScheduler : BackgroundService, IScheduledTaskDesc
     private readonly TimeProvider _clock;
     private readonly PluginHostLimits _limits;
     private readonly ILogger<PluginJobScheduler> _logger;
+    private readonly PluginActivityService? _activity;
     private readonly SemaphoreSlim _slots;
     private readonly object _gate = new();
     private readonly Dictionary<string, JobTiming> _timings = new(StringComparer.Ordinal);
@@ -44,8 +45,10 @@ internal sealed class PluginJobScheduler : BackgroundService, IScheduledTaskDesc
         IScheduledTaskRunRepository runs,
         PluginHostLimits limits,
         TimeProvider clock,
-        ILogger<PluginJobScheduler> logger)
+        ILogger<PluginJobScheduler> logger,
+        PluginActivityService? activity = null)
     {
+        _activity = activity;
         _catalog = catalog;
         _statuses = statuses;
         _contexts = contexts;
@@ -307,6 +310,14 @@ internal sealed class PluginJobScheduler : BackgroundService, IScheduledTaskDesc
             _logger.LogWarning(ex, "Plugin {PluginId} job {JobKey} failed", pluginId, job.Key);
             status.ClearCounter(limitStopCounter);
             status.SetLastProblem($"{job.DisplayName} failed: {ex.Message}");
+            if (_activity is not null && _catalog.Get(pluginId) is { } failedPlugin)
+            {
+                await _activity.RecordFailureAsync(
+                    new PluginActivityContext(failedPlugin.Manifest.Id, failedPlugin.Manifest.Version),
+                    PluginFailureClassifier.Classify(ex),
+                    summary: $"{job.DisplayName} failed.",
+                    exception: ex).ConfigureAwait(false);
+            }
         }
         finally
         {
