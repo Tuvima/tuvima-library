@@ -87,6 +87,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<ViewTrashRecoveryHostedService>();
         services.AddSingleton<ViewIntakeHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ViewIntakeHostedService>());
+        services.AddHostedService<ViewDuplicatesHostedService>();
+        services.AddHostedService<ViewTidyHostedService>();
         services.AddHostedService<RetagSweepWorker>();
         services.AddSingleton<ArtworkWritebackService>();
         services.AddHostedService<ArtworkWritebackWorker>();

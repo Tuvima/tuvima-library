@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.LocalAssets.Intake;
+using MediaEngine.Api.Services.View;
 using MediaEngine.Contracts.LocalAssets;
 using Microsoft.AspNetCore.Mvc;
 
@@ -49,6 +50,104 @@ public static partial class ViewEndpoints
                 : ApiErrors.NotFound("That refused file is no longer in the Rejected area."))
             .WithName("RemoveViewRejectedFile")
             .WithSummary("Removes one refused file from the Rejected area now, instead of waiting out its time.")
+            .RequireEffectiveAdministrator();
+
+        group.MapGet("/admin/tidy/{sourceId:guid}", async (Guid sourceId, [FromServices] ViewTidyService service, CancellationToken ct) =>
+            await service.GetStatusAsync(sourceId, ct) is { } status
+                ? Results.Ok(status)
+                : ApiErrors.NotFound("Only a managed photos or personal videos folder can be tidied."))
+            .WithName("GetViewTidyStatus")
+            .WithSummary("What Tidy this folder would do to a managed folder, or what the current or last run did.")
+            .Produces<ViewTidyStatusDto>()
+            .RequireEffectiveAdministrator();
+
+        group.MapPost("/admin/tidy/{sourceId:guid}/run", async (Guid sourceId, IViewRequestProfileContext identity,
+            [FromServices] ViewTidyService service, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            try
+            {
+                return await service.StartAsync(sourceId, authority.ActiveProfileId, "now", ct) is { } status
+                    ? Results.Ok(status)
+                    : ApiErrors.NotFound("Only a managed photos or personal videos folder can be tidied.");
+            }
+            catch (InvalidOperationException exception)
+            {
+                return ApiErrors.Conflict(exception.Message);
+            }
+        }).WithName("RunViewTidy")
+            .WithSummary("Starts Tidy this folder now. The folder's library is unavailable for new files until it finishes.")
+            .Produces<ViewTidyStatusDto>()
+            .RequireEffectiveAdministrator();
+
+        group.MapPut("/admin/tidy/{sourceId:guid}/schedule", async (Guid sourceId, ViewTidyScheduleRequest request,
+            [FromServices] ViewTidyService service, CancellationToken ct) =>
+            await service.SetScheduledAsync(sourceId, request.Scheduled, ct) is { } status
+                ? Results.Ok(status)
+                : ApiErrors.NotFound("Only a managed photos or personal videos folder can be tidied."))
+            .WithName("ScheduleViewTidy")
+            .WithSummary("Turns the nightly Tidy of a managed folder on or off.")
+            .Produces<ViewTidyStatusDto>()
+            .RequireEffectiveAdministrator();
+
+        group.MapGet("/admin/duplicates", async (IViewRequestProfileContext identity, [FromServices] ViewDuplicatesService service, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            return authority.ActiveProfileId is { } profile
+                ? Results.Ok(await service.GetReportAsync(profile, ct))
+                : ApiErrors.Forbidden("Sign in as a person to see the duplicates report.");
+        }).WithName("GetViewDuplicatesReport")
+            .WithSummary("Exact copies already in the Shared Library or the administrator's own space, as the cleanup job last found them.")
+            .Produces<ViewDuplicateReportDto>()
+            .RequireEffectiveAdministrator();
+
+        group.MapPost("/admin/duplicates/scan", async (IViewRequestProfileContext identity, [FromServices] ViewDuplicatesService service, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            if (authority.ActiveProfileId is not { } profile)
+            {
+                return ApiErrors.Forbidden("Sign in as a person to look for duplicates.");
+            }
+
+            await service.ScanAsync(ct);
+            return Results.Ok(await service.GetReportAsync(profile, ct));
+        }).WithName("ScanViewDuplicates")
+            .WithSummary("Runs the duplicates cleanup now. It only updates the report; nothing is removed.")
+            .Produces<ViewDuplicateReportDto>()
+            .RequireEffectiveAdministrator();
+
+        group.MapPost("/admin/duplicates/{id:guid}/keep", async (Guid id, ViewDuplicateKeepRequest request, IViewRequestProfileContext identity,
+            [FromServices] ViewDuplicatesService service, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            if (authority.ActiveProfileId is not { } profile)
+            {
+                return ApiErrors.Forbidden("Sign in as a person to tidy duplicates.");
+            }
+
+            try
+            {
+                var result = await service.KeepOneAsync(profile, id, request.KeepItemId, ct);
+                return result is null ? ApiErrors.NotFound("That group of copies is no longer there.") : Results.Ok(result);
+            }
+            catch (ArgumentException exception)
+            {
+                return ApiErrors.BadRequest(exception.Message);
+            }
+        }).WithName("KeepOneViewDuplicate")
+            .WithSummary("Keeps one copy from a group of exact duplicates and moves the others to Trash.")
+            .Produces<ViewDuplicateKeepResultDto>()
+            .RequireEffectiveAdministrator();
+
+        group.MapPost("/admin/duplicates/{id:guid}/dismiss", async (Guid id, IViewRequestProfileContext identity,
+            [FromServices] ViewDuplicatesService service, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            return authority.ActiveProfileId is { } profile && await service.DismissAsync(profile, id, ct)
+                ? Results.NoContent()
+                : ApiErrors.NotFound("That group of copies is no longer there.");
+        }).WithName("DismissViewDuplicate")
+            .WithSummary("Leaves a group of copies as it is; it comes back only if more copies turn up.")
             .RequireEffectiveAdministrator();
 
         group.MapGet("/admin/intake/{kind}", async (string kind, [FromServices] ViewIntakeAdminService service, CancellationToken ct) =>

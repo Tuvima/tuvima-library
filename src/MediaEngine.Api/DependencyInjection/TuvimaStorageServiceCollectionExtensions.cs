@@ -60,6 +60,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ViewIntakeActivity>();
         services.AddSingleton<ViewIntakeFiler>();
         services.AddSingleton<ViewIntakeAdminService>();
+        services.AddSingleton<ViewDuplicatesService>();
+        services.AddSingleton<IViewTidyRepository, ViewTidyRepository>();
+        services.AddSingleton<ViewTidyService>();
         services.AddSingleton<ViewThumbnailService>();
         services.AddSingleton<IViewPathIndexer>(sp => sp.GetRequiredService<ViewLibraryService>());
         services.AddScoped<IViewRequestProfileContext, HttpViewRequestProfileContext>();

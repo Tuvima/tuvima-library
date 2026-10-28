@@ -286,4 +286,69 @@ public sealed class ViewIntakeRepository(IDatabaseConnection database) : IViewIn
                  WHERE id = @id AND state = 'open';
                 """, new { id, dismissedBy, now = now.ToUniversalTime().ToString("o") }, transaction, cancellationToken: token)) > 0;
         }, ct);
+
+    public Task<IReadOnlyList<ViewDuplicateCandidate>> FindDuplicateCandidatesAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        var rows = connection.Query<CandidateRow>(new CommandDefinition("""
+            SELECT li.scope_kind AS ScopeKind, li.library_id AS LibraryId, lf.content_hash AS ContentHash,
+                   CAST(COUNT(DISTINCT li.id) AS INTEGER) AS Copies
+              FROM local_items li
+              JOIN local_item_files lif ON lif.item_id = li.id AND lif.role = 'primary'
+              JOIN local_files lf ON lf.id = lif.file_id
+             WHERE li.trashed_at IS NULL AND li.content_kind IN ('photos', 'personal_videos') AND lf.content_hash <> ''
+             GROUP BY li.scope_kind, li.library_id, lf.content_hash
+            HAVING COUNT(DISTINCT li.id) > 1;
+            """, cancellationToken: ct)).Select(row => new ViewDuplicateCandidate(row.ScopeKind, row.LibraryId, row.ContentHash, row.Copies)).ToList();
+        return Task.FromResult<IReadOnlyList<ViewDuplicateCandidate>>(rows);
+    }
+
+    public Task<IReadOnlyList<ViewDuplicateCopy>> GetDuplicateCopiesAsync(
+        string scopeKind, Guid libraryId, string contentHash, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        var rows = connection.Query<CopyRow>(new CommandDefinition("""
+            SELECT li.id AS ItemId, li.primary_file_name AS FileName, COALESCE(li.captured_at, li.embedded_captured_at) AS CapturedAt,
+                   li.created_at AS CreatedAt, lf.byte_size AS ByteSize
+              FROM local_items li
+              JOIN local_item_files lif ON lif.item_id = li.id AND lif.role = 'primary'
+              JOIN local_files lf ON lf.id = lif.file_id
+             WHERE li.scope_kind = @scopeKind AND li.library_id = @libraryId AND li.trashed_at IS NULL
+               AND li.content_kind IN ('photos', 'personal_videos') AND lf.content_hash = @contentHash COLLATE NOCASE
+             ORDER BY li.created_at, li.id;
+            """, new { scopeKind, libraryId, contentHash }, cancellationToken: ct))
+            .Select(row => new ViewDuplicateCopy(row.ItemId, row.FileName, row.CapturedAt, row.CreatedAt, row.ByteSize)).ToList();
+        return Task.FromResult<IReadOnlyList<ViewDuplicateCopy>>(rows);
+    }
+
+    public Task<IReadOnlyList<Guid>> GetOwnLibraryIdsAsync(Guid profileId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        var rows = connection.Query<Guid>(new CommandDefinition("""
+            SELECT library_id FROM view_personal_spaces WHERE owner_profile_id = @profileId
+            UNION
+            SELECT sl.library_id FROM profiles p JOIN view_shared_library sl ON sl.household_id = p.household_id WHERE p.id = @profileId;
+            """, new { profileId }, cancellationToken: ct)).ToList();
+        return Task.FromResult<IReadOnlyList<Guid>>(rows);
+    }
+
+    private sealed class CandidateRow
+    {
+        public string ScopeKind { get; init; } = "";
+        public Guid LibraryId { get; init; }
+        public string ContentHash { get; init; } = "";
+        public long Copies { get; init; }
+    }
+
+    private sealed class CopyRow
+    {
+        public Guid ItemId { get; init; }
+        public string FileName { get; init; } = "";
+        public string? CapturedAt { get; init; }
+        public string CreatedAt { get; init; } = "";
+        public long ByteSize { get; init; }
+    }
 }

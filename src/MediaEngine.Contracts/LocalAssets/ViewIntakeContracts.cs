@@ -47,3 +47,51 @@ public sealed record ViewActivityEntryDto(
 
 public sealed record ViewActivityDto(
     [property: JsonPropertyName("entries")] IReadOnlyList<ViewActivityEntryDto> Entries);
+
+/// <summary>One copy inside a group of exact duplicates.</summary>
+public sealed record ViewDuplicateCopyDto(
+    [property: JsonPropertyName("item_id")] Guid ItemId,
+    [property: JsonPropertyName("file_name")] string FileName,
+    [property: JsonPropertyName("taken_at")] string? TakenAt,
+    [property: JsonPropertyName("added_at")] string AddedAt,
+    [property: JsonPropertyName("size_bytes")] long SizeBytes);
+
+/// <summary>A group of exact copies in one place. <c>Scope</c> is "shared" or "personal".</summary>
+public sealed record ViewDuplicateGroupDto(
+    [property: JsonPropertyName("id")] Guid Id,
+    [property: JsonPropertyName("scope")] string Scope,
+    [property: JsonPropertyName("copies")] IReadOnlyList<ViewDuplicateCopyDto> Copies);
+
+/// <summary>What the duplicates cleanup job last found, for the administrators who may act on it.</summary>
+public sealed record ViewDuplicateReportDto(
+    [property: JsonPropertyName("enabled")] bool Enabled,
+    [property: JsonPropertyName("scan_hour")] int ScanHour,
+    [property: JsonPropertyName("last_scan_at")] DateTimeOffset? LastScanAt,
+    [property: JsonPropertyName("groups")] IReadOnlyList<ViewDuplicateGroupDto> Groups);
+
+/// <summary>Keep one copy of a group; the rest go to Trash.</summary>
+public sealed record ViewDuplicateKeepRequest(
+    [property: JsonPropertyName("keep_item_id")] Guid KeepItemId);
+
+/// <summary>How many copies one keep-one moved to Trash.</summary>
+public sealed record ViewDuplicateKeepResultDto(
+    [property: JsonPropertyName("moved_to_trash")] int MovedToTrash);
+
+/// <summary>What Tidy this folder would do to one Managed folder, or is doing, or last did (Photo and video filing spec D17).</summary>
+public sealed record ViewTidyStatusDto(
+    [property: JsonPropertyName("source_id")] Guid SourceId,
+    [property: JsonPropertyName("source_name")] string SourceName,
+    [property: JsonPropertyName("will_move")] int WillMove,
+    [property: JsonPropertyName("example_from")] string? ExampleFrom,
+    [property: JsonPropertyName("example_to")] string? ExampleTo,
+    [property: JsonPropertyName("running")] bool Running,
+    [property: JsonPropertyName("scheduled")] bool Scheduled,
+    [property: JsonPropertyName("schedule_hour")] int ScheduleHour,
+    [property: JsonPropertyName("total")] int Total,
+    [property: JsonPropertyName("moved")] int Moved,
+    [property: JsonPropertyName("failed")] int Failed,
+    [property: JsonPropertyName("message")] string? Message);
+
+/// <summary>Turns the nightly Tidy of one folder on or off.</summary>
+public sealed record ViewTidyScheduleRequest(
+    [property: JsonPropertyName("scheduled")] bool Scheduled);

@@ -39,9 +39,17 @@ changes. `Shared` is a separate household-owned originals tree and never
 masquerades as a profile.
 
 Managed folder import copies files beneath the profile's `Folders` directory and
-preserves the original hierarchy and names. Browser uploads use a built-in
-managed Timeline source and organize new files by year, month, capture date,
-time, and media-kind suffix.
+preserves the original hierarchy and names. Browser uploads, Add files, phone backup and files copied
+into the Import area all go through one filer (`ViewIntakeFiler`). Import and
+Rejected areas sit outside every library folder; each file there has a
+`view_intake_files` row that doubles as the filing journal. The filer waits for a
+file to settle, checks it (readable, not empty, supported, storable name, room on
+the drive), reads the capture date, skips an exact copy already in the destination
+space, and files the file with its companions as
+`Year/Year-Month-Day/original name` (the pattern is `config/photo_filing.json`).
+Refused files wait in the Rejected area for 30 days. The duplicates job
+(`view_duplicate_groups`) and Tidy this folder (`view_tidy_jobs` with a rename
+ledger in `view_tidy_moves`) are durable and resume after a stop.
 Administrators may link an external folder as an advanced read-only source;
 the link is indexed in place and detaching it deletes only the source record,
 not its files. Sources are persisted Personal Space provenance, not entries in

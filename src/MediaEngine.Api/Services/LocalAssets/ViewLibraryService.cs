@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
@@ -330,6 +331,12 @@ public sealed class ViewLibraryService(
             {
                 await content.CopyToAsync(output, ct);
             }
+            var room = FreeSpaceCheck.Check([new FileInfo(temporaryPath).Length], FreeBytesAtDestination(destinationPath));
+            if (!room.Fits)
+            {
+                throw new IntakeRefusedException(IntakeRefusedException.NotEnoughSpaceCode, room.Message ?? "Not enough space.", StatusCodes.Status507InsufficientStorage);
+            }
+
             var candidate = TryCreateCandidate(temporaryPath)
                 ?? throw new InvalidDataException("The uploaded file type is not supported by View.");
             var date = await ReadCaptureDateAsync(candidate, ct, safeName);
@@ -866,6 +873,9 @@ public sealed class ViewLibraryService(
     /// The date a photo or video was taken, for filing it (Photo and video filing spec D2): the camera or phone's own date, then a date in
     /// the file name, then the date of the file itself (the earlier of created and last changed, since a copy gets a new created time).
     /// </summary>
+    /// <summary>Free space where a file will be stored. Replaced in tests; the default reads the drive.</summary>
+    internal Func<string, long?> FreeBytesAtDestination { get; set; } = FreeSpaceCheck.FreeBytesAt;
+
     internal async Task<ViewCaptureDate> ReadCaptureDateAsync(FileCandidate candidate, CancellationToken ct, string? originalName = null)
     {
         var metadata = await ReadMetadataAsync(candidate, ct);

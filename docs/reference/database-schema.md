@@ -537,6 +537,8 @@ item is unaffected.
 
 `view_duplicate_groups` remembers the groups of exact copies the duplicates cleanup job found inside one personal library or the Shared Library: one row per content hash and library, the number of copies, and whether an administrator dismissed it. The members are read live, and a dismissed group comes back only if it grows.
 
+`view_tidy_jobs`, `view_tidy_moves` and `view_tidy_schedules` run Tidy this folder (upgrade step 0062). A job belongs to one Managed folder and is `running`, `completed` or `failed`, with how many files it plans to rename, has renamed and could not rename. `view_tidy_moves` is the ledger: one row per file with where it is and where it is going, `planned` until the rename is done, so a stop in the middle resumes exactly where it left off and never repeats or loses a file. `view_tidy_schedules` lists the folders that are tidied every night. Tidy only ever renames inside the folder, so it never copies across drives.
+
 **Empty Trash and the data store.** Emptying a person's Trash removes each item's
 `local_items` row inside one transaction. Its cascades clear `local_item_metadata`,
 `local_item_files`, `local_item_tag_links`, `local_item_annotations`,

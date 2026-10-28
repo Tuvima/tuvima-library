@@ -67,4 +67,13 @@ public interface IViewIntakeRepository
     Task<ViewDuplicateGroup?> GetDuplicateGroupAsync(Guid id, CancellationToken ct = default);
 
     Task<bool> DismissDuplicateGroupAsync(Guid id, Guid dismissedBy, DateTimeOffset now, CancellationToken ct = default);
+
+    /// <summary>Every space or Shared Library that holds two or more not-in-Trash photos or videos with identical contents.</summary>
+    Task<IReadOnlyList<ViewDuplicateCandidate>> FindDuplicateCandidatesAsync(CancellationToken ct = default);
+
+    /// <summary>The copies in one group, oldest first.</summary>
+    Task<IReadOnlyList<ViewDuplicateCopy>> GetDuplicateCopiesAsync(string scopeKind, Guid libraryId, string contentHash, CancellationToken ct = default);
+
+    /// <summary>The libraries a person may see duplicates for: their own space and their household's Shared Library.</summary>
+    Task<IReadOnlyList<Guid>> GetOwnLibraryIdsAsync(Guid profileId, CancellationToken ct = default);
 }

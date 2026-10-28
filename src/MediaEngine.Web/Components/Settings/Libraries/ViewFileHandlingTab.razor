@@ -31,6 +31,7 @@
                 <AppButton Label="Save layout" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(ReadOnly || _busy || string.IsNullOrWhiteSpace(_pattern))" OnClick="SaveAsync" />
             </AppActionBar>
         </SettingsSectionPanel>
+        <ViewDuplicatesPanel ReadOnly="@ReadOnly" />
     }
     <SettingsSectionPanel Title="File handling" Description="Originals remain protected throughout indexing and sharing.">
         <div class="view-policy-row"><div><strong>Linked originals</strong><small>Library reads their local file details and thumbnails.</small></div><span>Read-only · Files stay in place</span></div>

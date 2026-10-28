@@ -276,6 +276,23 @@ and timeline density are database preferences, not `libraries.json` fields.
 
 ---
 
+## config/photo_filing.json
+
+How photos and personal videos that arrive in Library's Import area are filed. Read each time it is needed, so a change applies to the next file.
+
+| Field | Default | Description |
+|---|---|---|
+| `layout_pattern` | `{year}/{year}-{month}-{day}` | Folders new photos are filed into, built from `{year}`, `{month}` and `{day}` (the day taken). The file keeps its own name; a short number is added only on a clash. Files already filed stay where they are. |
+| `rejected_retention_days` | 30 | How long a refused file stays in the Rejected area before it is removed. |
+| `settle_seconds` | 30 | A copied file must stay unchanged this long before it is filed. |
+| `scan_interval_seconds` | 60 | How often the Import area is looked at. |
+| `max_files_per_pass` | 500 | The most files filed in one look. |
+| `duplicate_scan_enabled` | true | Whether the duplicates cleanup runs every night. It only writes a report. |
+| `duplicate_scan_hour` | 3 | Local hour of the nightly duplicates check. |
+| `tidy_hour` | 2 | Local hour at which folders scheduled for Tidy this folder are tidied. |
+
+---
+
 ## Dashboard/Engine View security settings
 
 The Dashboard signs eligible Engine `/view` and `/collections` requests with

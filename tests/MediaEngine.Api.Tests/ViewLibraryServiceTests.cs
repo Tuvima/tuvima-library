@@ -36,6 +36,20 @@ public sealed class ViewLibraryServiceTests
     }
 
     [Fact]
+    public async Task Upload_IsRefusedCleanly_WhenTheDriveHasNoRoom()
+    {
+        using var fixture = new ViewFixture();
+        fixture.Service.FreeBytesAtDestination = _ => 10;
+        await using var content = new MemoryStream([1, 2, 3, 4]);
+
+        var refused = await Assert.ThrowsAsync<MediaEngine.Api.Services.LocalAssets.Intake.IntakeRefusedException>(() =>
+            fixture.Service.UploadAsync(fixture.OwnerProfileId, "phone-photo.jpg", content));
+
+        Assert.Equal(507, refused.StatusCode);
+        Assert.StartsWith("Not enough space", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Scan_IndexesWhatFitsThePhotosFolderInPlaceAndSkipsCatalogueLibraries()
     {
         using var fixture = new ViewFixture();

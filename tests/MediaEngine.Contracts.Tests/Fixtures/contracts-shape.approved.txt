@@ -4376,6 +4376,30 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocument
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentsSortDto
   Sort: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDuplicateCopyDto
+  ItemId: System.Guid | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  TakenAt: System.String | nullability=nullable | accessors=get,init
+  AddedAt: System.String | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDuplicateGroupDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Scope: System.String | nullability=not-null | accessors=get,init
+  Copies: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDuplicateCopyDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDuplicateKeepRequest
+  KeepItemId: System.Guid | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDuplicateKeepResultDto
+  MovedToTrash: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDuplicateReportDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+  ScanHour: System.Int32 | nullability=not-null | accessors=get,init
+  LastScanAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDuplicateGroupDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFilingLayoutDto
   Pattern: System.String | nullability=not-null | accessors=get,init
   DefaultPattern: System.String | nullability=not-null | accessors=get,init
@@ -4712,6 +4736,23 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTagDto
   Colour: System.String | nullability=nullable | accessors=get,init
   UsageCount: System.Int32 | nullability=not-null | accessors=get,init
   CanManage: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTidyScheduleRequest
+  Scheduled: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTidyStatusDto
+  SourceId: System.Guid | nullability=not-null | accessors=get,init
+  SourceName: System.String | nullability=not-null | accessors=get,init
+  WillMove: System.Int32 | nullability=not-null | accessors=get,init
+  ExampleFrom: System.String | nullability=nullable | accessors=get,init
+  ExampleTo: System.String | nullability=nullable | accessors=get,init
+  Running: System.Boolean | nullability=not-null | accessors=get,init
+  Scheduled: System.Boolean | nullability=not-null | accessors=get,init
+  ScheduleHour: System.Int32 | nullability=not-null | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  Moved: System.Int32 | nullability=not-null | accessors=get,init
+  Failed: System.Int32 | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTimelineBucketDto
   Year: System.Int32 | nullability=not-null | accessors=get,init

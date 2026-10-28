@@ -21,14 +21,25 @@ Your admin controls View access. Check the scope selector before you share or so
 
 ## Add files
 
-For a browser upload:
+There is one place to put new photos and videos: the **Import** area. It sits outside every library folder, so a library folder only ever holds filed photos.
 
-1. Open **View > Photos** and select **Mine**.
-2. Use the upload action and choose your files.
-3. Wait for the upload and local file checks to finish.
-4. Find the items in Photos.
+- **Add files from a browser.** Open **View > Photos** and select **Mine**, use the upload action and choose your files. They are checked and filed straight away.
+- **Copy files in.** An administrator opens **Settings > Libraries > View > Photos** (or **Personal videos**) and sees the Import folder's path on the Folders tab. Copy files there, or use **Add files** and **Scan now** on that page. A file in a folder named *Shared* goes to the Shared Library, a folder named after a person goes to that person's library, and anything else goes to the first administrator's library.
+- **Phone backup** goes through the same checks into the person the phone backs up.
+
+Library waits until a copied file stops changing, then files it by the day it was taken (the camera's date, otherwise a date in the file name, otherwise the file's own date) as `Year/Year-Month-Day/original name`. A RAW with its JPEG and sidecar, and a Live Photo with its video, are filed together under the same base name. An administrator can change the folder layout on the **File handling** tab; only files filed from then on follow it.
+
+Before anything is copied Library checks that the drive has room and says how much is needed and how much is free if it does not. A file that is damaged, empty, not a photo or video, or has a name the disk cannot store is **refused** with a plain reason: it moves to the **Rejected** area, is listed on the library's **Activity** tab, and is removed on its own after 30 days (an administrator can remove it sooner). An exact copy of something already in your library is skipped and counted as "already in your library"; the **Keep one copy / Keep both** setting still decides what happens to a copy that is allowed in.
+
+Each library page for Photos and Personal videos has an **Activity** tab: what was added, skipped and refused, newest first, as counts and reasons only.
 
 To add a folder source, ask an admin to open **Settings > Libraries > View** and choose Photos, Personal videos or Documents. The page has the same tabs as any library: **Folders**, **Access** and **File handling**. In Folders, **Add folder** defaults to a new managed folder; everything inside a folder is read, subfolders included. **Import folder** copies files into managed storage. **Link existing folder** scans an outside folder read-only. It leaves the original files where they are.
+
+### Tidy this folder and duplicates
+
+On the **Folders** tab, a managed folder has **Tidy this folder by date**. It renames the files already in the folder into the date layout, inside the same folder, so nothing is copied and no extra space is needed. Library tells you how many files will be renamed and warns that new files for that library wait until it finishes. A run can also be set to repeat every night. If the server is stopped part way, the run carries on from where it stopped without losing or repeating a file.
+
+On the **File handling** tab, **Duplicates** lists exact copies that are already in the Shared Library or in your own library, found by a nightly check or **Look for duplicates**. **Keep this one** moves the others to Trash (never straight to deletion); **Leave them** dismisses the group until more copies turn up. An administrator never sees another person's private photos here. Contributing a photo to the Shared Library that is already there is refused with "Already in the Shared Library".
 
 Detaching a source does not delete its files. Source and device records exist today. Phone backup, device sync, and auto-upload clients are not complete products yet.
 

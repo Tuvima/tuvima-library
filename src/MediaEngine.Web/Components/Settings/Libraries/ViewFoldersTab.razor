@@ -87,6 +87,11 @@
                         @if (ShowsTimeline) { <AppSwitchRow Label="Show in Photos timeline" Value="@source.IncludeInTimeline" ValueChanged="@((bool value) => SetTimelineAsync(profile.Id, source, value))" Disabled="@(ReadOnly || _busy)" /> }
                         else { <span></span> }
                         <AppStatusBadge Text="@(source.Enabled ? "Indexing enabled" : "Disabled")" Tone="AppUiTone.Neutral" />
+                        @if (CanTidy(source))
+                        {
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.CalendarMonth" AriaLabel="@($"Tidy {source.Name}")" Tooltip="Tidy this folder by date" Disabled="@(ReadOnly || _busy)" OnClick="@(() => TidyAsync(source))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Schedule" AriaLabel="@($"Tidy {source.Name} every night")" Tooltip="Tidy this folder every night" Disabled="@(ReadOnly || _busy)" OnClick="@(() => ScheduleTidyAsync(source))" />
+                        }
                         <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Detach {source.Name}")" Tooltip="Detach folder; keep files" Disabled="@(ReadOnly || _busy || source.SourceType == "browser_upload" || source.AcceptsPhotosAndVideos)" OnClick="@(() => DetachAsync(profile.Id, source))" />
                     </div>
                 }
@@ -206,6 +211,54 @@
         : source.SourceType == "browser_upload"
             ? "Managed · Filed by day"
             : "Managed · Keep existing layout";
+
+    // Tidy files what is already in a Managed photos or videos folder into the date layout, in place.
+    private bool CanTidy(ViewSourceAdminDto source) =>
+        Kind is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos
+        && source.StorageMode == ManagedMode && source.Enabled && source.SourceType == "folder" && !source.AcceptsPhotosAndVideos;
+
+    private async Task TidyAsync(ViewSourceAdminDto source)
+    {
+        var status = await ApiClient.GetViewTidyStatusAsync(source.Id);
+        if (status is null) { _error = ApiClient.LastError ?? "This folder can't be tidied."; return; }
+        if (status.Running) { Snackbar.Add($"{source.Name} is being tidied: {status.Moved:N0} of {status.Total:N0} files done.", AppSeverity.Info); return; }
+        if (status.WillMove == 0)
+        {
+            Snackbar.Add(status.Message is { Length: > 0 } last ? $"Everything in {source.Name} is filed by date. Last time: {last}" : $"Everything in {source.Name} is already filed by date.", AppSeverity.Success);
+            return;
+        }
+
+        var example = status.ExampleFrom is null ? string.Empty : $" For example {status.ExampleFrom} becomes {status.ExampleTo}.";
+        var question = $"Tidy {source.Name}? {status.WillMove:N0} files will be renamed into date folders inside this folder; nothing is copied or leaves it.{example} " +
+            "While it runs, new files for this library wait and are filed afterwards. Your originals' contents are never changed.";
+        if (await DialogService.ShowMessageBoxAsync("Tidy this folder?", question, yesText: "Tidy now", cancelText: "Cancel") != true) return;
+        _busy = true;
+        try
+        {
+            if (await ApiClient.RunViewTidyAsync(source.Id) is null) _error = ApiClient.LastError ?? "The folder could not be tidied.";
+            else Snackbar.Add($"Tidying {source.Name}. New files for this library wait until it finishes.", AppSeverity.Info);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task ScheduleTidyAsync(ViewSourceAdminDto source)
+    {
+        var status = await ApiClient.GetViewTidyStatusAsync(source.Id);
+        if (status is null) { _error = ApiClient.LastError ?? "This folder can't be tidied."; return; }
+        var turnOn = !status.Scheduled;
+        var hour = DateTime.Today.AddHours(status.ScheduleHour).ToString("h tt");
+        var question = turnOn
+            ? $"Tidy {source.Name} every night at {hour}? New files for this library wait while it runs."
+            : $"Stop tidying {source.Name} every night?";
+        if (await DialogService.ShowMessageBoxAsync(turnOn ? "Tidy every night?" : "Stop tidying every night?", question, yesText: turnOn ? "Tidy every night" : "Stop", cancelText: "Cancel") != true) return;
+        _busy = true;
+        try
+        {
+            if (await ApiClient.SetViewTidyScheduleAsync(source.Id, turnOn) is null) _error = ApiClient.LastError ?? "The schedule could not be saved.";
+            else Snackbar.Add(turnOn ? $"{source.Name} will be tidied every night at {hour}." : $"{source.Name} will no longer be tidied every night.", AppSeverity.Success);
+        }
+        finally { _busy = false; }
+    }
 
     private async Task DetachAsync(Guid owner, ViewSourceAdminDto source)
     {

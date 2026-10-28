@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Domain.Aggregates;
@@ -146,6 +147,105 @@ public sealed class ViewIntakeFilerTests
 
         Assert.Equal(IntakeOutcomes.Duplicate, result.Outcome);
         Assert.Equal(2, Directory.GetFiles(fixture.LibraryFolder, "*", SearchOption.AllDirectories).Length);
+    }
+
+    [Fact]
+    public async Task TheDuplicatesJob_ReportsExactCopiesInOneSpace_AndKeepOneSendsTheRestToTrash()
+    {
+        using var fixture = new IntakeFixture();
+        fixture.Drop(ViewContentKinds.Photos, "IMG_20240315_101500.jpg", IntakeFixture.Jpeg(12));
+        await fixture.Filer.FilePendingAsync();
+        fixture.CopyFirstItem();
+
+        Assert.Equal(1, await fixture.Duplicates.ScanAsync());
+        var report = await fixture.Duplicates.GetReportAsync(fixture.OwnerProfileId);
+        var group = Assert.Single(report.Groups);
+        Assert.Equal(2, group.Copies.Count);
+
+        var outsider = await fixture.Duplicates.GetReportAsync(Guid.NewGuid());
+        Assert.Empty(outsider.Groups);
+        Assert.Null(await fixture.Duplicates.KeepOneAsync(Guid.NewGuid(), group.Id, group.Copies[0].ItemId));
+
+        var result = await fixture.Duplicates.KeepOneAsync(fixture.OwnerProfileId, group.Id, group.Copies[0].ItemId);
+
+        Assert.Equal(1, result!.MovedToTrash);
+        Assert.Empty((await fixture.Duplicates.GetReportAsync(fixture.OwnerProfileId)).Groups);
+        Assert.NotNull(fixture.Repository.Find(group.Copies[0].ItemId));
+        Assert.NotNull(fixture.Repository.Find(group.Copies[1].ItemId)!.TrashedAt);
+        Assert.Equal(0, await fixture.Duplicates.ScanAsync());
+    }
+
+    [Fact]
+    public async Task TidyThisFolder_RenamesInPlaceIntoTheNewLayout_AndTheLibraryFindsTheFilesAtTheirNewPlace()
+    {
+        using var fixture = new IntakeFixture();
+        fixture.Drop(ViewContentKinds.Photos, "IMG_20240315_101500.jpg", IntakeFixture.Jpeg(13));
+        fixture.Drop(ViewContentKinds.Photos, "IMG_20230102_090000.jpg", IntakeFixture.Jpeg(14));
+        await fixture.Filer.FilePendingAsync();
+        var sourceId = await fixture.FolderSourceIdAsync();
+        Assert.Equal(0, (await fixture.Tidy.GetStatusAsync(sourceId))!.WillMove);
+
+        fixture.SetLayout("{year}/{month}");
+        var preview = await fixture.Tidy.GetStatusAsync(sourceId);
+        Assert.Equal(2, preview!.WillMove);
+
+        await fixture.Tidy.StartAsync(sourceId, fixture.OwnerProfileId, "now");
+        Assert.True((await fixture.Tidy.GetStatusAsync(sourceId))!.Running);
+        await fixture.Tidy.RunPendingAsync();
+
+        var after = (await fixture.Tidy.GetStatusAsync(sourceId))!;
+        Assert.False(after.Running);
+        Assert.Equal(2, after.Moved);
+        Assert.Equal(0, after.WillMove);
+        Assert.True(File.Exists(Path.Combine(fixture.LibraryFolder, "2024", "03", "IMG_20240315_101500.jpg")));
+        Assert.True(File.Exists(Path.Combine(fixture.LibraryFolder, "2023", "01", "IMG_20230102_090000.jpg")));
+        Assert.False(Directory.Exists(Path.Combine(fixture.LibraryFolder, "2024", "2024-03-15")));
+        var recorded = (await fixture.TidyRepository.GetSourceFilesAsync(sourceId)).Select(file => file.FilePath).ToList();
+        Assert.All(recorded, path => Assert.True(File.Exists(path)));
+    }
+
+    [Fact]
+    public async Task ATidyRunThatWasStopped_ResumesFromItsLedgerWithoutLosingOrRepeatingAFile()
+    {
+        using var fixture = new IntakeFixture();
+        fixture.Drop(ViewContentKinds.Photos, "IMG_20240315_101500.jpg", IntakeFixture.Jpeg(15));
+        fixture.Drop(ViewContentKinds.Photos, "IMG_20230102_090000.jpg", IntakeFixture.Jpeg(16));
+        await fixture.Filer.FilePendingAsync();
+        var sourceId = await fixture.FolderSourceIdAsync();
+        fixture.SetLayout("{year}/{month}");
+        await fixture.Tidy.StartAsync(sourceId, null, "scheduled");
+
+        // The Engine stopped after one file was renamed but before it was recorded.
+        var first = (await fixture.TidyRepository.GetPlannedMovesAsync((await fixture.TidyRepository.GetRunningJobsAsync()).Single().Id)).First();
+        Directory.CreateDirectory(Path.GetDirectoryName(first.ToPath)!);
+        File.Move(first.FromPath, first.ToPath);
+
+        await fixture.Tidy.RunPendingAsync();
+        await fixture.Tidy.RunPendingAsync();
+
+        var after = (await fixture.Tidy.GetStatusAsync(sourceId))!;
+        Assert.Equal(2, after.Moved);
+        Assert.Equal(0, after.Failed);
+        Assert.Equal(2, Directory.GetFiles(fixture.LibraryFolder, "*.jpg", SearchOption.AllDirectories).Length);
+    }
+
+    [Fact]
+    public async Task WhileAFolderIsBeingTidied_NewFilesWaitInsteadOfLandingInTheMiddleOfTheRun()
+    {
+        using var fixture = new IntakeFixture();
+        fixture.Drop(ViewContentKinds.Photos, "IMG_20240315_101500.jpg", IntakeFixture.Jpeg(17));
+        await fixture.Filer.FilePendingAsync();
+        var sourceId = await fixture.FolderSourceIdAsync();
+        fixture.SetLayout("{year}/{month}");
+        await fixture.Tidy.StartAsync(sourceId, null, "now");
+        var arriving = fixture.Drop(ViewContentKinds.Photos, "IMG_20240401_080000.jpg", IntakeFixture.Jpeg(18));
+
+        var pass = await fixture.Filer.FilePendingAsync();
+
+        Assert.Equal(IntakeOutcomes.Deferred, Assert.Single(pass.Groups).Outcome);
+        Assert.True(File.Exists(arriving));
+        await fixture.Tidy.RunPendingAsync();
+        Assert.Equal(IntakeOutcomes.Filed, Assert.Single((await fixture.Filer.FilePendingAsync()).Groups).Outcome);
     }
 
     [Fact]
@@ -342,13 +442,50 @@ public sealed class ViewIntakeFilerTests
             Clock = new StepClock();
             Areas = new ViewIntakeAreas(_configuration, new ProfileRepository(_database));
             var library = new ViewLibraryService(Repository, _configuration, spaces, storage, NullLogger<ViewLibraryService>.Instance);
+            TidyRepository = new ViewTidyRepository(_database);
             Filer = new ViewIntakeFiler(Areas, Intake, library, storage, Repository, _configuration, Clock,
-                NullLogger<ViewIntakeFiler>.Instance);
+                NullLogger<ViewIntakeFiler>.Instance, tidy: TidyRepository);
             Storage = storage;
             Spaces = spaces;
+            Duplicates = new ViewDuplicatesService(Intake, Repository, _configuration, Clock);
+            Tidy = new ViewTidyService(storage, library, new ViewSharedLibraryRepository(_database), TidyRepository, _configuration, Clock,
+                NullLogger<ViewTidyService>.Instance);
             Areas.EnsureFolders();
         }
 
+        public ViewDuplicatesService Duplicates { get; }
+        public ViewTidyService Tidy { get; }
+        public ViewTidyRepository TidyRepository { get; }
+
+        public void SetLayout(string pattern) =>
+            _configuration.SavePhotoFiling(new PhotoFilingSettings { SettleSeconds = 0, LayoutPattern = pattern });
+
+        /// <summary>The managed photos folder the filer created in the owner's space.</summary>
+        public async Task<Guid> FolderSourceIdAsync()
+        {
+            var space = (await Spaces.GetByOwnerAsync(OwnerProfileId))!;
+            return (await Spaces.GetSourcesAsync(space.Id))
+                .First(source => source.StorageMode == ViewSourceStorageMode.Managed && source.ContentKind == ViewContentKinds.Photos).Id;
+        }
+
+        /// <summary>Plants a second item with exactly the first item's file, as older data or a past bug could have left behind.</summary>
+        public void CopyFirstItem()
+        {
+            using var connection = _database.CreateConnection();
+            var first = connection.QueryFirst<Guid>("SELECT id FROM local_items ORDER BY created_at LIMIT 1;");
+            var copy = Guid.NewGuid();
+            connection.Execute("""
+                INSERT INTO local_items (id, scope_kind, personal_space_id, owner_profile_id, library_id, media_kind, title, primary_file_name,
+                    primary_mime_type, captured_at, embedded_captured_at, captured_at_user_override, created_at, updated_at, favorite, hidden,
+                    archived_at, trashed_at, content_kind, added_by_profile_id)
+                SELECT @copy, scope_kind, personal_space_id, owner_profile_id, library_id, media_kind, title, 'copy-' || primary_file_name,
+                    primary_mime_type, captured_at, embedded_captured_at, captured_at_user_override, '2999-01-01T00:00:00.0000000+00:00', updated_at,
+                    favorite, hidden, archived_at, trashed_at, content_kind, added_by_profile_id
+                  FROM local_items WHERE id = @first;
+                INSERT INTO local_item_files (item_id, file_id, role, derivative_kind, position, added_at)
+                SELECT @copy, file_id, role, derivative_kind, position, added_at FROM local_item_files WHERE item_id = @first;
+                """, new { copy, first });
+        }
         public Guid OwnerProfileId { get; }
         public LocalAssetRepository Repository { get; }
         public ViewIntakeRepository Intake { get; }

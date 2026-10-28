@@ -46,6 +46,27 @@ public partial interface IEngineApiClient
     Task<ViewFilingLayoutDto?> UpdateViewFilingLayoutAsync(string? pattern, CancellationToken ct = default);
     /// <summary>GET /view/admin/intake/{kind}/activity - what was added, skipped and refused, newest first.</summary>
     Task<ViewActivityDto?> GetViewKindActivityAsync(string contentKind, int take = 100, CancellationToken ct = default);
+
+    /// <summary>GET /view/admin/tidy/{sourceId} — what Tidy this folder would do, or the run going or last finished.</summary>
+    Task<ViewTidyStatusDto?> GetViewTidyStatusAsync(Guid sourceId, CancellationToken ct = default);
+
+    /// <summary>POST /view/admin/tidy/{sourceId}/run — starts Tidy this folder now.</summary>
+    Task<ViewTidyStatusDto?> RunViewTidyAsync(Guid sourceId, CancellationToken ct = default);
+
+    /// <summary>PUT /view/admin/tidy/{sourceId}/schedule — turns the nightly Tidy on or off.</summary>
+    Task<ViewTidyStatusDto?> SetViewTidyScheduleAsync(Guid sourceId, bool scheduled, CancellationToken ct = default);
+
+    /// <summary>GET /view/admin/duplicates — exact copies in the Shared Library or the administrator's own space.</summary>
+    Task<ViewDuplicateReportDto?> GetViewDuplicatesAsync(CancellationToken ct = default);
+
+    /// <summary>POST /view/admin/duplicates/scan — runs the duplicates cleanup now (report only).</summary>
+    Task<ViewDuplicateReportDto?> ScanViewDuplicatesAsync(CancellationToken ct = default);
+
+    /// <summary>POST /view/admin/duplicates/{id}/keep — keeps one copy; the rest go to Trash.</summary>
+    Task<ViewDuplicateKeepResultDto?> KeepOneViewDuplicateAsync(Guid groupId, Guid keepItemId, CancellationToken ct = default);
+
+    /// <summary>POST /view/admin/duplicates/{id}/dismiss — leaves the copies as they are.</summary>
+    Task<bool> DismissViewDuplicateAsync(Guid groupId, CancellationToken ct = default);
     Task<bool> SetViewItemFavoriteAsync(Guid itemId, bool value, CancellationToken ct = default);
     Task<bool> SetViewItemHiddenAsync(Guid itemId, bool value, CancellationToken ct = default);
     Task<bool> ArchiveViewItemAsync(Guid itemId, CancellationToken ct = default);

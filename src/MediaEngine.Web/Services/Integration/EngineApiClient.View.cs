@@ -344,6 +344,29 @@ public sealed partial class EngineApiClient
         GetAsync<ViewActivityDto>("GET /view/admin/intake/{kind}/activity",
             $"/view/admin/intake/{Uri.EscapeDataString(contentKind)}/activity?take={Math.Clamp(take, 1, 200)}", ct: ct);
 
+    public Task<ViewTidyStatusDto?> GetViewTidyStatusAsync(Guid sourceId, CancellationToken ct = default) =>
+        GetAsync<ViewTidyStatusDto>("GET /view/admin/tidy/{id}", $"/view/admin/tidy/{sourceId:D}", ct: ct);
+
+    public Task<ViewTidyStatusDto?> RunViewTidyAsync(Guid sourceId, CancellationToken ct = default) =>
+        PostAsync<object, ViewTidyStatusDto>("POST /view/admin/tidy/{id}/run", $"/view/admin/tidy/{sourceId:D}/run", new { }, ct: ct);
+
+    public Task<ViewTidyStatusDto?> SetViewTidyScheduleAsync(Guid sourceId, bool scheduled, CancellationToken ct = default) =>
+        PutAsync<ViewTidyScheduleRequest, ViewTidyStatusDto>(
+            "PUT /view/admin/tidy/{id}/schedule", $"/view/admin/tidy/{sourceId:D}/schedule", new ViewTidyScheduleRequest(scheduled), ct: ct);
+
+    public Task<ViewDuplicateReportDto?> GetViewDuplicatesAsync(CancellationToken ct = default) =>
+        GetAsync<ViewDuplicateReportDto>("GET /view/admin/duplicates", "/view/admin/duplicates", ct: ct);
+
+    public Task<ViewDuplicateReportDto?> ScanViewDuplicatesAsync(CancellationToken ct = default) =>
+        PostAsync<object, ViewDuplicateReportDto>("POST /view/admin/duplicates/scan", "/view/admin/duplicates/scan", new { }, ct: ct);
+
+    public Task<ViewDuplicateKeepResultDto?> KeepOneViewDuplicateAsync(Guid groupId, Guid keepItemId, CancellationToken ct = default) =>
+        PostAsync<ViewDuplicateKeepRequest, ViewDuplicateKeepResultDto>(
+            "POST /view/admin/duplicates/{id}/keep", $"/view/admin/duplicates/{groupId:D}/keep", new ViewDuplicateKeepRequest(keepItemId), ct: ct);
+
+    public Task<bool> DismissViewDuplicateAsync(Guid groupId, CancellationToken ct = default) =>
+        PostAsync("POST /view/admin/duplicates/{id}/dismiss", $"/view/admin/duplicates/{groupId:D}/dismiss", new { }, ct: ct);
+
     public Task<bool> SetViewItemFavoriteAsync(Guid itemId, bool value, CancellationToken ct = default) =>
         PutAsync("PUT /view/items/{id}/favorite", $"/view/items/{itemId:D}/favorite", new SetLocalAssetFlagRequest(value), ct: ct);
     public Task<bool> SetViewItemHiddenAsync(Guid itemId, bool value, CancellationToken ct = default) =>

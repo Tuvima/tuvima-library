@@ -25,7 +25,8 @@ public sealed class ViewIntakeFiler(
     TimeProvider time,
     ILogger<ViewIntakeFiler> logger,
     ViewSharedTransferService? sharedTransfer = null,
-    ViewIntakeActivity? activity = null)
+    ViewIntakeActivity? activity = null,
+    IViewTidyRepository? tidy = null)
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
@@ -356,6 +357,12 @@ public sealed class ViewIntakeFiler(
         if (stage is null || !storage.IsStorageWritable())
         {
             return await DeferAsync(rows, destination, kind, bytes, ViewIntakeReasons.DestinationOffline, null, immediate, ct).ConfigureAwait(false);
+        }
+
+        if (tidy is not null && await tidy.IsLibraryBeingTidiedAsync(stage.Space.LibraryId, ct).ConfigureAwait(false))
+        {
+            // The folders are being renamed in place; new files wait so nothing lands in the middle of the run.
+            return await DeferAsync(rows, destination, kind, bytes, ViewIntakeReasons.BeingTidied, null, immediate, ct).ConfigureAwait(false);
         }
 
         var space = FreeSpaceCheck.Check(members.Select(member => new FileInfo(member.Candidate.Path).Length), FreeBytesAt(stage.Root));

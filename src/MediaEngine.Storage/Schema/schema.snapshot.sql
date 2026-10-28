@@ -3113,6 +3113,35 @@ CREATE TABLE view_storage_labels (
     label TEXT NOT NULL UNIQUE COLLATE NOCASE
 );
 
+CREATE TABLE view_tidy_jobs (
+    id                  BLOB NOT NULL PRIMARY KEY,
+    source_id           BLOB NOT NULL REFERENCES view_sources(id) ON DELETE CASCADE,
+    trigger_kind        TEXT NOT NULL CHECK (trigger_kind IN ('now', 'scheduled')),
+    state               TEXT NOT NULL CHECK (state IN ('running', 'completed', 'failed')),
+    total_files         INTEGER NOT NULL DEFAULT 0 CHECK (total_files >= 0),
+    moved_files         INTEGER NOT NULL DEFAULT 0 CHECK (moved_files >= 0),
+    failed_files        INTEGER NOT NULL DEFAULT 0 CHECK (failed_files >= 0),
+    message             TEXT,                      -- the plain sentence shown when the job finished or stopped
+    started_by          BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at          TEXT NOT NULL,
+    finished_at         TEXT
+);
+
+CREATE TABLE view_tidy_moves (
+    job_id              BLOB NOT NULL REFERENCES view_tidy_jobs(id) ON DELETE CASCADE,
+    source_file_id      BLOB NOT NULL,             -- the file location row being renamed
+    from_path           TEXT NOT NULL,
+    to_path             TEXT NOT NULL,
+    state               TEXT NOT NULL CHECK (state IN ('planned', 'moved', 'failed')),
+    reason              TEXT,
+    PRIMARY KEY (job_id, source_file_id)
+);
+
+CREATE TABLE view_tidy_schedules (
+    source_id           BLOB NOT NULL PRIMARY KEY REFERENCES view_sources(id) ON DELETE CASCADE,
+    created_at          TEXT NOT NULL
+);
+
 CREATE TABLE waiting_personal_state (
     id              BLOB NOT NULL PRIMARY KEY,
     restore_id      BLOB NOT NULL REFERENCES backup_restores(id) ON DELETE CASCADE,
@@ -3933,6 +3962,8 @@ CREATE INDEX ix_view_personal_spaces_library
 
 CREATE INDEX ix_view_sources_space_activity
     ON view_sources(personal_space_id, last_activity_at DESC, id);
+
+CREATE INDEX ix_view_tidy_jobs_source ON view_tidy_jobs(source_id, state);
 
 CREATE UNIQUE INDEX ux_accounts_normalized_email
     ON accounts(normalized_email);

@@ -37,6 +37,7 @@ public static class ViewIntakeReasons
     public const string UploadIncomplete = "upload_incomplete";
     public const string DuplicateInTrash = "duplicate_in_trash";
     public const string Stray = "stray";
+    public const string BeingTidied = "being_tidied";
 
     /// <summary>The plain sentence for a reason code.</summary>
     public static string Sentence(string code) => code switch
@@ -47,6 +48,7 @@ public static class ViewIntakeReasons
         BadName => "a name Library can't store",
         NotEnoughSpace => "too big for the space left",
         DestinationOffline => "the library folder is offline",
+        BeingTidied => "the library is being tidied; it will be filed when that finishes",
         UploadIncomplete => "the upload did not finish",
         DuplicateInTrash => "already in your library (in Trash)",
         Stray => "not put here by Library",
@@ -88,3 +90,38 @@ public sealed record ViewDuplicateGroup(
     DateTimeOffset LastSeenAt,
     DateTimeOffset? DismissedAt,
     Guid? DismissedBy);
+
+/// <summary>A space or the Shared Library that holds more than one item with exactly the same contents.</summary>
+public sealed record ViewDuplicateCandidate(string ScopeKind, Guid LibraryId, string ContentHash, long Copies);
+
+/// <summary>One copy inside a duplicate group.</summary>
+public sealed record ViewDuplicateCopy(Guid ItemId, string FileName, string? CapturedAt, string CreatedAt, long ByteSize);
+
+/// <summary>The states of a Tidy this folder run.</summary>
+public static class ViewTidyStates
+{
+    public const string Running = "running";
+    public const string Completed = "completed";
+    public const string Failed = "failed";
+    public const string Planned = "planned";
+    public const string Moved = "moved";
+}
+
+/// <summary>One Tidy this folder run on one Managed folder (Photo and video filing spec D17).</summary>
+public sealed record ViewTidyJob(
+    Guid Id,
+    Guid SourceId,
+    string TriggerKind,
+    string State,
+    long TotalFiles,
+    long MovedFiles,
+    long FailedFiles,
+    string? Message,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? FinishedAt);
+
+/// <summary>One planned or finished rename in a Tidy run: the ledger that lets a stopped run resume.</summary>
+public sealed record ViewTidyMove(Guid JobId, Guid SourceFileId, string FromPath, string ToPath, string State);
+
+/// <summary>A file in a folder with the day it was taken, as Tidy needs to plan its place.</summary>
+public sealed record ViewTidySourceFile(Guid SourceFileId, string FilePath, string? TakenAt);

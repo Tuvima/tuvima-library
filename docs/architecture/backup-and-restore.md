@@ -392,6 +392,9 @@ None of these are kept.
 | `view_shared_transfers` | Shared library transfers in progress. |
 | `view_intake_files` | Photos and videos waiting in, or refused from, the Import area; the files themselves are never backed up. |
 | `view_duplicate_groups` | Duplicate photo groups found by the cleanup job; found again by the next run. |
+| `view_tidy_jobs` | Progress of Tidy this folder runs; a restored library is simply tidied again. |
+| `view_tidy_moves` | The rename ledger of a Tidy this folder run; it only matters while the run is going. |
+| `view_tidy_schedules` | Which folders are tidied every night; set again after a restore. |
 | `notifications` | Notifications already sent. |
 | `notification_channel_state` | Notification channel health. |
 | `notification_rate_marks` | Notification rate limiting marks. |

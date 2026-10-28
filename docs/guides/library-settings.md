@@ -270,7 +270,7 @@ Use **Settings > Libraries** to choose the single managed View root. Use **Setti
 
 **Import folder** copies files into managed storage. **Link existing folder** scans an outside folder read-only. Detaching a source does not delete files. Reconcile is an admin repair action.
 
-Browser uploads work today. Saved source and device records do not mean phone backup or device sync is ready. See [View Personal Space](view-personal-space.md).
+Photos and Personal videos have an Import area, a Rejected area, an Activity tab, Tidy this folder and a duplicates report; see [View Personal Space](view-personal-space.md#add-files). Saved source and device records do not mean phone backup or device sync is ready. See [View Personal Space](view-personal-space.md).
 
 ## Set up Documents
 
