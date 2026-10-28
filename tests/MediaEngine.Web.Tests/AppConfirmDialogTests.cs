@@ -143,4 +143,38 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
         host.Find("button[aria-label='Close dialog']").Click();
         await Task.Yield();
     }
+
+    [Fact]
+    public async Task TheCancelButtonIsOutlinedAndComesBeforeTheMainButton()
+    {
+        var host = Render<AppDialogHost>();
+        _ = Show();
+        host.WaitForElement(".app-confirm");
+
+        var buttons = host.FindAll(".app-dialog-shell__footer button").ToList();
+        Assert.Equal("Discard", buttons[0].TextContent.Trim());
+        Assert.Contains("app-button--outlined", buttons[0].ClassList);
+        Assert.Equal("Save", buttons[1].TextContent.Trim());
+        Assert.Contains("app-button--filled", buttons[1].ClassList);
+
+        host.Find("button[aria-label='Close dialog']").Click();
+        await Task.Yield();
+    }
+
+    [Theory]
+    [InlineData(false, null, "warning")]
+    [InlineData(true, null, "error")]
+    [InlineData(false, AppUiTone.Info, "info")]
+    public async Task TheIconFollowsTheTone(bool destructive, AppUiTone? tone, string expected)
+    {
+        var host = Render<AppDialogHost>();
+        _ = AppConfirmDialog.ShowAsync(Dialogs, "Title", "Message", "OK", "Cancel", destructive, tone: tone);
+        host.WaitForElement(".app-confirm");
+
+        Assert.Contains($"app-dialog-shell__icon--{expected}", host.Find(".app-dialog-shell__icon").ClassList);
+        Assert.NotNull(host.Find(".app-dialog-shell__header .app-dialog-shell__close"));
+
+        host.Find("button[aria-label='Close dialog']").Click();
+        await Task.Yield();
+    }
 }

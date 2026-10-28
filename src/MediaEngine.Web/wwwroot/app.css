@@ -697,6 +697,36 @@ body {
     background: transparent !important;
 }
 
+/* One popup style (one-look spec WP1): the tone icon and the phone button stack live here so the scoped bundle stays under its ceiling. */
+.app-dialog-shell__icon--warning {
+    color: var(--tl-status-warning);
+    background: var(--tl-status-warning-soft, rgba(245, 158, 11, 0.14));
+    border-color: var(--tl-status-warning-border, rgba(245, 158, 11, 0.34));
+}
+
+.app-dialog-shell__icon--info {
+    color: var(--tl-status-info);
+    background: var(--tl-status-info-soft, rgba(56, 189, 248, 0.14));
+    border-color: var(--tl-status-info-border, rgba(56, 189, 248, 0.34));
+}
+
+.app-dialog-shell__icon--error {
+    color: var(--tl-status-danger);
+    background: var(--tl-status-danger-soft);
+    border-color: var(--tl-status-danger-border);
+}
+
+@media (max-width: 640px) {
+    .app-dialog-shell__footer {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .app-dialog-shell__footer > * {
+        width: 100%;
+    }
+}
+
 .tl-dialog-title,
 .tl-dialog-content,
 .tl-dialog-actions {

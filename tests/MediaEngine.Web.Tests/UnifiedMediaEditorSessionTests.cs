@@ -45,7 +45,7 @@ public sealed class UnifiedMediaEditorSessionTests
         // included), and keeps one save path.
         Assert.Contains("@if (!IsSection)", shell, StringComparison.Ordinal);
         Assert.Contains("!IsSection || string.Equals(tabId, NormalizeTabId(Section), StringComparison.Ordinal)", code, StringComparison.Ordinal);
-        Assert.Contains("(!Inline || IsSection) && (_confirmDiscard", code, StringComparison.Ordinal);
+        Assert.Contains("(!Inline || IsSection) && ShouldShowEditorFooter", code, StringComparison.Ordinal);
         Assert.Contains("public async Task<bool> SaveChangesAsync()", sectionPartial, StringComparison.Ordinal);
         Assert.Contains("public void DiscardChanges()", sectionPartial, StringComparison.Ordinal);
         Assert.Contains("DirtyChanged.InvokeAsync(dirty)", sectionPartial, StringComparison.Ordinal);
