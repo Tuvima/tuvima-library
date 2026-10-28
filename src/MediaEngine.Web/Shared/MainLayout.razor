@@ -350,8 +350,9 @@
         : "main-content-with-topbar";
     private string MainContainerClass => IsCinematicShell || IsLaneScrollRoute ? "tl-sp-px-0 tl-sp-py-0" : "tl-sp-py-6 tl-sp-px-0";
     private bool CanManageProfiles => _session.HasAction("access.manage");
-    // The Vault area is in the menu only while the Engine says Vault mode is on for this device session; never for a Kids shell.
-    private bool ShowVaultArea => !_isKids && Nsfw.Unlocked;
+    // The Vault area is in the navigation only for a profile the Engine says has Vault access AND that chose "Show Vault in the
+    // navigation bar" (Library pages D20); never for a Kids shell. Everyone else reaches it, if they may, from Settings.
+    private bool ShowVaultArea => !_isKids && Nsfw.ShowInNavigation;
     private bool CanViewReview => _session.HasNavigation("settings.administration");
     private bool CanViewSystemActivity => _session.HasNavigation("settings.administration");
     // The phone dock is fixed (Home, Search, My Library); the configured list drives the TV dock.

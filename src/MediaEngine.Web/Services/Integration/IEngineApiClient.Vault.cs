@@ -20,6 +20,9 @@ public partial interface IEngineApiClient
     /// <summary>PUT /api/v1/nsfw/idle - the person's own "Turn Vault mode off after being idle for" choice (5, 15, 30, 60 minutes, or 0 for Never).</summary>
     Task<VaultCall<NsfwStatusDto>> SetNsfwIdleAsync(int minutes, CancellationToken ct = default);
 
+    /// <summary>Saves the signed-in person's own "Show Vault in the navigation bar" choice (Library pages D20).</summary>
+    Task<VaultCall<NsfwStatusDto>> SetNsfwNavigationAsync(bool show, CancellationToken ct = default);
+
     /// <summary>PUT /api/v1/profiles/{id}/nsfw-access - an administrator opens, changes or closes one profile's Vault access.</summary>
     Task<VaultCall<NsfwStatusDto>> SetProfileNsfwAccessAsync(Guid profileId, SetNsfwAccessRequest request, CancellationToken ct = default);
 

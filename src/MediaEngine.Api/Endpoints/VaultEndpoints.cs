@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Libraries;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Vault;
@@ -25,7 +26,7 @@ public static class VaultEndpoints
     {
         var nsfw = app.MapGroup("/api/v1/nsfw").WithTags("Vault mode");
 
-        nsfw.MapGet("/status", async (HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, CancellationToken ct) =>
+        nsfw.MapGet("/status", async (HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, IUserPlaybackSettingsService settings, CancellationToken ct) =>
         {
             if (await OwnSessionAsync(http, resolver, ct) is not { } own)
             {
@@ -33,8 +34,29 @@ public static class VaultEndpoints
             }
 
             var state = await vault.GetStateAsync(own.SessionId, own.ProfileId, ct);
-            return state is null ? ApiErrors.NotFound("Not found.") : Results.Ok(ToDto(state));
+            return state is null
+                ? ApiErrors.NotFound("Not found.")
+                : Results.Ok(ToDto(state, await settings.GetShowVaultInNavigationAsync(own.ProfileId, ct)));
         }).WithName("GetNsfwStatus").Produces<NsfwStatusDto>().RequireHumanSelfService();
+
+        // The person's own "Show Vault in the navigation bar" choice (Library pages D20). The same access check as the status
+        // action decides who may have it: anyone who cannot use Vault mode gets "not found" and nothing is stored.
+        nsfw.MapPut("/navigation", async (NsfwNavigationRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, IUserPlaybackSettingsService settings, CancellationToken ct) =>
+        {
+            if (await OwnSessionAsync(http, resolver, ct) is not { } own)
+            {
+                return ApiErrors.NotFound("Not found.");
+            }
+
+            var state = await vault.GetStateAsync(own.SessionId, own.ProfileId, ct);
+            if (state is null)
+            {
+                return ApiErrors.NotFound("Not found.");
+            }
+
+            await settings.SetShowVaultInNavigationAsync(own.ProfileId, request.ShowInNavigation, ct);
+            return Results.Ok(ToDto(state, request.ShowInNavigation));
+        }).WithName("SetNsfwNavigation").Produces<NsfwStatusDto>().RequireHumanSelfService();
 
         nsfw.MapPost("/unlock", async (NsfwUnlockRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, CancellationToken ct) =>
         {
@@ -357,12 +379,13 @@ public static class VaultEndpoints
         _ => ApiErrors.NotFound("Not found."),
     };
 
-    private static NsfwStatusDto ToDto(NsfwState state) => new()
+    private static NsfwStatusDto ToDto(NsfwState state, bool showInNavigation = false) => new()
     {
         Mode = NsfwAccessRules.ToStored(state.Mode),
         Unlocked = state.Unlocked,
         HasPin = state.HasPin,
         IdleLockMinutes = state.IdleLockMinutes,
+        ShowInNavigation = showInNavigation,
     };
 
     private static VaultLibraryDto ToDto(VaultLibrary library) => new()
