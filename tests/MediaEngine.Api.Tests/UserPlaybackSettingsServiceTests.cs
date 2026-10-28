@@ -137,6 +137,42 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
             MediaEngine.Domain.Services.MediaEngineJson.Web)!;
 
     [Fact]
+    public async Task TheVaultNavigationSwitch_IsOffUntilThePersonTurnsItOn_AndIsPerProfile()
+    {
+        Assert.False(await _service.GetShowVaultInNavigationAsync(_profileId));
+
+        await _service.SetShowVaultInNavigationAsync(_profileId, true);
+
+        Assert.True(await _service.GetShowVaultInNavigationAsync(_profileId));
+        Assert.False(await _service.GetShowVaultInNavigationAsync(_otherProfileId));
+        await _service.SetShowVaultInNavigationAsync(_profileId, false);
+        Assert.False(await _service.GetShowVaultInNavigationAsync(_profileId));
+    }
+
+    [Fact]
+    public async Task TheVaultNavigationSwitch_KeepsOtherSettings_AndABulkSaveNeverChangesIt()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Watching.DefaultPlaybackSpeed = 1.5m;
+        await _service.UpdateAsync(_profileId, settings);
+        await _service.SetShowVaultInNavigationAsync(_profileId, true);
+
+        var stale = await _service.GetAsync(_profileId);
+        stale.General.ShowVaultInNavigation = false;
+        var saved = await _service.UpdateAsync(_profileId, stale);
+
+        Assert.True(saved.General.ShowVaultInNavigation);
+        Assert.True(await _service.GetShowVaultInNavigationAsync(_profileId));
+        Assert.Equal(1.5m, (await _service.GetAsync(_profileId)).Watching.DefaultPlaybackSpeed);
+    }
+
+    [Fact]
+    public async Task TheVaultNavigationSwitchForAnUnknownProfile_IsNotFound()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _service.SetShowVaultInNavigationAsync(Guid.NewGuid(), true));
+    }
+
+    [Fact]
     public async Task ABulkPlaybackSave_NeverChangesTheSpoilerLevel()
     {
         await _service.SetSpoilerLevelAsync(_profileId, "everything");

@@ -9,6 +9,7 @@
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService Dialogs
 @inject IAppToastService Toasts
+@inject NavigationManager Navigation
 
 @* Vault mode on a profile page (Videos spec D23, D51, D52). The Vault holds anything an administrator wants kept private, so the
    copy says "Vault mode" everywhere. Two parts, each drawn only when it applies:
@@ -26,6 +27,13 @@
                               Description="@ModeDescription"
                               Value="@Nsfw.Unlocked"
                               ValueChanged="SwitchAsync" />
+                <AppSwitchRow Label="Show Vault in the navigation bar"
+                              Description="Adds the Vault to the top bar and the phone menu. Off until you turn it on; you can always open it from here."
+                              Value="@Nsfw.ShowInNavigation"
+                              ValueChanged="NavigationAsync" />
+                <div class="vault-settings__actions">
+                    <AppButton Label="Open the Vault" Size="AppControlSize.Compact" OnClick="OpenVaultAsync" data-vault-open />
+                </div>
                 <AppSwitchRow Label="Show a Vault mode check in the top menu"
                               Description="Adds a quick switch to the profile menu. Off until you turn it on."
                               Value="@Nsfw.Preferences.ShowQuickCheck"
@@ -171,6 +179,24 @@
     private async Task SwitchAsync(bool on)
     {
         await Switching.SetAsync(on);
+    }
+
+    private async Task NavigationAsync(bool show)
+    {
+        var call = await Nsfw.SetShowInNavigationAsync(show);
+        if (!call.Succeeded)
+        {
+            Toasts.Add(VaultMessages.For(call) ?? VaultMessages.Unreachable, AppSeverity.Warning);
+        }
+    }
+
+    // The Settings door to the Vault for a profile that keeps it out of the navigation bar: unlock (the PIN when asked), then go in.
+    private async Task OpenVaultAsync()
+    {
+        if (await Switching.SetAsync(true))
+        {
+            Navigation.NavigateTo("/vault");
+        }
     }
 
     private Task QuickCheckAsync(bool on) => Nsfw.UpdatePreferencesAsync(preferences => preferences with { ShowQuickCheck = on });

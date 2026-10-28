@@ -15,8 +15,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-// The Libraries front door, group pages and type pages (Settings > Libraries drills in: /settings/libraries, /watch, /watch/movies).
-public sealed class LibraryFrontDoorTests : AsyncBunitContext
+// The Settings > Libraries addresses (the overview, a library page, the Import folder) and the View kind pages.
+public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
 {
     private const string MoviesId = "11111111-1111-4111-8111-111111111111";
     private const string AudiobooksId = "22222222-2222-4222-8222-222222222222";
@@ -107,7 +107,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         ],
     };
 
-    public LibraryFrontDoorTests()
+    public LibraryAddressesAndViewPagesTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLocalization();
@@ -216,12 +216,11 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ImportOpensTheImportFolderPanelWithoutATypeList()
+    public void ImportOpensTheImportFolderPanel()
     {
         var cut = Open("import");
-        cut.WaitForElement("#library-import-title");
 
-        Assert.Empty(cut.FindAll(".library-folders__type"));
+        cut.WaitForElement("#library-import-title");
     }
 
     // Addresses that name nothing.
@@ -242,7 +241,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     [Fact]
     public void ThePanelOnAnUnknownTypeKeyShowsASmallStateWithALinkBack()
     {
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.ShowTypeNav, false).Add(x => x.TypeKey, "podcasts"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.TypeKey, "podcasts"));
 
         cut.WaitForAssertion(() => Assert.Contains("This library type does not exist", cut.Markup));
         Assert.Equal("/settings/libraries", cut.Find("a[href='/settings/libraries']").GetAttribute("href"));
@@ -394,24 +393,32 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Equal("1 folder", Text(page.Find(".libpage__counts")));
     }
 
+    // The page's own Add folder button opens View's add form once the folders have loaded.
+    private static void OpenTheAddForm(IRenderedComponent<ViewKindPage> page)
+    {
+        page.WaitForAssertion(() => Assert.False(page.FindAll("button").First(button => Text(button) == "Add folder").HasAttribute("disabled")));
+        page.FindAll("button").First(button => Text(button) == "Add folder").Click();
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll(".libraries-form-grid")));
+    }
+
     [Fact]
     public async Task AddingAFolderOnTheDocumentsPageSendsTheDocumentsKind()
     {
         var page = Render<ViewKindPage>(parameters => parameters
             .Add(x => x.Configuration, _configuration)
             .Add(x => x.Kind, "documents")
-            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
-            .Add(x => x.StartAdding, true)
-            .Add(x => x.InitialPath, "F:\\Paperwork"));
-        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll(".libraries-form-grid")));
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog));
+        OpenTheAddForm(page);
         var owner = page.FindComponents<MediaEngine.Web.Components.Shared.AppSelect>().First(select => select.Instance.Label == "Owner profile");
         await page.InvokeAsync(() => owner.Instance.ValueChanged.InvokeAsync(TestProfileId.ToString()));
+        var name = page.FindComponents<MediaEngine.Web.Components.Shared.AppTextField>().First(field => field.Instance.Label == "Folder name");
+        await page.InvokeAsync(() => name.Instance.ValueChanged.InvokeAsync("Paperwork"));
 
         page.FindAll("button").Last(button => Text(button) == "Add folder").Click();
 
         page.WaitForAssertion(() => Assert.Single(_createdSources));
         Assert.Equal("documents", _createdSources[0].ContentKind);
-        Assert.Equal("F:\\Paperwork", _createdSources[0].Path);
+        Assert.Equal("Paperwork", _createdSources[0].Name);
     }
 
     [Fact]
@@ -552,9 +559,8 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var page = Render<ViewKindPage>(parameters => parameters
             .Add(x => x.Configuration, _configuration)
             .Add(x => x.Kind, "photos")
-            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
-            .Add(x => x.StartAdding, true));
-        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll(".libraries-form-grid")));
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog));
+        OpenTheAddForm(page);
 
         var mode = page.FindComponents<MediaEngine.Web.Components.Shared.AppSelect>().First(select => select.Instance.Label == "Folder management");
         Assert.Equal("managed", mode.Instance.Value);

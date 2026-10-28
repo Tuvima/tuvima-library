@@ -138,9 +138,7 @@ else
     [Parameter] public LibraryTypeOption? Type { get; set; }
     /// <summary>Phones are read-only for libraries, so they get no uploads either.</summary>
     [Parameter] public bool ReadOnly { get; set; }
-    /// <summary>First-run setup never offers uploads.</summary>
-    [Parameter] public bool Embedded { get; set; }
-    /// <summary>Raised after the Add folder wizard (opened to set up a new library) added a folder, so the page can refresh.</summary>
+    /// <summary>Raised after the Create library dialog (opened for files that need a new library) saved one, so the page can refresh.</summary>
     [Parameter] public EventCallback FolderAdded { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -154,9 +152,9 @@ else
 
     private string? PageArea => Type?.Area ?? Group?.Key;
 
-    /// <summary>True when this page takes files: a Watch, Listen or Read page, on a screen that edits libraries, outside first-run setup.</summary>
-    public bool Enabled =>
-        !Embedded && !ReadOnly
+    // True when this page takes files: a Watch, Listen or Read page, on a screen that edits libraries.
+    private bool Enabled =>
+        !ReadOnly
         && PageArea is { } area && AreasThatTakeFiles.Contains(area, StringComparer.OrdinalIgnoreCase)
         && (Type is null || Kinds.Find(Type.Key) is not null);
 
@@ -221,8 +219,8 @@ else
         }
     }
 
-    /// <summary>Opens the browser's file chooser (the Add files button).</summary>
-    public async Task ChooseFilesAsync()
+    // Opens the browser's file chooser (the drop hint).
+    private async Task ChooseFilesAsync()
     {
         if (!Enabled) return;
         if (_module is null)
@@ -410,14 +408,15 @@ else
 
     private async Task OpenAddFolderAsync(string? kindKey)
     {
-        var parameters = new AppDialogParameters<AddFolderWizard>
+        var parameters = new AppDialogParameters<CreateLibraryDialog>
         {
-            { component => component.StartTypeKey, kindKey },
+            { component => component.StartAreaKey, PageArea },
+            { component => component.StartKindKey, kindKey },
             { component => component.Configuration, Configuration },
             { component => component.Kinds, Kinds },
-            { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAdded.InvokeAsync()) },
+            { component => component.OnCreated, (Func<string, Task>)(_ => FolderAdded.InvokeAsync()) },
         };
-        await Dialogs.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+        await Dialogs.ShowAsync<CreateLibraryDialog>(string.Empty, parameters, CreateLibraryDialog.DialogOptions);
     }
 
     private static AppDialogOptions DialogOptions { get; } = new()

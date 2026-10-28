@@ -92,6 +92,27 @@ public sealed class EngineApiClientVaultTests
     }
 
     [Fact]
+    public async Task SetNavigation_PutsTheChoiceInTheBody_AndAnUnavailableProfileIsNotAvailable()
+    {
+        var (client, requests, _) = Client(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"mode\":\"allowed\",\"unlocked\":false,\"has_pin\":false,\"idle_lock_minutes\":30,\"show_in_navigation\":true}", System.Text.Encoding.UTF8, "application/json"),
+        });
+
+        var result = await client.SetNsfwNavigationAsync(true);
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.Value!.ShowInNavigation);
+        var sent = Assert.Single(requests);
+        Assert.Equal(HttpMethod.Put, sent.Method);
+        Assert.Equal("/api/v1/nsfw/navigation", sent.Path);
+        Assert.Contains("\"show_in_navigation\":true", sent.Body);
+
+        var (refused, _, _) = Client(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+        Assert.Equal(VaultOutcome.NotAvailable, (await refused.SetNsfwNavigationAsync(true)).Outcome);
+    }
+
+    [Fact]
     public async Task SetIdle_SendsTheChosenMinutesInTheBody_AndPassesOnThePlainReason()
     {
         var (client, requests, _) = Client(_ => new HttpResponseMessage(HttpStatusCode.OK)

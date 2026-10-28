@@ -249,14 +249,12 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     };
 
     // The folders panel as a library page hosts it: the type's own page, with no type list.
-    private IRenderedComponent<LibraryFoldersPanel> Open(string typeLabel, bool highlightAdd = false, bool readOnly = false)
+    private IRenderedComponent<LibraryFoldersPanel> Open(string typeLabel, bool readOnly = false)
     {
         var (_, type) = TypePages[typeLabel];
         var cut = Render<LibraryFoldersPanel>(parameters => parameters
             .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
-            .Add(x => x.ShowTypeNav, false)
             .Add(x => x.TypeKey, type)
-            .Add(x => x.HighlightAddFolder, highlightAdd)
             .Add(x => x.ReadOnly, readOnly));
         cut.WaitForElement(".folder-table, .library-folders__empty");
         return cut;
@@ -266,7 +264,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         var cut = Render<LibraryFoldersPanel>(parameters => parameters
             .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
-            .Add(x => x.ShowTypeNav, false)
             .Add(x => x.TypeKey, "import"));
         cut.WaitForElement("#library-import-title");
         return cut;
@@ -352,23 +349,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("To bring in a whole existing folder once, use Merge into on a managed folder.", cut.Markup);
     }
 
-    // With the type list (the default), Choose jumps to that type's folders and points at Add Folder.
-    [Fact]
-    public void ChooseOnAnImportLineOpensThatTypeAndHighlightsAddFolder()
-    {
-        _configuration.ImportFolderStatus = ConfiguredImport();
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog));
-        cut.WaitForElement(".library-folders__type");
-        cut.FindAll(".library-folders__type")[7].Click();
-        cut.WaitForElement(".library-folders__destination");
-        cut.FindAll(".library-folders__destination").Single(x => x.TextContent.Contains("Audiobooks")).QuerySelector("button")!.Click();
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Contains("Audiobooks", Text(cut.Find(".library-folders__type[aria-current=true]")));
-            Assert.NotEmpty(cut.FindAll(".library-folders__add.is-highlighted"));
-        });
-    }
-
     // On the Import folder's own address there is no type list, so Choose opens that type's page instead.
     [Fact]
     public void ChooseOnAnImportLineOnItsOwnPageOpensThatTypesAddress()
@@ -378,17 +358,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.WaitForElement(".library-folders__destination");
         cut.FindAll(".library-folders__destination").Single(x => x.TextContent.Contains("Audiobooks")).QuerySelector("button")!.Click();
         Assert.EndsWith($"/settings/libraries/{AudiobooksId}?highlight=add", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
-    }
-
-    // The jump keeps pointing at Add Folder: the type's page opened that way highlights it, and opened any other way does not.
-    [Fact]
-    public void ATypePageOpenedFromAnImportChooseHighlightsAddFolder()
-    {
-        var highlighted = Open("Audiobooks", highlightAdd: true);
-        Assert.NotEmpty(highlighted.FindAll(".library-folders__add.is-highlighted"));
-
-        var plain = Open("Audiobooks");
-        Assert.Empty(plain.FindAll(".library-folders__add.is-highlighted"));
     }
 
     // A type whose files cannot be filed shows the Engine's own sentence under its line.
@@ -926,34 +895,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         });
     }
 
-    // The setup step has no Advanced section, so it does not point at one.
-    [Fact]
-    public void SetupPanelDoesNotPointAtAnAdvancedSectionItDoesNotHave()
-    {
-        _configuration.Libraries[0].Sources.RemoveAll(x => x.Id != "movies-main");
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
-        cut.WaitForElement(".library-folders__type");
-        cut.FindAll(".library-folders__type").Single(x => x.TextContent.Contains("Movies")).Click();
-        cut.WaitForElement(".folder-table");
-        Assert.Empty(cut.FindAll(".folder-table__files-hint"));
-        Assert.Equal(
-            "Add or change folders on a computer or tablet. You can continue and set them up later.",
-            Text(cut.Find(".library-folders__phone-note")));
-    }
-
-    // With no folder yet the setup step offers only Skip for now, so its note must not promise Continue.
-    [Fact]
-    public void SetupPhoneNoteOffersSkipWhileThereAreNoFolders()
-    {
-        _configuration.Libraries.ForEach(library => library.Sources.Clear());
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
-        cut.WaitForElement(".library-folders__type");
-        Assert.Equal(
-            "Add or change folders on a computer or tablet. You can skip this step and set up folders later.",
-            Text(cut.Find(".library-folders__phone-note")));
-    }
-
-    // The Settings screen uses the same note without the setup-only sentence.
     [Fact]
     public void SettingsPanelHasTheShortPhoneNote()
     {
@@ -981,7 +922,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         var cut = Open("Movies");
         Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb], .libraries h1, .libraries h2, .libraries h3"));
-        Assert.Empty(cut.FindAll(".library-folders__type"));
         Assert.Empty(cut.FindAll(".library-folders__detail h3"));
         Assert.DoesNotContain("Folders that make up", cut.Markup);
         Assert.NotEmpty(cut.FindAll(".library-folders__detail .folder-table"));
@@ -1050,20 +990,9 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void FirstRunSetupDrawsNoSuitableForLimitedProfilesSwitch()
-    {
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
-        cut.WaitForElement(".folder-table");
-
-        Assert.Empty(cut.FindAll(".folder-table__limited"));
-        Assert.DoesNotContain("limited profiles", cut.Markup, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public void ReadOnlySettings_ShowTheSwitchButCannotChangeIt()
     {
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.ReadOnly, true));
-        cut.WaitForElement(".folder-table");
+        var cut = Open("Movies", readOnly: true);
 
         var switches = cut.FindAll(".folder-table__limited input[type=checkbox]");
         Assert.NotEmpty(switches);
@@ -1134,15 +1063,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("keep_both", _lastUpdate?.FileHandling.DuplicatePolicy));
         Assert.Contains("The new file gets a unique name; nothing is overwritten.", cut.Markup);
         Assert.Contains("Embed artwork in files", cut.Markup);
-    }
-
-    // The setup wizard reuses the same panel, without the Advanced section.
-    [Fact]
-    public void SetupWizardPanelHidesAdvanced()
-    {
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
-        cut.WaitForElement(".library-folders__type");
-        Assert.Empty(cut.FindAll(".library-folders__advanced"));
     }
 
     private async Task OpenMenuItemAsync(IRenderedComponent<LibraryFoldersPanel> cut, int row, string label)
@@ -1496,41 +1416,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void FirstRunSetupDrawsNoFirstCheckLines()
-    {
-        _configuration.Libraries[0].Sources[0].FirstCheck = FirstCheck("paused");
-
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
-        cut.WaitForElement(".folder-table");
-
-        Assert.Empty(cut.FindAll("[data-first-check]"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Keep going" or "Remove the folder");
-    }
-
-    // In setup's type list a kind with several named libraries counts the folders of all of them, and the first kind shown has folders in any of them.
-    [Fact]
-    public void TheTypeListCountsTheFoldersOfAllTheNamedLibrariesOfAKind()
-    {
-        AddNamedVideoLibraries();
-
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
-        cut.WaitForElement(".library-folders__type");
-
-        Assert.Contains("3 folders", Text(cut.FindAll(".library-folders__type").Single(type => Text(type).Contains("Videos"))));
-    }
-
-    [Fact]
-    public void TheFirstSelectionInSetupIsTheFirstKindWithFoldersInAnyOfItsNamedLibraries()
-    {
-        _configuration.Libraries.Clear();
-        AddNamedVideoLibraries();
-
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
-
-        cut.WaitForAssertion(() => Assert.Contains("Videos", Text(cut.Find(".library-folders__type[aria-current=true]"))));
-    }
-
-    [Fact]
     public void ADoubleClickOnRetryNowSendsOneRequest()
     {
         _configuration.Libraries[0].UnmatchedCount = 3;
@@ -1545,20 +1430,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Single(_unmatchedActions);
     }
 
-    [Fact]
-    public void FirstRunSetupDrawsNoEmptyActionsWrapperForTheUnmatchedBar()
-    {
-        _configuration.Libraries[0].UnmatchedCount = 3;
-
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
-        cut.WaitForElement(".library-folders__detail");
-
-        Assert.Empty(cut.FindAll(".lib-unmatched"));
-        Assert.All(cut.FindAll(".library-folders__detail-actions"), actions => Assert.NotEmpty(actions.Children));
-    }
-
-    // D23: under the one card breakpoint (840px of viewport width, so portrait tablets too) folders are read-only, in Settings and
-    // in setup alike. With no browser to measure, the stylesheets are read: every control that adds, converts or merges is hidden
+    // D23: under the one card breakpoint (840px of viewport width, so portrait tablets too) folders are read-only. With no browser to measure, the stylesheets are read: every control that adds, converts or merges is hidden
     // (display:none) and the note is shown. The gate follows the viewport, not the device class.
     [Fact]
     public void EveryControlThatAddsConvertsOrMergesIsHiddenUnderTheCardBreakpoint()

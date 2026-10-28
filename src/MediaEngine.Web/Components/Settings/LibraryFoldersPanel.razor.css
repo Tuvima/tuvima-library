@@ -1,57 +1,9 @@
 .library-folders {
     display: grid;
-    grid-template-columns: 280px minmax(0, 1fr);
-    gap: 16px;
-    min-height: 360px;
-}
-
-/* On a type's own address the list of types is not drawn, so the folders take the whole width. */
-.library-folders--single {
     grid-template-columns: minmax(0, 1fr);
-    min-height: 0;
+    gap: 16px;
 }
 
-/* Both columns are standard cards; their padding and surface come from the card itself. */
-.library-folders__types {
-    min-width: 0;
-    align-self: start;
-}
-
-.library-folders__nav {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-::deep .library-folders__type {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
-    width: 100%;
-    min-height: 56px;
-    padding: 8px 12px;
-    border: 1px solid transparent;
-    border-radius: var(--app-radius-sm, 6px);
-    background: transparent;
-    color: inherit;
-    text-align: left;
-}
-
-::deep .library-folders__type:is(:hover, :focus-visible, .is-active) {
-    border-color: var(--tl-accent-primary-border);
-    background: var(--tl-accent-primary-soft);
-}
-
-.library-folders__type-text {
-    display: grid;
-    justify-items: start;
-    text-align: left;
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.library-folders__type-text small,
 .library-folders__detail-header p,
 .library-folders__empty span {
     margin: 0;
@@ -153,24 +105,8 @@
     text-align: center;
 }
 
-/* The one card breakpoint (shared with the folder picker and the folder table): the type list stacks above the folders. */
+/* The one card breakpoint (shared with the folder picker and the folder table). */
 @media (max-width: 840px) {
-    .library-folders {
-        grid-template-columns: 1fr;
-        min-height: 0;
-    }
-
-    .library-folders__nav {
-        flex-direction: row;
-        overflow-x: auto;
-    }
-
-    .library-folders__type {
-        flex: 0 0 auto;
-        width: auto;
-        min-width: 160px;
-    }
-
     .library-folders__detail-header {
         flex-wrap: wrap;
     }
@@ -249,20 +185,6 @@
     }
 }
 
-.library-folders__icon--books { color: #61a8ff; }
-.library-folders__icon--audiobooks { color: #f1b95b; }
-.library-folders__icon--movies { color: #a16dff; }
-.library-folders__icon--tv { color: #49a7ff; }
-.library-folders__icon--music { color: #e76fce; }
-.library-folders__icon--comics { color: #7de568; }
-
-.library-folders__icon--other { color: var(--tl-text-muted); }
-
-.library-folders__group {
-    margin: 10px 4px 2px;
-    font-size: 12px;
-    color: var(--tl-text-muted);
-}
 .library-folders__table {
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--app-radius-md, 8px);

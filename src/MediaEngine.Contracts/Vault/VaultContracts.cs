@@ -23,6 +23,20 @@ public sealed class NsfwStatusDto
     /// <summary>Minutes of inactivity before Vault mode switches itself off; 0 means never.</summary>
     [JsonPropertyName("idle_lock_minutes")]
     public int IdleLockMinutes { get; init; }
+
+    /// <summary>
+    /// True when this profile chose "Show Vault in the navigation bar" (Library pages D20). Off by default; stored with the profile
+    /// so it follows the person across devices. Only the status action fills it; the other actions leave it false.
+    /// </summary>
+    [JsonPropertyName("show_in_navigation")]
+    public bool ShowInNavigation { get; init; }
+}
+
+/// <summary>The person's own "Show Vault in the navigation bar" choice.</summary>
+public sealed class NsfwNavigationRequest
+{
+    [JsonPropertyName("show_in_navigation")]
+    public bool ShowInNavigation { get; init; }
 }
 
 public sealed class NsfwUnlockRequest

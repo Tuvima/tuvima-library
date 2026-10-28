@@ -6515,6 +6515,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackGeneralSet
   TrackPartiallyPlayedItems: System.Boolean | nullability=not-null | accessors=get,set
   SyncProgressBetweenBookAndAudiobook: System.Boolean | nullability=not-null | accessors=get,set
   SpoilerLevel: System.String | nullability=not-null | accessors=get,set
+  ShowVaultInNavigation: System.Boolean | nullability=not-null | accessors=get,set
   SyncAcrossDevices: System.Boolean | nullability=not-null | accessors=get,set
   SyncFrequencyMinutes: System.Int32 | nullability=not-null | accessors=get,set
   UseBannerArtWhenAvailable: System.Boolean | nullability=not-null | accessors=get,set
@@ -10107,11 +10108,15 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.CreateVaultLibraryReques
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwIdleRequest
   IdleLockMinutes: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwNavigationRequest
+  ShowInNavigation: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwStatusDto
   Mode: System.String | nullability=not-null | accessors=get,init
   Unlocked: System.Boolean | nullability=not-null | accessors=get,init
   HasPin: System.Boolean | nullability=not-null | accessors=get,init
   IdleLockMinutes: System.Int32 | nullability=not-null | accessors=get,init
+  ShowInNavigation: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwUnlockRequest
   Pin: System.String | nullability=nullable | accessors=get,init

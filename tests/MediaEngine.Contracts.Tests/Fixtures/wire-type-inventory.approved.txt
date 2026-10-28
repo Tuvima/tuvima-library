@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1272; api=0; web-client=54
+# scopes: contracts=1273; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7659,10 +7659,11 @@
   TrackPartiallyPlayedItems: System.Boolean | json=trackPartiallyPlayedItems | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SyncProgressBetweenBookAndAudiobook: System.Boolean | json=syncProgressBetweenBookAndAudiobook | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SpoilerLevel: System.String | json=spoilerLevel | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowVaultInNavigation: System.Boolean | json=showVaultInNavigation | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SyncAcrossDevices: System.Boolean | json=syncAcrossDevices | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SyncFrequencyMinutes: System.Int32 | json=syncFrequencyMinutes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UseBannerArtWhenAvailable: System.Boolean | json=useBannerArtWhenAvailable | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"resumePlayback":true,"askBeforeResuming":true,"minimumProgressToTrackPercent":7,"markCompleteThresholdPercent":7,"trackPartiallyPlayedItems":true,"syncProgressBetweenBookAndAudiobook":true,"spoilerLevel":"sample","syncAcrossDevices":true,"syncFrequencyMinutes":7,"useBannerArtWhenAvailable":true}
+  sample={"resumePlayback":true,"askBeforeResuming":true,"minimumProgressToTrackPercent":7,"markCompleteThresholdPercent":7,"trackPartiallyPlayedItems":true,"syncProgressBetweenBookAndAudiobook":true,"spoilerLevel":"sample","showVaultInNavigation":true,"syncAcrossDevices":true,"syncFrequencyMinutes":7,"useBannerArtWhenAvailable":true}
 
 [contracts] MediaEngine.Contracts.Playback.PlaybackManifestDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11937,13 +11938,19 @@
   IdleLockMinutes: System.Int32 | json=idle_lock_minutes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"idle_lock_minutes":7}
 
+[contracts] MediaEngine.Contracts.Vault.NsfwNavigationRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ShowInNavigation: System.Boolean | json=show_in_navigation | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"show_in_navigation":true}
+
 [contracts] MediaEngine.Contracts.Vault.NsfwStatusDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Mode: System.String | json=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Unlocked: System.Boolean | json=unlocked | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasPin: System.Boolean | json=has_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IdleLockMinutes: System.Int32 | json=idle_lock_minutes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"mode":"sample","unlocked":true,"has_pin":true,"idle_lock_minutes":7}
+  ShowInNavigation: System.Boolean | json=show_in_navigation | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"mode":"sample","unlocked":true,"has_pin":true,"idle_lock_minutes":7,"show_in_navigation":true}
 
 [contracts] MediaEngine.Contracts.Vault.NsfwUnlockRequest
   kind=class | converter=default | number-handling=default | unmapped=default
