@@ -120,7 +120,7 @@ public static partial class ItemCanonicalEndpoints
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 loggerFactory.CreateLogger("RetailShowMatch").LogWarning(ex,
-                    "Could not verify TheTVDB series {SeriesId} before applying a match", request.ProviderItemId);
+                    "Could not verify TheTVDB series before applying a match");
                 return ApiErrors.Problem(StatusCodes.Status502BadGateway, "TheTVDB verification is unavailable.", "Try matching the show again later.");
             }
         }
@@ -550,11 +550,8 @@ public static partial class ItemCanonicalEndpoints
         loggerFactory
             .CreateLogger("MediaEngine.Api.Endpoints.ItemCanonicalEndpoints")
             .LogInformation(
-                "Manual retail update completed for {Title} ({AssetId}): provider={Provider}, providerItemId={ProviderItemId}, artworkChanged={ArtworkChanged}, identityJobId={IdentityJobId}",
-                context.WorkTitle,
+                "Manual retail update completed for {AssetId}: artworkChanged={ArtworkChanged}, identityJobId={IdentityJobId}",
                 context.AssetId,
-                request.ProviderName,
-                request.ProviderItemId,
                 artworkResult?.ArtworkChanged ?? false,
                 identityJobId);
 
