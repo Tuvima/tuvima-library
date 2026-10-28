@@ -23,7 +23,7 @@ public static partial class MetadataEndpoints
 
     private static string ProviderPickerKey(Guid entityId, string scope, string role) => $"artwork-picker:{entityId}:{scope}:{role}";
 
-    private static async Task<EditorScopeResolution?> ResolveProviderPickerScopeAsync(HttpContext http, Guid entityId, string scopeId)
+    private static async Task<(EditorScopeResolution Scope, EditorScopeResolution? Series, EditorScopeResolution? Season)?> ResolveProviderPickerScopeAsync(HttpContext http, Guid entityId, string scopeId)
     {
         var services = http.RequestServices;
         var context = await ResolveEditorScopeContextAsync(entityId,
@@ -32,7 +32,8 @@ public static partial class MetadataEndpoints
         var scope = context?.Scopes.FirstOrDefault(s => s.ScopeId == scopeId);
         return scope is not null && scope.CanEditArtwork && await HasEditorScopeAccessAsync(http,
             services.GetRequiredService<CatalogueResourceAuthorizationService>(), scope,
-            ApplicationPermissionIds.MetadataEnrichmentRun, http.RequestAborted) ? scope : null;
+            ApplicationPermissionIds.MetadataEnrichmentRun, http.RequestAborted)
+                ? (scope, context!.Scopes.FirstOrDefault(s => s.ScopeId == "series"), context.Scopes.FirstOrDefault(s => s.ScopeId == "season")) : null;
     }
 
     private static void MapProviderArtworkPickerEndpoints(RouteGroupBuilder group)
@@ -44,8 +45,8 @@ public static partial class MetadataEndpoints
             IImageEnrichmentService images, ProviderApiClient tvdb,
             ICanonicalValueRepository canonicals, ArtworkAssetService assets, IMemoryCache cache, CancellationToken ct) =>
         {
-            var scope = await ResolveProviderPickerScopeAsync(http, entityId, scopeId);
-            if (scope is null)
+            var resolved = await ResolveProviderPickerScopeAsync(http, entityId, scopeId);
+            if (resolved is not var (scope, seriesScope, seasonScope))
             {
                 return ApiErrors.NotFound("Artwork scope not found.");
             }
@@ -54,10 +55,10 @@ public static partial class MetadataEndpoints
             {
                 return Results.Ok(new ProviderArtworkDiscoveryDto([], "Provider discovery is not available for this artwork type. Use Match & Identity to check the item's identity."));
             }
-            var requestContext = await ResolveProviderArtworkRequestContextAsync(scope, role, sourceType, canonicals, ct);
+            var requestContext = await ResolveProviderArtworkRequestContextAsync(scope, role, sourceType, canonicals, ct, seriesScope, tvdb, seasonScope);
             if (requestContext is null)
             {
-                return Results.Ok(new ProviderArtworkDiscoveryDto([], "No confirmed provider identity is available for this exact artwork scope. Use Match & Identity first."));
+                return Results.Ok(new ProviderArtworkDiscoveryDto([], await DescribeMissingProviderIdentityAsync(scope, seriesScope, canonicals, ct)));
             }
             if (!MatchesProviderArtworkRequestContext(requestContext, sourceAssetType, provider, providerItemId, releaseId, orderContext))
             {
@@ -87,7 +88,9 @@ public static partial class MetadataEndpoints
                     ThumbnailUrl = CreateTvdbPreviewUrl(cache, entityId, scope.FieldEntityId,
                             item.Candidate.ThumbnailUrl.Length > 0 ? item.Candidate.ThumbnailUrl : item.Candidate.Url) ?? string.Empty,
                 }).ToList(),
-                    "Artwork from TheTVDB. Select images to add to managed artwork.");
+                    scope.ScopeId == "episode" && role == "Primary" && found.All(item => item.Role != role)
+                        ? "TheTVDB has no picture for this episode."
+                        : "Artwork from TheTVDB. Select images to add to managed artwork.");
                 attributionUrl = OutsideLinks.TvdbForScope(scopeId, requestContext.ProviderItemId);
             }
             else if (!string.IsNullOrWhiteSpace(target.CoverUrl))
@@ -126,10 +129,10 @@ public static partial class MetadataEndpoints
         group.MapPost("/{entityId:guid}/artwork/{scopeId}/provider-candidates/{role}", async (
             Guid entityId, string scopeId, string role, ProviderArtworkImportRequest request, HttpContext http,
             ArtworkScopeService scopes, ArtworkAssetService assets, ICanonicalValueRepository canonicals,
-            IMemoryCache cache, CancellationToken ct) =>
+            ProviderApiClient tvdb, IMemoryCache cache, CancellationToken ct) =>
         {
-            var scope = await ResolveProviderPickerScopeAsync(http, entityId, scopeId);
-            if (scope is null)
+            var resolved = await ResolveProviderPickerScopeAsync(http, entityId, scopeId);
+            if (resolved is not var (scope, seriesScope, seasonScope))
             {
                 return ApiErrors.NotFound("Artwork scope not found.");
             }
@@ -153,7 +156,7 @@ public static partial class MetadataEndpoints
                 return ApiErrors.BadRequest("Artwork results expired. Reload the provider gallery and try again.");
             }
             var currentContext = await ResolveProviderArtworkRequestContextAsync(
-                scope, role, session.SourceAssetType, canonicals, ct);
+                scope, role, session.SourceAssetType, canonicals, ct, seriesScope, tvdb, seasonScope);
             if (currentContext is null || currentContext != session.Context)
             {
                 return ApiErrors.Conflict("The provider identity or selected artwork context changed. Reload the provider gallery before importing.");
@@ -188,15 +191,32 @@ public static partial class MetadataEndpoints
         string role,
         string sourceAssetType,
         ICanonicalValueRepository canonicals,
-        CancellationToken ct)
+        CancellationToken ct,
+        EditorScopeResolution? seriesScope = null,
+        ProviderApiClient? tvdb = null,
+        EditorScopeResolution? seasonScope = null)
     {
         var values = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
         var provider = GetCanonicalValue(values, MetadataFieldConstants.IdentityProvider)?.Trim().ToLowerInvariant();
+        var mediaType = NormalizeEditorMediaType(scope.MediaType);
+        string? inheritedId = null;
+        var seasonOrEpisode = scope.ScopeId is "season" or "episode";
+        var ownIdMissing = seasonOrEpisode && string.IsNullOrWhiteSpace(
+            GetCanonicalValue(values, scope.ScopeId == "episode" ? BridgeIdKeys.TvdbEpisodeId : BridgeIdKeys.TvdbSeasonId));
+        if (seasonOrEpisode && mediaType == "TV" && ownIdMissing && (string.IsNullOrWhiteSpace(provider) || provider == "tvdb"))
+        {
+            // A season or episode with no identity of its own uses the confirmed show above it.
+            inheritedId = await ResolveInheritedTvdbIdAsync(scope, values, seriesScope, seasonScope, canonicals, tvdb, ct);
+            if (inheritedId is null)
+            {
+                return null;
+            }
+            provider = "tvdb";
+        }
         if (string.IsNullOrWhiteSpace(provider))
         {
             return null;
         }
-        var mediaType = NormalizeEditorMediaType(scope.MediaType);
         var idKey = (mediaType, scope.ScopeId, provider) switch
         {
             ("TV", "series", "tvdb") => BridgeIdKeys.TvdbId,
@@ -213,7 +233,7 @@ public static partial class MetadataEndpoints
             ("Books" or "Audiobooks", _, "amazon") => BridgeIdKeys.Asin,
             _ => string.Empty,
         };
-        var providerId = idKey.Length == 0 ? null : GetCanonicalValue(values, idKey);
+        var providerId = inheritedId ?? (idKey.Length == 0 ? null : GetCanonicalValue(values, idKey));
         providerId ??= GetCanonicalValue(values, "provider_item_id");
         providerId ??= mediaType is "Books" or "Audiobooks"
             ? StringHelpers.FirstNonBlank(
@@ -234,5 +254,23 @@ public static partial class MetadataEndpoints
             .Select(entry => $"{entry.Key}={entry.Value}"));
         return new(scope.ScopeId, role, sourceAssetType, provider, providerId.Trim(), release,
             string.IsNullOrWhiteSpace(order) ? null : order);
+    }
+
+    internal static async Task<string> DescribeMissingProviderIdentityAsync(
+        EditorScopeResolution scope, EditorScopeResolution? seriesScope,
+        ICanonicalValueRepository canonicals, CancellationToken ct)
+    {
+        if (NormalizeEditorMediaType(scope.MediaType) != "TV")
+        {
+            return "No confirmed provider identity is available for this exact artwork scope. Use Match & Identity first.";
+        }
+        var showScope = scope.ScopeId == "series" ? scope : seriesScope;
+        if (showScope is null || await ResolveMatchedTvdbShowIdAsync(showScope, canonicals, ct) is null)
+        {
+            return UnmatchedTvShowMessage;
+        }
+        return scope.ScopeId == "episode"
+            ? "TheTVDB has no matching episode for this item in its default order. Check the season and episode numbers in Match and Identity."
+            : "TheTVDB has no matching season for this item. Check the season number in Match and Identity.";
     }
 }
