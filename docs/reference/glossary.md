@@ -161,7 +161,7 @@ Switching a Read-only folder to Managed. Tuvima shows a preview, then runs a bac
 
 ### Import folder
 
-One optional folder, the row under the group cards in Libraries, where new media is dropped. It holds one subfolder per media type, and each arrival is filed into that type's New media folder. Files that cannot be matched go to Review with the badge "From the Import folder". It is never a library folder.
+One optional folder, the line under the table in Libraries, where new media is dropped. It holds one subfolder per media type, and each arrival is filed into that type's New media folder. Files that cannot be matched go to Review with the badge "From the Import folder". It is never a library folder.
 
 ### Managed
 
