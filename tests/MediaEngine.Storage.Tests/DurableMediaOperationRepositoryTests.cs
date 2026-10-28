@@ -38,6 +38,28 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task EnsureAsync_KeepsWhoAskedForTheWork_SoItIsJudgedByThemWhenItRunsLater()
+    {
+        var repo = new MediaOperationRepository(_db);
+        var asked = await repo.EnsureAsync(NewOperation($"manual:{Guid.NewGuid():N}"));
+        var key = $"manual-text-track:{Guid.NewGuid():N}";
+
+        var created = await repo.EnsureAsync(new MediaOperation
+        {
+            OperationType = MediaOperationType.TextTrackLyrics,
+            OperationKind = MediaOperationKind.TextTrack,
+            Status = MediaOperationStatus.Queued,
+            QueueName = "text_track",
+            RequestedAudience = "adults",
+            IdempotencyKey = key,
+        });
+
+        Assert.Null(asked.RequestedAudience);
+        Assert.Equal("adults", created.RequestedAudience);
+        Assert.Equal("adults", (await repo.GetByIdempotencyKeyAsync(key))!.RequestedAudience);
+    }
+
+    [Fact]
     public async Task GetByIdempotencyKeyAsync_ReturnsTrackedOperation()
     {
         var repo = new MediaOperationRepository(_db);

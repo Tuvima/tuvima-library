@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -69,7 +70,12 @@ public sealed class TextTrackRefreshOperationWorker(
             var kind = operation.OperationType == MediaOperationType.TextTrackLyrics
                 ? TextTrackKind.Lyrics
                 : TextTrackKind.Subtitles;
-            var result = await textTracks.EnrichAsync(assetId, kind, ct).ConfigureAwait(false);
+            // The person's audience was kept with the request, so the work is judged by who asked even after a restart.
+            // Only a column that was never filled in means the Library asked itself; a value that cannot be read is treated as the narrowest.
+            PluginAudience? requester = operation.RequestedAudience is null
+                ? null
+                : PluginDeclarationRules.TryParseAudience(operation.RequestedAudience, out var asked) ? asked : PluginAudience.Everyone;
+            var result = await textTracks.EnrichAsync(assetId, kind, ct, requester).ConfigureAwait(false);
             switch (result.Status)
             {
                 case "Updated":
@@ -86,6 +92,7 @@ public sealed class TextTrackRefreshOperationWorker(
                 case "AuthenticationRequired":
                 case "Disabled":
                 case "ExternalLookupBlocked":
+                case "NotAllowed":
                     await operations.MarkBlockedAsync(operation.Id, result.Message, ct);
                     break;
                 case "AssetMissing":

@@ -2,12 +2,14 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.Details;
+using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Capabilities;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -467,9 +469,11 @@ public static class StreamEndpoints
         group.MapPost("/{assetId:guid}/text-tracks/refresh", async (
             Guid assetId,
             string? kind,
+            HttpContext http,
             HttpRequest request,
             IMediaAssetRepository assetRepo,
             IMediaOperationRepository operationRepo,
+            IRequestAuthorityResolver authorityResolver,
             CancellationToken ct) =>
         {
             var asset = await assetRepo.FindByIdAsync(assetId, ct);
@@ -521,6 +525,9 @@ public static class StreamEndpoints
                     ? CapabilityId.TextTrackLyrics
                     : CapabilityId.TextTrackSubtitles,
                 CapabilityVersion = "1",
+                // The lookup runs later from the durable queue; who asked is kept so each source is used within its own audience then.
+                RequestedAudience = PluginDeclarationRules.AudienceWord(
+                    PluginAccessGate.RequesterOf(await authorityResolver.ResolveAsync(http, ct))),
                 IdempotencyKey = $"manual-text-track:{assetId:D}:{textTrackKind}:{requestKey}",
             }, ct);
 

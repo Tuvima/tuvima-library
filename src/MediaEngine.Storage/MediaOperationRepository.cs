@@ -51,7 +51,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
             INSERT OR IGNORE INTO media_operations
                 (id, operation_type, operation_kind, entity_id, entity_kind,
                  source_path, content_hash, capability_id, capability_version, sub_key,
-                 plugin_id, plugin_version, provider_id, model_id, status, stage, priority,
+                 plugin_id, plugin_version, requested_audience, provider_id, model_id, status, stage, priority,
                  queue_name, position_key, attempt_count, poison_attempt_count, lease_owner, lease_expires_at,
                  heartbeat_at, next_retry_at, progress_percent, items_total, items_completed,
                  items_failed, result_summary, last_error, last_outcome_category, missing_reason, created_at,
@@ -59,7 +59,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
             VALUES
                 (@Id, @OperationType, @OperationKind, @EntityId, @EntityKind,
                  @SourcePath, @ContentHash, @CapabilityId, @CapabilityVersion, @SubKey,
-                 @PluginId, @PluginVersion, @ProviderId, @ModelId, @Status, @Stage, @Priority,
+                 @PluginId, @PluginVersion, @RequestedAudience, @ProviderId, @ModelId, @Status, @Stage, @Priority,
                  @QueueName, @PositionKey, @AttemptCount, @PoisonAttemptCount, @LeaseOwner, @LeaseExpiresAt,
                  @HeartbeatAt, @NextRetryAt, @ProgressPercent, @ItemsTotal, @ItemsCompleted,
                  @ItemsFailed, @ResultSummary, @LastError, @LastOutcomeCategory, @MissingReason, @CreatedAt,
@@ -571,6 +571,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         operation.SubKey,
         operation.PluginId,
         operation.PluginVersion,
+        operation.RequestedAudience,
         operation.ProviderId,
         operation.ModelId,
         operation.Status,
@@ -615,6 +616,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         sub_key AS SubKey,
         plugin_id AS PluginId,
         plugin_version AS PluginVersion,
+        requested_audience AS RequestedAudience,
         provider_id AS ProviderId,
         model_id AS ModelId,
         status AS Status,
@@ -659,6 +661,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         public string? SubKey { get; set; }
         public string? PluginId { get; set; }
         public string? PluginVersion { get; set; }
+        public string? RequestedAudience { get; set; }
         public string? ProviderId { get; set; }
         public string? ModelId { get; set; }
         public string Status { get; set; } = "";
@@ -701,6 +704,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         SubKey = row.SubKey,
         PluginId = row.PluginId,
         PluginVersion = row.PluginVersion,
+        RequestedAudience = row.RequestedAudience,
         ProviderId = row.ProviderId,
         ModelId = row.ModelId,
         Status = row.Status,

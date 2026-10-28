@@ -1387,6 +1387,7 @@ The Engine's durable work queue. Each file noticed by ingestion has one row with
 | `status` / `stage` | TEXT | Where the file is: `stage` runs `discovered`, `queued`, `hashing`, `parsing`, `scoring`, `registered`, `queued_identity`, `completed`; `status` says whether it is queued, running, retrying or finished |
 | `entity_id` / `entity_kind` | BLOB / TEXT | Set to the file's media asset id and `MediaAsset` the moment the asset is known (when it is registered, or the existing asset a duplicate or re-detected file points at). Empty before that |
 | `result_summary` | TEXT | What the file ended as when it finished, for example `duplicate` or `same_path_redetected` |
+| `requested_audience` | TEXT | For work a person asked for (a lyrics or subtitle refresh): `administrators`, `adults` or `everyone`, the widest group that person belongs to, so a plugin or source is used only within its own audience when the queued work really runs. NULL when the Library asked itself (added by upgrade step `0056_media_operation_requested_audience`) |
 | `created_at` | TEXT | When the file was first noticed |
 
 **Indices:** `idx_media_operations_entity` on `(entity_id)`, and for the live count `idx_media_operations_type_created` on `(operation_type, created_at)` and `idx_media_operations_type_status` on `(operation_type, status)`, so each second's look finds the files since the active period began, and the files still being worked on, without reading every intake row the Library has ever had.
