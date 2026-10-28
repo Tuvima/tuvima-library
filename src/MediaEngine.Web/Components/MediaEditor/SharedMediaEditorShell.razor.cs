@@ -2653,7 +2653,10 @@ public partial class SharedMediaEditorShell
                 primaryDestructive: true,
                 tone: AppUiTone.Warning);
             if (answer == AppConfirmResult.Primary)
+            {
                 await DiscardAndClose();
+            }
+
             return;
         }
 
