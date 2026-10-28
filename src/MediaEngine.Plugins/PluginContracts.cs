@@ -61,6 +61,12 @@ public interface IPluginExecutionContext : IAsyncDisposable
     /// Contexts that do not offer one refuse the call.
     /// </summary>
     IPluginOutbox Outbox => throw new NotSupportedException("This context has no retry queue.");
+
+    /// <summary>
+    /// Where the plugin publishes lines, chips, blocks and badges for the Library's own surfaces. Needs the <c>display-slots</c>
+    /// permission. Contexts that do not offer one refuse the call.
+    /// </summary>
+    IPluginDisplay Display => throw new NotSupportedException("This context has no display slots.");
 }
 
 public interface IPluginSecrets
@@ -155,6 +161,9 @@ public static class PluginPermissionIds
     /// <summary>Queues messages for an outside service on a person's behalf and sends them later, retrying while the service is offline (<see cref="IPluginOutbox"/>).</summary>
     public const string PluginOutbox = "plugin-outbox";
 
+    /// <summary>Adds lines, chips, blocks and badges to the Library's own surfaces from a fixed list of slots (<see cref="IPluginDisplay"/>).</summary>
+    public const string DisplaySlots = "display-slots";
+
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         MediaRead,
@@ -171,5 +180,6 @@ public static class PluginPermissionIds
         BackgroundWork,
         PluginPages,
         PluginOutbox,
+        DisplaySlots,
     };
 }

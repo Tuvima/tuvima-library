@@ -1292,6 +1292,25 @@ The retry queue for plugins that send things to an outside service on a person's
 
 **Indexes:** `(plugin_id, next_attempt_at)`. Added by upgrade step `0054_plugin_outbox`.
 
+### plugin_display_contributions
+
+What plugins want shown on the Library's own surfaces (Plugin architecture spec C21): a line on a Home slide, a chip or titled block on an item's page, a badge on a tile, a status line in Settings. A plugin supplies plain data and the Library draws it, so the data is small (name 64 characters, text 280, title 80, icon 40, at most 2,000 per plugin, the least recently updated going first) and is read without waiting on the plugin. Removed when the plugin is removed. Not part of a backup; each plugin publishes again when it next runs.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id |
+| `slot` | TEXT | The surface: HomeHero, HomeHeroCandidate, ItemHero, ItemSection, TileBadge or SettingsOverview |
+| `subject_id` | TEXT | The item it is about, or empty for Settings |
+| `key` | TEXT | The plugin's own name for it, so it can replace or withdraw it |
+| `title` | TEXT | An optional heading |
+| `text` | TEXT | The line or body |
+| `icon` | TEXT | An optional icon name |
+| `strength` | INTEGER | 0 to 100; orders contributions in the same slot |
+| `from_local_ai` | INTEGER | 1 when Local AI produced it |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+**Key:** `PRIMARY KEY (plugin_id, slot, subject_id, key)`. **Indexes:** `(slot, subject_id)`. Added by upgrade step `0055_plugin_display_contributions`.
+
 ### plugin_event_cursors
 
 Where each plugin has got to in the Library's event list (`application_events`): the sequence of the newest event already handed to it. The plugin event dispatcher reads events after this sequence, so a restart carries on where it stopped. A plugin that subscribes for the first time, or that is switched off and on again, starts at the newest event with no backlog.
