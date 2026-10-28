@@ -1,6 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
-@using MediaEngine.Domain.Configuration
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Ui
@@ -135,7 +134,7 @@
     private string? _kindKey;
     private string _name = string.Empty;
     private bool _nameTouched;
-    private string _access = LibraryAccessLevels.Standard;
+    private string _access = LibraryAccessChoices.Standard;
     private ServerFolderValidationResultDto? _folder;
     // Where the folder picker opens: the folder already chosen when the content type changes under it.
     private string? _pickerStart;
@@ -199,9 +198,9 @@
         string.Equals(library.Area, _area, StringComparison.OrdinalIgnoreCase)
         && string.Equals(library.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase));
 
-    private bool AccessChoosable => _access == LibraryAccessLevels.Standard
-        || (_access == LibraryAccessLevels.Selected && LibraryAccessOptions.SelectedProfilesAvailable)
-        || (_access == LibraryAccessLevels.Vault && LibraryAccessOptions.VaultAvailable && ShowVaultOption);
+    private bool AccessChoosable => _access == LibraryAccessChoices.Standard
+        || (_access == LibraryAccessChoices.Selected && LibraryAccessOptions.SelectedProfilesAvailable)
+        || (_access == LibraryAccessChoices.Vault && LibraryAccessOptions.VaultAvailable && ShowVaultOption);
 
     private bool FolderUsable => _folder is { CanSelect: true, Exists: true, HasRead: true };
 

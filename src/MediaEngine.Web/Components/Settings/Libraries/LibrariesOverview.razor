@@ -197,17 +197,17 @@
 
     private void OpenRow(LibraryListRow row) => Navigation.NavigateTo(row.Href);
 
-    // The one place the add flow is started: the Create library dialog replaces this body (Library pages WP3).
+    // The one place the add flow is started: the one-screen Create library dialog.
     private async Task OpenAddLibraryAsync()
     {
-        var parameters = new AppDialogParameters<AddFolderWizard>
+        var parameters = new AppDialogParameters<CreateLibraryDialog>
         {
-            { component => component.ShowVault, ShowVault },
             { component => component.Configuration, Configuration },
             { component => component.Kinds, Kinds },
-            { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAdded.InvokeAsync()) },
+            { component => component.StartAreaKey, SelectedArea.Key },
+            { component => component.OnCreated, (Func<string, Task>)(_ => FolderAdded.InvokeAsync()) },
         };
-        await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+        await DialogService.ShowAsync<CreateLibraryDialog>(string.Empty, parameters, CreateLibraryDialog.DialogOptions);
     }
 
     private string CountsFor(LibraryListRow row) => LibraryRollup.CountsText(row.Folders, row.Titles);
