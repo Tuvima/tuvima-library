@@ -9,6 +9,10 @@
    of the Shared Library, and one "Show in Photos timeline" switch on each folder. A folder is read in full, subfolders included, so there
    is no subfolders switch. A new folder is Managed by default (Library owns its structure); a linked folder stays read-only and its
    timeline switch is the only way to keep it out of the Photos timeline. *@
+@if (Kind is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos)
+{
+    <ViewImportPanel Kind="@Kind" ReadOnly="@ReadOnly" Changed="SourcesChanged" />
+}
 <SettingsSectionPanel Title="Folders" Description="One storage base for Shared Library and each profile’s private files.">
     <Actions>
         <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(ReadOnly || _busy)" OnClick="@(() => AddingChanged.InvokeAsync(!Adding))" />
@@ -200,7 +204,7 @@
     private static string SourcePolicy(ViewSourceAdminDto source) => source.StorageMode == LinkedMode
         ? "Read-only · Keep existing layout"
         : source.SourceType == "browser_upload"
-            ? "Managed · Calendar timeline"
+            ? "Managed · Filed by day"
             : "Managed · Keep existing layout";
 
     private async Task DetachAsync(Guid owner, ViewSourceAdminDto source)

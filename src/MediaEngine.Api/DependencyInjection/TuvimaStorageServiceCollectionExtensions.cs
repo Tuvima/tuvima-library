@@ -3,6 +3,7 @@ using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Filing;
+using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services.View;
@@ -35,6 +36,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ITransactionJournal, TransactionJournal>();
         services.AddSingleton<IMediaAssetRepository, MediaAssetRepository>();
         services.AddSingleton<ILocalAssetRepository, LocalAssetRepository>();
+        services.AddSingleton<IViewIntakeRepository, ViewIntakeRepository>();
         services.AddSingleton<IViewTrashRepository, ViewTrashRepository>();
         services.AddSingleton<IViewTrashPurgeRepository, ViewTrashPurgeRepository>();
         services.AddSingleton<IViewCatalogueRepository, ViewCatalogueRepository>();
@@ -54,6 +56,10 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<PersonalMediaActivityRecorder>();
         services.AddHostedService(sp => sp.GetRequiredService<PersonalMediaActivityRecorder>());
         services.AddSingleton<ViewLibraryService>();
+        services.AddSingleton<ViewIntakeAreas>();
+        services.AddSingleton<ViewIntakeActivity>();
+        services.AddSingleton<ViewIntakeFiler>();
+        services.AddSingleton<ViewIntakeAdminService>();
         services.AddSingleton<ViewThumbnailService>();
         services.AddSingleton<IViewPathIndexer>(sp => sp.GetRequiredService<ViewLibraryService>());
         services.AddScoped<IViewRequestProfileContext, HttpViewRequestProfileContext>();

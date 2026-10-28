@@ -243,6 +243,8 @@ public static partial class BackupTableClassification
         Transient("view_shared_contribution_items", "Items of shared library contribution requests."),
         Transient("view_shared_contribution_events", "Shared library contribution log."),
         Transient("view_shared_transfers", "Shared library transfers in progress."),
+        Transient("view_intake_files", "Photos and videos waiting in, or refused from, the Import area; the files themselves are never backed up."),
+        Transient("view_duplicate_groups", "Duplicate photo groups found by the cleanup job; found again by the next run."),
         Transient("notifications", "Notifications already sent."),
         Transient("notification_channel_state", "Notification channel health."),
         Transient("notification_rate_marks", "Notification rate limiting marks."),

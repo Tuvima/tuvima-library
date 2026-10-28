@@ -324,6 +324,26 @@ public sealed partial class EngineApiClient
         catch (Exception ex) { _logger.LogWarning(ex, "POST /view/uploads failed"); return new(false, ErrorMessage: "The Dashboard could not upload this file."); }
     }
 
+    public Task<ViewIntakeSummaryDto?> GetViewIntakeSummaryAsync(string contentKind, CancellationToken ct = default) =>
+        GetAsync<ViewIntakeSummaryDto>("GET /view/admin/intake/{kind}", $"/view/admin/intake/{Uri.EscapeDataString(contentKind)}", ct: ct);
+
+    public Task<ViewIntakeScanResultDto?> ScanViewImportAreaAsync(CancellationToken ct = default) =>
+        PostAsync<object, ViewIntakeScanResultDto>("POST /view/admin/intake/scan", "/view/admin/intake/scan", new { }, ct: ct);
+
+    public Task<bool> RemoveViewRejectedFileAsync(Guid id, CancellationToken ct = default) =>
+        DeleteAsync("DELETE /view/admin/intake/rejected/{id}", $"/view/admin/intake/rejected/{id:D}", ct: ct);
+
+    public Task<ViewFilingLayoutDto?> GetViewFilingLayoutAsync(CancellationToken ct = default) =>
+        GetAsync<ViewFilingLayoutDto>("GET /view/admin/intake/layout", "/view/admin/intake/layout", ct: ct);
+
+    public Task<ViewFilingLayoutDto?> UpdateViewFilingLayoutAsync(string? pattern, CancellationToken ct = default) =>
+        PutAsync<UpdateViewFilingLayoutRequest, ViewFilingLayoutDto>(
+            "PUT /view/admin/intake/layout", "/view/admin/intake/layout", new UpdateViewFilingLayoutRequest(pattern), ct: ct);
+
+    public Task<ViewActivityDto?> GetViewKindActivityAsync(string contentKind, int take = 100, CancellationToken ct = default) =>
+        GetAsync<ViewActivityDto>("GET /view/admin/intake/{kind}/activity",
+            $"/view/admin/intake/{Uri.EscapeDataString(contentKind)}/activity?take={Math.Clamp(take, 1, 200)}", ct: ct);
+
     public Task<bool> SetViewItemFavoriteAsync(Guid itemId, bool value, CancellationToken ct = default) =>
         PutAsync("PUT /view/items/{id}/favorite", $"/view/items/{itemId:D}/favorite", new SetLocalAssetFlagRequest(value), ct: ct);
     public Task<bool> SetViewItemHiddenAsync(Guid itemId, bool value, CancellationToken ct = default) =>

@@ -504,8 +504,10 @@ public sealed class ViewSharedContributionService(
              WHERE c.status = 'accepted'
                -- An item removed by Empty Trash has no item left to copy; its history row is only history.
                AND ci.item_id IS NOT NULL
-               AND ci.execution_state IN ('waiting', 'transferring', 'cleanup_pending', 'needs_attention', 'failed');
-            """, cancellationToken: ct)).ToList();
+               AND ci.execution_state IN ('waiting', 'transferring', 'cleanup_pending', 'needs_attention', 'failed')
+               -- An exact copy already in the Shared Library was refused for good; there is nothing to retry.
+               AND COALESCE(ci.error, '') <> @alreadyInShared;
+            """, new { alreadyInShared = ViewSharedTransferService.AlreadyInSharedMessage }, cancellationToken: ct)).ToList();
     }
 
     public async Task ProcessAsync(Guid contributionId, CancellationToken ct = default)
@@ -517,7 +519,8 @@ public sealed class ViewSharedContributionService(
             new { contributionId }, cancellationToken: ct))
             ?? throw new InvalidOperationException("The accepting household administrator is unavailable.");
         foreach (var item in batch.Items.Where(value => value.ItemId != Guid.Empty
-            && value.ExecutionState is "waiting" or "failed" or "needs_attention" or "cleanup_pending"))
+            && value.ExecutionState is "waiting" or "failed" or "needs_attention" or "cleanup_pending"
+            && value.Error != ViewSharedTransferService.AlreadyInSharedMessage))
         {
             await SetItemStateAsync(item.Id, "transferring", null, ct);
             try
@@ -527,6 +530,11 @@ public sealed class ViewSharedContributionService(
                 var result = await transfers.ExecuteAsync(item.ItemId, actorProfileId,
                     batch.DestinationKind, batch.DestinationLabel, item.Id, ct, copyOnly);
                 await SetItemStateAsync(item.Id, result.State, null, ct);
+            }
+            catch (SharedAlreadyPresentException exception)
+            {
+                // Refused for good: an exact copy is already there, so retrying cannot help.
+                await SetItemStateAsync(item.Id, "failed", exception.Message, CancellationToken.None);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
                 or InvalidOperationException or InvalidDataException or KeyNotFoundException)

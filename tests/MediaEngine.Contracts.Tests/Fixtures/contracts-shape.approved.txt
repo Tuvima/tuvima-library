@@ -4099,11 +4099,22 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.UpdateViewDo
   TagIds: System.Collections.Generic.IReadOnlyCollection<System.Guid> | nullability=nullable | accessors=get,init
   FieldValues: System.Collections.Generic.IReadOnlyCollection<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldValueRequest> | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.UpdateViewFilingLayoutRequest
+  Pattern: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.UpdateViewSourceRequest
   Name: System.String | nullability=not-null | accessors=get,init
   Enabled: System.Boolean | nullability=not-null | accessors=get,init
   IncludeInTimeline: System.Boolean | nullability=not-null | accessors=get,init
   ContentKind: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewActivityDto
+  Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewActivityEntryDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewActivityEntryDto
+  OccurredAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Text: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAddedByDto
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
@@ -4365,6 +4376,11 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocument
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentsSortDto
   Sort: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFilingLayoutDto
+  Pattern: System.String | nullability=not-null | accessors=get,init
+  DefaultPattern: System.String | nullability=not-null | accessors=get,init
+  Example: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewGalleryDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   OwnerProfileId: System.Guid | nullability=not-null | accessors=get,init
@@ -4429,6 +4445,32 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewGalleryS
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewGallerySharesRequest
   Shares: System.Collections.Generic.IReadOnlyCollection<MediaEngine.Contracts.LocalAssets.ViewGalleryShareRequest> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewIntakeRejectedDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+  RejectedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewIntakeScanResultDto
+  Filed: System.Int32 | nullability=not-null | accessors=get,init
+  Duplicates: System.Int32 | nullability=not-null | accessors=get,init
+  Rejected: System.Int32 | nullability=not-null | accessors=get,init
+  Waiting: System.Int32 | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewIntakeSummaryDto
+  ContentKind: System.String | nullability=not-null | accessors=get,init
+  ImportPath: System.String | nullability=nullable | accessors=get,init
+  RejectedPath: System.String | nullability=nullable | accessors=get,init
+  Available: System.Boolean | nullability=not-null | accessors=get,init
+  Waiting: System.Int32 | nullability=not-null | accessors=get,init
+  WaitingNote: System.String | nullability=nullable | accessors=get,init
+  StrayCount: System.Int32 | nullability=not-null | accessors=get,init
+  RetentionDays: System.Int32 | nullability=not-null | accessors=get,init
+  LayoutPattern: System.String | nullability=not-null | accessors=get,init
+  Rejected: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewIntakeRejectedDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsRemovedResponse
   Removed: System.Int32 | nullability=not-null | accessors=get,init
@@ -4743,6 +4785,8 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewUploadRe
   ItemAdded: System.Boolean | nullability=not-null | accessors=get,init
   FilesAdded: System.Int32 | nullability=not-null | accessors=get,init
   SourcesAdded: System.Int32 | nullability=not-null | accessors=get,init
+  Outcome: System.String | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Maintenance.MediaEngine.Contracts.Maintenance.InitialSweepStartedResponse
   Started: System.Boolean | nullability=not-null | accessors=get,init

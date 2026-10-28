@@ -50,7 +50,7 @@ public sealed class ImportFolderWaitingReader : IImportFolderWaitingReader
                     break;
                 }
 
-                if (_importFolders.IsWorkingPath(file) || IngestionEngine.IsIgnoredScanFile(file))
+                if (_importFolders.IsWorkingPath(file) || _importFolders.IsViewSectionPath(file) || IngestionEngine.IsIgnoredScanFile(file))
                 {
                     continue;
                 }

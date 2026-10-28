@@ -34,6 +34,18 @@ public partial interface IEngineApiClient
     Task<ViewPlaceMediaPageDto?> GetViewPlaceMediaAsync(string placeKey, ViewAtlasQueryOptions options, int offset = 0, int limit = 250, CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetViewTagSuggestionsAsync(string? search = null, int limit = 20, CancellationToken ct = default);
     Task<ViewUploadResult> UploadViewMediaAsync(Stream fileStream, string fileName, string? contentType = null, CancellationToken ct = default);
+    /// <summary>GET /view/admin/intake/{kind} - what waits in, and was refused from, the Import area for photos or personal videos.</summary>
+    Task<ViewIntakeSummaryDto?> GetViewIntakeSummaryAsync(string contentKind, CancellationToken ct = default);
+    /// <summary>POST /view/admin/intake/scan - files whatever has settled in the Import area now.</summary>
+    Task<ViewIntakeScanResultDto?> ScanViewImportAreaAsync(CancellationToken ct = default);
+    /// <summary>DELETE /view/admin/intake/rejected/{id} - removes one refused file now.</summary>
+    Task<bool> RemoveViewRejectedFileAsync(Guid id, CancellationToken ct = default);
+    /// <summary>GET /view/admin/intake/layout - the folders photos and videos are filed into.</summary>
+    Task<ViewFilingLayoutDto?> GetViewFilingLayoutAsync(CancellationToken ct = default);
+    /// <summary>PUT /view/admin/intake/layout - changes the layout from now on. Null with <see cref="LastError"/> set when it is not usable.</summary>
+    Task<ViewFilingLayoutDto?> UpdateViewFilingLayoutAsync(string? pattern, CancellationToken ct = default);
+    /// <summary>GET /view/admin/intake/{kind}/activity - what was added, skipped and refused, newest first.</summary>
+    Task<ViewActivityDto?> GetViewKindActivityAsync(string contentKind, int take = 100, CancellationToken ct = default);
     Task<bool> SetViewItemFavoriteAsync(Guid itemId, bool value, CancellationToken ct = default);
     Task<bool> SetViewItemHiddenAsync(Guid itemId, bool value, CancellationToken ct = default);
     Task<bool> ArchiveViewItemAsync(Guid itemId, CancellationToken ct = default);

@@ -390,6 +390,8 @@ None of these are kept.
 | `view_shared_contribution_items` | Items of shared library contribution requests. |
 | `view_shared_contribution_events` | Shared library contribution log. |
 | `view_shared_transfers` | Shared library transfers in progress. |
+| `view_intake_files` | Photos and videos waiting in, or refused from, the Import area; the files themselves are never backed up. |
+| `view_duplicate_groups` | Duplicate photo groups found by the cleanup job; found again by the next run. |
 | `notifications` | Notifications already sent. |
 | `notification_channel_state` | Notification channel health. |
 | `notification_rate_marks` | Notification rate limiting marks. |

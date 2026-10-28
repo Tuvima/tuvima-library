@@ -1,16 +1,37 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
 
 @* The File handling tab of a View kind (Library pages WP11): how files are stored depending on how they are added, what Library does and
    does not do to originals, and, for Documents, the text, organisation and rules panels. *@
 <div class="view-file-handling">
     <SettingsSectionPanel Title="Organization" Description="How files are stored depends on how they are added.">
         <div class="view-organization">
-            <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" /></span><div><strong>Browser uploads</strong><small>Organized by capture date in the profile’s Timeline.</small><code>Timeline / year / month / file</code></div></article>
+            <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" /></span><div><strong>Added through Library</strong><small>Photos and videos copied into the Import folder or added in the browser are filed by the day they were taken, and keep their own names.</small><code>@(_layout?.Example ?? "Year / Year-Month-Day / original name")</code></div></article>
             <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderCopy" /></span><div><strong>Managed folders</strong><small>Keep their folder hierarchy and original filenames.</small><code>Folders / folder name / files</code></div></article>
             <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" /></span><div><strong>Linked folders</strong><small>Files stay in their existing location and are indexed read-only.</small><code>Existing folder / files</code></div></article>
         </div>
     </SettingsSectionPanel>
+    @if (Kind is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos)
+    {
+        <SettingsSectionPanel Title="Filing layout" Description="The folders new photos and videos are filed into, built from the day each was taken.">
+            <div class="libraries-form-grid">
+                <AppTextField Label="Layout" Value="@_pattern" ValueChanged="@((string? value) => _pattern = value ?? string.Empty)" ReadOnly="@(ReadOnly || _busy)" />
+                <div>
+                    <small>Use {year}, {month} and {day}. For example <code>{year}/{year}-{month}-{day}</code> or <code>{year}/{month}</code>.</small>
+                    <small>Example: <code>@(_layout?.Example ?? "Year / Year-Month-Day / original name")</code></small>
+                </div>
+            </div>
+            <p>Changing the layout affects only photos and videos filed from now on. Files already filed stay where they are.</p>
+            @if (_error is not null) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
+            <AppActionBar>
+                <AppButton Label="Use the default" ButtonStyle="AppButtonStyle.Text" Disabled="@(ReadOnly || _busy)" OnClick="UseDefaultAsync" />
+                <AppButton Label="Save layout" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(ReadOnly || _busy || string.IsNullOrWhiteSpace(_pattern))" OnClick="SaveAsync" />
+            </AppActionBar>
+        </SettingsSectionPanel>
+    }
     <SettingsSectionPanel Title="File handling" Description="Originals remain protected throughout indexing and sharing.">
         <div class="view-policy-row"><div><strong>Linked originals</strong><small>Library reads their local file details and thumbnails.</small></div><span>Read-only · Files stay in place</span></div>
         <div class="view-policy-row"><div><strong>Detach a folder</strong><small>Remove its connection to View.</small></div><span>Keep all original files</span></div>
@@ -29,4 +50,35 @@
     /// <summary>The View kind: photos, personal_videos or documents.</summary>
     [Parameter] public string Kind { get; set; } = string.Empty;
     [Parameter] public bool ReadOnly { get; set; }
+
+    private ViewFilingLayoutDto? _layout;
+    private string _pattern = string.Empty;
+    private string? _error;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Kind is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos)
+        {
+            _layout = await ApiClient.GetViewFilingLayoutAsync();
+            _pattern = _layout?.Pattern ?? string.Empty;
+        }
+    }
+
+    private Task SaveAsync() => ApplyAsync(_pattern);
+
+    private Task UseDefaultAsync() => ApplyAsync(null);
+
+    private async Task ApplyAsync(string? pattern)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            var saved = await ApiClient.UpdateViewFilingLayoutAsync(pattern);
+            if (saved is null) _error = ApiClient.LastError ?? "The layout could not be saved.";
+            else { _error = null; _layout = saved; _pattern = saved.Pattern; Snackbar.Add("Filing layout saved. It applies to files filed from now on.", AppSeverity.Success); }
+        }
+        finally { _busy = false; }
+    }
 }
