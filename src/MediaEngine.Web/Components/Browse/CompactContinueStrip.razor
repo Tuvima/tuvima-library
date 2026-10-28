@@ -3,40 +3,64 @@
 @using MediaEngine.Contracts.Display
 @using MediaEngine.Web.Services.MediaTiles
 
-@if (Items.Count > 0)
+@if (Loading && Items.Count == 0)
+{
+    <section class="compact-continue" aria-label="@Title" aria-busy="true">
+        <div class="compact-continue__heading"><strong>@Title</strong></div>
+        <div class="compact-continue__items">
+            @for (var i = 0; i < 3; i++)
+            {
+                <div class="compact-continue__card compact-continue__card--skeleton" data-continue-skeleton="true" aria-hidden="true"></div>
+            }
+        </div>
+    </section>
+}
+else if (Items.Count > 0)
 {
     <section class="compact-continue" aria-label="@Title">
         <div class="compact-continue__heading">
             <AppMaterialIcon Icon="@Icon" />
-            <div>
-                <strong>@Title</strong>
-                <span>@ItemCountLabel</span>
-            </div>
+            <strong>@Title</strong>
+            <span>@ItemCountLabel</span>
+            @if (OnViewAll.HasDelegate)
+            {
+                <AppButton Label="View all" Class="compact-continue__view-all" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="OnViewAll" />
+            }
         </div>
 
         <div class="compact-continue__items">
-            @foreach (var item in Items.Take(3))
+            @foreach (var item in Items.Take(MaxItems))
             {
-                <a @key="item.RenderKey" class="compact-continue__item" href="@(item.DetailsNavigationUrl ?? item.NavigationUrl)">
-                    <div class="compact-continue__art">
-                        @if (!string.IsNullOrWhiteSpace(ArtworkUrl(item)))
+                var url = item.DetailsNavigationUrl ?? item.NavigationUrl;
+                <div @key="item.RenderKey" class="compact-continue__card">
+                    <a class="compact-continue__item" href="@url">
+                        <div class="compact-continue__art">
+                            @if (!string.IsNullOrWhiteSpace(ArtworkUrl(item)))
+                            {
+                                <img src="@MediaTileArtworkUrl.ForDrawnSize(ArtworkUrl(item), 58)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ArtworkUrl(item), 58)" data-artwork-purpose="continue-thumbnail" alt="" loading="lazy" decoding="async" />
+                            }
+                            else
+                            {
+                                <AppMaterialIcon Icon="@Icon" />
+                            }
+                        </div>
+                        <div class="compact-continue__copy">
+                            <strong>@Identity(item)</strong>
+                            @if (!string.IsNullOrWhiteSpace(item.EpisodeContext?.ShowTitle ?? item.Subtitle))
+                            {
+                                <span>@(item.EpisodeContext?.ShowTitle ?? item.Subtitle)</span>
+                            }
+                        </div>
+                    </a>
+                    <div class="compact-continue__foot">
+                        @if (item.ProgressPct is > 0 and < 100)
                         {
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(ArtworkUrl(item), 58)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ArtworkUrl(item), 58)" data-artwork-purpose="continue-thumbnail" alt="" loading="lazy" decoding="async" />
+                            <AppProgressBar Value="@item.ProgressPct" Decorative="true" AccentColor="var(--tl-accent-primary, #8852FC)" />
+                            <span class="compact-continue__percent" data-continue-percent="true">@PercentLabel(item)</span>
                         }
-                        <AppArtworkProgress State="@item.ContinuationState" Percent="@item.ProgressPct" MediaKind="@item.MediaKind" RemainingSeconds="@item.RemainingSeconds" />
-                        else
-                        {
-                            <AppMaterialIcon Icon="@Icon" />
-                        }
+                        <AppButton Label="Resume" Class="compact-continue__resume" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Href="@url" />
                     </div>
-                    <div class="compact-continue__copy">
-                        <strong>@Identity(item)</strong>
-                        @if (!string.IsNullOrWhiteSpace(item.EpisodeContext?.ShowTitle ?? item.Subtitle))
-                        {
-                            <span>@(item.EpisodeContext?.ShowTitle ?? item.Subtitle)</span>
-                        }
-                    </div>
-                </a>
+                </div>
             }
         </div>
     </section>
@@ -45,6 +69,12 @@
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = "Continue";
     [Parameter, EditorRequired] public IReadOnlyList<MediaTileViewModel> Items { get; set; } = [];
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public EventCallback OnViewAll { get; set; }
+
+    public const int MaxItems = 12;
+
+    private static string PercentLabel(MediaTileViewModel item) => $"{Math.Round(item.ProgressPct ?? 0):0}%";
 
     private string ItemCountLabel => Items.Count == 1 ? "1 item" : $"{Items.Count} items";
 
