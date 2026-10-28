@@ -33,24 +33,6 @@ public sealed class EpubTocEntry
 }
 
 /// <summary>
-/// The HTML content of a single EPUB chapter, ready for rendering.
-/// Resource URLs are rewritten to point at the Engine's resource endpoint.
-/// </summary>
-public sealed record EpubChapterContent(
-    int Index,
-    string Title,
-    string HtmlContent,
-    int WordCount);
-
-/// <summary>
-/// A binary resource embedded in the EPUB (image, CSS, font).
-/// </summary>
-public sealed record EpubResourceResult(
-    byte[] Data,
-    string ContentType,
-    string FileName);
-
-/// <summary>
 /// A single search hit within an EPUB book.
 /// </summary>
 public sealed record EpubSearchHit(

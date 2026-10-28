@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// A title that is deleted from the library while it is open in a reader (the default reader or the foliate one): the reader stops,
+/// A title that is deleted from the library while it is open in a reader (the reader route or the book reader itself): the reader stops,
 /// says why, leaves, and stops listening once the page is gone.
 /// </summary>
 public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
@@ -53,7 +53,7 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
             .GetValue(_orchestrator) as Delegate)?.GetInvocationList() ?? [];
 
     [Fact]
-    public async Task TheDefaultReader_LeavesWithAToastWhenItsFileIsDeleted()
+    public async Task TheReaderRoute_LeavesWithAToastWhenItsFileIsDeleted()
     {
         var cut = Render<EpubReader>(parameters => parameters.Add(page => page.AssetId, AssetId));
         var manager = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
@@ -66,7 +66,7 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheDefaultReader_IgnoresTheDeletionOfAnotherFile()
+    public async Task TheReaderRoute_IgnoresTheDeletionOfAnotherFile()
     {
         var cut = Render<EpubReader>(parameters => parameters.Add(page => page.AssetId, AssetId));
         var manager = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
@@ -79,32 +79,16 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheDefaultReader_StopsListeningOnceThePageIsLeft()
+    public void TheReaderRoute_ListensOnlyThroughTheBookReaderSoOneDeletionToastsOnce()
     {
         Render<EpubReader>(parameters => parameters.Add(page => page.AssetId, AssetId));
-        Assert.Contains(Listeners(), listener => listener.Target is EpubReader);
-
-        await DisposeComponentsAsync();
 
         Assert.DoesNotContain(Listeners(), listener => listener.Target is EpubReader);
+        Assert.Single(Listeners(), listener => listener.Target is BookReader);
     }
 
     [Fact]
-    public async Task TheFoliateReaderRoute_ListensOnlyThroughTheBookReaderSoOneDeletionToastsOnce()
-    {
-        Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().NavigateTo($"/read/{AssetId}?reader=new");
-        var cut = Render<EpubReader>(parameters => parameters.Add(page => page.AssetId, AssetId));
-
-        Assert.DoesNotContain(Listeners(), listener => listener.Target is EpubReader);
-        Assert.Contains(Listeners(), listener => listener.Target is BookReader);
-
-        await cut.InvokeAsync(() => _orchestrator.RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([], [AssetId])));
-
-        cut.WaitForAssertion(() => Assert.Equal(["This item is no longer in your library."], Toasts));
-    }
-
-    [Fact]
-    public async Task TheFoliateReader_StopsListeningOnceThePageIsLeft()
+    public async Task TheBookReader_StopsListeningOnceThePageIsLeft()
     {
         Render<BookReader>(parameters => parameters.Add(page => page.AssetId, AssetId));
         Assert.Contains(Listeners(), listener => listener.Target is BookReader);

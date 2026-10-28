@@ -7715,12 +7715,6 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubBookMetadataDto
   HasCoverImage: System.Boolean | nullability=not-null | accessors=get,init
   ChapterWordCounts: System.Collections.Generic.IReadOnlyList<System.Int32> | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubChapterContentDto
-  Index: System.Int32 | nullability=not-null | accessors=get,init
-  Title: System.String | nullability=not-null | accessors=get,init
-  HtmlContent: System.String | nullability=not-null | accessors=get,init
-  WordCount: System.Int32 | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubSearchHitDto
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
   ChapterTitle: System.String | nullability=not-null | accessors=get,init

@@ -1,6 +1,6 @@
 # Spec: Book reader pictures load reliably
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · bug log entry F43
+> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · bug log entry F43
 
 ## 1. Goal
 Pictures inside a book (illustrations, maps, inline figures, full-page covers) show up whenever you read it, on every device. Today they do not load.

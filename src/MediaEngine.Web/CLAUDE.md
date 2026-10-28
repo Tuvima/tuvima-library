@@ -77,7 +77,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 |---|---|---|
 | `/` | `LibraryBrowsePage` | Home |
 | `/read`, `/read/{Tab}` | `ReadPage` | Books + comics browse |
-| `/read/{AssetId:guid}` | `EpubReader` | EPUB reader (`?reader=new` → foliate-js `BookReader`) |
+| `/read/{AssetId:guid}` | `EpubReader` | EPUB reader (hosts the foliate-js `BookReader` for every book) |
 | `/watch`, `/watch/{Tab}` | `WatchPage` | Movies + TV browse |
 | `/watch/player/{WorkId:guid}` | `WatchPlayerPage` | Video player |
 | `/listen`, `/listen/{Tab}` | `ListenBrowsePage` | Listen discovery, Music / Audiobook browse |
@@ -118,7 +118,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | Detail-page tab or hero piece | `Components/Details/` |
 | Full routable page | `Components/Pages/` |
 | Settings section | `Components/Settings/<Name>Tab.razor` + register in `SettingsNav` |
-| Reader-player component | `Components/Pages/BookReader.razor` (book access stays in `wwwroot/js/book-reader.js`), `EpubReader.razor` (retired at cutover) or `Components/Shared/Playback*` |
+| Reader-player component | `Components/Pages/BookReader.razor` (book access stays in `wwwroot/js/book-reader.js`), `EpubReader.razor` (the `/read` route page only) or `Components/Shared/Playback*` |
 | Listen transport controls | `Components/Listen/ListenTransportControls.razor` |
 | Playback session controller or primitives | `Services/Playback/` |
 | Route-building helper | `Services/Navigation/` |

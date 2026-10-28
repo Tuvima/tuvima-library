@@ -23,7 +23,6 @@ public sealed partial class BoundaryContractGuardrailTests
             ["WebJson|ingestion-operations|src/MediaEngine.Web/Models/ViewDTOs/ActivityEntryPresentation.cs|Deserialize|ActivityRichData|1|MediaEngine.Web.Models.ViewDTOs.ActivityRichData"] = BoundaryClassification.PresentationOnly,
             ["WebJson|ingestion-operations|src/MediaEngine.Web/Models/ViewDTOs/ActivityEntryPresentation.cs|Deserialize|ReviewRichData|1|MediaEngine.Web.Models.ViewDTOs.ReviewRichData"] = BoundaryClassification.PresentationOnly,
             ["WebJson|playback-reading|src/MediaEngine.Web/Services/Playback/PlaybackSnapshotStream.cs|DeserializeAsync|ListenPlaybackSnapshot|1|MediaEngine.Web.Services.Playback.ListenPlaybackSnapshot"] = BoundaryClassification.PresentationOnly,
-            ["WebJson|playback-reading|src/MediaEngine.Web/Components/Pages/EpubReader.razor|Deserialize|ReaderSettingsDto|1|MediaEngine.Web.Models.ViewDTOs.ReaderSettingsDto"] = BoundaryClassification.PresentationOnly,
 
             // Explicit contract-to-presentation projections. The serialized bytes never leave this process.
             ["WebJson|ai-plugins-settings|src/MediaEngine.Web/Models/ViewDTOs/ResolvedUISettingsViewModel.cs|Deserialize|ResolvedUISettingsViewModel|1|MediaEngine.Web.Models.ViewDTOs.ResolvedUISettingsViewModel"] = BoundaryClassification.InternalProjection,

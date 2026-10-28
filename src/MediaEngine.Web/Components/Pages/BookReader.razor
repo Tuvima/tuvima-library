@@ -18,8 +18,8 @@
 
 @implements IAsyncDisposable
 
-@* The foliate-js based book reader (packet BR2). Shown by EpubReader's route when the address carries
-   ?reader=new; it replaces that page at cutover. This component owns the chrome and the saved position;
+@* The foliate-js based book reader (packet BR2), opened by the /read/{AssetId} route (EpubReader.razor) for every EPUB.
+   This component owns the chrome and the saved position;
    wwwroot/js/book-reader.js owns everything that touches the book. *@
 
 <PageTitle>@(string.IsNullOrWhiteSpace(_title) ? "Reader" : _title) - Library</PageTitle>

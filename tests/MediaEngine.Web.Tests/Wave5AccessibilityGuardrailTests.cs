@@ -91,13 +91,12 @@ public sealed class Wave5AccessibilityGuardrailTests
     [Fact]
     public void ReaderAndFolderPicker_UseNativeControlsForClickActions()
     {
-        var reader = Read("src/MediaEngine.Web/Components/Pages/EpubReader.razor");
+        var reader = Read("src/MediaEngine.Web/Components/Pages/BookReader.razor");
         var folderBrowser = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor");
 
-        Assert.Contains("Class=\"reader-tap-zone left\" AriaLabel=\"Previous page\"", reader);
-        Assert.Contains("Class=\"reader-search-result\"", reader);
-        Assert.Contains("Class=\"reader-list-open\"", reader);
-        Assert.DoesNotContain("<div class=\"reader-search-result\"", reader);
+        Assert.Contains("<AppNativeButton Class=\"br-icon-btn\" OnClick=\"ExitReader\"", reader);
+        Assert.Contains("<AppNativeButton Class=\"br-row br-row--grow\"", reader);
+        Assert.DoesNotContain("<div class=\"br-row\" @onclick", reader);
         Assert.Contains("role=\"listbox\"", folderBrowser);
         Assert.Contains("AriaLabel=\"@($\"Open folder {folder.Name}\")\"", folderBrowser);
         Assert.Contains("aria-live=\"polite\"", folderBrowser);

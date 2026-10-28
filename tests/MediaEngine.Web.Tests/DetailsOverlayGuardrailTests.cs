@@ -82,7 +82,6 @@ public sealed partial class DetailsOverlayGuardrailTests
         ["Components/Browse/MediaBrowseShell.razor"] = (1, "The lane rewriting its own filter address (a browse route)."),
         ["Components/Navigation/TopNavProfileSwitcher.razor"] = (1, "Full reload to Home after switching profile."),
         ["Components/Pages/BookReader.razor"] = (1, "The reader's no-title exit to the literal Home address; a title exit goes through DetailsOverlayNavigation."),
-        ["Components/Pages/EpubReader.razor"] = (1, "The reader's no-title exit to the literal Home address; a title exit goes through DetailsOverlayNavigation."),
         ["Components/Pages/ForMe.razor"] = (2, "Redirects to the My Library page or a View all grid."),
         ["Components/Pages/Operations.razor"] = (2, "Redirects to Settings routes."),
         ["Components/Pages/ProfilePickerPage.razor"] = (1, "Full reload to the sanitized same-site return address after choosing a profile (ProfilePickerRoute)."),

@@ -911,10 +911,6 @@
       "important": 1112,
       "deep": 0
     },
-    "src/MediaEngine.Web/wwwroot/css/epub-reader.css": {
-      "important": 10,
-      "deep": 0
-    },
     "src/MediaEngine.Web/wwwroot/tuvima.tokens.css": {
       "important": 0,
       "deep": 0
@@ -1879,10 +1875,6 @@
     },
     "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css": {
       "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/wwwroot/css/epub-reader.css": {
-      "important": 10,
       "deep": 0
     }
   },
