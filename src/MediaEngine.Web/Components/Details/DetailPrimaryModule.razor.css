@@ -736,3 +736,11 @@
         overflow-x: auto;
     }
 }
+
+.tl-detail-primary-module__sort {
+    min-width: 10rem;
+}
+
+.tl-detail-primary-module__find {
+    min-width: 12rem;
+}
