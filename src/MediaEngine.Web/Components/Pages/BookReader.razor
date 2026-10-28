@@ -140,7 +140,7 @@
                 {
                     <div class="br-search">
                         <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="Search in this book" AriaLabel="Search in this book"
-                                        Value="@_searchQuery" OnInput="@(e => _searchQuery = e.Value?.ToString() ?? string.Empty)" OnKeyDown="OnSearchKeyDown" />
+                                        Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
                         <AppNativeButton Class="br-icon-btn" OnClick="RunSearchAsync" Title="Search" AriaLabel="Search" Disabled="@(_searching || _searchQuery.Trim().Length < 2)">
                             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppSize.Small" />
                         </AppNativeButton>
@@ -153,13 +153,17 @@
                     {
                         <p class="br-hint">Type at least two letters, then press Enter.</p>
                     }
+                    else if (_searchResult.Failed && _searchResult.Hits.Count == 0)
+                    {
+                        <p class="br-empty" role="status">The search could not finish. Try again.</p>
+                    }
                     else if (_searchResult.Hits.Count == 0)
                     {
                         <p class="br-empty" role="status">Nothing in this book matches “@_searchedFor”.</p>
                     }
                     else
                     {
-                        <p class="br-hint" role="status">@(_searchResult.Truncated ? $"Showing the first {_searchResult.Hits.Count} places." : _searchResult.Hits.Count == 1 ? "1 place found." : $"{_searchResult.Hits.Count} places found.")</p>
+                        <p class="br-hint" role="status">@(_searchResult.Truncated ? $"Showing the first {_searchResult.Hits.Count} places. Search for more words to narrow it down." : _searchResult.Hits.Count == 1 ? "1 place found." : $"{_searchResult.Hits.Count} places found.")</p>
                         <ul class="br-list">
                             @foreach (var hit in _searchResult.Hits)
                             {
@@ -966,6 +970,19 @@
         }
     }
 
+    // Emptying the box takes the outlines off the page and the list away.
+    private async Task OnSearchInputAsync(ChangeEventArgs e)
+    {
+        _searchQuery = e.Value?.ToString() ?? string.Empty;
+        if (_searchQuery.Length == 0 && _searchResult is not null)
+        {
+            _searchResult = null;
+            await CallScriptAsync("clearSearch");
+        }
+    }
+
+    private int _searchRun;
+
     private async Task RunSearchAsync()
     {
         var query = _searchQuery.Trim();
@@ -974,12 +991,13 @@
             return;
         }
 
+        var run = ++_searchRun;
         _searching = true;
         StateHasChanged();
         try
         {
             var result = await _module.InvokeAsync<BookReaderSearchResult>("search", query);
-            if (!result.Cancelled)
+            if (!result.Cancelled && run == _searchRun)
             {
                 _searchResult = result;
                 _searchedFor = query;
@@ -992,7 +1010,10 @@
         }
         finally
         {
-            _searching = false;
+            if (run == _searchRun)
+            {
+                _searching = false;
+            }
         }
     }
 

@@ -61,6 +61,7 @@ public sealed record BookReaderSearchResult
     public List<BookReaderSearchHit> Hits { get; init; } = [];
     public bool Truncated { get; init; }
     public bool Cancelled { get; init; }
+    public bool Failed { get; init; }
 }
 
 /// <summary>A saved highlight as the reader script draws it: its id, where it is (an EPUB CFI range) and its colour.</summary>

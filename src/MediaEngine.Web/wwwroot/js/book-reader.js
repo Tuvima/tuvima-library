@@ -965,7 +965,7 @@ function onTap(state, clientX) {
 function onKey(state, e) {
     if (e.defaultPrevented) return;
     // The browser's own Find cannot see inside the book's pages, so Ctrl or Cmd + F opens the reader's search instead.
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f') { notify(state, 'OnOpenSearch'); e.preventDefault(); return; }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key?.toLowerCase() === 'f') { notify(state, 'OnOpenSearch'); e.preventDefault(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const interactive = e.target?.closest?.('button, a[href], input, select, textarea, [contenteditable="true"], [role="button"]');
     const view = state.view;
@@ -1090,7 +1090,8 @@ export async function goToHref(href) {
 
 // ---- Search ------------------------------------------------------------------------------------------------------
 
-const MAX_SEARCH_HITS = 200;
+// Kept small: the whole list travels to the page in one message, and a circuit drops a message over 32 KB.
+const MAX_SEARCH_HITS = 50;
 
 /**
  * Looks for `query` in every page of the book, in the browser (the book never leaves it). Returns
@@ -1100,7 +1101,7 @@ const MAX_SEARCH_HITS = 200;
 export async function search(query) {
     const state = session;
     const text = String(query ?? '').trim();
-    if (!state || state.disposed || !state.view || text.length < 2) return { hits: [], truncated: false, cancelled: false };
+    if (!state || state.disposed || !state.view || text.length < 2) return { hits: [], truncated: false, cancelled: false, failed: false };
     const token = {};
     state.searchToken = token;
     const hits = [];
@@ -1108,7 +1109,11 @@ export async function search(query) {
     try {
         const outline = { draw: Overlayer.outline, drawOptions: { color: '#eab308', width: 2 } };
         for await (const result of state.view.search({ query: text, ...outline })) {
-            if (state.disposed || state.searchToken !== token) return { hits: [], truncated: false, cancelled: true };
+            if (state.disposed || state.searchToken !== token) {
+                // A newer search owns the outlines now; only a search that ended for another reason cleans up.
+                if (!state.disposed && state.searchToken === token) clearSearch();
+                return { hits: [], truncated: false, cancelled: true, failed: false };
+            }
             if (!result?.subitems) continue;                    // progress and the final 'done' carry no matches
             for (const { cfi, excerpt } of result.subitems) {
                 if (hits.length >= MAX_SEARCH_HITS) { truncated = true; break; }
@@ -1124,9 +1129,9 @@ export async function search(query) {
         }
     } catch (e) {
         console.warn('Searching the book failed.', e);
-        return { hits, truncated, cancelled: false };
+        return { hits, truncated, cancelled: false, failed: true };
     }
-    return { hits, truncated, cancelled: false };
+    return { hits, truncated, cancelled: false, failed: false };
 }
 
 /** Ends a search in progress and removes the outlines it drew. */
