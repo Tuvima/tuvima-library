@@ -155,7 +155,6 @@ public sealed class ViewEndpointRouteTests
         Assert.Equal(10, Count(endpoint, ".RequireEffectiveAdministrator();"));
         Assert.Contains("bool surfaceUnlock = true", extensions, StringComparison.Ordinal);
         Assert.Contains("surfaceUnlock ? AuthPolicies.Administrator", extensions, StringComparison.Ordinal);
-        Assert.Contains("ViewResourceKind.FolderPolicy", endpoint, StringComparison.Ordinal);
     }
 
     private static int Count(string source, string value)

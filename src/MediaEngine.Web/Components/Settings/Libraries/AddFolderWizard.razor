@@ -106,7 +106,6 @@
                 </div>
                 <div class="add-wizard__options add-wizard__field">
                     <AppTextField Label="Folder name" Value="@_viewName" ValueChanged="@((string? value) => _viewName = value ?? string.Empty)" ReadOnly="@_saving" />
-                    <AppSwitchRow Label="Include subfolders" Value="@_viewSubfolders" ValueChanged="@((bool value) => _viewSubfolders = value)" Disabled="@_saving" />
                     @if (_type.Key != ViewContentKinds.Documents)
                     {
                         <AppSwitchRow Label="Show in Photos timeline" Value="@_viewTimeline" ValueChanged="@((bool value) => _viewTimeline = value)" Disabled="@_saving" />
@@ -322,7 +321,6 @@
     private bool IsViewFlow => ViewInSetup && LibraryTypeCatalog.IsViewKind(_type);
     // Setup adds a View folder as a read-only linked folder; the defaults are the ones View's own add form starts with.
     private bool _forHousehold = true;
-    private bool _viewSubfolders = true;
     private bool _viewTimeline;
     private string _viewName = string.Empty;
 
@@ -476,7 +474,6 @@
         if (step == WizardStep.How)
         {
             _forHousehold = true;
-            _viewSubfolders = true;
             _viewTimeline = false;
             _viewName = _folder is null ? string.Empty : Path.GetFileName(_folder.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             // A folder with files is read-only until the person says otherwise; an empty one is managed, and asks only about new media.
@@ -598,7 +595,7 @@
         _error = null;
         try
         {
-            var request = new CreateViewSourceRequest(_viewName.Trim(), "linked", _folder.Path, _viewSubfolders, _viewTimeline && _type.Key != ViewContentKinds.Documents, _type.Key);
+            var request = new CreateViewSourceRequest(_viewName.Trim(), "linked", _folder.Path, true, _viewTimeline && _type.Key != ViewContentKinds.Documents, _type.Key);
             var created = _forHousehold
                 ? await Api.CreateViewSharedSourceAsync(request)
                 : await Api.CreateViewProfileSourceAsync(owner, request);

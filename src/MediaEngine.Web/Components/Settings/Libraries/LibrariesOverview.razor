@@ -25,7 +25,7 @@
                                       Title="@($"No {area.Label} libraries yet")"
                                       Message="@(ReadOnly ? "Use a desktop or tablet to add one." : null)">
                             <Actions>
-                                @if (!ReadOnly)
+                                @if (CanAddLibrary)
                                 {
                                     <AppButton Label="Add library"
                                                StartIcon="@AppMaterialIcons.Outlined.Add"
@@ -56,7 +56,7 @@
                                        Options="StatusOptions"
                                        Size="AppControlSize.Compact" />
                         </div>
-                        @if (!ReadOnly)
+                        @if (CanAddLibrary)
                         {
                             <AppButton Label="Add library"
                                        StartIcon="@AppMaterialIcons.Outlined.Add"
@@ -196,6 +196,9 @@
     }
 
     private void OpenRow(LibraryListRow row) => Navigation.NavigateTo(row.Href);
+
+    // View's three kinds always exist and keep their own add-folder form, so View has no Add library (Library pages WP11).
+    private bool CanAddLibrary => !ReadOnly && !string.Equals(SelectedArea.Key, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase);
 
     // The one place the add flow is started: the one-screen Create library dialog.
     private async Task OpenAddLibraryAsync()

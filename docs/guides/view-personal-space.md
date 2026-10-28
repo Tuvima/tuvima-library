@@ -26,17 +26,17 @@ For a browser upload:
 1. Open **View > Photos** and select **Mine**.
 2. Use the upload action and choose your files.
 3. Wait for the upload and local file checks to finish.
-4. Find the items in Photos or Folders.
+4. Find the items in Photos.
 
-To add a folder source, ask an admin to open your View sources in **Settings > Users**. **Import folder** copies files into managed storage. **Link existing folder** scans an outside folder read-only. It leaves the original files where they are.
+To add a folder source, ask an admin to open **Settings > Libraries > View** and choose Photos, Personal videos or Documents. The page has the same tabs as any library: **Folders**, **Access** and **File handling**. In Folders, **Add folder** defaults to a new managed folder; everything inside a folder is read, subfolders included. **Import folder** copies files into managed storage. **Link existing folder** scans an outside folder read-only. It leaves the original files where they are.
 
 Detaching a source does not delete its files. Source and device records exist today. Phone backup, device sync, and auto-upload clients are not complete products yet.
 
-## Browse Photos and Folders
+## Browse Photos
 
 Photos groups items by date and offers search and filters. Open an item in the viewer. Select several items for the bulk actions shown.
 
-Folders keeps each source's real folder tree. Breadcrumbs show where you are. Use include-descendants to search child folders too. Private folder pins give you shortcuts.
+Each source folder has a **Show in Photos timeline** switch on the Folders tab of **Settings > Libraries > View**. With it off, that folder's photos stay out of the Photos timeline, whatever subfolders it holds. They are still found by search and can be added to Galleries.
 
 You can favorite, hide, archive, move to Trash, or restore your own items. Archive removes an item from the normal Photos view. Moving to Trash can be undone, and only [Empty Trash](#move-items-to-trash-and-empty-it) ever removes files from your disk. Browsing and making thumbnails do not change original files.
 
@@ -91,7 +91,7 @@ A household administrator accepts or declines the batch (so can a server adminis
 
 ## Browse your household
 
-Open the scope picker at the top of Photos, Places or Folders. Your own space stays first, then a **Household** group lists each person in your household by name, then the Shared Library. You can open, search and share from anyone's space in your household, but you cannot edit, hide, move or delete their photos, and their hidden photos stay hidden. People in other households never appear, and none of their photos, counts, map pins or contributions are visible to you.
+Open the scope picker at the top of Photos or Places. Your own space stays first, then a **Household** group lists each person in your household by name, then the Shared Library. You can open, search and share from anyone's space in your household, but you cannot edit, hide, move or delete their photos, and their hidden photos stay hidden. People in other households never appear, and none of their photos, counts, map pins or contributions are visible to you.
 
 ## See other households as a server administrator
 

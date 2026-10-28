@@ -110,7 +110,7 @@ public static class LibraryListing
     {
         if (string.Equals(area, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase))
         {
-            return [.. kinds.ViewKinds.Select(kind => ViewRow(kind, viewFolders))];
+            return [.. kinds.ViewKinds.Select(kind => ViewRowFor(kind, viewFolders?.GetValueOrDefault(kind.Key)))];
         }
 
         var rows = new List<LibraryListRow>();
@@ -164,9 +164,9 @@ public static class LibraryListing
             AddressOf(library.Id));
     }
 
-    private static LibraryListRow ViewRow(LibraryTypeOption kind, IReadOnlyDictionary<string, int>? viewFolders)
+    /// <summary>The row of one View kind (the overview and the kind's own page read the same facts); <paramref name="folders"/> is null while it is not known.</summary>
+    public static LibraryListRow ViewRowFor(LibraryTypeOption kind, int? folders)
     {
-        int? folders = viewFolders?.GetValueOrDefault(kind.Key);
         // View's folders are never checked, so only "Empty" can be said for certain.
         LibraryStatusKind? status = folders == 0 ? LibraryStatusKind.Empty : null;
         return new LibraryListRow(kind.Key, null, kind.Label, kind, LibraryTypeCatalog.ViewArea, null, folders, null, status, 0, null, ViewAddressOf(kind.Key));

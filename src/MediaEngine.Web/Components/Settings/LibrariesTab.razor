@@ -90,14 +90,15 @@
                              Changed="FolderAddedAsync" />
                 break;
             case LevelKind.ViewKind:
-                <ViewLibrarySettings @key="@level.TypeKey"
-                                     Kind="@(level.TypeKey!)"
-                                     Kinds="@Kinds"
-                                     Configuration="@_configuration"
-                                     ReadOnly="@readOnly"
-                                     StartAdding="@StartAdding"
-                                     InitialPath="@StartPath"
-                                     RootChanged="LoadAsync" />
+                <ViewKindPage @key="@level.TypeKey"
+                                 Kind="@(level.TypeKey!)"
+                                 Kinds="@Kinds"
+                                 Configuration="@_configuration"
+                                 ReadOnly="@readOnly"
+                                 Tab="@TabQuery"
+                                 StartAdding="@StartAdding"
+                                 InitialPath="@StartPath"
+                                 RootChanged="LoadAsync" />
                 break;
             case LevelKind.Import:
                 <LibraryFoldersPanel @key="@LibraryTypeCatalog.ImportKey"

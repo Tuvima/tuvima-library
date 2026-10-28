@@ -343,7 +343,7 @@ The single HTTPS address people use to reach this server from outside the home, 
 
 ### Personal Space
 
-The one personal-media space owned by an enabled profile. Multiple folder or device sources can feed it. View provides its Photos, Folders, Galleries, People, and Places experiences.
+The one personal-media space owned by an enabled profile. Multiple folder or device sources can feed it. View provides its Photos, Galleries, People, and Places experiences.
 
 ### Household photo space
 

@@ -113,7 +113,6 @@ public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
         builder.Services.AddSingleton<ISystemActivityRepository, SystemActivityRepository>();
         builder.Services.AddSingleton<ViewTrashRecoveryService>();
         builder.Services.AddScoped<ViewTrashDeletionService>();
-        builder.Services.AddScoped<ViewFolderService>();
         builder.Services.AddSingleton<IViewTrashRepository, ViewTrashRepository>();
         builder.Services.AddSingleton<ISourceMutationPolicyGate, SourceMutationPolicyGate>();
         builder.Services.AddSingleton(_storage);

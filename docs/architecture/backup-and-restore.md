@@ -196,8 +196,6 @@ See "What a backup file holds" above. The restore screens come in the next step.
 | `view_sources` | Folders and devices a View space reads from. | none | none | all rows |
 | `view_source_policies` | Whether a View source appears in the timeline. | none | none | all rows |
 | `view_devices` | Devices that back up into a View space. | none | none | all rows |
-| `view_folder_pins` | Folders a profile pinned in View. | none | none | all rows |
-| `view_folder_timeline_policies` | Whether a folder appears in the View timeline. | none | none | all rows |
 | `view_storage_labels` | Names a person gave to View storage locations. | none | none | all rows |
 | `view_shared_library` | Which library a household shares in View. | none | none | all rows |
 | `view_galleries` | Galleries a person built in View. | `cover_item_id` (local item), `soundtrack_playlist_id` (collection) | none | all rows |

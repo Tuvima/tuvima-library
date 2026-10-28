@@ -169,30 +169,6 @@ public sealed class ViewSharedSourceServiceTests : IDisposable
         Assert.False(Directory.Exists(_storage.GetSharedRoot()));
     }
 
-    [Fact]
-    public async Task LinkedSharedSourceAppearsAsItsOwnAuthorizedFolderRoot()
-    {
-        var linked = Directory.CreateDirectory(Path.Combine(_root, "shared-linked"));
-        var source = await _service.CreateAsync(new CreateViewSourceRequest(
-            "Shared NAS", "linked", linked.FullName, IncludeSubdirectories: false, ContentKind: ViewContentKinds.Photos));
-        var library = await _shared.GetAsync();
-        var folders = new ViewFolderService(
-            _database,
-            _personal,
-            new ProfileRepository(_database),
-            new LocalAssetRepository(_database),
-            _storage);
-
-        var page = await folders.QueryAsync(Guid.Empty,
-            new ResolvedViewScope(ViewScopeKind.Shared, null, new HashSet<Guid> { library.LibraryId }),
-            null, null, false, null, 0, 100);
-
-        var listed = Assert.Single(page.Sources);
-        Assert.Equal(source.Id, listed.SourceId);
-        Assert.Equal("linked", listed.StorageMode);
-        Assert.True(listed.Available);
-    }
-
     public void Dispose()
     {
         _configuration.Dispose();

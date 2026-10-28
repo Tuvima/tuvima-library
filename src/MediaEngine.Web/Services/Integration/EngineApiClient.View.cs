@@ -264,26 +264,6 @@ public sealed partial class EngineApiClient
             ["scopeProfileId"] = scope.CarriesProfileId() ? scopeProfileId?.ToString("D") : null,
         }, ct: ct);
 
-    public Task<ViewFolderPageDto?> GetViewFoldersAsync(ViewFolderQueryOptions options, CancellationToken ct = default)
-    {
-        var query = new List<string>();
-        AddQuery(query, "scope", ScopeValue(options.Scope));
-        AddQuery(query, "scopeProfileId", options.Scope.CarriesProfileId() ? options.ScopeProfileId?.ToString("D") : null);
-        AddQuery(query, "sourceId", options.SourceId?.ToString("D"));
-        AddQuery(query, "path", options.RelativePath);
-        AddQuery(query, "recursive", options.IncludeDescendants ? "true" : null);
-        AddQuery(query, "q", options.Search?.Trim());
-        AddQuery(query, "offset", options.Offset > 0 ? options.Offset.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
-        AddQuery(query, "limit", Math.Clamp(options.Limit, 1, 200).ToString(System.Globalization.CultureInfo.InvariantCulture));
-        return GetAsync<ViewFolderPageDto>("GET /view/folders", $"/view/folders?{string.Join('&', query)}", ct: ct);
-    }
-
-    public Task<bool> SetViewFolderPinAsync(ViewFolderPinRequest request, CancellationToken ct = default) =>
-        PutAsync("PUT /view/folders/pin", "/view/folders/pin", request, ct: ct);
-
-    public Task<bool> SetViewFolderTimelinePolicyAsync(ViewFolderTimelinePolicyRequest request, CancellationToken ct = default) =>
-        PutAsync("PUT /view/folders/timeline-policy", "/view/folders/timeline-policy", request, ct: ct);
-
     public Task<ViewPeoplePageDto?> GetViewPeopleAsync(ViewDiscoveryQueryOptions options, CancellationToken ct = default) =>
         GetViewDiscoveryAsync<ViewPeoplePageDto>("people", options, ct);
 

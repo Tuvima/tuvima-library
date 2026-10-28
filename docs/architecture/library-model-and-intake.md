@@ -475,9 +475,8 @@ moves, renames, writeback, overwrite, or deletion.
 The references use a permanent left rail as primary app navigation. Tuvima
 keeps Read, Watch, Listen, View, and Collections in its existing top navigation,
 with the established Settings or View rail beneath it. View's rail contains
-Photos, Folders, Galleries, People, and Places; filters and source management remain
-in the content area or Settings. Folder browsing retains source and nested-path
-breadcrumbs. Empty surfaces show truthful capability or
+Photos, Galleries, People, and Places; filters stay in the content area and
+source management lives in Settings. Empty surfaces show truthful capability or
 intake guidance rather than fabricated thumbnails, people, counts, or backup
 progress.
 

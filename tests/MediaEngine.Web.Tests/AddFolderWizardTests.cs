@@ -883,10 +883,10 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     [Fact]
     public void ViewOpensItsAddFormWhenStartedAddingAndNotOtherwise()
     {
-        var plain = Render<ViewLibrarySettings>(parameters => parameters.Add(x => x.Configuration, _configuration));
+        var plain = Render<ViewKindPage>(parameters => parameters.Add(x => x.Configuration, _configuration));
         plain.WaitForAssertion(() => Assert.Empty(plain.FindAll(".libraries-form-grid")));
 
-        var started = Render<ViewLibrarySettings>(parameters => parameters
+        var started = Render<ViewKindPage>(parameters => parameters
             .Add(x => x.Configuration, _configuration)
             .Add(x => x.StartAdding, true)
             .Add(x => x.InitialPath, "F:\\Phone"));

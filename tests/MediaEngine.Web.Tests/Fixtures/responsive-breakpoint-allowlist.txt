@@ -110,8 +110,6 @@ src/MediaEngine.Web/Components/Settings/ProfilesTab.razor.css:1600px
 src/MediaEngine.Web/Components/Settings/ProfilesTab.razor.css:641px
 src/MediaEngine.Web/Components/Settings/SecurityTab.razor.css:560px
 src/MediaEngine.Web/Components/Settings/UsersAccessSettingsTab.razor.css:700px
-src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor.css:1200px
-src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor.css:700px
 src/MediaEngine.Web/Components/Setup/SetupStepper.razor.css:900px
 src/MediaEngine.Web/Components/Shared/AppDiscoveryFilterBar.razor.css:1050px
 src/MediaEngine.Web/Components/Shared/AppDiscoveryFilterBar.razor.css:5.5rem
