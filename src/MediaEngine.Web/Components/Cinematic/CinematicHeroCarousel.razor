@@ -217,7 +217,7 @@ else if (Slides.Count > 0)
     private bool UsesLandscapeArtwork => ActiveHero.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
     private bool UsesLandscapeBackground => UsesLandscapeArtwork
         && !string.IsNullOrWhiteSpace(StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl));
-    private bool UsesLogo => UsesLandscapeArtwork && ActiveHero.EpisodeContext is null && !string.IsNullOrWhiteSpace(ActiveHero.LogoUrl);
+    private bool UsesLogo => UsesLandscapeArtwork && !string.IsNullOrWhiteSpace(ActiveHero.LogoUrl);
     private bool IsWatchHero => ActiveEntityType is DetailEntityType.Movie or DetailEntityType.TvShow;
     private bool IsContinuation => ActiveEntityType != DetailEntityType.MusicAlbum
         && ActiveHero.ContinuationState == DisplayContinuationState.InProgress;

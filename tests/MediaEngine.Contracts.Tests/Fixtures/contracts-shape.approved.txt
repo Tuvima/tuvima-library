@@ -2901,6 +2901,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroDto
   Genres: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   PreviewItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayCardPreviewItemDto> | nullability=not-null | accessors=get,init
   PreviewTotalCount: System.Int32? | nullability=nullable | accessors=get,init
+  IsContinued: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayItemsRequest
   Ids: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init

@@ -71,7 +71,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void NextOwnedEpisodeKeepsShowAndEpisodeIdentityWithTruthfulStart()
+    public void NextOwnedEpisodeKeepsShowAndEpisodeIdentityWithTruthfulStartAndShowsTheTitleLogo()
     {
         var hero = new DiscoveryHeroViewModel
         {
@@ -89,13 +89,13 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
                 DisplayContinuationState.Unstarted, null, null),
         };
         var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
-        Assert.Equal("The Show", cut.Find("h1").TextContent);
+        Assert.Equal("The Show", cut.Find(".tl-detail-hero__logo").GetAttribute("alt"));
+        Assert.Empty(cut.FindAll("h1"));
         Assert.Equal(hero.Subtitle, cut.Find(".tl-detail-hero__subtitle").TextContent);
         Assert.Contains("Episode synopsis", cut.Markup);
         Assert.DoesNotContain("Show tagline", cut.Markup);
         Assert.Contains("Watch S2 E6", cut.Find(".tl-detail-action--primary").TextContent);
         Assert.Empty(cut.FindAll("[role='progressbar']"));
-        Assert.Empty(cut.FindAll(".tl-detail-hero__logo"));
     }
 
     [Fact]

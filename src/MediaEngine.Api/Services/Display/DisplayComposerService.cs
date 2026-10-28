@@ -130,7 +130,7 @@ public sealed partial class DisplayComposerService
         DisplayShelfBuilder.AddShelf(shelves, "listen-next", "Listen", "Music and audiobooks ready to resume", listenCards, DisplayGridCatalog.RouteFor("home", "listen-next"));
         DisplayShelfBuilder.AddShelf(shelves, "home-collections", "Collections & Lists", "Curated lists and broader rollups from your library", collectionCards, "/collections");
 
-        var spotlights = BuildHomeSpotlights(works, progressByWork, tvShowCards,
+        var spotlights = BuildHomeSpotlights(works, progressByWork, tvShowCards, continueCards,
             continueCards.Concat(watchCards).Concat(readCards).Concat(listenCards).Concat(freshCandidates).ToList());
 
         return new DisplayPageDto(

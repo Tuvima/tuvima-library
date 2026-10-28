@@ -1,6 +1,6 @@
 # Spec: Home page redesign (hero, pick up where you left off, Recently Added, tiles, details opening)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy 2026-10-27) · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Design system](../design/design-system.md) · bug log entries F20, F31, F60, F68, F71, F72 (related: F21, F38, F58, F69)
+> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy 2026-10-27) · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Design system](../design/design-system.md) · bug log entries F20, F31, F60, F68, F71, F72 (related: F21, F38, F58, F69)
 
 > Written 2026-10-27 from Shy's bug log and Shy's layout example for F71. Root causes below were read from the code on main (44281287); nothing was run, so each cause says how sure we are and which packet confirms it. Nothing here is Locked.
 
