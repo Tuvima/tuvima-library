@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0058 remove_view_folder_pins_and_policies).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0059 text_track_rejections).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2617,6 +2617,15 @@ CREATE TABLE tags (
     colour              TEXT,
     created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     created_at          TEXT NOT NULL
+);
+
+CREATE TABLE text_track_rejections (
+    asset_id    BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    kind        TEXT NOT NULL CHECK(kind IN ('Lyrics','Subtitles')),
+    provider    TEXT NOT NULL,
+    source_id   TEXT NOT NULL,
+    rejected_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (asset_id, kind, provider, source_id)
 );
 
 CREATE TABLE text_tracks (

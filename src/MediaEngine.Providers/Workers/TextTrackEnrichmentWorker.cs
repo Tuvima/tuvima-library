@@ -20,7 +20,7 @@ public sealed record TextTrackEnrichmentResult(
     Guid? TrackId,
     string Message);
 
-public sealed class TextTrackEnrichmentWorker
+public sealed partial class TextTrackEnrichmentWorker
 {
     private readonly IMediaAssetRepository _assetRepo;
     private readonly IWorkRepository _workRepo;
@@ -198,6 +198,9 @@ public sealed class TextTrackEnrichmentWorker
                 importedLocal ? "Local text tracks were refreshed." :
                     "The movie or episode identity could not be verified for an online subtitle search.");
         }
+        var rejected = (await _trackRepo.GetRejectionsAsync(assetId, kind, ct).ConfigureAwait(false))
+            .Select(entry => (entry.Provider, entry.SourceId))
+            .ToHashSet();
         var instrumentalDetected = false;
         var incompatibleSubtitleDetected = false;
         string? incompatibleProviderName = null;
@@ -218,6 +221,7 @@ public sealed class TextTrackEnrichmentWorker
             instrumentalDetected |= candidates.Any(candidate => candidate.IsInstrumental);
             foreach (var candidate in candidates
                          .Where(candidate => !candidate.IsInstrumental)
+                         .Where(candidate => !rejected.Contains((candidate.Provider, candidate.SourceId)))
                          .OrderBy(candidate => candidate.IsForced)
                          .ThenBy(candidate => candidate.IsHearingImpaired)
                          .ThenByDescending(candidate => candidate.Confidence)
@@ -262,6 +266,11 @@ public sealed class TextTrackEnrichmentWorker
                         && _textTrackExportService is not null)
                     {
                         await ExportPreferredSubtitleAsync(asset, saved, ct).ConfigureAwait(false);
+                    }
+                    else if (existingPreferred is null && canAutoPrefer && kind == TextTrackKind.Lyrics
+                        && _textTrackExportService is not null)
+                    {
+                        await ExportPreferredLyricsAsync(asset, saved, ct).ConfigureAwait(false);
                     }
 
                     var afterDownload = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
@@ -404,11 +413,22 @@ public sealed class TextTrackEnrichmentWorker
             ? new[] { $"{basename}.lrc", $"{basename}.txt" }
             : new[] { $"{basename}.vtt", $"{basename}.srt", $"{basename}.*.vtt", $"{basename}.*.srt", $"{basename}.*.ass" };
 
+        // Files the Library wrote itself are recorded on its own tracks; they are never taken in as the person's.
+        var writtenByLibrary = (await _trackRepo.GetByAssetAsync(asset.Id, kind, ct).ConfigureAwait(false))
+            .Where(existing => !existing.IsUserOwned && !string.IsNullOrWhiteSpace(existing.SidecarPath))
+            .Select(existing => existing.SidecarPath!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var imported = false;
         foreach (var pattern in patterns)
         {
             foreach (var path in Directory.EnumerateFiles(directory, pattern))
             {
+                if (writtenByLibrary.Contains(path))
+                {
+                    continue;
+                }
+
                 var extension = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
                 var language = ExtractLanguage(path, basename);
                 var identity = BuildTrackIdentity(asset.Id, kind, "local", path, language);
@@ -608,6 +628,19 @@ public sealed class TextTrackEnrichmentWorker
     private async Task ExportPreferredSubtitleAsync(MediaAsset asset, TextTrack track, CancellationToken ct)
     {
         var exportPath = await _textTrackExportService!.ExportPreferredSubtitleAsync(asset, track, ct)
+            .ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(exportPath))
+        {
+            return;
+        }
+
+        track.SidecarPath = exportPath;
+        await _trackRepo.UpsertAsync(track, ct).ConfigureAwait(false);
+    }
+
+    private async Task ExportPreferredLyricsAsync(MediaAsset asset, TextTrack track, CancellationToken ct)
+    {
+        var exportPath = await _textTrackExportService!.ExportPreferredLyricsAsync(asset, track, ct)
             .ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(exportPath))
         {

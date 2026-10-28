@@ -77,6 +77,17 @@ public partial interface IEngineApiClient
 
     Task<bool> SetPreferredTextTrackAsync(Guid assetId, Guid trackId, CancellationToken ct = default);
 
+    /// <summary>Asks the sources live for other lyrics or subtitles for the item ("Not right? Find another"). Null when the Engine could not be reached.</summary>
+    Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default);
+
+    Task<TextTrackChoiceResponse?> ChooseTextTrackAlternativeAsync(Guid assetId, ChooseTextTrackAlternativeRequest request, CancellationToken ct = default);
+
+    /// <summary>Marks a track as wrong so it is not offered again, and goes back to the previous one when there is one.</summary>
+    Task<TextTrackChoiceResponse?> MarkTextTrackWrongAsync(Guid assetId, Guid trackId, CancellationToken ct = default);
+
+    /// <summary>The actions switched-on plugins offer on the player for this item to the person asking.</summary>
+    Task<IReadOnlyList<PlayerPluginActionDto>> GetPlayerPluginActionsAsync(Guid assetId, CancellationToken ct = default);
+
     Task<string?> GetLyricsAsync(Guid assetId, CancellationToken ct = default);
     Task<string?> GetTextTrackContentAsync(Guid assetId, Guid trackId, CancellationToken ct = default);
 

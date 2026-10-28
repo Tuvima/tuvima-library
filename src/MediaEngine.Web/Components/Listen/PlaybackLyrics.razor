@@ -13,12 +13,60 @@
 @inject PlaybackSessionController Playback
 
 <div class="playback-lyrics" @ref="_root" aria-label="Lyrics">
+    @if (ShowMenu)
+    {
+        <div class="playback-lyrics__toolbar">
+            <AppOverflowMenu AriaLabel="Lyrics options" Class="playback-lyrics__menu">
+                @if (Presenter.Offers("find_lyrics"))
+                {
+                    <AppMenuItem Label="Look for lyrics again" Icon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(Presenter.Refreshing)" OnClick="Presenter.RefreshAsync" />
+                    <AppMenuItem Label="Not right? Find another" Icon="@AppMaterialIcons.Outlined.Search" OnClick="Presenter.OpenAlternativesAsync" />
+                }
+                @if (CanManageLyrics)
+                {
+                    <AppMenuItem Label="Edit lyrics" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="ManageLyricsAsync" />
+                }
+                @if (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null)
+                {
+                    <AppMenuItem Label="This one is wrong" Icon="@AppMaterialIcons.Outlined.Close" OnClick="Presenter.MarkWrongAsync" />
+                }
+            </AppOverflowMenu>
+        </div>
+    }
     @if (!string.IsNullOrWhiteSpace(Presenter.Status)) { <p class="playback-lyrics__status" role="status">@Presenter.Status</p> }
     <div class="playback-lyrics__lines" tabindex="0" aria-label="Lyric lines">
-        @if (Presenter.Loading) { <p class="playback-lyrics__empty">Loading lyrics…</p> }
+        @if (Presenter.AlternativesOpen)
+        {
+            <div class="playback-lyrics__alternatives" data-lyrics-state="alternatives">
+                @if (Presenter.AlternativesLoading) { <p class="playback-lyrics__empty">Looking for other lyrics…</p> }
+                else if (Presenter.Alternatives is { items.Count: > 0 } found)
+                {
+                    <ul>
+                        @foreach (var alternative in found.items)
+                        {
+                            <li>
+                                <AppNativeButton Type="button" Class="playback-lyrics__manage" Disabled="@(alternative.is_current || Presenter.Choosing)"
+                                                 OnClick="@(() => Presenter.ChooseAsync(alternative))">
+                                    <span class="playback-lyrics__alternative"><strong>@alternative.provider_name</strong>
+                                    <span>@(alternative.is_timed ? "Timed to the song" : "Words only")@(alternative.is_current ? " · In use" : null)</span>
+                                    @if (!string.IsNullOrWhiteSpace(alternative.preview)) { <small>@alternative.preview</small> }</span>
+                                </AppNativeButton>
+                            </li>
+                        }
+                    </ul>
+                }
+                else { <p class="playback-lyrics__empty">@(Presenter.Alternatives?.message is { Length: > 0 } message ? message : "No other lyrics were found.")</p> }
+                <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="Presenter.CloseAlternatives">Go back</AppNativeButton>
+            </div>
+        }
+        else if (Presenter.Loading || Presenter.Refreshing) { <p class="playback-lyrics__empty" data-lyrics-state="looking">Looking for lyrics…</p> }
         else if (Presenter.Lines.Count == 0) {
-            <p class="playback-lyrics__empty">No lyrics are available for this track.</p>
-            @if (CanManageLyrics) { <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="ManageLyricsAsync">Manage lyrics</AppNativeButton> }
+            if (Presenter.NoSourceOn)
+            {
+                <p class="playback-lyrics__empty" data-lyrics-state="no-source">No lyrics source is switched on.</p>
+                @if (IsAdministrator) { <a class="playback-lyrics__manage" href="/settings/plugins">Open Plugins</a> }
+            }
+            else { <p class="playback-lyrics__empty" data-lyrics-state="none-found">No lyrics found for this track.</p> }
         }
         else
         {
@@ -81,6 +129,8 @@
             return _timeline;
         }
     }
+    private bool IsAdministrator => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+    private bool ShowMenu => CanManageLyrics || Presenter.Offers("find_lyrics") || (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null);
     private bool CanManageLyrics => !DeviceContext.IsPhone && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     // The lyrics button opens the editor on the page behind the player (universal editor spec D18): edit mode starts on the song's album page
     // with this song ticked. A song that is not on an album has no such page, so it says so in plain words instead of opening a pop-up.
@@ -110,6 +160,8 @@
         var identity = PlaybackLyricsIdentity.From(Snapshot);
         if (identity != _identity) { _identity = identity; _needsReturn = false; _clockSnapshot = null; _clockKey = null; }
         await Presenter.EnsureAsync(Snapshot, Commands);
+        await Presenter.EnsureActionsAsync();
+        await Presenter.ProbeSourcesAsync();
     }
     private void Changed() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
     private Task SeekAsync(ListenPlaybackSnapshot snapshot, double seconds) => Commands.SendAsync(snapshot,

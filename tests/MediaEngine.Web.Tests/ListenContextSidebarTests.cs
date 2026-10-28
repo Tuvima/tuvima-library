@@ -405,7 +405,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.DoesNotContain("Old song lyrics", cut.Markup);
-            Assert.Contains("Loading lyrics", cut.Markup);
+            Assert.Contains("Looking for lyrics", cut.Markup);
         });
 
         pending[secondAsset].SetResult("New song lyrics");
@@ -413,7 +413,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
 
         Assert.Contains("New song lyrics", cut.Markup);
         Assert.DoesNotContain("Old song lyrics", cut.Markup);
-        Assert.DoesNotContain("Loading lyrics", cut.Markup);
+        Assert.DoesNotContain("Looking for lyrics", cut.Markup);
     }
 
     [Fact]

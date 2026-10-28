@@ -51,6 +51,18 @@ public sealed class SkipMarkersPlugin : ITuvimaPlugin
                 new PluginRequirement { Kind = "tool", Id = "ffprobe", Optional = true },
             ],
             Stores = new PluginStores { SavedOutput = "skip markers", OnRemoval = "keep" },
+            Actions =
+            [
+                new PluginActionDeclaration
+                {
+                    Id = "rescan-skip-markers",
+                    Kind = "rescan_skip_markers",
+                    Label = "Look for skip markers again",
+                    Slot = "player_overflow",
+                    Audience = "administrators",
+                    Priority = 40,
+                },
+            ],
             Changelog = "Intro Skip, Credits Detection and Recap Detection are now one plugin with a switch for each.",
         });
 

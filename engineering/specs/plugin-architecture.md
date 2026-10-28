@@ -1,6 +1,6 @@
 # Spec: Plugin architecture (one complete set of controls, applied to every plugin once)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy) · **Related docs:** [Plugins and integrations screens](plugins-and-integrations-screens.md) (Locked, being built; this spec adds to it, it does not change it) · [Developer tools](developer-tools.md) (D-C approval, D-J providers under Plugins, WP16 page audience, WP20) · Music player and queue spec (its WP5b lyrics-audience packet shrinks to setting LRCLIB to Everyone once PA1 exists) · [Vault sections](vault-sections-and-move.md) · [Encrypted plugin keys](encrypted-plugin-keys.md) (parked)
+> **Status:** Built, awaiting Local checks (see engineering/validation/batch.md) · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy) · **Related docs:** [Plugins and integrations screens](plugins-and-integrations-screens.md) (Locked, being built; this spec adds to it, it does not change it) · [Developer tools](developer-tools.md) (D-C approval, D-J providers under Plugins, WP16 page audience, WP20) · Music player and queue spec (its WP5b lyrics-audience packet shrinks to setting LRCLIB to Everyone once PA1 exists) · [Vault sections](vault-sections-and-move.md) · [Encrypted plugin keys](encrypted-plugin-keys.md) (parked)
 
 ## 1. Goal
 

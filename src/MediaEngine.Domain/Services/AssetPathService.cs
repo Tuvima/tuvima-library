@@ -250,7 +250,7 @@ public sealed class AssetPathService
         return Path.Combine(directory, $"{basename}.{suffix}{normalizedExtension}");
     }
 
-    private static string BuildLyricsSidecarPath(string mediaFilePath, string extension)
+    public static string BuildLyricsSidecarPath(string mediaFilePath, string extension)
     {
         var normalizedExtension = NormalizeExtension(extension);
         var directory = Path.GetDirectoryName(mediaFilePath) ?? ".";
