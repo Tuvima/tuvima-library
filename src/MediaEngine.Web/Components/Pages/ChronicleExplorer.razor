@@ -660,7 +660,38 @@ else
         _cytoscapeReady = true;
     }
 
+    private string? _loadedQid;
+
     protected override async Task OnInitializedAsync()
+    {
+        _loadedQid = Qid;
+        await LoadUniverseAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedQid is null || string.Equals(_loadedQid, Qid, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        // A different Universe in the same circuit starts over: an open edit belongs to the old one, so close it first.
+        _loadedQid = Qid;
+        _editing.Leave();
+        _editEntityId = null;
+        _editEntityTitle = null;
+        _editEntityKind = null;
+        _selectedEntity = null;
+        _selectedEntityEdges = [];
+        _canEditUniverse = false;
+        await LoadUniverseAsync();
+        if (_cytoscapeReady && _graph is not null)
+        {
+            await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph", System.Text.Json.JsonSerializer.Serialize(_graph.nodes), System.Text.Json.JsonSerializer.Serialize(_graph.edges));
+        }
+    }
+
+    private async Task LoadUniverseAsync()
     {
         _loading = true;
         _graph = await ApiClient.GetUniverseGraphAsync(Qid, includeSupplementalLore: true);

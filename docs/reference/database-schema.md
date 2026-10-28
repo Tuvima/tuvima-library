@@ -533,11 +533,11 @@ that is planned, copying or cleaning up) never reaches that point: Empty Trash s
 the item first. The `contribution_item_id` link from a transfer to its contribution
 item is unaffected.
 
-`view_intake_files` tracks every photo or personal video that waits in Library's Import area or was refused into the Rejected area, and is also the filing journal (upgrade step 0062). A row has a kind (`photos` or `personal_videos`), whose library it is filed into (`scope_kind` and `owner_profile_id`, which clears itself if the person is removed), a `state` (`waiting`, `filing`, `filed`, `duplicate`, `rejected` or `stray`), the file's current path, and while it is being moved the `target_path` it is moving to, so a stop in the middle is finished or put back at the next start. Files that are filed together (a RAW with its JPEG and sidecar, a Live Photo with its video) share a `group_key`. A refused file keeps a `reason_code`, the same reason in plain words, and an `expires_at` after which it is removed from the Rejected area (30 days by default). Filed and duplicate rows are only a short trail for the summary and are pruned. The files themselves are never in a backup.
+`view_intake_files` tracks every photo or personal video that waits in Library's Import area or was refused into the Rejected area, and is also the filing journal (upgrade step 0063). A row has a kind (`photos` or `personal_videos`), whose library it is filed into (`scope_kind` and `owner_profile_id`, which clears itself if the person is removed), a `state` (`waiting`, `filing`, `filed`, `duplicate`, `rejected` or `stray`), the file's current path, and while it is being moved the `target_path` it is moving to, so a stop in the middle is finished or put back at the next start. Files that are filed together (a RAW with its JPEG and sidecar, a Live Photo with its video) share a `group_key`. A refused file keeps a `reason_code`, the same reason in plain words, and an `expires_at` after which it is removed from the Rejected area (30 days by default). Filed and duplicate rows are only a short trail for the summary and are pruned. The files themselves are never in a backup.
 
 `view_duplicate_groups` remembers the groups of exact copies the duplicates cleanup job found inside one personal library or the Shared Library: one row per content hash and library, the number of copies, and whether an administrator dismissed it. The members are read live, and a dismissed group comes back only if it grows.
 
-`view_tidy_jobs`, `view_tidy_moves` and `view_tidy_schedules` run Tidy this folder (upgrade step 0062). A job belongs to one Managed folder and is `running`, `completed` or `failed`, with how many files it plans to rename, has renamed and could not rename. `view_tidy_moves` is the ledger: one row per file with where it is and where it is going, `planned` until the rename is done, so a stop in the middle resumes exactly where it left off and never repeats or loses a file. `view_tidy_schedules` lists the folders that are tidied every night. Tidy only ever renames inside the folder, so it never copies across drives.
+`view_tidy_jobs`, `view_tidy_moves` and `view_tidy_schedules` run Tidy this folder (upgrade step 0063). A job belongs to one Managed folder and is `running`, `completed` or `failed`, with how many files it plans to rename, has renamed and could not rename. `view_tidy_moves` is the ledger: one row per file with where it is and where it is going, `planned` until the rename is done, so a stop in the middle resumes exactly where it left off and never repeats or loses a file. `view_tidy_schedules` lists the folders that are tidied every night. Tidy only ever renames inside the folder, so it never copies across drives.
 
 **Empty Trash and the data store.** Emptying a person's Trash removes each item's
 `local_items` row inside one transaction. Its cascades clear `local_item_metadata`,
@@ -788,7 +788,7 @@ are not overloaded as locations or organizations.
 | `wikidata_revision_id` | INTEGER | Last observed Wikidata revision for lore-delta refresh |
 
 User-authored display fields are kept separately in `fictional_entity_user_overrides` and
-`narrative_root_user_overrides`, so enrichment never overwrites a curator edit.
+`narrative_root_user_overrides`, so enrichment never overwrites a curator edit. In `fictional_entity_user_overrides` the name and the description are each optional: a field with no value keeps following the provider.
 
 ### fictional_entity_work_links
 
