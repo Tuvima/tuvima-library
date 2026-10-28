@@ -45,6 +45,9 @@
         @if (_state == "ready")
         {
             <div class="br-actions" role="toolbar" aria-label="Reader tools">
+                <AppNativeButton Class="@($"br-icon-btn {(_panel == "search" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Title="Search in this book" AriaLabel="Search in this book">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppSize.Small" />
+                </AppNativeButton>
                 <AppNativeButton Class="br-icon-btn" OnClick="@(() => TogglePanel("contents"))" Title="Contents" AriaLabel="Contents">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppSize.Small" />
                 </AppNativeButton>
@@ -127,6 +130,46 @@
                                     <AppNativeButton Class="@($"br-row br-row--level{Math.Min(item.Level, 3)} {(IsCurrentSection(item) ? "br-row--current" : "")}")"
                                                      OnClick="@(() => OpenTocItemAsync(item))" AriaLabel="@item.Label">
                                         @item.Label
+                                    </AppNativeButton>
+                                </li>
+                            }
+                        </ul>
+                    }
+                }
+                else if (_panel == "search")
+                {
+                    <div class="br-search">
+                        <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="Search in this book" AriaLabel="Search in this book"
+                                        Value="@_searchQuery" OnInput="@(e => _searchQuery = e.Value?.ToString() ?? string.Empty)" OnKeyDown="OnSearchKeyDown" />
+                        <AppNativeButton Class="br-icon-btn" OnClick="RunSearchAsync" Title="Search" AriaLabel="Search" Disabled="@(_searching || _searchQuery.Trim().Length < 2)">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppSize.Small" />
+                        </AppNativeButton>
+                    </div>
+                    @if (_searching)
+                    {
+                        <p class="br-hint" role="status">Searching the book…</p>
+                    }
+                    else if (_searchResult is null)
+                    {
+                        <p class="br-hint">Type at least two letters, then press Enter.</p>
+                    }
+                    else if (_searchResult.Hits.Count == 0)
+                    {
+                        <p class="br-empty" role="status">Nothing in this book matches “@_searchedFor”.</p>
+                    }
+                    else
+                    {
+                        <p class="br-hint" role="status">@(_searchResult.Truncated ? $"Showing the first {_searchResult.Hits.Count} places." : _searchResult.Hits.Count == 1 ? "1 place found." : $"{_searchResult.Hits.Count} places found.")</p>
+                        <ul class="br-list">
+                            @foreach (var hit in _searchResult.Hits)
+                            {
+                                <li>
+                                    <AppNativeButton Class="br-row" OnClick="@(() => OpenSearchHitAsync(hit))">
+                                        @if (!string.IsNullOrWhiteSpace(hit.Label))
+                                        {
+                                            <span class="br-row-sub">@hit.Label</span>
+                                        }
+                                        <span class="br-row-main">@hit.Pre<mark class="br-search-match">@hit.Match</mark>@hit.Post</span>
                                     </AppNativeButton>
                                 </li>
                             }
@@ -295,7 +338,13 @@
     private string? _savedCfi;
 
     // Panels, saved places and the highlight tools.
-    private string? _panel;                     // null | contents | saved | settings
+    private string? _panel;                     // null | search | contents | saved | settings
+    private AppNativeInput? _searchInput;
+    private string _searchQuery = string.Empty;
+    private string _searchedFor = string.Empty;
+    private BookReaderSearchResult? _searchResult;
+    private bool _searching;
+    private bool _focusSearch;
     private string _savedTab = "bookmarks";     // bookmarks | highlights
     private List<BookReaderTocItem> _toc = [];
     private List<ReaderBookmarkDto> _bookmarks = [];
@@ -342,6 +391,7 @@
 
     private string PanelTitle => _panel switch
     {
+        "search" => "Search",
         "contents" => "Contents",
         "saved" => "Bookmarks and highlights",
         _ => "Reading settings",
@@ -383,6 +433,19 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_focusSearch && _panel == "search" && _searchInput is not null)
+        {
+            _focusSearch = false;
+            try
+            {
+                await _searchInput.FocusAsync();
+            }
+            catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+            {
+                Logger.LogDebug(ex, "The search box could not take focus.");
+            }
+        }
+
         if (!firstRender || _opened)
         {
             return;
@@ -558,6 +621,27 @@
         _chromeVisible = !_chromeVisible;
         StateHasChanged();
         return Task.CompletedTask;
+    }
+
+    // Ctrl or Cmd + F inside the book: the browser's Find cannot see inside the book's pages, so the reader's own search opens.
+    [JSInvokable]
+    public async Task OnOpenSearch()
+    {
+        if (_disposed || _state != "ready" || _editing is not null)
+        {
+            return;
+        }
+
+        if (_panel != "search")
+        {
+            await TogglePanel("search");
+        }
+        else
+        {
+            _focusSearch = true;
+        }
+
+        StateHasChanged();
     }
 
     [JSInvokable]
@@ -862,6 +946,7 @@
         }
 
         _panel = panel;
+        _focusSearch = panel == "search";
         _selection = null;
         await CallScriptAsync("setInputPaused", true);
         await CallScriptAsync("clearSelection");
@@ -871,6 +956,51 @@
     {
         _panel = null;
         await CallScriptAsync("setInputPaused", false);
+    }
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await RunSearchAsync();
+        }
+    }
+
+    private async Task RunSearchAsync()
+    {
+        var query = _searchQuery.Trim();
+        if (_module is null || _disposed || query.Length < 2)
+        {
+            return;
+        }
+
+        _searching = true;
+        StateHasChanged();
+        try
+        {
+            var result = await _module.InvokeAsync<BookReaderSearchResult>("search", query);
+            if (!result.Cancelled)
+            {
+                _searchResult = result;
+                _searchedFor = query;
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "The book search failed.");
+            ShowNotice("The search could not finish. Try again.");
+        }
+        finally
+        {
+            _searching = false;
+        }
+    }
+
+    // A found place: close the list and go there; its matches stay outlined on the page until the next search.
+    private async Task OpenSearchHitAsync(BookReaderSearchHit hit)
+    {
+        await ClosePanelAsync();
+        await CallScriptAsync("goTo", hit.Cfi);
     }
 
     private bool IsCurrentSection(BookReaderTocItem item) =>

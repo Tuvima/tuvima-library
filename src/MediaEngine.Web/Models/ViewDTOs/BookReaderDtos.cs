@@ -45,6 +45,24 @@ public sealed record BookReaderTocItem
     public int Level { get; init; }
 }
 
+/// <summary>One place the search found: where it is (an EPUB CFI), the contents entry it sits under and the words around it.</summary>
+public sealed record BookReaderSearchHit
+{
+    public string Cfi { get; init; } = string.Empty;
+    public string Label { get; init; } = string.Empty;
+    public string Pre { get; init; } = string.Empty;
+    public string Match { get; init; } = string.Empty;
+    public string Post { get; init; } = string.Empty;
+}
+
+/// <summary>What one search found: the places (at most a few hundred), whether more were left out, and whether a newer search replaced it.</summary>
+public sealed record BookReaderSearchResult
+{
+    public List<BookReaderSearchHit> Hits { get; init; } = [];
+    public bool Truncated { get; init; }
+    public bool Cancelled { get; init; }
+}
+
 /// <summary>A saved highlight as the reader script draws it: its id, where it is (an EPUB CFI range) and its colour.</summary>
 public sealed record BookReaderHighlightMark(string Id, string Cfi, string Color);
 
