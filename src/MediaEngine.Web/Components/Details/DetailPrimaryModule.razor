@@ -1,5 +1,8 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@inject ILogger<DetailPrimaryModule> Logger
 
 @if (Model.PrimaryModule.Kind != DetailPrimaryModuleKind.None)
 {
@@ -71,6 +74,8 @@
 
     private string _selectedLane = "all";
     private string _selectedRole = "all";
+    private string _worksSort = PersonWorksOrdering.Newest;
+    private string? _worksFind;
     private string? _modelId;
 
     protected override void OnParametersSet()
@@ -108,6 +113,11 @@
             var filtered = AllItems
                 .Where(item => _selectedLane == "all" || string.Equals(ResolveLane(item), _selectedLane, StringComparison.OrdinalIgnoreCase))
                 .Where(item => _selectedRole == "all" || item.Roles.Contains(_selectedRole, StringComparer.OrdinalIgnoreCase));
+
+            if (ShowWorksTools)
+            {
+                return PersonWorksOrdering.Apply(filtered, _worksSort, _worksFind);
+            }
 
             return Model.PrimaryModule.Kind == DetailPrimaryModuleKind.CollectionItems
                 ? filtered.ToList()
@@ -172,7 +182,10 @@
         && RoleOptions.Count(option => option.Key != "all") > 1;
     private bool ShowLaneFilters => Model.PrimaryModule.SupportsLaneFilter
         && HasMultipleOwnedLanes;
-    private bool ShowModuleControls => ShowRoleFilter || ShowLaneFilters;
+    private bool ShowWorksTools => IsPersonSurface
+        && Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Works
+        && AllItems.Count > 1;
+    private bool ShowModuleControls => ShowRoleFilter || ShowLaneFilters || ShowWorksTools;
 
     private RenderFragment? ModuleControls => !ShowHeader || !ShowModuleControls ? null : __builder =>
     {
@@ -187,6 +200,30 @@
             @if (ShowRoleFilter && ShowLaneFilters)
             {
                 <span class="tl-detail-primary-module__filter-separator" aria-hidden="true"></span>
+            }
+
+            @if (ShowWorksTools)
+            {
+                @if (ShowRoleFilter || ShowLaneFilters)
+                {
+                    <span class="tl-detail-primary-module__filter-separator" aria-hidden="true"></span>
+                }
+                <AppSelect Label="Sort"
+                           HideLabel="true"
+                           AriaLabel="Sort works"
+                           Value="@_worksSort"
+                           ValueChanged="SelectSort"
+                           Options="PersonWorksOrdering.Options"
+                           FullWidth="false"
+                           Class="tl-detail-primary-module__sort" />
+                <AppSearchField Placeholder="Find in works"
+                                Label="Find in works"
+                                HideLabel="true"
+                                Value="@_worksFind"
+                                ValueChanged="SetFind"
+                                FullWidth="false"
+                                DebounceInterval="150"
+                                Class="tl-detail-primary-module__find" />
             }
 
             @if (ShowLaneFilters)
@@ -372,6 +409,43 @@
         "listen" => 2,
         _ => 3,
     };
+
+    private const string SortStorageKey = "tuvima:person-works-sort";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !ShowWorksTools) return;
+        try
+        {
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", SortStorageKey);
+            var sort = PersonWorksOrdering.Normalize(stored);
+            if (sort != _worksSort)
+            {
+                _worksSort = sort;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+        {
+            // Browser storage can be blocked or the circuit gone; the sort simply stays at its default.
+            Logger.LogDebug(ex, "Person works sort could not be restored.");
+        }
+    }
+
+    private async Task SelectSort(string? sort)
+    {
+        _worksSort = PersonWorksOrdering.Normalize(sort);
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", SortStorageKey, _worksSort);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+        {
+            Logger.LogDebug(ex, "Person works sort could not be saved.");
+        }
+    }
+
+    private void SetFind(string? text) => _worksFind = text;
 
     private void SelectLane(string lane)
         => _selectedLane = string.Equals(_selectedLane, lane, StringComparison.OrdinalIgnoreCase) ? "all" : lane;

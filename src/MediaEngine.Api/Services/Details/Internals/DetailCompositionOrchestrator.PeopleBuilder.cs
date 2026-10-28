@@ -245,6 +245,7 @@ internal sealed partial class DetailCompositionOrchestrator
             Subtitle = string.Join(" · ", new[] { StringHelpers.FirstNonBlankOr(string.Empty, characterSummary, roleSummary), representative.Year }.Where(v => !string.IsNullOrWhiteSpace(v))),
             ArtworkUrl = representative.CoverUrl,
             Lane = DetailLane(entityType),
+            Year = representative.Year,
             Roles = roles,
             Metadata = roles.Select(role => new MetadataPill { Label = role, Kind = "role" }).ToList(),
             Actions = [new DetailAction { Key = "open", Label = "Open", Icon = "open_in_new", Route = BuildCreditRoute(representative) }],

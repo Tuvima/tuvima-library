@@ -2297,7 +2297,9 @@
             group.CreatedAt,
             artworkItems,
             navigationUrl,
-            group.MediaTypeColor ?? AccentForMedia(group.PrimaryMediaType));
+            group.MediaTypeColor ?? AccentForMedia(group.PrimaryMediaType),
+            group.AlbumCount,
+            group.DistinctTitleCount ?? group.WorkCount);
     }
 
     private string PersonGroupingRoleLabel => _grouping switch

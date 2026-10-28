@@ -57,11 +57,17 @@
                         <h3>@Item.Title</h3>
                     </div>
 
-                    @if (!string.IsNullOrWhiteSpace(PersonContextLabel))
+                    @if (!string.IsNullOrWhiteSpace(Item.Person?.FactsLine))
+                    {
+                        <div class="media-group-tile__person-context" data-person-facts="true">@Item.Person!.FactsLine</div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(PersonContextLabel))
                     {
                         <div class="media-group-tile__person-context">@PersonContextLabel</div>
                     }
 
+                    @if (string.IsNullOrWhiteSpace(Item.Person?.FactsLine))
+                    {
                     <div class="media-group-tile__metadata">
                         @if (!string.IsNullOrWhiteSpace(YearLabel))
                         {
@@ -90,6 +96,7 @@
                             </span>
                         }
                     </div>
+                    }
                 </div>
 
                 <span class="media-group-tile__open-cue">

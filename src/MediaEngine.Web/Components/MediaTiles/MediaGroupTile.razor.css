@@ -345,7 +345,7 @@
         left: 104px;
     }
 
-    .media-group-tile__person-context {
+    .media-group-tile__person-context:not([data-person-facts]) {
         display: none;
     }
 }
