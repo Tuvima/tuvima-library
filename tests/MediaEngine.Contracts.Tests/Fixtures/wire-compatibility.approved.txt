@@ -810,13 +810,13 @@
   input themes | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input libraryId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
   input unmatched | default=null | shape=3f6d9badbf3cab35c37c41dfbfa8ea9f49b716db983fff10c8d3b66b7d03abbf
-  response | shape=719f15e54f767c380e5f9d7b1ea698dd3862d87e74a3e0b919b05868d34cea7a
+  response | shape=66e32d850db695f712f1be122f14e7faf677b78536278bfe4043337542828fd9
 
 [method] GetDisplayContinueAsync
   input lane | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input mediaType | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input limit | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351
-  response | shape=719f15e54f767c380e5f9d7b1ea698dd3862d87e74a3e0b919b05868d34cea7a
+  response | shape=66e32d850db695f712f1be122f14e7faf677b78536278bfe4043337542828fd9
 
 [method] GetDisplayGridAsync
   input lane | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
@@ -832,11 +832,11 @@
 
 [method] GetDisplayHomeAsync
   input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
-  response | shape=719f15e54f767c380e5f9d7b1ea698dd3862d87e74a3e0b919b05868d34cea7a
+  response | shape=66e32d850db695f712f1be122f14e7faf677b78536278bfe4043337542828fd9
 
 [method] GetDisplayItemsAsync
   input ids | default=required | shape=669627897819297c582cb890d507da27054999f0d4457da67b6f05bcde168c72
-  response | shape=719f15e54f767c380e5f9d7b1ea698dd3862d87e74a3e0b919b05868d34cea7a
+  response | shape=66e32d850db695f712f1be122f14e7faf677b78536278bfe4043337542828fd9
 
 [method] GetDisplayRecentAsync
   input type | default="all" | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
@@ -7520,6 +7520,19 @@ property=files_failed | nullability=not-null | accessors=get,init | required=no 
 property=bytes_freed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
 property=collections_deleted | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=4cff6e12312e96d0ebff96ad52f5f62d066d37962f3234ba1b0d4cad1e919b57
 
+[shape] 66e32d850db695f712f1be122f14e7faf677b78536278bfe4043337542828fd9
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=subtitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=hero | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=92017cfaad15467754af8811567d79bbbc5b6fe31c0fb7145441094a509b012e
+property=shelves | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=579d02cdafb9b93bce6f363f1580fcd72e8c9e0e76c4e4f68d6cfee671212b56
+property=catalog | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=e3f0458cf044489926762ddd63f36b61c5de8baa3117de5bb3a756a97e30b7c8
+property=spotlights | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=939c1bf791ba010bc22ad62477dc1082a235d41449c43fbe133c131556837e34
+property=totalCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=facets | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f6121a7f55e8c086fa1b28199c1ffa6f06e0a2ce2f6691dd0084f7934aa2de7
+property=timeline | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=4556aefdf69ec74ee3cbc09241fa6028973ed18ce2f57cae7e08ae513bfef79e
+
 [shape] 66f92cdb5b57bd0123baaff8c37eb691232ddd0c80f0c2cb6707ee9fc4e24490
 direction=read | kind=array | item=de42dd87373e2b046aedec15a262cd5ff4c850a199987b18e9352a6673b15c0d
 
@@ -7916,19 +7929,6 @@ property=error | nullability=nullable | accessors=get,init | required=no | order
 
 [shape] 71906294f86134739f0dbb6005253a8382e18739aae19c9fce8186ba522a9c2d
 direction=read | kind=array | item=dccc7af2c98601e495ffc1f385531c02bd5496206fea771204681da354d462ab
-
-[shape] 719f15e54f767c380e5f9d7b1ea698dd3862d87e74a3e0b919b05868d34cea7a
-direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
-property=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=subtitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=hero | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=eee9486c1732a001e21de9df74feda770020bb66f5eefeaa78802e4c9a11e588
-property=shelves | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=579d02cdafb9b93bce6f363f1580fcd72e8c9e0e76c4e4f68d6cfee671212b56
-property=catalog | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=e3f0458cf044489926762ddd63f36b61c5de8baa3117de5bb3a756a97e30b7c8
-property=spotlights | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=cebd3f2979193c227d47252722cf8fc1c738206aaeca7ff7ad320ed0dcf86018
-property=totalCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=facets | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f6121a7f55e8c086fa1b28199c1ffa6f06e0a2ce2f6691dd0084f7934aa2de7
-property=timeline | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=4556aefdf69ec74ee3cbc09241fa6028973ed18ce2f57cae7e08ae513bfef79e
 
 [shape] 71e6e526ed2f07fe8e790c596b71ef03a711ad6d512891544dbd873df2ee8ee3
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
@@ -9197,6 +9197,30 @@ property=resolvedHeroUrl | nullability=nullable | accessors=get,init | required=
 property=resolvedLogoUrl | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 property=canonicalValues | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a7b30bcea621d5efc9914cfafd24fd0e6bf1cf84910cb8086bd250f609a92365
 
+[shape] 92017cfaad15467754af8811567d79bbbc5b6fe31c0fb7145441094a509b012e
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=subtitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=eyebrow | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=artwork | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6135fa9b16dd77987aa3bb4b8e8dd61604f57397ed5dbf250c8dc00e2838b640
+property=progress | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=01abf7f1c343662fdc4674c6200c639e13c2212232f976399d6a7779021a6ab8
+property=actions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5a83f7d3e26c249531da8ed7de68a383f96624b284b5b455ec5eccd1fd2b41e9
+property=facts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a1b55499ca5eddeb351d7c3fc16052ef538fff0f26b1638c9b2820994ef9c52f
+property=id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=fa732800436bb922fdef0649716c5800f2bfab6b8effb0646ed72920974345d7
+property=workId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=fa732800436bb922fdef0649716c5800f2bfab6b8effb0646ed72920974345d7
+property=collectionId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=fa732800436bb922fdef0649716c5800f2bfab6b8effb0646ed72920974345d7
+property=mediaType | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=presentation | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=subject | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=d80419d6eb248010e7caacaf7d28dee130054f89745039286d7ea983a328d2be
+property=continuationState | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ef40ab79be546267f0c1b6b8da7a024fec71c3900b9671552a14bd772d4f5292
+property=episodeContext | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=d0ae65919f4fa563138492b575608381d5c5a2431e9c650f90dedfa2c337db69
+property=tagline | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=genres | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a1b55499ca5eddeb351d7c3fc16052ef538fff0f26b1638c9b2820994ef9c52f
+property=previewItems | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=8895a8d5c036d6157703436ec706bfe3fc0d7990e64ba9055eaca313dc2f0b58
+property=previewTotalCount | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b28ab3a0a6b029545a251283d742d4d55a1da8f0fab2bf889100c89ca82e6f33
+property=isContinued | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+
 [shape] 92b526732dc60ab177ad68f18ff2e006c73a4a5c028620d1bc72c997460ca288
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
 property=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=c053966c6e811a8ce84683726714ab2f84f40fd250c6cd58763ff6b03e191115
@@ -9297,6 +9321,9 @@ direction=write | kind=nullable | inner=46fc2f975e7fa8094b21aff6a41911a6a5e85577
 
 [shape] 933170cb17cc3a45a7bb3ec53fdc163690d6ee2c92a169c641cde9f9030069cd
 direction=read | kind=array | item=af26ae936114cd082026baee078599a20325cc41f4aa97c9b5f6332a48e1922a
+
+[shape] 939c1bf791ba010bc22ad62477dc1082a235d41449c43fbe133c131556837e34
+direction=read | kind=array | item=92017cfaad15467754af8811567d79bbbc5b6fe31c0fb7145441094a509b012e
 
 [shape] 939d7caf3fb06f2c79e2019dce68d908435447eda347f0332b6c937d0fb5a2f0
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
@@ -12051,9 +12078,6 @@ property=currency | nullability=nullable | accessors=get,init | required=no | or
 [shape] cea9eb4120309da3bcf523512312980d65fca1c114675e77035ab19abc387dec
 direction=read | kind=array | item=49754ad171589e0eb175340f90c813f9481cfe826f46d9cbb2b8b696388f409c
 
-[shape] cebd3f2979193c227d47252722cf8fc1c738206aaeca7ff7ad320ed0dcf86018
-direction=read | kind=array | item=eee9486c1732a001e21de9df74feda770020bb66f5eefeaa78802e4c9a11e588
-
 [shape] ced71b1868134cd709b38dbc4d358a392580c977440ea70c163b144357b06025
 direction=read | kind=array | item=b4e52239a463165216e78a6dd43b24e47b716c2a799c48db9c902a8b65e2bb03
 
@@ -13327,29 +13351,6 @@ direction=read | kind=object | converter=default | number-handling=default | unm
 property=value | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=42e105e1519a69a1b7446ea6ea517535b2b7ba944bb25dffc4555ac204e719f6
 property=outcome | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=0334ba156ab6c03d06c6006ab86cb226a9d1855959886c5b8f712d89261b2c91
 property=message | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-
-[shape] eee9486c1732a001e21de9df74feda770020bb66f5eefeaa78802e4c9a11e588
-direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
-property=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=subtitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=eyebrow | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=artwork | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6135fa9b16dd77987aa3bb4b8e8dd61604f57397ed5dbf250c8dc00e2838b640
-property=progress | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=01abf7f1c343662fdc4674c6200c639e13c2212232f976399d6a7779021a6ab8
-property=actions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5a83f7d3e26c249531da8ed7de68a383f96624b284b5b455ec5eccd1fd2b41e9
-property=facts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a1b55499ca5eddeb351d7c3fc16052ef538fff0f26b1638c9b2820994ef9c52f
-property=id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=fa732800436bb922fdef0649716c5800f2bfab6b8effb0646ed72920974345d7
-property=workId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=fa732800436bb922fdef0649716c5800f2bfab6b8effb0646ed72920974345d7
-property=collectionId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=fa732800436bb922fdef0649716c5800f2bfab6b8effb0646ed72920974345d7
-property=mediaType | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=presentation | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=subject | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=d80419d6eb248010e7caacaf7d28dee130054f89745039286d7ea983a328d2be
-property=continuationState | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ef40ab79be546267f0c1b6b8da7a024fec71c3900b9671552a14bd772d4f5292
-property=episodeContext | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=d0ae65919f4fa563138492b575608381d5c5a2431e9c650f90dedfa2c337db69
-property=tagline | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=genres | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a1b55499ca5eddeb351d7c3fc16052ef538fff0f26b1638c9b2820994ef9c52f
-property=previewItems | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=8895a8d5c036d6157703436ec706bfe3fc0d7990e64ba9055eaca313dc2f0b58
-property=previewTotalCount | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b28ab3a0a6b029545a251283d742d4d55a1da8f0fab2bf889100c89ca82e6f33
 
 [shape] ef40ab79be546267f0c1b6b8da7a024fec71c3900b9671552a14bd772d4f5292
 direction=read | kind=enum | converter=JsonStringEnumConverter | number-handling=default

@@ -7,29 +7,88 @@ namespace MediaEngine.Api.Tests;
 public sealed class HomeSpotlightStateTests
 {
     [Fact]
-    public async Task FiveSpotlightsCoverAvailableMediaKindsAndDeduplicateRankedCandidates()
+    public async Task HomeSpotlights_NewItemsFillTheHeroNewestFirstWithAtMostFiveSlides()
     {
-        var tv = Episode(Guid.NewGuid(), 5, "TV owned");
-        DisplayWorkRow Work(string type, string title) => new()
+        DisplayWorkRow Work(string type, string title, int ageDays) => new()
         {
             WorkId = Guid.NewGuid(),
             AssetId = Guid.NewGuid(),
             MediaType = type,
             Title = title,
-            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-ageDays),
             BackgroundUrl = "/background.jpg",
         };
-        var movies = Enumerable.Range(0, 8).Select(i => Work("Movie", "Movie " + i)).ToList();
-        var book = Work("Book", "Book"); var audio = Work("Audiobook", "Audiobook");
-        var track = Work("Music", "Track"); track.RootWorkId = Guid.NewGuid(); track.Album = "Album"; track.Artist = "Artist";
-        var home = await Composer(new Repository([tv, .. movies, book, audio, track], [])).BuildHomeAsync();
+        var oldMovies = Enumerable.Range(0, 8).Select(i => Work("Movie", "Movie " + i, 30 + i)).ToList();
+        var newestBook = Work("Book", "Newest book", 0);
+        var home = await Composer(new Repository([.. oldMovies, newestBook], [])).BuildHomeAsync();
         Assert.Equal(5, home.Spotlights.Count);
-        Assert.Single(home.Spotlights, h => h.Subject == DisplaySubjectKind.TvShow);
-        Assert.Single(home.Spotlights, h => h.MediaType == "Movie");
-        Assert.Single(home.Spotlights, h => h.MediaType == "Book");
-        Assert.Single(home.Spotlights, h => h.Subject == DisplaySubjectKind.Album);
-        Assert.Single(home.Spotlights, h => h.MediaType == "Audiobook");
+        Assert.Equal("Newest book", home.Spotlights[0].Title);
+        Assert.All(home.Spotlights, hero => Assert.False(hero.IsContinued));
         Assert.Equal(5, home.Spotlights.Select(h => h.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task HomeSpotlights_StartedShowComesBeforeNewItems()
+    {
+        var profile = Guid.NewGuid();
+        var partial = Episode(Guid.NewGuid(), 5, "Half watched");
+        var freshMovie = new DisplayWorkRow
+        {
+            WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Movie", Title = "Fresh movie",
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(1), BackgroundUrl = "/movie.jpg",
+        };
+        var home = await Composer(new Repository([freshMovie, partial], [State(profile, partial, 40)])).BuildHomeAsync(profileId: profile);
+        Assert.Equal(2, home.Spotlights.Count);
+        Assert.Equal("The Show", home.Spotlights[0].Title);
+        Assert.True(home.Spotlights[0].IsContinued);
+        Assert.Equal("Fresh movie", home.Spotlights[1].Title);
+        Assert.False(home.Spotlights[1].IsContinued);
+    }
+
+    [Fact]
+    public async Task HomeSpotlights_ContinuedItemsOfAnyTypeAreOrderedByLastTouched()
+    {
+        var profile = Guid.NewGuid();
+        var show = Episode(Guid.NewGuid(), 5, "Older");
+        var showState = State(profile, show, 40); showState.LastAccessed = DateTimeOffset.UtcNow.AddHours(-5);
+        var book = new DisplayWorkRow
+        {
+            WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Book", Title = "Midway book",
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-90), CoverUrl = "/book.jpg", BackgroundUrl = "/book-bg.jpg",
+        };
+        var bookState = new DisplayJourneyRow
+        {
+            ProfileId = profile, WorkId = book.WorkId, RootWorkId = book.WorkId, AssetId = book.AssetId, MediaType = "Book",
+            Title = book.Title, ProgressPct = 62, LastAccessed = DateTimeOffset.UtcNow.AddHours(-1), CoverUrl = book.CoverUrl,
+        };
+        var home = await Composer(new Repository([show, book], [showState, bookState])).BuildHomeAsync(profileId: profile);
+        Assert.Equal(["Midway book", "The Show"], home.Spotlights.Select(hero => hero.Title));
+        Assert.All(home.Spotlights, hero => Assert.True(hero.IsContinued));
+    }
+
+    [Fact]
+    public async Task HomeSpotlights_UnstartedShowIsASeriesNotAnEpisode()
+    {
+        var show = Guid.NewGuid();
+        var home = await Composer(new Repository([Episode(show, 1, "Pilot"), Episode(show, 2, "Second")], [])).BuildHomeAsync();
+        var hero = Assert.Single(home.Spotlights);
+        Assert.Equal("The Show", hero.Title);
+        Assert.False(hero.IsContinued);
+        Assert.Equal("Start watching", hero.Actions[0].Label);
+        Assert.Equal($"/details/tvshow/{show:D}?context=watch", hero.Actions[1].WebUrl);
+        Assert.Equal("/show.jpg", hero.Artwork.BackgroundUrl);
+        Assert.DoesNotContain("S2 E1", hero.Subtitle ?? "");
+    }
+
+    [Fact]
+    public async Task HomeSpotlights_OneSlidePerShow()
+    {
+        var profile = Guid.NewGuid(); var show = Guid.NewGuid();
+        var first = Episode(show, 1, "One"); var second = Episode(show, 2, "Two"); var third = Episode(show, 3, "Three");
+        var home = await Composer(new Repository([first, second, third], [State(profile, first, 100), State(profile, second, 30)])).BuildHomeAsync(profileId: profile);
+        var hero = Assert.Single(home.Spotlights);
+        Assert.Equal(show, hero.EpisodeContext!.ShowWorkId);
+        Assert.True(hero.IsContinued);
     }
 
     [Fact]
