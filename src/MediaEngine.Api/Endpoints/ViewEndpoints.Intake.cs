@@ -50,6 +50,7 @@ public static partial class ViewEndpoints
                 : ApiErrors.NotFound("That refused file is no longer in the Rejected area."))
             .WithName("RemoveViewRejectedFile")
             .WithSummary("Removes one refused file from the Rejected area now, instead of waiting out its time.")
+            .Produces(StatusCodes.Status204NoContent)
             .RequireEffectiveAdministrator();
 
         group.MapGet("/admin/tidy/{sourceId:guid}", async (Guid sourceId, [FromServices] ViewTidyService service, CancellationToken ct) =>
@@ -148,6 +149,7 @@ public static partial class ViewEndpoints
                 : ApiErrors.NotFound("That group of copies is no longer there.");
         }).WithName("DismissViewDuplicate")
             .WithSummary("Leaves a group of copies as it is; it comes back only if more copies turn up.")
+            .Produces(StatusCodes.Status204NoContent)
             .RequireEffectiveAdministrator();
 
         group.MapGet("/admin/intake/{kind}", async (string kind, [FromServices] ViewIntakeAdminService service, CancellationToken ct) =>

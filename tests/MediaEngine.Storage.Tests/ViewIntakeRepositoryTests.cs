@@ -127,7 +127,11 @@ public sealed class ViewIntakeRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        using (var pool = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={_databasePath}"))
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearPool(pool);
+        }
+
         File.Delete(_databasePath);
     }
 }
