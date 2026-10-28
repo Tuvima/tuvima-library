@@ -231,19 +231,19 @@ public sealed class UiCompositionGuardrailTests
         {
             WriteFile(planted, "src/MediaEngine.Web/Components/Pages/Sample.razor", $"<h1>{RetiredRegistryLabel}</h1>");
             WriteFile(planted, "src/MediaEngine.Web/Resources/Sample.resx", $"<data name=\"Nav\"><value>{RetiredRegistryLabel}</value></data>");
-            WriteFile(planted, "docs/guides/sample.md", $"Open the {RetiredRegistryLabel} to fix an item.");
+            WriteFile(planted, "SAMPLE.md", $"Open the {RetiredRegistryLabel} to fix an item.");
             WriteFile(planted, "src/MediaEngine.Web/Services/Sample.cs", $"class A {{ string Label = \"Open {RetiredRegistryLabel}\"; }}");
             WriteFile(planted, "src/MediaEngine.Api/Services/Sample.cs", $"class B {{ string Title = $@\"The {RetiredRegistryLabel} {{x}}\"; }}");
 
             WriteFile(clean, "src/MediaEngine.Web/Components/Pages/Sample.razor", $"@inject Permission{RetiredRegistryLabel} Permissions\r\n<h1>Needs Review</h1>");
             WriteFile(clean, "src/MediaEngine.Web/Resources/Sample.resx", "<data name=\"Nav\"><value>Needs Review</value></data>");
-            WriteFile(clean, "docs/guides/sample.md", "Start without pulling the registry image.");
+            WriteFile(clean, "SAMPLE.md", "Start without pulling the registry image.");
             WriteFile(clean, "src/MediaEngine.Web/Services/Sample.cs", $"// the old {RetiredRegistryLabel} screen\r\nclass A {{ IPermission{RetiredRegistryLabel} Source; string Label = \"capability registry\"; }}");
             WriteFile(clean, "src/MediaEngine.Api/Services/Sample.cs", "class B { string Title = \"Needs Review\"; }");
 
             Assert.Equal(
                 [
-                    "docs/guides/sample.md",
+                    "SAMPLE.md",
                     "src/MediaEngine.Api/Services/Sample.cs",
                     "src/MediaEngine.Web/Components/Pages/Sample.razor",
                     "src/MediaEngine.Web/Resources/Sample.resx",
@@ -259,7 +259,7 @@ public sealed class UiCompositionGuardrailTests
         }
     }
 
-    // Everything a person can read: Dashboard markup and resources, docs, and the C# string literals of the Dashboard
+    // Everything a person can read: Dashboard markup and resources, the root README and guides (the public docs now live in tuvima-docs), and the C# string literals of the Dashboard
     // and the Engine (labels, messages and titles built in code).
     private static List<string> RegistryScanFiles(string repoRoot)
     {
@@ -271,8 +271,7 @@ public sealed class UiCompositionGuardrailTests
         }
 
         files.AddRange(EnumerateFiles(Path.Combine(webRoot, "Resources"), "*.resx"));
-        files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "docs"), "*.md"));
-        files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "docs"), "*.mdx"));
+        files.AddRange(Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.TopDirectoryOnly));
         files.AddRange(EnumerateFiles(webRoot, "*.cs"));
         files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "src", "MediaEngine.Api"), "*.cs"));
 

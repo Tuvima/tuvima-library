@@ -25,7 +25,7 @@ env:
 
 jobs:
   # A pull request that only touches engineering/ (specs, handoffs, plans) has nothing to build or test. Tests read
-  # docs/, config/ and root files, so those still run everything. The decision is a cheap step inside each job
+  # config/, docs/reference/ data files, engineering/design and root files, so those still run everything. The decision is a cheap step inside each job
   # rather than a separate job, because every extra job waits in the runner queue.
   build:
     name: Build, format and publish checks

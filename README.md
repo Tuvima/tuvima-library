@@ -11,11 +11,11 @@
 Your books, films, shows, music, audiobooks, comics and personal media, together in one private library that understands how they connect.
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Status: Early Access](https://img.shields.io/badge/status-Early%20Access-8852FC.svg)](https://tuvima.github.io/tuvima-library/product/status/)
-[![Docs](https://img.shields.io/badge/docs-tuvima.github.io-8852FC.svg)](https://tuvima.github.io/tuvima-library/)
-[![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED.svg)](https://tuvima.github.io/tuvima-library/install/docker/)
+[![Status: Early Access](https://img.shields.io/badge/status-Early%20Access-8852FC.svg)](https://docs.tuvima.com/products/library/product/status/)
+[![Docs](https://img.shields.io/badge/docs-docs.tuvima.com-8852FC.svg)](https://docs.tuvima.com/products/library/)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED.svg)](https://docs.tuvima.com/products/library/install/docker/)
 
-**[Install](https://tuvima.github.io/tuvima-library/tutorials/getting-started/)** · **[Documentation](https://tuvima.github.io/tuvima-library/)** · **[What's ready](https://tuvima.github.io/tuvima-library/product/status/)** · **[Report an issue](https://github.com/Tuvima/tuvima-library/issues)**
+**[Install](https://docs.tuvima.com/products/library/tutorials/getting-started/)** · **[Documentation](https://docs.tuvima.com/products/library/)** · **[What's ready](https://docs.tuvima.com/products/library/product/status/)** · **[Report an issue](https://github.com/Tuvima/tuvima-library/issues)**
 
 </div>
 
@@ -66,7 +66,7 @@ A **Universe** is the map of a creative world. It connects the works you own (bo
 
 Owning a film trilogy gives you a tidy shelf in Watch. Owning the novels, the films, the audiobooks and the score gives you a Universe that brings them all together. Tuvima builds these connections only from trusted evidence, such as shared identifiers in Wikidata, never from similar titles alone.
 
-Learn more in [How Universes and Series work](https://tuvima.github.io/tuvima-library/explanation/how-universes-work/).
+Learn more in [How Universes and Series work](https://docs.tuvima.com/products/library/explanation/how-universes-work/).
 
 ## Quick start
 
@@ -82,13 +82,13 @@ Edit the folder paths under `volumes` to point at your media and app-data folder
 docker compose up -d
 ```
 
-Open **http://YOUR-SERVER:5016**, work through the six setup steps (name your server, create your administrator account and save your recovery codes, add your media folders, choose your language, optionally enhance your library), and you are in. Libraries can be skipped and added later. The [Docker guide](https://tuvima.github.io/tuvima-library/install/docker/) explains every setting, and what to do if your host can't download the image.
+Open **http://YOUR-SERVER:5016**, work through the six setup steps (name your server, create your administrator account and save your recovery codes, add your media folders, choose your language, optionally enhance your library), and you are in. Libraries can be skipped and added later. The [Docker guide](https://docs.tuvima.com/products/library/install/docker/) explains every setting, and what to do if your host can't download the image.
 
 Other ways to install:
 
-- **Windows 10 or 11:** the [Windows installer](https://tuvima.github.io/tuvima-library/install/windows/) (Early Access) runs Tuvima as Windows services.
-- **NAS:** step-by-step guides for [Unraid](https://tuvima.github.io/tuvima-library/install/unraid/), [Synology](https://tuvima.github.io/tuvima-library/install/synology/), [QNAP](https://tuvima.github.io/tuvima-library/install/qnap/) and [TrueNAS SCALE](https://tuvima.github.io/tuvima-library/install/truenas-scale/).
-- **From source:** for developers and evaluators, see [Run from source](https://tuvima.github.io/tuvima-library/install/from-source/).
+- **Windows 10 or 11:** the [Windows installer](https://docs.tuvima.com/products/library/install/windows/) (Early Access) runs Tuvima as Windows services.
+- **NAS:** step-by-step guides for [Unraid](https://docs.tuvima.com/products/library/install/unraid/), [Synology](https://docs.tuvima.com/products/library/install/synology/), [QNAP](https://docs.tuvima.com/products/library/install/qnap/) and [TrueNAS SCALE](https://docs.tuvima.com/products/library/install/truenas-scale/).
+- **From source:** for developers and evaluators, see [Run from source](https://docs.tuvima.com/products/library/install/from-source/).
 
 ## Private by design
 
@@ -98,7 +98,7 @@ Other ways to install:
 - Optional local AI improves matching and descriptions entirely on your hardware.
 - Uncertain matches are shown to you, never silently treated as correct.
 
-Some features, such as maps in View, can load data from the internet. [Privacy and local-first behavior](https://tuvima.github.io/tuvima-library/explanation/privacy-local-first/) explains exactly what connects where.
+Some features, such as maps in View, can load data from the internet. [Privacy and local-first behavior](https://docs.tuvima.com/products/library/explanation/privacy-local-first/) explains exactly what connects where.
 
 ## Powered by open knowledge
 
@@ -129,7 +129,7 @@ Tuvima Library stands on the work of many open-source projects. Thank you to eve
 | [Serilog](https://serilog.net/), [Polly](https://github.com/App-vNext/Polly), [Cronos](https://github.com/HangfireIO/Cronos) and [QRCoder](https://github.com/codebude/QRCoder) | Logging, reliable connections, schedules and invitation QR codes |
 | [Astro](https://astro.build/) and [Starlight](https://starlight.astro.build/) | The documentation site |
 
-Every project keeps its own licence. The full list, with versions and licences, is on the [Attributions](https://tuvima.github.io/tuvima-library/reference/attributions/) page, and the notices each licence requires are in [third-party notices](THIRD-PARTY-NOTICES.md).
+Every project keeps its own licence. The full list, with versions and licences, is on the [Attributions](https://docs.tuvima.com/products/library/policies/attributions/) page, and the notices each licence requires are in [third-party notices](THIRD-PARTY-NOTICES.md).
 
 ## Why I built Tuvima Library
 
@@ -137,25 +137,25 @@ I loved Plex, Audiobookshelf and the other tools in my setup, but I was still th
 
 That grew into a bigger idea: a library that understands the story, not just the files. The name comes from **túvima**, a word in Tolkien's Quenya recorded as meaning "discoverable". Tuvima Library is the library I wanted for myself, built in the hope that it becomes that library for you too.
 
-[Read the full story and where it's heading](https://tuvima.github.io/tuvima-library/product/story/).
+[Read the full story and where it's heading](https://docs.tuvima.com/products/library/product/story/).
 
 ## Project status
 
-Tuvima Library is in **Early Access** and under active development. Browsing, reading, playback, editing, personal media, profiles and library management work today. Cross-format position syncing between ebooks and audiobooks, native device apps and richer recommendations are on the way. See [Product Status](https://tuvima.github.io/tuvima-library/product/status/) and the [Beta Roadmap](https://tuvima.github.io/tuvima-library/product/beta-roadmap/) for details.
+Tuvima Library is in **Early Access** and under active development. Browsing, reading, playback, editing, personal media, profiles and library management work today. Cross-format position syncing between ebooks and audiobooks, native device apps and richer recommendations are on the way. See [Product Status](https://docs.tuvima.com/products/library/product/status/) and the [Beta Roadmap](https://docs.tuvima.com/products/library/product/beta-roadmap/) for details.
 
 ## Documentation
 
-The full documentation lives at **[tuvima.github.io/tuvima-library](https://tuvima.github.io/tuvima-library/)**, organised into Guides, Develop and Reference.
+The full documentation lives at **[docs.tuvima.com](https://docs.tuvima.com/products/library/)**, organised into Guides, Develop and Reference.
 
 | I want to… | Start here |
 | --- | --- |
-| Get started | [What is Tuvima Library?](https://tuvima.github.io/tuvima-library/explanation/what-is-tuvima/) · [Getting started](https://tuvima.github.io/tuvima-library/tutorials/getting-started/) · [Your first library](https://tuvima.github.io/tuvima-library/tutorials/first-library/) |
-| Install a server | [Docker](https://tuvima.github.io/tuvima-library/install/docker/) · [Windows](https://tuvima.github.io/tuvima-library/install/windows/) · [Unraid](https://tuvima.github.io/tuvima-library/install/unraid/) · [Synology](https://tuvima.github.io/tuvima-library/install/synology/) · [QNAP](https://tuvima.github.io/tuvima-library/install/qnap/) · [TrueNAS SCALE](https://tuvima.github.io/tuvima-library/install/truenas-scale/) |
-| Use Tuvima Library | [Find your way around](https://tuvima.github.io/tuvima-library/guides/dashboard-tour/) · [Play, read and listen](https://tuvima.github.io/tuvima-library/guides/playback-and-reading/) · [Fix an item](https://tuvima.github.io/tuvima-library/guides/editing-items/) |
-| Set up and manage | [Libraries](https://tuvima.github.io/tuvima-library/guides/library-settings/) · [Metadata providers](https://tuvima.github.io/tuvima-library/guides/configuring-providers/) · [Remote access](https://tuvima.github.io/tuvima-library/guides/remote-access/) · [Troubleshooting](https://tuvima.github.io/tuvima-library/guides/troubleshooting/) |
-| Understand how it works | [The pipeline](https://tuvima.github.io/tuvima-library/explanation/how-the-pipeline-works/) · [Universes and Series](https://tuvima.github.io/tuvima-library/explanation/how-universes-work/) · [Privacy](https://tuvima.github.io/tuvima-library/explanation/privacy-local-first/) |
-| Contribute or extend | [Contributing](https://tuvima.github.io/tuvima-library/develop/contributing/) · [Developer setup](https://tuvima.github.io/tuvima-library/tutorials/dev-setup/) · [Build a plugin](https://tuvima.github.io/tuvima-library/guides/building-a-plugin/) · [Add a provider](https://tuvima.github.io/tuvima-library/guides/adding-a-provider/) · [Architecture](https://tuvima.github.io/tuvima-library/architecture/technical-overview/) |
-| Look something up | [Configuration](https://tuvima.github.io/tuvima-library/reference/configuration/) · [Media types](https://tuvima.github.io/tuvima-library/reference/media-types/) · [Engine actions (API)](https://tuvima.github.io/tuvima-library/reference/api-endpoints/) · [Feature status](https://tuvima.github.io/tuvima-library/product/status/) |
+| Get started | [What is Tuvima Library?](https://docs.tuvima.com/products/library/explanation/what-is-tuvima/) · [Getting started](https://docs.tuvima.com/products/library/tutorials/getting-started/) · [Your first library](https://docs.tuvima.com/products/library/tutorials/first-library/) |
+| Install a server | [Docker](https://docs.tuvima.com/products/library/install/docker/) · [Windows](https://docs.tuvima.com/products/library/install/windows/) · [Unraid](https://docs.tuvima.com/products/library/install/unraid/) · [Synology](https://docs.tuvima.com/products/library/install/synology/) · [QNAP](https://docs.tuvima.com/products/library/install/qnap/) · [TrueNAS SCALE](https://docs.tuvima.com/products/library/install/truenas-scale/) |
+| Use Tuvima Library | [Find your way around](https://docs.tuvima.com/products/library/guides/dashboard-tour/) · [Play, read and listen](https://docs.tuvima.com/products/library/guides/playback-and-reading/) · [Fix an item](https://docs.tuvima.com/products/library/guides/editing-items/) |
+| Set up and manage | [Libraries](https://docs.tuvima.com/products/library/guides/library-settings/) · [Metadata providers](https://docs.tuvima.com/products/library/guides/configuring-providers/) · [Remote access](https://docs.tuvima.com/products/library/guides/remote-access/) · [Troubleshooting](https://docs.tuvima.com/products/library/guides/troubleshooting/) |
+| Understand how it works | [The pipeline](https://docs.tuvima.com/products/library/explanation/how-the-pipeline-works/) · [Universes and Series](https://docs.tuvima.com/products/library/explanation/how-universes-work/) · [Privacy](https://docs.tuvima.com/products/library/explanation/privacy-local-first/) |
+| Contribute or extend | [Contributing](https://docs.tuvima.com/products/library/develop/contributing/) · [Developer setup](https://docs.tuvima.com/products/library/tutorials/dev-setup/) · [Build a plugin](https://docs.tuvima.com/products/library/guides/building-a-plugin/) · [Add a provider](https://docs.tuvima.com/products/library/guides/adding-a-provider/) · [Architecture](https://docs.tuvima.com/products/library/architecture/technical-overview/) |
+| Look something up | [Configuration](https://docs.tuvima.com/products/library/reference/configuration/) · [Media types](https://docs.tuvima.com/products/library/reference/media-types/) · [Engine actions (API)](https://docs.tuvima.com/products/library/reference/api-endpoints/) · [Feature status](https://docs.tuvima.com/products/library/product/status/) |
 
 Internal planning documents (product overview, architecture decisions, design system and feature specs) are indexed in [engineering/README.md](engineering/README.md).
 
@@ -173,7 +173,7 @@ Use [Issues](https://github.com/Tuvima/tuvima-library/issues) for questions, ide
 
 ## License
 
-Tuvima Library is free and open-source software under the [GNU AGPLv3](LICENSE). Anyone can run, study, improve and share it, and anyone who offers a modified version over a network must share their changes too. See [what the license means for you](https://tuvima.github.io/tuvima-library/product/license/) and the [third-party notices](THIRD-PARTY-NOTICES.md).
+Tuvima Library is free and open-source software under the [GNU AGPLv3](LICENSE). Anyone can run, study, improve and share it, and anyone who offers a modified version over a network must share their changes too. See [what the license means for you](https://docs.tuvima.com/products/library/policies/license/) and the [third-party notices](THIRD-PARTY-NOTICES.md).
 
 ---
 

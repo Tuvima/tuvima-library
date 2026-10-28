@@ -1,6 +1,6 @@
 # Spec: One Tuvima documentation hub (docs.tuvima.com), starting with Library
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-28 · **Related docs:** [Product overview](../product/overview.md) · [Documentation rules](../../.claude/rules/docs.md) · [Documentation index](../README.md)
+> **Status:** Built, awaiting Local checks · **Version:** 2 · **Last updated:** 2026-10-28 · **Related docs:** [Product overview](../product/overview.md) · [Documentation rules](../../.claude/rules/docs.md) · [Documentation index](../README.md)
 
 ## 1. Goal
 

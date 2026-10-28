@@ -18,7 +18,7 @@ internal sealed record ParsedPluginDirectory(
     int Skipped);
 
 /// <summary>
-/// Reads the plugin directory list (format 2.x, documented in <c>docs/reference/plugin-catalog.md</c>). The list comes
+/// Reads the plugin directory list (format 2.x, documented in the plugin catalog page on docs.tuvima.com). The list comes
 /// from the internet, so every field is read defensively: an entry that cannot be understood is skipped and counted, and
 /// never fails the whole list. Only a file that is not a version 2 list at all is refused.
 /// </summary>
