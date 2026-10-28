@@ -55,6 +55,12 @@ public interface IPluginExecutionContext : IAsyncDisposable
     /// private to this plugin and bounded by <see cref="PluginLimitExceededException"/>.
     /// </summary>
     IPluginRecordStore Records { get; }
+
+    /// <summary>
+    /// The retry queue for messages sent to an outside service on a person's behalf. Needs the <c>plugin-outbox</c> permission.
+    /// Contexts that do not offer one refuse the call.
+    /// </summary>
+    IPluginOutbox Outbox => throw new NotSupportedException("This context has no retry queue.");
 }
 
 public interface IPluginSecrets
@@ -146,6 +152,9 @@ public static class PluginPermissionIds
     /// <summary>Adds pages and menu entries to the Library, shown in the Library's own page types and drawn from the plugin's records.</summary>
     public const string PluginPages = "plugin-pages";
 
+    /// <summary>Queues messages for an outside service on a person's behalf and sends them later, retrying while the service is offline (<see cref="IPluginOutbox"/>).</summary>
+    public const string PluginOutbox = "plugin-outbox";
+
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         MediaRead,
@@ -161,5 +170,6 @@ public static class PluginPermissionIds
         WatchActivity,
         BackgroundWork,
         PluginPages,
+        PluginOutbox,
     };
 }

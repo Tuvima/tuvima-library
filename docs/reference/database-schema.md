@@ -1275,6 +1275,23 @@ Accounts a person linked to a plugin for their own profile (Plugin architecture 
 
 **Key:** `PRIMARY KEY (plugin_id, profile_id, credential_name)`. Added by upgrade step `0053_plugin_profile_connections`.
 
+### plugin_outbox
+
+The retry queue for plugins that send things to an outside service on a person's behalf (Plugin architecture spec C13). A play is queued here first, so a service that is offline never loses it or slows the player; the Library sends it when it can and tries again after 1 minute, 5, 30, 2 hours and then every 12 hours, and drops an item after a week or 12 tries. At most 5,000 items wait per plugin (the oldest go first) and each is at most 64 KB. Items are removed with their profile, when the profile unlinks its account, and when the plugin is removed. Not part of a backup.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB | The item's id |
+| `plugin_id` | TEXT | The plugin's manifest id |
+| `profile_id` | BLOB | The profile it belongs to (`profiles.id`, cascade delete) |
+| `payload_json` | TEXT | What to send, written by the plugin |
+| `created_at` | TEXT | ISO 8601 UTC |
+| `attempts` | INTEGER | How many deliveries have been tried |
+| `next_attempt_at` | TEXT | ISO 8601 UTC; due once this has passed |
+| `last_reason` | TEXT | The last failure word, or NULL |
+
+**Indexes:** `(plugin_id, next_attempt_at)`. Added by upgrade step `0054_plugin_outbox`.
+
 ### plugin_event_cursors
 
 Where each plugin has got to in the Library's event list (`application_events`): the sequence of the newest event already handed to it. The plugin event dispatcher reads events after this sequence, so a restart carries on where it stopped. A plugin that subscribes for the first time, or that is switched off and on again, starts at the newest event with no backlog.

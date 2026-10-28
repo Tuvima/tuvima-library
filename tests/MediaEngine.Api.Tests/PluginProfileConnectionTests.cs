@@ -44,7 +44,7 @@ public sealed class PluginProfileConnectionTests : IDisposable
         _loader.SaveCore(new CoreConfiguration { LibraryRoot = libraryRoot });
         _catalog = new PluginCatalog([new ConnectPlugin()], new PluginSettingsService(_loader), _loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
         _repository = new PluginProfileConnectionRepository(_kit.Database);
-        _service = new PluginProfileConnectionService(_catalog, _repository, new DataProtectionSecretStore(new EphemeralDataProtectionProvider()), TimeProvider.System);
+        _service = new PluginProfileConnectionService(_catalog, _repository, new PluginOutboxRepository(_kit.Database), new DataProtectionSecretStore(new EphemeralDataProtectionProvider()), TimeProvider.System);
         AddProfile(_ana, "Ana");
         AddProfile(_ben, "Ben");
     }
