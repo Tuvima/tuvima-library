@@ -234,9 +234,9 @@ Libraries become one simple list: pick Watch, Listen, Read or View, and see your
 
 Added 2026-10-28 when the docs packet (WP10) was written. Nothing here changes the Locked body above; each item is work still to plan or build.
 
-- **Managed import folder for View** (D25, D26): the staging folder, filing by capture date, duplicates and the reject messages need Engine work.
-- **View pages lack Add files and Scan now**: Photos, Personal videos and Documents have Add folder only.
+- **Managed import folder for View** (D25, D26): the staging folder, filing by capture date, duplicates and the reject messages need Engine work. Planned in [Photo and video filing](photo-video-filing.md) (Locked 2026-10-28), which keeps staging in the global Import area outside the library folder instead of the import subfolder inside it (D25).
+- **View pages lack Add files and Scan now**: Photos and Personal videos now have both (built in [Photo and video filing](photo-video-filing.md)); Documents still has Add folder only.
 - **Vault work still to build** (Vault sections WP1 to WP3): the durable Move to Vault job (the dialog shows a preview only today), Managed Vault folders, and the lookup gates that make the "Look up details online" switch send anything.
-- **Needs Review `?library=` filter**: the "Needs review" status link opens Needs Review without filtering to the library.
+- **Needs Review `?library=` filter**: built in [Photo and video filing](photo-video-filing.md).
 - **Galleries for Adult content pictures** (D21).
 - **Settings > Backup page note** (D26).

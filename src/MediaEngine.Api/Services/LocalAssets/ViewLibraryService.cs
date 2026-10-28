@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets.Filing;
+using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Configuration;
@@ -95,10 +97,6 @@ public sealed class ViewLibraryService(
     private static readonly IReadOnlySet<string> JpegExtensions = new HashSet<string>(
         [".jpg", ".jpeg"],
         StringComparer.OrdinalIgnoreCase);
-
-    private static readonly Regex TimedCompoundName = new(
-        @"^(?<prefix>.*?)(?<seconds>\d{2})(?<kind>IMG|VID)$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     public async Task<LocalAssetScanResultDto?> ScanAsync(
         Guid libraryId,
@@ -333,25 +331,21 @@ public sealed class ViewLibraryService(
             {
                 await content.CopyToAsync(output, ct);
             }
+            var room = FreeSpaceCheck.Check([new FileInfo(temporaryPath).Length], FreeBytesAtDestination(destinationPath));
+            if (!room.Fits)
+            {
+                throw new IntakeRefusedException(IntakeRefusedException.NotEnoughSpaceCode, room.Message ?? "Not enough space.", StatusCodes.Status507InsufficientStorage);
+            }
+
             var candidate = TryCreateCandidate(temporaryPath)
                 ?? throw new InvalidDataException("The uploaded file type is not supported by View.");
-            var metadata = await ReadMetadataAsync(candidate, ct);
-            var effective = metadata.CapturedAt.ToLocalTime();
-            var calendarDirectory = Path.Combine(destinationPath,
-                effective.Year.ToString("0000", CultureInfo.InvariantCulture),
-                effective.ToString("MM - MMM", CultureInfo.InvariantCulture));
+            var date = await ReadCaptureDateAsync(candidate, ct, safeName);
+            var layout = ViewFilingLayout.FolderFor(configuration.LoadPhotoFiling().LayoutPattern, date.Value);
+            var calendarDirectory = Path.Combine(destinationPath, layout);
             ct.ThrowIfCancellationRequested();
             Directory.CreateDirectory(calendarDirectory);
-            var typeSuffix = candidate.Type.MediaKind switch
-            {
-                LocalAssetMediaKinds.Image => "IMG",
-                LocalAssetMediaKinds.Video => "VID",
-                LocalAssetMediaKinds.Document => "DOC",
-                LocalAssetMediaKinds.Audio => "AUD",
-                _ => "FILE",
-            };
-            var organizedName = effective.ToString("MMM dd - HH.mm.ss", CultureInfo.InvariantCulture) + typeSuffix + extension;
-            var finalPath = UniqueDestination(calendarDirectory, organizedName);
+            var finalPath = Path.Combine(calendarDirectory,
+                ViewFilingLayout.NamesFor(calendarDirectory, [safeName], File.Exists)[0]);
             File.Move(temporaryPath, finalPath);
             return await IndexPathAsync(space.LibraryId, finalPath, addedByProfileId ?? ownerProfileId, ct)
                 ?? throw new InvalidOperationException("The uploaded file could not be indexed.");
@@ -679,7 +673,7 @@ public sealed class ViewLibraryService(
             ? ViewKindAcceptance.OwnKindOf(candidate.Type.MediaKind)
             : null;
 
-    private static FileCandidate? TryCreateCandidate(string path)
+    internal static FileCandidate? TryCreateCandidate(string path)
     {
         var extension = Path.GetExtension(path);
         return SupportedTypes.TryGetValue(extension, out var type)
@@ -687,7 +681,7 @@ public sealed class ViewLibraryService(
             : null;
     }
 
-    private static IReadOnlyList<AssetGroup> BuildGroups(IReadOnlyList<FileCandidate> candidates)
+    internal static IReadOnlyList<AssetGroup> BuildGroups(IReadOnlyList<FileCandidate> candidates)
     {
         var result = new List<AssetGroup>();
         foreach (var stemGroup in candidates
@@ -705,9 +699,7 @@ public sealed class ViewLibraryService(
             foreach (var image in images)
             {
                 var motion = motions
-                    .Where(candidate => !consumed.Contains(candidate) && IsLivePhotoPair(image, candidate))
-                    .OrderBy(candidate => LivePhotoDistance(image, candidate))
-                    .FirstOrDefault();
+                    .FirstOrDefault(candidate => !consumed.Contains(candidate) && IsLivePhotoPair(image, candidate));
                 if (motion is null)
                 {
                     continue;
@@ -759,66 +751,16 @@ public sealed class ViewLibraryService(
         return result;
     }
 
-    private static string UniqueDestination(string directory, string fileName)
-    {
-        var candidate = Path.Combine(directory, fileName);
-        if (!File.Exists(candidate))
-        {
-            return candidate;
-        }
+    private static string GetCompoundGroupKey(FileCandidate candidate) =>
+        Path.Combine(Path.GetDirectoryName(candidate.Path) ?? string.Empty, Path.GetFileNameWithoutExtension(candidate.Path));
 
-        var stem = Path.GetFileNameWithoutExtension(fileName);
-        var extension = Path.GetExtension(fileName);
-        for (var suffix = 2; ; suffix++)
-        {
-            candidate = Path.Combine(directory, $"{stem} ({suffix}){extension}");
-            if (!File.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-    }
-
-    private static string GetCompoundGroupKey(FileCandidate candidate)
-    {
-        var directory = Path.GetDirectoryName(candidate.Path) ?? string.Empty;
-        var stem = Path.GetFileNameWithoutExtension(candidate.Path);
-        var match = TimedCompoundName.Match(stem);
-        return match.Success
-            ? Path.Combine(directory, match.Groups["prefix"].Value)
-            : Path.Combine(directory, stem);
-    }
-
-    private static bool IsLivePhotoPair(FileCandidate image, FileCandidate motion)
-    {
-        var imageStem = Path.GetFileNameWithoutExtension(image.Path);
-        var motionStem = Path.GetFileNameWithoutExtension(motion.Path);
-        if (string.Equals(imageStem, motionStem, StringComparison.OrdinalIgnoreCase))
-        {
-            return image.Extension is ".heic" or ".heif" || JpegExtensions.Contains(image.Extension);
-        }
-
-        var imageMatch = TimedCompoundName.Match(imageStem);
-        var motionMatch = TimedCompoundName.Match(motionStem);
-        return imageMatch.Success
-            && motionMatch.Success
-            && imageMatch.Groups["kind"].Value.Equals("IMG", StringComparison.OrdinalIgnoreCase)
-            && motionMatch.Groups["kind"].Value.Equals("VID", StringComparison.OrdinalIgnoreCase)
-            && imageMatch.Groups["prefix"].Value.Equals(motionMatch.Groups["prefix"].Value, StringComparison.OrdinalIgnoreCase)
-            && LivePhotoDistance(image, motion) <= 2;
-    }
-
-    private static int LivePhotoDistance(FileCandidate first, FileCandidate second)
-    {
-        var firstMatch = TimedCompoundName.Match(Path.GetFileNameWithoutExtension(first.Path));
-        var secondMatch = TimedCompoundName.Match(Path.GetFileNameWithoutExtension(second.Path));
-        if (!firstMatch.Success || !secondMatch.Success)
-        {
-            return 0;
-        }
-
-        return Math.Abs(int.Parse(firstMatch.Groups["seconds"].Value) - int.Parse(secondMatch.Groups["seconds"].Value));
-    }
+    // A Live Photo is a picture and a short video that share one name.
+    private static bool IsLivePhotoPair(FileCandidate image, FileCandidate motion) =>
+        string.Equals(
+            Path.GetFileNameWithoutExtension(image.Path),
+            Path.GetFileNameWithoutExtension(motion.Path),
+            StringComparison.OrdinalIgnoreCase)
+        && (image.Extension is ".heic" or ".heif" || JpegExtensions.Contains(image.Extension));
 
     private async Task<LocalMetadata> ReadMetadataAsync(FileCandidate candidate, CancellationToken ct)
     {
@@ -834,6 +776,7 @@ public sealed class ViewLibraryService(
         double? longitude = null;
         string? videoCodec = null;
         double? frameRate = null;
+        var capturedFromMetadata = false;
 
         if (candidate.Type.MediaKind == LocalAssetMediaKinds.Image)
         {
@@ -869,6 +812,7 @@ public sealed class ViewLibraryService(
                 {
                     capturedAt = new DateTimeOffset(
                         DateTime.SpecifyKind(tag.DateTime.Value, DateTimeKind.Local)).ToUniversalTime();
+                    capturedFromMetadata = true;
                 }
                 deviceMake = NullIfWhiteSpace(tag.Make);
                 deviceModel = NullIfWhiteSpace(tag.Model);
@@ -888,6 +832,7 @@ public sealed class ViewLibraryService(
             if (probe is not null)
             {
                 title ??= NullIfWhiteSpace(probe.Title);
+                capturedFromMetadata |= probe.CapturedAt is not null;
                 capturedAt = probe.CapturedAt ?? capturedAt;
                 width ??= probe.Width;
                 height ??= probe.Height;
@@ -920,7 +865,29 @@ public sealed class ViewLibraryService(
             null,
             null,
             videoCodec,
-            frameRate);
+            frameRate,
+            capturedFromMetadata);
+    }
+
+    /// <summary>
+    /// The date a photo or video was taken, for filing it (Photo and video filing spec D2): the camera or phone's own date, then a date in
+    /// the file name, then the date of the file itself (the earlier of created and last changed, since a copy gets a new created time).
+    /// </summary>
+    /// <summary>Free space where a file will be stored. Replaced in tests; the default reads the drive.</summary>
+    internal Func<string, long?> FreeBytesAtDestination { get; set; } = FreeSpaceCheck.FreeBytesAt;
+
+    internal async Task<ViewCaptureDate> ReadCaptureDateAsync(FileCandidate candidate, CancellationToken ct, string? originalName = null)
+    {
+        var metadata = await ReadMetadataAsync(candidate, ct);
+        var info = new FileInfo(candidate.Path);
+        var created = new DateTimeOffset(info.CreationTimeUtc, TimeSpan.Zero);
+        var modified = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero);
+        var fileDate = created.Year >= 1990 && created < modified ? created : modified;
+        return ViewCaptureDates.Resolve(
+            metadata.CapturedAtFromMetadata ? metadata.CapturedAt : null,
+            originalName ?? Path.GetFileName(candidate.Path),
+            fileDate,
+            DateTimeOffset.UtcNow);
     }
 
     private static string? ReadBoundedDocumentText(FileCandidate candidate)
@@ -960,7 +927,7 @@ public sealed class ViewLibraryService(
         }
     }
 
-    private static async Task<string> HashAsync(string path, CancellationToken ct)
+    internal static async Task<string> HashAsync(string path, CancellationToken ct)
     {
         await using var stream = new FileStream(
             path,
@@ -988,10 +955,10 @@ public sealed class ViewLibraryService(
     private static string? NullIfWhiteSpace(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private sealed record FileType(string MediaKind, string MimeType);
-    private sealed record FileCandidate(string Path, string Extension, FileType Type);
-    private sealed record AssetMember(FileCandidate Candidate, string Role);
-    private sealed record AssetGroup(FileCandidate Primary, IReadOnlyList<AssetMember> Files);
+    internal sealed record FileType(string MediaKind, string MimeType);
+    internal sealed record FileCandidate(string Path, string Extension, FileType Type);
+    internal sealed record AssetMember(FileCandidate Candidate, string Role);
+    internal sealed record AssetGroup(FileCandidate Primary, IReadOnlyList<AssetMember> Files);
     private sealed record LocalMetadata(
         string? Title,
         DateTimeOffset CapturedAt,
@@ -1011,5 +978,6 @@ public sealed class ViewLibraryService(
         int? Iso,
         double? FocalLengthMm,
         string? VideoCodec,
-        double? FrameRate);
+        double? FrameRate,
+        bool CapturedAtFromMetadata = false);
 }

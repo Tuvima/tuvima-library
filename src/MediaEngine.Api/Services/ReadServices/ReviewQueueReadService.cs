@@ -56,7 +56,16 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         _configuration = configuration;
     }
 
-    public async Task<IReadOnlyList<ReviewItemDto>> GetPendingAsync(int limit, CancellationToken ct = default)
+    public Task<IReadOnlyList<ReviewItemDto>> GetPendingAsync(int limit, CancellationToken ct = default)
+        => GetPendingCoreAsync(limit, null, ct);
+
+    public Task<IReadOnlyList<ReviewItemDto>> GetPendingForLibraryAsync(int limit, string libraryId, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(libraryId);
+        return GetPendingCoreAsync(limit, libraryId.Trim(), ct);
+    }
+
+    private async Task<IReadOnlyList<ReviewItemDto>> GetPendingCoreAsync(int limit, string? libraryId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -148,12 +157,13 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             FROM pending p
             LEFT JOIN media_assets ma ON ma.id = p.asset_id
             LEFT JOIN works w ON w.id = p.work_id
-            WHERE (p.entity_type = 'MediaAsset' AND ma.id IS NOT NULL)
+            WHERE ((p.entity_type = 'MediaAsset' AND ma.id IS NOT NULL)
                OR (p.entity_type = 'Work' AND w.id IS NOT NULL)
-               OR (p.entity_type NOT IN ('MediaAsset', 'Work'))
+               OR (p.entity_type NOT IN ('MediaAsset', 'Work')))
+              AND (@libraryId IS NULL OR (ma.id IS NOT NULL AND lower(ma.library_id) = lower(@libraryId)))
             ORDER BY p.created_at DESC
             LIMIT @limit;
-            """, new { status = ReviewStatus.Pending, limit })).AsList();
+            """, new { status = ReviewStatus.Pending, limit, libraryId })).AsList();
 
         var importPath = _importFolders?.GetImportPath();
         var managedRoots = ManagedFolderRoots();

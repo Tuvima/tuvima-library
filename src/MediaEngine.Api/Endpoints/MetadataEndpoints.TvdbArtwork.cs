@@ -12,8 +12,7 @@ namespace MediaEngine.Api.Endpoints;
 
 public static partial class MetadataEndpoints
 {
-    private const string UnmatchedTvShowMessage =
-        "This show is not matched to TheTVDB yet. Open Match and Identity to choose the show.";
+    private const string UnmatchedTvShowMessage = ProviderArtworkDiscoveryDto.UnmatchedTvShowMessage;
 
     private static async Task<string?> ResolveTvdbArtworkIdAsync(
         EditorScopeResolution scope, ICanonicalValueRepository canonicals, CancellationToken ct,

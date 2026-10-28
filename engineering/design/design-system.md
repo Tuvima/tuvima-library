@@ -42,7 +42,7 @@ The Dashboard is **dark only** (`color-scheme: dark`). The reader adds light, se
 | Use | Font | Notes |
 |---|---|---|
 | Interface | Segoe UI Variable (system UI fallbacks) | Not shipped; uses the device's font |
-| Brand and deliberate media identity | Montserrat | Self-hosted |
+| Brand and deliberate media identity | Tuvima Sans (a Montserrat derivative; navigation and brand text only), Montserrat as fallback | Self-hosted |
 | Reading (EPUB) | Merriweather | Reader only |
 | Paths, IDs, code | JetBrains Mono | |
 

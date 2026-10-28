@@ -5,7 +5,7 @@
 Every documentation file in the repository, one line each, with its status. Two homes:
 
 - **`engineering/`** (this folder) — internal planning: product and architecture overviews, decisions, design system, specs. Not published.
-- **`docs/`** — the public documentation website, https://tuvima.github.io/tuvima-library/ (built by `website/`).
+- **Public documentation** — https://docs.tuvima.com/, built from the separate `tuvima-docs` repository (this repository keeps only `docs/reference/approved-plugins.json` and `plugin-host-v1.openapi.json`).
 
 **Statuses.** Specs: Draft → Locked → In progress → Built. Other internal docs: Current (kept up to date) or Historical (a record; not maintained). Public pages use the site's own values: current, early-access, target-state.
 
@@ -23,6 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
+| [Spec: One Tuvima documentation hub (docs.tuvima.com: Products, Libraries, Legal; Library and Tuvima.Wikidata docs move into tuvima-docs)](specs/docs-hub.md) | Built, awaiting Local checks (v2; hub live at docs.tuvima.com, Library re-pointed 2026-10-28; checks L1-L3 in validation/batch.md) |
 | [Spec: Links to outside sources (TheTVDB links, linked people, person-page links)](specs/outside-source-links.md) | In progress (2026-10-28; cloud build done, WP1 live-address check parked as Local checks) |
 | [Spec: Plugins and Integrations screens (one look, Upload plugin, new-integration wizard)](specs/plugins-and-integrations-screens.md) | Built, awaiting your Local checks (v2, 2026-10-27; PRs #458, #459, #461, #463, #464, #466; community plugins, directory installs and code-running uploads stay parked) |
 | [Spec: Plugin architecture (audience, libraries, Vault rule, dependencies, clean removal, display slots, per-profile connections, one pass over every plugin)](specs/plugin-architecture.md) | Built, awaiting Local checks (v1, locked 2026-10-27; PA1-PA7 built and merged; left over: per-profile Plugin actions switches, the Comskip source check, the chapter-name detector; community plugins stay parked) |
@@ -43,6 +44,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
 | [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | Built, awaiting your Local checks (v33, 2026-10-27, partly superseded by Library pages; every packet merged, WP7b-3 and WP10 last) |
 | [Spec: Library and folder management pages (one Libraries experience)](specs/library-pages.md) | Built, awaiting your Local checks (v14, 2026-10-27; replaces the front-door cards, three-step Add folder wizard and Vault card of the library setup spec; docs written; follow-ups listed at the end of the spec) |
+| [Spec: Photo and video filing (Engine side of Photos and Personal videos)](specs/photo-video-filing.md) | Built, awaiting your Local checks (v2, 2026-10-28; Import and Rejected areas outside library folders, date filing, duplicates and cleanup report, Tidy this folder in place, Needs Review library filter; overrides the import-subfolder part of Library pages D25) |
 | [Spec: Batched write-back (all files, on a schedule, with ExifTool)](specs/batched-writeback.md) | Built, awaiting Local checks (v2; #416, #419, #420, #422, BW5 docs) |
 | [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21, change note 2026-10-22; EK1 and EK3 before plugin install WP19, EK2 with a 4-digit PIN after Backup and restore WP3) |
 | [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | Built, awaiting your Local checks (v8, 2026-10-22; [handoff](handoffs/2026-10-21-backup-and-restore.md) done; WP1 to WP6 built: #397, #405, #421, #424, #428, #431; checks L1 to L6 in [the batch list](validation/batch.md)) |
@@ -75,6 +77,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
 | [Handoff: finish the outstanding work, end to end (2026-10-19)](handoffs/2026-10-19-finish-outstanding-work.md) | Current |
+| [Handoff: docs hub local checks (2026-10-28)](handoffs/2026-10-28-docs-hub-local-checks.md) | Current: three checks (Help links, phone, light and dark) for the docs.tuvima.com move |
 | [Handoff: finish the Details overlay and Editing Mode spec (2026-10-21)](handoffs/2026-10-21-details-overlay-finish.md) | Current: WP8 per-type pass and docs, plus follow-ups |
 | [Handoff: Developer tools waves 4 to 8 and wave 3 follow-ups (2026-10-20)](handoffs/2026-10-20-developer-tools-waves-4-to-8.md) | Current |
 | [Handoff: finish the Universes spec (2026-10-20)](handoffs/2026-10-20-universe-remaining.md) | Current (threads A to G: U-WP3b, U-WP13, U-WP14, U-WP9 part 2, U-WP4 priority, U-WP15, closing the spec) |

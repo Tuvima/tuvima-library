@@ -38,11 +38,11 @@ There is also a standalone `src/MediaEngine.Ingestion` worker host, but the main
 ## Local Dev Commands
 
 - Work from the repo root: `C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library`
-- Application startup uses .NET restore/run. Documentation uses Node 24 and the pinned npm project in `website/`.
+- Application startup uses .NET restore/run. Public documentation lives in the separate `tuvima-docs` repository (Node 24 there).
 - Required SDK: `.NET 10.0.100` from `global.json`
 - Restore dependencies: `dotnet restore MediaEngine.slnx`
 - Optional sanity build: `dotnet build MediaEngine.slnx`
-- Native build/publish assets are limited to the explicit runtime or SDK host and its RID fallbacks. Do not disable this for ordinary verification. Stop the Engine/Dashboard and use `pwsh -File tools/Clean-RepoOutputs.ps1` to clear obsolete configurations; `-IncludeQa` clears only its listed QA build folders, and `-WhatIf` previews. Keep QA outputs under ignored `.tmp/`, retain evidence needed for review, and clean compiled QA copies after acceptance. See `docs/guides/repository-storage.md`.
+- Native build/publish assets are limited to the explicit runtime or SDK host and its RID fallbacks. Do not disable this for ordinary verification. Stop the Engine/Dashboard and use `pwsh -File tools/Clean-RepoOutputs.ps1` to clear obsolete configurations; `-IncludeQa` clears only its listed QA build folders, and `-WhatIf` previews. Keep QA outputs under ignored `.tmp/`, retain evidence needed for review, and clean compiled QA copies after acceptance. See the repository storage guide on docs.tuvima.com.
 - The current `nuget.config` restores packages from nuget.org. If an older or local checkout maps `Tuvima.Wikidata*` to a sibling `tuvima-wikidata/artifacts` feed, check that mapping and feed before changing package references.
 
 Start the two runtime apps in separate terminals:
@@ -69,7 +69,7 @@ Runtime notes:
 - The Dashboard defaults to `Engine:BaseUrl = http://localhost:61495`
 - Dashboard service credentials are resolved at request send time, never during typed-client construction. Missing, invalid, or rotated bundles must fail closed with recoverable connection errors; do not send anonymous requests or reuse a stale credential. Keep the service header and any View signature on the same request credential snapshot.
 - If the Engine is started on a different address, set `TUVIMA_ENGINE_URL` before starting the Dashboard
-- Selected local AI profiles may download model weights; allow for their actual catalog size and optional audio pack. See `docs/guides/local-ai-model-rollout.md` rather than assuming a fixed first-start download size.
+- Selected local AI profiles may download model weights; allow for their actual catalog size and optional audio pack. See the local AI model rollout guide on docs.tuvima.com rather than assuming a fixed first-start download size.
 
 
 ## Current Dashboard/Product UI Model
@@ -101,7 +101,7 @@ The Dashboard is organized by user experience, not by a separate media managemen
 - Library behavior is policy-driven. Only `catalogued` and `personal` library kinds exist. Catalogued libraries normally use enriched metadata; personal libraries may use local-preferred, local-only, or manual metadata and belong in View. Local-only and manual content must not be sent to external identity or metadata providers.
 - System backup archives contain a consistent SQLite snapshot, a manifest, and non-secret configuration. Restore validation and staging occur while the Engine is running; application happens before the data store opens on the next Engine start, preserving the previous database as a recovery copy.
 
-The old all-in-one management workspace has been removed and must not be rebuilt. Do not add routes, navigation, docs, tabs, or a separate media-fixing workbench for it. Normal media corrections launch `SharedMediaEditorShell` through `MediaEditorLauncherService.OpenAsync`; Review uses the same modal editor in review mode.
+The old all-in-one management workspace has been removed and must not be rebuilt. Do not add routes, navigation, docs, tabs, or a separate media-fixing workbench for it. Normal media corrections happen in the universal editor on the item's own page (editing bar, side panel, Review changes); Needs Review opens the item's page in that editor.
 
 Current UI entry points:
 
@@ -123,15 +123,15 @@ Treat stale references to old all-in-one workspace components, retired CSS prefi
 - **Pre-beta destructive cutover and validation rule:** until the product owner explicitly declares the product ready for public beta or changes this rule, solve ingestion, enrichment, identity, organization, and artwork defects systemically in the normal pipeline. Do not add repair jobs, data backfills, corrective migrations, startup fixups, or one-off code that mutates an existing catalogue to compensate for a defect. Validate the corrected behavior by wiping disposable development application state and performing a fresh ingest from the configured source media. Development database and configuration state may be deleted, reset, or rebuilt to reach the current target architecture. Do not add backups, data-preserving migrations, compatibility readers/writers, route aliases, dual schemas, or legacy fallbacks for pre-beta state. Fail fast on obsolete state and reingest. This rule applies only to disposable application/configuration state; existing/read-only media sources and user-owned originals must still be protected from unintended moves, renames, writeback, overwrite, or deletion.
 - Do not recreate the old all-in-one management workflow. No new routes, implementation types, navigation labels, docs as current product behavior, or all-in-one media correction workbenches for it.
 - Do not add backward compatibility, legacy fallback paths, compatibility readers/writers, migration shims, old route aliases, old config-key support, dual-schema support, or old workflow facades unless the user explicitly asks for that exact compatibility behavior. Prefer failing fast with a clear error or removing unsupported legacy state. If compatibility is explicitly approved, document the request, scope, sunset/removal criteria, and tests in the same change. Legacy database backup/reset is allowed as data safety, but not as in-place migration support.
-- Normal detail-page fixes and Review use `MediaEditorLauncherService.OpenAsync` to host `SharedMediaEditorShell` in a modal while the underlying detail page remains mounted at the same URL (Batch launches are currently refused by the launcher). TV episode titles in owned episode lists open the episode detail surface, while the adjacent explicit Edit action launches the episode-scoped editor directly. Keep normal Details lean (presentation overrides plus profile-local library preferences), keep provider facts read-only, and put structural parent moves in Matching.
+- Normal detail-page fixes and Review use the universal editor in place on the item's own page; there is no pop-up editor (the Chronicle explorer edits the Universe and its characters, places and organisations the same way). TV episode titles in owned episode lists open the episode detail surface, while the adjacent explicit Edit action launches the episode-scoped editor directly. Keep normal Details lean (presentation overrides plus profile-local library preferences), keep provider facts read-only, and put structural parent moves in Matching.
 - Single-item editing keeps metadata, local fields, and sorting in Details; it does not expose a separate Options tab. File shows physical-file state only, while History owns identity, metadata, artwork, and ingestion events. A retail rematch synchronously replaces provider-managed artwork and refreshes the detail hero before background Wikidata alignment proceeds.
 - Main Listen host adapters read `PlaybackSessionController`; reusable controls consume captured snapshots and command sinks rather than another circuit's controller. Shared transport stays in `ListenTransportControls`; browser-specific transport belongs behind the persistent Web audio host and `listenPlayback` JS bridge. Music shuffle/repeat, queue/history access, and audiobook speed/chapters/history/bookmarks/sleep tools remain available from the bottom player and popout. Music play counts are profile-scoped and qualify after 30 seconds of genuine listening, or 50% for tracks shorter than 30 seconds; forward seeks do not count as listening time.
-- Player utilities use shared thin outline glyphs, bare 22px visuals and at least 44px targets. The flush audio dock keeps transport independently centered and its seek rail on the top edge. Desktop/tablet Close player remains visible outside utility overflow, saves guarded paused resume and stops only the captured session. Phone Collapse is presentation-only; phone players have no session-stop Close. PlaybackFullPlayer supplies the shared snapshot/sink phone and popout UI; only the phone supplies Collapse. The popout fills its 420 by 780 default window and exposes no in-player exit. Canonical identity links navigate through the authorized main owner without reloading audio; native cleanup releases only its matching popup registration. Audio tools use anchored popovers or bounded modal sheets without page reflow; Ingestion retains its layout-sidebar lease and resize behavior. Shared controls use captured snapshots and direct/broadcast command sinks against the same playback owner. Speed uses the shared slider popover; Sleep uses the central flat select with one menu scroll owner. Sleep choices request an authoritative arm whose selected minutes, absolute deadline and verified chapter boundary are independent of bookmark draft leases. Bookmarks retain one captured Add/Saved dialog anchored to its local opener on desktop and a bounded phone sheet. Do not restore stacked workspaces, immediate-add shortcuts or duplicate Saved lists. Follow `docs/architecture/playback.md`; current remediation status and verification limits are recorded in `engineering/reports/remediation-2026-10-04.md`, which supersedes the earlier dock/sidebar layout in the October 2 refinement report.
+- Player utilities use shared thin outline glyphs, bare 22px visuals and at least 44px targets. The flush audio dock keeps transport independently centered and its seek rail on the top edge. Desktop/tablet Close player remains visible outside utility overflow, saves guarded paused resume and stops only the captured session. Phone Collapse is presentation-only; phone players have no session-stop Close. PlaybackFullPlayer supplies the shared snapshot/sink phone and popout UI; only the phone supplies Collapse. The popout fills its 420 by 780 default window and exposes no in-player exit. Canonical identity links navigate through the authorized main owner without reloading audio; native cleanup releases only its matching popup registration. Audio tools use anchored popovers or bounded modal sheets without page reflow; Ingestion retains its layout-sidebar lease and resize behavior. Shared controls use captured snapshots and direct/broadcast command sinks against the same playback owner. Speed uses the shared slider popover; Sleep uses the central flat select with one menu scroll owner. Sleep choices request an authoritative arm whose selected minutes, absolute deadline and verified chapter boundary are independent of bookmark draft leases. Bookmarks retain one captured Add/Saved dialog anchored to its local opener on desktop and a bounded phone sheet. Do not restore stacked workspaces, immediate-add shortcuts or duplicate Saved lists. Follow the playback architecture page on docs.tuvima.com; current remediation status and verification limits are recorded in `engineering/reports/remediation-2026-10-04.md`, which supersedes the earlier dock/sidebar layout in the October 2 refinement report.
 - Review Queue is the exception workflow for blocked, uncertain, low-confidence, or unresolved items. Settings/Admin is for configuration and operational state, not a normal media correction workspace.
 - Use `IDatabaseConnection.CreateConnection()` for normal repository, read-service, endpoint, background-job, and request-path database work. Dispose each short-lived connection with `using`.
 - `IDatabaseConnection.Open()` is startup/schema/integrity-only. New uses outside `DatabaseConnection`, Engine startup, or explicitly documented test fixtures should fail guardrail tests.
 - Current storage epoch is `guid-blob-v12-profile-held-access`: internal SQLite GUIDs are 16-byte BLOBs, external IDs remain TEXT, API JSON still returns GUID strings, and legacy TEXT-GUID databases are reset/reingested rather than migrated in place.
-- The data structure changes only through numbered upgrade steps in `src/MediaEngine.Storage/Schema/Upgrades/` (`NNNN_short_name.sql` or a `DataStoreCodeUpgradeStep`). Each runs once, is recorded in `data_store_upgrades`, and is never edited after release. `Schema/schema.snapshot.sql` is generated; refresh it with `pwsh -File tools/Update-SchemaSnapshot.ps1`. See `docs/develop/changing-the-data-store.md`.
+- The data structure changes only through numbered upgrade steps in `src/MediaEngine.Storage/Schema/Upgrades/` (`NNNN_short_name.sql` or a `DataStoreCodeUpgradeStep`). Each runs once, is recorded in `data_store_upgrades`, and is never edited after release. `Schema/schema.snapshot.sql` is generated; refresh it with `pwsh -File tools/Update-SchemaSnapshot.ps1`. See the "Changing the data store" page on docs.tuvima.com.
 - SQLite connections use WAL plus `synchronous=NORMAL`, `busy_timeout=5000`, memory temp storage, a 16 MiB page cache target, and a 256 MiB mmap cap for local ingestion throughput. The accepted tradeoff is that an OS/power crash can require reingesting the most recent file changes.
 - Microsoft.Data.Sqlite does not provide asynchronous I/O. Repository APIs may
   remain `Task`-shaped, but SQLite/Dapper commands execute synchronously after a
@@ -250,20 +250,13 @@ Treat stale references to old all-in-one workspace components, retired CSS prefi
   - Many behavior changes happen here without changing C# code.
 
 - `docs/`
-  - Product and architecture documentation.
-  - Organized into tutorials, guides, reference, explanation, and architecture folders.
-
-- `website/`
-  - Astro Starlight documentation platform, publication manifest, and pinned Node dependencies.
+  - Only two machine-readable data files: `reference/approved-plugins.json` (read by the Engine from GitHub) and `reference/plugin-host-v1.openapi.json`. The public documentation lives in the `tuvima-docs` repository and is published at https://docs.tuvima.com/.
 
 - `engineering/`
-  - Plans, historical reports, and non-image verification evidence; excluded from the published site.
+  - Plans, historical reports, and non-image verification evidence; not part of the published docs.
 
 - `docker/`
   - Container entrypoint and packaging support.
-
-- `scripts/docs/`
-  - Documentation build and serve scripts.
 
 - `tools/`
   - Local utilities and bundled support assets such as FFmpeg, reports, and test data.
@@ -307,7 +300,7 @@ In plain English:
 
 Two-pass enrichment: The Quick pass gets the item visible on the Dashboard fast (core identity + cover art). The Universe pass runs later in the background for deep enrichment (relationships, people, fictional entities, additional images).
 
-Canonical deep-dive: `docs/architecture/ingestion-identity-enrichment-pipeline.md`.
+Canonical deep-dive: the ingestion, identity and enrichment pipeline page on docs.tuvima.com.
 
 ## A Non-Developer Guide To The Data Model
 
@@ -399,7 +392,7 @@ If you are new to the repo, read these files in roughly this order:
 
 That sequence explains the product, the runtime wiring, the intake flow, the enrichment flow, the decision logic, and the persistence/config layer.
 
-For the Developer area (Settings > Developer), start from `docs/guides/developer-tools.md` and decisions 0012 and 0013 in `engineering/architecture/decisions/`. The code: plugin loading, approval, install and the four kinds are under `src/MediaEngine.Api/Services/Plugins/` (`PluginCatalog.cs`, `PluginPackageInstaller.cs`, `Declarative/`, `Service/`, `Sandbox/`, `AiFeatures/`); the contracts every kind shares are in `src/MediaEngine.Plugins/`; the one event list is `src/MediaEngine.Api/Services/Events/LibraryEvents.cs`; notifications are under `Services/Notifications/`; backups and their destinations are under `Services/Backups/`; the Local AI engine room is `src/MediaEngine.AI/EngineRoom/`.
+For the Developer area (Settings > Developer), start from the developer tools guide on docs.tuvima.com and decisions 0012 and 0013 in `engineering/architecture/decisions/`. The code: plugin loading, approval, install and the four kinds are under `src/MediaEngine.Api/Services/Plugins/` (`PluginCatalog.cs`, `PluginPackageInstaller.cs`, `Declarative/`, `Service/`, `Sandbox/`, `AiFeatures/`); the contracts every kind shares are in `src/MediaEngine.Plugins/`; the one event list is `src/MediaEngine.Api/Services/Events/LibraryEvents.cs`; notifications are under `Services/Notifications/`; backups and their destinations are under `Services/Backups/`; the Local AI engine room is `src/MediaEngine.AI/EngineRoom/`.
 
 ## Practical Reading Notes
 
@@ -415,7 +408,7 @@ Detailed working rules moved out of this file on 2026-10-17 so there is one copy
 
 - Dashboard product-surface rules (Collections, TV, Libraries, Setup, editor model, Home, player): `.claude/rules/dashboard-surfaces*.md` (index in `dashboard-surfaces.md`)
 - Dashboard code map, CSS ownership, icon rows, native controls and release styling: `src/MediaEngine.Web/CLAUDE.md`
-- Access authority: `.claude/rules/security.md` and `docs/architecture/security.md`
+- Access authority: `.claude/rules/security.md` and the security architecture page on docs.tuvima.com
 - Shared AI storage and worktree retention: `.claude/rules/build-and-ai-runtime.md`
 - Everything cross-cutting: root `CLAUDE.md`; specs and planning docs: `engineering/README.md`
 

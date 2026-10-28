@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Filing;
+using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Plugins;
@@ -85,6 +86,10 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<ViewSourceIndexingHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ViewSourceIndexingHostedService>());
         services.AddHostedService<ViewTrashRecoveryHostedService>();
+        services.AddSingleton<ViewIntakeHostedService>();
+        services.AddHostedService(sp => sp.GetRequiredService<ViewIntakeHostedService>());
+        services.AddHostedService<ViewDuplicatesHostedService>();
+        services.AddHostedService<ViewTidyHostedService>();
         services.AddHostedService<RetagSweepWorker>();
         services.AddSingleton<ArtworkWritebackService>();
         services.AddHostedService<ArtworkWritebackWorker>();

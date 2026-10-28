@@ -36,6 +36,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /review/pending?limit= — like <see cref="GetPendingReviewsAsync"/>, but a failed load is reported instead of returned as an empty list.</summary>
     Task<ReviewListAttempt> GetPendingReviewsAttemptAsync(int limit = 50, CancellationToken ct = default);
 
+    /// <summary>GET /review/pending?library= — the pending items whose file belongs to one library.</summary>
+    Task<ReviewListAttempt> GetPendingReviewsForLibraryAttemptAsync(string libraryId, int limit = 50, CancellationToken ct = default);
+
     /// <summary>GET /review/{id} — single review item with full detail.</summary>
     Task<ReviewItemViewModel?> GetReviewItemAsync(Guid id, CancellationToken ct = default);
 

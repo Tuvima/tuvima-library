@@ -1,4 +1,5 @@
 .needs-review-page { display: grid; gap: 1rem; }
+.needs-review-page__scope { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
 .needs-review-page__filters { display: grid; grid-template-columns: minmax(0, 28rem); }
 .review-pinned-empty { display: flex; align-items: center; gap: .65rem; min-height: 3.2rem; padding: .7rem 1rem; color: var(--tl-palette-success); border: 1px solid var(--app-border); border-radius: .65rem; background: var(--app-surface); }
 .review-pinned { overflow: hidden; border: 1px solid color-mix(in srgb, var(--tl-palette-warning) 42%, var(--app-border)); border-radius: .65rem; background: var(--app-surface); }

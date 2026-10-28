@@ -81,7 +81,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<ContextSidebarCoordinator>();
         Services.AddScoped<MediaReactionService>();
         Services.AddScoped<SavedItemService>();
-        Services.AddScoped<MediaEditorLauncherService>();
         Services.AddSingleton<IAdministratorSurfaceAccessService>(new AlwaysUnlockedAdministratorSurfaceAccessService());
         var profileId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
@@ -1940,7 +1939,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void UiConsistencyAudit_DocumentsMigrationPlan()
     {
-        var audit = File.ReadAllText(GetRepoFile("docs", "ui", "ui-consistency-audit.md"));
+        var audit = File.ReadAllText(GetRepoFile("engineering", "design", "ui-consistency-audit.md"));
 
         Assert.Contains("Inconsistent Form And Input Styling", audit);
         Assert.Contains("Inline Styles", audit);

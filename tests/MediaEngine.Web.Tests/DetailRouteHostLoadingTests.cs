@@ -73,7 +73,6 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<UIOrchestratorService>();
-        Services.AddScoped<MediaEditorLauncherService>();
         Services.AddScoped<CollectionEditorLauncherService>();
         Services.AddSingleton(provider => new SavedItemService(provider.GetRequiredService<IEngineApiClient>()));
         Services.AddSingleton(provider => new MediaReactionService(provider.GetRequiredService<IEngineApiClient>()));

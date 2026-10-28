@@ -324,6 +324,49 @@ public sealed partial class EngineApiClient
         catch (Exception ex) { _logger.LogWarning(ex, "POST /view/uploads failed"); return new(false, ErrorMessage: "The Dashboard could not upload this file."); }
     }
 
+    public Task<ViewIntakeSummaryDto?> GetViewIntakeSummaryAsync(string contentKind, CancellationToken ct = default) =>
+        GetAsync<ViewIntakeSummaryDto>("GET /view/admin/intake/{kind}", $"/view/admin/intake/{Uri.EscapeDataString(contentKind)}", ct: ct);
+
+    public Task<ViewIntakeScanResultDto?> ScanViewImportAreaAsync(CancellationToken ct = default) =>
+        PostAsync<object, ViewIntakeScanResultDto>("POST /view/admin/intake/scan", "/view/admin/intake/scan", new { }, ct: ct);
+
+    public Task<bool> RemoveViewRejectedFileAsync(Guid id, CancellationToken ct = default) =>
+        DeleteAsync("DELETE /view/admin/intake/rejected/{id}", $"/view/admin/intake/rejected/{id:D}", ct: ct);
+
+    public Task<ViewFilingLayoutDto?> GetViewFilingLayoutAsync(CancellationToken ct = default) =>
+        GetAsync<ViewFilingLayoutDto>("GET /view/admin/intake/layout", "/view/admin/intake/layout", ct: ct);
+
+    public Task<ViewFilingLayoutDto?> UpdateViewFilingLayoutAsync(string? pattern, CancellationToken ct = default) =>
+        PutAsync<UpdateViewFilingLayoutRequest, ViewFilingLayoutDto>(
+            "PUT /view/admin/intake/layout", "/view/admin/intake/layout", new UpdateViewFilingLayoutRequest(pattern), ct: ct);
+
+    public Task<ViewActivityDto?> GetViewKindActivityAsync(string contentKind, int take = 100, CancellationToken ct = default) =>
+        GetAsync<ViewActivityDto>("GET /view/admin/intake/{kind}/activity",
+            $"/view/admin/intake/{Uri.EscapeDataString(contentKind)}/activity?take={Math.Clamp(take, 1, 200)}", ct: ct);
+
+    public Task<ViewTidyStatusDto?> GetViewTidyStatusAsync(Guid sourceId, CancellationToken ct = default) =>
+        GetAsync<ViewTidyStatusDto>("GET /view/admin/tidy/{id}", $"/view/admin/tidy/{sourceId:D}", ct: ct);
+
+    public Task<ViewTidyStatusDto?> RunViewTidyAsync(Guid sourceId, CancellationToken ct = default) =>
+        PostAsync<object, ViewTidyStatusDto>("POST /view/admin/tidy/{id}/run", $"/view/admin/tidy/{sourceId:D}/run", new { }, ct: ct);
+
+    public Task<ViewTidyStatusDto?> SetViewTidyScheduleAsync(Guid sourceId, bool scheduled, CancellationToken ct = default) =>
+        PutAsync<ViewTidyScheduleRequest, ViewTidyStatusDto>(
+            "PUT /view/admin/tidy/{id}/schedule", $"/view/admin/tidy/{sourceId:D}/schedule", new ViewTidyScheduleRequest(scheduled), ct: ct);
+
+    public Task<ViewDuplicateReportDto?> GetViewDuplicatesAsync(CancellationToken ct = default) =>
+        GetAsync<ViewDuplicateReportDto>("GET /view/admin/duplicates", "/view/admin/duplicates", ct: ct);
+
+    public Task<ViewDuplicateReportDto?> ScanViewDuplicatesAsync(CancellationToken ct = default) =>
+        PostAsync<object, ViewDuplicateReportDto>("POST /view/admin/duplicates/scan", "/view/admin/duplicates/scan", new { }, ct: ct);
+
+    public Task<ViewDuplicateKeepResultDto?> KeepOneViewDuplicateAsync(Guid groupId, Guid keepItemId, CancellationToken ct = default) =>
+        PostAsync<ViewDuplicateKeepRequest, ViewDuplicateKeepResultDto>(
+            "POST /view/admin/duplicates/{id}/keep", $"/view/admin/duplicates/{groupId:D}/keep", new ViewDuplicateKeepRequest(keepItemId), ct: ct);
+
+    public Task<bool> DismissViewDuplicateAsync(Guid groupId, CancellationToken ct = default) =>
+        PostAsync("POST /view/admin/duplicates/{id}/dismiss", $"/view/admin/duplicates/{groupId:D}/dismiss", new { }, ct: ct);
+
     public Task<bool> SetViewItemFavoriteAsync(Guid itemId, bool value, CancellationToken ct = default) =>
         PutAsync("PUT /view/items/{id}/favorite", $"/view/items/{itemId:D}/favorite", new SetLocalAssetFlagRequest(value), ct: ct);
     public Task<bool> SetViewItemHiddenAsync(Guid itemId, bool value, CancellationToken ct = default) =>

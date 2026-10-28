@@ -20,6 +20,12 @@ public interface IImportFolderService
     bool IsWorkingPath(string path);
 
     /// <summary>
+    /// True when <paramref name="path"/> is inside the Photos or Personal videos section of the import folder. Those belong to the personal
+    /// photo and video filer; the catalogue pipeline must not read, identify or file anything in them.
+    /// </summary>
+    bool IsViewSectionPath(string path) => false;
+
+    /// <summary>
     /// The media type implied by the per-type folder (<c>Movies</c>, <c>TV</c>, <c>Music</c>, <c>Books</c>,
     /// <c>Audiobooks</c>, <c>Comics</c>) a file sits in, or <see langword="null"/> for a file at the root or anywhere else.
     /// </summary>

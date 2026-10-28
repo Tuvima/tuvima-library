@@ -35,6 +35,7 @@ public static class ReviewEndpoints
         // ── GET /review/pending ──────────────────────────────────────────────
         group.MapGet("/pending", async (
             int? limit,
+            string? library,
             IReviewQueueReadService reviewReadService,
             CancellationToken ct) =>
         {
@@ -42,7 +43,10 @@ public static class ReviewEndpoints
             // reads the exact count, then requests that many rows; unlike history,
             // this intentionally is not paged in the UI.
             var paged = PagedRequest.From(null, limit, defaultLimit: 50, maxLimit: int.MaxValue);
-            var dtos = await reviewReadService.GetPendingAsync(paged.Limit, ct);
+            // ?library= narrows to one library (the Library page's Needs review link); without it the whole queue is returned.
+            var dtos = string.IsNullOrWhiteSpace(library)
+                ? await reviewReadService.GetPendingAsync(paged.Limit, ct)
+                : await reviewReadService.GetPendingForLibraryAsync(paged.Limit, library, ct);
             return Results.Ok(dtos);
         })
         .WithName("GetPendingReviews")

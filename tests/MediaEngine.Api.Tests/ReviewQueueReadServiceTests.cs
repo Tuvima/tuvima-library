@@ -94,6 +94,45 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task PendingForLibrary_ReturnsOnlyThatLibrarysItems_AndAWorkReviewFollowsItsFile()
+    {
+        var (workA, editionA, assetA) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (workB, editionB, assetB) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        SeedMediaAsset(workA, editionA, assetA);
+        SeedMediaAsset(workB, editionB, assetB);
+        SetLibrary(assetA, "Library-A");
+        SetLibrary(assetB, "library-b");
+
+        var repository = new ReviewQueueRepository(_db);
+        var reviewA = Guid.NewGuid();
+        var reviewB = Guid.NewGuid();
+        await repository.InsertAsync(Review(reviewA, assetA, "MediaAsset", "Library A item"));
+        await repository.InsertAsync(Review(reviewB, workB, "Work", "Library B item"));
+
+        var service = new ReviewQueueReadService(_db);
+
+        var onlyA = await service.GetPendingForLibraryAsync(10, "library-a", CancellationToken.None);
+        var onlyB = await service.GetPendingForLibraryAsync(10, "LIBRARY-B", CancellationToken.None);
+        var nobody = await service.GetPendingForLibraryAsync(10, "library-c", CancellationToken.None);
+        var everything = await service.GetPendingAsync(10, CancellationToken.None);
+
+        Assert.Equal(reviewA, Assert.Single(onlyA).Id);
+        Assert.Equal(reviewB, Assert.Single(onlyB).Id);
+        Assert.Empty(nobody);
+        Assert.Equal(2, everything.Count);
+    }
+
+    private void SetLibrary(Guid assetId, string libraryId)
+    {
+        using var conn = _db.CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE media_assets SET library_id = $library WHERE id = $id;";
+        AddGuid(cmd, "$id", assetId);
+        cmd.Parameters.AddWithValue("$library", libraryId);
+        cmd.ExecuteNonQuery();
+    }
+
+    [Fact]
     public async Task PendingReasonCounts_MaterializeSqliteCountValues()
     {
         var workId = Guid.NewGuid();

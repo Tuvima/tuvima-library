@@ -27,6 +27,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<(string Name, object?[]? Args)> _writes = [];
+    private string? _providerMessage;
     private ArtworkEntityWorkspaceDto _workspace = default!;
 
     public ArtworkPickerTests()
@@ -82,7 +83,9 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetEntityArtworkAsync), _ => Task.FromResult<ArtworkEntityWorkspaceDto?>(_workspace));
             stub.SetHandler(nameof(IEngineApiClient.DiscoverProviderArtworkAsync), _ => Task.FromResult<ProviderArtworkDiscoveryDto?>(
-                new ProviderArtworkDiscoveryDto([new ProviderArtworkCandidateDto("tmdb-1", "TMDB", "/thumb/tmdb-1", 1000, 1500, false)], null)));
+                _providerMessage is { } message
+                    ? new ProviderArtworkDiscoveryDto([], message)
+                    : new ProviderArtworkDiscoveryDto([new ProviderArtworkCandidateDto("tmdb-1", "TMDB", "/thumb/tmdb-1", 1000, 1500, false)], null)));
             stub.SetHandler(nameof(IEngineApiClient.ImportProviderArtworkAsync), args =>
             {
                 _writes.Add((nameof(IEngineApiClient.ImportProviderArtworkAsync), args));
@@ -250,6 +253,20 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Null(harness.Preview.Url("CoverArt")));
         Assert.True(harness.Session.Pending.IsEmpty);
+    }
+
+    [Fact]
+    public async Task AnUnmatchedShow_OffersMatchAndIdentityBesideTheProviderMessage()
+    {
+        _providerMessage = ProviderArtworkDiscoveryDto.UnmatchedTvShowMessage;
+        _workspace = Workspace(("SeasonPoster", FirstPicture, true));
+        var (harness, cut) = await OpenPickerAsync(SeasonContext());
+        cut.FindAll(".app-segmented-control__item").Single(item => item.TextContent.Trim() == "Providers").Click();
+        cut.WaitForAssertion(() => Assert.Contains("not matched to TheTVDB", cut.Find(".tl-art-picker__hint").TextContent));
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Open Match and Identity").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(EditingSection.Match, harness.Mode.OpenSectionKind));
     }
 
     [Fact]

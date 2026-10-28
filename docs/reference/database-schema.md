@@ -1922,7 +1922,7 @@ Added by upgrade step `0030_vault_access` (Videos spec WP9). A **Vault library**
 | `vault_file_fingerprints` | Fingerprints computed on this machine (`OSHASH`, `MD5`, `PHASH`) with the file size they were computed at, kept so a big file is not read twice. Computed and sent only while the administrator's separate fingerprint permission is on. |
 | `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside Vault mode to an administrator. |
 
-**Sections and moves (upgrade steps `0062` and `0063`, Vault sections and Move to Vault).** Three more tables.
+**Sections and moves (upgrade steps `0064` and `0065`, Vault sections and Move to Vault).** Three more tables.
 
 | Table | Meaning |
 |---|---|
