@@ -465,6 +465,26 @@ public sealed partial class EngineApiClient
             $"/settings/libraries/{Uri.EscapeDataString(libraryId)}/access/profiles",
             new SetLibraryProfileGrantsRequest(profileIds), ct: ct);
 
+    public Task<IReadOnlyList<LibraryFolderDto>?> GetVaultSiblingLibrariesAsync(CancellationToken ct = default) =>
+        GetAsync<IReadOnlyList<LibraryFolderDto>>("GET /settings/vault-libraries", "/settings/vault-libraries", logAsWarning: false, ct: ct);
+
+    public Task<VaultLibraryActionResultDto?> CreateVaultLibraryAsync(CreateVaultLibraryFromKindRequest request, CancellationToken ct = default) =>
+        PostAsync<CreateVaultLibraryFromKindRequest, VaultLibraryActionResultDto>("POST /settings/vault-libraries", "/settings/vault-libraries", request, ct: ct);
+
+    public Task<VaultLibraryActionResultDto?> AddVaultFolderAsync(AddVaultFolderRequest request, CancellationToken ct = default) =>
+        PostAsync<AddVaultFolderRequest, VaultLibraryActionResultDto>("POST /settings/vault-libraries/folders", "/settings/vault-libraries/folders", request, ct: ct);
+
+    public Task<LibraryFolderDto?> SetVaultOnlineLookupAsync(string libraryId, bool enabled, CancellationToken ct = default) =>
+        PutAsync<SetVaultOnlineLookupRequest, LibraryFolderDto>(
+            "PUT /settings/vault-libraries/{libraryId}/online-lookup",
+            $"/settings/vault-libraries/{Uri.EscapeDataString(libraryId)}/online-lookup",
+            new SetVaultOnlineLookupRequest(enabled), ct: ct);
+
+    public Task<VaultMoveDestinationDto?> GetVaultMoveDestinationAsync(string kindKey, CancellationToken ct = default) =>
+        GetAsync<VaultMoveDestinationDto>(
+            "GET /settings/vault-libraries/destination",
+            $"/settings/vault-libraries/destination?kind_key={Uri.EscapeDataString(kindKey)}", logAsWarning: false, ct: ct);
+
     public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default) =>
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
             "POST /library/unmatched/libraries/{libraryId}/retry", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}/retry", null, ct: ct);

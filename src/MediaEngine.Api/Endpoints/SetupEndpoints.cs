@@ -279,7 +279,8 @@ public static class SetupEndpoints
 
         group.MapPut("/libraries", async (
             UpdateLibrariesRequest request, HttpContext context, ClaimsPrincipal user,
-            SetupSessionService sessions, IConfigurationLoader configuration, [FromServices] LibraryKindListService libraryKinds, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, CancellationToken ct) =>
+            SetupSessionService sessions, IConfigurationLoader configuration, [FromServices] LibraryKindListService libraryKinds, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {
@@ -287,11 +288,21 @@ public static class SetupEndpoints
             }
 
             var config = SettingsContractMapper.ToStorage(request);
+
+            // Setup is for the ordinary libraries only. A Vault library is never made or changed here, and saving never drops one that exists:
+            // a submitted Vault entry is refused with the same wording as any other unusable library, and the existing ones are kept as they are.
+            var vaultIds = await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false);
+            if (config.Libraries.Any(library => MediaEngine.Api.Services.Vault.VaultLibrarySettings.IsVault(library, vaultIds)))
+            {
+                return ApiErrors.BadRequest("That can't be done.");
+            }
+
+            MediaEngine.Api.Services.Vault.VaultLibrarySettings.KeepVault(configuration.LoadLibraries(), config, vaultIds);
             libraryKinds.NormaliseLookupFields(config);
             var error = SettingsEndpoints.ValidateViewStorage(config)
                 ?? SettingsEndpoints.ValidateViewRootChange(configuration.LoadLibraries(), config)
                 ?? ImportFolderValidation.Validate(config)
-                ?? libraryKinds.ValidateLibraries(config)
+                ?? libraryKinds.ValidateLibraries(MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds))
                 ?? SettingsEndpoints.ValidateConfiguredPaths(config);
             if (error is not null)
             {
@@ -314,7 +325,7 @@ public static class SetupEndpoints
             if (context.RequestServices.GetService<MediaEngine.Api.Services.Libraries.FolderFirstCheckService>() is { } firstChecks)
             {
                 await firstChecks.SaveLibrariesWithFirstChecksAsync(
-                    configuration.SaveLibraries, configuration.LoadLibraries(), config, new HashSet<string>(StringComparer.OrdinalIgnoreCase), ct);
+                    configuration.SaveLibraries, configuration.LoadLibraries(), config, vaultIds, ct);
             }
             else
             {
@@ -323,7 +334,7 @@ public static class SetupEndpoints
 
             // Setup only prepares the folders; the engine starts watching once first-run setup is complete.
             context.RequestServices.GetService<MediaEngine.Api.Services.Settings.ImportFolderApplier>()?.CreateFolders();
-            return Results.Ok(SettingsContractMapper.ToContract(config, configuration));
+            return Results.Ok(SettingsContractMapper.ToContract(MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds), configuration));
         }).Produces<LibrariesConfigurationDto>()
           .ProducesProblem(StatusCodes.Status400BadRequest);
 

@@ -55,6 +55,12 @@ public sealed class ProfilePendingPipelineTests : IDisposable
     public async Task APendingSession_IsRefusedOnAnOrdinaryRoute_UntilAProfileIsChosen_WhileThePickersRoutesWork()
     {
         await using var app = await StartAsync();
+        // Setup is over: while it runs, a household of one is not asked who is using Library.
+        using (var connection = _database.CreateConnection())
+        {
+            Dapper.SqlMapper.Execute(connection, "UPDATE onboarding_workflows SET state = 'complete';");
+        }
+
         var identity = app.Services.GetRequiredService<IFirstPartyIdentityService>();
         var owner = await identity.BootstrapThisComputerAdministratorAsync(
             "owner@example.com", "Dad", "setup-device", "Setup", "Dashboard");

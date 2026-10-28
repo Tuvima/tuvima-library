@@ -53,7 +53,7 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
         var mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
             accounts,
             new ProfileAccessRepository(_database), identities, profiles, _configuration, decisions, new AllowEvaluator(),
-            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
             accounts, new ProfileAccessRepository(_database), _identity);
         _devices = new ClientAuthorizationRepository(_database);
         _service = new PhoneBackupProfileService(_devices, accounts, profiles, _identity, decisions, new NoOpAudit(), TimeProvider.System);

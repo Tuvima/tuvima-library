@@ -447,10 +447,16 @@ public static class JsonConfigValidator
         var ids = new HashSet<Guid>();
         var sourceIds = new HashSet<Guid>();
         var normalizedPaths = new List<(string Path, string Field)>();
+        var vaultFieldPrefixes = new List<string>();
         for (var index = 0; index < config.Libraries.Count; index++)
         {
             var library = config.Libraries[index];
             var prefix = $"libraries[{index}]";
+            if (string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase))
+            {
+                vaultFieldPrefixes.Add(prefix + ".");
+            }
+
             if (!Guid.TryParse(library.Id, out var id) || id == Guid.Empty)
             {
                 errors.Add($"{prefix}.id must be a non-empty GUID.");
@@ -554,7 +560,16 @@ public static class JsonConfigValidator
                 var second = normalizedPaths[right];
                 if (PathsOverlap(first.Path, second.Path))
                 {
-                    errors.Add($"{first.Field} and {second.Field} must not overlap.");
+                    // A Vault folder is never named, not even by its position in the file: any overlap with one reads the same.
+                    var involvesVault = vaultFieldPrefixes.Any(vault =>
+                        first.Field.StartsWith(vault, StringComparison.Ordinal) || second.Field.StartsWith(vault, StringComparison.Ordinal));
+                    var message = involvesVault
+                        ? "Two folders must not overlap."
+                        : $"{first.Field} and {second.Field} must not overlap.";
+                    if (!errors.Contains(message))
+                    {
+                        errors.Add(message);
+                    }
                 }
             }
         }
@@ -605,6 +620,8 @@ public static class JsonConfigValidator
             // the library and its kind (LibraryKindRules.LibraryProblems) says so when a library's own fields disagree. A kind this file
             // does not list may belong to a plugin, so its policy is left to the Engine's check against the full list of kinds.
             else if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched
+                // A Vault-protected library looks nothing up online until an administrator switches that on for it (Vault sections D34).
+                && !string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
                 && LibraryKindLookupPolicy.ModeOf(library.KindKey, libraryKinds) != LibraryLookupMode.Plain
                 && !IsKindOnlyAPluginCouldSupply(library.KindKey, libraryKinds))
             {

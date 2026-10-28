@@ -7,3 +7,8 @@
     line-height: 1.5;
     list-style: none;
 }
+
+.setup-tools__title {
+    margin: var(--tl-space-4, 16px) 0 var(--tl-space-2, 8px);
+    font-size: 1rem;
+}

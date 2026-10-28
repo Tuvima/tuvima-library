@@ -685,7 +685,7 @@ public sealed class UserDeletionTests
                 world.Accounts,
                 world.Access, identities, world.Profiles, world._configuration,
                 new RealDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit,
-                identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), gate ?? new AuthenticationPolicyMutationGate(), world.Log,
+                identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), gate ?? new AuthenticationPolicyMutationGate(), new FixedVaultLibraries(), world.Log,
                 world.Households),
                 world.Accounts, world.Access, identity);
             var households = world.Households;

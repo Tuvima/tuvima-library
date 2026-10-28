@@ -113,7 +113,7 @@ public sealed class SharedAiRuntime(AiSettings settings, ILogger<SharedAiRuntime
             var path = Path.Combine(root, "runtimes", RuntimeInformation.RuntimeIdentifier, library);
             if (!File.Exists(path))
             {
-                throw new FileNotFoundException("Install the optional Whisper runtime with tools/Install-AiRuntime.ps1 -Whisper.", path);
+                throw new AiRuntimeNotInstalledException("Install the optional Whisper runtime with tools/Install-AiRuntime.ps1 -Whisper.", path);
             }
             // Whisper 1.9.1 takes the parent of this hint, then appends runtimes/<rid>.
             // Supply a file-shaped hint at the component root, not the native DLL itself.
@@ -141,7 +141,7 @@ public sealed class SharedAiRuntime(AiSettings settings, ILogger<SharedAiRuntime
         var manifest = Path.Combine(root, "manifest.json");
         if (!File.Exists(manifest))
         {
-            throw new FileNotFoundException("Shared AI runtime is not installed. Run tools/Install-AiRuntime.ps1 with the configured runtime directory.", manifest);
+            throw new AiRuntimeNotInstalledException("Shared AI runtime is not installed. Run tools/Install-AiRuntime.ps1 with the configured runtime directory.", manifest);
         }
         using var document = JsonDocument.Parse(File.ReadAllText(manifest));
         var data = document.RootElement;
@@ -176,3 +176,9 @@ public sealed class SharedAiRuntime(AiSettings settings, ILogger<SharedAiRuntime
         }
     }
 }
+
+/// <summary>
+/// The optional AI runtime has simply not been installed (nothing is broken). Kept apart from an install that is present but cannot
+/// load, so the first is reported calmly and only the second as a warning.
+/// </summary>
+public sealed class AiRuntimeNotInstalledException(string message, string fileName) : FileNotFoundException(message, fileName);

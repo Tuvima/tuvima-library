@@ -704,7 +704,7 @@ public sealed class PermissionsGroundworkTests
             world.Mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                 world.Accounts, new ProfileAccessRepository(world._database), identities, profiles, world._configuration, world.Decisions, new AllowEvaluator(),
                 new NoOpInvalidation(), new NoOpAudit(), world.Identity,
-                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
                 world.Accounts, new ProfileAccessRepository(world._database), world.Identity);
             world.Management = new HouseholdManagementService(
                 world.Households, world.Accounts, world.Decisions, new AllowEvaluator(), audit, world.Clock);

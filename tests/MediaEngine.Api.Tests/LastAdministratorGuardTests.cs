@@ -61,7 +61,7 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
             _access, identities, profiles, _configuration,
             new AllowAdministratorDecisions(), new AllowEvaluator(),
             new NoOpInvalidation(), new NoOpAudit(),
-            identity, new NoProfilePhotos(), TimeProvider.System, _slowCheck, new AuthenticationPolicyMutationGate()),
+            identity, new NoProfilePhotos(), TimeProvider.System, _slowCheck, new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
             _accounts, _access, identity);
     }
 

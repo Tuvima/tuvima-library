@@ -106,8 +106,11 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", panel, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ManagedLibrary", panel, StringComparison.Ordinal);
         Assert.Contains("<ServerFolderPicker", create, StringComparison.Ordinal);
-        Assert.Contains("AppDialogParameters<ServerFolderPicker>", shell, StringComparison.Ordinal);
-        Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", shell, StringComparison.Ordinal);
+        // The library page's Add folder opens the dialog that holds the picker inline (it also offers the administrator's Vault switch).
+        var addFolder = Read("src/MediaEngine.Web/Components/Settings/Libraries/LibraryAddFolderDialog.razor");
+        Assert.Contains("AppDialogParameters<LibraryAddFolderDialog>", shell, StringComparison.Ordinal);
+        Assert.Contains("<ServerFolderPicker", addFolder, StringComparison.Ordinal);
+        Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", addFolder, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceManaged", Read("src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor"), StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceExisting", view, StringComparison.Ordinal);

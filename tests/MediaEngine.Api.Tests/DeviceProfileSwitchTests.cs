@@ -70,7 +70,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var decisions = new RealAdministratorDecisions();
         var mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
             _accounts, new ProfileAccessRepository(_database), identities, profiles, _configuration, decisions, new AllowEvaluator(),
-            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
             _accounts, new ProfileAccessRepository(_database), _identity);
         _devices = new ClientAuthorizationRepository(_database);
         var applications = new ApplicationRepository(_database);
