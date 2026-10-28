@@ -227,11 +227,17 @@ public sealed class SearchService : ISearchService
         }
 
         var mediaType = MediaTypeParser.Parse(request.MediaType);
-        var retailProviders = GetRetailProviders(mediaType, useAutomaticMatching);
+        var allRetailProviders = GetRetailProviders(mediaType, useAutomaticMatching);
+        var available = ToSearchProviders(allRetailProviders);
+
+        // The editor's "Search in" choice narrows the search to one provider; any other name is no provider at all.
+        var retailProviders = string.IsNullOrWhiteSpace(request.ProviderName)
+            ? allRetailProviders
+            : [.. allRetailProviders.Where(p => string.Equals(p.Name, request.ProviderName.Trim(), StringComparison.OrdinalIgnoreCase))];
 
         if (retailProviders.Count == 0)
         {
-            return new SearchRetailResult([], request.Query, request.MediaType);
+            return new SearchRetailResult([], request.Query, request.MediaType) { Providers = available };
         }
 
         // Build endpoint map for URLs/country/language
@@ -330,7 +336,7 @@ public sealed class SearchService : ISearchService
             }
         }
 
-        return new SearchRetailResult(candidates.Take(Math.Clamp(request.MaxCandidates, 1, 50)).ToList(), request.Query, request.MediaType) { ProviderErrors = providerErrors.ToArray() };
+        return new SearchRetailResult(candidates.Take(Math.Clamp(request.MaxCandidates, 1, 50)).ToList(), request.Query, request.MediaType) { ProviderErrors = providerErrors.ToArray(), Providers = available };
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -615,6 +621,15 @@ public sealed class SearchService : ISearchService
                 query);
             return [];
         }
+    }
+
+    private IReadOnlyList<RetailSearchProvider> ToSearchProviders(IReadOnlyList<IExternalMetadataProvider> providers)
+    {
+        var configs = _configLoader.LoadAllProviders();
+        return [.. providers.Select(provider => new RetailSearchProvider(
+            provider.Name,
+            configs.FirstOrDefault(config => string.Equals(config.Name, provider.Name, StringComparison.OrdinalIgnoreCase))?.DisplayName
+                is { Length: > 0 } display ? display : provider.Name))];
     }
 
     private IReadOnlyList<IExternalMetadataProvider> GetRetailProviders(

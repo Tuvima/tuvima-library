@@ -364,8 +364,9 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
             return [];
         }
 
-        var strategies = FilterStrategiesByMediaType(
-            _config.SearchStrategies, request.MediaType)
+        var strategies = FilterStrategiesBySearchScope(
+                FilterStrategiesByMediaType(_config.SearchStrategies, request.MediaType),
+                request)
             ?.OrderBy(s => s.Priority)
             .ToList();
 

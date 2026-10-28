@@ -79,4 +79,11 @@ public interface ILibraryMoveService
     /// <summary>Moves the items as the person chose, if the preview they confirmed is still true. Otherwise changes nothing and returns a fresh preview.</summary>
     Task<LibraryMoveResult<LibraryMoveCommitResult>> CommitAsync(
         LibraryMoveCommitRequest request, LibraryMoveActor actor, LibraryMoveAccess canEdit, CancellationToken ct = default);
+
+    /// <summary>
+    /// As <see cref="CommitAsync"/>, but the library change asks for no file to be renamed or moved: the universal editor's relationship
+    /// change moves the item in the library only, and its separate physical-files change moves the files afterwards.
+    /// </summary>
+    Task<LibraryMoveResult<LibraryMoveCommitResult>> CommitWithoutFileMovesAsync(
+        LibraryMoveCommitRequest request, LibraryMoveActor actor, LibraryMoveAccess canEdit, CancellationToken ct = default);
 }

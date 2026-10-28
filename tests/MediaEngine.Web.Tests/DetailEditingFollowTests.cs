@@ -89,7 +89,7 @@ public sealed class DetailEditingFollowTests : AsyncBunitContext
         // The move is made from Match, which the editor hosts in its right-hand panel.
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool")));
         cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Match").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-slot")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editor-panel[data-tool='match']")));
     }
 
     // What the shell does after a move that removed the title: asks the host to follow.
@@ -122,7 +122,8 @@ public sealed class DetailEditingFollowTests : AsyncBunitContext
         second.WaitForAssertion(() => Assert.Single(second.FindAll(".tl-editing-bar")));
         var slot = second.FindComponent<EditingSectionSlot>();
         second.WaitForAssertion(() => Assert.Equal(EditingSection.Match, slot.Instance.Mode!.OpenSectionKind));
-        second.WaitForAssertion(() => Assert.Equal(Line, second.FindComponent<SharedMediaEditorShell>().Instance.Request.InitialMoveResult));
+        // The Match tool stages a match instead of moving, so the carried result line has nowhere to show; the tool itself is open again.
+        second.WaitForAssertion(() => Assert.NotEmpty(second.FindAll(".tl-editor-panel[data-tool='match']")));
     }
 
     [Fact]

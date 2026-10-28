@@ -135,11 +135,13 @@ public sealed record LibraryMovePlanRow(
     Guid? ExpectedParentWorkId,
     string ExpectedIdentityRevision);
 
+/// <param name="RequestFileMoves">False records the library change without asking for any file to be renamed or moved.</param>
 public sealed record LibraryMovePlan(
     Guid DestinationId,
     string DestinationKind,
     IReadOnlyList<LibraryMovePlanRow> Rows,
-    string ActorLabel);
+    string ActorLabel,
+    bool RequestFileMoves = true);
 
 /// <summary>What a committed row became. The wire strings are in the Contracts outcomes.</summary>
 /// <param name="ResultEntityId">The Work the item now lives in or as: its own Work when it stayed a title of its own, the entry's Work when it was merged into one, the audiobook for a part.</param>

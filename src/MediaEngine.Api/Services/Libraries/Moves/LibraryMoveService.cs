@@ -155,8 +155,16 @@ public sealed class LibraryMoveService(
         return LibraryMoveResult<LibraryMovePreview>.Ok(Issue(built.State!, actor, ids));
     }
 
-    public async Task<LibraryMoveResult<LibraryMoveCommitResult>> CommitAsync(
-        LibraryMoveCommitRequest request, LibraryMoveActor actor, LibraryMoveAccess canEdit, CancellationToken ct = default)
+    public Task<LibraryMoveResult<LibraryMoveCommitResult>> CommitAsync(
+        LibraryMoveCommitRequest request, LibraryMoveActor actor, LibraryMoveAccess canEdit, CancellationToken ct = default) =>
+        CommitCoreAsync(request, actor, canEdit, requestFileMoves: true, ct);
+
+    public Task<LibraryMoveResult<LibraryMoveCommitResult>> CommitWithoutFileMovesAsync(
+        LibraryMoveCommitRequest request, LibraryMoveActor actor, LibraryMoveAccess canEdit, CancellationToken ct = default) =>
+        CommitCoreAsync(request, actor, canEdit, requestFileMoves: false, ct);
+
+    private async Task<LibraryMoveResult<LibraryMoveCommitResult>> CommitCoreAsync(
+        LibraryMoveCommitRequest request, LibraryMoveActor actor, LibraryMoveAccess canEdit, bool requestFileMoves, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(actor);
@@ -216,6 +224,11 @@ public sealed class LibraryMoveService(
             }
 
             var plan = BuildPlan(request, state, actor, out var invalid);
+            if (plan is not null && !requestFileMoves)
+            {
+                plan = plan with { RequestFileMoves = false };
+            }
+
             if (plan is null)
             {
                 return LibraryMoveResult<LibraryMoveCommitResult>.Refused(LibraryMoveRefusalKind.Invalid, invalid!);
