@@ -23,7 +23,7 @@ This describes where Tuvima stores data. Your own network shares, backup destina
 
 ## Know when external requests happen
 
-Enabled metadata providers can request identifiers, descriptions, artwork, lyrics, subtitles, and relationship data. Examples include Apple, MusicBrainz, TMDB, TheTVDB, Comic Vine, LRCLIB, SubDL, Wikidata, and Wikimedia Commons.
+Enabled metadata providers can request identifiers, descriptions, artwork, lyrics, subtitles, and relationship data. Examples include Apple, MusicBrainz, TMDB, TheTVDB, Comic Vine, LRCLIB, SubDL, Wikidata, and Wikimedia Commons. The optional ListenBrainz plugin, when a person links their own token, sends each finished song (title, artist, album and music IDs, plus when it was played) to ListenBrainz; it is off until switched on, never sends Vault items, and never sends anything for a profile that has not linked an account.
 
 Provider behavior depends on configuration, credentials, media type, and processing state. Model downloads retrieve local model files from external hosts when you ask; subsequent supported inference runs locally. [Everything that can be downloaded on request](#know-what-can-be-downloaded-when-you-ask) is listed below.
 

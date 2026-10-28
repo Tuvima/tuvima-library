@@ -138,6 +138,10 @@ series/run Wikidata QID using `wikidata_qid_scope = series` and
 
 LRCLIB and SubDL provide lyrics and subtitle/text-track data. They do not decide identity, do not unlock Wikidata resolution, and do not participate in retail candidate scoring. SubDL searches matched movies by TMDB movie ID and owned TV episodes by a verified TheTVDB-to-TMDB episode link; the TMDB season and episode numbers are used when catalog numbering differs. Existing OpenSubtitles tracks remain local and playable after that provider is retired.
 
+**Choosing and correcting lyrics.** In the player's lyrics panel, the options menu has *Look for lyrics again*, *Not right? Find another* and *This one is wrong*. Find another asks the switched-on sources live (the list is never stored) and shows each result's source, whether it is timed to the song, and a short preview; picking one replaces the preferred lyrics and keeps the previous version for *This one is wrong*, which also stops that result being offered again for the same track. The Engine decides who may use these; the panel only shows what comes back. When no lyrics source is switched on, the panel says so, and administrators get a link to Plugins.
+
+**Writing lyrics beside the song.** When write-back is on for a library, the preferred lyrics are saved as an `.lrc` file (timed) or `.txt` file (plain) next to the song. Original media files are never changed, folders that are read-only or held are skipped, and a lyrics file the Library did not write is never overwritten.
+
 ### Sequence And Artwork Responsibilities
 
 | Media type | Preferred sequence source | Artwork display source |
