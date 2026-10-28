@@ -2,22 +2,64 @@
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Components.Shared
 @using Microsoft.JSInterop
-@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @inject IServiceProvider Services
-@inject DeviceContextService DeviceContext
 @implements IAsyncDisposable
 @inject PlaybackLyricsPresenter Presenter
 @inject IJSRuntime JS
 @inject PlaybackSessionController Playback
 
 <div class="playback-lyrics" @ref="_root" aria-label="Lyrics">
+    @if (ShowMenu)
+    {
+        <div class="playback-lyrics__toolbar">
+            <AppOverflowMenu AriaLabel="Lyrics options" Class="playback-lyrics__menu">
+                @if (Presenter.Offers("find_lyrics"))
+                {
+                    <AppMenuItem Label="Look for lyrics again" Icon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(Presenter.Refreshing)" OnClick="Presenter.RefreshAsync" />
+                    <AppMenuItem Label="Not right? Find another" Icon="@AppMaterialIcons.Outlined.Search" OnClick="Presenter.OpenAlternativesAsync" />
+                }
+                @if (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null)
+                {
+                    <AppMenuItem Label="This one is wrong" Icon="@AppMaterialIcons.Outlined.Close" OnClick="Presenter.MarkWrongAsync" />
+                }
+            </AppOverflowMenu>
+        </div>
+    }
     @if (!string.IsNullOrWhiteSpace(Presenter.Status)) { <p class="playback-lyrics__status" role="status">@Presenter.Status</p> }
     <div class="playback-lyrics__lines" tabindex="0" aria-label="Lyric lines">
-        @if (Presenter.Loading) { <p class="playback-lyrics__empty">Loading lyrics…</p> }
+        @if (Presenter.AlternativesOpen)
+        {
+            <div class="playback-lyrics__alternatives" data-lyrics-state="alternatives">
+                @if (Presenter.AlternativesLoading) { <p class="playback-lyrics__empty">Looking for other lyrics…</p> }
+                else if (Presenter.Alternatives is { items.Count: > 0 } found)
+                {
+                    <ul>
+                        @foreach (var alternative in found.items)
+                        {
+                            <li>
+                                <AppNativeButton Type="button" Class="playback-lyrics__alternative" Disabled="@(alternative.is_current || Presenter.Choosing)"
+                                                 OnClick="@(() => Presenter.ChooseAsync(alternative))">
+                                    <strong>@alternative.provider_name</strong>
+                                    <span>@(alternative.is_timed ? "Timed to the song" : "Words only")@(alternative.is_current ? " · In use" : null)</span>
+                                    @if (!string.IsNullOrWhiteSpace(alternative.preview)) { <small>@alternative.preview</small> }
+                                </AppNativeButton>
+                            </li>
+                        }
+                    </ul>
+                }
+                else { <p class="playback-lyrics__empty">@(Presenter.Alternatives?.message is { Length: > 0 } message ? message : "No other lyrics were found.")</p> }
+                <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="Presenter.CloseAlternatives">Go back</AppNativeButton>
+            </div>
+        }
+        else if (Presenter.Loading || Presenter.Refreshing) { <p class="playback-lyrics__empty" data-lyrics-state="looking">Looking for lyrics…</p> }
         else if (Presenter.Lines.Count == 0) {
-            <p class="playback-lyrics__empty">No lyrics are available for this track.</p>
-            @if (CanManageLyrics) { <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="ManageLyricsAsync">Manage lyrics</AppNativeButton> }
+            if (Presenter.NoSourceOn)
+            {
+                <p class="playback-lyrics__empty" data-lyrics-state="no-source">No lyrics source is switched on.</p>
+                @if (IsAdministrator) { <a class="playback-lyrics__manage" href="/settings/plugins">Open Plugins</a> }
+            }
+            else { <p class="playback-lyrics__empty" data-lyrics-state="none-found">No lyrics found for this track.</p> }
         }
         else
         {
@@ -80,13 +122,8 @@
             return _timeline;
         }
     }
-    private bool CanManageLyrics => !DeviceContext.IsPhone && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
-    private async Task ManageLyricsAsync()
-    {
-        if (CanManageLyrics && _identity is { } identity && Services.GetService<MediaEditorLauncherService>() is { } editor)
-            await editor.OpenAsync(new() { EntityIds = [identity.WorkId], LaunchEntityId = identity.WorkId, LaunchEntityKind = "Work",
-                ActiveProfileId = identity.ProfileId, MediaType = "Music", InitialTab = "details" });
-    }
+    private bool IsAdministrator => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+    private bool ShowMenu => Presenter.Offers("find_lyrics") || (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null);
     private int ActiveIndex => Timeline.Select((line, index) => (line, index))
         .Where(row => row.line.StartSeconds is double time && time <= Snapshot.CurrentTimeSeconds
             && (!row.line.IsInstrumental || Snapshot.CurrentTimeSeconds < row.line.EndSeconds))
@@ -97,6 +134,8 @@
         var identity = PlaybackLyricsIdentity.From(Snapshot);
         if (identity != _identity) { _identity = identity; _needsReturn = false; _clockSnapshot = null; _clockKey = null; }
         await Presenter.EnsureAsync(Snapshot, Commands);
+        await Presenter.EnsureActionsAsync();
+        await Presenter.ProbeSourcesAsync();
     }
     private void Changed() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
     private Task SeekAsync(ListenPlaybackSnapshot snapshot, double seconds) => Commands.SendAsync(snapshot,

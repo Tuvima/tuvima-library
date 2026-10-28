@@ -148,7 +148,7 @@ public static class PlaybackLyricsTimeline
 }
 
 /// <summary>Authorized text presentation shared by every audio host, with no playback ownership.</summary>
-public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
+public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
 {
     private PlaybackLyricsIdentity? _identity;
     private Guid? _observedProjection, _projectedChoice;
@@ -180,6 +180,7 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
         _reads.Cancel(); _reads.Dispose(); _reads = new();
         Tracks = []; Lines = []; SelectedTrackId = null; Loading = false; Refreshing = false;
         Status = null; _tracksLoaded = false; _contentLoaded = false;
+        ResetLookup();
     }
 
     private bool Current(PlaybackLyricsIdentity identity, long generation) =>

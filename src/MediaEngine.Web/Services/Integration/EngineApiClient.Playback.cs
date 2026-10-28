@@ -453,6 +453,65 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<TextTrackAlternativesResponse>(
+                $"/stream/{assetId:D}/text-tracks/alternatives?kind={Uri.EscapeDataString(kind)}", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET text track alternatives failed for {AssetId}", assetId);
+            return null;
+        }
+    }
+
+    public async Task<TextTrackChoiceResponse?> ChooseTextTrackAlternativeAsync(Guid assetId, ChooseTextTrackAlternativeRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.PostAsJsonAsync($"/stream/{assetId:D}/text-tracks/alternatives/choose", request, ct);
+            return await response.Content.ReadFromJsonAsync<TextTrackChoiceResponse>(cancellationToken: ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST choose text track alternative failed for {AssetId}", assetId);
+            return null;
+        }
+    }
+
+    public async Task<TextTrackChoiceResponse?> MarkTextTrackWrongAsync(Guid assetId, Guid trackId, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.PostAsync($"/stream/{assetId:D}/text-tracks/{trackId:D}/wrong", content: null, ct);
+            return await response.Content.ReadFromJsonAsync<TextTrackChoiceResponse>(cancellationToken: ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST wrong text track failed for {AssetId}/{TrackId}", assetId, trackId);
+            return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<PlayerPluginActionDto>> GetPlayerPluginActionsAsync(Guid assetId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<List<PlayerPluginActionDto>>($"/stream/{assetId:D}/plugin-actions", ct) ?? [];
+        }
+        catch (OperationCanceledException) { return []; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET player plugin actions failed for {AssetId}", assetId);
+            return [];
+        }
+    }
+
     public async Task<List<EncodeJobDto>> GetEncodeJobsAsync(CancellationToken ct = default)
     {
         try
