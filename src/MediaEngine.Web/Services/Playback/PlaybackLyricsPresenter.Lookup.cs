@@ -86,6 +86,9 @@ public sealed partial class PlaybackLyricsPresenter
         }
     }
 
+    /// <summary>Shows a short plain-words message in the lyrics panel.</summary>
+    public void ShowStatus(string message) { Status = message; Changed?.Invoke(); }
+
     /// <summary>Adds a lyrics file (.lrc or plain text) the person picked, then shows it. Open to any profile.</summary>
     public async Task ImportFileAsync(string fileName, string contentType, Stream content)
     {
