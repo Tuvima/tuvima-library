@@ -677,16 +677,6 @@ public sealed class Phase5InlineEditingTests
     }
 
     [Fact]
-    public void SharedEditor_RejectsBatchLaunches()
-    {
-        var launcher = ReadSource("src/MediaEngine.Web/Services/Editing/MediaEditorLauncherService.cs");
-        var browse = ReadSource("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
-
-        Assert.Contains("request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1", launcher, StringComparison.Ordinal);
-        Assert.DoesNotContain("OpenBatchEditorAsync", browse, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void SharedEditor_DoesNotLabelBareIsbnAsOpenLibraryMatch()
     {
         var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");

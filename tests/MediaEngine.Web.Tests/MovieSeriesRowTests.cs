@@ -153,7 +153,6 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
         Services.AddScoped<DetailsOverlayState>();
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddNativeUiServices();
-        Services.AddScoped<MediaEditorLauncherService>();
         Services.AddScoped<CollectionEditorLauncherService>();
         Services.AddSingleton(new SavedItemService(api));
         Services.AddSingleton(new MediaReactionService(api));

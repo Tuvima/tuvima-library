@@ -89,7 +89,7 @@ The Engine owns business rules and persistence. Managed artwork and headshots ar
 - `/settings/ingestion` - ingestion operations dashboard
 - `/settings/developer/options` - temporary development wipe, reingest, and validation harness
 
-Normal media corrections launch `MediaEditorLauncherService` and `SharedMediaEditorShell` from the surface where the issue appears. Review Queue uses the same editor in review mode.
+Normal media corrections open the universal editor on the item's own page; Needs Review opens the item's page in that editor.
 
 ## Extension Points
 

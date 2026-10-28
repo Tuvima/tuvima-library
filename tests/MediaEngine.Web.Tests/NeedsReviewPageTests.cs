@@ -95,7 +95,6 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
             new ConfigurationBuilder().Build(),
             NullLogger<UIOrchestratorService>.Instance,
             dashboardSession: session));
-        Services.AddScoped<MediaEditorLauncherService>();
         JSInterop.Mode = JSRuntimeMode.Loose;
         return result;
     }

@@ -693,7 +693,7 @@ public sealed class ArtworkAssetService(
         {
             "coverart" or "seasonposter" or "episodestill" => "Primary",
             "background" or "seasonthumb" => "Background",
-            "headshot" => "Portrait",
+            "headshot" or "characterportrait" => "Portrait",
             "logo" => "Logo",
             _ => null,
         };

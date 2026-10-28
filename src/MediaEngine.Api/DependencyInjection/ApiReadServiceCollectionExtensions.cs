@@ -38,6 +38,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IEditSubject, SeriesEditSubject>();
         services.AddSingleton<IEditSubject, UniverseEditSubject>();
         services.AddSingleton<IEditSubject, CuratedCollectionEditSubject>();
+        services.AddSingleton<IEditSubject, FictionalEntityEditSubject>();
         services.AddSingleton<EditSubjectDirectory>();
         services.AddSingleton<IEditSessionChangeHandler, DetailsEditSessionChangeHandler>();
         services.AddScoped<RetailMatchWriter>();
