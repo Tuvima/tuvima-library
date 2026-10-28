@@ -1,5 +1,6 @@
 using Bunit;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
@@ -31,7 +32,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<int> _steps = [];
     private readonly List<Dictionary<string, string>> _saves = [];
-    private bool _saveResult = true;
+    private readonly List<bool> _sessionCalls = [];
     private readonly NavigationManager _nav;
 
     public EditingDismissalTests()
@@ -45,9 +46,26 @@ public sealed class EditingDismissalTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.SaveItemDisplayOverridesAsync), args =>
             {
                 _saves.Add((Dictionary<string, string>)args![1]!);
-                return Task.FromResult(_saveResult);
+                return Task.FromResult(true);
             });
-            stub.SetHandler("get_LastError", _ => "HTTP 500: could not write");
+            stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
+            {
+                var request = (EditSessionRequest)args![0]!;
+                _sessionCalls.Add(request.PreviewOnly);
+                return Task.FromResult(LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult
+                {
+                    PreviewOnly = request.PreviewOnly,
+                    Valid = true,
+                    DataSaved = !request.PreviewOnly,
+                    Changes = request.Changes.Select(change => new EditSessionChangeResult
+                    {
+                        Id = change.Id,
+                        Kind = change.Kind,
+                        EntityId = change.EntityId,
+                        Status = EditSessionChangeStatuses.Ok,
+                    }).ToList(),
+                }));
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetItemHistoryWithStatusAsync), _ =>
                 Task.FromResult((new List<LibraryItemHistoryDto>(), (string?)null)));
         });
@@ -107,7 +125,8 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     {
         cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool")));
     }
 
     private async Task<IRenderedComponent<DetailPage>> StartEditingAsync(DetailEntityType type = DetailEntityType.Movie)
@@ -115,14 +134,19 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         await UseDesktopAsync();
         var cut = RenderInOpenOverlay(type);
         ChooseEdit(cut);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Edit title']")));
         return cut;
+    }
+
+    private static void OpenDetails(IRenderedComponent<DetailPage> cut)
+    {
+        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Details").Click();
+        cut.WaitForElement("input[aria-label='Title']");
     }
 
     private static void TypeIntoTheTitle(IRenderedComponent<DetailPage> cut, string value)
     {
-        cut.Find("button[aria-label='Edit title']").Click();
-        cut.WaitForElement("input[aria-label='Edit Title']").Input(value);
+        OpenDetails(cut);
+        cut.Find("input[aria-label='Title']").Input(value);
     }
 
     // Esc as the overlay delivers it: app-dialog.js reports it through RequestCancel, which offers it to the page first.
@@ -151,214 +175,96 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     private static void Answer(IRenderedComponent<AppDialogHost> host, string label)
     {
         host.WaitForElement(".app-confirm");
-        Assert.Equal("Save or discard?", host.Find(".app-dialog-shell__title").TextContent.Trim());
+        Assert.Equal("Unsaved changes", host.Find(".app-dialog-shell__title").TextContent.Trim());
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == label).Click();
     }
 
-    // -- Done and "Save or discard?" -----------------------------------------------------------
+    // -- Cancel and "Unsaved changes" ------------------------------------------------------------
 
     [Fact]
-    public async Task DoneWithUnsavedFieldInputAsksSaveOrDiscard_AndSaveSavesThenLeavesEditMode()
+    public async Task CancelWithStagedChangesAsksUnsavedChanges_AndDiscardChangesLeavesEditModeWritingNothing()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
         TypeIntoTheTitle(cut, "Dune");
 
-        cut.Find("button.tl-editing-banner__done").Click();
-        Answer(host, "Save");
+        cut.Find("button.tl-editing-bar__cancel").Click();
+        Answer(host, "Discard changes");
 
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
-        Assert.Equal("Dune", Assert.Single(_saves)["title"]);
-    }
-
-    [Fact]
-    public async Task DoneWithUnsavedFieldInputAsksSaveOrDiscard_AndDiscardDropsItAndLeavesEditMode()
-    {
-        var host = Render<AppDialogHost>();
-        var cut = await StartEditingAsync();
-        TypeIntoTheTitle(cut, "Dune");
-
-        cut.Find("button.tl-editing-banner__done").Click();
-        Answer(host, "Discard");
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
         Assert.Empty(_saves);
-        Assert.Empty(cut.FindAll("input[aria-label='Edit Title']"));
+        Assert.Empty(_sessionCalls);
     }
 
     [Fact]
-    public async Task DoneWithUnsavedFieldInputAndTheDialogClosed_StaysInEditModeWithTheInputIntact()
+    public async Task CancelWithStagedChangesAndKeepEditing_StaysInEditModeWithTheChangesIntact()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
         TypeIntoTheTitle(cut, "Dune");
 
-        cut.Find("button.tl-editing-banner__done").Click();
-        host.WaitForElement(".app-confirm");
-        host.Find("button[aria-label='Close dialog']").Click();
+        cut.Find("button.tl-editing-bar__cancel").Click();
+        Answer(host, "Keep editing");
 
         cut.WaitForAssertion(() => Assert.Empty(host.FindAll(".app-confirm")));
-        Assert.Single(cut.FindAll(".tl-editing-banner"));
-        Assert.Equal("Dune", cut.Find("input[aria-label='Edit Title']").GetAttribute("value"));
-        Assert.Empty(_saves);
+        Assert.Single(cut.FindAll(".tl-editing-bar"));
+        Assert.Equal("Dune", cut.Find("input[aria-label='Title']").GetAttribute("value"));
+        Assert.Equal("Save 1 change", cut.Find("button.tl-editing-bar__save").TextContent.Trim());
     }
 
     [Fact]
-    public async Task AFailedSaveFromTheDialogStaysInEditModeWithTheFieldOpenAndItsErrorShown()
-    {
-        _saveResult = false;
-        var host = Render<AppDialogHost>();
-        var cut = await StartEditingAsync();
-        TypeIntoTheTitle(cut, "Typed and kept");
-
-        cut.Find("button.tl-editing-banner__done").Click();
-        Answer(host, "Save");
-
-        cut.WaitForAssertion(() => Assert.Contains("could not write", cut.Find(".tl-editing-field__error").TextContent));
-        Assert.Single(cut.FindAll(".tl-editing-banner"));
-        Assert.Equal("Typed and kept", cut.Find("input[aria-label='Edit Title']").GetAttribute("value"));
-    }
-
-    [Fact]
-    public async Task AFailedFieldSaveOnItsOwnShowsTheErrorInlineAndKeepsTheFieldOpen()
-    {
-        _saveResult = false;
-        var cut = await StartEditingAsync();
-        TypeIntoTheTitle(cut, "Typed and kept");
-
-        cut.Find("input[aria-label='Edit Title']").KeyDown("Enter");
-
-        cut.WaitForAssertion(() => Assert.Equal("alert", cut.Find(".tl-editing-field__error").GetAttribute("role")));
-        Assert.Contains("could not write", cut.Find(".tl-editing-field__error").TextContent);
-        Assert.Equal("Typed and kept", cut.Find("input[aria-label='Edit Title']").GetAttribute("value"));
-    }
-
-    [Fact]
-    public async Task DoneWithNothingUnsavedLeavesAtOnceWithoutAnyDialog()
+    public async Task CancelWithNothingStagedLeavesAtOnceWithoutAnyDialog()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
 
-        cut.Find("button.tl-editing-banner__done").Click();
+        cut.Find("button.tl-editing-bar__cancel").Click();
 
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
         Assert.Empty(host.FindAll(".app-confirm"));
     }
 
-    // -- Esc, in order -------------------------------------------------------------------------
+    // -- Esc, in order ---------------------------------------------------------------------------
 
     [Fact]
-    public async Task EscClosesAnOpenFieldFirst_ThenASection_AndOnlyThenDismissesTheOverlayLeavingEditMode()
+    public async Task EscClosesTheOpenPanelFirst_ThenAsksAboutStagedChanges_AndOnlyThenDismissesTheOverlay()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
-        cut.FindAll(".tl-editing-banner__section").Single(button => button.TextContent.Contains("History")).Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-slot")));
-        cut.Find("button[aria-label='Close History']");
-        cut.Find("button[aria-label='Edit title']").Click();
+        TypeIntoTheTitle(cut, "Dune");
 
-        // 1. The open field (nothing typed into it) cancels; the section and the mode stay.
+        // 1. The panel closes without a question; edit mode and the staged change stay.
         Assert.True(await EscAsync(cut));
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
-        Assert.NotEmpty(cut.FindAll(".tl-editing-slot"));
-        Assert.Single(cut.FindAll(".tl-editing-banner"));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editor-panel")));
+        Assert.Single(cut.FindAll(".tl-editing-bar"));
+        Assert.Empty(host.FindAll(".app-confirm"));
 
-        // 2. The section closes; the mode stays.
-        Assert.True(await EscAsync(cut));
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-slot")));
-        Assert.Single(cut.FindAll(".tl-editing-banner"));
+        // 2. With the panel closed and a change staged, Esc asks; keeping the edit leaves everything as it was.
+        var esc = EscAsync(cut);
+        Answer(host, "Keep editing");
+        Assert.True(await esc);
+        Assert.Single(cut.FindAll(".tl-editing-bar"));
+        Assert.Equal("Save 1 change", cut.Find("button.tl-editing-bar__save").TextContent.Trim());
+        Assert.Empty(_steps);
+    }
 
-        // 3. Nothing is open: the press is not used, so the overlay dismisses and leaves edit mode first.
+    [Fact]
+    public async Task EscWithNothingStagedAndNoPanel_IsNotUsed_SoTheOverlayDismissesAndLeavesEditMode()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = await StartEditingAsync();
+
         Assert.False(await EscAsync(cut));
         Assert.Empty(_steps);
         Assert.True(await DismissAsync(cut));
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
         Assert.Equal([1], _steps);
         Assert.Empty(host.FindAll(".app-confirm"));
     }
 
     [Fact]
-    public async Task EscPressedInsideTheFocusedFieldCancelsThatFieldWithoutAsking()
-    {
-        var host = Render<AppDialogHost>();
-        var cut = await StartEditingAsync();
-        TypeIntoTheTitle(cut, "Dune");
-
-        // The field's own handler (and the overlay script, which leaves a field that owns Esc alone) keeps this as it always was.
-        cut.Find("input[aria-label='Edit Title']").KeyDown("Escape");
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
-        Assert.Empty(host.FindAll(".app-confirm"));
-        Assert.Empty(_saves);
-        Assert.Single(cut.FindAll(".tl-editing-banner"));
-    }
-
-    [Fact]
-    public async Task OverlayLevelEscWithTypedInputAsksSaveOrDiscardAndCancelKeepsTheInput()
-    {
-        var host = Render<AppDialogHost>();
-        var cut = await StartEditingAsync();
-        TypeIntoTheTitle(cut, "Dune");
-
-        var esc = EscAsync(cut);
-        host.WaitForElement(".app-confirm");
-        host.Find("button[aria-label='Close dialog']").Click();
-
-        Assert.True(await esc);
-        Assert.Equal("Dune", cut.Find("input[aria-label='Edit Title']").GetAttribute("value"));
-        Assert.Empty(_saves);
-        Assert.Empty(_steps);
-    }
-
-    [Fact]
-    public async Task OverlayLevelEscWithTypedInputAndDiscardClosesTheFieldAndKeepsEditingAndTheOverlay()
-    {
-        var host = Render<AppDialogHost>();
-        var cut = await StartEditingAsync();
-        TypeIntoTheTitle(cut, "Dune");
-
-        var esc = EscAsync(cut);
-        Answer(host, "Discard");
-
-        Assert.True(await esc);
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
-        Assert.Single(cut.FindAll(".tl-editing-banner"));
-        Assert.Empty(_saves);
-        Assert.Empty(_steps);
-    }
-
-    [Fact]
-    public async Task OverlayLevelEscWithTypedInputAndSaveSavesTheFieldAndKeepsEditing()
-    {
-        var host = Render<AppDialogHost>();
-        var cut = await StartEditingAsync();
-        TypeIntoTheTitle(cut, "Dune");
-
-        var esc = EscAsync(cut);
-        Answer(host, "Save");
-
-        Assert.True(await esc);
-        Assert.Equal("Dune", Assert.Single(_saves)["title"]);
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
-        Assert.Single(cut.FindAll(".tl-editing-banner"));
-    }
-
-    [Fact]
-    public async Task OverlayLevelEscWithAnOpenFieldNothingWasTypedInJustCancelsItWithoutAsking()
-    {
-        var host = Render<AppDialogHost>();
-        var cut = await StartEditingAsync();
-        cut.Find("button[aria-label='Edit title']").Click();
-
-        Assert.True(await EscAsync(cut));
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
-        Assert.Empty(host.FindAll(".app-confirm"));
-        Assert.Empty(_saves);
-    }
-
-    [Fact]
-    public async Task ABackdropClickWithTypedInputAsksSaveOrDiscardThroughTheOverlayHostInsteadOfDroppingIt()
+    public async Task ABackdropClickWithStagedChangesAsksUnsavedChangesThroughTheOverlayHostInsteadOfDroppingThem()
     {
         await UseDesktopAsync();
         var dialogs = Render<AppDialogHost>();
@@ -371,47 +277,48 @@ public sealed class EditingDismissalTests : AsyncBunitContext
             .AddChildContent<DetailPage>(page => page.Add(component => component.Model, Model())));
         overlay.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         overlay.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        overlay.WaitForAssertion(() => Assert.NotEmpty(overlay.FindAll("button[aria-label='Edit title']")));
-        overlay.Find("button[aria-label='Edit title']").Click();
-        overlay.WaitForElement("input[aria-label='Edit Title']").Input("Dune");
+        overlay.WaitForAssertion(() => Assert.NotEmpty(overlay.FindAll(".tl-editing-bar__tool")));
+        overlay.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Details").Click();
+        overlay.WaitForElement("input[aria-label='Title']").Input("Dune");
 
-        // app-dialog.js reports a click on the backdrop (and Esc outside a field, and the sheet's grip) through RequestCancel.
+        // app-dialog.js reports a click on the backdrop (and Esc outside a field, and the sheet's grip) through RequestCancel. The open
+        // panel closes first, keeping the staged change and asking nothing.
+        await overlay.InvokeAsync(() => overlay.Instance.RequestCancel());
+        overlay.WaitForAssertion(() => Assert.Empty(overlay.FindAll(".tl-editor-panel")));
+        Assert.Empty(dialogs.FindAll(".app-confirm"));
+
+        // With the panel closed the next one asks, and Keep editing leaves everything where it was.
         var backdrop = overlay.InvokeAsync(() => overlay.Instance.RequestCancel());
-        Answer(dialogs, "Discard");
+        Answer(dialogs, "Keep editing");
         await backdrop;
 
         Assert.Empty(_steps);
         Assert.True(State.IsOpen);
-        overlay.WaitForAssertion(() => Assert.Empty(overlay.FindAll("input[aria-label='Edit Title']")));
-        Assert.Single(overlay.FindAll(".tl-editing-banner"));
+        Assert.Single(overlay.FindAll(".tl-editing-bar"));
+        Assert.Equal("Save 1 change", overlay.Find("button.tl-editing-bar__save").TextContent.Trim());
         Assert.Empty(_saves);
-
-        // Nothing open now: the next one dismisses the overlay, leaving Editing Mode first.
-        await overlay.InvokeAsync(() => overlay.Instance.RequestCancel());
-        Assert.Equal([1], _steps);
     }
 
     [Fact]
-    public async Task TheOverlayOffersEscToTheEditingHandlerOnlyWhileEditingModeIsOn()
+    public async Task TheOverlayOffersEscToTheEditingHandlerOnlyWhileEditingIsOn()
     {
         await UseDesktopAsync();
         var cut = RenderInOpenOverlay();
         Assert.False(await EscAsync(cut));
 
         ChooseEdit(cut);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Edit title']")));
-        cut.Find("button[aria-label='Edit title']").Click();
+        OpenDetails(cut);
         Assert.True(await EscAsync(cut));
 
-        cut.Find("button.tl-editing-banner__done").Click();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
+        cut.Find("button.tl-editing-bar__cancel").Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
         Assert.False(await EscAsync(cut));
     }
 
-    // -- Back, close and the backdrop ----------------------------------------------------------
+    // -- Back, close and the backdrop ------------------------------------------------------------
 
     [Fact]
-    public async Task TheDismissGuardRefusesWhenSaveOrDiscardIsCancelled_AndTheOverlayStaysOpen()
+    public async Task TheDismissGuardRefusesWhenUnsavedChangesIsClosed_AndTheOverlayStaysOpen()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
@@ -424,41 +331,41 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         Assert.False(await dismissal);
         Assert.Empty(_steps);
         Assert.True(State.IsOpen);
-        Assert.Single(cut.FindAll(".tl-editing-banner"));
-        Assert.Equal("Dune", cut.Find("input[aria-label='Edit Title']").GetAttribute("value"));
+        Assert.Single(cut.FindAll(".tl-editing-bar"));
+        Assert.Equal("Dune", cut.Find("input[aria-label='Title']").GetAttribute("value"));
     }
 
     [Fact]
-    public async Task BrowserBackAsksSaveOrDiscard_AndCancelKeepsTheOverlayOpen()
+    public async Task BrowserBackAsksUnsavedChanges_AndKeepEditingKeepsTheOverlayOpen()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
         TypeIntoTheTitle(cut, "Dune");
 
         _nav.NavigateTo("/watch");
-        host.WaitForElement(".app-confirm");
-        host.Find("button[aria-label='Close dialog']").Click();
+        Answer(host, "Keep editing");
 
         cut.WaitForAssertion(() => Assert.Empty(host.FindAll(".app-confirm")));
         Assert.EndsWith($"/details/movie/{MovieId}", _nav.Uri);
         Assert.True(State.IsOpen);
-        Assert.Single(cut.FindAll(".tl-editing-banner"));
+        Assert.Single(cut.FindAll(".tl-editing-bar"));
     }
 
     [Fact]
-    public async Task TheDismissGuardLeavesEditModeAndLetsTheOverlayCloseWhenDiscardIsChosen()
+    public async Task TheDismissGuardLeavesEditModeAndLetsTheOverlayCloseWhenDiscardChangesIsChosen()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
         TypeIntoTheTitle(cut, "Dune");
 
         var dismissal = DismissAsync(cut);
-        Answer(host, "Discard");
+        Answer(host, "Discard changes");
 
         Assert.True(await dismissal);
         Assert.Equal([1], _steps);
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
         Assert.Empty(_saves);
+        Assert.Empty(_sessionCalls);
     }
 
     [Fact]
@@ -469,43 +376,85 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         Assert.True(await CanDismissAsync(cut));
 
         ChooseEdit(cut);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Edit title']")));
-        cut.Find("button[aria-label='Edit title']").Click();
-        cut.WaitForElement("input[aria-label='Edit Title']").Input("Dune");
+        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Details").Click();
+        cut.WaitForElement("input[aria-label='Title']").Input("Dune");
         var host = Render<AppDialogHost>();
         var asked = CanDismissAsync(cut);
         host.WaitForElement(".app-confirm");
         host.Find("button[aria-label='Close dialog']").Click();
         Assert.False(await asked);
 
-        cut.Find("input[aria-label='Edit Title']").KeyDown("Escape");
-        cut.Find("button.tl-editing-banner__done").Click();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
+        cut.Find("button.tl-editing-bar__cancel").Click();
+        Answer(host, "Discard changes");
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
 
         Assert.True(await CanDismissAsync(cut));
         Assert.Empty(host.FindAll(".app-confirm"));
     }
 
-    // -- Where things sit ----------------------------------------------------------------------
+    // -- Staged changes, Save changes ------------------------------------------------------------
 
     [Fact]
-    public async Task TheBannerIsTheFirstThingInThePageAndTheOpenSectionSitsDirectlyBelowTheHero()
+    public async Task AStagedTitleShowsOnThePageAtOnce_AndNothingIsWrittenUntilSaveChanges()
+    {
+        var cut = await StartEditingAsync();
+
+        TypeIntoTheTitle(cut, "Dune Messiah");
+
+        cut.WaitForAssertion(() => Assert.Contains("Dune Messiah", cut.Find(".tl-detail-stage").TextContent));
+        Assert.Empty(_saves);
+        Assert.Empty(_sessionCalls);
+    }
+
+    [Fact]
+    public async Task SaveChangesChecksThenSaves_AndLeavesEditModeOnThePage()
+    {
+        var cut = await StartEditingAsync();
+        TypeIntoTheTitle(cut, "Dune Messiah");
+
+        cut.Find("button.tl-editing-bar__save").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
+        Assert.Equal([true, false], _sessionCalls);
+        Assert.Empty(_saves);
+        Assert.Empty(cut.FindAll(".tl-editor-panel"));
+    }
+
+    // -- Where things sit ------------------------------------------------------------------------
+
+    [Fact]
+    public async Task TheBarIsTheFirstThingInThePage_AndThePanelStaysOutOfTheFlowOfTheHero()
     {
         var cut = await StartEditingAsync();
 
         var page = cut.Find("article.tl-detail-page");
-        Assert.Contains("tl-editing-banner", page.FirstElementChild!.ClassList);
+        Assert.Contains("tl-editing-bar", page.FirstElementChild!.ClassList);
 
-        cut.FindAll(".tl-editing-banner__section").Single(button => button.TextContent.Contains("History")).Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-slot")));
+        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Details").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-panel")));
 
-        var slot = cut.Find(".tl-editing-slot");
-        Assert.Contains("tl-detail-stage", slot.PreviousElementSibling!.ClassList);
-        Assert.Equal(page, slot.ParentElement);
+        var panel = cut.Find(".tl-editor-panel");
+        Assert.Equal(page, panel.ParentElement);
+        Assert.Contains("tl-detail-stage", page.Children[1].ClassList);
+        Assert.Single(cut.FindAll(".tl-detail-stage"));
     }
 
     [Fact]
-    public async Task MarkAsWatchedAndItsResetAreHiddenFromThePagesMenuWhileEditing_AndBackWhenDone()
+    public async Task ThePencilsTheOldBannerAndTheSectionBelowTheHeroAreGoneWhileEditing()
+    {
+        var cut = await StartEditingAsync();
+        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Artwork").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-panel")));
+
+        Assert.Empty(cut.FindAll(".tl-editing-pencil"));
+        Assert.Empty(cut.FindAll("button[aria-label='Edit title']"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-hero-controls button"));
+        Assert.All(cut.FindAll(".tl-editing-slot"), slot => Assert.Contains("tl-editor-panel", slot.ParentElement!.ParentElement!.ClassList));
+    }
+
+    [Fact]
+    public async Task MarkAsWatchedAndItsResetAreHiddenFromThePagesMenuWhileEditing_AndBackAfterCancel()
     {
         await UseDesktopAsync();
         var cut = RenderInOpenOverlay();
@@ -527,10 +476,10 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         Assert.DoesNotContain("Mark as watched", whileEditing);
         Assert.DoesNotContain("Mark as unwatched", whileEditing);
         Assert.Contains("Viewing history", whileEditing);
-        Assert.DoesNotContain("Mark as watched", cut.Find(".tl-editing-banner").TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Mark as watched", cut.Find(".tl-editing-bar").TextContent, StringComparison.OrdinalIgnoreCase);
 
-        cut.Find("button.tl-editing-banner__done").Click();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
+        cut.Find("button.tl-editing-bar__cancel").Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
         Assert.Contains("Mark as watched", PageMenu());
     }
 
@@ -539,7 +488,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-banner")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
     }
 
     [Theory]
@@ -560,13 +509,12 @@ public sealed class EditingDismissalTests : AsyncBunitContext
 
         ChooseEdit(cut);
         AssertNoDrawer(cut);
-        cut.FindAll(".tl-editing-banner__section").Single(button => button.TextContent.Contains("History")).Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-slot")));
+        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Details").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-panel")));
         AssertNoDrawer(cut);
-        Assert.Single(cut.FindAll(".tl-editing-slot"));
 
-        cut.Find("button.tl-editing-banner__done").Click();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
+        cut.Find("button.tl-editing-bar__cancel").Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
         AssertNoDrawer(cut);
     }
 

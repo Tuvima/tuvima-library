@@ -1,0 +1,209 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.Editing
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+
+@* The universal editor's bar (spec section 4): one bar at the top of the page while editing, replacing the Editing Mode banner. Left,
+   "Editing" and where the item sits (Show > Season > Episode); in the centre, the tools (Artwork and Match only where the type has them);
+   on the right Cancel, Save changes (a count once something is staged, off with "No changes yet" before that) and a "..." menu that
+   keeps Delete from library. Phones, tablets and TVs never see it: editing is desktop-only. *@
+@if (Mode is { IsOn: true, CanEdit: true } mode && Flow is { } flow)
+{
+    var session = flow.Session;
+    var count = session.Pending.ChangeCount;
+    var hasChanges = count > 0;
+    @* Reload and tab close ask the browser's own question; in-app navigation is asked here only for a page outside the details overlay
+       (inside it the overlay's leave guard asks, so nothing asks twice). *@
+    <NavigationLock ConfirmExternalNavigation="@hasChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+
+    <div class="tl-editing-bar" role="region" aria-label="Editing">
+        <div class="tl-editing-bar__row">
+            <div class="tl-editing-bar__where">
+                <span class="tl-editing-bar__dot" aria-hidden="true"></span>
+                <strong class="tl-editing-bar__title">Editing</strong>
+                <ol class="tl-editing-bar__trail" aria-label="Item being edited">
+                    @foreach (var step in session.Trail)
+                    {
+                        <li>@step.Title</li>
+                    }
+                </ol>
+            </div>
+
+            <div class="tl-editing-bar__tools" role="group" aria-label="Editing tools">
+                @foreach (var tool in Tools(mode))
+                {
+                    var isOpen = session.ActiveTool == tool.Tool;
+                    <AppButton ButtonStyle="@(isOpen ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
+                               Tone="@(isOpen ? AppUiTone.Primary : AppUiTone.Neutral)"
+                               Size="AppControlSize.Large"
+                               Class="@($"tl-editing-bar__tool{(isOpen ? " is-open" : string.Empty)}")"
+                               StartIcon="@tool.Icon"
+                               Disabled="@(!mode.Fields.Loaded || flow.Saving)"
+                               aria-pressed="@(isOpen ? "true" : "false")"
+                               OnClick="@(() => flow.SelectToolAsync(tool.Tool))">
+                        @tool.Label
+                    </AppButton>
+                }
+            </div>
+
+            <div class="tl-editing-bar__end">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral"
+                           Size="AppControlSize.Large"
+                           Class="tl-editing-bar__cancel"
+                           Disabled="@flow.Saving"
+                           OnClick="@(() => flow.LeaveAsync())">
+                    Cancel
+                </AppButton>
+                <AppTooltip Text="@(hasChanges ? null : "No changes yet")" Placement="AppPlacement.Bottom">
+                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               Size="AppControlSize.Large"
+                               Class="tl-editing-bar__save"
+                               StartIcon="@AppMaterialIcons.Outlined.Check"
+                               Disabled="@(!hasChanges || flow.Saving)"
+                               OnClick="@(() => flow.SaveAsync())">
+                        @SaveLabel(count, flow.Saving)
+                    </AppButton>
+                </AppTooltip>
+                @if (CanDelete)
+                {
+                    <OverflowActionMenu Actions="DeleteActions"
+                                        ButtonClass="tl-editing-bar__more"
+                                        OnActionSelected="OnActionSelected" />
+                }
+            </div>
+        </div>
+
+        @if (flow.Failures.Count > 0 || !string.IsNullOrWhiteSpace(flow.Message))
+        {
+            <div class="tl-editing-bar__notice" role="alert">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" />
+                <div>
+                    <strong>@(flow.Failures.Count > 0 ? "Some changes could not be saved." : flow.Message)</strong>
+                    @if (flow.Failures.Count > 0)
+                    {
+                        <ul>
+                            @foreach (var failure in flow.Failures)
+                            {
+                                <li>@flow.Describe(failure)</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(mode.Fields.LoadError))
+        {
+            <div class="tl-editing-bar__notice" role="alert">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" />
+                <span><strong>Editing is not ready.</strong> @mode.Fields.LoadError</span>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private sealed record BarTool(EditTool Tool, string Label, string Icon);
+
+    private static readonly DetailAction[] DeleteActions = [DetailMenuGrouping.DeleteFromLibraryAction];
+
+    private EditSessionFlow? _subscribed;
+    private EditingModeContext? _subscribedMode;
+
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    /// <summary>Whether Delete from library is offered in the "..." menu (the page decides, and its handler checks again); with no Delete the "..." is not drawn.</summary>
+    [Parameter] public bool CanDelete { get; set; }
+
+    /// <summary>True for a page outside the details overlay: it then asks "Unsaved changes" itself when the person navigates away in the app.</summary>
+    [Parameter] public bool GuardInternalNavigation { get; set; }
+
+    /// <summary>The "..." menu entry chosen (Delete from library); the page runs its own handler for it.</summary>
+    [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
+
+    // Artwork and Match only where the editor can do them for the current target (the editor's own rules).
+    private static IReadOnlyList<BarTool> Tools(EditingModeContext mode)
+    {
+        var tools = new List<BarTool> { new(EditTool.Details, "Details", AppMaterialIcons.Outlined.Description) };
+        if (mode.Fields.CanEditArtwork)
+        {
+            tools.Add(new(EditTool.Artwork, "Artwork", AppMaterialIcons.Outlined.PhotoLibrary));
+        }
+
+        if (mode.Fields.CanMatch)
+        {
+            tools.Add(new(EditTool.Match, "Match", AppMaterialIcons.Outlined.TravelExplore));
+        }
+
+        return tools;
+    }
+
+    private static string SaveLabel(int count, bool saving) =>
+        saving ? "Saving..." : count == 0 ? "Save changes" : $"Save {count} {(count == 1 ? "change" : "changes")}";
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_subscribed, Flow))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed -= OnChanged;
+                _subscribed.Session.Changed -= OnChanged;
+            }
+
+            _subscribed = Flow;
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed += OnChanged;
+                _subscribed.Session.Changed += OnChanged;
+            }
+        }
+
+        if (!ReferenceEquals(_subscribedMode, Mode))
+        {
+            if (_subscribedMode is not null)
+            {
+                _subscribedMode.Changed -= OnChanged;
+            }
+
+            _subscribedMode = Mode;
+            if (_subscribedMode is not null)
+            {
+                _subscribedMode.Changed += OnChanged;
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnChanged;
+            _subscribed.Session.Changed -= OnChanged;
+        }
+
+        if (_subscribedMode is not null)
+        {
+            _subscribedMode.Changed -= OnChanged;
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task ConfirmNavigationAsync(LocationChangingContext context)
+    {
+        if (!GuardInternalNavigation || Flow is not { Session.HasPendingChanges: true } flow)
+        {
+            return;
+        }
+
+        if (!await flow.LeaveAsync())
+        {
+            context.PreventNavigation();
+        }
+    }
+}

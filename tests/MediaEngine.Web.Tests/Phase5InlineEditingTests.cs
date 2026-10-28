@@ -29,7 +29,8 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)", source, StringComparison.Ordinal);
         Assert.Contains("await _editing.EnterAsync()", source, StringComparison.Ordinal);
         Assert.DoesNotContain("_editing.ToggleAsync()", source, StringComparison.Ordinal);
-        Assert.Contains("<EditingBanner", source, StringComparison.Ordinal);
+        Assert.Contains("<EditingBar", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("<EditingBanner", source, StringComparison.Ordinal);
         Assert.Contains("<EditingSectionSlot", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<EditingDrawer", source, StringComparison.Ordinal);
         // People, series shelves and curated collections keep their own editor dialogs.

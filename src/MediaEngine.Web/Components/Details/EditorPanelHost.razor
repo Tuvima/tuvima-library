@@ -1,0 +1,103 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject IJSRuntime JS
+
+@* The universal editor's right-hand panel (spec D2, D10, D22): fixed to the right edge under the bar, about 450px wide for Details and
+   650px for Match and Artwork, with one header, one close button and one scroll area. The page behind it does not move or scroll when it
+   opens. The close button only closes the panel: edit mode and the pending changes stay. What it shows is chosen by the page. *@
+@if (Mode is { IsOn: true, CanEdit: true } && Flow?.Session is { IsActive: true, ActiveTool: { } tool })
+{
+    <aside class="@($"tl-editor-panel tl-editor-panel--{(IsWide(tool) ? "wide" : "narrow")}")"
+           aria-labelledby="tl-editor-panel-title"
+           data-tool="@tool.ToString().ToLowerInvariant()">
+        <header class="tl-editor-panel__header">
+            <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@TitleFor(tool)</h2>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                           Size="AppControlSize.Large"
+                           Tone="AppUiTone.Neutral"
+                           Class="tl-editor-panel__close"
+                           Tooltip="@($"Close {TitleFor(tool)}")"
+                           AriaLabel="@($"Close {TitleFor(tool)}")"
+                           OnClick="@(() => Flow.ClosePanelAsync())" />
+        </header>
+        <div class="tl-editor-panel__body">
+            @ChildContent?.Invoke(tool)
+        </div>
+    </aside>
+}
+
+@code {
+    private EditTool? _focused;
+    private EditSessionFlow? _subscribed;
+
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    /// <summary>What the open tool shows; the page decides (the Details fields, or the section the tool hosts).</summary>
+    [Parameter] public RenderFragment<EditTool>? ChildContent { get; set; }
+
+    private static bool IsWide(EditTool tool) => tool != EditTool.Details;
+
+    private static string TitleFor(EditTool tool) => tool switch
+    {
+        EditTool.Artwork => "Artwork",
+        EditTool.Match => "Match",
+        _ => "Details",
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Flow))
+        {
+            return;
+        }
+
+        if (_subscribed is not null)
+        {
+            _subscribed.Session.Changed -= OnChanged;
+        }
+
+        _subscribed = Flow;
+        if (_subscribed is not null)
+        {
+            _subscribed.Session.Changed += OnChanged;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var tool = Flow?.Session.ActiveTool;
+        if (tool == _focused)
+        {
+            return;
+        }
+
+        _focused = tool;
+        if (tool is null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Names the panel for screen readers and keeps the keyboard inside it; this never scrolls the page.
+            await JS.InvokeVoidAsync("tuvimaFocusById", "tl-editor-panel-title");
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is no page left to focus.
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Session.Changed -= OnChanged;
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+}

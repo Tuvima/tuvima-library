@@ -154,6 +154,9 @@
         or DetailEntityType.BookSeries
         or DetailEntityType.ComicSeries;
 
+    /// <summary>The changes staged in the universal editor, so the overview shows a new description before Save changes.</summary>
+    [CascadingParameter] private EditPendingPreview? Pending { get; set; }
+
     private string? PersonOverviewDescription => Model.PersonDetails?.Biography ?? Model.Description;
 
     private bool ShowSeriesDescription =>
@@ -171,7 +174,7 @@
             if (ShowSeriesDescription && !IsTv)
                 paragraphs.AddRange(OverviewParagraphs(Model.SequencePlacement?.ContainerDescription));
 
-            paragraphs.AddRange(OverviewParagraphs(Model.Description));
+            paragraphs.AddRange(OverviewParagraphs(Pending?.Description(Model.Description) ?? Model.Description));
             return paragraphs
                 .Where(paragraph => !string.IsNullOrWhiteSpace(paragraph))
                 .Distinct(StringComparer.Ordinal)

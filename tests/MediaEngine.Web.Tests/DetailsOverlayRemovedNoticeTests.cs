@@ -124,9 +124,22 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
         var cut = RenderInOpenOverlay();
         cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Edit title']")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool")));
         return cut;
+    }
+
+    private static void OpenDetails(IRenderedComponent<DetailPage> cut)
+    {
+        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Details").Click();
+        cut.WaitForElement("input[aria-label='Title']");
+    }
+
+    // The staged change lives in the editor's pending list; the notice keeps its text so a deleted title never swallows what was typed.
+    private static void TypeTitle(IRenderedComponent<DetailPage> cut, string text)
+    {
+        OpenDetails(cut);
+        cut.Find("input[aria-label='Title']").Input(text);
     }
 
     private Task RemoveFromElsewhereAsync(IRenderedComponent<DetailPage> cut) =>
@@ -143,18 +156,17 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
         await RemoveFromElsewhereAsync(cut);
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice")));
-        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-bar"));
         Assert.Empty(host.FindAll(".app-confirm"));
         Assert.Empty(_steps);
     }
 
     [Fact]
-    public async Task WhenTheTitleIsRemovedWhileAFieldHoldsTypedText_TheNoticeShowsThatTextReadOnlyWithACopyButton()
+    public async Task WhenTheTitleIsRemovedWhileAChangeIsStaged_TheNoticeShowsThatTextReadOnlyWithACopyButton()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
-        cut.Find("button[aria-label='Edit title']").Click();
-        cut.Find("input[aria-label='Edit Title']").Input("Dune Messiah");
+        TypeTitle(cut, "Dune Messiah");
 
         await RemoveFromElsewhereAsync(cut);
 
@@ -170,8 +182,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     public async Task CopyOnTheNotice_PutsTheTypedTextOnTheClipboardAndSaysSo()
     {
         var cut = await StartEditingAsync();
-        cut.Find("button[aria-label='Edit title']").Click();
-        cut.Find("input[aria-label='Edit Title']").Input("Dune Messiah");
+        TypeTitle(cut, "Dune Messiah");
         await RemoveFromElsewhereAsync(cut);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice__copy")));
 
@@ -187,8 +198,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     {
         JSInterop.SetupVoid("navigator.clipboard.writeText", _ => true).SetException(new Microsoft.JSInterop.JSException("not allowed"));
         var cut = await StartEditingAsync();
-        cut.Find("button[aria-label='Edit title']").Click();
-        cut.Find("input[aria-label='Edit Title']").Input("Dune Messiah");
+        TypeTitle(cut, "Dune Messiah");
         await RemoveFromElsewhereAsync(cut);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice__copy")));
 
@@ -198,10 +208,10 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task WhenAFieldWasOpenButUntouched_TheNoticeOffersNothingToCopy()
+    public async Task WhenTheDetailsPanelIsOpenButNothingWasTyped_TheNoticeOffersNothingToCopy()
     {
         var cut = await StartEditingAsync();
-        cut.Find("button[aria-label='Edit title']").Click();
+        OpenDetails(cut);
 
         await RemoveFromElsewhereAsync(cut);
 
@@ -214,8 +224,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
-        cut.Find("button[aria-label='Edit title']").Click();
-        cut.Find("input[aria-label='Edit Title']").Input("Dune Messiah");
+        TypeTitle(cut, "Dune Messiah");
         await RemoveFromElsewhereAsync(cut);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice__close")));
 

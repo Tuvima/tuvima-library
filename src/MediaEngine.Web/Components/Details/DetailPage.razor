@@ -11,6 +11,7 @@
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Contracts.Editing
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
@@ -45,14 +46,17 @@ else if (Model is not null)
 {
     <CascadingValue Value="_editing" IsFixed="true">
     <CascadingValue Value="_batch" IsFixed="true">
+    <CascadingValue Value="_preview" IsFixed="true">
     <article class="tl-detail-page">
-        @* Editing Mode: the banner is the first thing in the page's scroll container and sticks to its top; it is outside the
+        @* Editing: the bar is the first thing in the page's scroll container and sticks to its top; it is outside the
            hero because the full-bleed hero clips what overflows it. *@
         @if (Model.EntityType != DetailEntityType.Person)
         {
-            <EditingBanner Mode="_editing"
-                           CanDelete="@CanDeleteFromLibrary"
-                           OnActionSelected="HandleDetailActionAsync" />
+            <EditingBar Mode="_editing"
+                        Flow="_flow"
+                        CanDelete="@CanDeleteFromLibrary"
+                        GuardInternalNavigation="@(Overlay is null)"
+                        OnActionSelected="HandleDetailActionAsync" />
         }
 
         <section class="@DetailStageClass">
@@ -71,11 +75,6 @@ else if (Model is not null)
                 </div>
             }
         </section>
-
-        @* The open Editing Mode section (Artwork, Match and Identity, History): directly below the hero, one at a time. *@
-        <EditingSectionSlot Mode="_editing"
-                            BuildRequest="BuildSectionRequest"
-                            OnCommitted="RefreshAfterSectionCommitAsync" />
 
         @if (ShowPrimaryModuleAfterNavigation)
         {
@@ -117,7 +116,21 @@ else if (Model is not null)
                 <DetailsTab Model="Model" />
             }
         </section>
+
+        @* The right-hand panel of the editor: Details here, Artwork and Match through the editor sections they have always used. *@
+        <EditorPanelHost Mode="_editing" Flow="_flow">
+            @if (context == EditTool.Details)
+            {
+                <EditorDetailsPanel Mode="_editing" Session="_flow.Session" />
+            }
+
+            <EditingSectionSlot Mode="_editing"
+                                InPanel="true"
+                                BuildRequest="BuildSectionRequest"
+                                OnCommitted="RefreshAfterSectionCommitAsync" />
+        </EditorPanelHost>
     </article>
+    </CascadingValue>
     </CascadingValue>
     </CascadingValue>
 }
@@ -157,6 +170,10 @@ else if (Model is not null)
     // people keep their own editors.
     private EditingModeContext? _editing;
 
+    // The universal editor on this page: the staged changes, the open tool, what the person does with them, and how the page shows them.
+    private EditSessionFlow _flow = default!;
+    private EditPendingPreview _preview = default!;
+
     // The rows ticked for "Edit together", Move and Delete (spec D8). It ends with Editing Mode; the rows ask the page to refresh through it.
     private readonly DetailBatchSelection _batch = new();
     private Guid? _editingProfileId;
@@ -172,6 +189,13 @@ else if (Model is not null)
         };
         _editing.Changed += OnEditingChanged;
         _editing.Fields.Saved += RefreshAfterFieldSavedAsync;
+        var session = new EditSessionState(new PendingEditList());
+        _flow = new EditSessionFlow(session, _editing, new EditSessionSaver(ApiClient), EditTrail, () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
+        {
+            Saved = RefreshAfterEditSavedAsync,
+        };
+        _preview = new EditPendingPreview(session, _editing.Fields);
+        session.Changed += OnEditSessionChanged;
         _batch.RefreshAsync = RefreshAfterSectionCommitAsync;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         UpdateEditingEligibility();
@@ -239,8 +263,19 @@ else if (Model is not null)
 
         _editing.Changed -= OnEditingChanged;
         _editing.Fields.Saved -= RefreshAfterFieldSavedAsync;
+        _flow.Session.Changed -= OnEditSessionChanged;
+        _flow.Dispose();
         _editing.Dispose();
     }
+
+    // The staged changes changed (a field typed into, a tool opened): the hero, overview and bar show them.
+    private void OnEditSessionChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Where the item being edited sits. The trail is the page's own item for now; the parents and children come with the item switcher.
+    private IReadOnlyList<EditTrailItem> EditTrail() =>
+        Model is not null && Guid.TryParse(Model.Id, out var id)
+            ? [new EditTrailItem(id, Model.Title, Model.EntityType.ToString())]
+            : [new EditTrailItem(_editing?.Fields.EntityId ?? Guid.Empty, "This item", "Item")];
 
     private void OnEditingChanged()
     {
@@ -261,8 +296,8 @@ else if (Model is not null)
     {
         if (_editing is { IsOn: true } && Overlay is not null)
         {
-            _overlayGuard ??= Overlay.RegisterDismissGuard(_editing);
-            _overlayEscape ??= Overlay.RegisterEscapeHandler(_editing.HandleEscapeAsync);
+            _overlayGuard ??= Overlay.RegisterDismissGuard(_flow);
+            _overlayEscape ??= Overlay.RegisterEscapeHandler(_flow.HandleEscapeAsync);
             return;
         }
 
@@ -341,6 +376,22 @@ else if (Model is not null)
         }
 
         return BuildMediaEditorRequest(entityId, ResolveEditorTarget(entityId), _editingProfileId, tab, artworkSlot, moveLine);
+    }
+
+    // Save changes went through: refresh what the page shows, and reload the editor's fields so the next edit starts from the saved values.
+    // A failed refresh never undoes the save; the page keeps what it had until the next load.
+    private async Task RefreshAfterEditSavedAsync()
+    {
+        try
+        {
+            await RefreshCurrentDetailAsync();
+            await LoadEditingFieldsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The detail page could not refresh after Save changes");
+            Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+        }
     }
 
     // A field saved from a pencil: the item is already updated, so refresh what the page shows. A failed refresh
@@ -516,6 +567,10 @@ else if (Model is not null)
                 _removedInputText = fields.Draft;
                 _removedInputLabel = fields.ActiveKey is { } key ? fields.Find(key)?.Label : null;
             }
+            else
+            {
+                KeepStagedTextForNotice(fields);
+            }
 
             _removedLostSectionInput = editing.SectionDirty;
             editing.Leave();
@@ -523,6 +578,26 @@ else if (Model is not null)
 
         _removed = true;
         StateHasChanged();
+    }
+
+    // Changes staged in the universal editor are gone with the item; the notice offers their text so it can still be copied.
+    private void KeepStagedTextForNotice(ItemFieldEditSession fields)
+    {
+        var staged = _flow.Session.Pending.Changes
+            .Where(change => change.Kind == EditSessionChangeKinds.Details)
+            .SelectMany(change => change.Fields)
+            .Where(field => !string.IsNullOrWhiteSpace(field.Value))
+            .ToList();
+        if (staged.Count == 0)
+        {
+            return;
+        }
+
+        string Label(EditSessionFieldChange field) => fields.Find(field.Key)?.Label ?? field.Key;
+        _removedInputLabel = staged.Count == 1 ? Label(staged[0]) : "Your changes";
+        _removedInputText = staged.Count == 1
+            ? staged[0].Value
+            : string.Join(Environment.NewLine, staged.Select(field => $"{Label(field)}: {field.Value}"));
     }
 
     private async Task CopyRemovedInputAsync()

@@ -56,6 +56,9 @@ public sealed class ItemFieldEditSession
 
     public Guid EntityId => _scope?.FieldEntityId ?? Guid.Empty;
 
+    /// <summary>Whether the active scope lets this person change its fields at all (a read-only library or file says no).</summary>
+    public bool CanEditFields => _scope?.CanEditFields == true;
+
     public MediaEditorDetailsPresentation Presentation => _presentation;
 
     /// <summary>Existing library genres, offered while typing a genre.</summary>
