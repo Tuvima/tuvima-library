@@ -38,11 +38,11 @@
                         @foreach (var alternative in found.items)
                         {
                             <li>
-                                <AppNativeButton Type="button" Class="playback-lyrics__alternative" Disabled="@(alternative.is_current || Presenter.Choosing)"
+                                <AppNativeButton Type="button" Class="playback-lyrics__manage" Disabled="@(alternative.is_current || Presenter.Choosing)"
                                                  OnClick="@(() => Presenter.ChooseAsync(alternative))">
-                                    <strong>@alternative.provider_name</strong>
+                                    <span class="playback-lyrics__alternative"><strong>@alternative.provider_name</strong>
                                     <span>@(alternative.is_timed ? "Timed to the song" : "Words only")@(alternative.is_current ? " · In use" : null)</span>
-                                    @if (!string.IsNullOrWhiteSpace(alternative.preview)) { <small>@alternative.preview</small> }
+                                    @if (!string.IsNullOrWhiteSpace(alternative.preview)) { <small>@alternative.preview</small> }</span>
                                 </AppNativeButton>
                             </li>
                         }

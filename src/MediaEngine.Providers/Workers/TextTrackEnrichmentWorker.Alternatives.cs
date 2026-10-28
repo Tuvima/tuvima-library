@@ -36,7 +36,7 @@ public sealed record TextTrackAlternativesResult(string Status, IReadOnlyList<Te
 /// </summary>
 public sealed partial class TextTrackEnrichmentWorker
 {
-    private const int MaxAlternatives = 8;
+    private const int MaxAlternatives = 5;
     private const int PreviewLines = 2;
 
     public async Task<TextTrackAlternativesResult> FindAlternativesAsync(
@@ -179,7 +179,7 @@ public sealed partial class TextTrackEnrichmentWorker
         }
 
         var wasPreferred = track.IsPreferred;
-        RemoveFileQuietly(track.SidecarPath);
+        await RemoveWrittenFileAsync(await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false), track, ct).ConfigureAwait(false);
         RemoveFileQuietly(track.LocalPath);
         await _trackRepo.DeleteAsync(track.Id, ct).ConfigureAwait(false);
 
@@ -225,7 +225,7 @@ public sealed partial class TextTrackEnrichmentWorker
             .ToList();
         foreach (var stale in older)
         {
-            RemoveFileQuietly(stale.SidecarPath);
+            await RemoveWrittenFileAsync(asset, stale, ct).ConfigureAwait(false);
             RemoveFileQuietly(stale.LocalPath);
             await _trackRepo.DeleteAsync(stale.Id, ct).ConfigureAwait(false);
         }
@@ -259,6 +259,15 @@ public sealed partial class TextTrackEnrichmentWorker
             .Take(PreviewLines)
             .ToList();
         return lines.Count == 0 ? null : string.Join(" / ", lines);
+    }
+
+    /// <summary>Removes the lyrics file the Library wrote beside the song, only through the export service's write-back and source rules.</summary>
+    private async Task RemoveWrittenFileAsync(MediaAsset? asset, TextTrack track, CancellationToken ct)
+    {
+        if (asset is not null && track.Kind == TextTrackKind.Lyrics && _textTrackExportService is not null)
+        {
+            await _textTrackExportService.RemoveWrittenLyricsAsync(asset, track, ct).ConfigureAwait(false);
+        }
     }
 
     private void RemoveFileQuietly(string? path)

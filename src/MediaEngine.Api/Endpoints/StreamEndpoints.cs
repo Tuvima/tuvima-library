@@ -17,6 +17,7 @@ using MediaEngine.Domain.Services;
 using MediaEngine.Processors.Contracts;
 using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Workers;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 
 namespace MediaEngine.Api.Endpoints;
@@ -342,6 +343,7 @@ public static class StreamEndpoints
             ITextTrackRepository textTrackRepo,
             IMediaAssetRepository assetRepo,
             ITextTrackExportService exportService,
+            ILogger<ITextTrackExportService> logger,
             CancellationToken ct) =>
         {
             var track = await textTrackRepo.FindByIdAsync(trackId, ct);
@@ -356,10 +358,18 @@ public static class StreamEndpoints
             if (track.Kind == TextTrackKind.Lyrics && await assetRepo.FindByIdAsync(assetId, ct) is { } asset)
             {
                 var chosen = await textTrackRepo.FindByIdAsync(trackId, ct) ?? track;
-                if (await exportService.ExportPreferredLyricsAsync(asset, chosen, ct) is { Length: > 0 } written)
+                try
                 {
-                    chosen.SidecarPath = written;
-                    await textTrackRepo.UpsertAsync(chosen, ct);
+                    if (await exportService.ExportPreferredLyricsAsync(asset, chosen, ct) is { Length: > 0 } written)
+                    {
+                        chosen.SidecarPath = written;
+                        await textTrackRepo.UpsertAsync(chosen, ct);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // The choice is saved; the file beside the song is only a copy and is tried again on the next choice.
+                    logger.LogWarning(ex, "Could not write the lyrics file for asset {AssetId}", assetId);
                 }
             }
 
@@ -380,7 +390,7 @@ public static class StreamEndpoints
         group.MapGet("/{assetId:guid}/plugin-actions", async (
             Guid assetId,
             HttpContext http,
-            PlayerPluginActionService actions,
+            [FromServices] PlayerPluginActionService actions,
             IRequestAuthorityResolver authorityResolver,
             CancellationToken ct) =>
         {
@@ -408,7 +418,7 @@ public static class StreamEndpoints
             Guid assetId,
             string? kind,
             HttpContext http,
-            TextTrackEnrichmentWorker textTrackWorker,
+            [FromServices] TextTrackEnrichmentWorker textTrackWorker,
             IRequestAuthorityResolver authorityResolver,
             CancellationToken ct) =>
         {
@@ -452,9 +462,9 @@ public static class StreamEndpoints
             Guid assetId,
             [Microsoft.AspNetCore.Mvc.FromBody] ChooseTextTrackAlternativeRequest request,
             HttpContext http,
-            TextTrackEnrichmentWorker textTrackWorker,
+            [FromServices] TextTrackEnrichmentWorker textTrackWorker,
             IRequestAuthorityResolver authorityResolver,
-            PluginPeopleActionLog peopleActions,
+            [FromServices] PluginPeopleActionLog peopleActions,
             CancellationToken ct) =>
         {
             if (!TryParseTextTrackKind(request.kind, out var textTrackKind)
@@ -487,10 +497,10 @@ public static class StreamEndpoints
             Guid assetId,
             Guid trackId,
             HttpContext http,
-            TextTrackEnrichmentWorker textTrackWorker,
+            [FromServices] TextTrackEnrichmentWorker textTrackWorker,
             ITextTrackRepository textTrackRepo,
             IRequestAuthorityResolver authorityResolver,
-            PluginPeopleActionLog peopleActions,
+            [FromServices] PluginPeopleActionLog peopleActions,
             CancellationToken ct) =>
         {
             var track = await textTrackRepo.FindByIdAsync(trackId, ct);
@@ -520,7 +530,7 @@ public static class StreamEndpoints
         group.MapPost("/{assetId:guid}/text-tracks/import", async (
             Guid assetId,
             HttpRequest request,
-            TextTrackEnrichmentWorker textTrackWorker,
+            [FromServices] TextTrackEnrichmentWorker textTrackWorker,
             CancellationToken ct) =>
         {
             if (!request.HasFormContentType)

@@ -134,7 +134,12 @@ public sealed class PlayerPluginActionTests : IDisposable
                 Audience = "everyone",
                 Actions = kinds.Select(kind => new PluginActionDeclaration
                 {
-                    Id = kind.Replace('_', '-'), Kind = kind, Label = label, Slot = "player_overflow", Audience = audience, Priority = priority,
+                    Id = kind.Replace('_', '-'),
+                    Kind = kind,
+                    Label = label,
+                    Slot = "player_overflow",
+                    Audience = audience,
+                    Priority = priority,
                 }).ToList(),
             },
         };

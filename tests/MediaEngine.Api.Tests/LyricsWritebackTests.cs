@@ -112,6 +112,39 @@ public sealed class LyricsWritebackTests : IDisposable
         Assert.Equal(Sidecar(".txt"), (await _tracks.FindByIdAsync(own.Id))!.SidecarPath);
     }
 
+    [Fact]
+    public async Task RemovingTheLibrarysOwnFile_WorksOnlyWithWritebackOn_AndNeverTouchesAPersonsFile()
+    {
+        var written = await AddTrackAsync("[00:01.00]mine", plain: false);
+        await File.WriteAllTextAsync(Sidecar(".lrc"), "[00:01.00]mine");
+        written.SidecarPath = Sidecar(".lrc");
+
+        Assert.False(await _export.RemoveWrittenLyricsAsync(await AssetAsync(), written));
+        Assert.True(File.Exists(Sidecar(".lrc")));
+
+        TurnWritebackOn();
+        var own = await AddTrackAsync("their words", plain: true, userOwned: true);
+        own.SidecarPath = Sidecar(".lrc");
+        Assert.False(await _export.RemoveWrittenLyricsAsync(await AssetAsync(), own));
+        Assert.True(File.Exists(Sidecar(".lrc")));
+
+        Assert.True(await _export.RemoveWrittenLyricsAsync(await AssetAsync(), written));
+        Assert.False(File.Exists(Sidecar(".lrc")));
+        Assert.Equal("audio bytes", await File.ReadAllTextAsync(_songPath));
+    }
+
+    [Fact]
+    public async Task AFileOutsideTheSongsFolderName_IsNeverRemoved()
+    {
+        TurnWritebackOn();
+        var elsewhere = MoveFileWorld.WriteFile(Files.Managed, "inbox/other.lrc", "not beside the song by name");
+        var track = await AddTrackAsync("[00:01.00]x", plain: false);
+        track.SidecarPath = elsewhere;
+
+        Assert.False(await _export.RemoveWrittenLyricsAsync(await AssetAsync(), track));
+        Assert.True(File.Exists(elsewhere));
+    }
+
     private string Sidecar(string extension) => AssetPathService.BuildLyricsSidecarPath(_songPath, extension);
 
     private async Task<MediaAsset> AssetAsync() => (await _assets.FindByIdAsync(_assetId))!;

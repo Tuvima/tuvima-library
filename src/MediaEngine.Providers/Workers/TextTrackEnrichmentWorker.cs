@@ -413,11 +413,22 @@ public sealed partial class TextTrackEnrichmentWorker
             ? new[] { $"{basename}.lrc", $"{basename}.txt" }
             : new[] { $"{basename}.vtt", $"{basename}.srt", $"{basename}.*.vtt", $"{basename}.*.srt", $"{basename}.*.ass" };
 
+        // Files the Library wrote itself are recorded on its own tracks; they are never taken in as the person's.
+        var writtenByLibrary = (await _trackRepo.GetByAssetAsync(asset.Id, kind, ct).ConfigureAwait(false))
+            .Where(existing => !existing.IsUserOwned && !string.IsNullOrWhiteSpace(existing.SidecarPath))
+            .Select(existing => existing.SidecarPath!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var imported = false;
         foreach (var pattern in patterns)
         {
             foreach (var path in Directory.EnumerateFiles(directory, pattern))
             {
+                if (writtenByLibrary.Contains(path))
+                {
+                    continue;
+                }
+
                 var extension = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
                 var language = ExtractLanguage(path, basename);
                 var identity = BuildTrackIdentity(asset.Id, kind, "local", path, language);

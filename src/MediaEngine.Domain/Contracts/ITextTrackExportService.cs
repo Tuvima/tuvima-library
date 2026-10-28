@@ -24,4 +24,13 @@ public interface ITextTrackExportService
         MediaAsset asset,
         TextTrack track,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes the lyrics file the Library itself wrote beside the song for this track, under the same write-back, source and folder-hold
+    /// rules as writing it. Never touches a person's own file or a file outside the song's folder. Returns true when a file was removed.
+    /// </summary>
+    Task<bool> RemoveWrittenLyricsAsync(
+        MediaAsset asset,
+        TextTrack track,
+        CancellationToken ct = default);
 }

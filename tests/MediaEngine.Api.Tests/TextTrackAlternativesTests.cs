@@ -133,8 +133,16 @@ public sealed class TextTrackAlternativesTests : IDisposable
         var path = MoveFileWorld.WriteFile(_central, "lyrics/own.lrc", "[00:01.00]mine");
         var own = new TextTrack
         {
-            AssetId = _assetId, Kind = TextTrackKind.Lyrics, Language = "en", Provider = "local", SourceId = "own",
-            SourceFormat = "lrc", NormalizedFormat = "lrc", LocalPath = path, IsUserOwned = true, IsPreferred = true,
+            AssetId = _assetId,
+            Kind = TextTrackKind.Lyrics,
+            Language = "en",
+            Provider = "local",
+            SourceId = "own",
+            SourceFormat = "lrc",
+            NormalizedFormat = "lrc",
+            LocalPath = path,
+            IsUserOwned = true,
+            IsPreferred = true,
         };
         await _tracks.UpsertAsync(own);
 

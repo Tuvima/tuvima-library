@@ -102,6 +102,57 @@ public sealed class TextTrackExportService(
         return exportPath;
     }
 
+    public Task<bool> RemoveWrittenLyricsAsync(
+        MediaAsset asset,
+        TextTrack track,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var sidecar = track.SidecarPath;
+        if (track.Kind != TextTrackKind.Lyrics
+            || track.IsUserOwned
+            || string.IsNullOrWhiteSpace(sidecar)
+            || !File.Exists(sidecar))
+        {
+            return Task.FromResult(false);
+        }
+
+        // Only a file in the song's own folder with the song's own name; a path recorded before a move is left alone.
+        var isBesideTheSong = new[] { ".lrc", ".txt" }.Any(extension =>
+            string.Equals(sidecar, AssetPathService.BuildLyricsSidecarPath(asset.FilePathRoot, extension), StringComparison.OrdinalIgnoreCase));
+        var resolvedSource = libraryFolderResolver.ResolveSourceForPath(asset.FilePathRoot);
+        if (!isBesideTheSong
+            || resolvedSource is null
+            || filingHold?.IsHeld(resolvedSource.Library.Id, resolvedSource.Source.Id, asset.FilePathRoot) == true
+            || configurationLoader.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback")?.Enabled != true)
+        {
+            return Task.FromResult(false);
+        }
+
+        var decision = mutationPolicyGate.Evaluate(new SourceMutationRequest
+        {
+            Source = FileSourceMutationPolicyFactory.Create(resolvedSource.Library, resolvedSource.Source),
+            Mutation = SourceMutationKind.MetadataWriteback,
+            Path = sidecar,
+        });
+        if (!decision.Allowed)
+        {
+            logger.LogInformation("Lyrics removal skipped for asset {AssetId}: {Reason}", asset.Id, decision.Reason);
+            return Task.FromResult(false);
+        }
+
+        try
+        {
+            File.Delete(sidecar);
+            return Task.FromResult(true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Could not remove the lyrics file {Path}", sidecar);
+            return Task.FromResult(false);
+        }
+    }
+
     public Task<string?> ExportPreferredSubtitleAsync(
         MediaAsset asset,
         TextTrack track,
