@@ -87,23 +87,7 @@
                         <div class="access-users__profile" role="cell">@(user.ProfileName ?? "No profile")</div>
                         <div class="access-users__household" role="cell">@(user.HouseholdName ?? "No household")</div>
                         <div class="access-users__actions" role="cell">
-                            <AppIconButton Icon="@AppMaterialIcons.Filled.MoreVert" AriaLabel="@($"Actions for {UserLabel(user)}")" OnClick="@(() => ToggleActions(user.Id))" />
-                            @if (_actionUserId == user.Id)
-                            {
-                                <div class="access-action-menu" role="menu">
-                                    <AppButton Label="Change email" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenEmail(user))" />
-                                    <AppButton Label="Set temporary password" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenTemporaryPassword(user))" />
-                                    @if (user.HasTwoStep)
-                                    {
-                                        <AppButton Label="Turn off two-step codes" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ResetTwoStep(user))" />
-                                    }
-                                    @if (!string.IsNullOrWhiteSpace(user.Email))
-                                    {
-                                        <AppButton Label="Export" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ExportUser(user))" />
-                                    }
-                                    <AppButton Label="Delete sign-in" FullWidth="true" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Class="access-action-menu__danger" role="menuitem" OnClick="@(() => ConfirmDelete(user))" />
-                                </div>
-                            }
+                            <AppRowMenu AriaLabel="@($"Actions for {UserLabel(user)}")" Items="@ActionItems(user)" />
                         </div>
                     </div>
                 }
@@ -208,7 +192,20 @@
     private AccountInvitationResponse? _invitation;
     private UserDeletionPreviewResponse? _preview;
     private UserDrawerMode _mode;
-    private Guid? _actionUserId;
+    private IReadOnlyList<AppRowMenuItem> ActionItems(UserSummaryResponse user)
+    {
+        var items = new List<AppRowMenuItem>
+        {
+            new() { Label = "Change email", Icon = AppMaterialIcons.Outlined.Mail, OnClick = EventCallback.Factory.Create(this, () => OpenEmail(user)) },
+            new() { Label = "Set temporary password", Icon = AppMaterialIcons.Outlined.Key, OnClick = EventCallback.Factory.Create(this, () => OpenTemporaryPassword(user)) },
+        };
+        if (user.HasTwoStep)
+            items.Add(new() { Label = "Turn off two-step codes", Icon = AppMaterialIcons.Outlined.Lock, OnClick = EventCallback.Factory.Create(this, () => ResetTwoStep(user)) });
+        if (!string.IsNullOrWhiteSpace(user.Email))
+            items.Add(new() { Label = "Export", Icon = AppMaterialIcons.Outlined.Download, OnClick = EventCallback.Factory.Create(this, () => ExportUser(user)) });
+        items.Add(new() { Label = "Delete sign-in", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(user)) });
+        return items;
+    }
     private long _drawerGeneration;
     private bool _loading = true;
     private bool _open;
@@ -324,7 +321,6 @@
     // Anyone with the file can sign in as that person, so the Engine asks the administrator to confirm it is them first.
     private async Task ExportUser(UserSummaryResponse user)
     {
-        _actionUserId = null;
         if (!TryBeginMutation(out var generation))
             return;
         try
@@ -362,7 +358,6 @@
 
     private async Task ConfirmDelete(UserSummaryResponse user)
     {
-        _actionUserId = null;
         if (!CanAct) return;
         // The Engine says what the delete does (only the sign-in, or the household too), so the confirmation can say exactly that.
         var preview = await Identity.GetUserDeletionPreviewResultAsync(user.Id);
@@ -379,7 +374,6 @@
         _drawerGeneration++;
         _saving = false;
         _mode = mode;
-        _actionUserId = null;
         _editing = null;
         _invitation = null;
         _preview = null;
@@ -451,7 +445,6 @@
     // For someone who lost their phone and their recovery codes. The Engine records who did this.
     private async Task ResetTwoStep(UserSummaryResponse user)
     {
-        _actionUserId = null;
         if (!CanAct)
             return;
         if (await Dialogs.ShowMessageBoxAsync($"Turn off two-step codes for {UserLabel(user)}?",
@@ -532,7 +525,6 @@
             _users.Add(user);
     }
 
-    private void ToggleActions(Guid id) => _actionUserId = _actionUserId == id ? null : id;
 
     private static string UserLabel(UserSummaryResponse user) => string.IsNullOrWhiteSpace(user.Email) ? "No email" : user.Email;
 
@@ -591,7 +583,6 @@
         _drawerGeneration++;
         _saving = false;
         _open = false;
-        _actionUserId = null;
         _invitation = null;
         _temporaryPassword = _issuedTemporaryPassword = string.Empty;
         _restoreFocus = true;

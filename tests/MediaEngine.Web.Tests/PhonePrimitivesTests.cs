@@ -99,6 +99,24 @@ public sealed class PhonePrimitivesTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task RowMenuPutsOneDividerBeforeTheDestructiveItemsAtTheEnd()
+    {
+        await UseAsync("phone");
+        var menu = Render<AppRowMenu>(parameters => parameters
+            .Add(menu => menu.Items, new[]
+            {
+                new AppRowMenuItem { Label = "Open details" },
+                new AppRowMenuItem { Label = "Remove", Destructive = true },
+                new AppRowMenuItem { Label = "Delete", Destructive = true },
+            }));
+
+        menu.Find("button.app-row-menu__trigger").Click();
+
+        Assert.Single(menu.FindAll("hr.app-menu-divider"));
+        Assert.Equal("Remove", menu.Find("hr.app-menu-divider + [role='menuitem']").TextContent.Trim());
+    }
+
+    [Fact]
     public async Task RowMenuOpensASheetOnPhoneAndRunsTheAction()
     {
         await UseAsync("phone");
