@@ -5950,6 +5950,8 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-art-picker__tile img{width:100%;aspect-ratio:2/3;border-radius:var(--tl-radius-sm,.25rem);object-fit:cover}
 .tl-art-picker__tile.is-picked{border-color:var(--tl-accent-primary,#8852FC)}
 .tl-art-picker__tile.is-disabled{opacity:.55;cursor:default}
+.tl-art-picker__tile:focus-visible{outline:2px solid var(--tl-accent-primary);outline-offset:2px}
+.tl-match__review:focus{outline:none}
 .tl-detail-stage--temporary{position:relative}
 .tl-detail-stage--temporary .tl-detail-hero{filter:brightness(.35)}
 .tl-temporary-view{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--tl-space-3);padding:var(--tl-space-6) var(--tl-space-4);color:#fff;text-align:center}

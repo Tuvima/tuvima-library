@@ -187,6 +187,13 @@ public sealed class EditSessionService(
                     await _handlers[move.Kind].ApplyAsync(move, CancellationToken.None).ConfigureAwait(false);
                     outcomes[move.Id] = Result(move, EditSessionChangeStatuses.Ok, null);
                 }
+                catch (InvalidOperationException ex)
+                {
+                    // The physical-files handler's reason names the files that did not move. That sentence goes back to the person in
+                    // Review; the Engine log keeps ids only, so the exception (and its message) is not written there.
+                    logger.LogWarning("Edit session could not move some files of item {EntityId}; the data changes stay saved.", move.EntityId);
+                    outcomes[move.Id] = Result(move, EditSessionChangeStatuses.Failed, ReasonFor(ex));
+                }
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, "Edit session could not move files for item {EntityId}; the data changes stay saved.", move.EntityId);

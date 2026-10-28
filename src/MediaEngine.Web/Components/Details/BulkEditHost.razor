@@ -6,6 +6,7 @@
 @inject IEngineApiClient Api
 @inject DeviceContextService Device
 @inject IAppDialogService Dialogs
+@inject IJSRuntime JS
 
 @* Bulk editing for a list that has no detail page behind it (the songs list, a library table; universal editor spec D14). The list
    hands over the rows it has ticked; this draws the selection bar, the right-hand "Edit N items" panel and, while anything is staged,
@@ -51,7 +52,7 @@
 
     @if (_selection.Panel != BulkPanelKind.None && _selection.Count > 0)
     {
-        <aside class="tl-editor-panel tl-editor-panel--narrow tl-editor-panel--list" aria-labelledby="tl-bulk-panel-title" data-tool="details">
+        <aside @ref="_panel" class="tl-editor-panel tl-editor-panel--narrow tl-editor-panel--list" aria-labelledby="tl-bulk-panel-title" data-tool="details">
             <header class="tl-editor-panel__header">
                 <h2 id="tl-bulk-panel-title" class="tl-editor-panel__title" tabindex="-1">@PanelTitle</h2>
                 <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
@@ -75,6 +76,10 @@
     private BulkEditSession _session = default!;
     private bool _canEdit;
     private bool _disposed;
+    private ElementReference _panel;
+    private BulkPanelKind _renderedPanel = BulkPanelKind.None;
+    private IJSObjectReference? _escapeModule;
+    private DotNetObjectReference<BulkEditHost>? _self;
 
     /// <summary>The rows the list has ticked, in the order it shows them.</summary>
     [Parameter] public IReadOnlyList<BulkEditRow> Rows { get; set; } = [];
@@ -150,6 +155,62 @@
 
     private void ClosePanel() => _selection.ClosePanel();
 
+    // Keyboard rules for the panel (spec D22, WP12): focus moves into it when it opens and back to the bar's button when it closes, and
+    // Esc outside a field closes it. Closing only the panel asks nothing: what is staged stays for Save changes.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var open = _canEdit && _selection.Count > 0 ? _selection.Panel : BulkPanelKind.None;
+        var was = _renderedPanel;
+        _renderedPanel = open;
+        if (open == was)
+        {
+            return;
+        }
+
+        try
+        {
+            if (open != BulkPanelKind.None)
+            {
+                if (was == BulkPanelKind.None)
+                {
+                    // Same rules as an editing section outside the overlay: an open popup or a field that uses Esc keeps the key.
+                    _escapeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editing-section-escape.js");
+                    _self ??= DotNetObjectReference.Create(this);
+                    if (_escapeModule is not null)
+                    {
+                        await _escapeModule.InvokeVoidAsync("attach", _panel, _self);
+                    }
+                }
+
+                await JS.InvokeVoidAsync("tuvimaFocusById", "tl-bulk-panel-title");
+            }
+            else if (_selection.Count > 0)
+            {
+                await JS.InvokeVoidAsync("tuvimaFocusById", BulkSelectionBar.ButtonId(was));
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is no page left to focus.
+        }
+        catch (JSException)
+        {
+            // The Esc script could not load: the panel still works and its close button still closes it.
+        }
+    }
+
+    /// <summary>Esc heard inside the panel (the script decides whether it is the panel's to use): closes the panel only.</summary>
+    [JSInvokable]
+    public Task HandleEscapeFromBrowser()
+    {
+        if (!_disposed)
+        {
+            _selection.ClosePanel();
+        }
+
+        return Task.CompletedTask;
+    }
+
     /// <summary>A row's own Edit button: the row is ticked by the list, then this opens the Edit panel for the ticked rows.</summary>
     public void OpenEditPanel() => _selection.OpenPanel(BulkPanelKind.Edit);
 
@@ -224,5 +285,6 @@
         _session.Detach();
         _selection.Changed -= OnStateChanged;
         Device.OnChanged -= OnDeviceChanged;
+        _self?.Dispose();
     }
 }

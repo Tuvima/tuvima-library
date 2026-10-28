@@ -324,6 +324,26 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task EditIsNotOffered_ForAChangeOnAnItemThePageNeverOpened_ButTheRowCanStillBeRemoved()
+    {
+        var editor = await StartEditorAsync();
+        var neverOpened = Guid.NewGuid();
+        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
+        editor.Session.Pending.SetField(neverOpened, "title", "An episode ticked in a list");
+        OpenReview(editor);
+
+        var rows = _dialogs.FindAll("[aria-label='Metadata'] .review-changes__row");
+        Assert.Equal(2, rows.Count);
+        var edits = rows.Select(row => row.QuerySelectorAll(".review-changes__actions button")
+            .Count(button => button.TextContent.Trim() == "Edit")).ToList();
+        Assert.Equal(1, edits.Sum());
+        Assert.Equal(1, edits.Count(count => count == 0));
+        Assert.All(rows, row => Assert.NotNull(row.QuerySelector(".review-changes__actions")));
+        Assert.False(editor.Flow.CanJumpTo(EditReviewRows.Build(editor.Session.Pending, editor.Session, editor.Mode.Fields)
+            .Single(row => row.EntityId == neverOpened)));
+    }
+
+    [Fact]
     public async Task BackToEditing_ClosesTheDialog_KeepsEditModeAndThePendingList_AndSavesNothing()
     {
         var editor = await StartEditorAsync();
