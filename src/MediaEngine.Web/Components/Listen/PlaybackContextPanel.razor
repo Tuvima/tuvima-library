@@ -221,6 +221,7 @@
             if (_moveFailure == message) { _moveFailure = null; await InvokeAsync(StateHasChanged); }
         }
         catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { } // the panel closed before the notice timed out
     }
     private void RequestClearHistory(ListenPlaybackSnapshot shown) => _historyConfirmation = shown;
     private async Task ConfirmClearHistoryAsync() { var shown = _historyConfirmation; _historyConfirmation = null; if (shown is not null) await SendAsync(shown, new() { Action = ListenPlaybackCommandActions.ClearHistory }); }

@@ -67,6 +67,60 @@ public sealed partial class PlaybackLyricsPresenter
         Changed?.Invoke();
     }
 
+    /// <summary>Where the lyrics showing now came from, in plain words; null when none are showing.</summary>
+    public string? SourceLine
+    {
+        get
+        {
+            if (Lines.Count == 0 || Tracks.FirstOrDefault(track => track.Id == SelectedTrackId) is not { } track)
+            {
+                return null;
+            }
+            if (track.IsUserOwned)
+            {
+                return "Lyrics from a file next to the song";
+            }
+            return string.Equals(track.Provider, "lrclib", StringComparison.OrdinalIgnoreCase)
+                ? "Lyrics from LRCLIB"
+                : string.IsNullOrWhiteSpace(track.Provider) ? null : $"Lyrics from {track.Provider}";
+        }
+    }
+
+    /// <summary>Adds a lyrics file (.lrc or plain text) the person picked, then shows it. Open to any profile.</summary>
+    public async Task ImportFileAsync(string fileName, string contentType, Stream content)
+    {
+        if (Refreshing || _identity is not { } identity || _commands is null)
+        {
+            return;
+        }
+        var generation = _generation; var selection = _selectionGeneration;
+        Refreshing = true; Status = null; Changed?.Invoke();
+        bool Fresh() => Current(identity, generation) && selection == _selectionGeneration;
+        try
+        {
+            var result = await api.ImportTextTrackAsync(identity.AssetId, LyricsKind, "und", fileName, contentType, content, _reads.Token);
+            if (!Fresh())
+            {
+                return;
+            }
+            var message = result?.message ?? "That lyrics file could not be added.";
+            _tracksLoaded = false; _contentLoaded = false; _probed = false;
+            await EnsureAsync(_snapshot, _commands);
+            if (Current(identity, generation))
+            {
+                Status = message;
+            }
+        }
+        catch (Exception)
+        {
+            if (Fresh())
+            {
+                Status = "That lyrics file could not be added.";
+            }
+        }
+        finally { if (Current(identity, generation)) { Refreshing = false; Changed?.Invoke(); } }
+    }
+
     public bool Offers(string kind) => PluginActions.Any(action => string.Equals(action.kind, kind, StringComparison.OrdinalIgnoreCase));
 
     public async Task OpenAlternativesAsync()
