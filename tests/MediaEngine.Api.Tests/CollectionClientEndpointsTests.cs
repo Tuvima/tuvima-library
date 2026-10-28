@@ -1212,6 +1212,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryAccessCatalog>(new FixedLibraryAccessCatalog());
         builder.Services.AddSingleton<MediaEngine.Api.Security.LibraryVisibilityRule>();
         builder.Services.AddSingleton<ICollectionRepository, CollectionRepository>();
+        builder.Services.AddSingleton<CollectionDisplayOverrideRepository>();
         builder.Services.AddSingleton<ISeriesManifestRepository, SeriesManifestRepository>();
         builder.Services.AddSingleton<IPersonRepository, PersonRepository>();
         builder.Services.AddSingleton<IArtworkPaletteService, ArtworkPaletteService>();
