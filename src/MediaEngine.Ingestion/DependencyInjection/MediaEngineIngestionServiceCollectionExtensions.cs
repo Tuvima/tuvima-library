@@ -217,7 +217,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                 opts.DuplicatePolicy = libraries.FileHandling.DuplicatePolicy;
                 var kinds = LoadKindsOrBuiltIn(configLoader, serviceProvider.GetService<ILibraryKindSource>());
                 opts.LibraryFolders = LibraryFolderEntryFactory.CreateAll(libraries.Libraries, kinds, logger)
-                    .Where(e => e.EffectiveSourcePaths.Count > 0)
+                    .Where(e => e.CataloguedSourcePaths.Count > 0)
                     .ToList();
 
                 LibraryFolderResolver.ValidateNoOverlap(opts.LibraryFolders);

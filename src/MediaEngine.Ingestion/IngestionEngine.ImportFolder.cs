@@ -18,7 +18,7 @@ public sealed partial class IngestionEngine
         (folderOptions ?? _folderOptions).LibraryFolders
             .Where(library => string.Equals(library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase))
             // A folder that was merged into another one is no longer scanned: its files are catalogued as the copies in the target.
-            .SelectMany(library => library.Sources.Where(source => !source.IsMergedAway).Select(source =>
+            .SelectMany(library => library.Sources.Where(source => !source.IsMergedAway && source.ScanEnabled).Select(source =>
                 new IngestionScanTarget(source.Path, source.IncludeSubdirectories)))
             .Concat(GetImportScanTargets(folderOptions))
             .Where(target => !string.IsNullOrWhiteSpace(target.Path))
@@ -140,7 +140,7 @@ public sealed partial class IngestionEngine
         CancellationToken ct)
     {
         var importFolders = _importFolders!;
-        if (MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.DeletesIncomingDuplicate(importFolders.DuplicatePolicy))
+        if (MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.DeletesIncomingDuplicate(importFolders.ResolveDuplicatePolicy(existing.FilePathRoot)))
         {
             var policy = importFolders.CreateImportPolicy(allowDelete: true);
             var deleteAllowed = policy is not null

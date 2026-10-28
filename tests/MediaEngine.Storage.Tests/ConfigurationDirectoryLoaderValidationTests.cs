@@ -367,17 +367,17 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
-    public void LoadLibraries_RefusesTheOlderSevenPointZeroFormatWithAPlainMessage()
+    public void LoadLibraries_RefusesTheOlderEightPointZeroFormatWithAPlainMessage()
     {
         using var temp = TempConfig.Create();
         new ConfigurationDirectoryLoader(temp.Path).SaveLibraries(CreateValidCataloguedLibrary());
         var path = System.IO.Path.Combine(temp.Path, "libraries.json");
-        File.WriteAllText(path, File.ReadAllText(path).Replace("\"8.0\"", "\"7.0\"", StringComparison.Ordinal));
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\"9.0\"", "\"8.0\"", StringComparison.Ordinal));
         File.Delete(path + ".bak");
 
         var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(temp.Path).LoadLibraries());
 
-        Assert.Contains("older 7.0 format", ex.Message);
+        Assert.Contains("older 8.0 format", ex.Message);
         Assert.Contains("fresh default", ex.Message);
     }
 
@@ -435,6 +435,190 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         loader.SaveLibraries(config);
 
         Assert.Equal(policy, loader.LoadLibraries().FileHandling.DuplicatePolicy);
+    }
+
+    [Fact]
+    public void Validator_AcceptsThreeOtherVideosLibrariesWithDifferentFolders()
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries.Add(OtherVideosLibrary(1, "Home Videos", P(Drive, "media/home-videos")));
+        config.Libraries.Add(OtherVideosLibrary(2, "TikTok Edits", P(Drive, "media/tiktok")));
+        config.Libraries.Add(OtherVideosLibrary(3, "Other Videos", P(Drive, "media/other-videos")));
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void SaveLibraries_AcceptsThreeOtherVideosLibrariesAndKeepsAllThree()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries.Add(OtherVideosLibrary(1, "Home Videos", P(Drive, "media/home-videos")));
+        config.Libraries.Add(OtherVideosLibrary(2, "TikTok Edits", P(Drive, "media/tiktok")));
+        config.Libraries.Add(OtherVideosLibrary(3, "Other Videos", P(Drive, "media/other-videos")));
+
+        loader.SaveLibraries(config);
+
+        Assert.Equal(
+            ["Movies", "Home Videos", "TikTok Edits", "Other Videos"],
+            loader.LoadLibraries().Libraries.Select(library => library.Name).ToArray());
+    }
+
+    [Fact]
+    public void Validator_RefusesASecondMoviesLibrary_BecauseMoviesFoldersMergeIntoOneLibrary()
+    {
+        var config = CreateValidCataloguedLibrary();
+        var second = OtherVideosLibrary(1, "Old films", P(Drive, "media/old-films"));
+        second.Category = "Movies";
+        second.KindKey = "movies";
+        second.MediaTypes = ["Movies"];
+        second.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        second.YoutubeLookup = true;
+        config.Libraries.Add(second);
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("holds one library"));
+    }
+
+    [Fact]
+    public void Validator_RefusesTwoLibrariesWhoseFoldersOverlap()
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries.Add(OtherVideosLibrary(1, "Home Videos", P(Drive, "media/movies/home")));
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("must not overlap"));
+    }
+
+    [Fact]
+    public void Validator_RefusesAFolderWithScanningOffThatOverlapsAnother()
+    {
+        var config = CreateValidCataloguedLibrary();
+        var paused = OtherVideosLibrary(1, "Home Videos", P(Drive, "media/movies"));
+        paused.Sources[0].ScanEnabled = false;
+        config.Libraries.Add(paused);
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("must not overlap"));
+    }
+
+    [Theory]
+    [InlineData(LibraryAccessLevels.Standard)]
+    [InlineData(LibraryAccessLevels.Selected)]
+    [InlineData(LibraryAccessLevels.Vault)]
+    public void Validator_AcceptsEachLibraryAccessValue(string access)
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Access = access;
+
+        Assert.Empty(JsonConfigValidator.Validate(config, "libraries.json"));
+    }
+
+    [Fact]
+    public void Validator_RefusesAnUnknownLibraryAccessValue()
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Access = "everyone";
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("libraries[0].access must be one of standard, selected, vault"));
+    }
+
+    [Fact]
+    public void Validator_AcceptsALibraryDuplicateRuleOfKeepOneKeepBothOrNone()
+    {
+        foreach (var policy in new string?[] { null, LibraryDuplicatePolicies.KeepOne, LibraryDuplicatePolicies.KeepBoth })
+        {
+            var config = CreateValidCataloguedLibrary();
+            config.Libraries[0].FileHandling.DuplicatePolicy = policy;
+
+            Assert.Empty(JsonConfigValidator.Validate(config, "libraries.json"));
+        }
+    }
+
+    [Fact]
+    public void Validator_RefusesALibraryDuplicateRuleThatIsNotKeepOneOrKeepBoth()
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].FileHandling.DuplicatePolicy = "replace_existing";
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("libraries[0].file_handling.duplicate_policy must be keep_one or keep_both"));
+    }
+
+    [Fact]
+    public void Validator_RefusesAFolderDuplicateRuleThatIsNotKeepOneOrKeepBoth()
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Sources[0].FileHandlingOverride = new LibrarySourceFileHandlingOverride { DuplicatePolicy = "skip_exact" };
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("sources[0].file_handling_override.duplicate_policy must be keep_one or keep_both"));
+    }
+
+    [Fact]
+    public void SaveLibraries_RoundTripsTheAccessFileHandlingScanAndOverrideFields()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Access = LibraryAccessLevels.Selected;
+        config.Libraries[0].FileHandling.DuplicatePolicy = LibraryDuplicatePolicies.KeepBoth;
+        config.Libraries[0].Sources[0].ScanEnabled = false;
+        config.Libraries[0].Sources[0].FileHandlingOverride = new LibrarySourceFileHandlingOverride
+        {
+            DuplicatePolicy = LibraryDuplicatePolicies.KeepOne,
+            WriteTags = false,
+        };
+
+        loader.SaveLibraries(config);
+        var library = loader.LoadLibraries().Libraries[0];
+
+        Assert.Equal(LibraryAccessLevels.Selected, library.Access);
+        Assert.Equal(LibraryDuplicatePolicies.KeepBoth, library.FileHandling.DuplicatePolicy);
+        Assert.False(library.Sources[0].ScanEnabled);
+        Assert.Equal(LibraryDuplicatePolicies.KeepOne, library.Sources[0].FileHandlingOverride!.DuplicatePolicy);
+        Assert.False(library.Sources[0].FileHandlingOverride!.WriteTags);
+        Assert.Contains("\"scan_enabled\": false", File.ReadAllText(System.IO.Path.Combine(temp.Path, "libraries.json")));
+    }
+
+    [Fact]
+    public void SaveLibraries_KeepsAFolderOverrideNullWhenEveryFieldIsNull()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Sources[0].FileHandlingOverride = new LibrarySourceFileHandlingOverride();
+
+        loader.SaveLibraries(config);
+
+        Assert.Null(loader.LoadLibraries().Libraries[0].Sources[0].FileHandlingOverride);
+    }
+
+    [Fact]
+    public void LoadLibraries_RefusesAnUnknownFieldInsideAFolderOverride()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Sources[0].FileHandlingOverride = new LibrarySourceFileHandlingOverride { WriteTags = true };
+        loader.SaveLibraries(config);
+        var path = System.IO.Path.Combine(temp.Path, "libraries.json");
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\"write_tags\": true", "\"write_tags\": true, \"delete_everything\": true", StringComparison.Ordinal));
+        File.Delete(path + ".bak");
+
+        var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(temp.Path).LoadLibraries());
+
+        Assert.Contains("delete_everything is not supported", ex.Message);
     }
 
     [Fact]
@@ -569,7 +753,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             Assert.DoesNotContain("\"role\"", json, StringComparison.Ordinal);
             Assert.DoesNotContain("preserve_originals", json, StringComparison.Ordinal);
             var parsed = System.Text.Json.JsonSerializer.Deserialize<LibrariesConfiguration>(json)!;
-            Assert.Equal("8.0", parsed.SchemaVersion);
+            Assert.Equal("9.0", parsed.SchemaVersion);
             Assert.Equal(LibraryDuplicatePolicies.KeepOne, parsed.FileHandling.DuplicatePolicy);
             Assert.NotEmpty(parsed.Libraries);
             Assert.All(parsed.Libraries, library => Assert.NotNull(library.PrimaryDestination));
@@ -948,6 +1132,33 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                 },
             },
         ],
+    };
+
+    private static LibraryFolderConfig OtherVideosLibrary(int number, string name, string path) => new()
+    {
+        Id = $"cccccccc-cccc-4ccc-8ccc-00000000000{number}",
+        Name = name,
+        Category = "Videos",
+        Kind = LibraryKinds.Catalogued,
+        KindKey = "other_videos",
+        Area = LibraryAreas.Watch,
+        Presentation = LibraryPresentations.Catalogue,
+        MetadataPolicy = LibraryMetadataPolicies.LocalOnly,
+        YoutubeLookup = false,
+        MediaTypes = ["Videos"],
+        Sources =
+        [
+            new LibrarySourceConfig
+            {
+                Id = $"cccccccc-dddd-4ccc-8ccc-00000000000{number}",
+                Path = path,
+                ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
+                AccessMode = LibrarySourceAccessModes.Writable,
+            },
+        ],
+        PrimaryDestinationSourceId = $"cccccccc-dddd-4ccc-8ccc-00000000000{number}",
+        AcceptedIntakeModes = [LibraryIntakeModes.IncomingFolder],
+        OrganizationPolicy = new() { Mode = LibraryOrganizationModes.TuvimaStandard },
     };
 
     private static LibraryFolderConfig CreateValidPersonalLibrary(

@@ -485,6 +485,26 @@ public static class JsonConfigValidator
                 errors.Add($"{prefix}.metadata_policy must be one of enriched, local_preferred, local_only, manual.");
             }
 
+            if (!LibraryAccessLevels.IsValid(library.Access))
+            {
+                errors.Add($"{prefix}.access must be one of standard, selected, vault.");
+            }
+
+            if (library.FileHandling is null)
+            {
+                errors.Add($"{prefix}.file_handling is required.");
+            }
+            else
+            {
+                if (library.FileHandling.DuplicatePolicy is not null
+                    && !LibraryDuplicatePolicies.IsValid(library.FileHandling.DuplicatePolicy))
+                {
+                    errors.Add($"{prefix}.file_handling.duplicate_policy must be keep_one or keep_both (or left out to follow the server).");
+                }
+
+                AddNoUnmappedProperties(library.FileHandling.UnmappedProperties, $"{prefix}.file_handling", errors);
+            }
+
             if (library.OrganizationPolicy is null)
             {
                 errors.Add($"{prefix}.organization_policy is required.");
@@ -661,6 +681,17 @@ public static class JsonConfigValidator
             && source.AccessMode != LibrarySourceAccessModes.Writable)
         {
             errors.Add($"{prefix}.managed folders must use writable access.");
+        }
+
+        if (source.FileHandlingOverride is { } fileHandlingOverride)
+        {
+            if (fileHandlingOverride.DuplicatePolicy is not null
+                && !LibraryDuplicatePolicies.IsValid(fileHandlingOverride.DuplicatePolicy))
+            {
+                errors.Add($"{prefix}.file_handling_override.duplicate_policy must be keep_one or keep_both (or left out to follow the library).");
+            }
+
+            AddNoUnmappedProperties(fileHandlingOverride.UnmappedProperties, $"{prefix}.file_handling_override", errors);
         }
 
         if (!LibrarySourceConversionStates.IsValid(source.ConversionState))

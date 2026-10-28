@@ -7,11 +7,12 @@ namespace MediaEngine.Domain.Configuration;
 public sealed class LibrariesConfiguration
 {
     /// <summary>
-    /// The only supported file version. 8.0 moved "Suitable for limited profiles" from the library to each folder and removed
+    /// The only supported file version. 9.0 added a library-level access value and file handling block, and a per-folder
+    /// scan switch and file handling override. 8.0 moved "Suitable for limited profiles" from the library to each folder and removed
     /// the unused sharing fields (7.0 had replaced the per-folder role, intake and write-back fields with two folder states,
     /// one destination per library, and global duplicate handling). Older files are refused.
     /// </summary>
-    public const string CurrentSchemaVersion = "8.0";
+    public const string CurrentSchemaVersion = "9.0";
 
     [JsonPropertyName("schema_version")]
     public string SchemaVersion { get; set; } = CurrentSchemaVersion;
@@ -44,6 +45,38 @@ public sealed class FileHandlingConfig
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
+}
+
+/// <summary>
+/// A library's own file handling. Anything left out follows the server-wide <see cref="FileHandlingConfig"/>.
+/// </summary>
+public sealed class LibraryFileHandlingConfig
+{
+    /// <summary><c>keep_one</c> or <c>keep_both</c>; null follows the server-wide default.</summary>
+    [JsonPropertyName("duplicate_policy")]
+    public string? DuplicatePolicy { get; set; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
+}
+
+/// <summary>A folder's own file handling. Anything left out follows its library.</summary>
+public sealed class LibrarySourceFileHandlingOverride
+{
+    /// <summary><c>keep_one</c> or <c>keep_both</c>; null follows the library.</summary>
+    [JsonPropertyName("duplicate_policy")]
+    public string? DuplicatePolicy { get; set; }
+
+    /// <summary>Write tags into files in this folder; null follows the library's setting.</summary>
+    [JsonPropertyName("write_tags")]
+    public bool? WriteTags { get; set; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
+
+    /// <summary>True when no field is set, so the override says nothing and is dropped on save.</summary>
+    [JsonIgnore]
+    public bool IsEmpty => DuplicatePolicy is null && WriteTags is null;
 }
 
 /// <summary>
@@ -161,6 +194,14 @@ public sealed class LibraryFolderConfig
     [JsonPropertyName("recycle_bin")]
     public bool RecycleBin { get; set; }
 
+    /// <summary>Who may see this library: <c>standard</c> (default), <c>selected</c> or <c>vault</c> (<see cref="LibraryAccessLevels"/>).</summary>
+    [JsonPropertyName("access")]
+    public string Access { get; set; } = LibraryAccessLevels.Standard;
+
+    /// <summary>This library's own file handling; anything left out follows the server-wide default.</summary>
+    [JsonPropertyName("file_handling")]
+    public LibraryFileHandlingConfig FileHandling { get; set; } = new();
+
     [JsonPropertyName("sources")]
     public List<LibrarySourceConfig> Sources { get; set; } = [];
 
@@ -186,7 +227,19 @@ public sealed class LibraryFolderConfig
 
     [JsonIgnore]
     public IEnumerable<LibrarySourceConfig> ScannableSources =>
+        Sources.Where(source => !string.IsNullOrWhiteSpace(source.Path) && !source.IsMergedAway && source.ScanEnabled);
+
+    /// <summary>
+    /// Every folder that still holds this library's files: it has a path and was not merged away, whether or not scanning is
+    /// paused. Use this to map a path to its library; use <see cref="ScannableSources"/> to decide what to scan.
+    /// </summary>
+    [JsonIgnore]
+    public IEnumerable<LibrarySourceConfig> CataloguedSources =>
         Sources.Where(source => !string.IsNullOrWhiteSpace(source.Path) && !source.IsMergedAway);
+
+    /// <summary>The duplicate rule for a folder of this library: the folder's override, else this library's, else <paramref name="serverDefault"/>.</summary>
+    public string ResolveDuplicatePolicy(LibrarySourceConfig? source, string? serverDefault)
+        => LibraryFileHandlingResolver.ResolveDuplicatePolicy(serverDefault, FileHandling.DuplicatePolicy, source?.FileHandlingOverride?.DuplicatePolicy);
 
     /// <summary>The destination folder. An as-is folder is never returned, even if the id points at one.</summary>
     [JsonIgnore]
@@ -260,6 +313,14 @@ public sealed class LibrarySourceConfig
     /// <summary>When the merge finished, set only while <see cref="MergeState"/> is <c>merged</c>.</summary>
     [JsonPropertyName("merged_at")]
     public DateTimeOffset? MergedAt { get; set; }
+
+    /// <summary>When off, this folder is not scanned or watched, but what is already catalogued from it stays. On by default.</summary>
+    [JsonPropertyName("scan_enabled")]
+    public bool ScanEnabled { get; set; } = true;
+
+    /// <summary>This folder's own file handling; null when it follows its library.</summary>
+    [JsonPropertyName("file_handling_override")]
+    public LibrarySourceFileHandlingOverride? FileHandlingOverride { get; set; }
 
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }

@@ -79,6 +79,46 @@ public static class LibraryDuplicatePolicies
     public static bool DeletesIncomingDuplicate(string? value) => value == KeepOne;
 }
 
+/// <summary>Who may see a library: everyone with the area, only chosen profiles, or under Vault rules (D9 of the Libraries spec).</summary>
+public static class LibraryAccessLevels
+{
+    /// <summary>Visible to everyone who has the area, subject to profile limits. The default.</summary>
+    public const string Standard = "standard";
+
+    /// <summary>Only the profiles chosen for the library.</summary>
+    public const string Selected = "selected";
+
+    /// <summary>Vault rules apply. Vault libraries live in the Vault tables, so this is accepted but not written for normal libraries today.</summary>
+    public const string Vault = "vault";
+
+    public static bool IsValid(string? value) => value is Standard or Selected or Vault;
+}
+
+/// <summary>Picks the file handling that applies to one folder: its own override, else its library's, else the server-wide default.</summary>
+public static class LibraryFileHandlingResolver
+{
+    /// <param name="serverDefault">The server-wide <c>file_handling.duplicate_policy</c>.</param>
+    /// <param name="libraryPolicy">The library's <c>file_handling.duplicate_policy</c>, or null when it follows the server.</param>
+    /// <param name="folderPolicy">The folder's override, or null when it follows its library.</param>
+    public static string ResolveDuplicatePolicy(string? serverDefault, string? libraryPolicy, string? folderPolicy)
+    {
+        if (LibraryDuplicatePolicies.IsValid(folderPolicy))
+        {
+            return folderPolicy!;
+        }
+
+        if (LibraryDuplicatePolicies.IsValid(libraryPolicy))
+        {
+            return libraryPolicy!;
+        }
+
+        return LibraryDuplicatePolicies.IsValid(serverDefault) ? serverDefault! : LibraryDuplicatePolicies.KeepOne;
+    }
+
+    /// <summary>Whether tags are written for one folder: its own override, else the library's setting.</summary>
+    public static bool ResolveWriteTags(bool libraryWriteTags, bool? folderWriteTags) => folderWriteTags ?? libraryWriteTags;
+}
+
 public static class LibraryOrganizationModes
 {
     public const string TuvimaStandard = "tuvima_standard";

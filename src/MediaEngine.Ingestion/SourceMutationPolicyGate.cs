@@ -51,6 +51,11 @@ public sealed class SourceMutationPolicyGate : ISourceMutationPolicyGate
             return SourceMutationDecision.Deny("The requested path is outside the configured source root.");
         }
 
+        if (!request.Source.ScanEnabled && !request.Source.IsMergeJob)
+        {
+            return SourceMutationDecision.Deny("Scanning is paused for this folder, so its files are left as they are.");
+        }
+
         if (request.Source.ManagementMode == FileSourceManagementMode.ExistingLibrary)
         {
             return SourceMutationDecision.Deny("Read-only folders cannot be changed: they cannot be changed, tagged, cleaned up or used as a destination.");

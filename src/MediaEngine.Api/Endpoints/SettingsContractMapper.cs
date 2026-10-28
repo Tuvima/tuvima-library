@@ -121,6 +121,7 @@ internal static class SettingsContractMapper
             library.Sources ??= [];
             library.AcceptedIntakeModes ??= [];
             library.OrganizationPolicy ??= new LibraryOrganizationPolicyConfig();
+            library.FileHandling ??= new LibraryFileHandlingConfig();
         }
 
         // Access follows management mode and each library gets its destination, whoever sent the change.

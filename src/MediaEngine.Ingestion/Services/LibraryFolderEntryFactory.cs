@@ -88,10 +88,14 @@ public static class LibraryFolderEntryFactory
                 ManagementMode = source.ManagementMode,
                 AccessMode = source.AccessMode,
                 IncludeSubdirectories = source.IncludeSubdirectories,
+                ScanEnabled = source.ScanEnabled,
+                DuplicatePolicyOverride = source.FileHandlingOverride?.DuplicatePolicy,
+                WriteTagsOverride = source.FileHandlingOverride?.WriteTags,
                 ConversionState = source.ConversionState,
                 MergeState = source.MergeState,
             }).ToList(),
             PrimaryDestinationSourceId = library.PrimaryDestinationSourceId,
+            DuplicatePolicy = library.FileHandling.DuplicatePolicy,
             MediaTypes = library.MediaTypes
                 .Select(MediaTypeParser.Parse)
                 .Where(mediaType => mediaType != MediaType.Unknown)
