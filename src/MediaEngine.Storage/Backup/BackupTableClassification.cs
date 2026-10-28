@@ -223,6 +223,7 @@ public static partial class BackupTableClassification
         Transient("application_webhook_deliveries", "Webhook delivery queue."),
         Transient("plugin_event_cursors", "How far each plugin has read events."),
         Transient("plugin_records", "Plugin working data."),
+        Transient("plugin_activity", "What plugins did and how they failed; fills again as they run."),
         Transient("plugin_lore_entities", "Lore entities found by plugins."),
         Transient("plugin_lore_relationships", "Lore relationships found by plugins."),
         Transient("media_editor_commits", "Editor save records, kept for repeat requests."),

@@ -1,6 +1,7 @@
 {
   "activity_retention_days": 90,
   "activity_max_events": 500000,
+  "plugin_people_action_retention_days": 365,
   "log_retention_days": 90,
   "log_max_total_mb": 1024,
   "missing_file_retention_days": 90,

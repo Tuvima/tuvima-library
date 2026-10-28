@@ -7,9 +7,11 @@ using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Api.Services.Plugins.Service;
+using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
+using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Constants;
@@ -203,6 +205,42 @@ internal static class PluginEndpoints
             .DisableAntiforgery()
             .RequireEffectiveAdministratorInPerson();
 
+        group.MapGet("/{pluginId}/activity", async (
+            string pluginId,
+            [FromServices] PluginActivityService activity,
+            [FromServices] ProviderCapabilityCatalogue sources,
+            PluginCatalog catalog,
+            int? limit,
+            bool? failuresOnly,
+            CancellationToken ct) =>
+        {
+            // A plugin's id or a metadata source's name; anything else has no Activity list.
+            if (catalog.Get(pluginId) is null && !sources.Sources().Any(source => string.Equals(source.Name, pluginId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+            }
+
+            return Results.Ok(await activity.GetAsync(pluginId, PagedRequest.From(null, limit, defaultLimit: 50).Limit, failuresOnly ?? false, ct).ConfigureAwait(false));
+        })
+            .WithName("GetPluginActivity")
+            .WithSummary("What a plugin or source did, when, how many items changed, and every failure with its cause. Newest first.")
+            .Produces<PluginActivityResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapGet("/people-actions", async (
+            [FromServices] PluginPeopleActionLog peopleActions,
+            string? plugin,
+            Guid? profileId,
+            string? action,
+            int? limit,
+            CancellationToken ct) =>
+            Results.Ok(await peopleActions.GetAsync(plugin, profileId, action, PagedRequest.From(null, limit, defaultLimit: 100).Limit, ct).ConfigureAwait(false)))
+            .WithName("GetPluginPeopleActions")
+            .WithSummary("What people did with plugins and sources that changed shared Library data, newest first. Administrators only.")
+            .Produces<PluginPeopleActionsResponse>(StatusCodes.Status200OK)
+            .RequireEffectiveAdministrator();
+
         group.MapGet("/{pluginId}/removal-impact", (string pluginId, PluginCatalog catalog) =>
         {
             if (catalog.Get(pluginId) is null)
@@ -250,9 +288,27 @@ internal static class PluginEndpoints
         .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
-        group.MapPost("/{pluginId}/disable", async (string pluginId, PluginCatalog catalog, [FromServices] AiFeatureRetractionService retraction, CancellationToken ct) =>
+        group.MapPost("/{pluginId}/disable", async (
+            string pluginId,
+            HttpContext http,
+            PluginCatalog catalog,
+            [FromServices] AiFeatureRetractionService retraction,
+            [FromServices] PluginActivityService activity,
+            [FromServices] PluginPeopleActionLog peopleActions,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
         {
+            var registration = catalog.Get(pluginId);
             catalog.SetEnabled(pluginId, false);
+            if (registration is not null)
+            {
+                var context = new PluginActivityContext(registration.Manifest.Id, registration.Manifest.Version);
+                await activity.ForgetAsync(pluginId, deleteHistory: false, ct).ConfigureAwait(false);
+                await activity.RecordNoteAsync(context, "Switched off.", ct).ConfigureAwait(false);
+                var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+                await peopleActions.RecordAsync(new PluginPeopleAction(
+                    authority.ActiveProfileId, registration.Manifest.Id, "switched-plugin-off", $"Switched off {registration.Manifest.Name}"), ct).ConfigureAwait(false);
+            }
 
             // An AI feature's suggestions go away with its plugin (D-T); provider and person values stay.
             await retraction.RetractForPluginAsync(pluginId, ct);

@@ -48,6 +48,7 @@ public static class JsonConfigValidator
             case MaintenanceSettings maintenance:
                 AddPositive(errors, maintenance.ActivityRetentionDays, "activity_retention_days");
                 AddRange(errors, maintenance.ActivityRetentionDays, "activity_retention_days", LogRetentionLimits.MinDays, LogRetentionLimits.MaxDays);
+                AddRange(errors, maintenance.PluginPeopleActionRetentionDays, "plugin_people_action_retention_days", LogRetentionLimits.MinDays, LogRetentionLimits.MaxDays);
                 AddRange(errors, maintenance.ActivityMaxEvents, "activity_max_events", LogRetentionLimits.MinActivityEvents, LogRetentionLimits.MaxActivityEvents);
                 AddRange(errors, maintenance.LogRetentionDays, "log_retention_days", LogRetentionLimits.MinDays, LogRetentionLimits.MaxDays);
                 AddRange(errors, maintenance.LogMaxTotalMegabytes, "log_max_total_mb", LogRetentionLimits.MinLogTotalMegabytes, LogRetentionLimits.MaxLogTotalMegabytes);
