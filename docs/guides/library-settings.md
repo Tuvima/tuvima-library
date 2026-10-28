@@ -16,7 +16,7 @@ Use Settings in Tuvima Library to add folders and check background work. This fi
 Libraries is **Settings > Libraries**, in two levels. Each has its own address, so Back and a reload keep your place, and the page title and breadcrumb above it show where you are.
 
 1. **The overview** has four tabs, **Watch**, **Listen**, **Read** and **View**. The tabs filter the list: pick one and the table under it shows only that area's libraries, one row per library. A row has the library's name with its icon, its content type, who can see it (**Standard** or **Selected profiles**), its folder and title counts ("3 folders · 1,284 titles", or "Nothing added yet") and a status: **Healthy**, **Needs review** (with the number of files; it opens Needs Review), **Empty**, **Folder offline** (the folders at fault in a tooltip) or **Scanning**. The whole row opens the library, and a chevron and a highlight on hover show that it does. Search and a status filter sit above the table, and an area with nothing in it says "No Watch libraries yet" with one **Add library** button. A Vault-protected library appears, with a lock, only while Vault mode is on for you and your profile may use it; otherwise there is no row and no hint. Under the table is a line for the [Import folder](#import-folder) (it reads "set" or "not set").
-2. **A library page** (for example Movies) shows the library's content type, who can see it, its counts and status, and **Scan now**, **Add folder** and **Add files**. Its tabs are **Folders** (the table of folders), **Access**, **File handling** and **Activity**, plus **Lookup** for a kind that has lookup settings (YouTube). File handling, Activity and Lookup are being built and say "Coming in the next step" for now. **Scan now** scans this library's folders only (folders with scanning paused or offline are left alone). An amber count and a short **Paused** note on the Folders tab mean a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
+2. **A library page** (for example Movies) shows the library's content type, who can see it, its counts and status, and **Scan now**, **Add folder** and **Add files**. Its tabs are **Folders** (the table of folders), **Access**, **File handling** and **Activity**, plus **Lookup** for a kind that has lookup settings (YouTube). Activity and Lookup are described [below](#see-what-happened-in-one-library). **Scan now** scans this library's folders only (folders with scanning paused or offline are left alone). An amber count and a short **Paused** note on the Folders tab mean a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
 
 The kinds are:
 
@@ -141,6 +141,22 @@ Open the library and pick its **File handling** tab. It has four cards, each wit
 - **Deleted files**: the **Use Recycle bin** switch (on for Videos, off for the other types).
 
 Nothing is saved until you press **Save changes** in the bar at the bottom (**Discard** puts the saved values back, and leaving with unsaved changes asks first). Turning **Rename or move files automatically** on for a library that already has files shows how many files will be renamed or moved; when you press **Save changes**, Library asks the same question as converting a folder (it can take hours and cannot be undone automatically, though a full log of every move is kept) and starts the visible background job only after you confirm. Turning it off asks first and stops any organising that is running; files already renamed keep their new names. A folder can still override duplicates and metadata from its menu on the **Folders** tab. On a phone the tab shows the values but cannot change them.
+## See what happened in one library
+
+Open the library and pick its **Activity** tab. It lists what has happened in this library only, newest first, each line with a time, an icon whose colour says the kind, and a plain sentence: titles added ("Added Dune."), items that need review ("Arrival needs review", with a **Needs review** link to [Review Queue](resolving-reviews.md)), files that could not be taken in, the first check of a folder, renames and merges, and folders whose kind was changed. Nothing new is stored; the tab is a filtered view of events the Library already records, so a line appears only for the library its files belong to. It never shows another library's events, and it is shown to administrators only. A library with no events yet says "Nothing has happened in this library yet". If the Library server cannot be reached the tab says so and offers **Try again**.
+
+## Add your own YouTube key
+
+A library of the YouTube kind also has a **Lookup** tab. YouTube lookup works without a key: it finds a video's title, channel and thumbnail from the video ID, and the tab says **Using the shared key**. A free key of your own adds the description and upload date, and then says **Using your key**. Only video IDs are sent to YouTube, never your files.
+
+To get a key, open **How do I get a key?** on the tab:
+
+1. Sign in to the [Google Cloud console](https://console.cloud.google.com/apis/credentials) with a Google account and create a project. Any name will do.
+2. Open YouTube Data API v3 for that project and choose **Enable**.
+3. Open Credentials, choose **Create credentials**, then **API key**.
+4. Copy the key, paste it into the field on the Lookup tab and choose **Save**.
+
+**Save** checks the key with YouTube before keeping it, and **Test key** checks it without saving. The key is kept on your server in the secrets store, never in the data store, and is never shown again or written to a log: the field only says that a key is saved. **Remove** deletes it and goes back to the shared key. Only administrators can change the key, and on a phone the tab shows the state and the steps but cannot change anything.
 
 ## Advanced settings
 

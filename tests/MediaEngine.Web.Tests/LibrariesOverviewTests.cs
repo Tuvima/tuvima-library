@@ -428,12 +428,12 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheOtherTabsAreFilledInLaterAndSaySoWithAPlaceholder()
+    public void TheActivityTabIsSelectedFromTheAddressAndShowsNoFolderTable()
     {
         var cut = Open(MoviesId, query: "tab=activity");
 
-        cut.WaitForAssertion(() => Assert.Contains("Coming in the next step", cut.Markup));
-        Assert.Equal("true", cut.FindAll(PageTabs)[3].GetAttribute("aria-selected"));
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.FindAll(PageTabs)[3].GetAttribute("aria-selected")));
+        Assert.DoesNotContain("Coming in the next step", cut.Markup);
         Assert.Empty(cut.FindAll(".folder-table"));
     }
 

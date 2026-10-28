@@ -228,6 +228,12 @@ public sealed class ProviderCredentialService
             }
 
             var classified = ClassifyStatus(response.StatusCode);
+            if (string.Equals(provider.Name, "youtube", StringComparison.OrdinalIgnoreCase)
+                && response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                // YouTube answers a key it does not know with 400, not 401.
+                classified = Failure("invalid_credential", "YouTube did not accept this key.");
+            }
             if (string.Equals(provider.Name, "subdl", StringComparison.OrdinalIgnoreCase)
                 && response.StatusCode == HttpStatusCode.TooManyRequests
                 && await HasSubdlQuotaErrorAsync(response, ct).ConfigureAwait(false))
