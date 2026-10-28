@@ -373,5 +373,25 @@
       { "key": "api_key", "label": "SubDL API key", "input_type": "password", "required": true, "ownership": "user_supplied", "purpose": "api_key", "format_hint": "Your personal API key from the SubDL account panel.", "minimum_length": 8, "maximum_length": 256, "validation_pattern": "^[^\\s]+$" }
     ],
     "authentication_probe": { "path": "/api/v2/me", "method": "GET", "success_status_codes": [200] }
+  },
+  "declaration": {
+    "audience": "everyone",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "quiet",
+    "changelog": "First built-in version: subtitles for films and TV on request.",
+    "text_track": "subtitles",
+    "stores": {
+      "saved_output": "subtitles",
+      "on_removal": "keep"
+    },
+    "actions": [
+      {
+        "id": "find-subtitles",
+        "kind": "find_subtitles",
+        "label": "Find subtitles",
+        "slot": "panel"
+      }
+    ]
   }
 }

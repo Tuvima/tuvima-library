@@ -935,5 +935,12 @@
       { "key": "pin", "label": "Subscriber PIN, if required", "input_type": "password", "required": false, "ownership": "user_supplied", "purpose": "other", "format_hint": "Required only for user-supported project keys." }
     ],
     "authentication_probe": { "path": "/login", "method": "POST", "success_status_codes": [200] }
+  },
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "tell_me",
+    "changelog": "First built-in version: TV series, season and episode details from TheTVDB."
   }
 }

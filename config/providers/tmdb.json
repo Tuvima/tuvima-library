@@ -888,5 +888,12 @@
       "method": "GET",
       "success_status_codes": [200]
     }
+  },
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "tell_me",
+    "changelog": "First built-in version: film and TV identity, artwork and details from TMDB."
   }
 }
