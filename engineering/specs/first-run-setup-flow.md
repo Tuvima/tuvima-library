@@ -1,6 +1,6 @@
 # Spec: Smoother first-run setup (sign-in hand-off, tools summary, quiet AI runtime)
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [First run and prerequisites (archived)](archive/first-run-prerequisites.md) · [Users, profiles and households](users-profiles-households.md) · [Simpler library setup](library-setup-groups.md)
+> **Status:** Built, awaiting Local checks · **Version:** 2 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [First run and prerequisites (archived)](archive/first-run-prerequisites.md) · [Users, profiles and households](users-profiles-households.md) · [Simpler library setup](library-setup-groups.md)
 
 > Written 2026-10-27 from Shy's local-review bugs F1, F2 and F5 (group 3, "First-run setup flow"). Every cause below was read in the code on main (commit 44281287); nothing was run on Shy's PC, so where a cause is inferred it says so. Nothing is built. F4 and F6 (the setup wizard's Libraries step) belong to the library-and-folder group and are not touched here.
 
