@@ -322,7 +322,7 @@
             </div>
         </div>
 
-        <CompactContinueStrip Title="@ContinueTitle" Items="@_continueCards" />
+        <CompactContinueStrip Title="@ContinueTitle" Items="@_continueCards" Loading="@_continueLoading" OnViewAll="@(IsInProgressOnly ? default : EventCallback.Factory.Create(this, () => OnInProgressChanged(true)))" />
     }
 
     @if (_loading && !_hasLoadedOnce)
@@ -494,6 +494,7 @@
     private DisplayBrowseFacetsDto? _facets;
     private int _totalCount;
     private readonly List<MediaTileViewModel> _continueCards = [];
+    private bool _continueLoading = true;
     private LibraryLayoutMode _layout = LibraryLayoutMode.Card;
     private bool _loading;
     private bool _hasLoadedOnce;
@@ -1105,11 +1106,19 @@
 
     private async Task LoadContinueAsync(CancellationToken ct = default)
     {
-        var page = await ApiClient.GetDisplayContinueAsync(
-            lane: Preset.Title.ToLowerInvariant(),
-            mediaType: CurrentTab.MediaType,
-            limit: 3,
-            ct: ct);
+        DisplayPageDto? page;
+        try
+        {
+            page = await ApiClient.GetDisplayContinueAsync(
+                lane: Preset.Title.ToLowerInvariant(),
+                mediaType: CurrentTab.MediaType,
+                limit: CompactContinueStrip.MaxItems,
+                ct: ct);
+        }
+        finally
+        {
+            _continueLoading = false;
+        }
         if (ct.IsCancellationRequested) return;
 
         _continueCards.Clear();
@@ -1118,7 +1127,7 @@
             _continueCards.AddRange(page.Catalog
                 .Select(card => MediaTileComposerService.FromDisplayCard(card, MediaTileContext.ContinueWatching))
                 .Where(item => item.ProgressPct is > 0 and < 100)
-                .Take(3));
+                .Take(CompactContinueStrip.MaxItems));
         }
     }
 

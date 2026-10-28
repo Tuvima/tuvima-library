@@ -3652,14 +3652,23 @@ window.detailOrigin = (() => {
     // A title opens in the details overlay, which scrolls inside its own scroller. Only that scroller goes back to
     // the top: the page under the overlay keeps its place for when the overlay is dismissed.
     const freshScrollSelector = '[data-detail-origin-scroll="details-overlay"]';
+    // Sections of a details page (progress, series, credits) arrive after it opens. Each arrival used to put the
+    // scroller back at the top, which fought anyone who had already started scrolling. Once the person scrolls,
+    // touches or presses a key, the page is theirs and later arrivals no longer move it.
+    let personTookOver = false;
     const resetFresh = () => {
+        if (personTookOver) return;
         document.querySelectorAll(freshScrollSelector).forEach(element => { element.scrollTop = 0; });
     };
+    const takeoverEvents = ['wheel', 'touchmove', 'keydown', 'pointerdown'];
+    const onTakeover = () => { personTookOver = true; };
     const fresh = route => {
         capture();
         navigationEpoch++;
+        personTookOver = false;
         const target = new URL(route, window.location.href);
         freshRoute = `${target.pathname}${target.search}`;
+        takeoverEvents.forEach(name => document.addEventListener(name, onTakeover, true));
         // Keep the intent through asynchronous page mounting and its origin-restore callback.
         const observer = new MutationObserver(() => { if (routeKey() === freshRoute) resetFresh(); });
         observer.observe(document.body, { childList: true, subtree: true });
@@ -3668,6 +3677,7 @@ window.detailOrigin = (() => {
         setTimeout(() => {
             if (epoch === navigationEpoch) { if (routeKey() === freshRoute) resetFresh(); freshRoute = null; }
             observer.disconnect();
+            if (epoch === navigationEpoch) takeoverEvents.forEach(name => document.removeEventListener(name, onTakeover, true));
         }, 1000);
     };
     return { initialize, capture, restore, back, fresh };
