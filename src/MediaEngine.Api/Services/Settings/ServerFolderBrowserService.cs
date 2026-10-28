@@ -3,6 +3,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Videos;
+using MediaEngine.Storage.Services;
 
 namespace MediaEngine.Api.Services.Settings;
 
@@ -13,8 +14,12 @@ namespace MediaEngine.Api.Services.Settings;
 public sealed class ServerFolderBrowserService(
     IConfigurationLoader configuration,
     ILogger<ServerFolderBrowserService> logger,
-    VideoNamingConfigurationProvider? videoNaming = null)
+    VideoNamingConfigurationProvider? videoNaming = null,
+    IMediaTypeExtensionCatalog? extensionCatalog = null,
+    ILibraryKindSource? kindSource = null)
 {
+    private readonly IMediaTypeExtensionCatalog _extensions = extensionCatalog ?? new MediaTypeExtensionCatalog(configuration);
+
     private static readonly string[] ProtectedSegments = [".data", "config", "logs", "bin", "obj"];
 
     public IReadOnlyList<ServerStorageLocationDto> GetStorageLocations()
@@ -121,17 +126,18 @@ public sealed class ServerFolderBrowserService(
     private const string MissingFolderMessage = "Library cannot access this folder from the server.";
     private const string MissingTypedFolderMessage = "Library cannot access this folder inside an approved server storage location.";
 
-    public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request) => Validate(request, configuration.LoadLibraries());
+    public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request, CancellationToken cancellationToken = default) =>
+        Validate(request, configuration.LoadLibraries(), cancellationToken);
 
     /// <summary>Validates a folder for a caller who may not know about <paramref name="hiddenRoots"/> (see the browse overload).</summary>
-    public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request, IReadOnlyCollection<string> hiddenRoots) =>
-        Validate(request, configuration.LoadLibraries(), hiddenRoots);
+    public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request, IReadOnlyCollection<string> hiddenRoots, CancellationToken cancellationToken = default) =>
+        Validate(request, configuration.LoadLibraries(), hiddenRoots, cancellationToken);
 
-    public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request, LibrariesConfiguration configurationSnapshot) =>
-        Validate(request, configurationSnapshot, NoHiddenRoots);
+    public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request, LibrariesConfiguration configurationSnapshot, CancellationToken cancellationToken = default) =>
+        Validate(request, configurationSnapshot, NoHiddenRoots, cancellationToken);
 
     public ServerFolderValidationResultDto Validate(
-        ValidateServerFolderRequest request, LibrariesConfiguration configurationSnapshot, IReadOnlyCollection<string> hiddenRoots)
+        ValidateServerFolderRequest request, LibrariesConfiguration configurationSnapshot, IReadOnlyCollection<string> hiddenRoots, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(hiddenRoots);
@@ -220,6 +226,10 @@ public sealed class ServerFolderBrowserService(
         }
 
         var (availableBytes, fileSystem) = GetDriveDetails(resolved.Path);
+
+        // The count is only worth making for a folder that can be used: a refused folder shows its refusal, not a number.
+        var canSelect = issues.All(issue => !string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase));
+        var count = canSelect && exists && hasRead ? CountSupportedFiles(request.KindKey, resolved.Path, cancellationToken) : null;
         return new ServerFolderValidationResultDto
         {
             StorageLocationId = location.Id,
@@ -232,9 +242,33 @@ public sealed class ServerFolderBrowserService(
             LooksLikePhoneFootage = exists && hasRead && videoNaming is not null && VideoPhoneFootageDetector.Looks(resolved.Path, videoNaming.Current.PhoneFootage),
             AvailableBytes = availableBytes,
             FileSystem = fileSystem,
-            CanSelect = issues.All(issue => !string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase)),
+            CanSelect = canSelect,
+            SupportedFileCount = count?.Count,
+            SupportedFileCountCapped = count?.Capped ?? false,
+            SupportedFileCountUnavailable = count?.Unavailable ?? false,
+            SupportedFileKindLabel = count?.KindLabel,
             Issues = issues,
         };
+    }
+
+    // The supported-file count for the kind the folder is for, using the extensions ingestion uses for that kind's format. A kind with
+    // no format (View) or an unknown kind has nothing to count, so the answer is simply left out.
+    private SupportedFileCount? CountSupportedFiles(string? kindKey, string path, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(kindKey))
+        {
+            return null;
+        }
+
+        var kind = (kindSource?.GetKinds() ?? configuration.LoadLibraryKinds().Kinds)
+            .FirstOrDefault(candidate => string.Equals(candidate.Key, kindKey.Trim(), StringComparison.OrdinalIgnoreCase));
+        var label = SupportedFileCounter.KindLabelFor(kind?.Format);
+        if (kind is null || label is null)
+        {
+            return null;
+        }
+
+        return SupportedFileCounter.Count(path, SupportedFileCounter.ExtensionsFor(_extensions, kind.Format), label, cancellationToken);
     }
 
     private ServerFolderEntryDto? CreateEntry(ResolvedSelection parent, DirectoryInfo directory)
@@ -574,6 +608,12 @@ public sealed class ServerFolderBrowserService(
 
     internal const string NeutralLibraryLabel = "another library";
 
+    // How a library reads in a refusal: by name in quotes (the library "Movies"), or just "another library" where the name must not be given.
+    private static string LibraryLabel(string? name) =>
+        string.IsNullOrWhiteSpace(name) || string.Equals(name, NeutralLibraryLabel, StringComparison.Ordinal)
+            ? NeutralLibraryLabel
+            : $"the library \"{name}\"";
+
     private static bool IsVaultEntryName(string? name) =>
         string.Equals(name?.Trim(), MediaEngine.Api.Services.Vault.VaultFolderAttachmentService.LibraryName, StringComparison.OrdinalIgnoreCase);
 
@@ -585,13 +625,14 @@ public sealed class ServerFolderBrowserService(
     {
         // The Vault's settings entry is never named in a folder message: it reads as "another library" (Videos spec D17, D45).
         var configured = configurationSnapshot.Libraries
-            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Label: IsVaultEntryName(library.Name) ? NeutralLibraryLabel : library.Name)))
+            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Name: IsVaultEntryName(library.Name) ? NeutralLibraryLabel : library.Name)))
+            .Select(source => (source.Id, source.Path, Label: LibraryLabel(source.Name), source.Name))
             .ToList();
 
         // The import folder is kept apart from every library folder, so it is never offered as one either.
         if (ImportFolderRules.Find(configurationSnapshot) is { } importFolder)
         {
-            configured.Add((ImportFolderRules.LocationId, importFolder.Path, "the import folder"));
+            configured.Add((ImportFolderRules.LocationId, importFolder.Path, "the import folder", "the import folder"));
         }
 
         foreach (var source in configured)
@@ -606,16 +647,16 @@ public sealed class ServerFolderBrowserService(
             var configuredPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(source.Path));
             if (PathEquals(configuredPath, selected.Path))
             {
-                issues.Add(new ServerFolderValidationIssueDto { Code = "already_configured", Message = $"This folder is already configured for {source.Label}.", LibraryName = source.Label });
+                issues.Add(new ServerFolderValidationIssueDto { Code = "already_configured", Message = $"This folder is already used by {source.Label}. Choose a different folder.", LibraryName = source.Name });
             }
             else if (IsWithin(configuredPath, selected.Path))
             {
-                issues.Add(new ServerFolderValidationIssueDto { Code = "inside_configured_source", Message = $"This folder is inside a source already configured for {source.Label}.", LibraryName = source.Label });
+                issues.Add(new ServerFolderValidationIssueDto { Code = "inside_configured_source", Message = $"This folder is inside a folder that {source.Label} already uses. Choose a folder that does not overlap it.", LibraryName = source.Name });
             }
             else if (!IsDriveRoot(selected.Path) && IsWithin(selected.Path, configuredPath))
             {
                 // Pointing at a whole drive is allowed even though it holds other libraries' folders.
-                issues.Add(new ServerFolderValidationIssueDto { Code = "contains_configured_source", Message = $"This folder contains a source already configured for {source.Label}.", LibraryName = source.Label });
+                issues.Add(new ServerFolderValidationIssueDto { Code = "contains_configured_source", Message = $"This folder holds a folder that {source.Label} already uses. Choose a folder that does not overlap it.", LibraryName = source.Name });
             }
         }
     }

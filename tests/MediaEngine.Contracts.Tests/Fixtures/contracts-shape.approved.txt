@@ -8946,6 +8946,10 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerFolderValida
   AvailableBytes: System.Int64? | nullability=nullable | accessors=get,init
   FileSystem: System.String | nullability=nullable | accessors=get,init
   CanSelect: System.Boolean | nullability=not-null | accessors=get,init
+  SupportedFileCount: System.Int32? | nullability=nullable | accessors=get,init
+  SupportedFileCountCapped: System.Boolean | nullability=not-null | accessors=get,init
+  SupportedFileCountUnavailable: System.Boolean | nullability=not-null | accessors=get,init
+  SupportedFileKindLabel: System.String | nullability=nullable | accessors=get,init
   Issues: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFolderValidationIssueDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerGeneralSettingsDto
@@ -9235,6 +9239,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ValidateServerFold
   ManualPath: System.String | nullability=nullable | accessors=get,init
   SelectionMode: System.String | nullability=not-null | accessors=get,init
   CurrentSourceId: System.String | nullability=nullable | accessors=get,init
+  KindKey: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ViewStorageDto
   StorageLocationId: System.String | nullability=not-null | accessors=get,set

@@ -10563,8 +10563,12 @@
   AvailableBytes: System.Int64? | json=available_bytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileSystem: System.String | json=file_system | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanSelect: System.Boolean | json=can_select | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SupportedFileCount: System.Int32? | json=supported_file_count | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SupportedFileCountCapped: System.Boolean | json=supported_file_count_capped | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SupportedFileCountUnavailable: System.Boolean | json=supported_file_count_unavailable | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SupportedFileKindLabel: System.String | json=supported_file_kind_label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Issues: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFolderValidationIssueDto> | json=issues | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"storage_location_id":"sample","relative_path":"sample","path":"sample","exists":true,"has_read":true,"has_write":true,"contains_files":true,"looks_like_phone_footage":true,"available_bytes":7,"file_system":"sample","can_select":true,"issues":[]}
+  sample={"storage_location_id":"sample","relative_path":"sample","path":"sample","exists":true,"has_read":true,"has_write":true,"contains_files":true,"looks_like_phone_footage":true,"available_bytes":7,"file_system":"sample","can_select":true,"supported_file_count":7,"supported_file_count_capped":true,"supported_file_count_unavailable":true,"supported_file_kind_label":"sample","issues":[]}
 
 [contracts] MediaEngine.Contracts.Settings.ServerGeneralSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10914,7 +10918,8 @@
   ManualPath: System.String | json=manual_path | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SelectionMode: System.String | json=selection_mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CurrentSourceId: System.String | json=current_source_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"storage_location_id":"sample","relative_path":"sample","manual_path":"sample","selection_mode":"sample","current_source_id":"sample"}
+  KindKey: System.String | json=kind_key | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"storage_location_id":"sample","relative_path":"sample","manual_path":"sample","selection_mode":"sample","current_source_id":"sample","kind_key":"sample"}
 
 [contracts] MediaEngine.Contracts.Settings.ViewStorageDto
   kind=class | converter=default | number-handling=default | unmapped=default

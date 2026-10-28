@@ -311,9 +311,6 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     background: rgba(255, 107, 107, 0.08);
 }
 
-.server-folder-picker__issues p { margin: 0; color: var(--tl-text-muted); }
-.server-folder-picker__conflicts { flex-wrap: wrap; }
-.server-folder-picker__conflicts span { padding: 5px 14px; border: 1px solid var(--tl-border-subtle); border-radius: 20px; font-size: 13px; }
 
 .server-folder-picker__issues > div {
     display: flex;

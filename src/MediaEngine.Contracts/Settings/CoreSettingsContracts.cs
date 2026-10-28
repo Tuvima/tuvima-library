@@ -537,6 +537,10 @@ public sealed class ValidateServerFolderRequest
 
     [JsonPropertyName("current_source_id")]
     public string? CurrentSourceId { get; init; }
+
+    /// <summary>The library kind the folder is for (for example <c>movies</c>); the Engine counts that kind's supported files. Null means no count.</summary>
+    [JsonPropertyName("kind_key")]
+    public string? KindKey { get; init; }
 }
 
 public static class ServerFolderSelectionModes
@@ -607,6 +611,22 @@ public sealed class ServerFolderValidationResultDto
 
     [JsonPropertyName("can_select")]
     public bool CanSelect { get; init; }
+
+    /// <summary>How many files of the requested kind's supported types sit in the folder and its subfolders; null when no kind was asked for or the count is unavailable.</summary>
+    [JsonPropertyName("supported_file_count")]
+    public int? SupportedFileCount { get; init; }
+
+    /// <summary>True when the count stopped at its cap, so it reads "10,000+".</summary>
+    [JsonPropertyName("supported_file_count_capped")]
+    public bool SupportedFileCountCapped { get; init; }
+
+    /// <summary>True when the count could not be made in time (a slow network drive) or was cancelled.</summary>
+    [JsonPropertyName("supported_file_count_unavailable")]
+    public bool SupportedFileCountUnavailable { get; init; }
+
+    /// <summary>One lower-case word for what was counted ("video", "audio", "book", "comic"), so the screen can say "126 video files found".</summary>
+    [JsonPropertyName("supported_file_kind_label")]
+    public string? SupportedFileKindLabel { get; init; }
 
     [JsonPropertyName("issues")]
     public List<ServerFolderValidationIssueDto> Issues { get; init; } = [];

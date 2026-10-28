@@ -1,0 +1,11 @@
+@namespace MediaEngine.Web.Components.Shared
+@* A quiet information line: a small (i) and plain muted text. It is not a warning; amber is only for problems. *@
+<p class="app-quiet-note" @attributes="AdditionalAttributes">
+    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" />
+    <span>@ChildContent</span>
+</p>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

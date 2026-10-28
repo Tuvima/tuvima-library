@@ -21,7 +21,9 @@ public enum AddFolderHandling
 /// to this folder (only an empty, managed folder asks). What the library may look up is decided by its kind, not asked here.
 /// A kind that allows several named libraries (the plain kinds) also says which one: <paramref name="LibraryId"/> is an existing library
 /// of the kind, <paramref name="NewLibraryName"/> makes a new library with that name; with neither, the kind's first library is used
-/// (or a new one named for the kind when it has none yet).
+/// (or a new one named for the kind when it has none yet). <paramref name="CreateNewLibrary"/> is the Create library dialog: it always makes a
+/// new library, named <paramref name="NewLibraryName"/> whatever the kind, with the given <paramref name="Access"/> (null keeps the standard one);
+/// <paramref name="SuccessMessage"/> replaces the "Folder added." toast.
 /// </summary>
 public sealed record AddFolderPlan(
     string TypeKey,
@@ -29,7 +31,10 @@ public sealed record AddFolderPlan(
     AddFolderHandling Handling,
     bool MarkNewMediaHere,
     string? LibraryId = null,
-    string? NewLibraryName = null);
+    string? NewLibraryName = null,
+    bool CreateNewLibrary = false,
+    string? Access = null,
+    string? SuccessMessage = null);
 
 /// <summary>Which Engine calls to use: the signed-in Settings ones, or the first-run setup ones (which carry the setup session).</summary>
 public sealed record FolderAddScope(bool Embedded, string? SetupSession)
@@ -103,7 +108,11 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
 
         var baseline = Clone(current)!;
         LibraryFolderDto? held;
-        if (type.AllowsMultiple && !string.IsNullOrWhiteSpace(plan.LibraryId))
+        if (plan.CreateNewLibrary)
+        {
+            held = null;
+        }
+        else if (type.AllowsMultiple && !string.IsNullOrWhiteSpace(plan.LibraryId))
         {
             held = LibraryRollup.LibrariesOf(baseline, type).FirstOrDefault(item => item.Id == plan.LibraryId);
             if (held is null)
@@ -116,7 +125,12 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             held = !type.AllowsMultiple || string.IsNullOrWhiteSpace(plan.NewLibraryName) ? LibraryRollup.LibraryFor(baseline, type) : null;
         }
 
-        var library = Clone(held) ?? NewLibrary(type, type.AllowsMultiple ? plan.NewLibraryName : null);
+        var library = Clone(held) ?? NewLibrary(type, type.AllowsMultiple || plan.CreateNewLibrary ? plan.NewLibraryName : null);
+        if (plan.CreateNewLibrary && !string.IsNullOrWhiteSpace(plan.Access))
+        {
+            library.Access = plan.Access;
+        }
+
         ApplyKindLookup(library, type);
         // The Engine makes the first managed folder the library's destination when it saves.
         var source = new LibrarySourceDto
@@ -142,7 +156,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             return new AddFolderResult(null, source, type, managed, notice, apiClient.LastError ?? "That change could not be saved. Check the folder and try again.", library.Id);
         }
 
-        toasts.Add(mergeAfter ? "Folder added as read-only. Choose where its files should go." : "Folder added.", AppSeverity.Success);
+        toasts.Add(plan.SuccessMessage ?? (mergeAfter ? "Folder added as read-only. Choose where its files should go." : "Folder added."), AppSeverity.Success);
         var result = new AddFolderResult(saved, source, type, managed, notice, null, library.Id);
 
         // "Should new media go here?" answered Yes: when another folder of the type already holds the marker, move it.
