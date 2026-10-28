@@ -160,7 +160,6 @@ public sealed class ViewLibrarySurfaceTests
         string[] routes =
         [
             "ViewPage.razor",
-            "ViewFoldersPage.razor",
             "ViewGalleriesPage.razor",
             "ViewArtworkPage.razor",
             "ViewPeoplePage.razor",
@@ -176,6 +175,22 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("align-content: start", frame, StringComparison.Ordinal);
         Assert.Contains("font-family: var(--font-ui, inherit)", frame, StringComparison.Ordinal);
         Assert.Contains("padding: 28px clamp(20px, 2.2vw, 40px) 48px", frame, StringComparison.Ordinal);
+    }
+
+    // Library pages D24, WP13: the View Folders page is gone. What it uniquely did (keep a folder out of the Photos timeline) is one
+    // switch on each source folder of the library page's Folders tab.
+    [Fact]
+    public void TheViewFoldersPageAndItsEngineConnectionPointsAreRemoved()
+    {
+        Assert.Throws<FileNotFoundException>(() => Read("src/MediaEngine.Web/Components/Pages/ViewFoldersPage.razor"));
+        Assert.Throws<FileNotFoundException>(() => Read("src/MediaEngine.Api/Services/View/ViewFolderService.cs"));
+        Assert.Throws<FileNotFoundException>(() => Read("src/MediaEngine.Contracts/LocalAssets/ViewFolderContracts.cs"));
+        Assert.DoesNotContain("/view/folders", Read("src/MediaEngine.Web/Components/Pages/ViewSectionShell.razor"), StringComparison.Ordinal);
+        Assert.DoesNotContain("\"/folders", Read("src/MediaEngine.Api/Endpoints/ViewEndpoints.cs"), StringComparison.Ordinal);
+        Assert.DoesNotContain("ViewFolder", Read("src/MediaEngine.Web/Services/Integration/IEngineApiClient.View.cs"), StringComparison.Ordinal);
+        var folders = Read("src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor");
+        Assert.Contains("Show in Photos timeline", folders, StringComparison.Ordinal);
+        Assert.DoesNotContain("Include subfolders", folders, StringComparison.Ordinal);
     }
 
     [Fact]

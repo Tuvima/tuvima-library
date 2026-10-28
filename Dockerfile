@@ -35,6 +35,7 @@ COPY src/MediaEngine.AI/MediaEngine.AI.csproj                     src/MediaEngin
 COPY src/MediaEngine.Plugins/MediaEngine.Plugins.csproj           src/MediaEngine.Plugins/
 COPY src/MediaEngine.Plugin.CommercialSkip/MediaEngine.Plugin.CommercialSkip.csproj src/MediaEngine.Plugin.CommercialSkip/
 COPY src/MediaEngine.Plugin.FandomLore/MediaEngine.Plugin.FandomLore.csproj         src/MediaEngine.Plugin.FandomLore/
+COPY src/MediaEngine.Plugin.ListenBrainz/MediaEngine.Plugin.ListenBrainz.csproj   src/MediaEngine.Plugin.ListenBrainz/
 COPY src/MediaEngine.Plugin.MediaSegments/MediaEngine.Plugin.MediaSegments.csproj   src/MediaEngine.Plugin.MediaSegments/
 COPY src/MediaEngine.Api/MediaEngine.Api.csproj                   src/MediaEngine.Api/
 COPY src/MediaEngine.Web/MediaEngine.Web.csproj                   src/MediaEngine.Web/

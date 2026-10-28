@@ -66,6 +66,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
                 new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(), TimeProvider.System, new ScanPolicy(),
                 nsfwAccess: new NsfwAccessRepository(_database)));
             builder.Services.AddSingleton<IIdentityRepository>(new IdentityRepository(_database));
+            builder.Services.AddSingleton<MediaEngine.Api.Services.Playback.IUserPlaybackSettingsService>(
+                new MediaEngine.Api.Services.Playback.UserPlaybackSettingsService(_database, new ProfileRepository(_database)));
             builder.Services.AddSingleton<RecentSignInGuard>(sp => new RecentSignInGuard(
                 (IFirstPartyIdentityService)sp.GetRequiredService<IProfilePinVerifier>()));
             builder.Services.AddSingleton<VaultAdministrationService>(sp => new VaultAdministrationService(
@@ -83,6 +85,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             ("UnlockNsfw", [], PinBody(pin)),
             ("KeepNsfwAlive", [], null),
             ("SetNsfwIdle", [], PinBody(pin)),
+            ("SetNsfwNavigation", [], PinBody(pin)),
             ("SetProfileNsfwAccess", [("profileId", VaultProfile.ToString("D"))], PinBody(pin)),
             ("ListVaultLibraries", [], null),
             ("CreateVaultLibrary", [], PinBody(pin)),

@@ -67,6 +67,12 @@ public interface IPluginExecutionContext : IAsyncDisposable
     /// permission. Contexts that do not offer one refuse the call.
     /// </summary>
     IPluginDisplay Display => throw new NotSupportedException("This context has no display slots.");
+
+    /// <summary>Details of a track that was played. Needs the <c>play-details</c> permission. Contexts that do not offer it refuse the call.</summary>
+    IPluginPlayDetails PlayDetails => throw new NotSupportedException("This context has no play details.");
+
+    /// <summary>Whether a profile has linked the plugin's own personal credentials. Contexts that do not offer it refuse the call.</summary>
+    IPluginProfileLinks ProfileLinks => throw new NotSupportedException("This context has no profile links.");
 }
 
 public interface IPluginSecrets
@@ -164,6 +170,9 @@ public static class PluginPermissionIds
     /// <summary>Adds lines, chips, blocks and badges to the Library's own surfaces from a fixed list of slots (<see cref="IPluginDisplay"/>).</summary>
     public const string DisplaySlots = "display-slots";
 
+    /// <summary>Reads the title, artist, album and MusicBrainz ids of music a person finished playing (<see cref="IPluginPlayDetails"/>).</summary>
+    public const string PlayDetails = "play-details";
+
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         MediaRead,
@@ -181,5 +190,6 @@ public static class PluginPermissionIds
         PluginPages,
         PluginOutbox,
         DisplaySlots,
+        PlayDetails,
     };
 }

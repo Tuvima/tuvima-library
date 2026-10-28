@@ -931,7 +931,7 @@ else
         SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
             ? "What the Library did, the Engine's technical log, and how long logs are kept."
             : "How this server is doing: its version, processor, memory and storage.",
-        // Only the front door has a subtitle; the pages below it are named by their title and breadcrumb.
+        // Only the overview has a subtitle; the pages below it are named by their title and breadcrumb.
         SettingsSection.Libraries => LibrariesLevel.Crumbs.Count == 0 ? "Your media, grouped the way you browse it." : null,
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",

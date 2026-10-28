@@ -262,11 +262,10 @@ summaries or previews.
 
 ## View surfaces
 
-Ordinary View routes use the shared section shell and five primary
+Ordinary View routes use the shared section shell and primary
 destinations:
 
 - `/view` — Photos
-- `/view/folders` — Folders
 - `/view/galleries` — Galleries
 - `/view/people` — People
 - `/view/places` — Places
@@ -274,12 +273,13 @@ destinations:
 Shared View, Favorites, Videos, Archive, Recently Added, Hidden, and Trash are
 scopes or filters in the content area. Source configuration, devices, uploads,
 backup, duplicates, storage, AI configuration, and View administration remain
-in Settings. Folders is the authorized browsing projection of configured
-sources and Shared keeper files. Profiles can pin authorized folders as private
-shortcuts. A source owner can set a Photos inclusion rule on any branch;
-descendants inherit the nearest rule before falling back to the source default.
-It keeps source and nested path in the URL and renders a breadcrumb from Folders
-through every directory segment. Immersive
+in Settings. There is no View Folders page: each View kind (Photos, Personal
+videos, Documents) has a library page at Settings > Libraries > View with the
+same Folders, Access and File handling tabs as any library, and each source
+folder there has one Show in Photos timeline switch (`view_source_policies`).
+The switch belongs to the whole source folder, so a folder with it off keeps all
+its photos, subfolders included, out of the Photos timeline; there are no pinned
+folders and no per-branch rules. Immersive
 asset, Gallery, person, and place details may intentionally
 omit the section rail.
 
@@ -440,8 +440,9 @@ still require runtime and visual evidence before release.
 
 ### Responsive and accessibility obligations
 
-- The standard View shell exposes five primary links—Photos, Folders,
-  Galleries, People, and Places—with one current-page state. Shared View,
+- The standard View shell exposes primary links—Photos, Galleries, People,
+  and Places (plus Documents for profiles that may use them)—with one
+  current-page state. Shared View,
   Favorites, Videos, Archive, Hidden, Trash, and Recently Added remain content
   scopes/filters, not extra rail destinations.
 - Keyboard users must be able to reach scope, search, filters, asset selection,
@@ -450,7 +451,7 @@ still require runtime and visual evidence before release.
 - Date groups, asset buttons, Gallery cards, and people/place results need
   semantic names that do not depend on thumbnails, color, hover, or map markers.
   Places must always retain an accessible list alternative.
-- Before release, capture and inspect Photos, Folders, Galleries, People, and Places at
+- Before release, capture and inspect Photos, Galleries, People, and Places at
   1920×1080, the normal 1440-pixel desktop width, a tablet width, and a narrow
   mobile width. Verify empty/loading/error states, long names, zoom/text scaling,
   overflow, selection toolbars, dialogs, and reduced-motion behavior. Static

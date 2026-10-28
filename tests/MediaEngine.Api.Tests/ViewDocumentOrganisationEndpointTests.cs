@@ -105,7 +105,6 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         builder.Services.AddSingleton(new ViewThumbnailService(
             new AssetPathService(_thumbnailRoot), NullLogger<ViewThumbnailService>.Instance));
         builder.Services.AddSingleton((ViewStorageService)RuntimeHelpers.GetUninitializedObject(typeof(ViewStorageService)));
-        builder.Services.AddScoped<ViewFolderService>();
         foreach (var stub in stubs)
         {
             builder.Services.AddSingleton(stub, stub.IsInterface
@@ -253,11 +252,6 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
             Assert.True(response.StatusCode == expected,
                 $"{method} {route} should be {(int)expected} for a profile without Documents, but returned {(int)response.StatusCode}.");
         }
-
-        // Folders still opens, but never lists a document.
-        var folders = await _client.GetFromJsonAsync<ViewFolderPageDto>("/view/folders?scope=mine");
-        Assert.NotNull(folders);
-        Assert.DoesNotContain(folders!.Items, item => item.MediaKind == LocalAssetMediaKinds.Document);
 
         // A saved Documents view they made before Documents was turned off is hidden from their Galleries too.
         var galleries = await _client.GetFromJsonAsync<ViewGalleryListResponse>("/view/galleries");
@@ -1056,7 +1050,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         Assert.Equal((ViewScopeKind.Mine, ViewTimelineDensity.Compact, false), (reread!.Scope, reread.TimelineDensity, reread.ViewerInfoOpen));
 
         // With no scope named, the lists follow the saved scope instead of answering 404.
-        foreach (var route in new[] { "/view/assets", "/view/assets/timeline-index", "/view/folders" })
+        foreach (var route in new[] { "/view/assets", "/view/assets/timeline-index" })
         {
             using var response = await _client.GetAsync(route);
             Assert.True(response.StatusCode == HttpStatusCode.OK, $"GET {route} returned {(int)response.StatusCode}.");
@@ -1698,7 +1692,6 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["GET /view/document-rules"] = Refused,
         ["GET /view/documents/export"] = Refused,
         ["GET /view/documents/inbox-summary"] = Refused,
-        ["GET /view/folders"] = Refused,
         ["GET /view/galleries"] = Covers(GalleryRead, "\"/view/galleries\""),
         ["GET /view/galleries/{id:guid}"] = Covers(GalleryRead, "ViewGalleryDto>($\"/view/galleries/"),
         ["GET /view/galleries/{id:guid}/items"] = Covers(GalleryRead, "ViewGalleryItemPageDto>("),
@@ -1758,8 +1751,6 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["PUT /view/document-rules/{id:guid}"] = Refused,
         ["PUT /view/document-rules/order"] = Refused,
         ["PUT /view/document-types/{id:guid}"] = Refused,
-        ["PUT /view/folders/pin"] = NoItems + "stores a path the person typed; never checks that anything is there",
-        ["PUT /view/folders/timeline-policy"] = NoItems + "stores a path the person typed; never checks that anything is there",
         ["PUT /view/galleries/{id:guid}"] = Refused,
         ["PUT /view/galleries/{id:guid}/items/{itemId:guid}/position"] = Covers(GalleryWrite, "/position"),
         ["PUT /view/galleries/{id:guid}/shares"] = Refused,

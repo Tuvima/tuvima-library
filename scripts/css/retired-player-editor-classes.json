@@ -747,9 +747,6 @@
     "listen-track-toolbar__status",
     "tl-audio-detail"
   ],
-  "src/MediaEngine.Web/Components/Pages/ViewFoldersPage.razor.css": [
-    "app-native-button"
-  ],
   "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css": [
     "app-card__content"
   ],

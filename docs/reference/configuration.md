@@ -262,9 +262,8 @@ Each enabled profile resolves one View Personal Space, backed by one internal
 `personal` library bridge and any number of sources/devices. It indexes mixed
 local assets and local metadata without entering catalogue matching, canonical
 claims, providers, Wikidata, or Review Queue. Sources remain inputs to one
-Personal Space rather than separate libraries. View exposes Photos, Folders,
-Galleries, People, and Places. Folders presents source and directory identity
-for browsing; source/device administration belongs in Settings.
+Personal Space rather than separate libraries. View exposes Photos, Galleries,
+People, and Places; source/device administration belongs in Settings.
 
 View access is not inferred from library visibility. Administrator-managed
 profile policy separately stores View enabled, access Shared View, include in

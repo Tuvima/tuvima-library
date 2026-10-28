@@ -114,7 +114,8 @@ public sealed class PeopleSectionMeasurementTests : IClassFixture<LibraryListFix
         // The in-memory step the request-scoped wrapper applies on every call, hit or miss.
         IReadOnlyList<DisplayWorkRow> filtered = [];
         var filterOnly = await MeasureReadAsync(counter, "a'. in-memory filter per call", () => { filtered = FilterLikeAdministrator(rows); return Task.CompletedTask; });
-        var assetIds = filtered.Select(work => work.AssetId).ToArray();
+        // What the access service builds for an administrator: every raw row is visible.
+        var viewer = new MediaEngine.Application.Services.ViewerCatalogue(rows.Select(work => new MediaEngine.Application.Services.ViewerCatalogueFile(work.WorkId, work.AssetId, work.CreatedAt)));
 
         // The raw service with its real 30 s cache: a hit is what presence usually sees right after the list.
         var cache = new MemoryCache(new MemoryCacheOptions());
@@ -136,10 +137,10 @@ public sealed class PeopleSectionMeasurementTests : IClassFixture<LibraryListFix
 
         // (b), (c)
         IReadOnlySet<Guid> personIds = new HashSet<Guid>();
-        var personIdsRead = await MeasureReadAsync(counter, "b. GetCanonicalPersonIdsAsync", async () => personIds = await scope.GetCanonicalPersonIdsAsync(assetIds, ct));
+        var personIdsRead = await MeasureReadAsync(counter, "b. GetCanonicalPersonIdsAsync", async () => personIds = await scope.GetCanonicalPersonIdsAsync(viewer, ct));
         Assert.NotEmpty(personIds);
         IReadOnlyDictionary<string, int> roleCounts = new Dictionary<string, int>();
-        var roleCountsRead = await MeasureReadAsync(counter, "c. GetCanonicalRoleCountsAsync", async () => roleCounts = await scope.GetCanonicalRoleCountsAsync(assetIds, ct));
+        var roleCountsRead = await MeasureReadAsync(counter, "c. GetCanonicalRoleCountsAsync", async () => roleCounts = await scope.GetCanonicalRoleCountsAsync(viewer, ct));
         Assert.NotEmpty(roleCounts);
 
         // (d) the first page the Dashboard asks for: default title sort, then the count sort the toolbar offers.
@@ -151,7 +152,7 @@ public sealed class PeopleSectionMeasurementTests : IClassFixture<LibraryListFix
         // (e)
         var pageIds = page.Take(PeoplePageSize).Select(person => person.Id).ToList();
         IReadOnlyDictionary<string, Dictionary<string, int>> presenceResult = new Dictionary<string, Dictionary<string, int>>();
-        var presenceRead = await MeasureReadAsync(counter, "e. GetPresenceAsync", async () => presenceResult = await presence.GetPresenceAsync(pageIds, ct));
+        var presenceRead = await MeasureReadAsync(counter, "e. GetPresenceAsync", async () => presenceResult = await presence.GetPresenceAsync(pageIds, viewer, ct));
         Assert.NotEmpty(presenceResult);
 
         // (f) the two reads the handlers do besides the shared visible-works read. No active profile (null) is the

@@ -16,11 +16,9 @@ spec.loader.exec_module(home)
 
 
 def source_route(root, result):
-    with sqlite3.connect(root / 'data/library.db') as db:
-        row = db.execute("SELECT id FROM view_sources WHERE name='QA Photos' ORDER BY id LIMIT 1").fetchone()
-    if row:
-        result['routes']['view-folder-source'] = '/view/folders?source=' + str(uuid.UUID(bytes=row[0]))
-        (root / '.css-ownership-ready.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
+    # View's source folders are listed on the Photos library page (Library pages WP11); the QA Photos source lives there.
+    result['routes']['view-photos-library'] = '/settings/libraries/view/photos'
+    (root / '.css-ownership-ready.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
     return result
 
 

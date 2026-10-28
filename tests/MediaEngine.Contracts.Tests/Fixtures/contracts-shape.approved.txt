@@ -4342,62 +4342,6 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocument
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentsSortDto
   Sort: System.String | nullability=nullable | accessors=get,init
 
-MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFolderBreadcrumbDto
-  Label: System.String | nullability=not-null | accessors=get,init
-  RelativePath: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFolderNodeDto
-  Name: System.String | nullability=not-null | accessors=get,init
-  RelativePath: System.String | nullability=not-null | accessors=get,init
-  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
-  Pinned: System.Boolean | nullability=not-null | accessors=get,init
-  IncludeInTimelineOverride: System.Boolean? | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFolderPageDto
-  Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewFolderSourceDto> | nullability=not-null | accessors=get,init
-  PinnedFolders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewFolderPinDto> | nullability=not-null | accessors=get,init
-  SourceId: System.Guid? | nullability=nullable | accessors=get,init
-  SourceName: System.String | nullability=nullable | accessors=get,init
-  RelativePath: System.String | nullability=not-null | accessors=get,init
-  Pinned: System.Boolean | nullability=not-null | accessors=get,init
-  EffectiveIncludeInTimeline: System.Boolean | nullability=not-null | accessors=get,init
-  IncludeInTimelineOverride: System.Boolean? | nullability=nullable | accessors=get,init
-  Breadcrumbs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewFolderBreadcrumbDto> | nullability=not-null | accessors=get,init
-  Folders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewFolderNodeDto> | nullability=not-null | accessors=get,init
-  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.LocalAssetDto> | nullability=not-null | accessors=get,init
-  Offset: System.Int32 | nullability=not-null | accessors=get,init
-  HasMore: System.Boolean | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFolderPinDto
-  SourceId: System.Guid | nullability=not-null | accessors=get,init
-  SourceName: System.String | nullability=not-null | accessors=get,init
-  RelativePath: System.String | nullability=not-null | accessors=get,init
-  Label: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFolderPinRequest
-  SourceId: System.Guid | nullability=not-null | accessors=get,init
-  RelativePath: System.String | nullability=nullable | accessors=get,init
-  Pinned: System.Boolean | nullability=not-null | accessors=get,init
-  Scope: System.String | nullability=not-null | accessors=get,init
-  ScopeProfileId: System.Guid? | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFolderSourceDto
-  SourceId: System.Guid | nullability=not-null | accessors=get,init
-  Name: System.String | nullability=not-null | accessors=get,init
-  OwnerProfileId: System.Guid | nullability=not-null | accessors=get,init
-  OwnerName: System.String | nullability=not-null | accessors=get,init
-  StorageMode: System.String | nullability=not-null | accessors=get,init
-  IncludeInTimeline: System.Boolean | nullability=not-null | accessors=get,init
-  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
-  Available: System.Boolean | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFolderTimelinePolicyRequest
-  SourceId: System.Guid | nullability=not-null | accessors=get,init
-  RelativePath: System.String | nullability=nullable | accessors=get,init
-  IncludeInTimeline: System.Boolean? | nullability=nullable | accessors=get,init
-  Scope: System.String | nullability=not-null | accessors=get,init
-  ScopeProfileId: System.Guid? | nullability=nullable | accessors=get,init
-
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewGalleryDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   OwnerProfileId: System.Guid | nullability=not-null | accessors=get,init
@@ -6599,6 +6543,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackGeneralSet
   TrackPartiallyPlayedItems: System.Boolean | nullability=not-null | accessors=get,set
   SyncProgressBetweenBookAndAudiobook: System.Boolean | nullability=not-null | accessors=get,set
   SpoilerLevel: System.String | nullability=not-null | accessors=get,set
+  ShowVaultInNavigation: System.Boolean | nullability=not-null | accessors=get,set
   SyncAcrossDevices: System.Boolean | nullability=not-null | accessors=get,set
   SyncFrequencyMinutes: System.Int32 | nullability=not-null | accessors=get,set
   UseBannerArtWhenAvailable: System.Boolean | nullability=not-null | accessors=get,set
@@ -10193,11 +10138,15 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.CreateVaultLibraryReques
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwIdleRequest
   IdleLockMinutes: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwNavigationRequest
+  ShowInNavigation: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwStatusDto
   Mode: System.String | nullability=not-null | accessors=get,init
   Unlocked: System.Boolean | nullability=not-null | accessors=get,init
   HasPin: System.Boolean | nullability=not-null | accessors=get,init
   IdleLockMinutes: System.Int32 | nullability=not-null | accessors=get,init
+  ShowInNavigation: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwUnlockRequest
   Pin: System.String | nullability=nullable | accessors=get,init

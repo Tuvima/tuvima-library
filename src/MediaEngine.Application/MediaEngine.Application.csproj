@@ -6,6 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="MediaEngine.Api" />
+    <InternalsVisibleTo Include="MediaEngine.Api.Tests" />
+    <InternalsVisibleTo Include="MediaEngine.Performance.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MediaEngine.Contracts\MediaEngine.Contracts.csproj" />
     <ProjectReference Include="..\MediaEngine.Domain\MediaEngine.Domain.csproj" />
   </ItemGroup>

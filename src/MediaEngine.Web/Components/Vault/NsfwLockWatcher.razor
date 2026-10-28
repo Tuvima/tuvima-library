@@ -17,6 +17,7 @@
     private Guid? _loadedFor;
     private bool _loadedKids;
     private bool _watching;
+    private bool _wasUnlocked;
     private bool _disposed;
 
     /// <summary>The profile that is signed in on this device; null until the shell has loaded it.</summary>
@@ -49,6 +50,8 @@
         }
 
         await SyncWatchingAsync();
+        var justLocked = _wasUnlocked && !Nsfw.Unlocked;
+        _wasUnlocked = Nsfw.Unlocked;
         if (!Nsfw.Unlocked)
         {
             // A Vault video never keeps playing once Vault mode is off, wherever the person has navigated to (Videos spec D33, D36).
@@ -57,7 +60,8 @@
                 Playback.ClosePlayer();
             }
 
-            if (InVault(Nav.ToBaseRelativePath(Nav.Uri)))
+            // Only when Vault mode has just switched off: a profile that opens the Vault address to unlock it stays on the unlock step.
+            if (justLocked && InVault(Nav.ToBaseRelativePath(Nav.Uri)))
             {
                 VaultExit.Leave(Nav, VaultExit.Home);
             }

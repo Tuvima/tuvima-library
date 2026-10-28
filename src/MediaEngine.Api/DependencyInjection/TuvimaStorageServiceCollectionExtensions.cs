@@ -68,7 +68,6 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();
         services.AddScoped<IViewQueryOrchestrator, ViewQueryOrchestrator>();
         services.AddScoped<ViewDiscoveryService>();
-        services.AddScoped<ViewFolderService>();
         services.AddSingleton<ViewDocumentRuleService>();
         services.AddScoped<ViewDocumentBulkService>();
         services.AddScoped<ViewTrashDeletionPlanner>();

@@ -133,7 +133,7 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         var library = _configuration.Libraries.Single(item => item.Id == libraryId);
         var source = library.Sources.Single(item => item.Id == sourceId);
         var task = Services.GetRequiredService<LibraryFolderAddService>().ChangeKindAsync(FolderAddScope.Settings, _kinds, _configuration, library, source);
-        _dialogs.WaitForElement(".add-wizard__kinds, [data-no-kinds]");
+        _dialogs.WaitForElement(".lib-choice__kinds, [data-no-kinds]");
         return task;
     }
 
@@ -141,7 +141,7 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
 
     private void Click(string text) => Button(text).Click();
 
-    private void ChooseKind(string key) => _dialogs.Find($".add-wizard__kind-option[data-type={key}]").Click();
+    private void ChooseKind(string key) => _dialogs.Find($".lib-choice__kind-option[data-type={key}]").Click();
 
     private IEnumerable<string> Lines => _dialogs.FindAll("[data-impact]").Select(Text);
 
@@ -249,10 +249,10 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
     {
         _ = OpenDialog();
 
-        Assert.Equal(["Audiobooks", "Other audio"], _dialogs.FindAll(".add-wizard__kind-option").Select(Text).ToArray());
-        Assert.Equal(["audiobooks", "other_audio"], _dialogs.FindAll(".add-wizard__kind-option").Select(x => x.GetAttribute("data-type")!).ToArray());
+        Assert.Equal(["Audiobooks", "Other audio"], _dialogs.FindAll(".lib-choice__kind-option").Select(Text).ToArray());
+        Assert.Equal(["audiobooks", "other_audio"], _dialogs.FindAll(".lib-choice__kind-option").Select(x => x.GetAttribute("data-type")!).ToArray());
         // The usual kind cards: the (i) and the Metadata icons come with them.
-        Assert.Equal(2, _dialogs.FindAll(".add-wizard__info").Count);
+        Assert.Equal(2, _dialogs.FindAll(".lib-choice__info").Count);
         Assert.Equal(2, _dialogs.FindAll(".lib-meta").Count);
         Assert.DoesNotContain(_dialogs.FindAll("button"), x => Text(x) == "Change folder");
     }
@@ -392,7 +392,7 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         // A kind that already has its library always names it: a blank id would mean a new library.
         Assert.Equal(AudiobooksId, start.Request.LibraryId);
         Assert.Equal(AudiobooksId, Assert.Single(_previews).Request.LibraryId);
-        _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".add-wizard__kinds")));
+        _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".lib-choice__kinds")));
     }
 
     [Fact]
@@ -431,7 +431,7 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         var followUp = OpenDialog();
         ChooseKind("other_audio");
         _dialogs.Find("[data-library=new]").Click();
-        _dialogs.Find(".add-wizard__field input").Input("Family recordings");
+        _dialogs.Find(".lib-choice__field input").Input("Family recordings");
         Click("Next");
         _dialogs.WaitForAssertion(() => Assert.True(_dialogs.FindAll("[data-impact]").Count > 0));
         Click("Change folder");
@@ -467,7 +467,7 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         var followUp = OpenDialog();
         ChooseKind("other_audio");
         _dialogs.Find("[data-library=new]").Click();
-        _dialogs.Find(".add-wizard__field input").Input("Family recordings");
+        _dialogs.Find(".lib-choice__field input").Input("Family recordings");
         Click("Next");
         _dialogs.WaitForAssertion(() => Assert.True(_dialogs.FindAll("[data-impact]").Count > 0));
 
@@ -487,7 +487,7 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         var followUp = OpenDialog();
         ChooseKind("other_audio");
         _dialogs.Find("[data-library=new]").Click();
-        _dialogs.Find(".add-wizard__field input").Input("Lectures");
+        _dialogs.Find(".lib-choice__field input").Input("Lectures");
         Click("Next");
         _dialogs.WaitForAssertion(() => Assert.True(_dialogs.FindAll("[data-impact]").Count > 0));
 
@@ -506,7 +506,7 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         var followUp = OpenDialog();
         ChooseKind("other_audio");
         _dialogs.Find("[data-library=new]").Click();
-        _dialogs.Find(".add-wizard__field input").Input("Family recordings");
+        _dialogs.Find(".lib-choice__field input").Input("Family recordings");
         Click("Next");
         _dialogs.WaitForAssertion(() => Assert.True(_dialogs.FindAll("[data-impact]").Count > 0));
 

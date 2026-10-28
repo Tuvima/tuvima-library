@@ -1,0 +1,24 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* The Access tab of a View kind (Library pages WP11). View keeps its own rules instead of Standard / Selected profiles: each profile has a
+   private space, accepted contributions appear in the Shared Library, and the per-profile switch below decides who can see this kind. *@
+<div class="view-access">
+    <ViewKindAccessSettings Kind="@Kind" KindNoun="@KindNoun" ReadOnly="@ReadOnly" Profiles="@Profiles" />
+    <SettingsSectionPanel Title="Sharing &amp; Access" Description="Private files remain with their owning profile until shared through an allowed workflow.">
+        <Actions>
+            <AppButton Href="/settings/access" Label="Manage access" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
+        </Actions>
+        <ChildContent>
+            <p>Each profile has a private space. Accepted contributions appear in Shared Library. Shared Library access, contribution submission and review, and Gallery sharing have independent permissions.</p>
+        </ChildContent>
+    </SettingsSectionPanel>
+</div>
+
+@code {
+    /// <summary>The View kind: photos, personal_videos or documents.</summary>
+    [Parameter] public string Kind { get; set; } = string.Empty;
+    /// <summary>The kind's name as it reads in a sentence ("photos", "personal videos", "documents").</summary>
+    [Parameter] public string KindNoun { get; set; } = string.Empty;
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public IReadOnlyList<ProfileViewModel> Profiles { get; set; } = [];
+}

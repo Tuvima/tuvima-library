@@ -95,9 +95,9 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("new(SettingsSection.Ingestion", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settings, StringComparison.Ordinal);
 
-        Assert.Contains("Personal Space", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor"), StringComparison.Ordinal);
+        Assert.Contains("Personal Space", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("Import folders", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("<ViewLibrarySettings", source, StringComparison.Ordinal);
+        Assert.Contains("<ViewKindPage", source, StringComparison.Ordinal);
         Assert.Contains("/settings/libraries/view", source, StringComparison.Ordinal);
         Assert.Contains("GetLibrariesAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("HasUnsavedChanges", source, StringComparison.Ordinal);

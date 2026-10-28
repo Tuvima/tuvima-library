@@ -313,23 +313,34 @@ public sealed class ViewSharedTransferServiceTests
         Assert.Equal(result.DestinationPaths, repeated.DestinationPaths);
 
         var sharedLibraryId = fixture.SharedLibraryId();
-        var sharedSourceId = fixture.SharedSourceId("shared:timeline");
-        var root = await fixture.Folders.QueryAsync(
-            fixture.ProfileId,
-            new ResolvedViewScope(ViewScopeKind.Shared, null, new HashSet<Guid> { sharedLibraryId }),
-            null, null, false, null, 0, 100);
-        Assert.Contains(root.Sources, source => source.SourceId == sharedSourceId);
-        var shared = await fixture.Folders.QueryAsync(
-            fixture.ProfileId,
-            new ResolvedViewScope(ViewScopeKind.Shared, null, new HashSet<Guid> { sharedLibraryId }),
-            sharedSourceId, null, true, null, 0, 100);
-        Assert.Equal("Timeline", Assert.Single(shared.Breadcrumbs).Label);
-        var sharedItem = Assert.Single(shared.Items);
-        Assert.Equal("shared", sharedItem.ScopeKind);
-        Assert.Null(sharedItem.OwnerProfileId);
-        Assert.Null(sharedItem.PersonalSpaceId);
+        var sharedItem = Assert.Single(fixture.Assets.QueryTimeline(new LocalAssetTimelineQuery([sharedLibraryId])).Items);
         Assert.NotEqual(indexed.ItemId, sharedItem.Id);
         Assert.Equal(indexed.ItemId, fixture.OriginItemId(sharedItem.Id));
+    }
+
+    // Library pages D24: the Photos timeline follows one switch on each source folder; there are no per-sub-folder rules.
+    [Fact]
+    public async Task ASourceFolderWithShowInPhotosTimelineOff_KeepsItsPhotosOutOfTheTimeline()
+    {
+        using var fixture = new Fixture();
+        var linkedRoot = Directory.CreateDirectory(Path.Combine(fixture.Root, "linked-photos"));
+        await fixture.Storage.AddLinkedSourceAsync(fixture.Space, "Old trips", linkedRoot.FullName, true, contentKind: ViewContentKinds.Photos);
+        var nested = Directory.CreateDirectory(Path.Combine(linkedRoot.FullName, "2019", "Rome"));
+        var photo = Path.Combine(nested.FullName, "colosseum.jpg");
+        await File.WriteAllBytesAsync(photo, [1, 2, 3, 4]);
+        var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, photo);
+        Assert.NotNull(indexed);
+        var query = new LocalAssetTimelineQuery([fixture.Space.LibraryId], TimelineEligibleOnly: true);
+
+        // A linked folder starts out of the timeline, and its subfolders follow it.
+        Assert.DoesNotContain(fixture.Assets.QueryTimeline(query).Items, item => item.Id == indexed!.ItemId);
+
+        var source = (await fixture.Sources.GetSourcesAsync(fixture.Space.Id)).Single(value => value.Name == "Old trips");
+        await fixture.Storage.UpdateSourceAsync(fixture.Space, source with { IncludeInTimeline = true });
+        Assert.Contains(fixture.Assets.QueryTimeline(query).Items, item => item.Id == indexed!.ItemId);
+
+        await fixture.Storage.UpdateSourceAsync(fixture.Space, source with { IncludeInTimeline = false });
+        Assert.DoesNotContain(fixture.Assets.QueryTimeline(query).Items, item => item.Id == indexed!.ItemId);
     }
 
     [Fact]
@@ -413,116 +424,6 @@ public sealed class ViewSharedTransferServiceTests
             var found = fixture.Assets.QueryTimeline(new LocalAssetTimelineQuery([fixture.SharedLibraryId()], Search: word));
             Assert.True(found.Items.Any(item => item.Id == sharedItemId), $"Searching Shared for '{word}' should find the copy.");
         }
-    }
-
-    [Fact]
-    public async Task FolderPinsAndTimelinePolicies_AreScopedAndInherited()
-    {
-        using var fixture = new Fixture();
-        var source = Assert.Single(await fixture.Sources.GetSourcesAsync(fixture.Space.Id));
-        var scope = new ResolvedViewScope(ViewScopeKind.Mine, fixture.ProfileId,
-            new HashSet<Guid> { fixture.Space.LibraryId });
-
-        await fixture.Folders.SetPinAsync(fixture.ProfileId, scope, source.Id, "Timeline", true);
-        await fixture.Folders.SetTimelinePolicyAsync(fixture.ProfileId, true, scope,
-            source.Id, string.Empty, false);
-        await fixture.Folders.SetTimelinePolicyAsync(fixture.ProfileId, true, scope,
-            source.Id, "Timeline", true);
-
-        var root = await fixture.Folders.QueryAsync(fixture.ProfileId, scope,
-            null, null, false, null, 0, 100);
-        var nested = await fixture.Folders.QueryAsync(fixture.ProfileId, scope,
-            source.Id, Path.Combine("Timeline", "2024"), false, null, 0, 100);
-
-        Assert.Contains(root.PinnedFolders, pin => pin.SourceId == source.Id && pin.RelativePath == "Timeline");
-        Assert.True(nested.EffectiveIncludeInTimeline);
-        Assert.Null(nested.IncludeInTimelineOverride);
-    }
-
-    [Fact]
-    public async Task FolderCounts_CountLogicalItemsRatherThanDuplicateFilePaths()
-    {
-        using var fixture = new Fixture();
-        var first = fixture.WriteManaged(Path.Combine("Trip", "photo.jpg"), [1, 2, 3, 4]);
-        var duplicate = fixture.WriteManaged(Path.Combine("Trip", "copy.jpg"), [1, 2, 3, 4]);
-        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, first);
-        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, duplicate);
-        var source = Assert.Single(await fixture.Sources.GetSourcesAsync(fixture.Space.Id));
-        var scope = new ResolvedViewScope(ViewScopeKind.Mine, fixture.ProfileId, new HashSet<Guid> { fixture.Space.LibraryId });
-        var root = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, null, null, false, null, 0, 100);
-        var folders = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, source.Id, null, false, null, 0, 100);
-        var items = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, source.Id, "Trip", false, null, 0, 100);
-        Assert.Equal(1, Assert.Single(root.Sources).ItemCount);
-        Assert.Equal(1, Assert.Single(folders.Folders).ItemCount);
-        Assert.Single(items.Items);
-    }
-
-    [Fact]
-    public async Task FolderCountsAndPages_LeaveDocumentsOutWhenTheProfileMayNotUseThem()
-    {
-        using var fixture = new Fixture();
-        var photo = fixture.WriteManaged(Path.Combine("Trip", "photo.jpg"), [1, 2, 3, 4]);
-        var document = fixture.WriteManaged(Path.Combine("Trip", "passport.pdf"), DocumentFixtures.Pdf("passport words"));
-        var deeper = fixture.WriteManaged(Path.Combine("Papers", "bill.pdf"), DocumentFixtures.Pdf("bill words"));
-        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, photo);
-        var indexedDocument = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, document);
-        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, deeper);
-        Assert.Equal(LocalAssetMediaKinds.Document, fixture.Assets.Find(indexedDocument!.ItemId)!.MediaKind);
-        var source = Assert.Single(await fixture.Sources.GetSourcesAsync(fixture.Space.Id));
-        var scope = new ResolvedViewScope(ViewScopeKind.Mine, fixture.ProfileId, new HashSet<Guid> { fixture.Space.LibraryId });
-
-        var withDocuments = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, null, null, false, null, 0, 100);
-        var withoutDocuments = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, null, null, false, null, 0, 100, includeDocuments: false);
-        Assert.Equal(3, Assert.Single(withDocuments.Sources).ItemCount);
-        Assert.Equal(1, Assert.Single(withoutDocuments.Sources).ItemCount);
-
-        var folders = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, source.Id, null, false, null, 0, 100, includeDocuments: false);
-        Assert.Equal(["Trip"], folders.Folders.Select(folder => folder.Name).ToArray());
-        Assert.Equal(1, Assert.Single(folders.Folders).ItemCount);
-
-        // One photo and one document share the folder: a page of one has no "more" once the document is out of the query.
-        var page = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, source.Id, "Trip", false, null, 0, 1, includeDocuments: false);
-        Assert.Equal("photo.jpg", Assert.Single(page.Items).FileName);
-        Assert.False(page.HasMore);
-        var unfiltered = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, source.Id, "Trip", false, null, 0, 1);
-        Assert.True(unfiltered.HasMore);
-    }
-
-    [Fact]
-    public async Task FolderCountsPagesAndListsLeaveOutAKindTheProfileMayNotUse()
-    {
-        using var fixture = new Fixture();
-        var photo = fixture.WriteManaged(Path.Combine("Trip", "photo.jpg"), [1, 2, 3, 4]);
-        var video = fixture.WriteManaged(Path.Combine("Trip", "clip.mp4"), [5, 6, 7]);
-        var document = fixture.WriteManaged(Path.Combine("Trip", "passport.pdf"), DocumentFixtures.Pdf("passport words"));
-        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, photo);
-        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, video);
-        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, document);
-        var linkedRoot = Directory.CreateDirectory(Path.Combine(fixture.Root, "linked-pictures"));
-        await fixture.Storage.AddLinkedSourceAsync(fixture.Space, "Pictures", linkedRoot.FullName, true,
-            contentKind: ViewContentKinds.Photos);
-        var uploads = Assert.Single(await fixture.Sources.GetSourcesAsync(fixture.Space.Id), source => source.SourceType == ViewSourceType.BrowserUpload);
-        var scope = new ResolvedViewScope(ViewScopeKind.Mine, fixture.ProfileId, new HashSet<Guid> { fixture.Space.LibraryId });
-
-        var everything = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, null, null, false, null, 0, 100);
-        Assert.Equal(2, everything.Sources.Count);
-        Assert.Equal(3, everything.Sources.Single(source => source.SourceId == uploads.Id).ItemCount);
-
-        // Without Photos: the photo is gone from the counts and the page, and so is the folder that holds only photos.
-        var withoutPhotos = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, null, null, false, null, 0, 100,
-            blockedKinds: [ViewContentKinds.Photos]);
-        var remaining = Assert.Single(withoutPhotos.Sources);
-        Assert.Equal(uploads.Id, remaining.SourceId);
-        Assert.Equal(2, remaining.ItemCount);
-        var page = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, uploads.Id, "Trip", false, null, 0, 100,
-            blockedKinds: [ViewContentKinds.Photos]);
-        Assert.DoesNotContain(page.Items, item => item.FileName == "photo.jpg");
-        Assert.Equal(2, page.Items.Count);
-
-        var withoutVideos = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, uploads.Id, "Trip", false, null, 0, 100,
-            blockedKinds: [ViewContentKinds.PersonalVideos]);
-        Assert.DoesNotContain(withoutVideos.Items, item => item.FileName == "clip.mp4");
-        Assert.Equal(2, withoutVideos.Items.Count);
     }
 
     [Fact]
@@ -1037,7 +938,6 @@ public sealed class ViewSharedTransferServiceTests
             Audit = new RecordingAuditWriter();
             Contributions = new ViewSharedContributionService(_database, _assets, Policies, Transfers,
                 Authorization, new ViewSharedContributionQueue(), Decisions, Audit);
-            Folders = new ViewFolderService(_database, _spaces, Profiles, _assets, Storage);
         }
 
         public string Root { get; }
@@ -1093,7 +993,6 @@ public sealed class ViewSharedTransferServiceTests
         public Task SetHiddenAsync(Guid itemId) => _assets.SetFlagsAsync(itemId, null, true);
         public ViewProfileRepository Policies { get; }
         public ViewSharedContributionService Contributions { get; }
-        public ViewFolderService Folders { get; }
 
         public Guid SharedLibraryId()
         {
@@ -1102,14 +1001,6 @@ public sealed class ViewSharedTransferServiceTests
 
         public MediaEngine.Storage.ViewCatalogueRepository Catalogue => new(_database);
         public LocalAssetRepository Assets => _assets;
-
-        public Guid SharedSourceId(string sourceKey)
-        {
-            using var connection = _database.CreateConnection();
-            return connection.QuerySingle<Guid>(
-                "SELECT id FROM view_sources WHERE scope_kind='shared' AND source_key=@sourceKey;",
-                new { sourceKey });
-        }
 
         public Guid? OriginItemId(Guid sharedItemId)
         {

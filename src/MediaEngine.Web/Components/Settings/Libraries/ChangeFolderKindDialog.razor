@@ -12,14 +12,14 @@
    pressed, so cancelling never leaves an empty library behind. *@
 <AppDialogShell Title="Change what this folder is" Size="Large" OnClose="@(() => Leave())">
     <ChildContent>
-        <div class="add-wizard__options">
-            <p class="add-wizard__lead tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis"><code class="add-wizard__path" title="@Source.Path">@Source.Path</code></p>
+        <div class="lib-choice__options">
+            <p class="lib-choice__lead tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis"><code class="lib-choice__path" title="@Source.Path">@Source.Path</code></p>
             @if (_step == Step.Kind)
             {
-                <h3 class="add-wizard__question" id="change-kind-question">What is this folder?</h3>
+                <h3 class="lib-choice__question" id="change-kind-question">What is this folder?</h3>
                 @if (OfferedKinds.Count == 0)
                 {
-                    <p class="add-wizard__lead" data-no-kinds>There is no other kind of folder to change this one into.</p>
+                    <p class="lib-choice__lead" data-no-kinds>There is no other kind of folder to change this one into.</p>
                 }
                 else
                 {
@@ -59,7 +59,7 @@
             {
                 @foreach (var line in ImpactLines(_preview))
                 {
-                    <p class="add-wizard__lead" data-impact="@line.Key">@line.Text</p>
+                    <p class="lib-choice__lead" data-impact="@line.Key">@line.Text</p>
                 }
                 @if (_error is not null)
                 {
@@ -217,7 +217,7 @@
         _error = null;
         try
         {
-            // The library of a new kind is made first, through the same save the Add folder wizard uses; if that fails, nothing else is sent.
+            // The library of a new kind is made first, through the same save the Create library dialog uses; if that fails, nothing else is sent.
             if (_newLibrary)
             {
                 var created = await AddService.CreateLibraryAsync(FolderAddScope.Settings, _kind, _newLibraryName, Current);

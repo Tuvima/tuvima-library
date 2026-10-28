@@ -10,7 +10,7 @@ public sealed record LibraryHealth(bool Healthy, string? Text)
 
 /// <summary>
 /// The live read/write check of library folders, shared by the folders panel (a status line under each path) and the
-/// Libraries front door and group pages (one health icon per group or type).
+/// Libraries overview and library pages (one status per library).
 /// </summary>
 public static class LibraryFolderHealth
 {

@@ -522,7 +522,7 @@
     },
     {
       "id": "view-switch",
-      "routeKey": "view-folder-source",
+      "routeKey": "view-photos-library",
       "prepare": "none",
       "selectors": [
         {
@@ -660,7 +660,7 @@
     },
     {
       "id": "view-switch-checked",
-      "routeKey": "view-folder-source",
+      "routeKey": "view-photos-library",
       "prepare": "view-checked",
       "selectors": [
         {

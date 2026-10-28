@@ -74,7 +74,7 @@
                     break;
                 case "media-locations":
                     <SetupMediaStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
-                                     LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Any(library => library.Sources.Count > 0) == true)" DeferMedia="DeferMediaAsync" ContinueWithViewOnly="ContinueWithViewOnlyAsync"
+                                     LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Any(library => library.Sources.Count > 0) == true)" DeferMedia="DeferMediaAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "providers" when !_languageConfirmed:
@@ -505,7 +505,6 @@
         await DecideStepAsync("providers", "passed", "Language and provider setup reviewed.");
     }
     private Task DeferMediaAsync() => DecideStepAsync("media-locations", "deferred", "Media folders can be added later in Settings · Libraries.");
-    private Task ContinueWithViewOnlyAsync() => DecideStepAsync("media-locations", "deferred", "View folders added. Watch, Listen and Read folders can be added later in Settings · Libraries.");
     private async Task DeferProviderResultAsync()
     {
         if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)

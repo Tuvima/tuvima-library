@@ -58,8 +58,6 @@ public static partial class BackupTableClassification
         Config("view_sources", "Folders and devices a View space reads from."),
         Config("view_source_policies", "Whether a View source appears in the timeline."),
         Config("view_devices", "Devices that back up into a View space."),
-        Config("view_folder_pins", "Folders a profile pinned in View."),
-        Config("view_folder_timeline_policies", "Whether a folder appears in the View timeline."),
         Config("view_storage_labels", "Names a person gave to View storage locations."),
         Config("view_shared_library", "Which library a household shares in View."),
         Config("view_galleries", "Galleries a person built in View.", refs: [LocalItem("cover_item_id"), Coll("soundtrack_playlist_id")]),

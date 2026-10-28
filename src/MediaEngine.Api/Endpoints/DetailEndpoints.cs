@@ -75,7 +75,10 @@ public static class DetailEndpoints
                 parsedType, id, presentationContext, ct, containerId,
                 authority.ActiveProfileId, actionAuthorization, authorizedAssetIds, authorizedWorks,
                 SequenceWindowRequest.FromQuery(sequenceGroup, sequenceOffset, sequenceLimit, sequenceCurrent, sequenceOnly),
-                IsWorkDetail(parsedType) ? CreateUniverseLinkResolver(httpContext, authority.ActiveProfileId) : null);
+                IsWorkDetail(parsedType) ? CreateUniverseLinkResolver(httpContext, authority.ActiveProfileId) : null,
+                parsedType is DetailEntityType.Person
+                    ? await httpContext.RequestServices.GetRequiredService<IViewerAccessService>().GetCatalogueAsync(ct)
+                    : null);
             var compositionMs = timing.Elapsed.TotalMilliseconds - projectionMs;
             if (detail is not null)
             {

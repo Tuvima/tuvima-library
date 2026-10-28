@@ -21,6 +21,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private DateTimeOffset _lastKeepAlive = DateTimeOffset.MinValue;
     private bool _coversBlurred = true;
+    private bool _showInNavigation;
     private bool _disposed;
     private ITimer? _lockPoll;
     private int _polling;
@@ -42,6 +43,12 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
 
     /// <summary>True when this device session has Vault mode on right now.</summary>
     public bool Unlocked => Status is { Unlocked: true };
+
+    /// <summary>
+    /// True when this profile has Vault access (the Engine's answer) and chose "Show Vault in the navigation bar" (Library pages D20).
+    /// The one value the navigation reads; it is never true without access.
+    /// </summary>
+    public bool ShowInNavigation => IsAvailable && _showInNavigation;
 
     /// <summary>True when switching Vault mode on asks for the person's profile PIN ("Ask for my PIN to open Vault mode" is on).</summary>
     public bool NeedsPin => Status is { Mode: "pin" };
@@ -79,6 +86,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
                 // A different person: nothing of the last profile's Vault mode carries over.
                 Status = null;
                 Resolved = false;
+                _showInNavigation = false;
                 Preferences = VaultViewPreferences.Default;
                 _coversBlurred = true;
             }
@@ -105,6 +113,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
 
             var wasUnlocked = Unlocked;
             Status = call.Value;
+            _showInNavigation = call.Value.ShowInNavigation;
             if (Preferences == VaultViewPreferences.Default)
             {
                 Preferences = await store.LoadAsync(id);
@@ -158,6 +167,28 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         return call;
     }
 
+    /// <summary>Saves the person's own "Show Vault in the navigation bar" choice. Nothing changes if the profile has no Vault access.</summary>
+    public async Task<VaultCall<NsfwStatusDto>> SetShowInNavigationAsync(bool show, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+        {
+            return VaultCall<NsfwStatusDto>.Of(VaultOutcome.NotAvailable);
+        }
+
+        var call = await api.SetNsfwNavigationAsync(show, ct);
+        if (call.Succeeded)
+        {
+            _showInNavigation = show;
+            RaiseChanged();
+        }
+        else if (call.Outcome == VaultOutcome.NotAvailable)
+        {
+            Clear();
+        }
+
+        return call;
+    }
+
     /// <summary>
     /// Saves the person's own "Turn Vault mode off after being idle for" choice (5, 15, 30, 60 minutes, or 0 for Never) and takes the
     /// Engine's answer as the new status, so the screen and the Engine's idle lock agree.
@@ -185,7 +216,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         var wasUnlocked = Unlocked;
         if (Status is { } status)
         {
-            Status = new NsfwStatusDto { Mode = status.Mode, Unlocked = false, HasPin = status.HasPin, IdleLockMinutes = status.IdleLockMinutes };
+            Status = new NsfwStatusDto { Mode = status.Mode, Unlocked = false, HasPin = status.HasPin, IdleLockMinutes = status.IdleLockMinutes, ShowInNavigation = status.ShowInNavigation };
             _coversBlurred = true;
             RaiseChanged();
         }
@@ -282,6 +313,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
     {
         var changed = Status is not null;
         Status = null;
+        _showInNavigation = false;
         _coversBlurred = true;
         if (changed)
         {

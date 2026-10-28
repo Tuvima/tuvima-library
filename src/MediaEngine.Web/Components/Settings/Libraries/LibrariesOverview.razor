@@ -6,7 +6,9 @@
 @inject IAppDialogService DialogService
 
 @* The Libraries overview (Library pages D2, D17, D19): four area tabs that filter, then one table of that area's libraries, one row per
-   library. The whole row opens the library; the name is the real link for the keyboard. The selected area lives in the address (?area=). *@
+   library. The whole row opens the library; the name is the real link for the keyboard. The selected area lives in the address (?area=).
+   First-run setup draws this same table with Simple on (Library pages D13): Watch, Listen and Read only, no Access column, no Vault, rows that
+   do not open a page (a library's page belongs to Settings), no Import folder line, and Add library saves through the setup session. *@
 <div class="libs">
     @if (ReadOnly)
     {
@@ -25,7 +27,7 @@
                                       Title="@($"No {area.Label} libraries yet")"
                                       Message="@(ReadOnly ? "Use a desktop or tablet to add one." : null)">
                             <Actions>
-                                @if (!ReadOnly)
+                                @if (CanAddLibrary)
                                 {
                                     <AppButton Label="Add library"
                                                StartIcon="@AppMaterialIcons.Outlined.Add"
@@ -56,7 +58,7 @@
                                        Options="StatusOptions"
                                        Size="AppControlSize.Compact" />
                         </div>
-                        @if (!ReadOnly)
+                        @if (CanAddLibrary)
                         {
                             <AppButton Label="Add library"
                                        StartIcon="@AppMaterialIcons.Outlined.Add"
@@ -78,40 +80,59 @@
                                 <tr>
                                     <th data-card-role="title">Name</th>
                                     <th data-card-role="subtitle">Content type</th>
-                                    <th>Access</th>
+                                    @if (!Simple)
+                                    {
+                                        <th>Access</th>
+                                    }
                                     <th>Folders and titles</th>
                                     <th data-card-role="value">Status</th>
-                                    <th data-card-role="hidden"><span class="sr-only">Open</span></th>
+                                    @if (!Simple)
+                                    {
+                                        <th data-card-role="hidden"><span class="sr-only">Open</span></th>
+                                    }
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var row in rows)
                                 {
-                                    <tr @key="row.Key" class="libs__row" data-library="@row.Key" @onclick="@(() => OpenRow(row))">
+                                    <tr @key="row.Key" class="@(Simple ? "libs__row libs__row--static" : "libs__row")" data-library="@row.Key" @onclick="@(() => OpenRow(row))">
                                         <td data-card-role="title">
                                             <span class="libs__name">
                                                 <span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
-                                                <a href="@row.Href" class="libs__link" aria-label="@AccessibleName(row)" @onclick:stopPropagation="true">@row.Name</a>
+                                                @if (Simple)
+                                                {
+                                                    <span class="libs__link">@row.Name</span>
+                                                }
+                                                else
+                                                {
+                                                    <a href="@row.Href" class="libs__link" aria-label="@AccessibleName(row)" @onclick:stopPropagation="true">@row.Name</a>
+                                                }
                                             </span>
                                         </td>
                                         <td data-card-role="subtitle">
                                             <span class="libs__type"><AppMaterialIcon Icon="@row.Type.Icon" />@row.Type.Label</span>
                                         </td>
-                                        <td>
-                                            @if (row.Access == LibraryListing.Vault)
-                                            {
-                                                <AppChip Icon="@AppMaterialIcons.Outlined.Lock" Text="@LibraryListing.AccessText(row.Access)" />
-                                            }
-                                            else
-                                            {
-                                                @LibraryListing.AccessText(row.Access)
-                                            }
-                                        </td>
+                                        @if (!Simple)
+                                        {
+                                            <td>
+                                                @if (row.Access == LibraryListing.Vault)
+                                                {
+                                                    <AppChip Icon="@AppMaterialIcons.Outlined.Lock" Text="@LibraryListing.AccessText(row.Access)" />
+                                                }
+                                                else
+                                                {
+                                                    @LibraryListing.AccessText(row.Access)
+                                                }
+                                            </td>
+                                        }
                                         <td class="libs__counts">@CountsFor(row)</td>
                                         <td data-card-role="value">
                                             <LibraryStatusCell Row="@row" />
                                         </td>
-                                        <td data-card-role="hidden" class="libs__chevron"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></td>
+                                        @if (!Simple)
+                                        {
+                                            <td data-card-role="hidden" class="libs__chevron"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></td>
+                                        }
                                     </tr>
                                 }
                             </tbody>
@@ -122,9 +143,16 @@
         }
     </AppTabs>
 
-    <p class="libs__note">
-        <a href="/settings/libraries/import">Import folder</a>: @(Configuration.ImportFolderStatus?.Configured == true ? "set" : "not set")
-    </p>
+    @if (Simple)
+    {
+        <p class="libs__note" data-later>Photos and personal videos, the Import folder and each library's own settings are added after setup, in Settings &gt; Libraries.</p>
+    }
+    else
+    {
+        <p class="libs__note">
+            <a href="/settings/libraries/import">Import folder</a>: @(Configuration.ImportFolderStatus?.Configured == true ? "set" : "not set")
+        </p>
+    }
 </div>
 
 @code {
@@ -138,6 +166,10 @@
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     /// <summary>A Vault-protected library is listed only while the Vault may be shown; the host decides (see <see cref="LibraryVaultAccess"/>).</summary>
     [Parameter] public bool ShowVault { get; set; }
+    /// <summary>First-run setup (Library pages D13): Watch, Listen and Read, Standard access only, no Vault, rows that do not open a page, saves through the setup session.</summary>
+    [Parameter] public bool Simple { get; set; }
+    /// <summary>The first-run setup session the Create library dialog saves through; used only with <see cref="Simple"/>.</summary>
+    [Parameter] public string? SetupSession { get; set; }
     /// <summary>Phones: counts and status only, no control that changes anything.</summary>
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>The selected area (watch, listen, read or view); the first tab when empty or unknown.</summary>
@@ -149,7 +181,8 @@
     private string _status = string.Empty;
 
     // Watch, Listen, Read, View: the Vault is not an area here (Library pages D2).
-    private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Groups.Where(group => group.Key != LibraryGroupCatalog.VaultKey)];
+    // Setup leaves View out: its folders are added from View's own pages in Settings.
+    private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Groups.Where(group => group.Key != LibraryGroupCatalog.VaultKey && !(Simple && group.Key == LibraryTypeCatalog.ViewArea))];
 
     private int ActiveIndex
     {
@@ -162,7 +195,7 @@
 
     private LibraryGroup SelectedArea => Areas.Count == 0 ? new LibraryGroup("watch", "Watch", AppMaterialIcons.Outlined.LiveTv, []) : Areas[ActiveIndex];
 
-    private IReadOnlyList<LibraryListRow> AreaRows => LibraryListing.RowsFor(Kinds, SelectedArea.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault);
+    private IReadOnlyList<LibraryListRow> AreaRows => LibraryListing.RowsFor(Kinds, SelectedArea.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault && !Simple);
 
     private IReadOnlyList<LibraryListRow> VisibleRows => [.. AreaRows.Where(Matches)];
 
@@ -195,7 +228,13 @@
         Navigation.NavigateTo(LibraryListing.OverviewAddress(Areas[index].Key));
     }
 
-    private void OpenRow(LibraryListRow row) => Navigation.NavigateTo(row.Href);
+    private void OpenRow(LibraryListRow row)
+    {
+        if (!Simple) Navigation.NavigateTo(row.Href);
+    }
+
+    // View's three kinds always exist and keep their own add-folder form, so View has no Add library (Library pages WP11).
+    private bool CanAddLibrary => !ReadOnly && !string.Equals(SelectedArea.Key, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase);
 
     // The one place the add flow is started: the one-screen Create library dialog.
     private async Task OpenAddLibraryAsync()
@@ -205,6 +244,8 @@
             { component => component.Configuration, Configuration },
             { component => component.Kinds, Kinds },
             { component => component.StartAreaKey, SelectedArea.Key },
+            { component => component.Simple, Simple },
+            { component => component.SetupSession, SetupSession },
             { component => component.OnCreated, (Func<string, Task>)(_ => FolderAdded.InvokeAsync()) },
         };
         await DialogService.ShowAsync<CreateLibraryDialog>(string.Empty, parameters, CreateLibraryDialog.DialogOptions);

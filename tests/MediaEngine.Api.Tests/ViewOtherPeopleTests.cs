@@ -112,7 +112,7 @@ public sealed class ViewOtherPeopleTests
         Assert.True(opened.IsAllowed);
         Assert.Single(auditor.Scopes);
 
-        foreach (var kind in new[] { ViewResourceKind.Gallery, ViewResourceKind.Upload, ViewResourceKind.Folder })
+        foreach (var kind in new[] { ViewResourceKind.Gallery, ViewResourceKind.Upload })
         {
             Assert.False((await authorization.AuthorizeAsync(ServerAdministrator(admin),
                 new ViewResourceRequest(request, kind, null, ViewResourceAction.Manage))).IsAllowed);

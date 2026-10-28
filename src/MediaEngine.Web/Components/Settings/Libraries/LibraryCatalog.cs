@@ -35,7 +35,7 @@ public static class LibraryTypeCatalog
 
 /// <summary>
 /// The library kinds ("recipes") the Engine lists, shaped for the Libraries screens: the folders panel (first-run setup and
-/// Settings), the group pages, the front door and Add folder are all drawn from this one list, so a kind a plugin adds appears
+/// Settings), the overview, the Create library dialog and Change kind are all drawn from this one list, so a kind a plugin adds appears
 /// in each of them with no screen changes. A group's types are the available kinds of its area, in the list's order.
 /// </summary>
 public sealed class LibraryKindCatalog
@@ -68,7 +68,7 @@ public sealed class LibraryKindCatalog
     /// <summary>The kinds with a library behind them (every available kind outside View), in the list's order.</summary>
     public IReadOnlyList<LibraryTypeOption> Types { get; }
 
-    /// <summary>The five groups in the order the front door shows them, each with its available kinds.</summary>
+    /// <summary>The five groups in the order the Libraries pages show them, each with its available kinds.</summary>
     public IReadOnlyList<LibraryGroup> Groups { get; }
 
     /// <summary>
@@ -143,13 +143,13 @@ public static class LibraryKindIcons
 /// <summary>One step of the breadcrumb on the group and type pages; no <paramref name="Href"/> means the current page.</summary>
 public sealed record LibraryCrumb(string Label, string? Href = null);
 
-/// <summary>What the Settings frame shows for one Libraries address: its title and the breadcrumb steps from "Libraries" down (none on the front door).</summary>
+/// <summary>What the Settings frame shows for one Libraries address: its title and the breadcrumb steps from "Libraries" down (none on the overview).</summary>
 public sealed record LibraryLevelDescription(string Title, IReadOnlyList<LibraryCrumb> Crumbs);
 
 /// <summary>
 /// Reads a Libraries address (/settings/libraries/{subsection}/{detail}) and says what the Settings frame should show above the
 /// content: the frame owns the breadcrumb and the title, so the pages draw neither. An address that names nothing (or the Vault
-/// while it is hidden) reads as the front door; the page itself shows its "does not exist" state.
+/// while it is hidden) reads as the overview; the page itself shows its "does not exist" state.
 /// </summary>
 public static class LibraryAddress
 {
@@ -216,7 +216,7 @@ public static class LibraryAddress
 /// <summary>A way of presenting library types: Watch, Listen, Read, View, Vault. A group has no folders of its own.</summary>
 public sealed record LibraryGroup(string Key, string Label, string Icon, IReadOnlyList<string> TypeKeys);
 
-/// <summary>The five groups, in the order the Libraries front door shows them (icons match the main navigation).</summary>
+/// <summary>The five groups, in the order the Libraries pages show them (icons match the main navigation).</summary>
 public static class LibraryGroupCatalog
 {
     public const string VaultKey = "vault";
