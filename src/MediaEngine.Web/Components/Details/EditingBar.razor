@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Components.Routing
 @implements IDisposable
 @inject IAppDialogService Dialogs
+@inject IJSRuntime JS
 
 @* The universal editor's bar (spec section 4): one bar at the top of the page while editing, replacing the Editing Mode banner. Left,
    "Editing" and where the item sits (Show > Season > Episode); in the centre, the tools (Artwork and Match only where the type has them);
@@ -40,6 +41,7 @@
                                Tone="@(isOpen ? AppUiTone.Primary : AppUiTone.Neutral)"
                                Size="AppControlSize.Large"
                                Class="@($"tl-editing-bar__tool{(isOpen ? " is-open" : string.Empty)}")"
+                               id="@ToolButtonId(tool.Tool)"
                                StartIcon="@tool.Icon"
                                Disabled="@(!mode.Fields.Loaded || flow.Saving)"
                                aria-pressed="@(isOpen ? "true" : "false")"
@@ -113,6 +115,7 @@
 
     private EditSessionFlow? _subscribed;
     private EditingModeContext? _subscribedMode;
+    private EditTool? _openTool;
 
     [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
 
@@ -142,6 +145,32 @@
         }
 
         return tools;
+    }
+
+    /// <summary>The id of a tool's button in the bar, so focus can come back to it when its panel or picker closes.</summary>
+    public static string ToolButtonId(EditTool tool) => $"tl-editing-tool-{tool.ToString().ToLowerInvariant()}";
+
+    // When the open panel or the artwork picker closes (close button, Esc, the tool's own tab), the element that had focus inside it is
+    // gone; focus goes back to the tool's button in the bar so a keyboard user carries on where they started.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var session = Flow?.Session;
+        var tool = session is { IsActive: true } ? session.ActiveTool : null;
+        var closed = _openTool;
+        _openTool = tool;
+        if (closed is null || tool is not null || session is not { IsActive: true })
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaFocusById", ToolButtonId(closed.Value));
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is no page left to focus.
+        }
     }
 
     private static string SaveLabel(int count, bool saving) =>

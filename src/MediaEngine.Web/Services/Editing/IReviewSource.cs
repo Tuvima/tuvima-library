@@ -21,6 +21,9 @@ public interface IReviewSource
     /// <summary>Review's Edit on a row: sends the person back to the tool that holds the change. Pending changes are kept.</summary>
     Task JumpToAsync(EditReviewRow row);
 
+    /// <summary>Whether Review's Edit can take the person to this row's change. False hides Edit for the row rather than open the wrong item.</summary>
+    bool CanJumpTo(EditReviewRow row) => true;
+
     /// <summary>Discard changes: asks "Unsaved changes" first. False means the person stayed.</summary>
     Task<bool> LeaveAsync();
 

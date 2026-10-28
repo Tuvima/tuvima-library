@@ -32,6 +32,7 @@ public sealed class PopupCardGuardrailTests
         ["Components/MediaEditor/SharedEntityEditorWorkspace.razor"] = "Editor workspace.",
         ["Components/Profiles/ProfileEditorSheet.razor"] = "Profile editor sheet.",
         ["Components/Details/DetailsOverlayHost.razor"] = "The details page overlay host.",
+        ["Components/Details/FloatingArtworkPicker.razor"] = "The universal editor's Artwork picker: a non-modal tool window that floats over the page, can be dragged and shrunk to a chip (universal editor spec D8); role=\"dialog\" names it for screen readers, it is not a popup card.",
         // Special layouts that keep their behaviour.
         ["Components/Layout/ReconnectModal.razor"] = "Connection-lost modal; keeps its special behaviour.",
         ["Components/Search/UniversalSearchOverlay.razor"] = "Large search overlay; keeps its search layout.",

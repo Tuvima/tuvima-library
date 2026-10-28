@@ -366,7 +366,7 @@
             @if (!IsContainerGrouping)
             {
                 @* Ticked rows get the selection bar and the right-hand "Edit N items" panel (universal editor spec D14). Filters, sort and scroll stay. *@
-                <BulkEditHost Rows="@BulkRows" MediaType="@CurrentTab.MediaType" OnSaved="ReloadAsync" OnCleared="ClearBulkSelectionAsync" OnDeleted="OnBulkDeletedAsync" />
+                <BulkEditHost Rows="@BulkRows" MediaType="@CurrentTab.MediaType" OnSaved="ReloadAfterBulkSaveAsync" OnCleared="ClearBulkSelectionAsync" OnDeleted="OnBulkDeletedAsync" />
             }
             <LibraryConfigurableTable Columns="@ActiveColumns"
                                       VisibleColumnKeys="@VisibleColumnKeys"
@@ -925,6 +925,23 @@
 
     private Task ReloadAsync() => LoadBrowseContentAsync();
 
+    // Rows a reload asks for instead of one page, so a reload after a bulk save keeps the rows "Load more" added (and the ticks and
+    // scroll on them) instead of falling back to the first page. Null for every other load.
+    private int? _reloadRowCount;
+
+    private async Task ReloadAfterBulkSaveAsync()
+    {
+        _reloadRowCount = Math.Clamp(_items.Count, PageSize, MediaEngine.Contracts.Paging.PagedRequest.MaxLimit);
+        try
+        {
+            await LoadBrowseContentAsync();
+        }
+        finally
+        {
+            _reloadRowCount = null;
+        }
+    }
+
     private void OnMediaAdded(MediaAddedEvent ev)
     {
         Interlocked.Increment(ref _pendingMediaAddedCount);
@@ -1055,7 +1072,7 @@
             grouping: BrowseGrouping,
             search: string.IsNullOrWhiteSpace(_searchText) ? null : _searchText,
             offset: requestedOffset,
-            limit: PageSize,
+            limit: append ? PageSize : _reloadRowCount ?? PageSize,
             genres: _selectedGenres.Count == 0 ? null : string.Join(',', _selectedGenres),
             creator: _selectedCreators.Count == 0 ? null : string.Join(',', _selectedCreators),
             status: string.IsNullOrWhiteSpace(_status) ? null : _status,

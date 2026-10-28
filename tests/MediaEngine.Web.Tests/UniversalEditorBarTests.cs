@@ -378,6 +378,28 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task OpeningThePanel_MovesFocusIntoIt_AndClosingIt_PutsFocusBackOnTheToolsButton()
+    {
+        var editor = await StartEditorAsync();
+        var bar = RenderBar(editor);
+        var panel = RenderPanel(editor);
+        Assert.Equal("tl-editing-tool-details", bar.FindAll(".tl-editing-bar__tool")[0].Id);
+
+        await panel.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        panel.WaitForAssertion(() => Assert.Contains(FocusedIds(), id => id == "tl-editor-panel-title"));
+
+        panel.Find("button.tl-editor-panel__close").Click();
+
+        bar.WaitForAssertion(() => Assert.Equal("tl-editing-tool-details", FocusedIds().Last()));
+        Assert.True(editor.Session.IsActive);
+    }
+
+    private List<string?> FocusedIds() => JSInterop.Invocations
+        .Where(call => call.Identifier == "tuvimaFocusById")
+        .Select(call => call.Arguments[0] as string)
+        .ToList();
+
+    [Fact]
     public async Task EscClosesTheOpenPanelFirst_ThenAsksOnlyWhenChangesArePending()
     {
         var editor = await StartEditorAsync(discardWhenAsked: false);

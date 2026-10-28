@@ -8,6 +8,7 @@
 @implements IDisposable
 @inject IEngineApiClient Api
 @inject ILogger<EditorMatchPanel> Logger
+@inject IJSRuntime JS
 
 @* The Match tool (universal editor spec D5, D6, D11): two steps in the right-hand panel. Step 1 finds a record (search box filled from the
    item, a "Search in" picker, tabs for what is being matched, results with their picture, creator, parent, year, edition and provider).
@@ -59,6 +60,8 @@
     private FilesState _files = FilesState.Unknown;
     private string? _filesReason;
     private bool _staged;
+    private int _selectedIndex;
+    private string? _focusAfterRender;
 
     private enum PlaceState { None, Checking, Found, Unavailable }
 
@@ -158,7 +161,7 @@
                 <div class="tl-match__results" role="list">
                     @for (var i = 0; i < _results.Count; i++)
                     {
-                        @ResultRow(_results[i], i == 0)
+                        @ResultRow(_results[i], i)
                     }
                 </div>
             }
@@ -170,8 +173,9 @@
         </div>
     };
 
-    private RenderFragment ResultRow(ItemCanonicalRetailCandidateDto candidate, bool best) => __builder =>
+    private RenderFragment ResultRow(ItemCanonicalRetailCandidateDto candidate, int index) => __builder =>
     {
+        var best = index == 0;
         var facts = EditorMatchRules.FactsOf(candidate);
         var line = string.Join(" · ", new[] { facts.Creator, facts.Parent, facts.Year, facts.Edition }.Where(part => !string.IsNullOrWhiteSpace(part)));
         <div class="tl-match__row" role="listitem" data-provider="@facts.Provider">
@@ -191,7 +195,7 @@
                 <div class="tl-match__provider-name">@FormatProvider(facts.Provider)</div>
             </div>
             <AppButton Label="Select" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                       aria-label="@($"Select {facts.Title}")" OnClick="@(() => SelectAsync(candidate))" />
+                       id="@SelectButtonId(index)" aria-label="@($"Select {facts.Title}")" OnClick="@(() => SelectAsync(candidate))" />
         </div>
     };
 
@@ -210,7 +214,7 @@
     private RenderFragment ReviewStep(ItemCanonicalRetailCandidateDto candidate) => __builder =>
     {
         var facts = EditorMatchRules.FactsOf(candidate);
-        <div class="tl-match__review">
+        <div class="tl-match__review" id="tl-match-review" role="group" aria-label="Review selected match" tabindex="-1">
             <div class="tl-match__compare">
                 <section class="tl-match__side" aria-label="Your item">
                     <h3 class="tl-match__side-heading">Your item</h3>
@@ -411,9 +415,32 @@
         return kept;
     }
 
+    private static string SelectButtonId(int index) => $"tl-match-select-{index}";
+
+    // Choosing a result or going back replaces the step that held focus, so focus is moved to the step that replaced it.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusAfterRender is not { } target)
+        {
+            return;
+        }
+
+        _focusAfterRender = null;
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaFocusById", target);
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is no page left to focus.
+        }
+    }
+
     private async Task SelectAsync(ItemCanonicalRetailCandidateDto candidate)
     {
         _selected = candidate;
+        _selectedIndex = Math.Max(0, _results.ToList().IndexOf(candidate));
+        _focusAfterRender = "tl-match-review";
         _step = 2;
         _staged = false;
         _keepDetails = true;
@@ -535,6 +562,7 @@
 
     private void BackToResults()
     {
+        _focusAfterRender = SelectButtonId(_selectedIndex);
         _step = 1;
         _selected = null;
         _staged = false;
