@@ -441,6 +441,32 @@ public sealed class PluginJobSchedulerTests : IDisposable
         Assert.All(jobs, job => Assert.Equal(1, job.Runs));
     }
 
+    [Fact]
+    public async Task AJobWhoseRequiredPluginIsOff_WaitsInsteadOfRunning_AndRunsOnceThatPluginIsOn()
+    {
+        var needed = new HostServicesTestPlugin(id: "test.needed", name: "Needed");
+        var plugin = new HostServicesTestPlugin(
+            declaration: new PluginDeclaration { Requires = [new PluginRequirement { Kind = "plugin", Id = "test.needed" }] });
+        var job = plugin.AddJob("refresh");
+        var host = NewHost(plugins: [needed, plugin]);
+        host.Enable(plugin.Manifest.Id);
+        var scheduler = host.NewScheduler();
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        host.Clock.Advance(JustOver);
+
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        await scheduler.WhenIdleAsync();
+        Assert.Equal(0, job.Runs);
+        Assert.Equal("Waiting for Needed", host.Catalog.WaitingFor(plugin.Manifest.Id));
+
+        host.Enable("test.needed");
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        host.Clock.Advance(JustOver);
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        await scheduler.WhenIdleAsync();
+        Assert.Equal(1, job.Runs);
+    }
+
     private sealed class FixedIngestion(string state) : MediaEngine.Api.Services.IIngestionQueueProgressService
     {
         public string State { get; set; } = state;

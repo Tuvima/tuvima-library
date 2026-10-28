@@ -85,7 +85,7 @@ internal sealed class PluginEventDispatcher : BackgroundService
     public async Task DispatchOnceAsync(CancellationToken ct)
     {
         var passes = new List<Task>();
-        foreach (var registration in _catalog.List())
+        foreach (var registration in _catalog.ListInStartOrder())
         {
             var subscribers = registration.Capabilities.OfType<IPluginEventSubscriber>().ToList();
             if (subscribers.Count == 0)
@@ -96,6 +96,12 @@ internal sealed class PluginEventDispatcher : BackgroundService
             if (!registration.Enabled || registration.LoadError is not null)
             {
                 await ForgetAsync(registration.Manifest.Id, ct).ConfigureAwait(false);
+                continue;
+            }
+
+            // Waiting for a plugin it needs (C22): it keeps its place in the event list and catches up once that plugin is on.
+            if (_catalog.WaitingFor(registration.Manifest.Id) is not null)
+            {
                 continue;
             }
 

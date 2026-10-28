@@ -104,9 +104,10 @@ internal sealed class PluginJobScheduler : BackgroundService, IScheduledTaskDesc
     public async Task RunDueJobsAsync(CancellationToken ct)
     {
         var now = _clock.GetUtcNow();
-        foreach (var registration in _catalog.List())
+        foreach (var registration in _catalog.ListInStartOrder())
         {
-            if (!IsEligible(registration))
+            // A plugin whose required plugin is off waits instead of running (C22).
+            if (!IsEligible(registration) || _catalog.WaitingFor(registration.Manifest.Id) is not null)
             {
                 continue;
             }

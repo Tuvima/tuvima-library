@@ -311,14 +311,35 @@ public sealed class PluginCatalog
             }
 
             registrations.AddRange(LoadFilePlugins());
-            _registrations = RefuseCollidingLibraryKinds(registrations
+            _registrations = RefuseDependencyCycles(RefuseCollidingLibraryKinds(registrations
                 .GroupBy(r => r.Manifest.Id, StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.First())
                 .OrderBy(r => r.Manifest.Name)
-                .ToList());
+                .ToList()));
             _loaded = true;
         }
     }
+
+    /// <summary>
+    /// Plugins that need each other in a circle can never be started in a sensible order, so they are refused when the catalogue loads
+    /// (Plugin architecture spec C22), with a plain sentence that shows on the Plugins page.
+    /// </summary>
+    private List<PluginRegistration> RefuseDependencyCycles(List<PluginRegistration> registrations)
+    {
+        var cycles = PluginDependencyGraph.FindCycles(registrations);
+        return cycles.Count == 0
+            ? registrations
+            : [.. registrations.Select(r => cycles.TryGetValue(r.Manifest.Id, out var problem)
+                ? CreateRegistration(r.Manifest, _settingsService.Load(r.Manifest), r.IsBuiltIn, [], problem, null, r.ManifestPath)
+                : r)];
+    }
+
+    /// <summary>The plugins in an order where each comes after the plugins it needs, so none starts before what it needs.</summary>
+    public IReadOnlyList<PluginRegistration> ListInStartOrder() => PluginDependencyGraph.StartOrder(List());
+
+    /// <summary>"Waiting for X" when a plugin this one requires is off, missing or at the wrong version; null when nothing holds it up.</summary>
+    public string? WaitingFor(string pluginId) =>
+        Get(pluginId) is { } registration ? PluginDependencyGraph.WaitingFor(registration, List()) : null;
 
     /// <summary>
     /// A library kind's key must be one nothing else uses: not a kind that ships with the Library and not a kind of another plugin.

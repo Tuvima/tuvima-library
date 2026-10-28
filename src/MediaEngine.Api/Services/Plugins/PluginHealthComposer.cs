@@ -19,7 +19,8 @@ internal static class PluginHealthComposer
         PluginAiBudget aiBudget,
         CancellationToken ct,
         PluginHostServicesDto? hostServices = null,
-        DateTimeOffset? pausedUntil = null)
+        DateTimeOffset? pausedUntil = null,
+        string? waitingFor = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
         ArgumentNullException.ThrowIfNull(checks);
@@ -48,6 +49,16 @@ internal static class PluginHealthComposer
             {
                 Status = "degraded",
                 Message = hostProblem,
+            });
+        }
+
+        // A plugin it requires is off, missing or at the wrong version: say so instead of a false Working (C22).
+        if (!string.IsNullOrWhiteSpace(waitingFor))
+        {
+            dtos.Add(new PluginHealthCheckDto
+            {
+                Status = "degraded",
+                Message = waitingFor,
             });
         }
 

@@ -87,7 +87,7 @@ internal sealed class PluginBackgroundHost : BackgroundService
     public async Task ReconcileAsync()
     {
         var wanted = new Dictionary<string, (PluginRegistration Registration, IPluginBackgroundService Service)>(StringComparer.OrdinalIgnoreCase);
-        foreach (var registration in _catalog.List())
+        foreach (var registration in _catalog.ListInStartOrder())
         {
             var service = registration.Capabilities.OfType<IPluginBackgroundService>().FirstOrDefault();
             if (service is null)
@@ -98,7 +98,8 @@ internal sealed class PluginBackgroundHost : BackgroundService
             var status = _statuses.Get(registration.Manifest.Id);
             if (registration.Enabled
                 && registration.LoadError is null
-                && registration.Manifest.Permissions.Contains(PluginPermissionIds.BackgroundWork, StringComparer.Ordinal))
+                && registration.Manifest.Permissions.Contains(PluginPermissionIds.BackgroundWork, StringComparer.Ordinal)
+                && _catalog.WaitingFor(registration.Manifest.Id) is null)
             {
                 wanted[registration.Manifest.Id] = (registration, service);
             }

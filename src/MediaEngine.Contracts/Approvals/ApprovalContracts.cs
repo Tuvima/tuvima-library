@@ -135,4 +135,20 @@ public sealed record PluginEnableRequest
 {
     [JsonPropertyName("approval_hash")]
     public string? ApprovalHash { get; init; }
+
+    /// <summary>True to also switch on the plugins this one needs, dependencies first, under one approval (Plugin architecture spec C22).</summary>
+    [JsonPropertyName("also_switch_on_needed")]
+    public bool AlsoSwitchOnNeeded { get; init; }
+
+    /// <summary>The hash of each preview in the approval the person confirmed, when several plugins are approved together.</summary>
+    [JsonPropertyName("approval_hashes")]
+    public List<string>? ApprovalHashes { get; init; }
+}
+
+/// <summary>Optional body of <c>POST /plugins/{pluginId}/disable</c>.</summary>
+public sealed record PluginDisableRequest
+{
+    /// <summary>True to also switch off the plugins that need this one (the default offered on the removal screen); false cancels when some do.</summary>
+    [JsonPropertyName("also_switch_off_dependants")]
+    public bool AlsoSwitchOffDependants { get; init; }
 }
