@@ -970,9 +970,11 @@ else
                                 }
                                 <div class="audiobooks-layout-toggle" role="group" aria-label="Audiobook layout">
                                     <AppNativeButton Type="button" Class="@AudiobookLayoutToggleClass(LibraryLayoutMode.Card)" aria-pressed="@(_audiobookLayout == LibraryLayoutMode.Card ? "true" : "false")" OnClick="@(() => _audiobookLayout = LibraryLayoutMode.Card)">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" />
                                         <span>Cards</span>
                                     </AppNativeButton>
                                     <AppNativeButton Type="button" Class="@AudiobookLayoutToggleClass(LibraryLayoutMode.List)" aria-pressed="@(_audiobookLayout == LibraryLayoutMode.List ? "true" : "false")" OnClick="@(() => _audiobookLayout = LibraryLayoutMode.List)">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ViewList" />
                                         <span>List</span>
                                     </AppNativeButton>
                                 </div>
