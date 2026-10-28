@@ -102,14 +102,16 @@
         {
             <div class="settings-sheet-backdrop" @onclick="DismissSheet">
                 <div @ref="_sheetRoot"
-                     class="settings-sheet"
+                     class="settings-sheet settings-sheet--card"
                      role="dialog"
                      aria-modal="true"
-                     aria-labelledby="security-sheet-title"
+                     aria-label="@SheetTitle"
                      tabindex="-1"
                      @onclick:stopPropagation="true"
                      @onkeydown="OnSheetKeyDown">
-                    <h2 id="security-sheet-title" class="settings-sheet__title">@SheetTitle</h2>
+                    <AppDialogShell Modal="false" Title="@SheetTitle" Size="Medium" OnClose="@(_busy ? default : EventCallback.Factory.Create(this, CloseSheet))">
+                        <ChildContent>
+                    <div class="app-dialog-shell__pad app-dialog-shell__pad--stretch">
                     @switch (_sheet)
                     {
                         case SecuritySheet.Password:
@@ -125,9 +127,12 @@
                             <PhotoViewsList />
                             break;
                     }
-                    <div class="security-sheet__actions">
-                        <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="CloseSheet" />
                     </div>
+                        </ChildContent>
+                        <FooterContent>
+                            <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="CloseSheet" />
+                        </FooterContent>
+                    </AppDialogShell>
                 </div>
             </div>
         }

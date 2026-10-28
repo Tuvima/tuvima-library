@@ -12,6 +12,9 @@ public sealed record PluginEnabledResponse
 {
     public string plugin_id { get; init; } = string.Empty;
     public bool enabled { get; init; }
+
+    /// <summary>Plugins that were switched on or off along with this one, in the order they changed (needed plugins first on enable, dependants first on disable). Empty when only this one changed.</summary>
+    public List<string> also_changed { get; init; } = [];
 }
 
 /// <summary>

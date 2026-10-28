@@ -240,6 +240,40 @@ internal static class PluginEndpoints
             .Produces<PluginPeopleActionsResponse>(StatusCodes.Status200OK)
             .RequireEffectiveAdministrator();
 
+        group.MapGet("/{pluginId}/dependencies", (string pluginId, PluginCatalog catalog) =>
+        {
+            var registration = catalog.Get(pluginId);
+            if (registration is null)
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+            }
+
+            var all = catalog.List();
+            return Results.Ok(new PluginDependenciesResponse
+            {
+                PluginId = registration.Manifest.Id,
+                WaitingFor = PluginDependencyGraph.WaitingFor(registration, all),
+                Needs = PluginDependencyGraph.Needs(registration, all)
+                    .Select(need => new PluginNeedDto
+                    {
+                        Id = need.Id,
+                        Name = need.Name,
+                        Optional = need.Optional,
+                        VersionRange = need.VersionRange,
+                        State = DependencyStateWord(need.State),
+                    })
+                    .ToList(),
+                NeededBy = PluginDependencyGraph.Dependants(registration.Manifest.Id, all)
+                    .Select(plugin => new PluginNeededByDto { Id = plugin.Manifest.Id, Name = plugin.Manifest.Name })
+                    .ToList(),
+            });
+        })
+            .WithName("GetPluginDependencies")
+            .WithSummary("What a plugin needs from other plugins (and whether each is ready), who needs it, and a plain \"Waiting for X\" when a required plugin is off, missing or at the wrong version.")
+            .Produces<PluginDependenciesResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
         group.MapGet("/{pluginId}/libraries", async (
             string pluginId,
             [FromServices] PluginLibraryLimitService limits,
@@ -344,34 +378,10 @@ internal static class PluginEndpoints
         .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
-        group.MapPost("/{pluginId}/disable", async (
-            string pluginId,
-            HttpContext http,
-            PluginCatalog catalog,
-            [FromServices] AiFeatureRetractionService retraction,
-            [FromServices] PluginActivityService activity,
-            [FromServices] PluginPeopleActionLog peopleActions,
-            [FromServices] IRequestAuthorityResolver authorityResolver,
-            CancellationToken ct) =>
-        {
-            var registration = catalog.Get(pluginId);
-            catalog.SetEnabled(pluginId, false);
-            if (registration is not null)
-            {
-                var context = new PluginActivityContext(registration.Manifest.Id, registration.Manifest.Version);
-                await activity.ForgetAsync(pluginId, deleteHistory: false, ct).ConfigureAwait(false);
-                await activity.RecordNoteAsync(context, "Switched off.", ct).ConfigureAwait(false);
-                var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
-                await peopleActions.RecordAsync(new PluginPeopleAction(
-                    authority.ActiveProfileId, registration.Manifest.Id, "switched-plugin-off", $"Switched off {registration.Manifest.Name}"), ct).ConfigureAwait(false);
-            }
-
-            // An AI feature's suggestions go away with its plugin (D-T); provider and person values stay.
-            await retraction.RetractForPluginAsync(pluginId, ct);
-            return Results.Ok(new PluginEnabledResponse { plugin_id = pluginId, enabled = false });
-        })
+        group.MapPost("/{pluginId}/disable", DisablePlugin)
         .WithName("DisablePlugin")
         .Produces<PluginEnabledResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         group.MapPost("/{pluginId}/ai-steps/{stepKey}/run", async (
@@ -494,6 +504,17 @@ internal static class PluginEndpoints
         .Produces<PluginSavedResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
+        group.MapGet("/{pluginId}/removal-preview", async (string pluginId, [FromServices] PluginRemovalService removal, CancellationToken ct) =>
+        {
+            var preview = await removal.PreviewAsync(pluginId, ct).ConfigureAwait(false);
+            return preview is null ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.") : Results.Ok(preview);
+        })
+        .WithName("GetPluginRemovalPreview")
+        .WithSummary("Everything removing the plugin would do, in plain words, before anything is removed.")
+        .Produces<PluginRemovalPreviewResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
         group.MapDelete("/{pluginId}", DeletePluginAsync)
         .WithName("DeletePlugin")
         .Produces<PluginDeletedResponse>(StatusCodes.Status200OK)
@@ -546,11 +567,22 @@ internal static class PluginEndpoints
             }
 
             return Results.Ok(await PluginHealthComposer
-                .ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct, await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false), activity.PausedUntil(plugin.Manifest.Id))
+                .ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct, await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false), activity.PausedUntil(plugin.Manifest.Id), catalog.WaitingFor(plugin.Manifest.Id))
                 .ConfigureAwait(false));
         })
         .WithName("CheckPluginHealth")
         .Produces<PluginHealthResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapPost("/{pluginId}/check-now", async (string pluginId, [FromServices] PluginCheckNowService check, CancellationToken ct) =>
+        {
+            var result = await check.CheckAsync(pluginId, ct).ConfigureAwait(false);
+            return result is null ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.") : Results.Ok(result);
+        })
+        .WithName("CheckPluginNow")
+        .WithSummary("Runs the plugin's health check, or reaches the metadata source once, and says in plain words whether it is working.")
+        .Produces<PluginCheckNowResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
         group.MapGet("/{pluginId}/jobs", async (
@@ -590,23 +622,47 @@ internal static class PluginEndpoints
 
     private const int MaximumSecretValueLength = 8192;
 
-    /// <summary>Uninstalls a plugin; its saved settings and its keys and logins go with it.</summary>
+    /// <summary>Uninstalls a plugin; its settings, records, keys and logins go with it, and its saved output goes if the person chose that.</summary>
     internal static async Task<IResult> DeletePluginAsync(
         string pluginId,
+        [FromBody] PluginRemoveRequest? request,
         PluginCatalog catalog,
-        [FromServices] IConfigSecretsStore secrets,
+        [FromServices] PluginRemovalService removal,
         CancellationToken ct)
     {
+        var preview = await removal.PreviewAsync(pluginId, ct).ConfigureAwait(false);
+        if (preview is null)
+        {
+            return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+        }
+
+        if (request?.Output is { } choice && choice is not ("keep" or "remove"))
+        {
+            return ApiErrors.BadRequest("Choose to keep or remove what the plugin saved.");
+        }
+
+        var dependants = PluginDependencyGraph.Dependants(pluginId, catalog.List());
+        if (dependants.Count > 0 && request?.AlsoSwitchOffDependants != true)
+        {
+            return ApiErrors.Conflict(
+                "has_dependants",
+                $"{string.Join(" and ", dependants.Select(plugin => plugin.Manifest.Name))} needs this plugin. Switch {(dependants.Count == 1 ? "it" : "them")} off too, or cancel.");
+        }
+
+        foreach (var dependant in dependants)
+        {
+            catalog.SetEnabled(dependant.Manifest.Id, false);
+        }
+
         try
         {
-            catalog.DeletePlugin(pluginId);
+            await removal.RemoveAsync(pluginId, (request?.Output ?? preview.DefaultOutput) == "remove", ct).ConfigureAwait(false);
         }
         catch (InvalidOperationException ex)
         {
             return ApiErrors.BadRequest(ex.Message);
         }
 
-        await RemoveAllPluginSecretsAsync(pluginId, secrets, ct).ConfigureAwait(false);
         return Results.Ok(new PluginDeletedResponse { plugin_id = pluginId, deleted = true });
     }
 
@@ -782,6 +838,16 @@ internal static class PluginEndpoints
     private static bool IsPluginOrSource(string id, PluginCatalog catalog, ProviderCapabilityCatalogue sources) =>
         catalog.Get(id) is not null || sources.Sources().Any(source => string.Equals(source.Name, id, StringComparison.OrdinalIgnoreCase));
 
+    private static string DependencyStateWord(PluginDependencyState state) => state switch
+    {
+        PluginDependencyState.Ready => "ready",
+        PluginDependencyState.Off => "off",
+        PluginDependencyState.Missing => "missing",
+        PluginDependencyState.WrongVersion => "wrong_version",
+        PluginDependencyState.Broken => "broken",
+        _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown dependency state."),
+    };
+
     private static string DescribeLimit(PluginLibraryLimitResponse limit) =>
         limit.Limited ? string.Join(", ", limit.Libraries.Where(library => library.Selected).Select(library => library.Name)) : "every library";
 
@@ -829,6 +895,58 @@ internal static class PluginEndpoints
         _ => "failed",
     };
 
+    internal static async Task<IResult> DisablePlugin(
+        string pluginId,
+        [FromBody] PluginDisableRequest? request,
+        HttpContext http,
+        PluginCatalog catalog,
+        [FromServices] AiFeatureRetractionService retraction,
+        [FromServices] PluginActivityService activity,
+        [FromServices] PluginPeopleActionLog peopleActions,
+        [FromServices] IRequestAuthorityResolver authorityResolver,
+        CancellationToken ct)
+    {
+        // Plugins that need this one go off first (C22); never silently broken, so without the flag nothing changes.
+        var dependants = PluginDependencyGraph.Dependants(pluginId, catalog.List());
+        if (dependants.Count > 0 && request?.AlsoSwitchOffDependants != true)
+        {
+            return ApiErrors.Conflict(
+                "has_dependants",
+                $"{string.Join(" and ", dependants.Select(plugin => plugin.Manifest.Name))} needs this plugin. Switch {(dependants.Count == 1 ? "it" : "them")} off too, or cancel.");
+        }
+
+        var farthestFirst = PluginDependencyGraph.StartOrder(catalog.List())
+            .Reverse()
+            .Where(plugin => dependants.Any(dependant => string.Equals(dependant.Manifest.Id, plugin.Manifest.Id, StringComparison.OrdinalIgnoreCase)))
+            .Select(plugin => plugin.Manifest.Id)
+            .ToList();
+        foreach (var dependantId in farthestFirst)
+        {
+            await SwitchOffAsync(dependantId).ConfigureAwait(false);
+        }
+
+        await SwitchOffAsync(pluginId).ConfigureAwait(false);
+        return Results.Ok(new PluginEnabledResponse { plugin_id = pluginId, enabled = false, also_changed = farthestFirst });
+
+        async Task SwitchOffAsync(string id)
+        {
+            var registration = catalog.Get(id);
+            catalog.SetEnabled(id, false);
+            if (registration is not null)
+            {
+                var context = new PluginActivityContext(registration.Manifest.Id, registration.Manifest.Version);
+                await activity.ForgetAsync(id, deleteHistory: false, ct).ConfigureAwait(false);
+                await activity.RecordNoteAsync(context, "Switched off.", ct).ConfigureAwait(false);
+                var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+                await peopleActions.RecordAsync(new PluginPeopleAction(
+                    authority.ActiveProfileId, registration.Manifest.Id, "switched-plugin-off", $"Switched off {registration.Manifest.Name}"), ct).ConfigureAwait(false);
+            }
+
+            // An AI feature's suggestions go away with its plugin (D-T); provider and person values stay.
+            await retraction.RetractForPluginAsync(id, ct);
+        }
+    }
+
     internal static async Task<IResult> EnablePlugin(
         string pluginId,
         [FromBody] PluginEnableRequest? request,
@@ -844,26 +962,68 @@ internal static class PluginEndpoints
             return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
         }
 
-        if (registration.Compatibility.IsCompatible)
+        // Plugins this one needs go on first (C22), under one approval that lists every plugin being switched on.
+        var order = PluginDependencyGraph.EnableOrder(pluginId, catalog.List(), out var blocked);
+        if (blocked.Count > 0)
         {
-            var preview = approvals.PreviewPlugin(registration);
-            if (!await approvals.IsCoveredAsync(ApprovalKinds.Plugin, registration.Manifest.Id, preview.StatementHash, ct).ConfigureAwait(false))
-            {
-                if (!ApprovalService.HashMatches(request?.ApprovalHash, preview.StatementHash))
-                {
-                    return ApiErrors.ApprovalRequired([preview]);
-                }
+            return ApiErrors.Conflict("needs_unavailable", string.Join(" ", blocked));
+        }
 
-                var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
-                var actor = await approvals.ResolveActorAsync(authority, ct).ConfigureAwait(false);
-                await approvals.RecordAsync(preview, ApprovalKinds.Plugin, registration.Manifest.Id, actor, ct).ConfigureAwait(false);
+        var needed = order.Where(plugin => !string.Equals(plugin.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (needed.Count > 0 && request?.AlsoSwitchOnNeeded != true)
+        {
+            return ApiErrors.Conflict(
+                "needs_off",
+                $"{registration.Manifest.Name} needs {string.Join(" and ", needed.Select(plugin => plugin.Manifest.Name))}. Switch {(needed.Count == 1 ? "it" : "them")} on too, or cancel.");
+        }
+
+        var targets = order.Count == 0 ? [registration] : order;
+        var unfit = targets.FirstOrDefault(plugin => !plugin.Compatibility.IsCompatible);
+        if (unfit is not null)
+        {
+            // The plain-English reason (Library version, platform, plugin kind or load problem) is the detail.
+            return ApiErrors.Conflict(unfit.Compatibility.Problem ?? "This plugin cannot be switched on.");
+        }
+
+        var pending = new List<(PluginRegistration Plugin, ApprovalPreviewResponse Preview)>();
+        foreach (var target in targets)
+        {
+            var preview = approvals.PreviewPlugin(target);
+            if (!await approvals.IsCoveredAsync(ApprovalKinds.Plugin, target.Manifest.Id, preview.StatementHash, ct).ConfigureAwait(false))
+            {
+                pending.Add((target, preview));
+            }
+        }
+
+        if (pending.Count > 0)
+        {
+            var supplied = (request?.ApprovalHashes ?? []).Append(request?.ApprovalHash).ToList();
+            if (pending.Any(entry => !supplied.Any(hash => ApprovalService.HashMatches(hash, entry.Preview.StatementHash))))
+            {
+                return ApiErrors.ApprovalRequired(pending.Select(entry => entry.Preview));
+            }
+
+            var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+            var actor = await approvals.ResolveActorAsync(authority, ct).ConfigureAwait(false);
+            foreach (var (plugin, preview) in pending)
+            {
+                await approvals.RecordAsync(preview, ApprovalKinds.Plugin, plugin.Manifest.Id, actor, ct).ConfigureAwait(false);
             }
         }
 
         try
         {
-            catalog.SetEnabled(pluginId, true);
-            return Results.Ok(new PluginEnabledResponse { plugin_id = pluginId, enabled = true });
+            foreach (var target in targets)
+            {
+                catalog.SetEnabled(target.Manifest.Id, true);
+            }
+
+            return Results.Ok(new PluginEnabledResponse
+            {
+                plugin_id = pluginId,
+                enabled = true,
+                also_changed = needed.Select(plugin => plugin.Manifest.Id).ToList(),
+            });
         }
         catch (PluginCannotBeEnabledException ex)
         {
