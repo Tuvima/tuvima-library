@@ -20,6 +20,14 @@
     else
     {
 
+        @if (!string.IsNullOrWhiteSpace(Library))
+        {
+            <div class="needs-review-page__scope" data-needs-review-scope="library">
+                <AppStatusBadge Text="@($"Showing: {_libraryName ?? "this library"}")" Tone="AppUiTone.Info" />
+                <AppButton Label="Show all" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="ClearLibraryScope" />
+            </div>
+        }
+
         <section class="needs-review-page__filters" aria-label="Needs Review search">
             <AppTextField Value="@_search"
                           ValueChanged="OnSearchChanged"
@@ -106,6 +114,12 @@
 @code {
     [Parameter] public string? InitialSearch { get; set; }
 
+    /// <summary>The Id of the library the list is narrowed to (<c>?library=</c> from a library's Needs review link); null shows the whole queue.</summary>
+    [Parameter] public string? Library { get; set; }
+
+    private string? _loadedLibrary;
+    private string? _libraryName;
+
     private readonly HashSet<Guid> _busyReviewIds = [];
     private List<ReviewItemViewModel> _reviews = [];
     private string? _search;
@@ -145,6 +159,8 @@
     {
         var searchChanged = !string.Equals(_loadedInitialSearch, InitialSearch, StringComparison.Ordinal);
         _loadedInitialSearch = InitialSearch;
+        var libraryChanged = _initialized && !string.Equals(_loadedLibrary, Library, StringComparison.Ordinal);
+        _loadedLibrary = Library;
 
         if (!_initialized)
         {
@@ -155,7 +171,23 @@
         }
 
         if (searchChanged) _search = InitialSearch;
+        if (libraryChanged) await LoadReviewsAsync();
     }
+
+    // The chip names the library; if the libraries cannot be read it says "this library" rather than showing an Id.
+    private async Task ResolveLibraryNameAsync()
+    {
+        _libraryName = null;
+        if (string.IsNullOrWhiteSpace(Library)) return;
+        try
+        {
+            var configuration = await Orchestrator.GetLibrariesAsync();
+            _libraryName = configuration?.Libraries.FirstOrDefault(l => string.Equals(l.Id, Library, StringComparison.OrdinalIgnoreCase))?.Name;
+        }
+        catch (Exception) { _libraryName = null; }
+    }
+
+    private void ClearLibraryScope() => Nav.NavigateTo(Nav.GetUriWithQueryParameter("library", (string?)null));
 
     private async Task LoadReviewsAsync()
     {
@@ -172,7 +204,10 @@
         {
             // The page is the queue, not a preview. Ask the endpoint for
             // every unresolved record in one ordered result, then refresh the shell badge.
-            var attempt = await Orchestrator.GetPendingReviewsAttemptAsync(int.MaxValue);
+            await ResolveLibraryNameAsync();
+            var attempt = string.IsNullOrWhiteSpace(Library)
+                ? await Orchestrator.GetPendingReviewsAttemptAsync(int.MaxValue)
+                : await Orchestrator.GetPendingReviewsForLibraryAttemptAsync(Library, int.MaxValue);
             if (attempt.Items is { } items)
             {
                 _reviews = items;
