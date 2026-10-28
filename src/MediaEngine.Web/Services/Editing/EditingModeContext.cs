@@ -90,6 +90,15 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
 
     public bool IsOn { get; private set; }
 
+    /// <summary>
+    /// True when the page edits through the universal editor (the editing bar, the right-hand panel and staged changes): the
+    /// per-field pencils and the hero artwork chips then stay hidden, because every field is edited in the panel instead.
+    /// </summary>
+    public bool UseStagedEditor { get; set; }
+
+    /// <summary>Whether the old pencils and hero artwork chips show: Editing Mode is on and the page is not using the staged editor.</summary>
+    public bool ShowsPencils => IsOn && !UseStagedEditor;
+
     public bool SectionOpen => OpenSectionKind is not null;
 
     /// <summary>The section open below the hero, or null when none is.</summary>

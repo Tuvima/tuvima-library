@@ -214,8 +214,7 @@ internal static class PluginEndpoints
             bool? failuresOnly,
             CancellationToken ct) =>
         {
-            // A plugin's id or a metadata source's name; anything else has no Activity list.
-            if (catalog.Get(pluginId) is null && !sources.Sources().Any(source => string.Equals(source.Name, pluginId, StringComparison.OrdinalIgnoreCase)))
+            if (!IsPluginOrSource(pluginId, catalog, sources))
             {
                 return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
             }
@@ -240,6 +239,63 @@ internal static class PluginEndpoints
             .WithSummary("What people did with plugins and sources that changed shared Library data, newest first. Administrators only.")
             .Produces<PluginPeopleActionsResponse>(StatusCodes.Status200OK)
             .RequireEffectiveAdministrator();
+
+        group.MapGet("/{pluginId}/libraries", async (
+            string pluginId,
+            [FromServices] PluginLibraryLimitService limits,
+            [FromServices] ProviderCapabilityCatalogue sources,
+            PluginCatalog catalog,
+            CancellationToken ct) =>
+        {
+            if (!IsPluginOrSource(pluginId, catalog, sources))
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+            }
+
+            return Results.Ok(await limits.GetAsync(pluginId, ct).ConfigureAwait(false));
+        })
+            .WithName("GetPluginLibraryLimit")
+            .WithSummary("Which libraries a plugin or source works on: every library (the default) or only the ones an administrator chose. Vault libraries are never listed.")
+            .Produces<PluginLibraryLimitResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapPut("/{pluginId}/libraries", async (
+            string pluginId,
+            PluginLibraryLimitRequest request,
+            HttpContext http,
+            [FromServices] PluginLibraryLimitService limits,
+            [FromServices] ProviderCapabilityCatalogue sources,
+            [FromServices] PluginPeopleActionLog peopleActions,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            PluginCatalog catalog,
+            CancellationToken ct) =>
+        {
+            if (!IsPluginOrSource(pluginId, catalog, sources))
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+            }
+
+            var before = await limits.GetAsync(pluginId, ct).ConfigureAwait(false);
+            var refused = await limits.SetAsync(pluginId, request.LibraryIds ?? [], ct).ConfigureAwait(false);
+            if (refused is not null)
+            {
+                return ApiErrors.BadRequest(refused);
+            }
+
+            var after = await limits.GetAsync(pluginId, ct).ConfigureAwait(false);
+            var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+            await peopleActions.RecordAsync(new PluginPeopleAction(
+                authority.ActiveProfileId, pluginId, "limited-plugin-libraries", $"Changed which libraries {pluginId} works on",
+                Before: DescribeLimit(before), After: DescribeLimit(after)), ct).ConfigureAwait(false);
+            return Results.Ok(after);
+        })
+            .WithName("SetPluginLibraryLimit")
+            .WithSummary("Limit a plugin or source to chosen libraries. An empty list removes the limit. A Vault library or an unknown one is refused.")
+            .Produces<PluginLibraryLimitResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         group.MapGet("/{pluginId}/removal-impact", (string pluginId, PluginCatalog catalog) =>
         {
@@ -468,6 +524,7 @@ internal static class PluginEndpoints
             IPluginExecutionContextFactory contexts,
             PluginAiBudget aiBudget,
             [FromServices] PluginHostServicesReader hostServices,
+            [FromServices] PluginActivityService activity,
             CancellationToken ct) =>
         {
             var plugin = catalog.Get(pluginId);
@@ -489,7 +546,7 @@ internal static class PluginEndpoints
             }
 
             return Results.Ok(await PluginHealthComposer
-                .ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct, await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false))
+                .ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct, await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false), activity.PausedUntil(plugin.Manifest.Id))
                 .ConfigureAwait(false));
         })
         .WithName("CheckPluginHealth")
@@ -720,6 +777,13 @@ internal static class PluginEndpoints
 
         await secrets.RemoveAllAsync(owner, ct).ConfigureAwait(false);
     }
+
+    /// <summary>A plugin's id or a metadata source's name; anything else has no Activity list and no library limit.</summary>
+    private static bool IsPluginOrSource(string id, PluginCatalog catalog, ProviderCapabilityCatalogue sources) =>
+        catalog.Get(id) is not null || sources.Sources().Any(source => string.Equals(source.Name, id, StringComparison.OrdinalIgnoreCase));
+
+    private static string DescribeLimit(PluginLibraryLimitResponse limit) =>
+        limit.Limited ? string.Join(", ", limit.Libraries.Where(library => library.Selected).Select(library => library.Name)) : "every library";
 
     internal static async Task<int> CountConfiguredSecretsAsync(
         PluginRegistration registration,

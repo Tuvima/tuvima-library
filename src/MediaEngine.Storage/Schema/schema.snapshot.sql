@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0051 plugin_activity).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0052 plugin_library_limits).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2027,6 +2027,12 @@ CREATE TABLE plugin_event_cursors (
     plugin_id      TEXT    NOT NULL PRIMARY KEY,   -- the plugin's manifest id
     last_sequence  INTEGER NOT NULL,               -- the newest application_events.sequence already delivered
     updated_at     TEXT    NOT NULL                -- ISO 8601 UTC
+);
+
+CREATE TABLE plugin_library_limits (
+    plugin_id  TEXT NOT NULL,   -- the plugin's manifest id, or the metadata source's name
+    library_id TEXT NOT NULL,
+    PRIMARY KEY (plugin_id, library_id)
 );
 
 CREATE TABLE plugin_lore_entities (

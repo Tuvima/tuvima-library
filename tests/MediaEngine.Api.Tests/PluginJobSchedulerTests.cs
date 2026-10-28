@@ -1,5 +1,6 @@
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
 
@@ -372,6 +373,79 @@ public sealed class PluginJobSchedulerTests : IDisposable
         Assert.True(PluginSchedule.TryParse("0 3 * * *", out var cron));
         Assert.Equal("0 3 * * *", cron!.Cron);
         Assert.Throws<ArgumentOutOfRangeException>(() => PluginSchedule.Every(TimeSpan.FromMinutes(4)));
+    }
+
+    private static HostServicesTestPlugin HeavyPlugin() =>
+        new(declaration: new PluginDeclaration { WeightClass = "heavy" });
+
+    [Fact]
+    public async Task AHeavyJob_WaitsWhileIngestionIsWorking_AndRunsOnceItHasFinished()
+    {
+        var plugin = HeavyPlugin();
+        var job = plugin.AddJob("scan");
+        var host = NewHost(plugins: plugin);
+        host.Enable();
+        var ingestion = new FixedIngestion("working");
+        var scheduler = host.NewScheduler(ingestion);
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        host.Clock.Advance(JustOver);
+
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        await scheduler.WhenIdleAsync();
+        Assert.Equal(0, job.Runs);
+
+        ingestion.State = "idle";
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        await scheduler.WhenIdleAsync();
+        Assert.Equal(1, job.Runs);
+    }
+
+    [Fact]
+    public async Task ALightJob_IsNotHeldBackByIngestion()
+    {
+        var plugin = new HostServicesTestPlugin();
+        var job = plugin.AddJob("refresh");
+        var host = NewHost(plugins: plugin);
+        host.Enable();
+        var scheduler = host.NewScheduler(new FixedIngestion("working"));
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        host.Clock.Advance(JustOver);
+
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        await scheduler.WhenIdleAsync();
+
+        Assert.Equal(1, job.Runs);
+    }
+
+    [Fact]
+    public async Task HeavyJobs_RunOneAtATime_AndTheOtherGoesNextWhenTheFirstIsDone()
+    {
+        var plugin = HeavyPlugin();
+        var gate = new TaskCompletionSource();
+        var jobs = new[] { "a", "b" }.Select(key => plugin.AddJob(key, body: (_, _) => gate.Task)).ToList();
+        var host = NewHost(plugins: plugin);
+        host.Enable();
+        var scheduler = host.NewScheduler(new FixedIngestion("idle"));
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        host.Clock.Advance(JustOver);
+
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        await HostServicesHarness.EventuallyAsync(() => jobs.Sum(job => job.Runs) == 1, "one heavy job to start");
+        await Task.Delay(100);
+        Assert.Equal(1, jobs.Sum(job => job.Runs));
+
+        gate.SetResult();
+        await scheduler.WhenIdleAsync();
+        await scheduler.RunDueJobsAsync(CancellationToken.None);
+        await scheduler.WhenIdleAsync();
+        Assert.All(jobs, job => Assert.Equal(1, job.Runs));
+    }
+
+    private sealed class FixedIngestion(string state) : MediaEngine.Api.Services.IIngestionQueueProgressService
+    {
+        public string State { get; set; } = state;
+
+        public MediaEngine.Contracts.Ingestion.IngestionQueueProgressDto Current => new() { State = State };
     }
 
     public void Dispose()

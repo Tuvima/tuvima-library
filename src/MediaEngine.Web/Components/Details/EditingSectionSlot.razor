@@ -14,19 +14,26 @@
 {
     <section @ref="_root"
              id="tl-editing-slot"
-             class="tl-editing-slot"
+             class="@(InPanel ? "tl-editing-slot tl-editing-slot--panel" : "tl-editing-slot")"
              aria-labelledby="tl-editing-slot-title"
              data-section="@SectionId(mode.OpenSectionKind)">
-        <header class="tl-editing-slot__header">
-            <h2 id="tl-editing-slot-title" class="tl-editing-slot__title" tabindex="-1">@Heading(mode.OpenSectionKind)</h2>
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
-                           Size="AppControlSize.Large"
-                           Tone="AppUiTone.Neutral"
-                           Class="tl-editing-slot__close"
-                           Tooltip="@($"Close {Heading(mode.OpenSectionKind)}")"
-                           AriaLabel="@($"Close {Heading(mode.OpenSectionKind)}")"
-                           OnClick="CloseAsync" />
-        </header>
+        @if (!InPanel || mode.OpenSectionKind == EditingSection.History)
+        {
+            @* In the universal editor's panel the panel owns the heading and the close button; History keeps its own heading as a block. *@
+            <header class="tl-editing-slot__header">
+                <h2 id="tl-editing-slot-title" class="tl-editing-slot__title" tabindex="-1">@Heading(mode.OpenSectionKind)</h2>
+                @if (!InPanel)
+                {
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                                   Size="AppControlSize.Large"
+                                   Tone="AppUiTone.Neutral"
+                                   Class="tl-editing-slot__close"
+                                   Tooltip="@($"Close {Heading(mode.OpenSectionKind)}")"
+                                   AriaLabel="@($"Close {Heading(mode.OpenSectionKind)}")"
+                                   OnClick="CloseAsync" />
+                }
+            </header>
+        }
         <div class="tl-editing-slot__body">
             <SharedMediaEditorShell @key="mode.OpenSectionKind"
                                     @ref="_shell"
@@ -88,6 +95,12 @@
     /// </summary>
     [Parameter] public bool HandlesEscape { get; set; }
 
+    /// <summary>
+    /// True when the slot sits inside the universal editor's right-hand panel: no close button of its own (the panel closes it), no
+    /// scrolling the page to it, and no height cap, so the panel stays the one scroll area.
+    /// </summary>
+    [Parameter] public bool InPanel { get; set; }
+
     private static string SectionId(EditingSection? section) => section switch
     {
         EditingSection.Artwork => "artwork",
@@ -139,7 +152,7 @@
             {
                 _request = BuildRequest(SectionId(section), Mode.OpenSectionArtworkSlot);
                 _builtFor = _request is null ? null : section;
-                _focusSlot = _request is not null;
+                _focusSlot = _request is not null && !InPanel;
                 _attachEscape = _request is not null && HandlesEscape;
                 _commitSeenDuringSave = false;
                 _swallowNextCommit = false;

@@ -330,6 +330,20 @@ public sealed class LocalAiEngineRoomTests
     }
 
     [Fact]
+    public async Task APluginPausedAfterRepeatedFailures_ReportsNeedsAttention_AndHealthyOtherwise()
+    {
+        using var harness = new EngineRoomHarness();
+        var checks = new[] { new PluginHealthResult { Status = "healthy" } };
+
+        var running = await PluginHealthComposer.ComposeAsync(Plugin.Id, checks, harness.Budget, default, pausedUntil: null);
+        var paused = await PluginHealthComposer.ComposeAsync(Plugin.Id, checks, harness.Budget, default, pausedUntil: DateTimeOffset.UtcNow.AddMinutes(1));
+
+        Assert.Equal("healthy", running.Status);
+        Assert.Equal("degraded", paused.Status);
+        Assert.Contains(paused.Checks, check => check.Status == "degraded" && check.Message == PluginHealthComposer.PausedMessage);
+    }
+
+    [Fact]
     public async Task APluginOverItsBusySecondsPerHour_IsRefusedWithoutRunning()
     {
         using var harness = new EngineRoomHarness();

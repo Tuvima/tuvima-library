@@ -20,6 +20,9 @@ public sealed class PendingEditList
 
     public bool IsEmpty => _changes.Count == 0;
 
+    /// <summary>How many things Save would do: one per staged field, and one per artwork, identity, relationship or file-move entry.</summary>
+    public int ChangeCount => _changes.Sum(change => change.Kind == EditSessionChangeKinds.Details ? Math.Max(1, change.Fields.Count) : 1);
+
     /// <summary>Stages one details field for an item, replacing an earlier value staged for the same field.</summary>
     public void SetField(Guid entityId, string key, string? value)
     {

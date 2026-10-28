@@ -40,6 +40,7 @@ public static partial class BackupTableClassification
         Config("application_webhooks", "Webhook destinations an application has registered; the signing secret is protected with this computer's Data Protection key, so the export writes it readable (or keeps it as it is when it cannot be read).", portable: ["secret_ciphertext"]),
         Config("approval_records", "Approvals an administrator has given, with the statement approved."),
         Config("plugin_lore_sources", "Lore sources a person approved or rejected; sources only discovered but never decided on are rebuilt.", keepWhere: "approved_at IS NOT NULL OR rejected_at IS NOT NULL"),
+        Config("plugin_library_limits", "The libraries an administrator limited a plugin or source to."),
         Config("metadata_providers", "The list of metadata providers and whether each is switched on."),
         Config("provider_config", "Provider settings; rows marked secret are left out of a backup.", keepWhere: "is_secret = 0"),
         Config("notification_settings", "Notification channels and rules."),

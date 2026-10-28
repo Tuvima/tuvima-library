@@ -5895,6 +5895,42 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     cursor: pointer;
 }
 
+/* Universal editor (spec WP4, WP5): the editing bar and the right-hand panel on a detail page. Shared here, not scoped, to stay under the scoped CSS ceiling. */
+.tl-editing-bar,.tl-editor-panel{--tl-editing-bar-height:4rem}
+.tl-editing-bar{position:sticky;top:var(--tl-editing-banner-top,0);z-index:20;box-sizing:border-box;width:100%;min-height:var(--tl-editing-bar-height);padding:var(--tl-space-2) var(--tl-editing-banner-end-clearance,4.5rem) var(--tl-space-2) clamp(1rem,3vw,2.5rem);border-bottom:1px solid var(--tl-border-default);background:color-mix(in srgb,var(--tl-bg-shell) 94%,transparent);color:var(--tl-text-primary);backdrop-filter:blur(.75rem);box-shadow:var(--tl-shadow-md)}
+.tl-editing-bar__row{display:flex;align-items:center;gap:var(--tl-space-4)}
+.tl-editing-bar__where{display:flex;flex:1 1 0;align-items:center;gap:var(--tl-space-2);min-width:0}
+.tl-editing-bar__dot{flex:0 0 auto;width:.6rem;height:.6rem;border-radius:50%;background:var(--tl-accent-primary,#8852FC);box-shadow:0 0 0 .2rem color-mix(in srgb,var(--tl-accent-primary,#8852FC) 28%,transparent)}
+.tl-editing-bar__title{font-size:var(--tl-font-size-md);font-weight:var(--tl-font-weight-semibold)}
+.tl-editing-bar__trail{display:flex;min-width:0;margin:0;padding:0;overflow:hidden;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm);list-style:none;white-space:nowrap}
+.tl-editing-bar__trail li{overflow:hidden;text-overflow:ellipsis}
+.tl-editing-bar__trail li+li::before{content:"\203A";margin:0 var(--tl-space-2)}
+.tl-editing-bar__trail li:last-child{color:var(--tl-text-primary)}
+.tl-editing-bar__tools{display:flex;flex:0 0 auto;gap:var(--tl-space-2)}
+.tl-editing-bar__end{display:flex;flex:1 1 0;align-items:center;justify-content:flex-end;gap:var(--tl-space-2)}
+.tl-editing-bar__notice{display:flex;align-items:flex-start;gap:var(--tl-space-2);margin-top:var(--tl-space-2);padding:var(--tl-space-2) var(--tl-space-3);border:1px solid var(--tl-status-warning-border);border-radius:var(--tl-radius-lg);color:var(--tl-text-secondary);font-size:var(--tl-font-size-sm)}
+.tl-editing-bar__notice strong{color:var(--tl-text-primary)}
+.tl-editing-bar__notice ul{margin:var(--tl-space-1) 0 0;padding-left:1.25rem}
+.tl-editor-panel{position:fixed;top:calc(var(--tl-editing-banner-top,0px) + var(--tl-editing-bar-height));right:0;bottom:0;z-index:19;display:flex;flex-direction:column;box-sizing:border-box;width:min(450px,100vw);border-left:1px solid var(--tl-border-default);background:var(--tl-bg-surface);color:var(--tl-text-primary);box-shadow:var(--tl-shadow-lg)}
+.tl-editor-panel--wide{width:min(650px,100vw)}
+.tl-editor-panel__header{display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:var(--tl-space-3);padding:var(--tl-space-2) var(--tl-space-4);border-bottom:1px solid var(--tl-divider)}
+.tl-editor-panel__title{margin:0;font-size:var(--tl-font-size-lg);font-weight:var(--tl-font-weight-semibold)}
+.tl-editor-panel__title:focus-visible{outline:var(--tl-focus-ring-width) solid var(--tl-focus-ring);outline-offset:var(--tl-focus-ring-offset)}
+.tl-editor-panel__body{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+.tl-editor-panel .tl-editing-slot.tl-editing-slot--panel{border:0;background:transparent}
+.tl-editor-panel .tl-editing-slot--panel .tl-editing-slot__header{min-height:0;padding:var(--tl-space-3) var(--tl-space-4) var(--tl-space-1);border:0}
+.tl-editor-panel .tl-editing-slot--panel .tl-editing-slot__body{min-height:0;max-height:none;overflow:visible}
+.tl-editor-details{display:flex;flex-direction:column;gap:var(--tl-space-5);padding:var(--tl-space-4)}
+.tl-editor-details__group{display:flex;flex-direction:column;gap:var(--tl-space-3)}
+.tl-editor-details__heading{margin:0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm);font-weight:var(--tl-font-weight-semibold)}
+.tl-editor-field{display:flex;flex-direction:column;gap:var(--tl-space-1)}
+.tl-editor-field__label{display:flex;align-items:center;gap:var(--tl-space-2);color:var(--tl-text-secondary);font-size:var(--tl-font-size-sm)}
+.tl-editor-field__dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--tl-accent-primary,#8852FC)}
+.tl-editor-field__lock{display:inline-flex;align-items:center;gap:var(--tl-space-1);color:var(--tl-text-muted)}
+.tl-editor-field__value{overflow-wrap:anywhere;font-size:var(--tl-font-size-md)}
+.tl-editor-field__count,.tl-editor-field__note{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
+.tl-editor-field__reset{align-self:flex-start}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 

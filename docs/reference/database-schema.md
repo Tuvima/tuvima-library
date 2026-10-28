@@ -1250,6 +1250,17 @@ Each plugin's or metadata source's Activity list (Plugin architecture spec D10 a
 
 **Indexes:** `(plugin_id, id DESC)` and `(occurred_at)`. Added by upgrade step `0051_plugin_activity`.
 
+### plugin_library_limits
+
+The libraries an administrator limited a plugin or metadata source to (Plugin architecture spec D6). A plugin or source with no rows works on every library it can work on; once libraries are chosen it works only on those. Vault libraries are refused when the choice is saved. Part of backups, because it is a setting.
+
+| Column | Type | Notes |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id, or the source's name; first part of the primary key |
+| `library_id` | TEXT | The library's id in `config/libraries.json` (the text `media_assets.library_id` holds) |
+
+**Key:** `PRIMARY KEY (plugin_id, library_id)`. Added by upgrade step `0052_plugin_library_limits`.
+
 ### plugin_event_cursors
 
 Where each plugin has got to in the Library's event list (`application_events`): the sequence of the newest event already handed to it. The plugin event dispatcher reads events after this sequence, so a restart carries on where it stopped. A plugin that subscribes for the first time, or that is switched off and on again, starts at the newest event with no backlog.

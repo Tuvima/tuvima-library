@@ -178,6 +178,7 @@ See "What a backup file holds" above. The restore screens come in the next step.
 | `application_webhooks` | Webhook destinations an application has registered; the signing secret is protected with this computer's Data Protection key, so the export writes it readable (portable column `secret_ciphertext`), or keeps it as it is when it cannot be read. | none | none | all rows |
 | `approval_records` | Approvals an administrator has given, with the statement approved. | none | none | all rows |
 | `plugin_lore_sources` | Lore sources a person approved or rejected; sources only discovered but never decided on are rebuilt. | none | none | `approved_at IS NOT NULL OR rejected_at IS NOT NULL` |
+| `plugin_library_limits` | The libraries an administrator limited a plugin or source to. | none | none | all rows |
 | `metadata_providers` | The list of metadata providers and whether each is switched on. | none | none | all rows |
 | `provider_config` | Provider settings; rows marked secret are left out of a backup. | none | none | `is_secret = 0` |
 | `notification_settings` | Notification channels and rules. | none | none | all rows |
