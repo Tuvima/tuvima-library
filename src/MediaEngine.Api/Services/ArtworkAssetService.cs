@@ -684,6 +684,102 @@ public sealed class ArtworkAssetService(
             return true;
         }, ct);
 
+    /// <summary>
+    /// The artwork role a slot name stands for (<c>CoverArt</c> and <c>SeasonPoster</c> are Primary, <c>Background</c> and
+    /// <c>SeasonThumb</c> are Background), or null when the editor does not offer that slot.
+    /// </summary>
+    public static string? RoleForSlot(string? slot) =>
+        slot?.Trim().ToLowerInvariant() switch
+        {
+            "coverart" or "seasonposter" or "episodestill" => "Primary",
+            "background" or "seasonthumb" => "Background",
+            "logo" => "Logo",
+            _ => null,
+        };
+
+    /// <summary>Whether a canonical image with this id is stored.</summary>
+    public async Task<bool> AssetExistsAsync(Guid assetId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        return await connection.ExecuteScalarAsync<bool>(
+            "SELECT EXISTS (SELECT 1 FROM artwork_assets WHERE id = @assetId);", new { assetId });
+    }
+
+    /// <summary>The kind of entity (Work, Person, ...) the stored links of this id belong to, or null when it has none yet.</summary>
+    public async Task<string?> FindLinkedEntityTypeAsync(Guid entityId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        return await connection.QuerySingleOrDefaultAsync<string?>(
+            "SELECT entity_type FROM entity_artwork_links WHERE entity_id = @entityId LIMIT 1;", new { entityId });
+    }
+
+    /// <summary>The picture currently chosen for a role of an entity, or null when none is chosen.</summary>
+    public async Task<ChosenArtwork?> GetChosenAsync(string entityType, Guid entityId, string role, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<ChosenArtwork>("""
+            SELECT artwork_asset_id AS ArtworkAssetId, NULLIF(context, '') AS Context, source_asset_type AS SourceAssetType
+            FROM entity_artwork_links
+            WHERE entity_id = @entityId AND entity_type = @entityType AND role = @role AND is_preferred = 1
+            ORDER BY updated_at DESC, created_at DESC
+            LIMIT 1;
+            """, new { entityId, entityType, role });
+    }
+
+    /// <summary>The context an existing link of this image for the entity and role carries (so choosing it again stays in that context).</summary>
+    public async Task<string?> GetLinkContextAsync(string entityType, Guid entityId, string role, Guid assetId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<string?>("""
+            SELECT NULLIF(context, '') FROM entity_artwork_links
+            WHERE entity_id = @entityId AND entity_type = @entityType AND role = @role AND artwork_asset_id = @assetId
+            LIMIT 1;
+            """, new { entityId, entityType, role, assetId });
+    }
+
+    /// <summary>
+    /// Leaves no picture chosen for a role of an entity. The pictures stay saved and linked, so choosing one again brings it back.
+    /// </summary>
+    public Task ClearChosenAsync(string entityType, Guid entityId, string role, CancellationToken ct) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var now = DateTimeOffset.UtcNow.ToString("O");
+            connection.Execute("""
+                UPDATE entity_assets SET is_preferred = 0, updated_at = @now
+                WHERE is_preferred = 1 AND id IN (
+                    SELECT id FROM entity_artwork_links
+                    WHERE entity_id = @entityId AND entity_type = @entityType AND role = @role AND is_preferred = 1);
+                UPDATE entity_artwork_links SET is_preferred = 0, updated_at = @now
+                WHERE entity_id = @entityId AND entity_type = @entityType AND role = @role AND is_preferred = 1;
+                """, new { entityId, entityType, role, now }, transaction);
+            if (string.Equals(entityType, "Collection", StringComparison.OrdinalIgnoreCase))
+            {
+                var update = role switch
+                {
+                    "Background" => "UPDATE collections SET background_artwork_path=NULL, background_artwork_mime_type=NULL WHERE id=@entityId;",
+                    "Logo" => "UPDATE collections SET logo_artwork_path=NULL, logo_artwork_mime_type=NULL WHERE id=@entityId;",
+                    _ => "UPDATE collections SET cover_artwork_path=NULL, cover_artwork_mime_type=NULL WHERE id=@entityId;",
+                };
+                connection.Execute(update, new { entityId }, transaction);
+            }
+
+            return true;
+        }, ct);
+
+    /// <summary>The picture chosen for a role: which image, in which context, as which kind of source picture.</summary>
+    public sealed class ChosenArtwork
+    {
+        public Guid ArtworkAssetId { get; set; }
+
+        public string? Context { get; set; }
+
+        public string? SourceAssetType { get; set; }
+    }
     public string? ResolveContentPath(Guid assetId, string? size)
     {
         using var connection = database.CreateConnection();

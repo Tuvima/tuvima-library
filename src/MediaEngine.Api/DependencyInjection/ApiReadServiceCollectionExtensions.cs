@@ -56,6 +56,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<PersonEditorReadService>();
         services.AddSingleton<ArtworkLibraryReadService>();
         services.AddSingleton<ArtworkAssetService>();
+        services.AddSingleton<IEditSessionChangeHandler, ArtworkEditSessionChangeHandler>();
         services.AddSingleton<ArtworkRenditionQueue>();
         services.AddSingleton<IArtworkRenditionService, ArtworkRenditionService>();
         services.AddSingleton<MediaEditorNavigationReadService>();

@@ -60,6 +60,13 @@ else if (Model is not null)
         }
 
         <section class="@DetailStageClass">
+            @if (TemporaryArtworkSlot is { } temporarySlot)
+            {
+                <EditingTemporaryArtworkView Label="@ArtworkPickerRules.LabelFor(temporarySlot)"
+                                             ImageUrl="@_preview.Artwork.TemporaryUrl(temporarySlot)"
+                                             OnReturn="_artworkPicker.ReturnToNormalView" />
+            }
+
             <DetailHero Model="Model"
                         CanDelete="@CanDeleteFromLibrary"
                         OnActionSelected="HandleDetailActionAsync"
@@ -117,7 +124,13 @@ else if (Model is not null)
             }
         </section>
 
-        @* The right-hand panel of the editor: Details here, Artwork and Match through the editor sections they have always used. *@
+        @* The Artwork tool is a floating picker, not a panel (spec D8): it hangs over the page so the preview stays in view. *@
+        @if (_editing is { IsOn: true, CanEdit: true } && _flow.Session is { IsActive: true, ActiveTool: EditTool.Artwork })
+        {
+            <FloatingArtworkPicker Mode="_editing" Flow="_flow" Picker="_artworkPicker" />
+        }
+
+        @* The right-hand panel of the editor: Details here, Match through the editor section it has always used. *@
         <EditorPanelHost Mode="_editing" Flow="_flow">
             @if (context == EditTool.Details)
             {
@@ -173,6 +186,7 @@ else if (Model is not null)
     // The universal editor on this page: the staged changes, the open tool, what the person does with them, and how the page shows them.
     private EditSessionFlow _flow = default!;
     private EditPendingPreview _preview = default!;
+    private ArtworkPickerSession _artworkPicker = default!;
 
     // The rows ticked for "Edit together", Move and Delete (spec D8). It ends with Editing Mode; the rows ask the page to refresh through it.
     private readonly DetailBatchSelection _batch = new();
@@ -195,7 +209,9 @@ else if (Model is not null)
             Saved = RefreshAfterEditSavedAsync,
         };
         _preview = new EditPendingPreview(session, _editing.Fields);
+        _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);
         session.Changed += OnEditSessionChanged;
+        _artworkPicker.Changed += OnEditSessionChanged;
         _batch.RefreshAsync = RefreshAfterSectionCommitAsync;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         UpdateEditingEligibility();
@@ -264,6 +280,7 @@ else if (Model is not null)
         _editing.Changed -= OnEditingChanged;
         _editing.Fields.Saved -= RefreshAfterFieldSavedAsync;
         _flow.Session.Changed -= OnEditSessionChanged;
+        _artworkPicker.Changed -= OnEditSessionChanged;
         _flow.Dispose();
         _editing.Dispose();
     }
@@ -662,8 +679,13 @@ else if (Model is not null)
         HasPrimaryModuleAfterNavigation
         && CurrentActiveTab == "overview";
 
+    // The slot the page is showing in its labelled temporary view (a season poster or episode still), or null in the normal view.
+    private string? TemporaryArtworkSlot =>
+        _flow.Session is { IsActive: true, ViewContext: EditViewContext.TemporaryArtwork } ? _preview.Artwork.TemporarySlot : null;
+
     private string DetailStageClass =>
         $"tl-detail-stage{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--with-primary" : " tl-detail-stage--identity-only")}" +
+        $"{(TemporaryArtworkSlot is null ? string.Empty : " tl-detail-stage--temporary")}" +
         $"{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--primary-after-navigation" : string.Empty)}" +
         $"{(string.IsNullOrWhiteSpace(PresentationCapabilities.StageModifier) ? string.Empty : $" {PresentationCapabilities.StageModifier}")}" +
         $"{(Model?.EntityType == DetailEntityType.Person ? " tl-detail-stage--person" : string.Empty)}";

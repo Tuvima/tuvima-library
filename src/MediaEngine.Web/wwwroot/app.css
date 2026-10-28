@@ -5931,6 +5931,32 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-editor-field__value{overflow-wrap:anywhere;font-size:var(--tl-font-size-md)}
 .tl-editor-field__count,.tl-editor-field__note{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
 .tl-editor-field__reset{align-self:flex-start}
+.tl-art-picker{position:fixed;right:1.5rem;bottom:1.5rem;z-index:21;display:flex;flex-direction:column;box-sizing:border-box;width:min(26rem,calc(100vw - 2rem));max-height:min(40rem,calc(100dvh - 6rem));border:1px solid var(--tl-border-default);border-radius:var(--tl-radius-lg,.75rem);background:var(--tl-bg-surface);color:var(--tl-text-primary);box-shadow:var(--tl-shadow-lg)}
+.tl-art-picker.is-minimised{width:auto;max-width:calc(100vw - 2rem);border-radius:999px}
+.tl-art-picker__header{display:flex;flex:0 0 auto;align-items:center;gap:var(--tl-space-2);padding:var(--tl-space-2) var(--tl-space-3);cursor:grab;touch-action:none;user-select:none}
+.tl-art-picker__header:active{cursor:grabbing}
+.tl-art-picker__spacer{flex:1 1 auto}
+.tl-art-picker__chip-label{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
+.tl-art-picker__body{display:flex;flex:1 1 auto;flex-direction:column;gap:var(--tl-space-3);min-height:0;padding:var(--tl-space-3) var(--tl-space-4) var(--tl-space-4);overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--tl-divider)}
+.tl-art-picker__single{margin:0;font-weight:var(--tl-font-weight-semibold)}
+.tl-art-picker__shown{display:flex;align-items:center;gap:var(--tl-space-3)}
+.tl-art-picker__shown img{flex:0 0 auto;max-width:7rem;max-height:7rem;border-radius:var(--tl-radius-md,.5rem);object-fit:contain;background:var(--tl-bg-shell)}
+.tl-art-picker__status,.tl-art-picker__hint{margin:0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
+.tl-art-picker__actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-2)}
+.tl-art-picker__source{display:flex;flex-direction:column;gap:var(--tl-space-3)}
+.tl-art-picker__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(6.5rem,1fr));gap:var(--tl-space-2)}
+.tl-art-picker__tile{display:flex;flex-direction:column;gap:var(--tl-space-1);padding:var(--tl-space-1);border:2px solid transparent;border-radius:var(--tl-radius-md,.5rem);background:var(--tl-bg-shell);color:var(--tl-text-secondary);font-size:var(--tl-font-size-xs,.75rem);cursor:pointer}
+.tl-art-picker__tile img{width:100%;aspect-ratio:2/3;border-radius:var(--tl-radius-sm,.25rem);object-fit:cover}
+.tl-art-picker__tile.is-picked{border-color:var(--tl-accent-primary,#8852FC)}
+.tl-art-picker__tile.is-disabled{opacity:.55;cursor:default}
+.tl-detail-stage--temporary{position:relative}
+.tl-detail-stage--temporary .tl-detail-hero{filter:brightness(.35)}
+.tl-temporary-view{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--tl-space-3);padding:var(--tl-space-6) var(--tl-space-4);color:#fff;text-align:center}
+.tl-temporary-view__label{display:inline-flex;align-items:center;gap:var(--tl-space-2);margin:0;padding:var(--tl-space-1) var(--tl-space-3);border-radius:999px;background:var(--tl-accent-primary,#8852FC);font-size:var(--tl-font-size-sm);font-weight:var(--tl-font-weight-semibold)}
+.tl-temporary-view__poster img{max-width:min(80vw,22rem);max-height:min(60vh,32rem);border-radius:var(--tl-radius-md,.5rem);box-shadow:var(--tl-shadow-lg)}
+.tl-temporary-view__poster{display:flex;flex-direction:column;align-items:center;gap:var(--tl-space-2)}
+.tl-temporary-view__caption{margin:0;font-weight:var(--tl-font-weight-semibold)}
+.tl-temporary-view__return{color:#fff}
 
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
