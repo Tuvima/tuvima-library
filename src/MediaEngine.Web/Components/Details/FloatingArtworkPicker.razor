@@ -1,0 +1,466 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Artwork
+@using MediaEngine.Web.Components.Artwork
+@using MediaEngine.Web.Services.Editing
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IAppDialogService Dialogs
+
+@* The Artwork tool of the universal editor (spec D8): a floating picker, not a panel. It is dragged by its header, shrinks to a chip so the
+   page can be looked at, and closes. Tabs follow the item (Background, Poster, Logo for a movie; Season poster for a season). It offers
+   the providers' pictures, an upload, a pasted link and the pictures already saved. Picking a picture only previews it on the page;
+   "Use this artwork" stages it; nothing is saved until Save changes. "Remove artwork" asks first. *@
+@if (Picker is { ActiveSlot: { } slot } picker)
+{
+    var staged = picker.IsStaged;
+    var tabs = picker.Tabs;
+    <section @ref="_root"
+             class="@($"tl-art-picker{(_minimised ? " is-minimised" : string.Empty)}")"
+             role="region"
+             aria-label="Artwork picker">
+        <header @ref="_handle" class="tl-art-picker__header">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppSize.Small" />
+            <strong class="tl-art-picker__title">Artwork</strong>
+            @if (_minimised)
+            {
+                <span class="tl-art-picker__chip-label">@ArtworkPickerRules.LabelFor(slot)@(staged ? " · changed" : string.Empty)</span>
+            }
+            <span class="tl-art-picker__spacer"></span>
+            <AppIconButton Icon="@(_minimised ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.Remove)"
+                           Size="AppControlSize.Compact"
+                           Class="tl-art-picker__minimise"
+                           Tooltip="@(_minimised ? "Show the artwork picker" : "Shrink to a chip")"
+                           AriaLabel="@(_minimised ? "Show the artwork picker" : "Shrink the artwork picker to a chip")"
+                           OnClick="ToggleMinimised" />
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                           Size="AppControlSize.Compact"
+                           Class="tl-art-picker__close"
+                           Tooltip="Close Artwork"
+                           AriaLabel="Close Artwork"
+                           OnClick="CloseAsync" />
+        </header>
+
+        @if (!_minimised)
+        {
+            <div class="tl-art-picker__body">
+                @if (tabs.Count > 1)
+                {
+                    <AppSegmentedControl Class="tl-art-picker__tabs"
+                                         AriaLabel="Artwork to change"
+                                         Options="@(tabs.Select(tab => new AppSelectOption(tab.Slot, tab.Label)).ToList())"
+                                         Value="@slot"
+                                         ValueChanged="SelectSlotAsync" />
+                }
+                else if (tabs.Count == 1)
+                {
+                    <p class="tl-art-picker__single">@tabs[0].Label</p>
+                }
+
+                <div class="tl-art-picker__shown">
+                    @if (!string.IsNullOrWhiteSpace(picker.ShownUrl))
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(picker.ShownUrl, 128)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(picker.ShownUrl, 128)" alt="@($"{ArtworkPickerRules.LabelFor(slot)} preview")" />
+                    }
+                    else
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />
+                    }
+                    <p class="tl-art-picker__status" role="status">@StatusText(picker)</p>
+                </div>
+
+                <div class="tl-art-picker__actions">
+                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               StartIcon="@AppMaterialIcons.Outlined.Check"
+                               Class="tl-art-picker__use"
+                               Disabled="@(!picker.HasPick || picker.Busy)"
+                               OnClick="UseAsync">
+                        Use this artwork
+                    </AppButton>
+                    @if (staged)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                   Tone="AppUiTone.Neutral"
+                                   Class="tl-art-picker__undo"
+                                   Disabled="@picker.Busy"
+                                   OnClick="picker.UndoStaged">
+                            Undo this choice
+                        </AppButton>
+                    }
+                    else if (!picker.IsRemoval && !string.IsNullOrWhiteSpace(picker.ShownUrl))
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                   Tone="AppUiTone.Error"
+                                   StartIcon="@AppMaterialIcons.Outlined.Delete"
+                                   Class="tl-art-picker__remove"
+                                   Disabled="@picker.Busy"
+                                   OnClick="RemoveAsync">
+                            Remove artwork
+                        </AppButton>
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(picker.Message))
+                {
+                    <AppAlert Severity="AppSeverity.Warning" Dense="true" Class="tl-art-picker__message">@picker.Message</AppAlert>
+                }
+
+                <AppSegmentedControl Class="tl-art-picker__sources"
+                                     AriaLabel="Where to find artwork"
+                                     Options="Sources"
+                                     Value="@_source"
+                                     ValueChanged="SelectSourceAsync" />
+
+                <div class="tl-art-picker__source">
+                    @switch (_source)
+                    {
+                        case SourceProviders:
+                            @ProviderSource(picker)
+                            break;
+                        case SourceUpload:
+                            <p class="tl-art-picker__hint">Choose a JPEG or PNG from your computer. It is kept aside until you use it.</p>
+                            <AppFileUpload T="IBrowserFile" Accept="image/jpeg,image/png" FilesChanged="UploadAsync" Disabled="@picker.Busy" />
+                            break;
+                        case SourceLink:
+                            <AppTextField Label="Picture web address"
+                                          Placeholder="https://"
+                                          Value="@_address"
+                                          ValueChanged="@((string? value) => _address = value ?? string.Empty)" />
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                       StartIcon="@AppMaterialIcons.Outlined.Link"
+                                       Disabled="@(picker.Busy || string.IsNullOrWhiteSpace(_address))"
+                                       OnClick="PasteLinkAsync">
+                                Fetch picture
+                            </AppButton>
+                            break;
+                        default:
+                            @SavedSource(picker)
+                            break;
+                    }
+                </div>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private const string SourceProviders = "providers";
+    private const string SourceUpload = "upload";
+    private const string SourceLink = "link";
+    private const string SourceSaved = "saved";
+
+    private static readonly IReadOnlyList<AppSelectOption> Sources =
+    [
+        new(SourceProviders, "Providers", AppMaterialIcons.Outlined.Search),
+        new(SourceUpload, "Upload", AppMaterialIcons.Outlined.CloudUpload),
+        new(SourceLink, "Link", AppMaterialIcons.Outlined.Link),
+        new(SourceSaved, "Saved", AppMaterialIcons.Outlined.PhotoLibrary),
+    ];
+
+    private ElementReference _root;
+    private ElementReference _handle;
+    private IJSObjectReference? _module;
+    private bool _attached;
+    private bool _minimised;
+    private bool _opened;
+    private string? _lastRequestedSlot;
+    private string _source = SourceSaved;
+    private string _address = string.Empty;
+    private EditingModeContext? _subscribed;
+    private ArtworkPickerSession? _subscribedPicker;
+
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    [Parameter, EditorRequired] public ArtworkPickerSession? Picker { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ReferenceEquals(_subscribed, Mode))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed -= OnModeChanged;
+            }
+
+            _subscribed = Mode;
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed += OnModeChanged;
+            }
+        }
+
+        if (!ReferenceEquals(_subscribedPicker, Picker))
+        {
+            if (_subscribedPicker is not null)
+            {
+                _subscribedPicker.Changed -= OnModeChanged;
+            }
+
+            _subscribedPicker = Picker;
+            if (_subscribedPicker is not null)
+            {
+                _subscribedPicker.Changed += OnModeChanged;
+            }
+        }
+
+        if (Picker is null)
+        {
+            return;
+        }
+
+        // The tool opens on the slot a hero button asked for; a later press of another hero button moves the picker to that tab.
+        var requested = Mode?.OpenSectionArtworkSlot;
+        if (!_opened)
+        {
+            _opened = true;
+            _lastRequestedSlot = requested;
+            await Picker.OpenAsync(requested);
+        }
+        else if (!string.Equals(requested, _lastRequestedSlot, StringComparison.OrdinalIgnoreCase))
+        {
+            _lastRequestedSlot = requested;
+            if (requested is not null)
+            {
+                _minimised = false;
+                await Picker.OpenAsync(requested);
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_attached || Picker?.ActiveSlot is null)
+        {
+            return;
+        }
+
+        _attached = true;
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/floating-picker.js");
+            await _module.InvokeVoidAsync("attach", _root, _handle);
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is no page left to drag on.
+        }
+        catch (JSException)
+        {
+            // The drag script could not load: the picker still works, it just stays where it opened.
+        }
+    }
+
+    private RenderFragment ProviderSource(ArtworkPickerSession picker) => __builder =>
+    {
+        if (picker.ProviderLoading)
+        {
+            <AppPageState Kind="AppPageStateKind.Loading" Title="Finding provider artwork" />
+        }
+        else if (picker.Provider is null)
+        {
+            <p class="tl-art-picker__hint">Ask the providers this item is matched with for pictures.</p>
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Search" OnClick="picker.LoadProviderAsync">
+                Find provider artwork
+            </AppButton>
+        }
+        else
+        {
+            @if (!string.IsNullOrWhiteSpace(picker.Provider.Message))
+            {
+                <p class="tl-art-picker__hint">@picker.Provider.Message</p>
+            }
+
+            <div class="tl-art-picker__grid" role="list">
+                @foreach (var candidate in picker.Provider.Items)
+                {
+                    var picked = picker.PickedTarget == "provider:" + candidate.Id;
+                    <AppNativeButton Type="button"
+                                     Class="@Tile(picked, candidate.AlreadyAdded)"
+                                     Disabled="@(candidate.AlreadyAdded || picker.Busy)"
+                                     AriaLabel="@($"{candidate.Provider} picture{(candidate.AlreadyAdded ? ", already saved" : string.Empty)}")"
+                                     aria-pressed="@(picked ? "true" : "false")"
+                                     OnClick="@(() => picker.PickProvider(candidate))">
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(candidate.ThumbnailUrl, 128)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(candidate.ThumbnailUrl, 128)" alt="" loading="lazy" decoding="async" />
+                        <span>@(candidate.AlreadyAdded ? "Already saved" : candidate.Provider)</span>
+                    </AppNativeButton>
+                }
+            </div>
+        }
+    };
+
+    private RenderFragment SavedSource(ArtworkPickerSession picker) => __builder =>
+    {
+        if (picker.SavedLoading)
+        {
+            <AppPageState Kind="AppPageStateKind.Loading" Title="Loading saved pictures" />
+        }
+        else if (picker.Saved.Count == 0)
+        {
+            <p class="tl-art-picker__hint">No pictures are saved for this yet. Find one from a provider, upload one or paste a link.</p>
+        }
+        else
+        {
+            <div class="tl-art-picker__grid" role="list">
+                @foreach (var picture in picker.Saved)
+                {
+                    var picked = picker.PickedTarget == picture.AssetId.ToString("D");
+                    <AppNativeButton Type="button"
+                                     Class="@Tile(picked, false)"
+                                     Disabled="@picker.Busy"
+                                     AriaLabel="@($"{picture.Caption}{(picture.IsCurrent ? ", in use now" : string.Empty)}")"
+                                     aria-pressed="@(picked ? "true" : "false")"
+                                     OnClick="@(() => picker.PickSaved(picture))">
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(picture.ThumbnailUrl, 128)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(picture.ThumbnailUrl, 128)" alt="" loading="lazy" decoding="async" />
+                        <span>@(picture.IsCurrent ? "In use now" : picture.Caption)</span>
+                    </AppNativeButton>
+                }
+            </div>
+        }
+    };
+
+    private static string Tile(bool picked, bool disabled) =>
+        $"tl-art-picker__tile{(picked ? " is-picked" : string.Empty)}{(disabled ? " is-disabled" : string.Empty)}";
+
+    private static string StatusText(ArtworkPickerSession picker)
+    {
+        if (picker.IsRemoval)
+        {
+            return "The picture will be removed when you save. The pictures stay saved.";
+        }
+
+        if (picker.HasPick)
+        {
+            return "Previewing on the page. Not used yet.";
+        }
+
+        return picker.IsStaged ? "Will be saved with your other changes." : "In use now.";
+    }
+
+    private void ToggleMinimised() => _minimised = !_minimised;
+
+    private async Task SelectSlotAsync(string slot)
+    {
+        if (Picker is null)
+        {
+            return;
+        }
+
+        _address = string.Empty;
+        await Picker.SelectSlotAsync(slot);
+        if (_source == SourceProviders)
+        {
+            await Picker.LoadProviderAsync();
+        }
+    }
+
+    private async Task SelectSourceAsync(string source)
+    {
+        _source = source;
+        if (Picker is null)
+        {
+            return;
+        }
+
+        if (source == SourceProviders && Picker.Provider is null && !Picker.ProviderLoading)
+        {
+            await Picker.LoadProviderAsync();
+        }
+        else if (source == SourceSaved)
+        {
+            await Picker.LoadSavedAsync();
+        }
+    }
+
+    private async Task UseAsync()
+    {
+        if (Picker is not null)
+        {
+            await Picker.UseAsync();
+        }
+    }
+
+    private async Task UploadAsync(IBrowserFile? file)
+    {
+        if (Picker is not null && file is not null)
+        {
+            await Picker.UploadAsync(file);
+        }
+    }
+
+    private async Task PasteLinkAsync()
+    {
+        if (Picker is not null && await Picker.PasteLinkAsync(_address))
+        {
+            _address = string.Empty;
+        }
+    }
+
+    private async Task RemoveAsync()
+    {
+        if (Picker?.ActiveSlot is not { } slot)
+        {
+            return;
+        }
+
+        // Removing is the one choice that asks first (spec D8): the person sees the picture that would go.
+        var label = ArtworkPickerRules.LabelFor(slot);
+        if (await ArtworkRemoveConfirmation.AskRemoveAsync(
+                Dialogs,
+                label,
+                Picker.ShownUrl,
+                "It stops being used when you save. The picture stays in your saved pictures, so you can choose it again."))
+        {
+            Picker.Remove();
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        if (Flow is not null)
+        {
+            await Flow.ClosePanelAsync();
+        }
+    }
+
+    private void OnModeChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+
+        if (_subscribedPicker is not null)
+        {
+            _subscribedPicker.Changed -= OnModeChanged;
+        }
+
+        Picker?.Close();
+        if (_module is { } module)
+        {
+            _module = null;
+            try
+            {
+                if (_attached)
+                {
+                    await module.InvokeVoidAsync("detach", _root);
+                }
+
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit ended; the browser already dropped the module.
+            }
+            catch (JSException)
+            {
+                // The script was already gone with the element.
+            }
+        }
+    }
+}

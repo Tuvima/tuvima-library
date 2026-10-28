@@ -51,6 +51,21 @@ public sealed class ItemFieldEditSession
 
     public bool CanEditArtwork => _scope?.CanEditArtwork == true;
 
+    /// <summary>The item that owns the artwork of the active scope (a season's own poster belongs to the season, not the show).</summary>
+    public Guid ArtworkEntityId => _scope?.ArtworkOwnerEntityId ?? _scope?.FieldEntityId ?? Guid.Empty;
+
+    /// <summary>What kind of item owns the artwork (Work, Person, ...).</summary>
+    public string ArtworkEntityKind => _scope?.ArtworkOwnerEntityKind ?? _scope?.FieldEntityKind ?? "Work";
+
+    /// <summary>The id of the active scope (movie, series, season, episode, album...), which names the kind of item being edited.</summary>
+    public string ScopeId => _scope?.ScopeId ?? string.Empty;
+
+    /// <summary>The item the editor was opened on; the provider artwork gallery is asked about this one.</summary>
+    public Guid EditorEntityId { get; private set; }
+
+    /// <summary>The media type of the item being edited (Movies, TV, Books...).</summary>
+    public string MediaType => _context?.MediaType ?? _mediaType ?? string.Empty;
+
     /// <summary>Whether Match and Identity applies to the active scope (the editor's own rule), so the banner only offers it where it works.</summary>
     public bool CanMatch => MediaEditorMatchRule.CanMatch(_context?.MediaType ?? _mediaType, _scope?.ScopeId);
 
@@ -105,6 +120,7 @@ public sealed class ItemFieldEditSession
         {
             _mediaType = mediaType;
             _profileId = profileId;
+            EditorEntityId = editorEntityId;
             _context = await _api.GetMediaEditorContextAsync(editorEntityId, ct);
             if (_context is null)
             {
@@ -188,6 +204,58 @@ public sealed class ItemFieldEditSession
 
     /// <summary>All presented fields once each: heading, synopsis, then the editor's primary and additional fields.</summary>
     public IReadOnlyList<MediaEditorDetailsFieldPresentation> AllFields() => EnumerateFields().ToList();
+
+    /// <summary>
+    /// What the Match tool starts from: the item, the kind of record it is looked up as and the details it holds now. Null until the
+    /// fields have loaded.
+    /// </summary>
+    public EditorMatchSubject? MatchSubject()
+    {
+        if (!Loaded || _scope is null)
+        {
+            return null;
+        }
+
+        var rows = AllFields();
+        string? Pick(params string[] keys) => keys
+            .Select(key => Find(key))
+            .Select(field => field?.DisplayValue ?? field?.Value)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+        var draft = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            var value = row.RawValue ?? row.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                draft[row.Key] = value;
+            }
+        }
+
+        var overridden = rows
+            .Where(row => row.CanRevert)
+            .Select(row => string.IsNullOrWhiteSpace(row.OverrideKey) ? row.Key : row.OverrideKey)
+            .ToList();
+        var mediaType = ReviewTargetResolver.NormalizeMediaType(_context?.MediaType ?? _mediaType) switch
+        {
+            "Movie" => "Movies",
+            "Audiobook" => "Audiobooks",
+            var other => other,
+        };
+        var group = string.IsNullOrWhiteSpace(_scope.CanonicalTargetGroup) ? _scope.ScopeId : _scope.CanonicalTargetGroup;
+        var title = Pick("title") ?? _scope.DisplayTitle;
+        return new EditorMatchSubject(
+            _scope.FieldEntityId,
+            mediaType,
+            _scope.ScopeId,
+            group,
+            title,
+            Pick("artist", "author", "director", "creator"),
+            Pick("album", "show_name", "series"),
+            Pick("year", "original_release_year", "release_year", "publication_year"),
+            draft,
+            overridden);
+    }
 
     /// <summary>The empty Tags row the editor offers when no tags exist yet and tags can be added.</summary>
     public MediaEditorDetailsFieldPresentation? EmptyTagsField => _presentation.CanAddTags

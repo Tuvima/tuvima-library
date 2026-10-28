@@ -1,0 +1,37 @@
+@namespace MediaEngine.Web.Components.Details
+
+@* The temporary editing view (universal editor spec D9): while a picture the page does not normally show is being chosen (a season poster,
+   an episode still), the poster is shown large over the dimmed page, clearly labelled. It never creates a season page; leaving the Artwork
+   tool, or "Return to series view", puts the page back. *@
+<section class="tl-temporary-view" aria-label="Temporary editing view">
+    <p class="tl-temporary-view__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppSize.Small" /> Temporary editing view</p>
+    <div class="tl-temporary-view__poster">
+        @if (!string.IsNullOrWhiteSpace(ImageUrl))
+        {
+            <img src="@MediaTileArtworkUrl.ForDrawnSize(ImageUrl, 640)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ImageUrl, 640)" alt="@($"{Label} preview")" />
+        }
+        else
+        {
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />
+            <span>No @Label.ToLowerInvariant() yet</span>
+        }
+    </div>
+    <p class="tl-temporary-view__caption">@Label</p>
+    <AppButton ButtonStyle="AppButtonStyle.Text"
+               Tone="AppUiTone.Neutral"
+               Class="tl-temporary-view__return"
+               OnClick="OnReturn">
+        Return to series view
+    </AppButton>
+</section>
+
+@code {
+    /// <summary>What the picture is called ("Season poster", "Episode still").</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    /// <summary>The picture to show large: the one being previewed, else the one the item has now.</summary>
+    [Parameter] public string? ImageUrl { get; set; }
+
+    /// <summary>"Return to series view": puts the page back to its normal view while the Artwork tool stays open.</summary>
+    [Parameter] public EventCallback OnReturn { get; set; }
+}

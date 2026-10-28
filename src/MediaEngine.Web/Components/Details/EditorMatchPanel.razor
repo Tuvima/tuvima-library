@@ -1,0 +1,607 @@
+@namespace MediaEngine.Web.Components.Details
+@using System.Net.Http
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Contracts.Matching
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject ILogger<EditorMatchPanel> Logger
+
+@* The Match tool (universal editor spec D5, D6, D11): two steps in the right-hand panel. Step 1 finds a record (search box filled from the
+   item, a "Search in" picker, tabs for what is being matched, results with their picture, creator, parent, year, edition and provider).
+   Step 2 reviews the chosen record beside the item, with four switches: the library's own details, the retail match, the parent
+   relationship and the physical files. "Use this match" only stages the choice in the pending list; Save changes writes it. *@
+@if (Subject is not null)
+{
+    <div class="tl-match" data-step="@_step">
+        <AppStepIndicator Steps="@Steps" ActiveStep="@_step" Class="tl-match__steps" />
+        @if (!CanEdit)
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true">You can look at matches but not change them.</AppAlert>
+        }
+
+        @if (_step == 1)
+        {
+            @FindStep()
+        }
+        else if (_selected is not null)
+        {
+            @ReviewStep(_selected)
+        }
+    </div>
+}
+
+@code {
+    private static readonly IReadOnlyList<AppStepIndicator.AppStep> Steps =
+        [new(1, "Find match"), new(2, "Review selected match")];
+
+    private CancellationTokenSource? _searchCts;
+    private Guid _startedFor;
+    private int _step = 1;
+    private string _query = string.Empty;
+    private string _group = string.Empty;
+    private string _provider = string.Empty;
+    private bool _loading;
+    private bool _searched;
+    private string? _problem;
+    private IReadOnlyList<ItemCanonicalRetailCandidateDto> _results = [];
+    private IReadOnlyList<ItemCanonicalSearchProviderDto> _providers = [];
+    private ItemCanonicalRetailCandidateDto? _selected;
+    private bool _keepDetails = true;
+    private bool _useRetail = true;
+    private bool _moveParent;
+    private bool _moveFiles;
+    private PlaceState _place = PlaceState.None;
+    private string? _placeReason;
+    private LibraryMoveDestination? _destination;
+    private FilesState _files = FilesState.Unknown;
+    private string? _filesReason;
+    private bool _staged;
+
+    private enum PlaceState { None, Checking, Found, Unavailable }
+
+    private enum FilesState { Unknown, Checking, CanMove, CannotMove }
+
+    /// <summary>The item being matched; null until the editor's fields have loaded.</summary>
+    [Parameter] public EditorMatchSubject? Subject { get; set; }
+
+    /// <summary>The edit session whose pending list the match is staged in.</summary>
+    [Parameter, EditorRequired] public EditSessionState? Session { get; set; }
+
+    /// <summary>False when the person may look but not change (the Engine still decides who may edit).</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>Editing Mode, for the video lookup that sits below the search for a video that has no match yet. Optional.</summary>
+    [Parameter] public EditingModeContext? Mode { get; set; }
+
+    /// <summary>Raised after the video lookup matched something, so the page can refresh.</summary>
+    [Parameter] public EventCallback OnMatched { get; set; }
+
+    private string SearchInLabel => _providers.FirstOrDefault(p => p.Name == _provider)?.DisplayName ?? "All providers";
+
+    private IReadOnlyList<EditorMatchTab> Tabs => Subject is null ? [] : EditorMatchRules.TabsFor(Subject.MediaType, Subject.TargetGroup);
+
+    private bool AnySwitchOn => _useRetail || !_keepDetails || (_moveParent && _destination is not null) || (_moveFiles && _files != FilesState.CannotMove);
+
+    private bool CanUse => CanEdit && Session is { IsActive: true } && _selected is not null && AnySwitchOn;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Subject is null || _startedFor == Subject.EntityId)
+        {
+            return;
+        }
+
+        _startedFor = Subject.EntityId;
+        _step = 1;
+        _group = Subject.TargetGroup;
+        _query = Subject.Title;
+        _provider = string.Empty;
+        _selected = null;
+        _results = [];
+        _searched = false;
+        await SearchAsync();
+    }
+
+    private RenderFragment FindStep() => __builder =>
+    {
+        <div class="tl-match__find">
+            <div class="tl-match__searchrow">
+                <AppTextField Label="Search" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
+                              Placeholder="@($"Search for {Subject!.Title}")" Immediate="true" OnKeyDown="OnQueryKey" aria-label="Search for a match" />
+                <AppButton Label="Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
+                           Disabled="@_loading" OnClick="SearchAsync" />
+            </div>
+            @if (_providers.Count > 0)
+            {
+                <div class="tl-match__provider">
+                    <span class="tl-match__provider-label">Search in</span>
+                    <AppSelect Value="@_provider" ValueChanged="OnProviderChanged" Options="@ProviderOptions" HideLabel="true"
+                               AriaLabel="Search in" Disabled="@_loading" FullWidth="false" />
+                </div>
+            }
+            @if (Tabs.Count > 1)
+            {
+                <AppSegmentedControl Options="@TabOptions" Value="@_group" ValueChanged="OnTabChanged" AriaLabel="What to match" Disabled="@_loading" />
+            }
+
+            @if (_loading)
+            {
+                <div class="tl-match__results" aria-busy="true" aria-label="Searching">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <div class="tl-match__row tl-match__row--skeleton">
+                            <AppSkeleton Width="3rem" Height="3rem" />
+                            <div class="tl-match__text">
+                                <AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" />
+                                <AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" />
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else if (_problem is not null)
+            {
+                <AppAlert Severity="AppSeverity.Warning" Dense="true" Class="tl-match__problem">
+                    <span>@_problem</span>
+                    @if (_providers.Count > 1)
+                    {
+                        <AppButton Label="Try another provider" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                   OnClick="TryAnotherProviderAsync" />
+                    }
+                </AppAlert>
+            }
+            else if (_searched)
+            {
+                <div class="tl-match__results" role="list">
+                    @for (var i = 0; i < _results.Count; i++)
+                    {
+                        @ResultRow(_results[i], i == 0)
+                    }
+                </div>
+            }
+
+            @if (Mode is not null)
+            {
+                <EditingVideoIdentify Mode="Mode" OnMatched="OnMatched" />
+            }
+        </div>
+    };
+
+    private RenderFragment ResultRow(ItemCanonicalRetailCandidateDto candidate, bool best) => __builder =>
+    {
+        var facts = EditorMatchRules.FactsOf(candidate);
+        var line = string.Join(" · ", new[] { facts.Creator, facts.Parent, facts.Year, facts.Edition }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        <div class="tl-match__row" role="listitem" data-provider="@facts.Provider">
+            @Artwork(candidate.CoverUrl)
+            <div class="tl-match__text">
+                <div class="tl-match__title">
+                    <span>@facts.Title</span>
+                    @if (best)
+                    {
+                        <AppChip Text="Best guess" Tone="AppUiTone.Primary" Class="tl-match__best" />
+                    }
+                </div>
+                @if (line.Length > 0)
+                {
+                    <div class="tl-match__meta">@line</div>
+                }
+                <div class="tl-match__provider-name">@FormatProvider(facts.Provider)</div>
+            </div>
+            <AppButton Label="Select" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                       aria-label="@($"Select {facts.Title}")" OnClick="@(() => SelectAsync(candidate))" />
+        </div>
+    };
+
+    private RenderFragment Artwork(string? url) => __builder =>
+    {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            <AppImage Src="@url" Alt="" Width="48" Height="48" ObjectFit="AppObjectFit.Cover" Class="tl-match__art" />
+        }
+        else
+        {
+            <span class="tl-match__art tl-match__art--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /></span>
+        }
+    };
+
+    private RenderFragment ReviewStep(ItemCanonicalRetailCandidateDto candidate) => __builder =>
+    {
+        var facts = EditorMatchRules.FactsOf(candidate);
+        <div class="tl-match__review">
+            <div class="tl-match__compare">
+                <section class="tl-match__side" aria-label="Your item">
+                    <h3 class="tl-match__side-heading">Your item</h3>
+                    @Fact("Title", Subject!.Title)
+                    @Fact("Creator", Subject.Creator)
+                    @Fact("Part of", Subject.ParentLabel)
+                    @Fact("Year", Subject.Year)
+                </section>
+                <section class="tl-match__side tl-match__side--proposed" aria-label="Proposed match">
+                    <h3 class="tl-match__side-heading">Proposed match</h3>
+                    <div class="tl-match__proposed-art">@Artwork(candidate.CoverUrl)</div>
+                    @Fact("Title", facts.Title)
+                    @Fact("Creator", facts.Creator)
+                    @Fact("Part of", facts.Parent)
+                    @Fact("Year", facts.Year)
+                    @Fact("Edition", facts.Edition)
+                    @Fact("From", FormatProvider(facts.Provider))
+                </section>
+            </div>
+
+            <div class="tl-match__switches">
+                <AppSwitchRow Label="Keep my library details"
+                              Description="@(_keepDetails ? "Anything you changed in Details stays as you set it." : "Details you changed go back to what the provider says.")"
+                              Value="@_keepDetails" ValueChanged="@(value => { _keepDetails = value; _staged = false; })"
+                              Disabled="@(!CanEdit || Subject.OverriddenKeys.Count == 0)" />
+                <AppSwitchRow Label="Use as the retail match"
+                              Description="Which provider record this item is. It does not move the item."
+                              Value="@_useRetail" ValueChanged="@(value => { _useRetail = value; _staged = false; })" Disabled="@(!CanEdit)" />
+                <AppSwitchRow Label="@ParentSwitchLabel"
+                              Description="@ParentSwitchDescription"
+                              Value="@_moveParent" ValueChanged="@(value => { _moveParent = value; _staged = false; })"
+                              Disabled="@(!CanEdit || _destination is null)" />
+                <AppSwitchRow Label="Rename and move the files"
+                              Description="@FilesSwitchDescription"
+                              Value="@_moveFiles" ValueChanged="@(value => { _moveFiles = value; _staged = false; })"
+                              Disabled="@(!CanEdit || _files == FilesState.CannotMove)" />
+            </div>
+
+            @if (_staged)
+            {
+                <AppAlert Severity="AppSeverity.Success" Dense="true">Staged. Nothing is saved until you press Save changes.</AppAlert>
+            }
+            else if (CanEdit && !AnySwitchOn)
+            {
+                <AppAlert Severity="AppSeverity.Info" Dense="true">Turn on at least one switch to use this match.</AppAlert>
+            }
+
+            <div class="tl-match__actions">
+                <AppButton Label="Back to results" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToResults" />
+                <AppButton Label="Use this match" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanUse)" OnClick="UseThisMatch" />
+            </div>
+        </div>
+    };
+
+    private RenderFragment Fact(string label, string? value) => __builder =>
+    {
+        <div class="tl-match__fact">
+            <span class="tl-match__fact-label">@label</span>
+            <span class="tl-match__fact-value">@(string.IsNullOrWhiteSpace(value) ? "Not set" : value)</span>
+        </div>
+    };
+
+    private IReadOnlyList<AppSelectOption> ProviderOptions =>
+        [new AppSelectOption(string.Empty, "All providers"), .. _providers.Select(p => new AppSelectOption(p.Name, string.IsNullOrWhiteSpace(p.DisplayName) ? p.Name : p.DisplayName))];
+
+    private IReadOnlyList<AppSelectOption> TabOptions => Tabs.Select(tab => new AppSelectOption(tab.Group, tab.Label)).ToList();
+
+    private string ParentSwitchLabel => _selected is null || EditorMatchRules.ProposedParentOf(_selected, Subject!.MediaType) is not { } proposed
+        ? "Move to the matched album, season or series"
+        : $"Move to {proposed.Label}";
+
+    private string ParentSwitchDescription => _place switch
+    {
+        PlaceState.Checking => "Checking your library...",
+        PlaceState.Found => "Changes which album, season or series it belongs to. Off unless you turn it on.",
+        _ => _placeReason ?? "Not available for this match.",
+    };
+
+    private string FilesSwitchDescription => _files switch
+    {
+        FilesState.Checking => "Checking the files...",
+        FilesState.CannotMove => _filesReason ?? "The files cannot be moved.",
+        FilesState.CanMove => _filesReason ?? "Renames and moves the files to fit. Off unless you turn it on.",
+        _ => "Renames and moves the files to fit. Off unless you turn it on. Checked again when you save.",
+    };
+
+    private static string FormatProvider(string name) => ProviderCatalogueService.FormatProviderLabel(name);
+
+    private Task OnQueryKey(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAsync() : Task.CompletedTask;
+
+    private Task OnProviderChanged(string? value)
+    {
+        _provider = value ?? string.Empty;
+        return SearchAsync();
+    }
+
+    private Task OnTabChanged(string group)
+    {
+        _group = group;
+        return SearchAsync();
+    }
+
+    private Task TryAnotherProviderAsync()
+    {
+        var names = _providers.Select(p => p.Name).ToList();
+        var index = names.IndexOf(_provider);
+        _provider = index + 1 < names.Count ? names[index + 1] : names.FirstOrDefault() ?? string.Empty;
+        return SearchAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        var cts = _searchCts = new CancellationTokenSource();
+        _loading = true;
+        _problem = null;
+        _selected = null;
+        _step = 1;
+        StateHasChanged();
+
+        ItemCanonicalSearchResponseDto? response = null;
+        var failed = false;
+        try
+        {
+            var typed = _query.Trim();
+            response = await Api.SearchItemCanonicalAsync(
+                Subject.EntityId,
+                new ItemCanonicalSearchRequestDto
+                {
+                    MediaType = Subject.MediaType,
+                    TargetKind = EditorMatchRules.TargetKindOf(_group),
+                    TargetFieldGroup = _group,
+                    DraftFields = new Dictionary<string, string>(Subject.Draft, StringComparer.OrdinalIgnoreCase),
+                    QueryOverride = typed.Length == 0 || string.Equals(typed, Subject.Title, StringComparison.Ordinal) ? null : typed,
+                    ProviderName = string.IsNullOrEmpty(_provider) ? null : _provider,
+                },
+                cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer search replaced this one; it shows its own answer.
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The Match search could not reach the Engine for {EntityId}", Subject.EntityId);
+            failed = true;
+        }
+
+        if (cts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _loading = false;
+        _searched = true;
+        if (response is null || failed)
+        {
+            _results = [];
+            _problem = "The search did not get an answer. Try again, or search in another provider.";
+            return;
+        }
+
+        if (response.Providers.Count > 0)
+        {
+            _providers = response.Providers;
+        }
+
+        _results = Distinct(response.RetailCandidates);
+        if (_results.Count == 0)
+        {
+            _problem = response.ProviderErrors.Count > 0
+                ? "A provider did not answer. Try again, or search in another provider."
+                : $"Nothing matched \"{_query.Trim()}\". Try different words, or search in another provider.";
+        }
+    }
+
+    // The same release can come back from one provider more than once (several editions of one album): show it once.
+    private static IReadOnlyList<ItemCanonicalRetailCandidateDto> Distinct(IEnumerable<ItemCanonicalRetailCandidateDto> candidates)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var kept = new List<ItemCanonicalRetailCandidateDto>();
+        foreach (var candidate in candidates.OrderByDescending(c => c.CompositeScore))
+        {
+            var facts = EditorMatchRules.FactsOf(candidate);
+            if (seen.Add($"{facts.Provider}|{facts.Title}|{facts.Creator}|{facts.Parent}|{facts.Year}"))
+            {
+                kept.Add(candidate);
+            }
+        }
+
+        return kept;
+    }
+
+    private async Task SelectAsync(ItemCanonicalRetailCandidateDto candidate)
+    {
+        _selected = candidate;
+        _step = 2;
+        _staged = false;
+        _keepDetails = true;
+        _useRetail = true;
+        _moveParent = false;
+        _moveFiles = false;
+        _destination = null;
+        _place = PlaceState.Checking;
+        _placeReason = null;
+        _files = FilesState.Checking;
+        _filesReason = null;
+        await CheckPlaceAndFilesAsync(candidate);
+    }
+
+    // Where the match would put the item, and whether its files could follow. Both are only asked about, never changed.
+    private async Task CheckPlaceAndFilesAsync(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        LibraryMoveDestination? current = null;
+        var proposed = EditorMatchRules.ProposedParentOf(candidate, Subject.MediaType);
+        if (proposed is null)
+        {
+            _place = PlaceState.Unavailable;
+            _placeReason = "This match does not name an album, season or series, so there is nothing to move it into.";
+        }
+        else
+        {
+            try
+            {
+                var places = await Api.GetLibraryMoveDestinationsAsync(Subject.EntityId, PlaceQuery(proposed));
+                if (!ReferenceEquals(_selected, candidate))
+                {
+                    return;
+                }
+
+                if (!places.IsOk)
+                {
+                    _place = PlaceState.Unavailable;
+                    _placeReason = places.Message ?? "Your library's albums, seasons and series could not be checked.";
+                }
+                else
+                {
+                    current = places.Value!.CurrentDestination;
+                    _destination = places.Value.Destinations.FirstOrDefault(d => EditorMatchRules.IsSamePlace(proposed, d.Label, d.ParentLabel));
+                    if (_destination is not null)
+                    {
+                        _place = PlaceState.Found;
+                    }
+                    else
+                    {
+                        _place = PlaceState.Unavailable;
+                        _placeReason = current is not null && EditorMatchRules.IsSamePlace(proposed, current.Label, current.ParentLabel)
+                            ? $"It is already in {current.Label}."
+                            : $"There is no {proposed.Label} in your library yet, so there is nowhere to move it.";
+                    }
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.LogWarning(ex, "The places for a Match could not be listed for {EntityId}", Subject.EntityId);
+                _place = PlaceState.Unavailable;
+                _placeReason = "Your library's albums, seasons and series could not be checked.";
+            }
+        }
+
+        await CheckFilesAsync(candidate, _destination ?? current);
+    }
+
+    private static string PlaceQuery(ProposedParent proposed) =>
+        proposed.Label.StartsWith("Season ", StringComparison.OrdinalIgnoreCase) || string.Equals(proposed.Label, "Specials", StringComparison.OrdinalIgnoreCase)
+            ? proposed.ParentLabel ?? proposed.Label
+            : proposed.Label;
+
+    private async Task CheckFilesAsync(ItemCanonicalRetailCandidateDto candidate, LibraryMoveDestination? destination)
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        if (destination is null)
+        {
+            // Nothing to preview a move against (a movie or a book with no list). The Engine checks the folder again when you save.
+            _files = FilesState.Unknown;
+            return;
+        }
+
+        try
+        {
+            var preview = await Api.PreviewLibraryMoveAsync(new LibraryMovePreviewRequest { ItemIds = [Subject.EntityId], DestinationId = destination.Id });
+            if (!ReferenceEquals(_selected, candidate))
+            {
+                return;
+            }
+
+            var row = preview.IsOk ? preview.Value!.Rows.FirstOrDefault() : null;
+            if (EditorMatchRules.FilesCannotMove(row))
+            {
+                _files = FilesState.CannotMove;
+                _filesReason = row!.BlockedReason ?? row.FileNote;
+                _moveFiles = false;
+            }
+            else
+            {
+                _files = FilesState.CanMove;
+                _filesReason = row?.FileNote;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The files for a Match could not be checked for {EntityId}", Subject.EntityId);
+            _files = FilesState.Unknown;
+        }
+    }
+
+    private void BackToResults()
+    {
+        _step = 1;
+        _selected = null;
+        _staged = false;
+    }
+
+    // Stages the choice, one entry per switch that is on. A switch that is off takes its entry back out, so the pending list always says
+    // what Save changes would do. Nothing is written here.
+    private void UseThisMatch()
+    {
+        if (!CanUse || Subject is null || Session is null || _selected is null)
+        {
+            return;
+        }
+
+        var pending = Session.Pending;
+        var id = Subject.EntityId;
+        if (_useRetail)
+        {
+            var request = EditorMatchRules.RequestFor(_selected, Subject, _group);
+            pending.SetTarget(EditSessionChangeKinds.Identity, id, EditSessionIdentityTarget.Serialize(request));
+        }
+        else
+        {
+            Unstage(pending, EditSessionChangeKinds.Identity, id);
+        }
+
+        if (!_keepDetails)
+        {
+            foreach (var key in Subject.OverriddenKeys)
+            {
+                pending.SetField(id, key, string.Empty);
+            }
+        }
+
+        if (_moveParent && _destination is not null)
+        {
+            pending.SetTarget(EditSessionChangeKinds.Relationship, id, _destination.Id.ToString("D"));
+        }
+        else
+        {
+            Unstage(pending, EditSessionChangeKinds.Relationship, id);
+        }
+
+        if (_moveFiles && _files != FilesState.CannotMove)
+        {
+            pending.SetTarget(EditSessionChangeKinds.FileMove, id, null);
+        }
+        else
+        {
+            Unstage(pending, EditSessionChangeKinds.FileMove, id);
+        }
+
+        _staged = true;
+    }
+
+    private static void Unstage(PendingEditList pending, string kind, Guid entityId)
+    {
+        var staged = pending.Changes.FirstOrDefault(change => change.Kind == kind && change.EntityId == entityId);
+        if (staged is not null)
+        {
+            pending.Remove(staged.Id);
+        }
+    }
+
+    public void Dispose()
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+    }
+}

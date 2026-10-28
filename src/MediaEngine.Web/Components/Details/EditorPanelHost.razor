@@ -4,9 +4,10 @@
 @inject IJSRuntime JS
 
 @* The universal editor's right-hand panel (spec D2, D10, D22): fixed to the right edge under the bar, about 450px wide for Details and
-   650px for Match and Artwork, with one header, one close button and one scroll area. The page behind it does not move or scroll when it
-   opens. The close button only closes the panel: edit mode and the pending changes stay. What it shows is chosen by the page. *@
-@if (Mode is { IsOn: true, CanEdit: true } && Flow?.Session is { IsActive: true, ActiveTool: { } tool })
+   650px for Match, with one header, one close button and one scroll area. The page behind it does not move or scroll when it
+   opens. The close button only closes the panel: edit mode and the pending changes stay. What it shows is chosen by the page.
+   Artwork is not a panel: it is the floating picker (spec D8), which the page draws itself. *@
+@if (Mode is { IsOn: true, CanEdit: true } && Flow?.Session is { IsActive: true, ActiveTool: { } tool and not EditTool.Artwork })
 {
     <aside class="@($"tl-editor-panel tl-editor-panel--{(IsWide(tool) ? "wide" : "narrow")}")"
            aria-labelledby="tl-editor-panel-title"

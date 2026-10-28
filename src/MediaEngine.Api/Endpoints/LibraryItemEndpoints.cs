@@ -273,13 +273,13 @@ public static class LibraryItemEndpoints
 
     // Writing needs the metadata-write permission on the item or place; matching an entry or adding a version also needs metadata-match,
     // as the music track move does (both are checked, on the same resource).
-    private static LibraryMoveAccess CanEdit(HttpContext http, CatalogueResourceAuthorizationService resources) =>
+    internal static LibraryMoveAccess CanEdit(HttpContext http, CatalogueResourceAuthorizationService resources) =>
         async (id, right, ct) =>
             await resources.EvaluateAnyEntityAsync(http, id, ApplicationPermissionIds.MetadataWrite, ct) == CatalogueResourceAccess.Allowed
             && (right != LibraryMoveRight.Match
                 || await resources.EvaluateAnyEntityAsync(http, id, ApplicationPermissionIds.MetadataMatch, ct) == CatalogueResourceAccess.Allowed);
 
-    private static async Task<LibraryMoveActor?> ResolveMoveActorAsync(
+    internal static async Task<LibraryMoveActor?> ResolveMoveActorAsync(
         HttpContext http,
         IRequestAuthorityResolver resolver,
         IProfileRepository profiles,

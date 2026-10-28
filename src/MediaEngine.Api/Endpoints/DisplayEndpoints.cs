@@ -399,7 +399,8 @@ public static class DisplayEndpoints
                         Guid.Empty,
                         role,
                         form["context"].FirstOrDefault(),
-                        true,
+                        // A staged edit session uploads the picture unchosen and chooses it on Save; everything else chooses it at once.
+                        !string.Equals(form["preferred"].FirstOrDefault(), "false", StringComparison.OrdinalIgnoreCase),
                         form["entityLabel"].FirstOrDefault(),
                         form["mediaType"].FirstOrDefault(),
                         form["year"].FirstOrDefault(),

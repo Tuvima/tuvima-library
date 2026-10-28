@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.Libraries.Moves;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
@@ -21,6 +22,10 @@ public static class TuvimaLibraryMoveServiceCollectionExtensions
         services.AddSingleton<MoveListRegistry>();
         services.AddSingleton<MoveFilePlanner>();
         services.AddSingleton<ILibraryMoveService, LibraryMoveService>();
+
+        // The Match tool's parent change and physical-files change save through the same move service and organiser.
+        services.AddSingleton<IEditSessionChangeHandler, RelationshipEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, FileMoveEditSessionChangeHandler>();
         return services;
     }
 }
