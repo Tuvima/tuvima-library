@@ -25,4 +25,13 @@ public sealed partial class EngineApiClient
             return BatchEditFailure<EditSessionResult>(endpoint, ex);
         }
     }
+
+    public Task<EditorSubjectDto?> GetEditorSubjectAsync(Guid id, CancellationToken ct = default) =>
+        GetAsync<EditorSubjectDto>("GET /library/editor-subjects/{id}", $"/library/editor-subjects/{id:D}", ct: ct);
+
+    public Task<EditorSubjectDto?> GetUniverseEditorSubjectAsync(string qid, CancellationToken ct = default) =>
+        GetAsync<EditorSubjectDto>(
+            "GET /library/editor-subjects/universes/{qid}",
+            $"/library/editor-subjects/universes/{Uri.EscapeDataString(qid)}",
+            ct: ct);
 }

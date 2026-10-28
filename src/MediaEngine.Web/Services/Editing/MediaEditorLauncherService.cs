@@ -64,29 +64,6 @@ public sealed class MediaEditorLauncherService
             return EditorLaunchResult.NotAvailable;
         }
 
-        if (string.Equals(request.LaunchEntityKind, "Person", StringComparison.OrdinalIgnoreCase))
-        {
-            var personDialog = await _dialogService.ShowAsync<PersonEditorDialog>(
-                "Edit Person",
-                new AppDialogParameters { { nameof(PersonEditorDialog.Request), request } },
-                new AppDialogOptions
-                {
-                    CloseButton = false,
-                    NoHeader = true,
-                    MaxWidth = AppMaxWidth.ExtraLarge,
-                    FullWidth = true,
-                    BackdropClick = false,
-                    CloseOnEscapeKey = true,
-                });
-            if (personDialog is null)
-            {
-                return EditorLaunchResult.NotAvailable;
-            }
-
-            var personResult = await personDialog.Result;
-            return personResult is not null && !personResult.Canceled ? EditorLaunchResult.Applied : EditorLaunchResult.Dismissed;
-        }
-
         var dialog = await _dialogService.ShowAsync<SharedMediaEditorShell>(
             "Edit Item",
             new AppDialogParameters

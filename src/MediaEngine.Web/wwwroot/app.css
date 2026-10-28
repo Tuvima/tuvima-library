@@ -177,7 +177,7 @@ body {
 .page-ambient-bg {
     position: fixed;
     inset: 0;
-    z-index: -1;
+    z-index: 0;
     pointer-events: none;
     background: radial-gradient(
         ellipse 110% 55% at 50% 0%,
@@ -3660,7 +3660,7 @@ button.app-menu-item {
     top: 0;
     transform: translateX(-50%);
     width: 44px;
-    z-index: -1;
+    z-index: 0;
 }
 
 .app-select--playback-flat.app-field:not(.app-select--disabled):hover::before,
@@ -5994,6 +5994,42 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-match__actions{display:flex;justify-content:space-between;gap:var(--tl-space-3)}
 .tl-match__problem{align-items:center}
 
+/* Universe hero: the Universe's own cover, description and background once the editor has set them (spec D17a). */
+.universe-hero__cover {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--tl-radius-md, 0.5rem);
+}
+
+.universe-hero__description {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+}
+
+.universe-hero {
+    position: relative;
+}
+
+.universe-hero__backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.25;
+    pointer-events: none;
+}
+
+.universe-hero__art,
+.universe-hero__copy {
+    position: relative;
+    z-index: 1;
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
@@ -6072,7 +6108,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre {
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre::before {
     content: "";
     position: absolute;
-    z-index: -1;
+    z-index: 0;
     inset: 0.4rem 0;
     border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 48%, rgba(255, 255, 255, 0.2));
     border-radius: 999px;

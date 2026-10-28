@@ -57,10 +57,6 @@ public partial interface IEngineApiClient
     /// <summary>GET /persons/{id} \u2014 full person detail with social links and enrichment data.</summary>
     Task<PersonDetailViewModel?> GetPersonDetailAsync(Guid personId, CancellationToken ct = default);
 
-    Task<PersonEditorStateResponse?> GetPersonEditorStateAsync(Guid personId, Guid? profileId = null, CancellationToken ct = default);
-    Task<bool> SavePersonEditorStateAsync(Guid personId, PersonEditorSaveRequest request, CancellationToken ct = default);
-    Task<ArtworkEditorDto?> GetPersonArtworkAsync(Guid personId, CancellationToken ct = default);
-    Task<bool> UploadPersonArtworkAsync(Guid personId, string assetType, Stream fileStream, string fileName, CancellationToken ct = default);
 
     /// <summary>GET /persons/{id}/library-credits \u2014 role-aware owned work credits for a person.</summary>
     Task<List<PersonLibraryCreditViewModel>> GetPersonLibraryCreditsAsync(Guid personId, CancellationToken ct = default);

@@ -686,13 +686,14 @@ public sealed class ArtworkAssetService(
 
     /// <summary>
     /// The artwork role a slot name stands for (<c>CoverArt</c> and <c>SeasonPoster</c> are Primary, <c>Background</c> and
-    /// <c>SeasonThumb</c> are Background), or null when the editor does not offer that slot.
+    /// <c>SeasonThumb</c> are Background, <c>Headshot</c> is a person's Portrait), or null when the editor does not offer that slot.
     /// </summary>
     public static string? RoleForSlot(string? slot) =>
         slot?.Trim().ToLowerInvariant() switch
         {
             "coverart" or "seasonposter" or "episodestill" => "Primary",
             "background" or "seasonthumb" => "Background",
+            "headshot" => "Portrait",
             "logo" => "Logo",
             _ => null,
         };
