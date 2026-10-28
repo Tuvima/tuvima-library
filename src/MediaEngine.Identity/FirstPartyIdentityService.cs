@@ -22,7 +22,8 @@ public sealed class FirstPartyIdentityService(
     TimeProvider timeProvider,
     IAuthenticationPolicyProvider authenticationPolicy,
     ITwoStepSecretProtector? twoStepSecrets = null,
-    INsfwAccessRepository? nsfwAccess = null) : IFirstPartyIdentityService, IHostAdministratorRecoveryService, IHostTwoStepRecoveryService, IProfilePinVerifier
+    INsfwAccessRepository? nsfwAccess = null,
+    IFirstRunSetupState? firstRunSetup = null) : IFirstPartyIdentityService, IHostAdministratorRecoveryService, IHostTwoStepRecoveryService, IProfilePinVerifier
 {
     /// <summary>The name an authenticator app shows for this server.</summary>
     public const string TwoStepIssuer = "Tuvima Library";
@@ -1139,6 +1140,14 @@ public sealed class FirstPartyIdentityService(
     {
         var issued = await IssueSessionAsync(account, profile, stamp, method, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         if (account.MustChangePassword)
+        {
+            return issued;
+        }
+
+        // First-run setup has just created the only profile, so asking who is using Library would show a list of one. Only while setup
+        // is still running and the household has a single profile; every later sign-in is asked as usual.
+        if (firstRunSetup is { IsInProgress: true }
+            && (await accounts.GetProfileIdsAsync(account.Id, ct).ConfigureAwait(false)).Count <= 1)
         {
             return issued;
         }
