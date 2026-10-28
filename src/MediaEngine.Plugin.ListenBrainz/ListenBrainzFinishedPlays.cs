@@ -63,8 +63,8 @@ internal sealed class ListenBrainzFinishedPlays : IPluginEventSubscriber
     {
         var info = new JsonObject
         {
-            ["media_player"] = "Tuvima Library",
-            ["submission_client"] = "Tuvima Library",
+            ["media_player"] = "Library",
+            ["submission_client"] = "Library",
         };
         if (track.RecordingMbid is not null)
         {
