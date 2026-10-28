@@ -1770,6 +1770,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                     Quality = item.Quality,
                     ProgressPercent = item.ProgressPercent,
                     Lane = item.Lane,
+                    Year = item.Year,
                     Roles = item.Roles,
                     Metadata = item.Metadata,
                     Actions = item.Actions,

@@ -670,6 +670,9 @@ public sealed class MediaGroupingItemViewModel
     public string? Quality { get; init; }
     public double? ProgressPercent { get; init; }
     public string? Lane { get; init; }
+
+    /// <summary>Release year when known; lets a person's works be sorted newest or oldest first.</summary>
+    public string? Year { get; init; }
     public IReadOnlyList<string> Roles { get; init; } = [];
     public IReadOnlyList<MetadataPill> Metadata { get; init; } = [];
     public IReadOnlyList<DetailAction> Actions { get; init; } = [];
