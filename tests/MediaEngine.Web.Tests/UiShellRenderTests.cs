@@ -1939,7 +1939,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void UiConsistencyAudit_DocumentsMigrationPlan()
     {
-        var audit = File.ReadAllText(GetRepoFile("docs", "ui", "ui-consistency-audit.md"));
+        var audit = File.ReadAllText(GetRepoFile("engineering", "design", "ui-consistency-audit.md"));
 
         Assert.Contains("Inconsistent Form And Input Styling", audit);
         Assert.Contains("Inline Styles", audit);

@@ -7,7 +7,7 @@ namespace MediaEngine.Domain.Configuration;
 /// <summary>
 /// The one list of library kinds ("recipes"): every type of library the Library can hold, loaded from
 /// <c>config/library_kinds.json</c>. Each screen that offers a type (the Libraries overview, the Create library dialog, the import
-/// folder) is drawn from this list, and a declarative plugin can add kinds to it (see <c>docs/guides/building-a-plugin.md</c>).
+/// folder) is drawn from this list, and a declarative plugin can add kinds to it (see the "Building a plugin" guide on docs.tuvima.com).
 /// </summary>
 public sealed class LibraryKindsConfiguration
 {

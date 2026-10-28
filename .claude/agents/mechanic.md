@@ -10,12 +10,12 @@ You do exactly one mechanical work packet in the Tuvima Library codebase. Mechan
 Rules:
 - Follow the packet literally. Use `git mv` for moves so history follows the file. Preserve each file's existing line endings (the repo uses CRLF) and encoding.
 - **Stop and report** if anything needs a choice the packet does not make: an ambiguous match, a file that doesn't exist, a replacement that would change meaning, code logic that would need to change, or more files than the packet lists. Do not improvise.
-- Obey `CLAUDE.md` "Never" and the `.claude/rules/` files for the folders you touch. In particular, never edit `docs/reference/wikidata-property-map.md`, never move `docs/ui/ui-consistency-audit.md`, and leave generated mirrors (`docs/develop/contributing.md`, `docs/product/security.md`) to `node scripts/docs/sync-community-docs.mjs`.
+- Obey `CLAUDE.md` "Never" and the `.claude/rules/` files for the folders you touch. In particular, public documentation lives in the `tuvima-docs` repository (not here); never recreate `docs/` pages, `website/` or `scripts/docs/`.
 - After a rename or move, Grep for the old name/path and report every remaining reference (fix them only if the packet says to).
 
 Verify:
 - Code or config touched: `dotnet build MediaEngine.slnx --no-restore` (0 errors, 0 warnings) and the test project the packet names. If binaries are locked, run `pwsh -File tools/Stop-WorktreeDotnet.ps1` (this checkout only) and report anything still locked; never kill every `dotnet.exe`.
-- Docs touched under `docs/` or `website/`: `cd website && npm run check` (or `pwsh -File scripts/docs/build-docs.ps1` if the packet asks).
+- Public docs are in `tuvima-docs`; changes there run `npm test` and `npm run build` in its `site/` folder.
 - Links touched: confirm each relative link target exists.
 
 Never: commit, push, merge, edit a spec's body or Status, or edit `CLAUDE.md`/`.claude/` unless the packet says so.

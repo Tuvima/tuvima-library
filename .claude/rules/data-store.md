@@ -29,4 +29,4 @@ paths:
   - **Universe:** one record per Wikidata ID (`narrative_roots`). `UniverseIdentityRule` alone picks a Work's or Series' Universe; the Universe shelf (`collections.universe_qid`) and the graph root both come from it, never from a second rule.
   - **Lore plugin (Fandom) and AI output:** supplementary facts only. They never move a Work between Series or Universes, never change Series order, and never create a Universe.
   - Per-field priorities in `config/pipeline-priority-defaults.json` that still give a retail provider `series` or `series_position` are changed through the Library-set weights (Developer tools WP20), not by editing that file.
-- New tables/columns update `docs/reference/database-schema.md` in the same change.
+- New tables/columns update `reference/database-schema.md` in `tuvima-docs` in the same change.

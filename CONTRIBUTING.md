@@ -10,7 +10,7 @@ Follow the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md) in project
 
 Open an [issue](https://github.com/Tuvima/tuvima-library/issues) to discuss substantial changes before implementing them. Check existing issues so related work can be coordinated.
 
-The project uses the [AGPLv3](LICENSE). Contributions use those terms. New tools must have compatible licenses, and new assets must retain their notices. Record added dependencies in the relevant package manifest and [attributions](https://tuvima.github.io/tuvima-library/reference/attributions/).
+The project uses the [AGPLv3](LICENSE). Contributions use those terms. New tools must have compatible licenses, and new assets must retain their notices. Record added dependencies in the relevant package manifest and [attributions](https://docs.tuvima.com/products/library/policies/attributions/).
 
 ## Set up development
 
@@ -22,7 +22,7 @@ cd tuvima-library
 dotnet restore MediaEngine.slnx
 ```
 
-Keep provider credentials in ignored `config/secrets/`, never in tracked examples. Before a build, stop running Engine and Dashboard processes to avoid locked outputs. Read [AGENTS.md](AGENTS.md) for project rules and [shared AI storage](https://tuvima.github.io/tuvima-library/guides/shared-ai-storage/) before enabling local AI.
+Keep provider credentials in ignored `config/secrets/`, never in tracked examples. Before a build, stop running Engine and Dashboard processes to avoid locked outputs. Read [AGENTS.md](AGENTS.md) for project rules and [shared AI storage](https://docs.tuvima.com/products/library/guides/shared-ai-storage/) before enabling local AI.
 
 Run the Engine first, from the repository root:
 
@@ -36,7 +36,7 @@ After it listens on `http://localhost:61495`, run the Dashboard in another termi
 dotnet run --project src/MediaEngine.Web
 ```
 
-Open `http://localhost:5016`. The [developer setup guide](https://tuvima.github.io/tuvima-library/tutorials/dev-setup/) explains prerequisites, settings and recovery from setup problems.
+Open `http://localhost:5016`. The [developer setup guide](https://docs.tuvima.com/products/library/tutorials/dev-setup/) explains prerequisites, settings and recovery from setup problems.
 
 ## Make a focused change
 
@@ -67,7 +67,7 @@ dotnet list MediaEngine.slnx package --vulnerable --include-transitive
 
 After an intended Engine-to-Dashboard contract change, the Contracts snapshot tests fail and write the actual output next to each approved file as `tests/MediaEngine.Contracts.Tests/Fixtures/<name>.received.txt` (git-ignored). Accept the change by copying each `.received.txt` over its `.approved.txt`, or run `powershell -File tools\Update-ContractFixtures.ps1` (Windows PowerShell 5.1 or PowerShell 7), which runs the tests, copies the received files into place and re-runs the tests. No environment variables are needed. Review and commit the changed `*.approved.txt` files.
 
-A change to the data structure is a new numbered upgrade step, never an edit to an existing one; follow [Changing the data store](https://tuvima.github.io/tuvima-library/develop/changing-the-data-store/).
+A change to the data structure is a new numbered upgrade step, never an edit to an existing one; follow [Changing the data store](https://docs.tuvima.com/products/library/develop/changing-the-data-store/).
 
 Each test process works in its own temporary folder, `%TEMP%\tuvima-tests\<pid>-<time>`, which is deleted when the process exits; folders left by killed runs are removed at the next start. Fixtures that create SQLite files should clean up with `TestTemp.DeleteDatabase(path)` (`tests/Shared/TestTemp.cs`), which releases pooled connections and deletes the `-wal`/`-shm` files, rather than a bare `File.Delete` inside an empty `catch`.
 
@@ -83,16 +83,9 @@ Do not change native runtime filtering just to make local verification pass. Kee
 
 ## Change documentation
 
-Read [Writing documentation](https://tuvima.github.io/tuvima-library/develop/writing-docs/). Author pages in `docs/`; `website/` contains the Astro Starlight site and explicit publication/navigation manifest.
+The public documentation lives in the [tuvima-docs](https://github.com/Tuvima/tuvima-docs) repository and is published at [docs.tuvima.com](https://docs.tuvima.com/). Read [Writing documentation](https://docs.tuvima.com/products/library/develop/writing-docs/) before you edit a page.
 
-```powershell
-pwsh -File scripts/docs/build-docs.ps1 -InstallDependencies
-pwsh -File scripts/docs/serve-docs.ps1
-```
-
-Moving a page requires a route decision and redirect where the old address should remain useful. Add new pages to `website/publication.json`. Keep dated engineering plans and verification reports in `engineering/`, outside published documentation.
-
-Existing product screenshots have been removed pending better replacements. Do not add empty image placeholders. Logos and other purposeful documentation assets remain available.
+A change that needs documentation gets a companion proposed change in `tuvima-docs`; link it in your pull request (the template has a box for it). Keep dated engineering plans and verification reports in `engineering/`, outside published documentation.
 
 ## Commit style
 
@@ -117,7 +110,7 @@ The application is Early Access; avoid claiming that code presence alone proves 
 
 The Engine is `src/MediaEngine.Api`; the Dashboard is `src/MediaEngine.Web`. Domain owns core models, Contracts owns wire types, Storage owns SQLite persistence, and Providers, Processors, Ingestion and Intelligence own the media pipeline. Intelligence uses the Priority Cascade. Identity owns accounts and access, while Plugins defines the extension contracts every kind of plugin shares.
 
-Start with [AGENTS.md](AGENTS.md) and the [technical overview](https://tuvima.github.io/tuvima-library/architecture/technical-overview/). Do not add direct data access to Dashboard components.
+Start with [AGENTS.md](AGENTS.md) and the [technical overview](https://docs.tuvima.com/products/library/architecture/technical-overview/). Do not add direct data access to Dashboard components.
 
 ## Report bugs
 

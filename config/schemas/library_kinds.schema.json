@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Tuvima library kinds",
-  "description": "The one list of library kinds (types of library) every screen is drawn from. Plugins can add kinds; see docs/guides/building-a-plugin.md.",
+  "description": "The one list of library kinds (types of library) every screen is drawn from. Plugins can add kinds; see the Building a plugin guide on docs.tuvima.com.",
   "type": "object",
   "required": ["version", "kinds"],
   "properties": {

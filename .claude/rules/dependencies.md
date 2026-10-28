@@ -2,7 +2,6 @@
 paths:
   - "Directory.Packages.props"
   - "**/*.csproj"
-  - "website/package.json"
   - "clients/**/build.gradle*"
   - "src/MediaEngine.Web/wwwroot/lib/**"
   - "src/MediaEngine.Web/wwwroot/vendor/**"

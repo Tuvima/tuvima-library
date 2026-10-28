@@ -428,18 +428,14 @@ public sealed class ExifToolRunnerTests : IDisposable
     // ── Credits ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public void TheReadme_TheAttributionsPage_AndTheThirdPartyNotices_AllCreditExifTool()
+    public void TheReadme_AndTheThirdPartyNotices_BothCreditExifTool()
     {
         var root = FindRepositoryRoot();
 
         var readme = File.ReadAllText(Path.Combine(root, "README.md"));
-        var attributions = File.ReadAllText(Path.Combine(root, "docs", "reference", "attributions.md"));
         var notices = File.ReadAllText(Path.Combine(root, "THIRD-PARTY-NOTICES.md"));
 
         Assert.Contains("[ExifTool](https://exiftool.org/) by Phil Harvey", readme, StringComparison.Ordinal);
-        Assert.Contains("| ExifTool |", attributions, StringComparison.Ordinal);
-        Assert.Contains("Perl Artistic License or GNU General Public License", attributions, StringComparison.Ordinal);
-        Assert.Contains("Strawberry Perl", attributions, StringComparison.Ordinal);
         Assert.Contains("Copyright 2003-2026, Phil Harvey", notices, StringComparison.Ordinal);
         Assert.Contains("44b512b25af500724ba579d0a53c8fc5851628b692dd5e5d94ae4a15c2cba9ec", notices, StringComparison.Ordinal);
         Assert.Contains("668ea3acececb7235fbd0f4900e72d5f12c9b07e5c778fd36cb1e9b5828fd65a", notices, StringComparison.Ordinal);

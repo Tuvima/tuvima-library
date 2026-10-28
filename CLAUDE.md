@@ -89,7 +89,7 @@ Only one Engine may run on the machine at a time, across all sessions: claim the
 | Dashboard code map and UI rules | `src/MediaEngine.Web/CLAUDE.md` |
 | Developer code tour | `AGENTS.md` (large — search it) |
 | Detailed rules | `.claude/rules/` — `product-owner`, `model-routing`, `data-store`, `architecture-boundaries`, `security`, `build-and-ai-runtime`, `docs`, `dependencies`, `dashboard-surfaces`, `end-to-end-runs`, `one-engine-at-a-time`, `cloud-first` |
-| Public docs site | https://tuvima.github.io/tuvima-library/ (source `docs/`, built by `website/`) |
+| Public docs site | https://docs.tuvima.com/ (source: the `tuvima-docs` repository, `content/products/library/`) |
 
 ## Agent workflow
 

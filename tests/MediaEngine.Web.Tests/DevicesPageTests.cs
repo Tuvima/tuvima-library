@@ -120,10 +120,6 @@ public sealed class DevicesNavTests
             Assert.DoesNotContain("AppsAndDevicesPanel", text, StringComparison.Ordinal);
             Assert.DoesNotContain("LegacyRedirect", text, StringComparison.Ordinal);
         }
-
-        var presentationRules = File.ReadAllText(Path.Combine(root, "docs", "product", "presentation-rules.md"));
-        Assert.DoesNotContain("Administration > Devices", presentationRules, StringComparison.Ordinal);
-        Assert.Contains("/settings/security/devices", presentationRules, StringComparison.Ordinal);
     }
 
     private static string RepositoryRoot()
