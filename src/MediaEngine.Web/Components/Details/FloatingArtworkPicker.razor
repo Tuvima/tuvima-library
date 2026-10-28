@@ -278,6 +278,13 @@
             @if (!string.IsNullOrWhiteSpace(picker.Provider.Message))
             {
                 <p class="tl-art-picker__hint">@picker.Provider.Message</p>
+                @if (picker.Provider.Message == ProviderArtworkDiscoveryDto.UnmatchedTvShowMessage && Mode is { Fields.CanMatch: true } matchMode)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.TravelExplore"
+                               OnClick="@(() => matchMode.ShowSectionAsync(EditingSection.Match))">
+                        Open Match and Identity
+                    </AppButton>
+                }
             }
 
             <div class="tl-art-picker__grid" role="group" aria-label="Provider pictures">
