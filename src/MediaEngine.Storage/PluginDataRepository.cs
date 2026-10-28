@@ -39,6 +39,7 @@ public sealed class PluginDataRepository : IPluginDataRepository
             connection.Execute("DELETE FROM plugin_library_limits WHERE plugin_id = @pluginId;", new { pluginId }, transaction);
             connection.Execute("DELETE FROM plugin_profile_connections WHERE plugin_id = @pluginId;", new { pluginId }, transaction);
             connection.Execute("DELETE FROM plugin_outbox WHERE plugin_id = @pluginId;", new { pluginId }, transaction);
+            connection.Execute("DELETE FROM plugin_display_contributions WHERE plugin_id = @pluginId;", new { pluginId }, transaction);
             var runs = connection.Execute("DELETE FROM scheduled_task_runs WHERE plugin_id = @pluginId;", new { pluginId }, transaction);
             var markers = includeOutput
                 ? connection.Execute("DELETE FROM playback_segments WHERE plugin_id = @pluginId AND review_status = 'detected';", new { pluginId }, transaction)
@@ -58,6 +59,7 @@ public sealed class PluginDataRepository : IPluginDataRepository
             UNION SELECT plugin_id FROM plugin_library_limits
             UNION SELECT plugin_id FROM plugin_profile_connections
             UNION SELECT plugin_id FROM plugin_outbox
+            UNION SELECT plugin_id FROM plugin_display_contributions
             UNION SELECT plugin_id FROM scheduled_task_runs WHERE plugin_id IS NOT NULL
             ORDER BY 1;
             """).ToList();

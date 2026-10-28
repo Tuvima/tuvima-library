@@ -103,7 +103,8 @@ internal sealed class PluginExecutionContextFactory(
     PluginHttpRateLimiter httpLimiter,
     PluginHostLimits limits,
     TimeProvider clock,
-    PluginOutboxService outbox) : IPluginExecutionContextFactory
+    PluginOutboxService outbox,
+    PluginDisplayService display) : IPluginExecutionContextFactory
 {
     public IPluginExecutionContext Create(string pluginId, string purpose) => CreateCore(pluginId, purpose, null);
 
@@ -136,7 +137,8 @@ internal sealed class PluginExecutionContextFactory(
             new BoundPluginAiClient(registration.Manifest.Id, permissions, ai),
             new BoundPluginSecrets(registration.Manifest.Id, permissions, secrets),
             new BoundPluginRecords(registration.Manifest.Id, permissions, records, limits, status, clock),
-            new BoundPluginOutbox(registration.Manifest.Id, permissions, outbox));
+            new BoundPluginOutbox(registration.Manifest.Id, permissions, outbox),
+            new BoundPluginDisplay(registration.Manifest.Id, permissions, display));
     }
 
     private static string SafeSegment(string value, string parameter)
@@ -161,7 +163,8 @@ internal sealed class PluginExecutionContext(
     IPluginAiClient ai,
     IPluginSecrets secrets,
     IPluginRecordStore records,
-    IPluginOutbox? outbox = null) : IPluginExecutionContext
+    IPluginOutbox? outbox = null,
+    IPluginDisplay? display = null) : IPluginExecutionContext
 {
     public string PluginId { get; } = pluginId;
     public IReadOnlyDictionary<string, JsonElement> Settings { get; } = settings;
@@ -173,6 +176,7 @@ internal sealed class PluginExecutionContext(
     public IPluginSecrets Secrets { get; } = secrets;
     public IPluginRecordStore Records { get; } = records;
     public IPluginOutbox Outbox => outbox ?? throw new NotSupportedException("This context has no retry queue.");
+    public IPluginDisplay Display => display ?? throw new NotSupportedException("This context has no display slots.");
 
     public ValueTask DisposeAsync()
     {

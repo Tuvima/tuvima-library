@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0054 plugin_outbox).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0055 plugin_display_contributions).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2023,6 +2023,20 @@ CREATE TABLE plugin_activity (
     detail         TEXT                -- a technical line, redacted of keys and personal paths
 );
 
+CREATE TABLE plugin_display_contributions (
+    plugin_id     TEXT NOT NULL,                 -- the plugin's manifest id
+    slot          TEXT NOT NULL,                 -- one of the fixed slot names
+    subject_id    TEXT NOT NULL DEFAULT '',      -- the item it is about, or empty when it is not about one item
+    key           TEXT NOT NULL,                 -- the plugin's own name for this contribution, so it can replace or withdraw it
+    title         TEXT NULL,
+    text          TEXT NOT NULL,
+    icon          TEXT NULL,
+    strength      INTEGER NOT NULL DEFAULT 0,    -- 0 to 100, how strongly the plugin suggests it
+    from_local_ai INTEGER NOT NULL DEFAULT 0,    -- 1 when Local AI produced it, so the Library can mark it "AI"
+    updated_at    TEXT NOT NULL,                 -- ISO 8601 UTC
+    PRIMARY KEY (plugin_id, slot, subject_id, key)
+);
+
 CREATE TABLE plugin_event_cursors (
     plugin_id      TEXT    NOT NULL PRIMARY KEY,   -- the plugin's manifest id
     last_sequence  INTEGER NOT NULL,               -- the newest application_events.sequence already delivered
@@ -3509,6 +3523,8 @@ CREATE INDEX idx_player_sessions_heartbeat
 CREATE INDEX idx_plugin_activity_plugin ON plugin_activity (plugin_id, id DESC);
 
 CREATE INDEX idx_plugin_activity_time ON plugin_activity (occurred_at);
+
+CREATE INDEX idx_plugin_display_slot ON plugin_display_contributions (slot, subject_id);
 
 CREATE INDEX idx_plugin_lore_entities_qid
     ON plugin_lore_entities (wikidata_qid) WHERE wikidata_qid IS NOT NULL;

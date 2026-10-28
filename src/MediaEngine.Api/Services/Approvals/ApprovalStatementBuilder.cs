@@ -77,6 +77,7 @@ internal static class ApprovalStatementBuilder
         ["background-work"] = "Runs continuously in the background while switched on",
         ["plugin-pages"] = "Adds pages and menu entries to the Library",
         ["plugin-outbox"] = "Queues messages for an outside service on a person's behalf and sends them later, retrying if it is offline",
+        ["display-slots"] = "Adds short lines, chips and badges to the Library's own pages",
     };
 
     private static readonly IReadOnlyDictionary<string, string> AiRoleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
