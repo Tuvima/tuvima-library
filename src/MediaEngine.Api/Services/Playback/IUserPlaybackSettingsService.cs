@@ -14,4 +14,10 @@ public interface IUserPlaybackSettingsService
 
     /// <summary>Saves the spoiler level (<c>up_to_progress</c> or <c>everything</c>); the only way to change it. Throws <see cref="ArgumentException"/> for anything else.</summary>
     Task<SpoilerLevel> SetSpoilerLevelAsync(Guid profileId, string level, CancellationToken ct = default);
+
+    /// <summary>Whether the profile chose "Show Vault in the navigation bar"; off until the person chooses.</summary>
+    Task<bool> GetShowVaultInNavigationAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>Saves the profile's own "Show Vault in the navigation bar" choice; the only way to change it.</summary>
+    Task SetShowVaultInNavigationAsync(Guid profileId, bool show, CancellationToken ct = default);
 }

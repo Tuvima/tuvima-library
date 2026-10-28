@@ -36,6 +36,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     private string? _mode;
     private bool _unlocked;
     private bool _hasPin = true;
+    private bool _showInNavigation;
+    private readonly List<bool> _navigationSaves = [];
     private int _lockCalls;
     private int _keepAlives;
     private readonly List<string?> _unlockPins = [];
@@ -58,7 +60,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         Services.AddScoped(_ => new DashboardSessionAccessor());
     }
 
-    private NsfwStatusDto Status() => new() { Mode = _mode ?? string.Empty, Unlocked = _unlocked, HasPin = _hasPin, IdleLockMinutes = _idle };
+    private NsfwStatusDto Status() => new() { Mode = _mode ?? string.Empty, Unlocked = _unlocked, HasPin = _hasPin, IdleLockMinutes = _idle, ShowInNavigation = _showInNavigation };
 
     private void UseEngine()
     {
@@ -115,6 +117,13 @@ public sealed class VaultExperienceTests : AsyncBunitContext
                     ForbiddenFolder => VaultCall<VaultLibraryDto>.Of(VaultOutcome.Rejected, "That folder can't be used for the Vault, so nothing was added."),
                     _ => VaultCall<VaultLibraryDto>.Ok(new VaultLibraryDto { Id = (string)args[0]!, LookupSource = "none" }),
                 });
+            });
+            stub.SetHandler(nameof(IEngineApiClient.SetNsfwNavigationAsync), args =>
+            {
+                var show = (bool)args![0]!;
+                _navigationSaves.Add(show);
+                _showInNavigation = show;
+                return Task.FromResult(VaultCall<NsfwStatusDto>.Ok(Status()));
             });
             stub.SetHandler(nameof(IEngineApiClient.SetNsfwIdleAsync), args =>
             {
@@ -173,8 +182,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         var settings = Render<VaultProfileSettings>(parameters => parameters
             .Add(p => p.Person, Person(Me)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
         Assert.Equal(string.Empty, settings.Markup.Trim());
-        Assert.DoesNotContain(ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.Unlocked), link => link.Key == "Vault");
-        Assert.DoesNotContain(ShellNavigation.WithVault(ShellNavigation.MenuLinks(isKids: false), State.Unlocked), link => link.Key == "Vault");
+        Assert.DoesNotContain(ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.ShowInNavigation), link => link.Key == "Vault");
+        Assert.DoesNotContain(ShellNavigation.WithVault(ShellNavigation.MenuLinks(isKids: false), State.ShowInNavigation), link => link.Key == "Vault");
     }
 
     [Fact]
@@ -221,7 +230,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         Assert.True(State.IsAvailable);
         Assert.False(State.Unlocked);
         Assert.Contains("Vault mode", check.Markup);
-        Assert.DoesNotContain(ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.Unlocked), link => link.Key == "Vault");
+        Assert.DoesNotContain(ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.ShowInNavigation), link => link.Key == "Vault");
 
         // Flip the check: the PIN pad opens, and a wrong PIN changes nothing.
         await check.InvokeAsync(() => check.Find("input[type='checkbox'], input[role='switch']").Change(true));
@@ -236,7 +245,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         await PressAsync(dialogs, "Turn on Vault mode");
         dialogs.WaitForAssertion(() => Assert.True(State.Unlocked));
         Assert.Equal(["1111", RightPin], _unlockPins);
-        Assert.Contains(ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.Unlocked), link => link.Key == "Vault" && link.Path == "/vault");
+        // Unlocking alone adds no navigation entry: that is the profile's own switch (Library pages D20).
+        Assert.DoesNotContain(ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.ShowInNavigation), link => link.Key == "Vault");
         check.WaitForAssertion(() => Assert.Contains("Vault mode", check.Markup));
     }
 
@@ -878,6 +888,106 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
         Assert.True(State.Unlocked);
         Assert.Equal([null], _unlockPins);
+    }
+
+    // -- "Show Vault in the navigation bar" (Library pages D20) ----------------------------------------------------------------
+
+    [Fact]
+    public async Task TheNavigationSwitch_IsOffByDefault_AndTheVaultEntryAppearsOnlyWhenAccessAndTheSwitchAreBothOn()
+    {
+        UseEngine();
+        _mode = "pin";
+        await LoadAsync();
+
+        Assert.True(State.IsAvailable);
+        Assert.False(State.ShowInNavigation);
+        Assert.DoesNotContain(ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.ShowInNavigation), link => link.Key == "Vault");
+
+        var cut = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Me, hasPin: true)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
+        cut.WaitForAssertion(() => Assert.Contains("Show Vault in the navigation bar", cut.Markup));
+        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show Vault in the navigation bar").Change(true));
+
+        Assert.Equal([true], _navigationSaves);
+        Assert.True(State.ShowInNavigation);
+        foreach (var links in new[] { ShellNavigation.TopBarLinks(isKids: false), ShellNavigation.MenuLinks(isKids: false), ShellNavigation.SectionChips(isKids: false) })
+        {
+            Assert.Contains(ShellNavigation.WithVault(links, State.ShowInNavigation), link => link.Key == "Vault" && link.Path == "/vault");
+        }
+
+        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show Vault in the navigation bar").Change(false));
+        Assert.Equal([true, false], _navigationSaves);
+        Assert.False(State.ShowInNavigation);
+    }
+
+    [Fact]
+    public async Task TheChoiceComesFromTheEngine_SoItFollowsTheProfileToAnotherDevice()
+    {
+        UseEngine();
+        _mode = "allowed";
+        _showInNavigation = true;
+        await LoadAsync();
+
+        Assert.True(State.ShowInNavigation);
+    }
+
+    [Fact]
+    public async Task WithTheSwitchOff_TheSettingsSection_StillOpensTheVault_AfterUnlocking()
+    {
+        UseEngine();
+        _mode = "allowed";
+        var cut = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Me)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
+        cut.WaitForAssertion(() => Assert.Contains("data-vault-open", cut.Markup));
+        Assert.False(State.ShowInNavigation);
+
+        await cut.InvokeAsync(() => cut.Find("[data-vault-open]").Click());
+
+        cut.WaitForAssertion(() => Assert.True(State.Unlocked));
+        Assert.EndsWith("/vault", Services.GetRequiredService<NavigationManager>().Uri);
+    }
+
+    [Fact]
+    public async Task AProfileWithoutVaultAccess_OrAKidsProfile_NeverGetsTheSwitchTheOpenButtonOrAnyVaultWord()
+    {
+        UseEngine();
+        _mode = null;
+        await LoadAsync();
+
+        Assert.False(State.ShowInNavigation);
+        var own = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Me)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
+        Assert.DoesNotContain("Vault", own.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("navigation bar", own.Markup, StringComparison.OrdinalIgnoreCase);
+
+        var vaultPage = Render<VaultPage>();
+        Assert.DoesNotContain("Vault", vaultPage.Markup, StringComparison.OrdinalIgnoreCase);
+
+        var top = ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.ShowInNavigation);
+        Assert.DoesNotContain(top, link => link.Path == "/vault");
+
+        // The Engine refuses to store the choice for such a profile too.
+        var refused = await State.SetShowInNavigationAsync(true);
+        Assert.Equal(VaultOutcome.NotAvailable, refused.Outcome);
+        Assert.Empty(_navigationSaves);
+
+        _mode = "allowed";
+        _showInNavigation = true;
+        await State.RefreshAsync(Me, isKids: true);
+        Assert.False(State.ShowInNavigation);
+    }
+
+    [Fact]
+    public async Task OpeningTheVaultAddress_WithAccessButNotUnlocked_ShowsOnlyTheUnlockStep_NotAMissingPage()
+    {
+        UseEngine();
+        _mode = "pin";
+        await LoadAsync();
+
+        var page = Render<VaultPage>();
+
+        page.WaitForAssertion(() => Assert.Contains("data-vault-unlock", page.Markup));
+        Assert.DoesNotContain("/not-found", Services.GetRequiredService<NavigationManager>().Uri);
     }
 
     // -- "Turn Vault mode off after being idle for" -----------------------------------------------------------------------
