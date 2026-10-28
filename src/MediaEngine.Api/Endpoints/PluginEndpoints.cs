@@ -574,6 +574,17 @@ internal static class PluginEndpoints
         .Produces<PluginHealthResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
+        group.MapPost("/{pluginId}/check-now", async (string pluginId, [FromServices] PluginCheckNowService check, CancellationToken ct) =>
+        {
+            var result = await check.CheckAsync(pluginId, ct).ConfigureAwait(false);
+            return result is null ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.") : Results.Ok(result);
+        })
+        .WithName("CheckPluginNow")
+        .WithSummary("Runs the plugin's health check, or reaches the metadata source once, and says in plain words whether it is working.")
+        .Produces<PluginCheckNowResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
         group.MapGet("/{pluginId}/jobs", async (
             string pluginId,
             IMediaOperationRepository operations,
