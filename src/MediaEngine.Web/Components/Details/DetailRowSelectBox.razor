@@ -11,17 +11,17 @@
     <span class="@RootClass" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">
         <AppCheckbox Value="@IsSelected"
                      ValueChanged="ToggleAsync"
-                     aria-label="@DetailBatchText.SelectLabel(Title)" />
+                     aria-label="@BulkEditRules.SelectLabel(Title)" />
     </span>
 }
 
 @code {
     private EditingModeContext? _mode;
-    private DetailBatchSelection? _selection;
+    private BulkEditSelection? _selection;
 
     [CascadingParameter] public EditingModeContext? Mode { get; set; }
 
-    [CascadingParameter] public DetailBatchSelection? Selection { get; set; }
+    [CascadingParameter] public BulkEditSelection? Selection { get; set; }
 
     [Parameter, EditorRequired] public Guid ItemId { get; set; }
 
@@ -29,13 +29,19 @@
 
     [Parameter, EditorRequired] public DetailEntityType Kind { get; set; }
 
+    /// <summary>The album, season or audiobook the row sits in, when the list knows it (Renumber and Match need it).</summary>
+    [Parameter] public Guid? ParentId { get; set; }
+
+    /// <summary>The editor media type of the row ("Music", "TV"), when the list knows it better than the page.</summary>
+    [Parameter] public string? MediaType { get; set; }
+
     /// <summary>True on a card: the box sits in the card's top-left corner instead of inline in a row.</summary>
     [Parameter] public bool Floating { get; set; }
 
     private bool Visible => Mode is { IsOn: true, CanEdit: true }
         && Selection is not null
         && ItemId != Guid.Empty
-        && DetailBatchRules.IsSelectableKind(Kind);
+        && BulkEditRules.IsSelectableKind(Kind);
 
     private bool IsSelected => Selection?.Contains(ItemId) == true;
 
@@ -79,9 +85,9 @@
             return;
         }
 
-        if (!Selection.Toggle(new DetailBatchRow(ItemId, Title, Kind)))
+        if (!Selection.Toggle(new BulkEditRow(ItemId, Title, Kind, ParentId, MediaType)))
         {
-            Toasts.Add(DetailBatchSelection.FullNotice, AppSeverity.Info);
+            Toasts.Add(BulkEditSelection.FullNotice, AppSeverity.Info);
         }
     }
 

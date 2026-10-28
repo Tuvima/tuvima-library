@@ -1,0 +1,621 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Components.MediaEditor.Moves
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject DeviceContextService Device
+
+@* The right-hand panel for several ticked items (universal editor spec D14): "Edit 4 songs" with the same Details fields as one item, where
+   a field the items disagree on says "Mixed, leave unchanged" and only fields that are changed are staged, one entry per item and field.
+   Music rows also get Renumber sequentially and Change album; "Move to album/season" and "Match" show their own step. Everything here
+   stages into the page's pending list; the one Save changes (and its check) does the saving. *@
+<div class="tl-editor-details tl-bulk" data-panel="@PanelName">
+    @if (Selection.Count == 0)
+    {
+        <p class="tl-bulk__note">Tick some rows to edit them together.</p>
+    }
+    else if (Selection.Panel == BulkPanelKind.Move)
+    {
+        <MoveDestinationPicker Heading="@BulkEditRules.MoveLabel(Selection.Rows, Selection.MediaType)"
+                               Destinations="_destinations"
+                               Query="@_query"
+                               Loading="_loadingDestinations"
+                               Busy="false"
+                               Error="@_moveError"
+                               QueryChanged="QueryChangedAsync"
+                               OnPick="PickDestination"
+                               OnCancel="BackToEdit" />
+    }
+    else if (Selection.Panel == BulkPanelKind.Match)
+    {
+        <section class="tl-bulk__group" aria-label="Match">
+            <p class="tl-bulk__note">
+                Match each of the @Selection.Count @Noun with the entry of its own @(IsEpisodes ? "season" : "album") that it fits best by title.
+                Nothing changes until you save, and the review lists every one.
+            </p>
+            <div class="tl-bulk__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanChange)" OnClick="StageMatch">Stage matching</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToEdit">Cancel</AppButton>
+            </div>
+        </section>
+    }
+    else
+    {
+        @if (!CanChange)
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true">You can look at these details but not change them.</AppAlert>
+        }
+
+        @if (_fields.Loading && _fields.Fields.Count == 0)
+        {
+            <AppPageState Kind="AppPageStateKind.Loading" Title="Loading the fields" />
+        }
+        else if (_fields.Forbidden)
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true">You can't edit these items together.</AppAlert>
+        }
+        else if (!string.IsNullOrWhiteSpace(_fields.Error))
+        {
+            <AppAlert Severity="AppSeverity.Error" Dense="true">@_fields.Error</AppAlert>
+        }
+        else
+        {
+            @if (_fields.Unavailable.Count > 0)
+            {
+                <p class="tl-bulk__note" role="status">@UnavailableText()</p>
+            }
+
+            @if (ShowsSongTools)
+            {
+                @SongTools()
+            }
+
+            var effective = _fields.Fields.Select(field => (Engine: field, Shown: field.WithStaged(Pending))).ToList();
+            var editable = effective.Where(pair => !pair.Engine.IsProviderFact).ToList();
+            var facts = effective.Where(pair => pair.Engine.IsProviderFact).ToList();
+            @if (editable.Count > 0)
+            {
+                <section class="tl-editor-details__group" aria-label="Details you can change">
+                    @foreach (var pair in editable)
+                    {
+                        @EditableRow(pair.Engine, pair.Shown)
+                    }
+                </section>
+            }
+
+            @if (facts.Count > 0)
+            {
+                <section class="tl-editor-details__group" aria-label="Provider facts">
+                    <h3 class="tl-editor-details__heading">From providers</h3>
+                    @foreach (var pair in facts)
+                    {
+                        @FactRow(pair.Shown)
+                    }
+                </section>
+            }
+        }
+    }
+</div>
+
+@code {
+    private readonly Dictionary<string, ListDraft> _drafts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<Guid, string> _movedLabels = [];
+    private BulkEditFields _fields = default!;
+    private List<Guid> _loadedIds = [];
+    private int _loadedVersion = -1;
+    private BulkEditSelection? _subscribedSelection;
+    private PendingEditList? _subscribedPending;
+    private BulkPanelKind _lastPanel;
+    private IReadOnlyList<LibraryMoveDestination> _destinations = [];
+    private bool _loadingDestinations;
+    private string? _query;
+    private string? _moveError;
+    private string? _songNote;
+    private int _destinationVersion;
+    private bool _disposed;
+
+    private sealed class ListDraft
+    {
+        public string Operation { get; set; } = LibraryBatchEditOps.Add;
+
+        public List<string> Values { get; } = [];
+    }
+
+    [Parameter, EditorRequired] public BulkEditSelection Selection { get; set; } = default!;
+
+    /// <summary>The page's pending list: every staged change from this panel lands here.</summary>
+    [Parameter, EditorRequired] public PendingEditList Pending { get; set; } = default!;
+
+    /// <summary>False shows the fields read-only (a library or person that cannot edit); the device rule is checked as well.</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    private bool CanChange => CanEdit && EditorDeviceRule.CanEdit(Device) && !_fields.Forbidden;
+
+    private string PanelName => Selection.Panel switch
+    {
+        BulkPanelKind.Move => "move",
+        BulkPanelKind.Match => "match",
+        _ => "edit",
+    };
+
+    private string Noun => BulkEditRules.Noun(Selection.Rows, Selection.MediaType);
+
+    private bool IsEpisodes => Selection.Rows.Count > 0 && Selection.Rows.All(row => row.Kind == DetailEntityType.TvEpisode);
+
+    private bool ShowsSongTools => BulkEditRules.CanChangeAlbum(Selection.Rows, Selection.MediaType);
+
+    protected override void OnInitialized()
+    {
+        _fields = new BulkEditFields(Api);
+        _fields.Changed += OnFieldsChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ReferenceEquals(_subscribedSelection, Selection))
+        {
+            if (_subscribedSelection is not null)
+            {
+                _subscribedSelection.Changed -= OnSelectionChanged;
+            }
+
+            _subscribedSelection = Selection;
+            Selection.Changed += OnSelectionChanged;
+        }
+
+        if (!ReferenceEquals(_subscribedPending, Pending))
+        {
+            if (_subscribedPending is not null)
+            {
+                _subscribedPending.Changed -= OnPendingChanged;
+            }
+
+            _subscribedPending = Pending;
+            Pending.Changed += OnPendingChanged;
+        }
+
+        await SyncAsync();
+    }
+
+    // The ticked rows or the panel changed: read the fields of rows not read yet, and fetch the places when Move opens.
+    private async Task SyncAsync()
+    {
+        var ids = Selection.Ids.ToList();
+        var dataChanged = _loadedVersion != Selection.DataVersion;
+        if (dataChanged)
+        {
+            _fields.Invalidate();
+            _loadedVersion = Selection.DataVersion;
+            _loadedIds = [];
+        }
+
+        if (Selection.Panel == BulkPanelKind.Edit && !ids.SequenceEqual(_loadedIds) && ids.Count > 0)
+        {
+            _loadedIds = ids;
+            _drafts.Clear();
+            _songNote = null;
+            await _fields.LoadAsync(ids);
+        }
+
+        if (Selection.Panel == BulkPanelKind.Move && _lastPanel != BulkPanelKind.Move && ids.Count > 0)
+        {
+            _query = null;
+            _moveError = null;
+            await LoadDestinationsAsync();
+        }
+
+        _lastPanel = Selection.Panel;
+    }
+
+    private void OnSelectionChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        await SyncAsync();
+        StateHasChanged();
+    });
+
+    private void OnPendingChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnFieldsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // -- Details fields ------------------------------------------------------------------------------
+
+    private RenderFragment EditableRow(BulkFieldView field, BulkFieldView shown) => __builder =>
+    {
+        var staged = field.HasStaged(Pending);
+        <div class="tl-editor-field" data-field-key="@field.Key">
+            <div class="tl-editor-field__label">
+                <span>@field.Label</span>
+                @if (staged)
+                {
+                    <span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} will change")" title="Will change when you save"></span>
+                }
+            </div>
+            <span class="@(shown.IsMixed ? "tl-editor-field__note tl-bulk__mixed" : "tl-editor-field__note")">@CurrentText(shown)</span>
+            @if (field.IsList)
+            {
+                @ListControl(field)
+            }
+            else
+            {
+                <AppTextField Value="@shown.SharedText"
+                              ValueChanged="@(value => StageScalar(field, value))"
+                              Placeholder="@(shown.IsMixed ? BulkEditRules.MixedLeaveUnchanged : null)"
+                              InputType="@InputTypeOf(field)"
+                              Disabled="@(!CanChange)"
+                              aria-label="@field.Label" />
+            }
+
+            @if (field.Locked.Count > 0)
+            {
+                <span class="tl-editor-field__note">@LockedText(field)</span>
+            }
+
+            @if (staged)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           Class="tl-editor-field__reset" OnClick="@(() => UndoField(field))">Undo changes to @field.Label</AppButton>
+            }
+        </div>
+    };
+
+    private RenderFragment ListControl(BulkFieldView field) => __builder =>
+    {
+        var draft = DraftFor(field);
+        <div class="tl-bulk__list">
+            <AppSegmentedControl Options="@field.Operations.Select(operation => new AppSelectOption(operation, OperationLabel(operation))).ToList()"
+                                 Value="@draft.Operation"
+                                 ValueChanged="@(operation => ChangeOperation(field, draft, operation))"
+                                 Disabled="@(!CanChange)"
+                                 AriaLabel="@($"How to change {field.Label}")" />
+            <span class="tl-editor-field__note">@OperationHelp(draft.Operation)</span>
+            <AppTagInput Commit="@(value => AddValue(field, draft, value))" Search="@NoSuggestions" />
+            @if (draft.Values.Count > 0)
+            {
+                <div class="tl-bulk__chips" aria-label="@($"{field.Label} to {OperationLabel(draft.Operation).ToLowerInvariant()}")">
+                    @foreach (var value in draft.Values)
+                    {
+                        var current = value;
+                        <AppChip Text="@current" OnClose="@(() => RemoveValue(field, draft, current))" />
+                    }
+                </div>
+            }
+        </div>
+    };
+
+    private RenderFragment FactRow(BulkFieldView shown) => __builder =>
+    {
+        var why = shown.Items.Select(item => item.LockedReason).FirstOrDefault(reason => !string.IsNullOrWhiteSpace(reason)) ?? "Provider facts cannot be edited here.";
+        <div class="tl-editor-field tl-editor-field--locked" data-field-key="@shown.Key">
+            <div class="tl-editor-field__label">
+                <span>@shown.Label</span>
+                <AppTooltip Text="@why">
+                    <span class="tl-editor-field__lock" tabindex="0" role="img" aria-label="@($"{shown.Label} is locked. {why}")">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppSize.Small" />
+                    </span>
+                </AppTooltip>
+            </div>
+            <div class="tl-editor-field__value">@FactText(shown)</div>
+        </div>
+    };
+
+    private RenderFragment SongTools() => __builder =>
+    {
+        var summary = BulkEditStager.SummarisePlace(Pending, Selection.Rows);
+        <section class="tl-editor-details__group tl-bulk__group" aria-label="Songs">
+            <h3 class="tl-editor-details__heading">Songs</h3>
+            <div class="tl-bulk__actions">
+                @if (BulkEditRules.CanRenumber(Selection.Rows, Selection.MediaType))
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               StartIcon="@AppMaterialIcons.Outlined.FormatListNumbered"
+                               Class="tl-bulk__renumber"
+                               Disabled="@(!CanChange)"
+                               OnClick="Renumber">Renumber sequentially</AppButton>
+                }
+
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           StartIcon="@AppMaterialIcons.Outlined.Album"
+                           Class="tl-bulk__change-album"
+                           Disabled="@(!CanChange)"
+                           OnClick="OpenChangeAlbum">Change album</AppButton>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_songNote))
+            {
+                <span class="tl-editor-field__note" role="status">@_songNote</span>
+            }
+
+            @if (!summary.IsEmpty)
+            {
+                <span class="tl-editor-field__note tl-bulk__staged" role="status">@PlaceText(summary)</span>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           Class="tl-editor-field__reset" OnClick="UndoPlace">Undo numbers and moves</AppButton>
+            }
+        </section>
+    };
+
+    private string PlaceText(BulkPlaceSummary summary)
+    {
+        var parts = new List<string>();
+        if (summary.Numbered > 0)
+        {
+            parts.Add($"{summary.Numbered} will be renumbered");
+        }
+
+        if (summary.Moved > 0)
+        {
+            var where = Selection.Rows.Select(row => _movedLabels.GetValueOrDefault(row.Id)).FirstOrDefault(label => label is not null);
+            parts.Add($"{summary.Moved} will move{(where is null ? string.Empty : $" to {where}")}");
+        }
+
+        if (summary.Matched > 0)
+        {
+            parts.Add($"{summary.Matched} will be matched");
+        }
+
+        return string.Join(", ", parts) + " when you save.";
+    }
+
+    private static string CurrentText(BulkFieldView shown)
+    {
+        if (shown.IsMixed)
+        {
+            var hint = shown.MixedHint();
+            return string.IsNullOrEmpty(hint) ? BulkEditRules.MixedLeaveUnchanged : $"{BulkEditRules.MixedLeaveUnchanged}: {hint}";
+        }
+
+        var text = shown.IsList ? string.Join(", ", shown.Shared) : shown.SharedText;
+        return string.IsNullOrWhiteSpace(text) ? "Empty on every item" : $"Same on every item: {text}";
+    }
+
+    private static string FactText(BulkFieldView shown)
+    {
+        if (shown.IsMixed)
+        {
+            return BulkEditRules.MixedLeaveUnchanged;
+        }
+
+        var text = shown.IsList ? string.Join(", ", shown.Shared) : shown.SharedText;
+        return string.IsNullOrWhiteSpace(text) ? "Not set" : text;
+    }
+
+    private static string LockedText(BulkFieldView field)
+    {
+        var titles = field.Locked.Count;
+        var reason = field.Locked.Select(item => item.LockedReason).FirstOrDefault(text => !string.IsNullOrWhiteSpace(text))?.TrimEnd('.');
+        return $"{titles} of {field.Items.Count} can't take this change{(reason is null ? string.Empty : $" ({reason})")} and will be left as they are.";
+    }
+
+    private string UnavailableText()
+    {
+        var names = _fields.Unavailable
+            .Select(pair => (Title: Selection.Rows.FirstOrDefault(row => row.Id == pair.Key)?.Title ?? "An item", Reason: pair.Value))
+            .Take(3)
+            .Select(item => $"{item.Title} ({item.Reason.TrimEnd('.')})");
+        var more = _fields.Unavailable.Count - 3;
+        var tail = more > 0 ? $", and {more} more" : string.Empty;
+        return $"{_fields.Unavailable.Count} selected can't be edited and will be skipped: {string.Join(", ", names)}{tail}.";
+    }
+
+    private static AppInputType InputTypeOf(BulkFieldView field) => field.Key.ToLowerInvariant() switch
+    {
+        "year" or "rating" => AppInputType.Number,
+        _ => AppInputType.Text,
+    };
+
+    private static string OperationLabel(string operation) => operation switch
+    {
+        LibraryBatchEditOps.Add => "Add",
+        LibraryBatchEditOps.Replace => "Replace",
+        LibraryBatchEditOps.Remove => "Remove",
+        _ => operation,
+    };
+
+    private static string OperationHelp(string operation) => operation switch
+    {
+        LibraryBatchEditOps.Add => "Adds these to what each item already has.",
+        LibraryBatchEditOps.Replace => "Each item gets exactly these.",
+        LibraryBatchEditOps.Remove => "Takes these away from each item.",
+        _ => string.Empty,
+    };
+
+    private static readonly Func<string?, CancellationToken, Task<IEnumerable<string>>> NoSuggestions =
+        (_, _) => Task.FromResult<IEnumerable<string>>([]);
+
+    private ListDraft DraftFor(BulkFieldView field)
+    {
+        if (!_drafts.TryGetValue(field.Key, out var draft))
+        {
+            draft = new ListDraft { Operation = field.Operations.Contains(LibraryBatchEditOps.Add) ? LibraryBatchEditOps.Add : field.Operations.FirstOrDefault() ?? LibraryBatchEditOps.Add };
+            _drafts[field.Key] = draft;
+        }
+
+        return draft;
+    }
+
+    // -- Staging -------------------------------------------------------------------------------------
+
+    private void StageScalar(BulkFieldView field, string? value)
+    {
+        if (!CanChange)
+        {
+            return;
+        }
+
+        BulkEditStager.StageScalar(Pending, field, value);
+    }
+
+    private void Restage(BulkFieldView field, ListDraft draft)
+    {
+        if (CanChange)
+        {
+            BulkEditStager.StageList(Pending, field, draft.Operation, draft.Values);
+        }
+    }
+
+    private Task<bool> AddValue(BulkFieldView field, ListDraft draft, string value)
+    {
+        var trimmed = value?.Trim();
+        if (!CanChange || string.IsNullOrEmpty(trimmed) || draft.Values.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(false);
+        }
+
+        draft.Values.Add(trimmed);
+        Restage(field, draft);
+        return Task.FromResult(true);
+    }
+
+    private void RemoveValue(BulkFieldView field, ListDraft draft, string value)
+    {
+        draft.Values.RemoveAll(existing => string.Equals(existing, value, StringComparison.OrdinalIgnoreCase));
+        Restage(field, draft);
+    }
+
+    private void ChangeOperation(BulkFieldView field, ListDraft draft, string? operation)
+    {
+        draft.Operation = operation ?? draft.Operation;
+        Restage(field, draft);
+    }
+
+    private void UndoField(BulkFieldView field)
+    {
+        BulkEditStager.ClearField(Pending, field);
+        if (_drafts.TryGetValue(field.Key, out var draft))
+        {
+            draft.Values.Clear();
+        }
+    }
+
+    private void Renumber()
+    {
+        if (!CanChange)
+        {
+            return;
+        }
+
+        var result = BulkEditStager.Renumber(Pending, Selection.OrderedRows());
+        _songNote = result.Staged == 0
+            ? "These songs do not share an album, so they can't be numbered together."
+            : $"Songs 1 to {result.Staged} are numbered in the order the list shows them. Save changes to apply.";
+    }
+
+    private void UndoPlace()
+    {
+        BulkEditStager.ClearPlace(Pending, Selection.Rows);
+        _songNote = null;
+    }
+
+    private void OpenChangeAlbum()
+    {
+        if (CanChange)
+        {
+            Selection.OpenPanel(BulkPanelKind.Move);
+        }
+    }
+
+    private void BackToEdit()
+    {
+        if (Selection.Count > 0)
+        {
+            Selection.OpenPanel(BulkPanelKind.Edit);
+        }
+        else
+        {
+            Selection.ClosePanel();
+        }
+    }
+
+    private void StageMatch()
+    {
+        if (!CanChange || !BulkEditRules.CanMatch(Selection.Rows, Selection.MediaType))
+        {
+            return;
+        }
+
+        BulkEditStager.MatchInPlace(Pending, Selection.Rows);
+        BackToEdit();
+    }
+
+    // -- Move to album or season ---------------------------------------------------------------------
+
+    private async Task QueryChangedAsync(string? value)
+    {
+        _query = value;
+        await LoadDestinationsAsync();
+    }
+
+    // The places that accept this kind are the same for every ticked row (they are all one kind), so the first row asks for them.
+    private async Task LoadDestinationsAsync()
+    {
+        if (Selection.Count == 0)
+        {
+            return;
+        }
+
+        var version = ++_destinationVersion;
+        _loadingDestinations = true;
+        _moveError = null;
+        StateHasChanged();
+        var outcome = await Api.GetLibraryMoveDestinationsAsync(Selection.Rows[0].Id, _query);
+        if (_disposed || version != _destinationVersion)
+        {
+            // A later search or a close has replaced this answer.
+            return;
+        }
+
+        _loadingDestinations = false;
+        if (outcome.IsOk)
+        {
+            _destinations = outcome.Value!.Destinations;
+        }
+        else
+        {
+            _destinations = [];
+            _moveError = outcome.Status == LibraryMoveOutcomeStatus.Forbidden
+                ? LibraryMoveText.ForbiddenMessage
+                : outcome.Message ?? LibraryMoveText.UnavailableMessage;
+        }
+    }
+
+    private void PickDestination(LibraryMoveDestination destination)
+    {
+        if (!CanChange || Selection.Count == 0)
+        {
+            return;
+        }
+
+        var rows = Selection.Rows.ToList();
+        BulkEditStager.MoveTo(Pending, rows, destination.Id);
+        foreach (var row in rows)
+        {
+            _movedLabels[row.Id] = LibraryMoveText.DestinationLabel(destination);
+        }
+
+        BackToEdit();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _destinationVersion++;
+        if (_subscribedSelection is not null)
+        {
+            _subscribedSelection.Changed -= OnSelectionChanged;
+        }
+
+        if (_subscribedPending is not null)
+        {
+            _subscribedPending.Changed -= OnPendingChanged;
+        }
+
+        _fields.Changed -= OnFieldsChanged;
+    }
+}

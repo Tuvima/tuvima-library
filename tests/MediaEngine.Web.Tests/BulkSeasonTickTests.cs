@@ -13,11 +13,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Ticking rows on a show's season list in Editing Mode (details overlay spec D8, D9): a tickable card ticks anywhere it is clicked
-/// (the box stays the keyboard control), and ticks never stay behind, out of sight, when the person switches to another season; an
-/// open batch section holding input asks "Save or discard?" first. The Engine is a hand-written stub.
+/// Ticking rows on a show's season list in Editing Mode (universal editor spec D14): a tickable card ticks anywhere it is clicked
+/// (the box stays the keyboard control), and ticks never stay behind, out of sight, when the person switches to another season or
+/// series. Staged changes live in the page's pending list, so switching asks nothing. The Engine is a hand-written stub.
 /// </summary>
-public sealed class DetailBatchSeasonTickTests : AsyncBunitContext
+public sealed class BulkSeasonTickTests : AsyncBunitContext
 {
     private static readonly Guid Show = Guid.Parse("30000000-0000-0000-0000-000000000003");
     private static readonly Guid SeasonOneId = Guid.Parse("31000000-0000-0000-0000-000000000001");
@@ -30,7 +30,7 @@ public sealed class DetailBatchSeasonTickTests : AsyncBunitContext
     private readonly Queue<SaveOrDiscardChoice> _answers = new();
     private int _asked;
 
-    public DetailBatchSeasonTickTests()
+    public BulkSeasonTickTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
@@ -45,7 +45,7 @@ public sealed class DetailBatchSeasonTickTests : AsyncBunitContext
         Services.AddScoped<UIOrchestratorService>();
     }
 
-    private sealed record Page(EditingModeContext Mode, DetailBatchSelection Selection, IRenderedComponent<SequencePlacementPanel> Panel);
+    private sealed record Page(EditingModeContext Mode, BulkEditSelection Selection, IRenderedComponent<SequencePlacementPanel> Panel);
 
     private async Task<Page> StartAsync(bool editing = true, bool withTwoSeries = false)
     {
@@ -65,7 +65,7 @@ public sealed class DetailBatchSeasonTickTests : AsyncBunitContext
             Assert.True(await mode.EnterAsync());
         }
 
-        var selection = new DetailBatchSelection { MediaType = "TV" };
+        var selection = new BulkEditSelection { MediaType = "TV" };
         var panel = Render<SequencePlacementPanel>(parameters => parameters
             .AddCascadingValue(mode)
             .AddCascadingValue(selection)
@@ -152,65 +152,22 @@ public sealed class DetailBatchSeasonTickTests : AsyncBunitContext
         Assert.Equal(0, _asked);
     }
 
-    [Fact]
-    public async Task SwitchingSeason_WithTouchedBatchFields_AsksSaveOrDiscardAndCancelStaysOnTheSeasonWithTheTicks()
-    {
-        var page = await StartAsync();
-        page.Panel.FindAll("article[data-tickable='true']").First().Click();
-        Assert.True(page.Mode.OpenSection(EditingSection.Batch));
-        page.Mode.SetSectionDirty(true);
-        _answers.Enqueue(SaveOrDiscardChoice.Cancel);
-
-        SwitchToSeasonTwo(page.Panel);
-
-        page.Panel.WaitForAssertion(() => Assert.Equal(1, _asked));
-        Assert.Equal("Season 1", ActiveSeason(page.Panel));
-        Assert.Equal([FirstOpener], page.Selection.Ids);
-        Assert.Equal(EditingSection.Batch, page.Mode.OpenSectionKind);
-    }
-
-    [Fact]
-    public async Task SwitchingSeason_WithTouchedBatchFields_AndDiscard_ClosesTheSectionClearsTheTicksAndSwitches()
-    {
-        var page = await StartAsync();
-        page.Panel.FindAll("article[data-tickable='true']").First().Click();
-        Assert.True(page.Mode.OpenSection(EditingSection.Batch));
-        page.Mode.SetSectionDirty(true);
-        _answers.Enqueue(SaveOrDiscardChoice.Discard);
-
-        SwitchToSeasonTwo(page.Panel);
-
-        page.Panel.WaitForAssertion(() => Assert.Equal("Season 2", ActiveSeason(page.Panel)));
-        Assert.Equal(1, _asked);
-        Assert.Equal(0, page.Selection.Count);
-        Assert.Null(page.Mode.OpenSectionKind);
-    }
-
     // -- Ticks do not survive a series switch ---------------------------------------------------
 
     [Fact]
-    public async Task SwitchingToAnotherSeries_ClearsTheTicksAndAsksFirstWhenABatchSectionHoldsInput()
+    public async Task SwitchingToAnotherSeries_ClearsTheTicksAndChoosesTheOtherSeriesWithoutAsking()
     {
         var page = await StartAsync(withTwoSeries: true);
         page.Panel.FindAll("article[data-tickable='true']").First().Click();
-        Assert.True(page.Mode.OpenSection(EditingSection.Batch));
-        page.Mode.SetSectionDirty(true);
-        _answers.Enqueue(SaveOrDiscardChoice.Cancel);
-        _answers.Enqueue(SaveOrDiscardChoice.Discard);
+        Assert.Equal([FirstOpener], page.Selection.Ids);
         var select = page.Panel.FindComponents<AppSelect>()
             .Single(candidate => candidate.Instance.Options?.Any(option => option.Value == SeriesTwo) == true);
 
-        // Cancel: nothing changes.
         await page.Panel.InvokeAsync(() => select.Instance.ValueChanged.InvokeAsync(SeriesTwo));
-        Assert.Equal(1, _asked);
-        Assert.Equal([FirstOpener], page.Selection.Ids);
-        Assert.Empty(_containerPicks);
 
-        // Discard: the ticks go and the other series is chosen.
-        await page.Panel.InvokeAsync(() => select.Instance.ValueChanged.InvokeAsync(SeriesTwo));
-        Assert.Equal(2, _asked);
         Assert.Equal(0, page.Selection.Count);
         Assert.Equal([SeriesTwo], _containerPicks);
+        Assert.Equal(0, _asked);
     }
 
     // -- Fixtures ------------------------------------------------------------------------------

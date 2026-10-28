@@ -232,3 +232,18 @@ public sealed record LibraryMoveSourceFacts(
     Guid ContainerId,
     string Label,
     bool BecomesEmpty);
+
+/// <summary>Where one title sat in its album before a position change, kept so the change can be undone exactly.</summary>
+public sealed record LibraryPlacement(Guid WorkId, int? Ordinal, double? OrdinalSort, bool Unmatched);
+
+/// <summary>
+/// The answer to giving a song a track number in the album it already sits in. <see cref="Refusal"/> is a plain-English reason when
+/// nothing changed; otherwise <see cref="Before"/> holds the placement of every title that was touched (the song, and the song it
+/// traded numbers with when the number was taken).
+/// </summary>
+public sealed record LibraryPositionOutcome(string? Refusal, IReadOnlyList<LibraryPlacement> Before)
+{
+    public static LibraryPositionOutcome Refused(string reason) => new(reason, []);
+
+    public static LibraryPositionOutcome Done(IReadOnlyList<LibraryPlacement> before) => new(null, before);
+}

@@ -57,7 +57,7 @@ public sealed class MediaEditorLauncherService
             return EditorLaunchResult.NotAvailable;
         }
 
-        // This editor takes exactly one item. A batch is edited together on the details page (the "Edit together" section),
+        // This editor takes exactly one item. Several items are edited together from the selection bar (the "Edit N items" panel),
         // so a launch with several items must never silently choose a representative or fan a change out across several works.
         if (request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1)
         {

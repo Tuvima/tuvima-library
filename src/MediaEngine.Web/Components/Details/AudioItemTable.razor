@@ -107,7 +107,7 @@
     else if (Compact)
     {
         <section class="@CompactSectionClass" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
-            <DetailBatchPanel />
+            <BulkSelectionBar />
             @if (CompactToolbarLeadingContent is not null || SupportsMissingItems)
             {
             <header class="tl-embedded-audio__toolbar">
@@ -167,7 +167,7 @@
                             </div>
                             <div class="tl-embedded-audio__ordinal" role="cell">@DisplayOrdinal(item, index)</div>
                             <div class="tl-embedded-audio__title" role="cell">
-                                <DetailRowSelectBox ItemId="@ItemId(item)" Title="@item.Title" Kind="@item.EntityType" />
+                                <DetailRowSelectBox ItemId="@ItemId(item)" Title="@item.Title" Kind="@item.EntityType" ParentId="@RowParentId" MediaType="@RowMediaType" />
                                 <strong>@item.Title</strong>
                                 @if (item.IsExplicit)
                                 {
@@ -209,7 +209,7 @@
     else
     {
     <section class="tl-detail-track-section" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
-        <DetailBatchPanel />
+        <BulkSelectionBar />
         <div class="tl-detail-track-toolbar">
             <span>@TrackCountSummary</span>
             @if (SupportsMissingItems)
@@ -306,7 +306,7 @@
                                             break;
                                         case "title":
                                             <td class="tl-detail-track-row__title">
-                                                <DetailRowSelectBox ItemId="@ItemId(item)" Title="@item.Title" Kind="@item.EntityType" />
+                                                <DetailRowSelectBox ItemId="@ItemId(item)" Title="@item.Title" Kind="@item.EntityType" ParentId="@RowParentId" MediaType="@RowMediaType" />
                                                 <span class="tl-detail-track-row__name">@item.Title</span>
                                                 @if (item.IsExplicit)
                                                 {
@@ -422,6 +422,11 @@
 
     private IReadOnlyList<MediaGroupingItemViewModel> CompactVisibleItems => VisibleItems;
 
+    // What a ticked row knows about where it sits: its album (or audiobook) and its kind, so Renumber, Match and the move step work from it.
+    private Guid? RowParentId => Guid.TryParse(IsAudiobook ? AudiobookId : AlbumId, out var parent) ? parent : null;
+
+    private string RowMediaType => IsAudiobook ? "Audiobooks" : "Music";
+
     private int OwnedCount => Items.Count(item => item.IsOwned);
     private string TrackCountSummary => IsAudiobook
         ? $"{Items.Count} {(Items.Count == 1 ? "local track" : "local tracks")}"
@@ -443,10 +448,10 @@
     // Editing Mode (while it is on, each row gets a tick box and a ticked row is highlighted). Null outside a detail page.
     [CascadingParameter] public EditingModeContext? EditingMode { get; set; }
 
-    [CascadingParameter] public DetailBatchSelection? BatchSelection { get; set; }
+    [CascadingParameter] public BulkEditSelection? BatchSelection { get; set; }
 
     private EditingModeContext? _hookedMode;
-    private DetailBatchSelection? _hookedSelection;
+    private BulkEditSelection? _hookedSelection;
 
     private void HookBatchState()
     {
@@ -468,6 +473,7 @@
         {
             if (_hookedSelection is not null)
             {
+                _hookedSelection.ListOrder = null;
                 _hookedSelection.Changed -= OnBatchStateChanged;
             }
 
@@ -475,6 +481,8 @@
             if (_hookedSelection is not null)
             {
                 _hookedSelection.Changed += OnBatchStateChanged;
+                // "Renumber sequentially" follows the order this list shows now, whatever it is sorted by.
+                _hookedSelection.ListOrder = () => VisibleItems.Select(ItemId).ToList();
             }
         }
     }
@@ -493,6 +501,7 @@
 
         if (_hookedSelection is not null)
         {
+            _hookedSelection.ListOrder = null;
             _hookedSelection.Changed -= OnBatchStateChanged;
         }
     }

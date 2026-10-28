@@ -48,6 +48,12 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
     /// <summary>A plain sentence when the last save could not even be tried (Engine unreachable, nothing to save).</summary>
     public string? Message { get; private set; }
 
+    /// <summary>The Engine's answer for every change in the last check or save (Review changes shows one status per row).</summary>
+    public IReadOnlyList<EditSessionChangeResult> Results { get; private set; } = [];
+
+    /// <summary>True when the last save wrote the data changes to the library, even if some file moves then failed.</summary>
+    public bool DataSaved { get; private set; }
+
     public event Action? Changed;
 
     public void Dispose() => _mode.Changed -= OnModeChanged;
@@ -121,7 +127,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
             return true;
         }
 
-        if (_mode.SectionOpen && !_mode.OpenSectionKind.IsBatch() && !await _mode.CloseSectionAsync())
+        if (_mode.SectionOpen && !await _mode.CloseSectionAsync())
         {
             return false;
         }
@@ -219,6 +225,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
         Saving = true;
         Failures = [];
         Message = null;
+        Results = [];
+        DataSaved = false;
         Changed?.Invoke();
         EditSessionSaveOutcome outcome;
         try
@@ -232,6 +240,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
 
         Failures = outcome.Failures;
         Message = outcome.Message;
+        Results = outcome.Results ?? [];
+        DataSaved = outcome.Saved;
         if (!outcome.Saved)
         {
             Changed?.Invoke();
@@ -259,6 +269,43 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IDisposable
         _mode.Leave();
         Changed?.Invoke();
         return true;
+    }
+
+    /// <summary>Settles a section hosted in the panel that still holds input of its own, before Review changes opens. False means the person stayed.</summary>
+    public async Task<bool> SettleForReviewAsync() =>
+        !_mode.SectionDirty || await _mode.CloseSectionAsync();
+
+    /// <summary>The pending list as the rows Review changes shows.</summary>
+    public IReadOnlyList<EditReviewRow> ReviewRows() => EditReviewRows.Build(_session.Pending, _session, _mode.Fields);
+
+    /// <summary>Asks the Engine to check the pending list without saving anything (Review changes opens with this).</summary>
+    public Task<EditSessionSaveOutcome> PreviewAsync(CancellationToken ct = default) => _saver.PreviewAsync(_session.Pending, ct);
+
+    /// <summary>Takes one Review row's change back out of the pending list. A details row takes only its own field.</summary>
+    public bool RemoveReviewRow(EditReviewRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        return row.FieldKey is { } key ? _session.Pending.ClearField(row.EntityId, key) : _session.Pending.Remove(row.ChangeId);
+    }
+
+    /// <summary>Review changes' Edit: moves to the row's item and opens the tool that holds its change. Pending changes are kept.</summary>
+    public async Task JumpToAsync(EditReviewRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        if (!_session.IsActive || Saving)
+        {
+            return;
+        }
+
+        if (_session.ActiveItem?.EntityId != row.EntityId && _session.TrailTo(row.EntityId) is { } trail)
+        {
+            _session.SwitchItem(trail);
+        }
+
+        if (_session.ActiveTool != row.Tool)
+        {
+            await SelectToolAsync(row.Tool);
+        }
     }
 
     /// <summary>A short line for one failed change: the item, the fields it touched, and why it did not go through.</summary>
