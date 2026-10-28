@@ -128,10 +128,7 @@
             </div>
             <div class="folder-table__files" role="cell">
                 <span class="folder-table__files-value">@FilesLabel(source)</span>
-                @if (ShowAdvancedHint)
-                {
-                    <small class="folder-table__files-hint">Change in Advanced &gt; @TypeLabel</small>
-                }
+                <small class="folder-table__files-hint">Change in Advanced &gt; @TypeLabel</small>
             </div>
             <div class="folder-table__actions" role="cell">
                 <AppNativeButton Type="button"
@@ -176,8 +173,6 @@
     [Parameter] public string PluralLabel { get; set; } = string.Empty;
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public bool Busy { get; set; }
-    /// <summary>Shows "Change in Advanced > Type" under the Files value. Off where there is no Advanced section to go to (first-run setup).</summary>
-    [Parameter] public bool ShowAdvancedHint { get; set; } = true;
     /// <summary>Folder path to a plain-English problem ("Folder unavailable", "No access"); absent when the folder is fine.</summary>
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnChangeHandling { get; set; }

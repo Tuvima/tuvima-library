@@ -4,6 +4,7 @@
 .libs__search { flex: 1 1 220px; min-width: 0; }
 .libs__filter { flex: 0 0 200px; }
 .libs__row { cursor: pointer; }
+.libs__row--static { cursor: default; }
 .libs__name, .libs__type { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 .libs__type { gap: 6px; }
 .libs__link { color: inherit; font-weight: 600; text-decoration: none; }

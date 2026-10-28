@@ -3,8 +3,8 @@
 
 @* "Which library?" for a kind that holds several named libraries (D51): an existing library by name, or a new custom one. Add folder's
    library step and the file-drop dialog both ask it from here. *@
-<h3 class="add-wizard__question" id="@HeadingId">Which library?</h3>
-<div class="add-wizard__options" role="radiogroup" aria-labelledby="@HeadingId">
+<h3 class="lib-choice__question" id="@HeadingId">Which library?</h3>
+<div class="lib-choice__options" role="radiogroup" aria-labelledby="@HeadingId">
     @foreach (var library in Libraries)
     {
         @Option(library.Id, string.IsNullOrWhiteSpace(library.Name) ? FallbackName : library.Name)
@@ -16,11 +16,11 @@
 </div>
 @if (!CanAddLibrary && !string.IsNullOrWhiteSpace(LimitText))
 {
-    <p class="add-wizard__lead" data-library-limit>@LimitText</p>
+    <p class="lib-choice__lead" data-library-limit>@LimitText</p>
 }
 @if (Choice == NewChoice && AskForName)
 {
-    <div class="add-wizard__options add-wizard__field">
+    <div class="lib-choice__options lib-choice__field">
         <AppTextField Label="Library name" Value="@NewLibraryName" ValueChanged="@((string? value) => NewLibraryNameChanged.InvokeAsync(value ?? string.Empty))" />
     </div>
 }
@@ -43,16 +43,16 @@
     [Parameter] public string NewLibraryName { get; set; } = string.Empty;
     [Parameter] public EventCallback<string> NewLibraryNameChanged { get; set; }
     /// <summary>Makes the heading's id unique when two of these are on one screen.</summary>
-    [Parameter] public string HeadingId { get; set; } = "add-wizard-library";
+    [Parameter] public string HeadingId { get; set; } = "lib-choice-library";
 
     // One radio card for a library the folder or file can join: an existing library by name, or a new custom one.
     private RenderFragment Option(string choice, string title) => __builder =>
     {
         var selected = Choice == choice;
-        <div class="add-wizard__option">
+        <div class="lib-choice__option">
             <AppNativeButton Type="button"
                              role="radio"
-                             Class="@(selected ? "add-wizard__choice is-selected" : "add-wizard__choice")"
+                             Class="@(selected ? "lib-choice__choice is-selected" : "lib-choice__choice")"
                              data-library="@choice"
                              aria-checked="@(selected ? "true" : "false")"
                              OnClick="@(_ => ChoiceChanged.InvokeAsync(choice))">
