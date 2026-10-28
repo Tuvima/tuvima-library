@@ -7,7 +7,7 @@
 .listen-song-table__row {
     display: grid;
     align-items: center;
-    column-gap: 8px;
+    column-gap: var(--tl-list-column-gap, 16px);
     min-width: 760px;
 }
 
@@ -90,12 +90,13 @@
 
 .listen-song-table__favorite-head,
 .listen-song-table__queue-head {
+    width: 100%;
     justify-content: center;
     text-align: center;
 }
 
 .listen-song-table__row {
-    min-height: 56px;
+    min-height: var(--tl-list-row-height, 56px);
     padding: 6px 8px;
     color: var(--tl-text-secondary);
     cursor: pointer;
@@ -207,7 +208,6 @@
 
 .listen-song-table__time,
 .listen-song-table__edit,
-.listen-song-table__delete,
 .listen-song-table__options {
     justify-self: end;
 }
@@ -219,7 +219,6 @@
 
 .listen-song-table__queue,
 .listen-song-table__edit,
-.listen-song-table__delete,
 .listen-song-table__select,
 .listen-song-table__options {
     display: inline-flex;

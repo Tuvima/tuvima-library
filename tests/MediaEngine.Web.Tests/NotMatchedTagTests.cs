@@ -34,13 +34,13 @@ public sealed class NotMatchedTagTests : AsyncBunitContext
         Services.AddSingleton(_ => new PlaybackSessionController(null!, null!));
     }
 
-    private static MediaGroupingItemViewModel Track(string id, string title, string? number, bool unmatched = false) => new()
+    private static MediaGroupingItemViewModel Track(string id, string title, string? number, bool unmatched = false, bool owned = true) => new()
     {
         Id = id,
         EntityType = DetailEntityType.Work,
         Title = title,
         TrackNumber = number,
-        IsOwned = true,
+        IsOwned = owned,
         IsUnmatched = unmatched,
     };
 
@@ -67,6 +67,37 @@ public sealed class NotMatchedTagTests : AsyncBunitContext
         Assert.Equal("Unnumbered", group.TextContent.Trim());
         Assert.Same(rows[1].NextElementSibling, group);
         Assert.Same(group.NextElementSibling, rows[2]);
+    }
+
+    [Fact]
+    public void TheCompactTrackListGivesPlayNumberAndTitleTheirOwnCellsOnEveryRow()
+    {
+        // One-look spec WP5 (F12, F15): a 12-track album with two tracks not owned: "Show missing tracks" on keeps every row aligned.
+        var tracks = Enumerable.Range(1, 12)
+            .Select(number => Track($"0000000c-0000-0000-0000-{number:000000000000}", $"Track {number}", number.ToString(), owned: number is not (3 or 11)))
+            .ToArray();
+        var cut = Render<AudioItemTable>(parameters => parameters
+            .Add(component => component.SourceTitle, "OK Computer")
+            .Add(component => component.Compact, true)
+            .Add(component => component.Groups, [Album(tracks)]));
+        cut.Find(".tl-embedded-audio__missing input").Change(true);
+
+        var rows = cut.FindAll(".tl-embedded-audio__row");
+        Assert.Equal(12, rows.Count);
+        foreach (var row in rows)
+        {
+            Assert.Single(row.QuerySelectorAll(".tl-embedded-audio__play-cell"));
+            Assert.Single(row.QuerySelectorAll(".tl-embedded-audio__ordinal"));
+            Assert.Single(row.QuerySelectorAll(".tl-embedded-audio__title"));
+            // The number cell holds only the number, so it never changes with the play button or the playing mark.
+            Assert.Matches(@"^\d+$", row.QuerySelector(".tl-embedded-audio__ordinal")!.TextContent.Trim());
+        }
+
+        var missing = rows.Where(row => row.ClassList.Contains("is-missing")).ToList();
+        Assert.Equal(2, missing.Count);
+        Assert.All(missing, row => Assert.Empty(row.QuerySelectorAll(".tl-embedded-audio__row-play")));
+        Assert.Equal("10", rows[9].QuerySelector(".tl-embedded-audio__ordinal")!.TextContent.Trim());
+        Assert.Contains("Track 10", rows[9].QuerySelector(".tl-embedded-audio__title")!.TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -16,7 +16,7 @@ public sealed class MenuMarkupGuardrailTests
         ["Components/Cinematic/PhoneHeroCard.razor"] = "Phone bottom sheet of the hero actions; keeps the sheet behaviour.",
         ["Components/Navigation/TopNavAccountMenu.razor"] = "Account panel with a header and a secure-account card, not a plain action list.",
         ["Components/Shared/MediaRateControl.razor"] = "Two thumb icons that open on hover, not a text menu.",
-        ["Components/Listen/SongActions.razor"] = "Song actions list; moves onto the shared menu with the Songs list work (WP6).",
+        ["Components/Listen/SongActions.razor"] = "The player's song menu, a playback popover (Group E); it uses the shared menu items.",
     };
 
     [Fact]
