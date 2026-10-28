@@ -61,6 +61,7 @@ public sealed class VaultEventPublisherInventoryTests : IDisposable
         ["src/MediaEngine.AI/Infrastructure/ModelDownloadManager.cs"] = "AI model downloads; no media.",
         ["src/MediaEngine.AI/Infrastructure/ModelLifecycleManager.cs"] = "AI model loading; no media.",
         ["src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"] = "Item edits; events carry ids that the audience and the outbox classify.",
+        ["src/MediaEngine.Api/Services/Matching/RetailMatchWriter.cs"] = "The retail-match write shared by the editor action and the edit session; its event carries ids that the audience and the outbox classify.",
         ["src/MediaEngine.Api/Endpoints/MetadataEndpoints.cs"] = "Metadata edits; events carry ids that the audience and the outbox classify.",
         ["src/MediaEngine.Api/Endpoints/ReviewEndpoints.cs"] = "Review actions; Vault items answer not found before any event.",
         ["src/MediaEngine.Api/Program.cs"] = "Registration only.",

@@ -137,6 +137,15 @@ else if (Model is not null)
                 <EditorDetailsPanel Mode="_editing" Session="_flow.Session" />
             }
 
+            @if (context == EditTool.Match)
+            {
+                <EditorMatchPanel Subject="_editing?.Fields.MatchSubject()"
+                                  Session="_flow.Session"
+                                  CanEdit="@(_editing?.CanEdit == true)"
+                                  Mode="_editing"
+                                  OnMatched="RefreshAfterSectionCommitAsync" />
+            }
+
             <EditingSectionSlot Mode="_editing"
                                 InPanel="true"
                                 BuildRequest="BuildSectionRequest"

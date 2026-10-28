@@ -694,6 +694,21 @@ public sealed class SearchStrategyConfig
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>
+    /// What a manual search is looking for (<c>"track"</c>, <c>"album"</c>) that this strategy answers. A manual search that names its
+    /// scope (hint <c>search_scope</c>) runs only the strategies that list that scope or list none; a search that names none runs
+    /// every strategy, as before. Lets a provider keep a track search and an album search apart.
+    /// </summary>
+    [JsonPropertyName("search_scopes")]
+    public List<string>? SearchScopes { get; set; }
+
+    /// <summary>
+    /// True for a strategy that only a manual search uses: it runs only when the search names its scope (hint <c>search_scope</c>), so
+    /// a title-only search added for the editor's Match tool never changes what ingestion identifies.
+    /// </summary>
+    [JsonPropertyName("scope_only")]
+    public bool ScopeOnly { get; set; }
+
     /// <summary>Execution priority — lower numbers tried first.</summary>
     [JsonPropertyName("priority")]
     public int Priority { get; set; }

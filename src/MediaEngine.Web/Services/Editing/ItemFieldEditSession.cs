@@ -205,6 +205,58 @@ public sealed class ItemFieldEditSession
     /// <summary>All presented fields once each: heading, synopsis, then the editor's primary and additional fields.</summary>
     public IReadOnlyList<MediaEditorDetailsFieldPresentation> AllFields() => EnumerateFields().ToList();
 
+    /// <summary>
+    /// What the Match tool starts from: the item, the kind of record it is looked up as and the details it holds now. Null until the
+    /// fields have loaded.
+    /// </summary>
+    public EditorMatchSubject? MatchSubject()
+    {
+        if (!Loaded || _scope is null)
+        {
+            return null;
+        }
+
+        var rows = AllFields();
+        string? Pick(params string[] keys) => keys
+            .Select(key => Find(key))
+            .Select(field => field?.DisplayValue ?? field?.Value)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+        var draft = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            var value = row.RawValue ?? row.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                draft[row.Key] = value;
+            }
+        }
+
+        var overridden = rows
+            .Where(row => row.CanRevert)
+            .Select(row => string.IsNullOrWhiteSpace(row.OverrideKey) ? row.Key : row.OverrideKey)
+            .ToList();
+        var mediaType = ReviewTargetResolver.NormalizeMediaType(_context?.MediaType ?? _mediaType) switch
+        {
+            "Movie" => "Movies",
+            "Audiobook" => "Audiobooks",
+            var other => other,
+        };
+        var group = string.IsNullOrWhiteSpace(_scope.CanonicalTargetGroup) ? _scope.ScopeId : _scope.CanonicalTargetGroup;
+        var title = Pick("title") ?? _scope.DisplayTitle;
+        return new EditorMatchSubject(
+            _scope.FieldEntityId,
+            mediaType,
+            _scope.ScopeId,
+            group,
+            title,
+            Pick("artist", "author", "director", "creator"),
+            Pick("album", "show_name", "series"),
+            Pick("year", "original_release_year", "release_year", "publication_year"),
+            draft,
+            overridden);
+    }
+
     /// <summary>The empty Tags row the editor offers when no tags exist yet and tags can be added.</summary>
     public MediaEditorDetailsFieldPresentation? EmptyTagsField => _presentation.CanAddTags
         ? new MediaEditorDetailsFieldPresentation(

@@ -14,5 +14,11 @@ public static class EditSessionReasons
     public const string NotRunBecauseDataNotSaved = "Not run, because the details were not saved.";
     public const string NotRunBecauseCheckFailed = "Not saved, because another change failed its check.";
 
+    public const string MatchUnreadable = "The match you chose could not be read. Pick it again.";
+    public const string SessionUnavailable = "The editing session is unavailable. Sign in again and retry.";
+    public const string NoDestination = "The album, season or series to move to is missing.";
+    public const string NoFiles = "This item has no files to move.";
+    public const string FilesStayPut = "The files do not need to move.";
+
     public static string DuplicateField(string key) => $"'{key}' is changed twice for the same item.";
 }
