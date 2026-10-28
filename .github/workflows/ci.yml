@@ -161,6 +161,20 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
           restore-keys: nuget-${{ runner.os }}-
 
+      # The public docs live in their own repository. The Storage lane reads a few pages from it (PublicDocsDriftTests)
+      # so they cannot quietly drift from the app; the nightly run catches pages edited there after this change merged.
+      - name: Check out the public docs
+        if: steps.scope.outputs.code == 'true' && matrix.name == 'Storage'
+        uses: actions/checkout@v4
+        with:
+          repository: Tuvima/tuvima-docs
+          path: .tmp/tuvima-docs
+          fetch-depth: 1
+
+      - name: Point the drift checks at the docs
+        if: steps.scope.outputs.code == 'true' && matrix.name == 'Storage'
+        run: echo "TUVIMA_DOCS_DIR=$GITHUB_WORKSPACE/.tmp/tuvima-docs" >> "$GITHUB_ENV"
+
       # Projects in one lane run at the same time; each prints its own result and any failure fails the lane.
       - name: Run tests
         if: steps.scope.outputs.code == 'true'
