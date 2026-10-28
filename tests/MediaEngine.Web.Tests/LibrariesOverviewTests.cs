@@ -405,7 +405,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     public void ALibrarysOwnPageShowsItsTypeCountsStatusActionsAndTheFiveTabsOnlyWhereTheyApply()
     {
         var cut = Open(MoviesId);
-        cut.WaitForElement(".folder-table");
+        cut.WaitForElement(".folder-grid");
 
         var header = Text(cut.Find(".libpage__header"));
         Assert.Contains("Movies", header);
@@ -434,14 +434,14 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Coming in the next step", cut.Markup));
         Assert.Equal("true", cut.FindAll(PageTabs)[1].GetAttribute("aria-selected"));
-        Assert.Empty(cut.FindAll(".folder-table"));
+        Assert.Empty(cut.FindAll(".folder-grid"));
     }
 
     [Fact]
     public void SelectingATabOfALibrarysPageKeepsTheTabInTheAddress()
     {
         var cut = Open(MoviesId);
-        cut.WaitForElement(".folder-table");
+        cut.WaitForElement(".folder-grid");
 
         cut.FindAll(PageTabs)[2].Click();
 
@@ -455,7 +455,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         _configuration.Libraries.Add(new() { Id = OtherVideosId, Name = "Other videos", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], Sources = [new() { Id = "other-1", Path = "E:\\Other" }] });
 
         var cut = Open(OtherVideosId);
-        cut.WaitForElement(".folder-table");
+        cut.WaitForElement(".folder-grid");
 
         Assert.Contains("E:\\Other", cut.Markup);
         Assert.DoesNotContain("E:\\Home", cut.Markup);

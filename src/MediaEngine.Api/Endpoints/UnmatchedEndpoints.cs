@@ -156,7 +156,7 @@ public static class UnmatchedEndpoints
     }
 
     // A library the Libraries screens list: configured, and not a Vault library (the Vault has its own routes and is never in a shared list).
-    private static async Task<bool> IsListedLibraryAsync(
+    internal static async Task<bool> IsListedLibraryAsync(
         string libraryId, IConfigurationLoader configuration, IVaultLibraryRepository vault, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(libraryId)

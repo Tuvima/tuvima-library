@@ -118,7 +118,149 @@ public sealed class ServerFolderBrowserService(
             ParentRelativePath = ParentRelativePath(relative),
             DisplayPath = resolved.Path,
             Directories = directories,
+            Files = request.IncludeFiles ? ListFiles(resolved, request.KindKey, search, ownFolders, hidden) : [],
         };
+    }
+
+    // The files of one folder for Add files (Libraries spec D8). Hidden and system files, links that leave the approved root and
+    // Tuvima's own folders are left out, exactly as they are for folders. A file the kind cannot take is still listed, marked unsupported.
+    private List<ServerFileEntryDto> ListFiles(
+        ResolvedSelection folder, string? kindKey, string? search, IReadOnlyCollection<string> ownFolders, IReadOnlyCollection<string> hidden)
+    {
+        var supported = ExtensionsForKind(kindKey);
+        var files = new List<ServerFileEntryDto>();
+        try
+        {
+            foreach (var path in Directory.EnumerateFiles(folder.Path))
+            {
+                var info = new FileInfo(path);
+                if (info.Name.StartsWith('.')
+                    || (info.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0
+                    || (!string.IsNullOrWhiteSpace(search) && !info.Name.Contains(search, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                var physical = ResolveFilePhysicalPath(info, folder.RootPath);
+                if (physical is null || IsInsideOwnFolder(ownFolders, physical) || IsHidden(hidden, physical))
+                {
+                    continue;
+                }
+
+                files.Add(new ServerFileEntryDto
+                {
+                    Name = info.Name,
+                    RelativePath = Path.GetRelativePath(folder.RootPath, physical),
+                    Path = physical,
+                    SizeBytes = info.Exists ? info.Length : 0,
+                    ModifiedAt = info.LastWriteTimeUtc,
+                    Supported = supported is null || supported.Contains(info.Extension),
+                });
+            }
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
+        {
+            throw new ServerFolderAccessException("Library cannot read this folder from the server.", exception);
+        }
+
+        return files.OrderBy(file => file.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    // The extensions the kind's format takes; null when no kind was asked about (every file then reads as supported).
+    private IReadOnlySet<string>? ExtensionsForKind(string? kindKey)
+    {
+        if (string.IsNullOrWhiteSpace(kindKey))
+        {
+            return null;
+        }
+
+        var kind = (kindSource?.GetKinds() ?? configuration.LoadLibraryKinds().Kinds)
+            .FirstOrDefault(candidate => string.Equals(candidate.Key, kindKey.Trim(), StringComparison.OrdinalIgnoreCase));
+        return kind is null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : SupportedFileCounter.ExtensionsFor(_extensions, kind.Format);
+    }
+
+    // A file's real location, or null when it is a link that leaves the approved root (links are never followed out of it).
+    private static string? ResolveFilePhysicalPath(FileInfo file, string rootPath)
+    {
+        if (file.LinkTarget is null)
+        {
+            return Path.GetFullPath(file.FullName);
+        }
+
+        var target = file.ResolveLinkTarget(true);
+        if (target is null)
+        {
+            return null;
+        }
+
+        var full = Path.GetFullPath(target.FullName);
+        return IsWithin(rootPath, full) ? full : null;
+    }
+
+    /// <summary>
+    /// Resolves a file the person picked for Add files (Libraries spec D8): the path must be absolute, sit inside an administrator-approved
+    /// storage location once every link is followed, exist as a file, and not be one of Library's own files or a hidden Vault file. A link
+    /// that leaves the approved location is refused. <paramref name="refusal"/> says why, in plain words, when this answers false.
+    /// </summary>
+    public bool TryResolveApprovedFile(string? path, IReadOnlyCollection<string> hiddenRoots, out string physicalPath, out string refusal)
+    {
+        physicalPath = string.Empty;
+        refusal = string.Empty;
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path.Trim()))
+        {
+            refusal = "Choose a file by its full path on the Library server.";
+            return false;
+        }
+
+        try
+        {
+            var snapshot = configuration.LoadLibraries();
+            var full = Path.GetFullPath(path.Trim());
+            var directory = Path.GetDirectoryName(full);
+            if (string.IsNullOrEmpty(directory))
+            {
+                refusal = MissingTypedFolderMessage;
+                return false;
+            }
+
+            var location = FindLocationForManualPath(snapshot, directory);
+            var resolvedDirectory = ResolveManualSelection(location, directory);
+            var info = new FileInfo(Path.Combine(resolvedDirectory.Path, Path.GetFileName(full)));
+            if (!info.Exists)
+            {
+                refusal = "That file is no longer there.";
+                return false;
+            }
+
+            var physical = ResolveFilePhysicalPath(info, resolvedDirectory.RootPath);
+            if (physical is null)
+            {
+                refusal = "This file is a link that leads outside the approved storage location.";
+                return false;
+            }
+
+            var ownFolders = OwnFolderPaths();
+            ownFolders.AddRange(OwnLocationRoots(snapshot));
+            if (IsInsideOwnFolder(ownFolders, physical) || IsHidden(NormalizeHiddenRoots(hiddenRoots), physical))
+            {
+                refusal = MissingFolderMessage;
+                return false;
+            }
+
+            physicalPath = physical;
+            return true;
+        }
+        catch (ServerFolderAccessException exception)
+        {
+            refusal = exception.Message;
+            return false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            logger.LogDebug(exception, "Add files could not read {FilePath}", path);
+            refusal = "Library cannot read this file from the server.";
+            return false;
+        }
     }
 
     private static readonly IReadOnlyCollection<string> NoHiddenRoots = [];

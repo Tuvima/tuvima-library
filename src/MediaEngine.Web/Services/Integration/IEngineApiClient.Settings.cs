@@ -224,6 +224,15 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/unmatched/libraries/{libraryId}/retry — Retry now for one library's Unmatched files (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default);
 
+    /// <summary>POST /library/libraries/{libraryId}/scan — scans this library's own folders only (administrators); null when the Engine refused (the reason is in <see cref="LastError"/>).</summary>
+    Task<MediaEngine.Contracts.Ingestion.RescanAcceptedResponse?> ScanLibraryAsync(string libraryId, CancellationToken ct = default);
+
+    /// <summary>GET /library/libraries/{libraryId}/folder-titles — how many titles the catalogue holds for each folder of the library, by source id; null when it could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.LibraryFolderTitlesDto?> GetLibraryFolderTitlesAsync(string libraryId, CancellationToken ct = default);
+
+    /// <summary>POST /library/libraries/{libraryId}/add-files — copies server files into the library's import destination (administrators); null when refused before anything was copied (the plain reason is in <see cref="LastError"/>).</summary>
+    Task<MediaEngine.Contracts.Library.LibraryAddFilesResultDto?> AddFilesToLibraryAsync(string libraryId, MediaEngine.Contracts.Library.LibraryAddFilesRequest request, CancellationToken ct = default);
+
     /// <summary>POST /library/unmatched/libraries/{libraryId}/keep — Keep all Unmatched as they are for one library (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> KeepAllUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default);
 

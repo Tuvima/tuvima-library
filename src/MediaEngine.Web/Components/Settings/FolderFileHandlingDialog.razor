@@ -1,0 +1,65 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+
+@* Override file handling for one folder (Libraries spec D7): the duplicate rule and whether tags are written into this folder's files.
+   Each starts on "Use library setting"; leaving both there removes the override. The dialog only answers; the host saves it. *@
+<AppDialogShell Title="Override file handling" Subtitle="@Subtitle" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <AppSelect Label="Duplicates" Value="@_duplicates" ValueChanged="@((string? value) => _duplicates = value ?? UseLibrary)" Options="DuplicateOptions" />
+        <AppSelect Label="Write tags into files" Value="@_writeTags" ValueChanged="@((string? value) => _writeTags = value ?? UseLibrary)" Options="WriteTagOptions" />
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="Save" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Save" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    /// <summary>The choice that follows the library.</summary>
+    public const string UseLibrary = "library";
+
+    private static readonly IReadOnlyList<AppSelectOption> DuplicateOptions =
+    [
+        new(UseLibrary, "Use library setting"),
+        new("keep_one", "Keep one copy"),
+        new("keep_both", "Keep both"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> WriteTagOptions =
+    [
+        new(UseLibrary, "Use library setting"),
+        new("yes", "Write tags"),
+        new("no", "Leave files untouched"),
+    ];
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    /// <summary>The folder's current override; null when it follows its library.</summary>
+    [Parameter] public LibrarySourceFileHandlingOverrideDto? Current { get; set; }
+    /// <summary>The folder's name, shown under the title.</summary>
+    [Parameter] public string? FolderName { get; set; }
+
+    private string _duplicates = UseLibrary;
+    private string _writeTags = UseLibrary;
+
+    private string? Subtitle => string.IsNullOrWhiteSpace(FolderName) ? null : $"Only for {FolderName}. Everything left on the library setting follows the library.";
+
+    protected override void OnInitialized()
+    {
+        _duplicates = Current?.DuplicatePolicy ?? UseLibrary;
+        _writeTags = Current?.WriteTags is { } write ? (write ? "yes" : "no") : UseLibrary;
+    }
+
+    /// <summary>The override the two choices make, or null when both follow the library. Shared with tests so the rule has one owner.</summary>
+    public static LibrarySourceFileHandlingOverrideDto? Build(string duplicates, string writeTags)
+    {
+        var policy = duplicates == UseLibrary ? null : duplicates;
+        bool? tags = writeTags switch { "yes" => true, "no" => false, _ => null };
+        return policy is null && tags is null ? null : new LibrarySourceFileHandlingOverrideDto { DuplicatePolicy = policy, WriteTags = tags };
+    }
+
+    private void Save() => Dialog.Close(AppDialogResult.Ok(new Answer(Build(_duplicates, _writeTags))));
+
+    /// <summary>The dialog's answer; the override is null when the folder goes back to following its library.</summary>
+    public sealed record Answer(LibrarySourceFileHandlingOverrideDto? Override);
+}
