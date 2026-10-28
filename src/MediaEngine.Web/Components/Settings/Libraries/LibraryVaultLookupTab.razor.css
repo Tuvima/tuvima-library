@@ -1,0 +1,3 @@
+.vault-lookup { display: flex; flex-direction: column; gap: var(--tl-space-3); min-width: 0; max-width: 720px; }
+.vault-lookup__heading { margin: 0; font-size: var(--tl-font-size-md); }
+.vault-lookup__note { margin: 0; color: var(--tl-text-muted); }

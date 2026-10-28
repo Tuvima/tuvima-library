@@ -54,13 +54,32 @@ public sealed class VaultFolderAttachmentService(
     public async Task<VaultFolderAttachmentOutcome> AttachAsync(
         Guid adminProfileId, string libraryId, string? folderPath, string? adminPin, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(libraryId) || await libraries.GetAsync(libraryId, ct).ConfigureAwait(false) is not { } vaultLibrary)
+        if (string.IsNullOrWhiteSpace(libraryId) || await libraries.GetAsync(libraryId, ct).ConfigureAwait(false) is null)
         {
             return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.LibraryNotFound);
         }
 
         // The PIN comes before anything is learned about the folder, so a wrong PIN cannot be used to probe the server's disks.
         await administration.RequireAdminPinAsync(adminProfileId, adminPin, ct).ConfigureAwait(false);
+        return await AttachCoreAsync(libraryId, folderPath, newEntry: null, preCheck: null, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Adds a folder to a Vault library for a signed-in server administrator, with no PIN (Library pages D10: creating a Vault library or
+    /// folder needs only the administrator; a PIN guards viewing and the Read-only override). The caller has already checked that the request
+    /// is an administrator's. The same folder rules apply as for <see cref="AttachAsync"/>.
+    /// </summary>
+    internal Task<VaultFolderAttachmentOutcome> AttachAsAdministratorAsync(
+        string libraryId, string? folderPath, LibraryFolderConfig? newEntry, Func<LibrariesConfiguration, string?>? preCheck, CancellationToken ct) =>
+        AttachCoreAsync(libraryId, folderPath, newEntry, preCheck, ct);
+
+    private async Task<VaultFolderAttachmentOutcome> AttachCoreAsync(
+        string libraryId, string? folderPath, LibraryFolderConfig? newEntry, Func<LibrariesConfiguration, string?>? preCheck, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(libraryId) || await libraries.GetAsync(libraryId, ct).ConfigureAwait(false) is not { } vaultLibrary)
+        {
+            return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.LibraryNotFound);
+        }
 
         if (string.IsNullOrWhiteSpace(folderPath))
         {
@@ -71,6 +90,11 @@ public sealed class VaultFolderAttachmentService(
         try
         {
             var settings = configuration.LoadLibraries();
+            if (preCheck?.Invoke(settings) is { } refusal)
+            {
+                return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.NotAllowed, refusal);
+            }
+
             var check = CheckFolder(folderPath, settings);
             if (check.Outcome is not null)
             {
@@ -86,7 +110,7 @@ public sealed class VaultFolderAttachmentService(
             var library = settings.Libraries.FirstOrDefault(entry => string.Equals(entry.Id, libraryId, StringComparison.OrdinalIgnoreCase));
             if (library is null)
             {
-                library = NewVaultEntry(libraryId);
+                library = newEntry ?? NewVaultEntry(libraryId);
                 settings.Libraries.Add(library);
             }
 

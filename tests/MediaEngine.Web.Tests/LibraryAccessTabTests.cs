@@ -1,9 +1,12 @@
 using System.Text.RegularExpressions;
 using Bunit;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.Vault;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Vault;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,9 +34,12 @@ public sealed class LibraryAccessTabTests : AsyncBunitContext
         Services.AddLocalization();
         Services.AddNativeUiServices();
         _access = Access("standard");
+        Services.AddScoped<DashboardSessionAccessor>();
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler("get_LastError", _ => null);
+            stub.SetHandler(nameof(IEngineApiClient.GetNsfwStatusAsync), _ => Task.FromResult(
+                VaultCall<NsfwStatusDto>.Ok(new NsfwStatusDto { Mode = "allowed", Unlocked = true, HasPin = true, IdleLockMinutes = 60 })));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryAccessAsync), _ => Task.FromResult(_access));
             stub.SetHandler(nameof(IEngineApiClient.MutateLibraryAsync), args =>
             {
@@ -47,6 +53,18 @@ public sealed class LibraryAccessTabTests : AsyncBunitContext
                 return Task.FromResult<LibraryAccessGrantsDto?>(Access("selected", [.. ids]));
             });
         }));
+    }
+
+    // An administrator signs in with Vault mode on unless told otherwise; the Vault choice is drawn only then.
+    private void SignInAsAdministrator(bool vaultMode = true)
+    {
+        var profile = Guid.NewGuid();
+        Services.GetRequiredService<DashboardSessionAccessor>().Set("token", profile, profile, Guid.NewGuid(),
+            new DashboardAuthorityResponse(Guid.NewGuid(), profile, true, true, 1, 1, true, true, null, 1, [], ["settings.administration"], ["household.manage"]));
+        if (vaultMode)
+        {
+            Services.GetRequiredService<MediaEngine.Web.Services.Vault.NsfwModeState>().RefreshAsync(profile, isKids: false).GetAwaiter().GetResult();
+        }
     }
 
     private static LibraryAccessGrantsDto Access(string access, params Guid[] chosen) => new(
@@ -98,18 +116,48 @@ public sealed class LibraryAccessTabTests : AsyncBunitContext
         cut.FindAll("button").Single(button => Text(button) == label);
 
     [Fact]
-    public void AStandardLibraryShowsThreeChoices_StandardSelected_SelectedAndVaultOffWithItsNote()
+    public void AnAdministratorSeesThreeChoices_StandardSelected_SelectedAndVaultChosenOnlyWhenALibraryIsMade()
     {
+        SignInAsAdministrator();
         var cut = Open();
 
         Assert.Equal(["Standard", "Selected profiles", "Vault-protected"], Choices(cut).Select(choice => choice.QuerySelector("strong")!.TextContent).ToArray());
         Assert.True(Choice(cut, "Standard").ClassList.Contains("is-selected"));
         Assert.False(Choice(cut, "Selected profiles").HasAttribute("disabled"));
         Assert.True(Choice(cut, "Vault-protected").HasAttribute("disabled"));
-        Assert.Contains("Available after the Vault update", Text(Choice(cut, "Vault-protected")), StringComparison.Ordinal);
+        Assert.Contains("Chosen when a library is made, and can't be changed later.", Text(Choice(cut, "Vault-protected")), StringComparison.Ordinal);
         Assert.NotEmpty(cut.FindAll(".library-access__heading .app-info-tip"));
         Assert.Empty(cut.FindAll("[data-profile]"));
         Assert.Empty(cut.FindAll(".app-save-bar"));
+    }
+
+    [Fact]
+    public void AnAdministratorWhoseVaultModeIsOffSeesTwoChoicesAndNoVaultWordAnywhereOnTheTab()
+    {
+        SignInAsAdministrator(vaultMode: false);
+        var cut = Open();
+
+        Assert.Equal(["Standard", "Selected profiles"], Choices(cut).Select(choice => choice.QuerySelector("strong")!.TextContent).ToArray());
+        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AVaultProtectedLibraryRendersNothingForAnAdministratorWhoseVaultModeIsOff()
+    {
+        SignInAsAdministrator(vaultMode: false);
+        var cut = Render<LibraryAccessTab>(parameters => parameters.Add(x => x.Library, Library("vault")));
+
+        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(cut.FindAll("button"));
+    }
+
+    [Fact]
+    public void ANonAdministratorSeesTwoChoicesAndNoVaultWordAnywhereOnTheTab()
+    {
+        var cut = Open();
+
+        Assert.Equal(["Standard", "Selected profiles"], Choices(cut).Select(choice => choice.QuerySelector("strong")!.TextContent).ToArray());
+        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -240,14 +288,25 @@ public sealed class LibraryAccessTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AVaultProtectedLibraryIsShownReadOnlyAndAsksTheEngineForNothing()
+    public void AVaultProtectedLibraryIsShownReadOnlyToAnAdministratorAndAsksTheEngineForNothing()
     {
+        SignInAsAdministrator();
         var cut = Render<LibraryAccessTab>(parameters => parameters.Add(x => x.Library, Library("vault")));
 
         Assert.True(Choice(cut, "Vault-protected").ClassList.Contains("is-selected"));
         Assert.All(Choices(cut), choice => Assert.True(choice.HasAttribute("disabled")));
         Assert.Contains("can't be switched on or off later", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll(".app-save-bar"));
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetLibraryAccessAsync), ((EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>()).Calls);
+    }
+
+    [Fact]
+    public void AVaultProtectedLibraryRendersNothingForSomeoneWhoIsNotAnAdministrator()
+    {
+        var cut = Render<LibraryAccessTab>(parameters => parameters.Add(x => x.Library, Library("vault")));
+
+        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(cut.FindAll("button"));
         Assert.DoesNotContain(nameof(IEngineApiClient.GetLibraryAccessAsync), ((EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>()).Calls);
     }
 

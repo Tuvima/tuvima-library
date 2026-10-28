@@ -255,7 +255,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
             var result = service.Validate(new MediaEngine.Contracts.Settings.ValidateServerFolderRequest { ManualPath = folder });
 
-            var issue = Assert.Single(result.Issues, candidate => candidate.Code == "already_configured");
+            var issue = Assert.Single(result.Issues, candidate => candidate.Code == "folder_not_allowed");
             Assert.DoesNotContain("Vault", issue.Message, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Vault", issue.LibraryName ?? string.Empty, StringComparison.OrdinalIgnoreCase);
         }

@@ -11,20 +11,23 @@ namespace MediaEngine.Api.Services.Vault;
 /// </summary>
 public static class VaultLibrarySettings
 {
+    /// <summary>
+    /// Whether an entry is a Vault library: it has a row in the Vault's own tables, or its access says so. Either one is enough, so an entry that
+    /// says vault without a row (a hand-edited file, a half-finished save) is still kept out of every ordinary list.
+    /// </summary>
+    public static bool IsVault(LibraryFolderConfig library, IReadOnlySet<string> vaultIds) =>
+        vaultIds.Contains(library.Id)
+        || string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>A copy of <paramref name="settings"/> without the Vault libraries. The libraries inside are the same objects.</summary>
     public static LibrariesConfiguration WithoutVault(LibrariesConfiguration settings, IReadOnlySet<string> vaultIds)
     {
-        if (vaultIds.Count == 0)
-        {
-            return settings;
-        }
-
         return new LibrariesConfiguration
         {
             SchemaVersion = settings.SchemaVersion,
             StorageLocations = settings.StorageLocations,
             ViewStorage = settings.ViewStorage,
-            Libraries = settings.Libraries.Where(library => !vaultIds.Contains(library.Id)).ToList(),
+            Libraries = settings.Libraries.Where(library => !IsVault(library, vaultIds)).ToList(),
             PersonalLibraryPolicy = settings.PersonalLibraryPolicy,
             FileHandling = settings.FileHandling,
             UnmappedProperties = settings.UnmappedProperties,
@@ -58,12 +61,7 @@ public static class VaultLibrarySettings
     /// </summary>
     public static void KeepVault(LibrariesConfiguration current, LibrariesConfiguration proposed, IReadOnlySet<string> vaultIds)
     {
-        if (vaultIds.Count == 0)
-        {
-            return;
-        }
-
-        proposed.Libraries.RemoveAll(library => vaultIds.Contains(library.Id));
-        proposed.Libraries.AddRange(current.Libraries.Where(library => vaultIds.Contains(library.Id)));
+        proposed.Libraries.RemoveAll(library => IsVault(library, vaultIds));
+        proposed.Libraries.AddRange(current.Libraries.Where(library => IsVault(library, vaultIds)));
     }
 }

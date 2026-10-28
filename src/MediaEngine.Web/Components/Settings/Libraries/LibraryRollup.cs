@@ -13,9 +13,9 @@ namespace MediaEngine.Web.Components.Settings;
 /// </summary>
 public static class LibraryRollup
 {
-    /// <summary>The one library of a kind: the catalogued library that names the kind.</summary>
+    /// <summary>The one library of a kind: the catalogued library that names the kind. A Vault-protected library sits beside it and is never the one library of the kind.</summary>
     public static LibraryFolderDto? PrimaryLibraryFor(LibrariesConfigurationDto? configuration, LibraryTypeOption type) => configuration?.Libraries
-        .FirstOrDefault(library => IsCatalogued(library) && string.Equals(library.KindKey, type.Key, StringComparison.OrdinalIgnoreCase));
+        .FirstOrDefault(library => IsCatalogued(library) && !LibraryLookupRules.IsVaultLibrary(library) && string.Equals(library.KindKey, type.Key, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Every library a kind holds: for a kind that allows several named libraries (the plain kinds) each one, in the saved order; for any
@@ -33,7 +33,7 @@ public static class LibraryRollup
             return PrimaryLibraryFor(configuration, type) is { } only ? [only] : [];
         }
 
-        return [.. configuration.Libraries.Where(library => IsCatalogued(library) && string.Equals(library.KindKey, type.Key, StringComparison.OrdinalIgnoreCase))];
+        return [.. configuration.Libraries.Where(library => IsCatalogued(library) && !LibraryLookupRules.IsVaultLibrary(library) && string.Equals(library.KindKey, type.Key, StringComparison.OrdinalIgnoreCase))];
     }
 
     public static bool IsCatalogued(LibraryFolderDto library) => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase);
@@ -45,7 +45,7 @@ public static class LibraryRollup
     public static IReadOnlyList<LibraryTypeOption> OtherLibraries(LibraryKindCatalog kinds, LibrariesConfigurationDto? configuration) => configuration is null
         ? []
         : configuration.Libraries
-            .Where(library => IsCatalogued(library) && !kinds.Types.Any(type => LibrariesOf(configuration, type).Any(held => ReferenceEquals(held, library))))
+            .Where(library => IsCatalogued(library) && !LibraryLookupRules.IsVaultLibrary(library) && !kinds.Types.Any(type => LibrariesOf(configuration, type).Any(held => ReferenceEquals(held, library))))
             .Select(library => new LibraryTypeOption(
                 OtherKey(library.Id),
                 string.IsNullOrWhiteSpace(library.Name) ? "Other library" : library.Name,

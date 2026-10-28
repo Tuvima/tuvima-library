@@ -82,6 +82,22 @@
       "max_libraries": 5
     },
     {
+      "key": "adult_content",
+      "area": "watch",
+      "label": "Adult content",
+      "icon": "Slideshow",
+      "format": "Videos",
+      "lookup": "none",
+      "grouping": "video_series_folder",
+      "naming_template": "Videos",
+      "misfit": "keep",
+      "default_handling": "read_only",
+      "tooltip": "Adult videos and pictures. Nothing is looked up by default.",
+      "order": 5,
+      "built_in": true,
+      "available": true
+    },
+    {
       "key": "music",
       "area": "listen",
       "label": "Music",

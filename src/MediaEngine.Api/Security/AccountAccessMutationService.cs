@@ -26,6 +26,7 @@ public sealed class AccountAccessMutationService(
     TimeProvider clock,
     IUsableAdministratorService usableAdministrators,
     AuthenticationPolicyMutationGate mutationGate,
+    IVaultLibraryRepository vaultLibraries,
     ILogger<AccountAccessMutationService>? logger = null,
     IHouseholdRepository? households = null) : IAccountAccessMutationService
 {
@@ -1289,8 +1290,13 @@ public sealed class AccountAccessMutationService(
     // left the configuration is dropped quietly (so it can't block a save); a new unknown id from a client is still refused.
     private async Task<IReadOnlySet<Guid>> ValidateLibrariesAsync(IReadOnlySet<Guid> libraryIds, Guid? profileId, CancellationToken ct)
     {
+        // A Vault library is never an account grant and never in a hidden-libraries list (Videos D55b, Vault sections leak 9, Library pages D10):
+        // it is refused here exactly like an id that names no library, whoever asks.
+        var vaultIds = await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false);
         var known = configuration.LoadLibraries().Libraries
-            .Where(library => library.Kind == LibraryKinds.Catalogued)
+            .Where(library => library.Kind == LibraryKinds.Catalogued
+                && !string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
+                && !vaultIds.Contains(library.Id))
             .Select(library => Guid.TryParse(library.Id, out var id) ? id : Guid.Empty)
             .Where(id => id != Guid.Empty)
             .ToHashSet();
