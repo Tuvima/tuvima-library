@@ -247,6 +247,7 @@ public sealed partial class EngineApiClient
         string entityType, Guid entityId, string role, Stream stream, string fileName,
         string? entityLabel = null, string? mediaType = null, string? year = null,
         string? sourceAssetType = null,
+        bool preferred = true,
         CancellationToken ct = default)
     {
         using var content = new MultipartFormDataContent();
@@ -254,6 +255,11 @@ public sealed partial class EngineApiClient
         fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(GetImageContentType(fileName));
         content.Add(fileContent, "file", fileName);
         content.Add(new StringContent(role), "role");
+        if (!preferred)
+        {
+            // Stored unchosen: a staged edit session chooses it on Save changes.
+            content.Add(new StringContent("false"), "preferred");
+        }
         if (!string.IsNullOrWhiteSpace(entityLabel))
         {
             content.Add(new StringContent(entityLabel), "entityLabel");

@@ -3001,6 +3001,8 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.UniversalSearchSecti
   TotalCount: System.Int32 | nullability=not-null | accessors=get,init
   SeeAllRoute: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionArtworkTargets
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChange
   Id: System.String | nullability=not-null | accessors=get,init
   Kind: System.String | nullability=not-null | accessors=get,init

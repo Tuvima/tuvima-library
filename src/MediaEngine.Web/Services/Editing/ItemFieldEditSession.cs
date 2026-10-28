@@ -51,6 +51,21 @@ public sealed class ItemFieldEditSession
 
     public bool CanEditArtwork => _scope?.CanEditArtwork == true;
 
+    /// <summary>The item that owns the artwork of the active scope (a season's own poster belongs to the season, not the show).</summary>
+    public Guid ArtworkEntityId => _scope?.ArtworkOwnerEntityId ?? _scope?.FieldEntityId ?? Guid.Empty;
+
+    /// <summary>What kind of item owns the artwork (Work, Person, ...).</summary>
+    public string ArtworkEntityKind => _scope?.ArtworkOwnerEntityKind ?? _scope?.FieldEntityKind ?? "Work";
+
+    /// <summary>The id of the active scope (movie, series, season, episode, album...), which names the kind of item being edited.</summary>
+    public string ScopeId => _scope?.ScopeId ?? string.Empty;
+
+    /// <summary>The item the editor was opened on; the provider artwork gallery is asked about this one.</summary>
+    public Guid EditorEntityId { get; private set; }
+
+    /// <summary>The media type of the item being edited (Movies, TV, Books...).</summary>
+    public string MediaType => _context?.MediaType ?? _mediaType ?? string.Empty;
+
     /// <summary>Whether Match and Identity applies to the active scope (the editor's own rule), so the banner only offers it where it works.</summary>
     public bool CanMatch => MediaEditorMatchRule.CanMatch(_context?.MediaType ?? _mediaType, _scope?.ScopeId);
 
@@ -105,6 +120,7 @@ public sealed class ItemFieldEditSession
         {
             _mediaType = mediaType;
             _profileId = profileId;
+            EditorEntityId = editorEntityId;
             _context = await _api.GetMediaEditorContextAsync(editorEntityId, ct);
             if (_context is null)
             {
