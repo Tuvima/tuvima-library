@@ -1,0 +1,185 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Ui
+@inject NavigationManager Navigation
+@inject UIOrchestratorService Orchestrator
+@inject IAppToastService Toast
+@inject IAppDialogService DialogService
+
+@* One library's page (Library pages D7, D17, D18, D19): its content type, access, counts and status, the header actions, and the tab
+   strip (Folders, Access, File handling, Activity, plus Lookup for a kind with lookup settings). The Settings frame above carries the
+   breadcrumb Libraries > area > name and the library's name as the title. Folders embeds the existing folders panel for this one
+   library; the other tabs are filled in by the next steps. The selected tab lives in the address (?tab=). *@
+@{
+    var row = Row;
+}
+<LibraryUploadZone Kinds="@Kinds" Configuration="@Configuration" Type="@row.Type" ReadOnly="@ReadOnly" FolderAdded="FolderAddedAsync">
+    <div class="libpage" data-library="@row.Key">
+        @if (ReadOnly)
+        {
+            <p class="libpage__note">Use a desktop or tablet to change folders.</p>
+        }
+
+        <div class="libpage__header">
+            <div class="libpage__facts">
+                <span class="libpage__type"><AppMaterialIcon Icon="@row.Type.Icon" />@row.Type.Label</span>
+                @if (row.Access == LibraryListing.Vault)
+                {
+                    <AppChip Icon="@AppMaterialIcons.Outlined.Lock" Text="@LibraryListing.AccessText(row.Access)" />
+                }
+                else
+                {
+                    <span class="libpage__access">@LibraryListing.AccessText(row.Access)</span>
+                }
+                <span class="libpage__counts">@LibraryRollup.CountsText(row.Folders, row.Titles)</span>
+                <LibraryStatusCell Row="@row" />
+            </div>
+            @if (!ReadOnly)
+            {
+                <div class="libpage__actions">
+                    <AppButton Label="Scan now"
+                               StartIcon="@AppMaterialIcons.Outlined.Sync"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Loading="@_scanning"
+                               Disabled="@(_scanning || row.Folders == 0)"
+                               OnClick="ScanNowAsync" />
+                    <AppButton Label="Add folder"
+                               StartIcon="@AppMaterialIcons.Outlined.Add"
+                               ButtonStyle="@(HighlightAddFolder ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
+                               Tone="@(HighlightAddFolder ? AppUiTone.Primary : AppUiTone.Neutral)"
+                               data-highlighted="@(HighlightAddFolder ? "true" : null)"
+                               OnClick="AddFolderAsync" />
+                    <LibraryAddFilesButton />
+                </div>
+            }
+        </div>
+
+        <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="Library sections">
+            @foreach (var tab in Tabs)
+            {
+                <AppTabPanel Text="@tab.Label">
+                    @if (tab.Slug == FoldersTab)
+                    {
+                        <LibraryFoldersPanel @key="@_panelVersion"
+                                             ShowTypeNav="false"
+                                             TypeKey="@row.Type.Key"
+                                             LibraryId="@row.Key"
+                                             Kinds="@Kinds"
+                                             HostOwnsActions="true"
+                                             ReadOnly="@ReadOnly"
+                                             Changed="ChangedAsync" />
+                    }
+                    else
+                    {
+                        <AppPageState Kind="AppPageStateKind.Empty"
+                                      Icon="@AppMaterialIcons.Outlined.Info"
+                                      Title="Coming in the next step"
+                                      Message="@($"The {tab.Label} tab for this library is being built.")" />
+                    }
+                </AppTabPanel>
+            }
+        </AppTabs>
+    </div>
+</LibraryUploadZone>
+
+@code {
+    public const string FoldersTab = "folders";
+    public const string AccessTab = "access";
+    public const string FileHandlingTab = "file-handling";
+    public const string ActivityTab = "activity";
+    public const string LookupTab = "lookup";
+
+    /// <summary>The kinds with lookup settings of their own (the Lookup tab); the Vault's per-section switch joins them with the Vault work.</summary>
+    private static readonly string[] KindsWithLookupSettings = ["youtube"];
+
+    [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
+    [Parameter] public LibraryOverviewDto? Overview { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
+    /// <summary>Phones: counts and status only, no control that changes anything.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>The selected tab (folders, access, file-handling, activity, lookup); the first when empty or unknown.</summary>
+    [Parameter] public string? Tab { get; set; }
+    /// <summary>Points at Add folder (a jump from the Import folder's "Choose" arrives this way).</summary>
+    [Parameter] public bool HighlightAddFolder { get; set; }
+    /// <summary>Raised after a folder was added or changed, so the page can read the library list and counts again.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private bool _scanning;
+    private int _panelVersion;
+
+    private LibraryListRow Row => LibraryListing.RowFor(Kinds, Library, Configuration, Overview, PathIssues);
+
+    private sealed record TabDef(string Slug, string Label);
+
+    private IReadOnlyList<TabDef> Tabs
+    {
+        get
+        {
+            var tabs = new List<TabDef>
+            {
+                new(FoldersTab, "Folders"),
+                new(AccessTab, "Access"),
+                new(FileHandlingTab, "File handling"),
+                new(ActivityTab, "Activity"),
+            };
+            if (KindsWithLookupSettings.Contains(Library.KindKey, StringComparer.OrdinalIgnoreCase))
+            {
+                tabs.Add(new(LookupTab, "Lookup"));
+            }
+
+            return tabs;
+        }
+    }
+
+    private int ActiveIndex => Math.Max(Tabs.ToList().FindIndex(tab => string.Equals(tab.Slug, Tab?.Trim(), StringComparison.OrdinalIgnoreCase)), 0);
+
+    private void SelectTab(int index)
+    {
+        var tabs = Tabs;
+        if (index < 0 || index >= tabs.Count || index == ActiveIndex)
+        {
+            return;
+        }
+
+        Navigation.NavigateTo($"{LibraryListing.AddressOf(Library.Id)}?tab={tabs[index].Slug}");
+    }
+
+    // Scan now checks the watched folders for changes (the Engine has no scan of one library yet; a folder's own scan switch comes with the Folders tab).
+    private async Task ScanNowAsync()
+    {
+        _scanning = true;
+        try
+        {
+            var started = await Orchestrator.TriggerRescanAsync();
+            Toast.Add(started ? "Checking your folders for changes." : "The scan could not start. Try again in a moment.", started ? AppSeverity.Success : AppSeverity.Error);
+        }
+        finally
+        {
+            _scanning = false;
+        }
+    }
+
+    // The old Add folder flow, started on this library's kind; the Add folder step is rebuilt in the next steps.
+    private async Task AddFolderAsync()
+    {
+        var parameters = new AppDialogParameters<AddFolderWizard>
+        {
+            { component => component.StartTypeKey, Library.KindKey },
+            { component => component.Configuration, Configuration },
+            { component => component.Kinds, Kinds },
+            { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAddedAsync()) },
+        };
+        await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+    }
+
+    private async Task FolderAddedAsync()
+    {
+        _panelVersion++;
+        await Changed.InvokeAsync();
+    }
+
+    private Task ChangedAsync() => Changed.InvokeAsync();
+}

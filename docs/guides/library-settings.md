@@ -13,11 +13,10 @@ Use Settings in Tuvima Library to add folders and check background work. This fi
 
 ## Find your way around Libraries
 
-Libraries is **Settings > Libraries**, in three levels. Each has its own address, so Back and a reload keep your place, and the page title above it shows where you are.
+Libraries is **Settings > Libraries**, in two levels. Each has its own address, so Back and a reload keep your place, and the page title and breadcrumb above it show where you are.
 
-1. **The front door** has a card for each area you can set up: **Watch**, **Listen**, **Read** and **View**. A card shows the kinds inside it, a count line ("3 folders · 1,284 titles", or "Nothing added yet") and a health icon: a green tick, or an amber warning with the folders at fault in a tooltip. Under the cards is a row for the [Import folder](#import-folder) (it reads "Set" or "Not set"). A thin **Vault** strip appears at the end only while Vault mode is on for you and your profile may use it; otherwise there is no card and no hint. A one-line icon guide sits at the bottom.
-2. **A group page** (for example Watch) lists the kinds in that area. Each row has the library's name, a **Metadata** column, its folder and title counts, and its status. The Metadata column shows a small icon for each online source the kind looks details up from (hover or focus an icon to see what it supplies), or a muted "files as-is" icon when nothing is looked up. An amber count means files could not be matched yet, and a short **Paused** note means a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
-3. **A type page** (for example Movies) is the folder table for that kind, with **Add Folder** and the other actions below.
+1. **The overview** has four tabs, **Watch**, **Listen**, **Read** and **View**. The tabs filter the list: pick one and the table under it shows only that area's libraries, one row per library. A row has the library's name with its icon, its content type, who can see it (**Standard** or **Selected profiles**), its folder and title counts ("3 folders · 1,284 titles", or "Nothing added yet") and a status: **Healthy**, **Needs review** (with the number of files; it opens Needs Review), **Empty**, **Folder offline** (the folders at fault in a tooltip) or **Scanning**. The whole row opens the library, and a chevron and a highlight on hover show that it does. Search and a status filter sit above the table, and an area with nothing in it says "No Watch libraries yet" with one **Add library** button. A Vault-protected library appears, with a lock, only while Vault mode is on for you and your profile may use it; otherwise there is no row and no hint. Under the table is a line for the [Import folder](#import-folder) (it reads "set" or "not set").
+2. **A library page** (for example Movies) shows the library's content type, who can see it, its counts and status, and **Scan now**, **Add folder** and **Add files**. Its tabs are **Folders** (the table of folders), **Access**, **File handling** and **Activity**, plus **Lookup** for a kind that has lookup settings (YouTube). Access, File handling, Activity and Lookup are being built and say "Coming in the next step" for now. An amber count and a short **Paused** note on the Folders tab mean a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
 
 The kinds are:
 
@@ -31,7 +30,7 @@ The kinds are:
 | Read | Other reading | No: loose books and documents, shown by folder and the details inside the files |
 | View | Photos, Personal videos, Documents | No (Documents are read on your computer with text recognition) |
 
-A kind that looks details up has its icon tile in its area's colour; a kind that does not has a quiet grey tile. The tooltip never relies on colour alone: the Metadata icons say the same thing. Photos, Personal videos and Documents keep their folders on View's own pages, reached from the View group page. On a phone the cards, rows and counts are read-only, with a note to use a desktop or tablet to change folders.
+A kind that looks details up has its icon tile in its area's colour; a kind that does not has a quiet grey tile. Several libraries can share one kind (for example Home videos and Other videos): each is its own row. Photos, Personal videos and Documents keep their folders on View's own pages, reached from the View tab. Older addresses (a group such as `/settings/libraries/watch`, or a type such as `/settings/libraries/watch/movies`) still work and land on the matching tab or library. On a phone the rows, counts and status are read-only, with a note to use a desktop or tablet to change folders.
 
 ## Add a folder
 
@@ -192,7 +191,7 @@ If the file is no longer on disk, **Add back** removes the row and nothing is sc
 
 ## Import folder
 
-The **Import folder** is the row under the group cards on the Libraries front door. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
+The **Import folder** is the line under the table on the Libraries overview. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
 
 ### Add files by dropping them
 

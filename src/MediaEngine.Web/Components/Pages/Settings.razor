@@ -365,7 +365,10 @@ else
         : $"{GetHeroTitle()} - Library";
     // The Vault's title and breadcrumb follow the same rule as the Libraries page itself (an administrator with Vault mode on).
     private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(
-        LibraryKinds.Catalog, _activeSubsection, Detail, LibraryVaultAccess.CanShow(Nsfw, Session, _kidsBlocked));
+        LibraryKinds.Catalog, _activeSubsection, Detail, LibraryVaultAccess.CanShow(Nsfw, Session, _kidsBlocked), _libraryAddressConfiguration);
+    // A library's own page is titled with its name, so the libraries are read for it (once per library address).
+    private LibrariesConfigurationDto? _libraryAddressConfiguration;
+    private string? _libraryAddressConfigurationFor;
     // "Movies - Watch - Library", "Watch - Library" or "Libraries - Library".
     private string LibrariesBrowserTitle =>
         LibrariesLevel.Crumbs.Count >= 3
@@ -485,6 +488,13 @@ else
         if (_activeSection == SettingsSection.Libraries && !LibraryKinds.Loaded)
         {
             await LibraryKinds.EnsureLoadedAsync();
+        }
+
+        if (_activeSection == SettingsSection.Libraries && Guid.TryParse(_activeSubsection, out _)
+            && !string.Equals(_libraryAddressConfigurationFor, _activeSubsection, StringComparison.OrdinalIgnoreCase))
+        {
+            _libraryAddressConfigurationFor = _activeSubsection;
+            _libraryAddressConfiguration = await Orchestrator.GetLibrariesAsync();
         }
     }
 
@@ -655,13 +665,6 @@ else
         if (!resolution.RequestedSectionAllowed)
         {
             Nav.NavigateTo(resolution.CanonicalRoute, replace: true);
-            return;
-        }
-
-        if (_activeSection == SettingsSection.Libraries && Guid.TryParse(Subsection, out _))
-        {
-            // The per-library settings page is gone; old links land on the single Libraries screen.
-            Nav.NavigateTo("/settings/libraries", replace: true);
             return;
         }
 
