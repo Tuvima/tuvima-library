@@ -1,0 +1,168 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Domain.PersonalMedia
+@inject NavigationManager Navigation
+@inject IEngineApiClient ApiClient
+
+@* One View kind's page (Photos, Personal videos or Documents; Library pages WP11). It has the same shape as any library's page: the kind,
+   who sees it, counts and status in the header, then the tabs Folders, Access and File handling. What differs is View's own rules: the
+   Access tab holds View's per-profile switches and the Shared Library controls instead of Standard / Selected profiles, and there is no
+   Add library entry, because the three kinds always exist. The selected tab lives in the address (?tab=). *@
+@{
+    var row = Row;
+}
+<div class="libpage" data-library="@Kind" data-view-kind="@Kind">
+    @if (ReadOnly)
+    {
+        <p class="libpage__note">Use a desktop or tablet to change folders.</p>
+    }
+
+    <div class="libpage__header">
+        <div class="libpage__facts">
+            <span class="libpage__type"><AppMaterialIcon Icon="@row.Type.Icon" />@row.Type.Label</span>
+            <span class="libpage__access">@LibraryListing.AccessText(row.Access)</span>
+            <span class="libpage__counts">@LibraryRollup.CountsText(row.Folders, null)</span>
+            <LibraryStatusCell Row="@row" />
+        </div>
+        @if (!ReadOnly)
+        {
+            <div class="libpage__actions">
+                <AppButton Label="Add folder"
+                           StartIcon="@AppMaterialIcons.Outlined.Add"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Disabled="@_loading"
+                           OnClick="AddFolder" />
+            </div>
+        }
+    </div>
+
+    <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="Library sections">
+        @foreach (var tab in Tabs)
+        {
+            <AppTabPanel Text="@tab.Label">
+                @if (tab.Slug == LibraryShell.FoldersTab)
+                {
+                    <ViewFoldersTab Kind="@Kind"
+                                    KindNoun="@KindNoun"
+                                    Configuration="@Configuration"
+                                    ReadOnly="@ReadOnly"
+                                    Profiles="@_profiles"
+                                    Reviews="@_reviews"
+                                    Loading="@_loading"
+                                    Adding="@_adding"
+                                    AddingChanged="@((bool value) => _adding = value)"
+                                    InitialPath="@InitialPath"
+                                    SourcesChanged="LoadSourcesAsync"
+                                    RootChanged="RootChanged" />
+                }
+                else if (tab.Slug == LibraryShell.AccessTab)
+                {
+                    <ViewAccessTab Kind="@Kind" KindNoun="@KindNoun" ReadOnly="@ReadOnly" Profiles="@_profiles" />
+                }
+                else
+                {
+                    <ViewFileHandlingTab Kind="@Kind" ReadOnly="@ReadOnly" />
+                }
+            </AppTabPanel>
+        }
+    </AppTabs>
+</div>
+
+@code {
+    /// <summary>Which View kind this page is for (photos, personal_videos or documents): it lists only that kind's folders and adds folders of that kind.</summary>
+    [Parameter] public string Kind { get; set; } = ViewContentKinds.Photos;
+    /// <summary>The Engine's list of library kinds, for the kind's name and description.</summary>
+    [Parameter] public LibraryKindCatalog Kinds { get; set; } = LibraryKindCatalog.Empty;
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>The selected tab (folders, access, file-handling); the first when empty or unknown.</summary>
+    [Parameter] public string? Tab { get; set; }
+    /// <summary>Opens with the add form shown (the Add folder wizard hands View over this way).</summary>
+    [Parameter] public bool StartAdding { get; set; }
+    /// <summary>A folder to pre-fill in the add form, when the wizard noticed phone or camera footage.</summary>
+    [Parameter] public string? InitialPath { get; set; }
+    /// <summary>Raised after the View root was saved, so the page reads the library settings again.</summary>
+    [Parameter] public EventCallback RootChanged { get; set; }
+
+    private List<ProfileViewModel> _profiles = [];
+    private readonly Dictionary<Guid, ViewPersonalSpaceAdminReviewDto> _reviews = [];
+    private bool _loading = true;
+    private bool _adding;
+
+    private LibraryTypeOption? KindOption => Kinds.FindViewKind(Kind);
+
+    // The kind's name as it reads in a sentence: "photos", "personal videos", "documents".
+    private string KindNoun => (KindOption?.Label ?? Kind).ToLowerInvariant();
+
+    private LibraryListRow Row
+    {
+        get
+        {
+            var option = KindOption ?? new LibraryTypeOption(Kind, Kind, Kind, LibraryTypeCatalog.ViewArea, [], AppMaterialIcons.Outlined.PhotoLibrary, Kind);
+            return LibraryListing.ViewRowFor(option, _loading ? null : DistinctFolders());
+        }
+    }
+
+    private sealed record TabDef(string Slug, string Label);
+
+    private static readonly IReadOnlyList<TabDef> Tabs =
+    [
+        new(LibraryShell.FoldersTab, "Folders"),
+        new(LibraryShell.AccessTab, "Access"),
+        new(LibraryShell.FileHandlingTab, "File handling"),
+    ];
+
+    private int ActiveIndex => Math.Max(Tabs.ToList().FindIndex(tab => string.Equals(tab.Slug, Tab?.Trim(), StringComparison.OrdinalIgnoreCase)), 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _adding = StartAdding && !ReadOnly;
+        await LoadSourcesAsync();
+    }
+
+    // The same folder is counted once, however many profiles list it.
+    private int DistinctFolders() => _reviews.Values
+        .SelectMany(review => review.Sources)
+        .Where(source => LibraryRollup.ViewFolderBelongsTo(source, Kind) && !string.IsNullOrWhiteSpace(source.Location))
+        .Select(source => source.Location)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Count();
+
+    private async Task LoadSourcesAsync()
+    {
+        _loading = true;
+        _profiles = await ApiClient.GetProfilesAsync();
+        var results = await Task.WhenAll(_profiles.Select(async p => (p.Id, Review: await ApiClient.GetViewProfileSourcesAsync(p.Id))));
+        _reviews.Clear();
+        foreach (var (id, review) in results)
+        {
+            if (review is not null)
+            {
+                _reviews[id] = review;
+            }
+        }
+
+        _loading = false;
+    }
+
+    private void SelectTab(int index)
+    {
+        if (index < 0 || index >= Tabs.Count || index == ActiveIndex)
+        {
+            return;
+        }
+
+        Navigation.NavigateTo($"{LibraryListing.ViewAddressOf(Kind)}?tab={Tabs[index].Slug}");
+    }
+
+    // Add folder opens View's add form, which sits on the Folders tab, so the page comes back to it.
+    private void AddFolder()
+    {
+        _adding = true;
+        if (ActiveIndex != 0)
+        {
+            Navigation.NavigateTo($"{LibraryListing.ViewAddressOf(Kind)}?tab={LibraryShell.FoldersTab}");
+        }
+    }
+}

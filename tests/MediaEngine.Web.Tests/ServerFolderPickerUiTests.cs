@@ -86,7 +86,7 @@ public sealed class ServerFolderPickerUiTests
         Assert.DoesNotContain("component.MediaType", panel, StringComparison.Ordinal);
         foreach (var untyped in new[]
                  {
-                     "src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor",
+                     "src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor",
                      "src/MediaEngine.Web/Components/Settings/ToolsRequirementsTab.razor",
                  })
         {
@@ -99,14 +99,14 @@ public sealed class ServerFolderPickerUiTests
     {
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
         var wizard = Read("src/MediaEngine.Web/Components/Settings/Libraries/AddFolderWizard.razor");
-        var view = Read("src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor");
+        var view = Read("src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor");
 
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", panel, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ManagedLibrary", panel, StringComparison.Ordinal);
         Assert.Contains("<ServerFolderPicker", wizard, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", wizard, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
-        Assert.Contains("ServerFolderSelectionModes.PersonalSpaceManaged", Read("src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor"), StringComparison.Ordinal);
+        Assert.Contains("ServerFolderSelectionModes.PersonalSpaceManaged", Read("src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor"), StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceExisting", view, StringComparison.Ordinal);
     }
 

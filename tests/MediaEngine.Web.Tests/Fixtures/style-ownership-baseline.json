@@ -563,10 +563,6 @@
       "important": 0,
       "deep": 23
     },
-    "src/MediaEngine.Web/Components/Settings/LibraryDetailHeader.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css": {
       "important": 0,
       "deep": 4
@@ -662,10 +658,6 @@
     "src/MediaEngine.Web/Components/Settings/VibeVocabularyTab.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor.css": {
-      "important": 0,
-      "deep": 4
     },
     "src/MediaEngine.Web/Components/Setup/SetupStepper.razor.css": {
       "important": 0,
@@ -1537,10 +1529,6 @@
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Settings/LibraryDetailHeader.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css": {
       "important": 0,
       "deep": 3
@@ -1636,10 +1624,6 @@
     "src/MediaEngine.Web/Components/Settings/VibeVocabularyTab.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor.css": {
-      "important": 0,
-      "deep": 4
     },
     "src/MediaEngine.Web/Components/Setup/SetupStepper.razor.css": {
       "important": 0,
