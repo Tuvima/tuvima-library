@@ -24,6 +24,8 @@ public sealed class PersonImageEnrichmentWorker
     private const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/";
     private const int MinimumProfileHeight = 450;
     private const int MinimumProfileWidth = 300;
+    private const int MinimumLastResortProfileHeight = 150;
+    private const int MinimumLastResortProfileWidth = 100;
 
     private readonly IPersonRepository _personRepo;
     private readonly IEntityAssetRepository _assetRepo;
@@ -267,6 +269,22 @@ public sealed class PersonImageEnrichmentWorker
         {
             return;
         }
+        // Judge the size before anything is written: headshots share one file path, so writing first
+        // could overwrite (and then delete) the picture the person already has.
+        using var bounds = SKCodec.Create(new SKMemoryStream(bytes));
+        var width = bounds?.Info.Width ?? 0;
+        var height = bounds?.Info.Height ?? 0;
+        if (width < MinimumProfileWidth || height < MinimumProfileHeight)
+        {
+            // A soft face is friendlier than initials for a lead actor, so a small TheTVDB face is kept as a
+            // last resort, only when the person has no other picture and it is not a thumbnail.
+            var hasOtherPicture = existing.Any(other => !string.IsNullOrWhiteSpace(other.LocalImagePath)
+                && File.Exists(other.LocalImagePath));
+            if (hasOtherPicture || width < MinimumLastResortProfileWidth || height < MinimumLastResortProfileHeight)
+            {
+                return;
+            }
+        }
         var asset = same ?? new EntityAsset
         {
             Id = Guid.NewGuid(),
@@ -285,11 +303,6 @@ public sealed class PersonImageEnrichmentWorker
         await BoundedHttpContent.WriteFileAtomicallyAsync(asset.LocalImagePath, bytes, ct)
             .ConfigureAwait(false);
         ArtworkVariantHelper.StampMetadataAndRenditions(asset, _assetPaths);
-        if ((asset.WidthPx ?? 0) < MinimumProfileWidth
-            || (asset.HeightPx ?? 0) < MinimumProfileHeight)
-        {
-            return;
-        }
         await _assetRepo.UpsertAsync(asset, ct).ConfigureAwait(false);
         await _assetRepo.SetPreferredAsync(asset.Id, ct).ConfigureAwait(false);
         await _personRepo.UpdateLocalHeadshotPathAsync(personId, asset.LocalImagePath, ct)
