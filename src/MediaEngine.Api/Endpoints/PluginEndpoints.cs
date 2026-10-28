@@ -520,6 +520,28 @@ internal static class PluginEndpoints
         .Produces<PluginDeletedResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
+        group.MapGet("/{pluginId}/connection", GetPluginConnectionAsync)
+        .WithName("GetPluginConnection")
+        .WithSummary("What the signed-in profile has linked for this plugin: its own credentials, never a value.")
+        .Produces<PluginConnectionsResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireHumanSelfService();
+
+        group.MapPut("/{pluginId}/connection/{name}", LinkPluginConnectionAsync)
+        .WithName("LinkPluginConnection")
+        .WithSummary("Links the signed-in profile's own account for a plugin. The value is encrypted on this machine and only that profile can unlink it.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireHumanSelfService();
+
+        group.MapDelete("/{pluginId}/connection/{name}", UnlinkPluginConnectionAsync)
+        .WithName("UnlinkPluginConnection")
+        .WithSummary("Unlinks the signed-in profile's account for a plugin.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireHumanSelfService();
+
         group.MapGet("/{pluginId}/secrets", ListPluginSecretsAsync)
         .WithName("ListPluginSecrets")
         .Produces<IReadOnlyList<PluginSecretStatusResponse>>(StatusCodes.Status200OK)
@@ -621,6 +643,72 @@ internal static class PluginEndpoints
     }
 
     private const int MaximumSecretValueLength = 8192;
+
+    private const string NoProfileMessage = "Choose a profile first. Accounts are linked to a profile.";
+
+    internal static async Task<IResult> GetPluginConnectionAsync(
+        string pluginId,
+        HttpContext http,
+        [FromServices] PluginProfileConnectionService connections,
+        [FromServices] IRequestAuthorityResolver authorityResolver,
+        CancellationToken ct)
+    {
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        if (authority.ActiveProfileId is not { } profileId)
+        {
+            return ApiErrors.BadRequest(NoProfileMessage);
+        }
+
+        var status = await connections.StatusAsync(pluginId, profileId, ct).ConfigureAwait(false);
+        return status is null ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.") : Results.Ok(status);
+    }
+
+    internal static async Task<IResult> LinkPluginConnectionAsync(
+        string pluginId,
+        string name,
+        PluginConnectionLinkRequest request,
+        HttpContext http,
+        [FromServices] PluginProfileConnectionService connections,
+        [FromServices] IRequestAuthorityResolver authorityResolver,
+        CancellationToken ct)
+    {
+        if (request?.Agreed != true)
+        {
+            return ApiErrors.BadRequest("Tick the box to agree before linking.");
+        }
+
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        if (authority.ActiveProfileId is not { } profileId)
+        {
+            return ApiErrors.BadRequest(NoProfileMessage);
+        }
+
+        return await connections.LinkAsync(pluginId, profileId, name, request.Value, ct).ConfigureAwait(false) switch
+        {
+            ConnectionOutcome.Done => Results.NoContent(),
+            ConnectionOutcome.BadValue => ApiErrors.BadRequest($"Enter a value of up to {PluginProfileConnectionService.MaximumValueLength:N0} characters."),
+            _ => ApiErrors.NotFound("This plugin does not ask profiles to link that."),
+        };
+    }
+
+    internal static async Task<IResult> UnlinkPluginConnectionAsync(
+        string pluginId,
+        string name,
+        HttpContext http,
+        [FromServices] PluginProfileConnectionService connections,
+        [FromServices] IRequestAuthorityResolver authorityResolver,
+        CancellationToken ct)
+    {
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        if (authority.ActiveProfileId is not { } profileId)
+        {
+            return ApiErrors.BadRequest(NoProfileMessage);
+        }
+
+        return await connections.UnlinkAsync(pluginId, profileId, name, ct).ConfigureAwait(false) == ConnectionOutcome.Done
+            ? Results.NoContent()
+            : ApiErrors.NotFound("This plugin does not ask profiles to link that.");
+    }
 
     /// <summary>Uninstalls a plugin; its settings, records, keys and logins go with it, and its saved output goes if the person chose that.</summary>
     internal static async Task<IResult> DeletePluginAsync(
@@ -725,6 +813,13 @@ internal static class PluginEndpoints
         if (declared is null)
         {
             return ApiErrors.BadRequest($"Plugin '{plugin.Manifest.Id}' does not declare a secret named '{name}'.");
+        }
+
+        if (plugin.Manifest.Declaration?.CredentialScopes is { } scopes
+            && scopes.TryGetValue(declared.Name, out var credentialScope)
+            && string.Equals(credentialScope?.Trim(), "personal", StringComparison.OrdinalIgnoreCase))
+        {
+            return ApiErrors.BadRequest($"'{declared.Name}' is linked by each person on their own profile, not for the whole household.");
         }
 
         if (string.IsNullOrWhiteSpace(request?.Value))

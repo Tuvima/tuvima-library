@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0052 plugin_library_limits).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0053 plugin_profile_connections).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2094,6 +2094,15 @@ CREATE TABLE plugin_lore_sources (
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL,
     UNIQUE (universe_qid, plugin_id, source_key)
+);
+
+CREATE TABLE plugin_profile_connections (
+    plugin_id         TEXT NOT NULL,   -- the plugin's manifest id
+    profile_id        BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    credential_name   TEXT NOT NULL,   -- the personal credential's name from the plugin's declaration
+    secret_ciphertext TEXT NOT NULL,   -- the value, protected with this machine's Data Protection key
+    linked_at         TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (plugin_id, profile_id, credential_name)
 );
 
 CREATE TABLE plugin_records (

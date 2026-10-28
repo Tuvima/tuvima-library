@@ -70,6 +70,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginLibraryLimitService>();
         services.AddSingleton<PluginRemovalService>();
         services.AddSingleton<PluginCheckNowService>();
+        services.AddSingleton<PluginProfileConnectionService>();
         services.AddHostedService<PluginOrphanSweepHostedService>();
         services.AddSingleton<PluginPeopleActionLog>();
         services.AddSingleton<PluginJobScheduler>();
