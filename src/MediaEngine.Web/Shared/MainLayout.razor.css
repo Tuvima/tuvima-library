@@ -306,29 +306,34 @@
     overflow: hidden;
 }
 
-.layout-shell__brand-lockup-shell {
-    width: 9.15rem;
-    height: 2.26rem;
-    min-width: 9.15rem;
-    min-height: 2.26rem;
+/* The logo lockup: the Tuvima icon beside the "Tuvima" wordmark, set in the Tuvima font. The whole bar uses that font. */
+.layout-shell__brand-lockup {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 0.6rem;
     flex: 0 0 auto;
-    line-height: 0;
-    overflow: hidden;
+    color: var(--app-text, rgba(245, 245, 245, 0.94));
+    line-height: 1;
 }
 
-.layout-shell__brand-lockup {
+.layout-shell__brand-lockup-icon {
     display: block;
-    width: 100%;
-    height: 100%;
-    min-width: 100%;
-    min-height: 100%;
-    color: rgba(245, 245, 245, 0.94);
-    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
     object-fit: contain;
-    object-position: center;
+}
+
+.layout-shell__brand-wordmark {
+    font-family: var(--font-brand);
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.layout-shell__appbar,
+.layout-shell__appbar button,
+.layout-shell__appbar input {
+    font-family: var(--font-brand);
 }
 
 .layout-shell__desktop-nav {
@@ -473,10 +478,6 @@
         column-gap: 0.65rem;
     }
 
-    .layout-shell__brand-lockup-shell {
-        width: 7rem;
-        min-width: 7rem;
-    }
 
     .layout-shell__desktop-nav {
         width: 100%;
@@ -504,7 +505,7 @@
 }
 
 @media (max-width: 840px) {
-    .layout-shell__brand-lockup-shell {
+    .layout-shell__brand-lockup {
         display: none;
     }
 

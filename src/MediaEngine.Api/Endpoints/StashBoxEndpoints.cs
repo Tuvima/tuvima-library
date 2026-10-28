@@ -15,7 +15,8 @@ namespace MediaEngine.Api.Endpoints;
 public static class StashBoxEndpoints
 {
     public const string Disclosure =
-        "This contacts a stash-box server and is only ever used for items in the Vault. It sends the video's title. "
+        "Looks up details for videos in your Vault on StashDB (stashdb.org), a public community database, or another stash-box server you add. "
+        + "Library sends your account key to that server only, so it knows the request is yours, and sends the video's title to find a match. "
         + "It sends a fingerprint of your file only if you turn that permission on. Your account key is kept on this machine and never shown again.";
 
     public const string FingerprintText = "Sends a fingerprint of your file";
