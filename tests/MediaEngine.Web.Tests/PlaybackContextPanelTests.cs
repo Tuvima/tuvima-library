@@ -149,12 +149,78 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         Assert.Equal(new[] { "Up Next", "History" }, tabs.Skip(1).Select(e => e.TextContent.Trim()).ToArray());
     }
 
+    private static ListenPlaybackSnapshot QueueOfThree(out Guid second)
+    {
+        var item = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), Title = "Song", MediaType = "Music", Duration = "4:03" };
+        var queue = new List<ListenQueueItem> { item with { QueueEntryId = Guid.NewGuid(), Title = "Current" }, item with { QueueEntryId = Guid.NewGuid(), Title = "Two" }, item with { QueueEntryId = Guid.NewGuid(), Title = "Three" } };
+        second = queue[2].QueueEntryId;
+        return new ListenPlaybackSnapshot { ProfileId = Guid.NewGuid(), CurrentIndex = 0, Queue = queue };
+    }
+
+    [Fact]
+    public void UpNextRows_PutTheDragHandleInItsOwnColumnApartFromTheTime()
+    {
+        var cut = Render<ListenContextSidebar>(parameters => parameters.Add(p => p.Snapshot, QueueOfThree(out _)).Add(p => p.Commands, new RecordingSink()).Add(p => p.ActivePanelKey, "queue"));
+
+        var row = cut.FindAll(".playback-queue-drop .playback-context-row").First();
+        Assert.Contains("playback-context-row--handled", row.ClassName);
+        Assert.NotNull(row.QuerySelector(".playback-context-row__handle button[data-playback-queue-drag]"));
+        Assert.Null(row.QuerySelector(".playback-context-row__actions button[data-playback-queue-drag]"));
+        Assert.Equal("4:03", row.QuerySelector(".playback-context-row__duration")!.TextContent);
+    }
+
+    [Fact]
+    public async Task ASuccessfulMove_AddsNoVisibleTextButStillReachesScreenReaders()
+    {
+        var snapshot = QueueOfThree(out _);
+        var cut = Render<ListenContextSidebar>(parameters => parameters.Add(p => p.Snapshot, snapshot).Add(p => p.Commands, new RecordingSink()).Add(p => p.ActivePanelKey, "queue"));
+
+        await cut.FindAll("button[data-playback-queue-drag]").First().TriggerEventAsync("onkeydown", new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "ArrowDown", AltKey = true });
+
+        var announcement = cut.Find("p.sr-only[role='status']");
+        Assert.Equal("Moved to position 2", announcement.TextContent);
+        Assert.Empty(cut.FindAll(".listen-context-sidebar__feedback"));
+    }
+
+    [Fact]
+    public async Task AFailedMove_ShowsAVisibleWarningNotice()
+    {
+        var sink = new RecordingSink { Reply = new ListenPlaybackCommandReplyDto { Outcome = "failed", Message = "The move did not go through. Try again." } };
+        var cut = Render<ListenContextSidebar>(parameters => parameters.Add(p => p.Snapshot, QueueOfThree(out _)).Add(p => p.Commands, sink).Add(p => p.ActivePanelKey, "queue"));
+
+        await cut.FindAll("button[data-playback-queue-drag]").First().TriggerEventAsync("onkeydown", new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "ArrowDown", AltKey = true });
+
+        Assert.Contains("The move did not go through", cut.Find(".listen-context-sidebar__feedback").TextContent);
+        Assert.Equal(string.Empty, cut.Find("p.sr-only[role='status']").TextContent);
+    }
+
+    [Fact]
+    public void Clear_UsesTheSharedButtonStyle()
+    {
+        var cut = Render<ListenContextSidebar>(parameters => parameters.Add(p => p.Snapshot, QueueOfThree(out _)).Add(p => p.Commands, new RecordingSink()).Add(p => p.ActivePanelKey, "queue"));
+
+        Assert.NotNull(cut.FindComponent<AppButton>());
+        Assert.Contains("listen-context-sidebar__clear", cut.Find("button[aria-label='Clear upcoming queue']").ClassName);
+    }
+
+    [Fact]
+    public void MusicHistoryRows_GiveThePlayedTimeItsOwnWrappingColumn()
+    {
+        var played = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), Title = "Old", MediaType = "Music", QueueEntryId = Guid.NewGuid(), PlayedAt = DateTimeOffset.UtcNow.AddMinutes(-3) };
+        var snapshot = new ListenPlaybackSnapshot { ProfileId = Guid.NewGuid(), CurrentIndex = -1, History = [played] };
+        var cut = Render<ListenContextSidebar>(parameters => parameters.Add(p => p.Snapshot, snapshot).Add(p => p.Commands, new RecordingSink()).Add(p => p.ActivePanelKey, "history"));
+
+        var row = cut.Find(".playback-context-row--history-played");
+        Assert.Equal("Played 3 min ago", row.QuerySelector(".playback-context-row__duration")!.TextContent);
+    }
+
     private sealed class RecordingSink : IPlaybackCommandSink, IPlaybackIdentityNavigationSink
     {
+        public ListenPlaybackCommandReplyDto? Reply { get; set; } = new();
         public Task<ListenPlaybackCommandReplyDto?> NavigateIdentityAsync(ListenPlaybackSnapshot snapshot, string kind, Guid id, CancellationToken ct = default) => Task.FromResult<ListenPlaybackCommandReplyDto?>(new());
         public List<(ListenPlaybackSnapshot Snapshot, ListenPlaybackCommandDto Command)> Commands { get; } = [];
         public bool Supports(string action, ListenPlaybackSnapshot snapshot) => true;
         public Task<ListenPlaybackCommandReplyDto?> SendAsync(ListenPlaybackSnapshot snapshot, ListenPlaybackCommandDto command, CancellationToken ct = default)
-        { Commands.Add((snapshot, command)); return Task.FromResult<ListenPlaybackCommandReplyDto?>(new()); }
+        { Commands.Add((snapshot, command)); return Task.FromResult(Reply); }
     }
 }

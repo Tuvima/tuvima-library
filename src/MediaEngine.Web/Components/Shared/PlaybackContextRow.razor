@@ -44,6 +44,10 @@
 else
 {
 <div class="@RootClass" style="@LeadingStyle" aria-current="@(IsCurrent ? "true" : null)" data-playback-current="@(IsCurrent ? "true" : null)" @attributes="AdditionalAttributes">
+    @if (Handle is not null)
+    {
+        <div class="playback-context-row__handle">@Handle</div>
+    }
     <div class="playback-context-row__leading">
         @if (LeadingContent is not null)
         {
@@ -107,6 +111,8 @@ else
     [Parameter] public bool IsPlaying { get; set; }
     [Parameter] public RenderFragment? LeadingContent { get; set; }
     [Parameter] public RenderFragment? Actions { get; set; }
+    /// <summary>A drag handle drawn in its own column at the far left, so it never sits on the time.</summary>
+    [Parameter] public RenderFragment? Handle { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public string? AriaLabel { get; set; }
     [Parameter] public string? Class { get; set; }
@@ -114,8 +120,8 @@ else
 
     [Parameter] public string Variant { get; set; } = "default";
 
-    private string RootClass => string.Join(" ", new[] { "playback-context-row", $"playback-context-row--{NormalizedVariant}", IsCurrent ? "is-current" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    private string NormalizedVariant => Variant switch { "chapter" => "chapter", "history" => "history", "history-duration" => "history-duration", _ => "default" };
+    private string RootClass => string.Join(" ", new[] { "playback-context-row", $"playback-context-row--{NormalizedVariant}", IsCurrent ? "is-current" : null, Handle is not null && !IsChapterVariant ? "playback-context-row--handled" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string NormalizedVariant => Variant switch { "chapter" => "chapter", "history" => "history", "history-duration" => "history-duration", "history-played" => "history-played", _ => "default" };
     private bool IsChapterVariant => NormalizedVariant == "chapter";
     private string LeadingStyle => $"--playback-context-leading-width:{(string.IsNullOrWhiteSpace(LeadingWidth) ? IsChapterVariant ? "20px" : NormalizedVariant.StartsWith("history", StringComparison.Ordinal) ? "80px" : "56px" : LeadingWidth)};";
     // The thumbnail is drawn 56px square (PlaybackContextRow.razor.css).

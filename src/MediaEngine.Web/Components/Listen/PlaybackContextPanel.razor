@@ -23,7 +23,7 @@
         case "queue":
             @if (CurrentItem is null)
             {
-                <p class="listen-context-sidebar__empty">The queue is empty.</p>
+                <p class="listen-context-sidebar__empty">The queue is empty. Add songs from the Songs list or an album.</p>
             }
             else
             {
@@ -36,10 +36,8 @@
                 <div class="listen-context-sidebar__section-action">
                     <h3 class="listen-context-sidebar__section-label">UP NEXT · @Upcoming.Count</h3>
                     <AppTooltip Text="Clear upcoming queue">
-                        <AppNativeButton Type="button" Class="listen-context-sidebar__clear" AriaLabel="Clear upcoming queue" Disabled="@(Upcoming.Count == 0)" OnClick="@(() => ClearUpcomingAsync(panelSnapshot))">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistRemove" />
-                            <span>Clear</span>
-                        </AppNativeButton>
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.PlaylistRemove" Class="listen-context-sidebar__clear"
+                                   Disabled="@(Upcoming.Count == 0)" OnClick="@(() => ClearUpcomingAsync(panelSnapshot))" aria-label="Clear upcoming queue">Clear</AppButton>
                     </AppTooltip>
                 </div>
                 @for (var queueIndex = Snapshot.CurrentIndex + 1; queueIndex < Snapshot.Queue.Count; queueIndex++)
@@ -52,10 +50,12 @@
                     <PlaybackContextRow Title="@item.Title" Subtitle="@item.Subtitle" ArtworkUrl="@PlaybackArtworkUrl.ForItem(item, "s")"
                                        Duration="@item.Duration" OnClick="@(() => PlayOccurrenceAsync(rowSnapshot, occurrenceId))"
                                        AriaLabel="@($"Play {item.Title}")">
-                        <Actions>
+                        <Handle>
                             <AppNativeButton Type="button" draggable="true" data-playback-queue-drag="@occurrenceId" AriaLabel="@($"Reorder {item.Title}")" title="Drag or use Alt+Arrow Up/Down"
                                 @ondragstart="@(() => BeginDrag(rowSnapshot, occurrenceId))" @ondragend="@(() => _dragOccurrence = null)"
                                 @onkeydown="@(args => ReorderKeyAsync(args, rowSnapshot, occurrenceId, upcomingIndex))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragHandle" /></AppNativeButton>
+                        </Handle>
+                        <Actions>
                             <PlaybackPopover Title="@($"Queue actions for {item.Title}")" Kind="menu" ShowHeading="false">
                                 <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
                                 <ChildContent>
@@ -125,11 +125,11 @@
                 <div class="listen-context-sidebar__section-action"><span>Recently played · @MusicHistory.Count</span><AppNativeButton Type="button" Disabled="@(MusicHistory.Count == 0)" OnClick="@(() => RequestClearHistory(panelSnapshot))">Clear History</AppNativeButton></div>
                 @if (MusicHistory.Count == 0)
                 {
-                    <p class="listen-context-sidebar__empty">Played tracks will appear here for this session.</p>
+                    <p class="listen-context-sidebar__empty">Played songs appear here for this session.</p>
                 }
                 @foreach (var item in MusicHistory)
                 {
-                    <PlaybackContextRow Variant="history" LeadingWidth="56px" ArtworkUrl="@PlaybackArtworkUrl.ForItem(item, "s")" Duration="@PlayedAt(item)"
+                    <PlaybackContextRow Variant="history-played" LeadingWidth="56px" ArtworkUrl="@PlaybackArtworkUrl.ForItem(item, "s")" Duration="@PlayedAt(item)"
                                        Title="@item.Title" Subtitle="@item.Subtitle"
                                        OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayHistory, QueueEntryId = item.QueueEntryId, QueueItem = ToQueueItem(item) }))" AriaLabel="@($"Play {item.Title}")">
                         <Actions><PlaybackPopover Title="@($"History actions for {item.Title}")" Kind="menu" ShowHeading="false">
@@ -145,7 +145,8 @@
             break;
     }
 </div>
-@if (_moveMessage is not null) { <p class="listen-context-sidebar__feedback" role="status" aria-live="polite">@_moveMessage</p> }
+<p class="sr-only" role="status" aria-live="polite">@_moveAnnouncement</p>
+@if (_moveFailure is not null) { <AppAlert Tone="AppUiTone.Warning" Dense="true" Class="listen-context-sidebar__feedback">@_moveFailure</AppAlert> }
 @if (_historyConfirmation is not null)
 {
     <AppDialog Visible="true" Title="Clear player history?" Size="Small" Tone="AppUiTone.Warning" OnClose="@(() => _historyConfirmation = null)">
@@ -164,7 +165,7 @@
     private string? _selectedPanelKey, _lastPanelKey;
     private Guid? _dragOccurrence;
     private ListenPlaybackSnapshot? _dragSnapshot, _historyConfirmation;
-    private string? _moveMessage;
+    private string? _moveAnnouncement, _moveFailure;
     private readonly CancellationTokenSource _relativeTimeLifetime = new();
     private Task? _relativeTimeLoop;
     private ElementReference _root;
@@ -201,8 +202,25 @@
         if (index < 0 || index >= shown.Queue.Count - shown.CurrentIndex - 1) return;
         try {
             var reply = await Commands.SendAsync(shown, new() { Action = ListenPlaybackCommandActions.ReorderUpcoming, QueueEntryId = id, Index = index, ExpectedQueueRevision = shown.QueueRevision });
-            _moveMessage = reply?.Outcome == AudiobookBookmarkOperationOutcomes.Success ? $"Moved to position {index + 1}" : reply?.Message ?? "The main player did not confirm the move.";
-        } catch (Exception) { _moveMessage = "The main player connection was interrupted. Try again when it reconnects."; }
+            if (reply?.Outcome == AudiobookBookmarkOperationOutcomes.Success) { _moveFailure = null; _moveAnnouncement = $"Moved to position {index + 1}"; }
+            else ShowFailure(reply?.Message ?? "The move did not go through. Try again.");
+        } catch (Exception) { ShowFailure("The main player connection was interrupted. Try again when it reconnects."); }
+    }
+    // A failure is shown as a notice that dismisses itself; a success only reaches screen readers (the row moving is the sighted confirmation).
+    private void ShowFailure(string message)
+    {
+        _moveAnnouncement = null;
+        _moveFailure = message;
+        _ = DismissFailureLaterAsync(message);
+    }
+    private async Task DismissFailureLaterAsync(string message)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(6), _relativeTimeLifetime.Token);
+            if (_moveFailure == message) { _moveFailure = null; await InvokeAsync(StateHasChanged); }
+        }
+        catch (OperationCanceledException) { }
     }
     private void RequestClearHistory(ListenPlaybackSnapshot shown) => _historyConfirmation = shown;
     private async Task ConfirmClearHistoryAsync() { var shown = _historyConfirmation; _historyConfirmation = null; if (shown is not null) await SendAsync(shown, new() { Action = ListenPlaybackCommandActions.ClearHistory }); }
@@ -220,8 +238,9 @@
     {
         try {
             var reply = await Commands.SendAsync(snapshot, command);
-            _moveMessage = reply?.Outcome == AudiobookBookmarkOperationOutcomes.Success ? null : reply?.Message ?? "The main player did not confirm this action.";
-        } catch (Exception) { _moveMessage = "The main player connection was interrupted. Try again when it reconnects."; }
+            if (reply?.Outcome == AudiobookBookmarkOperationOutcomes.Success) { _moveFailure = null; _moveAnnouncement = null; }
+            else ShowFailure(reply?.Message ?? "The main player did not confirm this action.");
+        } catch (Exception) { ShowFailure("The main player connection was interrupted. Try again when it reconnects."); }
     }
     private Task PlayOccurrenceAsync(ListenPlaybackSnapshot snapshot, Guid id) => SendAsync(snapshot, new() { Action = ListenPlaybackCommandActions.PlayIndex, QueueEntryId = id });
     private Task RemoveOccurrenceAsync(ListenPlaybackSnapshot snapshot, Guid id) => SendAsync(snapshot, new() { Action = ListenPlaybackCommandActions.RemoveUpcoming, QueueEntryId = id });
