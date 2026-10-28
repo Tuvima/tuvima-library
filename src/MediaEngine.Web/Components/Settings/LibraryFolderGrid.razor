@@ -202,6 +202,9 @@
     [Parameter] public EventCallback<LibrarySourceDto> OnMerge { get; set; }
     /// <summary>Move to Vault (Library pages D11): offered only when the host sets it, which it does for a server administrator on an ordinary library.</summary>
     [Parameter] public EventCallback<LibrarySourceDto> OnMoveToVault { get; set; }
+
+    /// <summary>Move out of the Vault (Vault sections D38): offered only when the host sets it, which it does for an unlocked administrator on a Vault library.</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnMoveOutOfVault { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnKeepGoing { get; set; }
     [Parameter] public EventCallback<LibraryFolderTable.SuitableForLimitedChange> OnSetSuitableForLimited { get; set; }
 
@@ -249,6 +252,11 @@
         if (OnMoveToVault.HasDelegate && !IsMerged(source))
         {
             items.Add(new() { Label = "Move to Vault…", Icon = AppMaterialIcons.Outlined.Lock, OnClick = Raise(OnMoveToVault, source) });
+        }
+
+        if (OnMoveOutOfVault.HasDelegate && !IsMerged(source))
+        {
+            items.Add(new() { Label = "Move out of the Vault…", Icon = AppMaterialIcons.Outlined.LockOpen, OnClick = Raise(OnMoveOutOfVault, source) });
         }
 
         items.Add(new()

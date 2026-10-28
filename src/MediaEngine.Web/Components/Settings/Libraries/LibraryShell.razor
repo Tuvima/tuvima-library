@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Contracts.Vault
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
@@ -112,6 +113,7 @@
                                              HighlightSourceId="@_highlightSourceId"
                                              ReadOnly="@ReadOnly"
                                              OnMoveToVault="@(CanOfferVault ? EventCallback.Factory.Create<LibrarySourceDto>(this, MoveToVaultAsync) : default)"
+                                             OnMoveOutOfVault="@(CanOfferMoveOut ? EventCallback.Factory.Create<LibrarySourceDto>(this, MoveOutOfVaultAsync) : default)"
                                              Changed="ChangedAsync" />
                     }
                     else if (tab.Slug == AccessTab)
@@ -195,6 +197,12 @@
         && LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false)
         && Kinds.Find(Library.KindKey) is { } kind
         && !LibraryTypeCatalog.IsViewKind(kind);
+
+    // Move out of the Vault (Vault sections D38) is offered on a Vault library's folders to an unlocked administrator; the Engine decides whether the folder
+    // may be moved and refuses a destination that is not a managed folder.
+    private bool CanOfferMoveOut => !ReadOnly
+        && IsVault
+        && LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false);
 
     private LibraryListRow Row => LibraryListing.RowFor(Kinds, Library, Configuration, Overview, PathIssues);
 
@@ -323,6 +331,24 @@
         await FolderAddedAsync();
     }
 
+    // Move out of the Vault: the same dialog, going the other way. Nothing is added here; a move out only goes to a folder Library manages.
+    private async Task MoveOutOfVaultAsync(LibrarySourceDto source)
+    {
+        var kind = Kinds.Find(Library.KindKey);
+        if (kind is null || !CanOfferMoveOut) return;
+        var parameters = new AppDialogParameters<MoveToVaultDialog>
+        {
+            { component => component.KindKey, kind.Key },
+            { component => component.PluralLabel, kind.PluralLabel },
+            { component => component.FolderName, source.DisplayName() },
+            { component => component.SourceId, source.Id },
+            { component => component.Direction, VaultMoveDirections.Out },
+        };
+        var dialog = await DialogService.ShowAsync<MoveToVaultDialog>(string.Empty, parameters, MoveToVaultDialog.DialogOptions);
+        await dialog.Result;
+        await Changed.InvokeAsync();
+    }
+
     // Move to Vault: a doorway that checks where the items would go before anything is touched (Library pages D11). With no Vault library of this content
     // type it offers Add a Vault library, which opens Add library with the area, type and Vault-protected chosen; once it is made, the preview opens again.
     private async Task MoveToVaultAsync(LibrarySourceDto source)
@@ -336,6 +362,7 @@
                 { component => component.KindKey, kind.Key },
                 { component => component.PluralLabel, kind.PluralLabel },
                 { component => component.FolderName, source.DisplayName() },
+                { component => component.SourceId, source.Id },
             };
             var dialog = await DialogService.ShowAsync<MoveToVaultDialog>(string.Empty, parameters, MoveToVaultDialog.DialogOptions);
             if (await dialog.Result is not { Canceled: false, Data: MoveToVaultDialog.AddVaultLibrary }) return;

@@ -126,4 +126,13 @@ public partial interface IEngineApiClient
 
     /// <summary>POST /api/v1/vault/images/trash/empty - an administrator removes every deleted Vault image for good.</summary>
     Task<VaultCall<VaultImageEmptiedDto>> EmptyVaultImageTrashAsync(CancellationToken ct = default);
+
+    /// <summary>POST /settings/vault-moves/preview - counts only; nothing is moved and no title comes back.</summary>
+    Task<VaultCall<VaultMovePreviewDto>> PreviewVaultMoveAsync(VaultMovePreviewRequest request, CancellationToken ct = default);
+
+    /// <summary>POST /settings/vault-moves - an unlocked administrator starts a move with their own PIN.</summary>
+    Task<VaultCall<StartVaultMoveResultDto>> StartVaultMoveAsync(StartVaultMoveRequest request, CancellationToken ct = default);
+
+    /// <summary>GET /settings/vault-moves - the moves still running or needing attention (counts only).</summary>
+    Task<VaultCall<IReadOnlyList<VaultMoveJobDto>>> GetVaultMovesAsync(CancellationToken ct = default);
 }
