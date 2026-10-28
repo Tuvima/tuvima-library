@@ -110,6 +110,24 @@
     font-size: 22px;
 }
 
+.app-dialog-shell__icon--warning {
+    color: var(--tl-status-warning);
+    background: var(--tl-status-warning-soft, rgba(245, 158, 11, 0.14));
+    border-color: var(--tl-status-warning-border, rgba(245, 158, 11, 0.34));
+}
+
+.app-dialog-shell__icon--info {
+    color: var(--tl-status-info);
+    background: var(--tl-status-info-soft, rgba(56, 189, 248, 0.14));
+    border-color: var(--tl-status-info-border, rgba(56, 189, 248, 0.34));
+}
+
+.app-dialog-shell__icon--error {
+    color: var(--tl-status-danger);
+    background: var(--tl-status-danger-soft);
+    border-color: var(--tl-status-danger-border);
+}
+
 .app-dialog-shell__copy {
     min-width: 0;
     flex: 1;
@@ -168,6 +186,16 @@
         height: 100%;
         max-height: 100dvh;
         border-radius: 0;
+    }
+
+    /* Phones: full-width stacked buttons, main choice on top (the main choice is last in the markup). */
+    .app-dialog-shell__footer {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .app-dialog-shell__footer > * {
+        width: 100%;
     }
 
     .app-dialog-shell__header {

@@ -299,9 +299,11 @@ public sealed class Phase5InlineEditingTests
     {
         var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
 
-        // An Editing Mode section slot shows the same questions in the shell footer instead of the inline strip.
-        Assert.Contains("Inline && !IsSection && _confirmDiscard", shell, StringComparison.Ordinal);
-        Assert.Contains("Discard unsaved changes?", shell, StringComparison.Ordinal);
+        // The discard question is the one shared popup (one-look spec WP1), not a strip or a hand-made footer of the editor.
+        Assert.DoesNotContain("_confirmDiscard", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("Discard unsaved changes?", shell, StringComparison.Ordinal);
+        var shellCode = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
+        Assert.Contains("AppConfirmDialog.ShowAsync", shellCode, StringComparison.Ordinal);
         // Moving into another album, season or series is the Match step now, never a "Save and Move" step of the editor's footer.
         Assert.DoesNotContain("_pendingMembershipPreview", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Save and Move", shell, StringComparison.Ordinal);
