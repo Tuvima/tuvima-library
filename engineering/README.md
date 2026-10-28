@@ -37,7 +37,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Smoother first-run setup](specs/first-run-setup-flow.md) | Built, awaiting your Local checks (v2, 2026-10-27; setup hand-off after creating the administrator, one honest tools summary, calm log for a missing AI runtime; bugs F1, F2, F5) |
 | [Spec: Simpler access (areas, ratings, untick a library, folder checkbox)](specs/simpler-access.md) | Built, awaiting your Local checks (v4, 2026-10-27, adds Selected profiles WP7; v3 packets all merged; access now on profiles per Users, profiles and households) |
 | [Spec: Home page redesign (hero, pick-up row, Recently Added, hover, details opening)](specs/home-page-redesign.md) | In progress (v1; hero order, logo and cover size built first) |
-| [Spec: TV artwork, cast and matching](specs/tv-artwork-cast-and-matching.md) | Locked (v1, 2026-10-27; not yet built; run Local check L1 before WP2 and WP3) |
+| [Spec: TV artwork, cast and matching](specs/tv-artwork-cast-and-matching.md) | In progress (v1; WP1, WP4, WP5 built; WP2, WP3, WP6 parked until Local check L1 is run) |
 | [Spec: Vault sections and Move to Vault](specs/vault-sections-and-move.md) | Locked (v5, 2026-10-27; not yet built; start with the central access service, WP0; v5 follows the Library pages spec) |
 | [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/delete-groups.md) | Locked (v7, 2026-10-21) |
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |

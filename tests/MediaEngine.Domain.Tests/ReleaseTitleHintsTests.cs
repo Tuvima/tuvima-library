@@ -14,6 +14,14 @@ public sealed class ReleaseTitleHintsTests
     [InlineData("The Web", "The Web", null)]
     [InlineData("True Romance", "True Romance", null)]
     [InlineData("Amélie (2001) WEB-DL", "Amélie", "2001")]
+    [InlineData("Burnt (2015) - AVC", "Burnt", "2015")]
+    [InlineData("Movie.2019.1080p.HDR.AAC", "Movie", "2019")]
+    [InlineData("Show (2020) - HDTV", "Show", "2020")]
+    [InlineData("Heat (1995) - UHD", "Heat", "1995")]
+    [InlineData("Magnum Opus", "Magnum Opus", null)]
+    [InlineData("Blade Runner 2049 1080p BluRay", "Blade Runner 2049", null)]
+    [InlineData("Wonder Woman 1984 2160p", "Wonder Woman 1984", null)]
+    [InlineData("Blade Runner 2049.", "Blade Runner 2049", null)]
     public void SeparatesSearchEvidenceWithoutDestroyingTitles(string input, string title, string? year)
     {
         var hints = ReleaseTitleHints.Parse(input);

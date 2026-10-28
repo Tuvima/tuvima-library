@@ -1,6 +1,6 @@
 # Spec: TV artwork, cast and matching
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · bug log entries F21, F30, F34, F37, F38, F40, F41, F47 (and F31, F68 as neighbours)
+> **Status:** In progress (WP1, WP4, WP5 built; WP2, WP3, WP6 wait on Local check L1) · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · bug log entries F21, F30, F34, F37, F38, F40, F41, F47 (and F31, F68 as neighbours)
 
 ## 1. Goal
 
