@@ -3230,7 +3230,9 @@ public partial class ListenPage
             group.CreatedAt,
             artworkItems,
             MediaPersonGroupTileComposer.NavigationUrl(personId, group.DisplayName),
-            group.MediaTypeColor);
+            group.MediaTypeColor,
+            group.AlbumCount,
+            group.DistinctTitleCount ?? group.WorkCount);
     }
 
     private MediaTileViewModel ToAudiobookPersonTile(

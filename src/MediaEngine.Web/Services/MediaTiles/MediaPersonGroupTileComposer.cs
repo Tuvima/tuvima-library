@@ -23,7 +23,9 @@ public static class MediaPersonGroupTileComposer
         DateTimeOffset sortTimestamp,
         IReadOnlyList<ArtworkStackItem> artworkItems,
         string navigationUrl,
-        string accentColor)
+        string accentColor,
+        int? albumCount = null,
+        int? songCount = null)
     {
         var resolvedRoles = (roles ?? [])
             .Where(role => !string.IsNullOrWhiteSpace(role))
@@ -34,7 +36,19 @@ public static class MediaPersonGroupTileComposer
             .Take(4)
             .ToList();
         var primaryArtwork = resolvedArtwork.FirstOrDefault()?.ImageUrl;
-        var mediaCountLabel = MediaCountLabel(mediaType, ownedCount);
+        var isMusic = mediaType.Contains("music", StringComparison.OrdinalIgnoreCase);
+        var songs = isMusic ? songCount ?? ownedCount : ownedCount;
+        var albums = isMusic && albumCount is > 0 ? albumCount : null;
+        var mediaCounts = new List<MediaTileMediaCountViewModel>();
+        if (albums is { } albumTotal)
+        {
+            mediaCounts.Add(new MediaTileMediaCountViewModel(AppMaterialIcons.Outlined.Album, albumTotal == 1 ? "album" : "albums", albumTotal));
+        }
+
+        mediaCounts.Add(new MediaTileMediaCountViewModel(
+            MediaCountIcon(mediaType),
+            isMusic ? (songs == 1 ? "song" : "songs") : MediaCountLabel(mediaType, ownedCount),
+            isMusic ? songs : ownedCount));
 
         return new MediaTileViewModel
         {
@@ -44,10 +58,7 @@ public static class MediaPersonGroupTileComposer
             PreviewImages = resolvedArtwork.Select(item => item.ImageUrl).ToList(),
             ArtworkStackItems = resolvedArtwork,
             PreviewTotalCount = ownedCount,
-            MediaCounts =
-            [
-                new MediaTileMediaCountViewModel(MediaCountIcon(mediaType), mediaCountLabel, ownedCount),
-            ],
+            MediaCounts = mediaCounts,
             GroupSummary = new MediaTileGroupSummaryViewModel
             {
                 OwnedCount = ownedCount,
@@ -75,6 +86,7 @@ public static class MediaPersonGroupTileComposer
                 Name = personName,
                 ImageUrl = personPhotoUrl,
                 Roles = resolvedRoles,
+                FactsLine = FactsLine(mediaType, ownedCount, albums, songs, earliestYear, latestYear),
             },
             CollectionKey = "person",
             SortYear = latestYear ?? earliestYear ?? 0,
@@ -83,6 +95,44 @@ public static class MediaPersonGroupTileComposer
             UseLandscapeGroupTile = true,
         };
     }
+
+    /// <summary>
+    /// The facts line every person tile shows, whatever the role: active years first, then the counts that fit
+    /// the library (albums and songs for music, books, audiobooks, movies or shows otherwise).
+    /// </summary>
+    public static string FactsLine(string mediaType, int ownedCount, int? albumCount, int? songCount, int? earliestYear, int? latestYear)
+    {
+        var parts = new List<string>();
+        var earliest = ValidYear(earliestYear);
+        var latest = ValidYear(latestYear);
+        if (earliest is { } from && latest is { } to)
+        {
+            parts.Add(from == to ? from.ToString() : $"{from}–{to}");
+        }
+        else if ((earliest ?? latest) is { } single)
+        {
+            parts.Add(single.ToString());
+        }
+
+        if (mediaType.Contains("music", StringComparison.OrdinalIgnoreCase))
+        {
+            if (albumCount is > 0)
+            {
+                parts.Add($"{albumCount} {(albumCount == 1 ? "album" : "albums")}");
+            }
+
+            var songs = songCount ?? ownedCount;
+            parts.Add($"{songs} {(songs == 1 ? "song" : "songs")}");
+        }
+        else
+        {
+            parts.Add($"{ownedCount} {MediaCountLabel(mediaType, ownedCount)}");
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    private static int? ValidYear(int? year) => year is >= 1000 and <= 9999 ? year : null;
 
     public static string NavigationUrl(Guid? personId, string personName, string? context = null) => personId.HasValue
         ? $"/details/person/{personId.Value:D}{ContextQuery(context)}"
