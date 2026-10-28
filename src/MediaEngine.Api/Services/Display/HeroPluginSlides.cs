@@ -30,9 +30,12 @@ public sealed class HeroPluginSlides(
 {
     public const int MaximumNominations = 20;
 
+    // Read more than the hero can use, because suggestions for items this person cannot see or that are not ready are skipped afterwards.
+    private const int ReadAtMost = 100;
+
     public async Task<IReadOnlyList<HeroPluginNomination>> NominationsAsync(Guid? profileId, PluginAudience? requester, CancellationToken ct)
     {
-        var offered = await display.ListSlotAsync(PluginDisplaySlot.HomeHeroCandidate, MaximumNominations, ct).ConfigureAwait(false);
+        var offered = await display.ListSlotAsync(PluginDisplaySlot.HomeHeroCandidate, ReadAtMost, ct).ConfigureAwait(false);
         if (offered.Count == 0)
         {
             return [];
@@ -56,6 +59,10 @@ public sealed class HeroPluginSlides(
             }
 
             result.Add(new HeroPluginNomination(itemId, item.PluginId, item.PluginName, item.Text, item.Strength, item.FromLocalAi));
+            if (result.Count >= MaximumNominations)
+            {
+                break;
+            }
         }
 
         return result;

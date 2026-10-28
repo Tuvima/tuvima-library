@@ -50,7 +50,7 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<DisplayFormatReader>();
         services.AddSingleton<DisplayGridPersonalReader>();
         services.TryAddSingleton<IHeroOrderer, DefaultHeroOrderer>();
-        services.TryAddScoped<IHeroPluginSlides, HeroPluginSlides>();
+        services.TryAddSingleton<IHeroPluginSlides, HeroPluginSlides>();
         services.AddScoped<DisplayComposerService>();
         services.AddScoped<BrowseLibraryListService>();
         services.AddScoped<RecentCatalogueReadService>();
