@@ -241,3 +241,60 @@ public interface IPluginOutboxDelivery : IPluginCapability
 {
     Task<PluginDeliveryResult> DeliverAsync(PluginOutboxItem item, IPluginExecutionContext context, CancellationToken cancellationToken);
 }
+
+/// <summary>The Library surfaces a plugin may add a line, chip, block or badge to. The list is fixed; a plugin cannot add a surface.</summary>
+public enum PluginDisplaySlot
+{
+    /// <summary>A short line or badge on a Home slide, such as "Intro skippable".</summary>
+    HomeHero,
+
+    /// <summary>A suggestion for the Home slide, with a reason and a strength. The Home rules still decide; it can suggest but never override.</summary>
+    HomeHeroCandidate,
+
+    /// <summary>A chip or one-line fact on an item's details hero.</summary>
+    ItemHero,
+
+    /// <summary>A titled block on an item's details page, such as Lore or Mood and themes.</summary>
+    ItemSection,
+
+    /// <summary>A small icon with a tooltip on a tile or card.</summary>
+    TileBadge,
+
+    /// <summary>A status line on the Settings overview.</summary>
+    SettingsOverview,
+}
+
+/// <summary>
+/// One thing a plugin wants shown. It is plain data: the Library draws it with its own components, so nothing a plugin supplies can
+/// run in the browser or change the look of a page.
+/// </summary>
+/// <param name="Slot">Where it is shown.</param>
+/// <param name="SubjectId">The item it is about (a work id), or <c>null</c> when it is not about one item.</param>
+/// <param name="Key">The plugin's own name for this contribution, at most 64 characters. Publishing the same key again replaces it.</param>
+/// <param name="Text">The line or body, at most 280 characters.</param>
+/// <param name="Title">An optional heading (for a block), at most 80 characters.</param>
+/// <param name="Icon">An optional icon name from the Library's own icon set, at most 40 characters.</param>
+/// <param name="Strength">0 to 100: how strongly the plugin suggests it. Only used to order contributions in the same slot.</param>
+/// <param name="FromLocalAi">True when Local AI produced the text, so the Library marks it "AI".</param>
+public sealed record PluginDisplayContribution(
+    PluginDisplaySlot Slot,
+    string? SubjectId,
+    string Key,
+    string Text,
+    string? Title = null,
+    string? Icon = null,
+    int Strength = 0,
+    bool FromLocalAi = false);
+
+/// <summary>
+/// Publishes what a plugin wants shown on the Library's own surfaces (see <see cref="PluginDisplayContribution"/>). Publishing is a quick
+/// local write; the Library reads the result later and never waits on the plugin. Needs <c>display-slots</c>.
+/// </summary>
+public interface IPluginDisplay
+{
+    /// <summary>Adds the contribution, or replaces the plugin's earlier one with the same slot, subject and key.</summary>
+    Task PublishAsync(PluginDisplayContribution contribution, CancellationToken cancellationToken = default);
+
+    /// <summary>Takes one of the plugin's contributions down. Does nothing when it is not there.</summary>
+    Task WithdrawAsync(PluginDisplaySlot slot, string? subjectId, string key, CancellationToken cancellationToken = default);
+}

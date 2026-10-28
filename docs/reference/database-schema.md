@@ -1089,7 +1089,7 @@ The libraries an administrator hid from a profile (simpler access D2, D11; the p
 
 ### library_profile_grants
 
-The profiles chosen for a library whose access is **Selected profiles** (Library pages D9; the mode itself, `standard`, `selected` or `vault`, lives in `config/libraries.json`). One row per profile that may see the library: `library_id` (a 16-byte id, no foreign key) and `profile_id` (references `profiles`, deleting the profile removes its rows; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A Selected library is visible to server administrators and to the profiles listed here, and to nobody else, on top of the older rules (the profile's areas, hidden libraries, content limit); a library with no rows is visible to administrators only, and a new profile has no rows, so it starts without access. Switching a library between Standard and Selected clears its rows. A Vault library is never listed and the repository refuses one. Every change raises `profiles.authorization_version` of each profile that gained or lost a library. Indexed by `ix_library_profile_grants_profile`. Created by upgrade step `0055_library_profile_grants`.
+The profiles chosen for a library whose access is **Selected profiles** (Library pages D9; the mode itself, `standard`, `selected` or `vault`, lives in `config/libraries.json`). One row per profile that may see the library: `library_id` (a 16-byte id, no foreign key) and `profile_id` (references `profiles`, deleting the profile removes its rows; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A Selected library is visible to server administrators and to the profiles listed here, and to nobody else, on top of the older rules (the profile's areas, hidden libraries, content limit); a library with no rows is visible to administrators only, and a new profile has no rows, so it starts without access. Switching a library between Standard and Selected clears its rows. A Vault library is never listed and the repository refuses one. Every change raises `profiles.authorization_version` of each profile that gained or lost a library. Indexed by `ix_library_profile_grants_profile`. Created by upgrade step `0056_library_profile_grants`.
 
 ### profile_admin_protections
 
@@ -1295,6 +1295,25 @@ The retry queue for plugins that send things to an outside service on a person's
 | `last_reason` | TEXT | The last failure word, or NULL |
 
 **Indexes:** `(plugin_id, next_attempt_at)`. Added by upgrade step `0054_plugin_outbox`.
+
+### plugin_display_contributions
+
+What plugins want shown on the Library's own surfaces (Plugin architecture spec C21): a line on a Home slide, a chip or titled block on an item's page, a badge on a tile, a status line in Settings. A plugin supplies plain data and the Library draws it, so the data is small (name 64 characters, text 280, title 80, icon 40, at most 2,000 per plugin, the least recently updated going first) and is read without waiting on the plugin. Removed when the plugin is removed. Not part of a backup; each plugin publishes again when it next runs.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id |
+| `slot` | TEXT | The surface: HomeHero, HomeHeroCandidate, ItemHero, ItemSection, TileBadge or SettingsOverview |
+| `subject_id` | TEXT | The item it is about, or empty for Settings |
+| `key` | TEXT | The plugin's own name for it, so it can replace or withdraw it |
+| `title` | TEXT | An optional heading |
+| `text` | TEXT | The line or body |
+| `icon` | TEXT | An optional icon name |
+| `strength` | INTEGER | 0 to 100; orders contributions in the same slot |
+| `from_local_ai` | INTEGER | 1 when Local AI produced it |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+**Key:** `PRIMARY KEY (plugin_id, slot, subject_id, key)`. **Indexes:** `(slot, subject_id)`. Added by upgrade step `0055_plugin_display_contributions`.
 
 ### plugin_event_cursors
 
