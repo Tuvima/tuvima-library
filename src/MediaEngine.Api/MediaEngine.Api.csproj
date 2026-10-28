@@ -37,6 +37,7 @@
     <ProjectReference Include="..\MediaEngine.Processors\MediaEngine.Processors.csproj" />
     <ProjectReference Include="..\MediaEngine.Plugin.CommercialSkip\MediaEngine.Plugin.CommercialSkip.csproj" />
     <ProjectReference Include="..\MediaEngine.Plugin.FandomLore\MediaEngine.Plugin.FandomLore.csproj" />
+    <ProjectReference Include="..\MediaEngine.Plugin.ListenBrainz\MediaEngine.Plugin.ListenBrainz.csproj" />
     <ProjectReference Include="..\MediaEngine.Plugin.MediaSegments\MediaEngine.Plugin.MediaSegments.csproj" />
     <ProjectReference Include="..\MediaEngine.Plugins\MediaEngine.Plugins.csproj" />
     <ProjectReference Include="..\MediaEngine.Storage\MediaEngine.Storage.csproj" />

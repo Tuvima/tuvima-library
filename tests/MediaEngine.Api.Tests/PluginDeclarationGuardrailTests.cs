@@ -2,6 +2,7 @@ using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Plugin.CommercialSkip;
 using MediaEngine.Plugin.FandomLore;
+using MediaEngine.Plugin.ListenBrainz;
 using MediaEngine.Plugin.MediaSegments;
 using MediaEngine.Plugins;
 using MediaEngine.Storage;
@@ -74,7 +75,7 @@ public sealed class PluginDeclarationGuardrailTests : IDisposable
     }
 
     [Fact]
-    public void TheShippedPlugins_AreTheSevenAgreed()
+    public void TheShippedPlugins_AreTheEightAgreed()
     {
         Assert.Equal(
             [
@@ -84,6 +85,7 @@ public sealed class PluginDeclarationGuardrailTests : IDisposable
                 "tuvima.ai-taste-summary",
                 "tuvima.commercial-skip",
                 "tuvima.fandom-lore",
+                "tuvima.listenbrainz",
                 "tuvima.skip-markers",
             ],
             BuiltInPlugins().Select(plugin => plugin.Manifest.Id).Order(StringComparer.Ordinal));
@@ -93,7 +95,7 @@ public sealed class PluginDeclarationGuardrailTests : IDisposable
     private static List<ITuvimaPlugin> BuiltInPlugins()
     {
         var services = new ServiceCollection().BuildServiceProvider();
-        Type[] assemblyMarkers = [typeof(AiFeaturePluginIds), typeof(SkipMarkersPlugin), typeof(CommercialSkipPlugin), typeof(FandomLorePlugin)];
+        Type[] assemblyMarkers = [typeof(AiFeaturePluginIds), typeof(SkipMarkersPlugin), typeof(CommercialSkipPlugin), typeof(FandomLorePlugin), typeof(ListenBrainzPlugin)];
         return assemblyMarkers
             .Select(marker => marker.Assembly)
             .Distinct()

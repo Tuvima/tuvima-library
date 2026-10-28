@@ -8,6 +8,7 @@ using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugin.CommercialSkip;
 using MediaEngine.Plugin.FandomLore;
+using MediaEngine.Plugin.ListenBrainz;
 using MediaEngine.Plugin.MediaSegments;
 using MediaEngine.Plugins;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -26,9 +27,10 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<ITuvimaPlugin, SmartFilingPlugin>();
         services.AddSingleton<ITuvimaPlugin, TasteSummaryPlugin>();
         services.AddSingletonImplementations<ITuvimaPlugin>(
-            expectedCount: 3,
+            expectedCount: 4,
             typeof(CommercialSkipPlugin).Assembly,
             typeof(FandomLorePlugin).Assembly,
+            typeof(ListenBrainzPlugin).Assembly,
             typeof(SkipMarkersPlugin).Assembly);
         services.AddSingleton<AiFeatureRetractionService>();
         services.AddSingleton<DeclarativeAiStepRunner>();
@@ -73,6 +75,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginProfileConnectionService>();
         services.AddSingleton<PluginOutboxService>();
         services.AddSingleton<PluginDisplayService>();
+        services.AddSingleton<PluginPlayDetailsService>();
         services.AddSingleton<PluginOutboxWorker>();
         services.AddHostedService(sp => sp.GetRequiredService<PluginOutboxWorker>());
         services.AddHostedService<PluginOrphanSweepHostedService>();

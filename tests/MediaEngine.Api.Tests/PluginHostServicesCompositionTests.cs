@@ -38,6 +38,8 @@ public sealed class PluginHostServicesCompositionTests
             services.AddSingleton<IConfigurationLoader>(loader);
             services.AddSingleton<IDatabaseConnection>(database);
             services.AddHttpClient();
+            services.AddDataProtection();
+            services.AddSingleton<ISecretStore, MediaEngine.Api.Services.DataProtectionSecretStore>();
             services.AddSingleton<IAiEngineRoom, NeverCalledEngineRoom>();
             services.AddSingleton<IConfigSecretsStore>(new MediaEngine.Storage.Secrets.ConfigFolderSecretsStore(configDirectory));
             services.AddTuvimaStorage();

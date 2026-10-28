@@ -84,6 +84,11 @@ public sealed class PluginProfileConnectionService(
         return ConnectionOutcome.Done;
     }
 
+    /// <summary>True when the profile has linked the credential. Never the value.</summary>
+    public async Task<bool> IsLinkedAsync(string pluginId, Guid profileId, string name, CancellationToken ct) =>
+        (await repository.ListAsync(pluginId, profileId, ct).ConfigureAwait(false))
+            .Any(row => string.Equals(row.CredentialName, name, StringComparison.OrdinalIgnoreCase));
+
     public async Task<ConnectionOutcome> UnlinkAsync(string pluginId, Guid profileId, string name, CancellationToken ct)
     {
         var declared = PersonalCredentials(pluginId).FirstOrDefault(secret => string.Equals(secret.Name, name, StringComparison.OrdinalIgnoreCase));
