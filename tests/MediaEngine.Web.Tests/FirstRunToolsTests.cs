@@ -221,8 +221,14 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         Assert.Single(row.QuerySelectorAll("small"));
         Assert.Contains(line, row.QuerySelector("small")!.TextContent, StringComparison.Ordinal);
         Assert.DoesNotContain("won't be readable", row.TextContent, StringComparison.Ordinal);
-        if (button is null) Assert.Empty(row.QuerySelectorAll("button"));
-        else Assert.Contains(button, Assert.Single(row.QuerySelectorAll("button")).TextContent, StringComparison.Ordinal);
+        if (button is null)
+        {
+            Assert.Empty(row.QuerySelectorAll("button"));
+        }
+        else
+        {
+            Assert.Contains(button, Assert.Single(row.QuerySelectorAll("button")).TextContent, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

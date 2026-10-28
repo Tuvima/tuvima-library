@@ -1144,10 +1144,10 @@ public sealed class FirstPartyIdentityService(
             return issued;
         }
 
-        // First-run setup has just created the only profile, so asking who is using Library would show a list of one. Only while setup
+        // First-run setup has just created the only profile, so asking who is using Library would show a list of one. Only for the server administrator, while setup
         // is still running and the household has a single profile; every later sign-in is asked as usual.
-        if (firstRunSetup is { IsInProgress: true }
-            && (await accounts.GetProfileIdsAsync(account.Id, ct).ConfigureAwait(false)).Count <= 1)
+        if (firstRunSetup is { IsInProgress: true } && profile.IsServerAdministrator
+            && (await accounts.GetProfileIdsAsync(account.Id, ct).ConfigureAwait(false)).Count == 1)
         {
             return issued;
         }
