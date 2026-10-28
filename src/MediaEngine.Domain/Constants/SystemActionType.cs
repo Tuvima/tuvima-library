@@ -11,6 +11,13 @@ public static class SystemActionType
     /// <summary>An administrator uploaded a plugin package; it was added as a Private plugin, switched off.</summary>
     public const string PluginUploaded = "PluginUploaded";
 
+    /// <summary>
+    /// A person did something with a plugin or source that changed shared Library data (chose lyrics, marked subtitles wrong, linked an
+    /// account, switched a plugin off). Shown to administrators only, under "People's actions"; kept for
+    /// <c>plugin_people_action_retention_days</c> (12 months by default) instead of the usual Events retention.
+    /// </summary>
+    public const string PluginPeopleAction = "PluginPeopleAction";
+
     /// <summary>A file was ingested into the library.</summary>
     public const string FileIngested = "FileIngested";
 

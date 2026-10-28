@@ -370,6 +370,7 @@ None of these are kept.
 | `application_webhook_deliveries` | Webhook delivery queue. |
 | `plugin_event_cursors` | How far each plugin has read events. |
 | `plugin_records` | Plugin working data. |
+| `plugin_activity` | What plugins did and how they failed; fills again as they run. |
 | `plugin_lore_entities` | Lore entities found by plugins. |
 | `plugin_lore_relationships` | Lore relationships found by plugins. |
 | `media_editor_commits` | Editor save records, kept for repeat requests. |

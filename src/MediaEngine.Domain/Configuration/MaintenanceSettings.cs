@@ -24,6 +24,13 @@ public sealed class MaintenanceSettings
     [JsonPropertyName("activity_max_events")]
     public int ActivityMaxEvents { get; set; } = 500_000;
 
+    /// <summary>
+    /// Number of days to keep the record of what people did with plugins and sources (Plugin architecture spec C25). Kept apart
+    /// from <see cref="ActivityRetentionDays"/> because it is a trust record, not operating noise.
+    /// </summary>
+    [JsonPropertyName("plugin_people_action_retention_days")]
+    public int PluginPeopleActionRetentionDays { get; set; } = 365;
+
     /// <summary>Number of days to keep the Engine's technical log files.</summary>
     [JsonPropertyName("log_retention_days")]
     public int LogRetentionDays { get; set; } = 90;

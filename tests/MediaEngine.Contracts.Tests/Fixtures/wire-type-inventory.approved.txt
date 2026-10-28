@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1244; api=0; web-client=54
+# scopes: contracts=1248; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8151,6 +8151,28 @@
   Edits: System.Boolean | json=edits | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"sample","kind":"sample","label":"sample","slot":"sample","audience":"sample","priority":7,"edits":true}
 
+[contracts] MediaEngine.Contracts.Plugins.PluginActivityEntryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Int64 | json=id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OccurredAt: System.DateTimeOffset | json=occurred_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PluginVersion: System.String | json=plugin_version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ReasonGroup: System.String | json=reason_group | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ReasonWords: System.String | json=reason_words | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemId: System.Guid? | json=item_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemsChanged: System.Int32 | json=items_changed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Summary: System.String | json=summary | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Detail: System.String | json=detail | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":7,"occurred_at":"2025-01-02T03:04:05+00:00","plugin_version":"sample","kind":"sample","reason":"sample","reason_group":"sample","reason_words":"sample","item_id":"11111111-2222-3333-4444-555555555555","items_changed":7,"summary":"sample","detail":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginActivityResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PluginId: System.String | json=plugin_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Entries: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginActivityEntryDto> | json=entries | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PausedUntil: System.DateTimeOffset? | json=paused_until | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","entries":[],"paused_until":"2025-01-02T03:04:05+00:00"}
+
 [contracts] MediaEngine.Contracts.Plugins.PluginAiPermissionDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Role: System.String | json=role | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -8422,6 +8444,24 @@
   Saved: System.Boolean | json=saved | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RecordKey: System.String | json=record_key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"saved":true,"record_key":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginPeopleActionDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  OccurredAt: System.DateTimeOffset | json=occurred_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileId: System.Guid? | json=profile_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PluginId: System.String | json=plugin_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Action: System.String | json=action | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Summary: System.String | json=summary | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemId: System.Guid? | json=item_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Before: System.String | json=before | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  After: System.String | json=after | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Device: System.String | json=device | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"occurred_at":"2025-01-02T03:04:05+00:00","profile_id":"11111111-2222-3333-4444-555555555555","plugin_id":"sample","action":"sample","summary":"sample","item_id":"11111111-2222-3333-4444-555555555555","before":"sample","after":"sample","device":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginPeopleActionsResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Actions: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginPeopleActionDto> | json=actions | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"actions":[]}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginRemovalImpactResponse
   kind=class | converter=default | number-handling=default | unmapped=default
