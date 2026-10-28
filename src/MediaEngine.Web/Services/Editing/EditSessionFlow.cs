@@ -322,16 +322,11 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         return row.FieldKey is { } key ? _session.Pending.ClearField(row.EntityId, key) : _session.Pending.Remove(row.ChangeId);
     }
 
-    /// <summary>
-    /// Whether Review's Edit can reach the row's item: the item open now, or one the session has visited (its trail is known). A change
-    /// staged on an item the page never opened (an episode ticked in a season list) has no trail, so Edit is not offered for it; the row
-    /// can still be removed.
-    /// </summary>
+    /// <summary>Whether Review's Edit can reach the row's item: any staged item can be switched to (spec D7), so it is offered whenever editing is active.</summary>
     public bool CanJumpTo(EditReviewRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        return _session.IsActive
-            && (_session.ActiveItem?.EntityId == row.EntityId || _session.TrailTo(row.EntityId) is not null);
+        return _session.IsActive;
     }
 
     /// <summary>Review changes' Edit: moves to the row's item and opens the tool that holds its change. Pending changes are kept.</summary>
