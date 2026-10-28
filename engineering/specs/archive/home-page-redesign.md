@@ -1,6 +1,6 @@
 # Spec: Home page redesign (hero, pick up where you left off, Recently Added, tiles, details opening)
 
-> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy 2026-10-27) · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Design system](../design/design-system.md) · bug log entries F20, F31, F60, F68, F71, F72 (related: F21, F38, F58, F69)
+> **Status:** Built (archived 2026-10-28; awaiting Local checks L1 to L9) · **Version:** 1 · **Last updated:** 2026-10-27 (locked by Shy 2026-10-27) · **Related docs:** [Product overview](../../product/overview.md) · [Presentation rules](../../../docs/product/presentation-rules.md) · [Design system](../../design/design-system.md) · bug log entries F20, F31, F60, F68, F71, F72 (related: F21, F38, F58, F69)
 
 > Written 2026-10-27 from Shy's bug log and Shy's layout example for F71. Root causes below were read from the code on main (44281287); nothing was run, so each cause says how sure we are and which packet confirms it. Nothing here is Locked.
 
@@ -190,3 +190,15 @@ Built in the cloud, validated locally in one batch (see section 7). Order: WP1 f
 ## 9. Plain English summary
 
 Home will open on a big featured item that looks exactly like the top of that item's details page, with its title logo and a Resume button. What you are halfway through comes first, then new arrivals, and a show you have never watched shows as the series so you can start it. Under that is a compact "Pick up where you left off" row, then Recently Added with smaller tiles and filter buttons that you can switch on and off, and that only appear when they have something to show. Hero settings per profile, room for an AI picker and plugin-supplied slides are included. Hovering over a movie or show will behave the same way everywhere, and opening a details page will show the picture and title straight away instead of a flash of empty boxes. A first step measures three things we are only fairly sure about (cover size, why details pages are slow, hover lag) before we fix them. All four questions are answered, so it is ready for you to lock.
+
+## 9. Build notes (2026-10-28)
+
+Built in #508 (hero order, logo, cover size), #510 (pick-up row, pills, tiles), #513 (hover, instant details opening) and #514 (hero settings, swappable picker, plugin slides, docs). Choices made while building unattended:
+
+- **WP1 measure:** done by reading the code; the timings (details build time in the Engine, hover frame rate, cover screenshots) are Local checks L6 and L7.
+- A show with every episode watched is not "in the middle of", so it ranks with new items but keeps its episode presentation.
+- My Library's Continue shelf uses the same pick-up card; an album appears in the row as "Recently played".
+- Watch shelves use the Home hover surface, so both pages hover the same.
+- The instant details opening covers tile clicks, not the banner's own link. The Engine-side speed-up of the details build is not built; it waits for the L7 timing.
+- Plugin slides carry no pictures (the display slot has text and an icon name only), so there are no declared picture addresses to allow; text with markup, scripts or addresses is refused and logged. A suggestion can only label and lift an item that is already allowed on the hero.
+- Hero settings are for the signed-in profile only (no administrator editing of someone else's banner).
