@@ -57,3 +57,38 @@ public sealed class PluginRemoveRequest
     [JsonPropertyName("also_switch_off_dependants")]
     public bool AlsoSwitchOffDependants { get; set; }
 }
+
+/// <summary>The outcome of Check now for a plugin or a metadata source, in plain words (Plugin architecture spec G13).</summary>
+public sealed class PluginCheckNowResponse
+{
+    [JsonPropertyName("plugin_id")]
+    public string PluginId { get; set; } = "";
+
+    /// <summary><c>working</c>, <c>needs_attention</c> or <c>cannot_check</c>.</summary>
+    [JsonPropertyName("result")]
+    public string Result { get; set; } = "cannot_check";
+
+    /// <summary>One plain sentence for the headline.</summary>
+    [JsonPropertyName("summary")]
+    public string Summary { get; set; } = "";
+
+    [JsonPropertyName("steps")]
+    public List<PluginCheckStepDto> Steps { get; set; } = [];
+
+    [JsonPropertyName("checked_at")]
+    public DateTimeOffset CheckedAt { get; set; }
+}
+
+/// <summary>One thing Check now looked at.</summary>
+public sealed class PluginCheckStepDto
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = "";
+
+    [JsonPropertyName("ok")]
+    public bool Ok { get; set; }
+
+    /// <summary>Plain words on what was found, or null when the label says it all.</summary>
+    [JsonPropertyName("detail")]
+    public string? Detail { get; set; }
+}

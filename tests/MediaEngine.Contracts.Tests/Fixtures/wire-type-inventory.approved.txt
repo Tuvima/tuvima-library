@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1262; api=0; web-client=54
+# scopes: contracts=1264; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8260,6 +8260,22 @@
   Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Description: System.String | json=description | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"kind":"sample","name":"sample","description":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginCheckNowResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PluginId: System.String | json=plugin_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Result: System.String | json=result | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Summary: System.String | json=summary | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Steps: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginCheckStepDto> | json=steps | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CheckedAt: System.DateTimeOffset | json=checked_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","result":"sample","summary":"sample","steps":[],"checked_at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginCheckStepDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Label: System.String | json=label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Ok: System.Boolean | json=ok | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Detail: System.String | json=detail | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"label":"sample","ok":true,"detail":"sample"}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginDeletedResponse
   kind=class | converter=default | number-handling=default | unmapped=default

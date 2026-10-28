@@ -7049,6 +7049,18 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCapabilityDto
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCategories
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCheckNowResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Result: System.String | nullability=not-null | accessors=get,set
+  Summary: System.String | nullability=not-null | accessors=get,set
+  Steps: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginCheckStepDto> | nullability=not-null | accessors=get,set
+  CheckedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCheckStepDto
+  Label: System.String | nullability=not-null | accessors=get,set
+  Ok: System.Boolean | nullability=not-null | accessors=get,set
+  Detail: System.String | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeletedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   deleted: System.Boolean | nullability=not-null | accessors=get,init
