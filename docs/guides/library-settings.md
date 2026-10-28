@@ -149,6 +149,8 @@ A library can be made **Vault-protected** when you create it (see [Create a libr
 - **On its page.** A Vault library has no Scan now or Add files. Its Activity tab points to the Vault, where its activity is listed, never here.
 - **Lookup.** A Vault library of a kind that looks details up has a **Look up details online** switch on its Lookup tab, off by default. The switch is stored with the library, but online lookup for the Vault is not running yet, so nothing is sent to any online service whether it is on or off. It starts working with a later update, and the tab says so.
 
+**Adult content** is a Watch content type for adult videos. Its Vault tick is on by default; unticked, it becomes an ordinary Watch library whose access is Selected profiles, never Standard. A folder cannot be changed into or out of Adult content afterwards.
+
 ## Choose how Library treats a library's files
 
 Open the library and pick its **File handling** tab. It has four cards, each with one (i) on its heading and an **Example** line that shows what the choice does:
