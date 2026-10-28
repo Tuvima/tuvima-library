@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1260; api=0; web-client=54
+# scopes: contracts=1262; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8559,6 +8559,27 @@
   WouldLose: System.Collections.Generic.List<System.String> | json=would_lose | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Keeps: System.String | json=keeps | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"plugin_id":"sample","would_lose":[],"keeps":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginRemovalPreviewResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PluginId: System.String | json=plugin_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Lines: System.Collections.Generic.List<System.String> | json=lines | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Records: System.Int32 | json=records | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecordBytes: System.Int64 | json=record_bytes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SecretsSet: System.Int32 | json=secrets_set | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SavedOutput: System.String | json=saved_output | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SavedOutputCount: System.Int32 | json=saved_output_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DefaultOutput: System.String | json=default_output | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NeededBy: System.Collections.Generic.List<System.String> | json=needed_by | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WouldLose: System.Collections.Generic.List<System.String> | json=would_lose | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","name":"sample","lines":[],"records":7,"record_bytes":7,"secrets_set":7,"saved_output":"sample","saved_output_count":7,"default_output":"sample","needed_by":[],"would_lose":[]}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginRemoveRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Output: System.String | json=output | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AlsoSwitchOffDependants: System.Boolean | json=also_switch_off_dependants | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"output":"sample","also_switch_off_dependants":true}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginRequirementDto
   kind=class | converter=default | number-handling=default | unmapped=default

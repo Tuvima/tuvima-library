@@ -504,6 +504,17 @@ internal static class PluginEndpoints
         .Produces<PluginSavedResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
+        group.MapGet("/{pluginId}/removal-preview", async (string pluginId, [FromServices] PluginRemovalService removal, CancellationToken ct) =>
+        {
+            var preview = await removal.PreviewAsync(pluginId, ct).ConfigureAwait(false);
+            return preview is null ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.") : Results.Ok(preview);
+        })
+        .WithName("GetPluginRemovalPreview")
+        .WithSummary("Everything removing the plugin would do, in plain words, before anything is removed.")
+        .Produces<PluginRemovalPreviewResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
         group.MapDelete("/{pluginId}", DeletePluginAsync)
         .WithName("DeletePlugin")
         .Produces<PluginDeletedResponse>(StatusCodes.Status200OK)
@@ -600,23 +611,47 @@ internal static class PluginEndpoints
 
     private const int MaximumSecretValueLength = 8192;
 
-    /// <summary>Uninstalls a plugin; its saved settings and its keys and logins go with it.</summary>
+    /// <summary>Uninstalls a plugin; its settings, records, keys and logins go with it, and its saved output goes if the person chose that.</summary>
     internal static async Task<IResult> DeletePluginAsync(
         string pluginId,
+        [FromBody] PluginRemoveRequest? request,
         PluginCatalog catalog,
-        [FromServices] IConfigSecretsStore secrets,
+        [FromServices] PluginRemovalService removal,
         CancellationToken ct)
     {
+        var preview = await removal.PreviewAsync(pluginId, ct).ConfigureAwait(false);
+        if (preview is null)
+        {
+            return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+        }
+
+        if (request?.Output is { } choice && choice is not ("keep" or "remove"))
+        {
+            return ApiErrors.BadRequest("Choose to keep or remove what the plugin saved.");
+        }
+
+        var dependants = PluginDependencyGraph.Dependants(pluginId, catalog.List());
+        if (dependants.Count > 0 && request?.AlsoSwitchOffDependants != true)
+        {
+            return ApiErrors.Conflict(
+                "has_dependants",
+                $"{string.Join(" and ", dependants.Select(plugin => plugin.Manifest.Name))} needs this plugin. Switch {(dependants.Count == 1 ? "it" : "them")} off too, or cancel.");
+        }
+
+        foreach (var dependant in dependants)
+        {
+            catalog.SetEnabled(dependant.Manifest.Id, false);
+        }
+
         try
         {
-            catalog.DeletePlugin(pluginId);
+            await removal.RemoveAsync(pluginId, (request?.Output ?? preview.DefaultOutput) == "remove", ct).ConfigureAwait(false);
         }
         catch (InvalidOperationException ex)
         {
             return ApiErrors.BadRequest(ex.Message);
         }
 
-        await RemoveAllPluginSecretsAsync(pluginId, secrets, ct).ConfigureAwait(false);
         return Results.Ok(new PluginDeletedResponse { plugin_id = pluginId, deleted = true });
     }
 

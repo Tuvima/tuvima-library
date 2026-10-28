@@ -7280,6 +7280,23 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalImpactR
   WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   Keeps: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalPreviewResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Lines: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Records: System.Int32 | nullability=not-null | accessors=get,set
+  RecordBytes: System.Int64 | nullability=not-null | accessors=get,set
+  SecretsSet: System.Int32 | nullability=not-null | accessors=get,set
+  SavedOutput: System.String | nullability=nullable | accessors=get,set
+  SavedOutputCount: System.Int32 | nullability=not-null | accessors=get,set
+  DefaultOutput: System.String | nullability=not-null | accessors=get,set
+  NeededBy: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemoveRequest
+  Output: System.String | nullability=nullable | accessors=get,set
+  AlsoSwitchOffDependants: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRequirementDto
   Kind: System.String | nullability=not-null | accessors=get,set
   Id: System.String | nullability=not-null | accessors=get,set
