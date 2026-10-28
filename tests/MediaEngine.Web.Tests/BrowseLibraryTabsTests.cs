@@ -36,7 +36,7 @@ public sealed class BrowseLibraryTabsTests
     private static readonly HashSet<string> FixedTabs = new(StringComparer.OrdinalIgnoreCase) { "playlists" };
 
     [Fact]
-    public void ANamedPlainLibraryGetsItsOwnTabNamedForTheLibraryThatReusesTheVideosPreset()
+    public void YouTubeAndNamedPlainVideoLibrariesShareOneVideosTabWithAChipEachThatReusesTheVideosPreset()
     {
         var preset = BrowseLibraryTabs.Build(Fixed, "watch",
         [
@@ -44,14 +44,73 @@ public sealed class BrowseLibraryTabsTests
             new(Lectures, "Lectures", "other_videos", "watch", "Videos", true),
         ], FixedTabs);
 
-        Assert.Equal(["youtube", $"lib-{Lectures:N}", "playlists"], preset.Tabs.Select(tab => tab.Id));
-        var lectures = preset.Tabs[1];
-        Assert.Equal("Lectures", lectures.Label);
-        Assert.Equal(Lectures, lectures.LibraryId);
-        Assert.Equal("videos", lectures.DefaultGrouping);
-        Assert.Equal("Series and videos", Assert.Single(lectures.GroupingOptions).Label);
-        Assert.Equal("videos", lectures.EffectiveBehaviourId);
-        Assert.Null(preset.Tabs[2].LibraryId);
+        Assert.Equal(["videos", "playlists"], preset.Tabs.Select(tab => tab.Id));
+        var videos = preset.Tabs[0];
+        Assert.Equal("Videos", videos.Label);
+        Assert.Null(videos.LibraryId);
+        Assert.Equal([Youtube, Lectures], videos.LibraryChips.Select(chip => chip.Id));
+        Assert.Equal(["YouTube", "Lectures"], videos.LibraryChips.Select(chip => chip.Label));
+        Assert.Equal("videos", videos.DefaultGrouping);
+        Assert.Equal("Series and videos", Assert.Single(videos.GroupingOptions).Label);
+        Assert.Equal("videos", videos.EffectiveBehaviourId);
+        Assert.Null(preset.Tabs[1].LibraryId);
+    }
+
+    [Fact]
+    public void ThreeOtherVideosLibrariesGiveOneVideosTabWithThreeChips()
+    {
+        var home = Guid.Parse("d0000000-0000-0000-0000-000000000011");
+        var tiktok = Guid.Parse("d0000000-0000-0000-0000-000000000012");
+        var preset = BrowseLibraryTabs.Build(Fixed, "watch",
+        [
+            new(home, "Home videos", "other_videos", "watch", "Videos", true),
+            new(tiktok, "TikTok edits", "other_videos", "watch", "Videos", true),
+            new(Lectures, "Other videos", "other_videos", "watch", "Videos", true),
+        ], FixedTabs);
+
+        var videos = Assert.Single(preset.Tabs, tab => tab.Id == "videos");
+        Assert.Equal(["Home videos", "TikTok edits", "Other videos"], videos.LibraryChips.Select(chip => chip.Label));
+    }
+
+    [Fact]
+    public void ALibraryTheProfileCannotSeeIsNotInTheListSoItHasNoChip()
+    {
+        // Lectures was left out of the Engine's list for this profile.
+        var preset = BrowseLibraryTabs.Build(Fixed, "watch",
+        [
+            new(Youtube, "YouTube", "youtube", "watch", "Videos", true),
+            new(Recordings, "Recordings", "other_videos", "watch", "Videos", true),
+        ], FixedTabs);
+
+        var chips = preset.Tabs.Single(tab => tab.Id == "videos").LibraryChips;
+        Assert.DoesNotContain(chips, chip => chip.Id == Lectures);
+        Assert.Equal(2, chips.Count);
+    }
+
+    [Fact]
+    public void ALoneVideosLibraryIsTheTabsOwnLibraryAndNeedsNoChips()
+    {
+        var preset = BrowseLibraryTabs.Build(Fixed, "watch", [new(Lectures, "Lectures", "other_videos", "watch", "Videos", true)], FixedTabs);
+
+        var videos = preset.Tabs[0];
+        Assert.Equal(Lectures, videos.LibraryId);
+        Assert.Empty(videos.LibraryChips);
+    }
+
+    [Fact]
+    public void ALibraryChipInTheAddressNarrowsTheTabOnlyWhenTheTabListsThatLibrary()
+    {
+        var preset = BrowseLibraryTabs.Build(Fixed, "watch",
+        [
+            new(Youtube, "YouTube", "youtube", "watch", "Videos", true),
+            new(Lectures, "Lectures", "other_videos", "watch", "Videos", true),
+        ], FixedTabs);
+
+        Assert.Equal(Lectures, BrowseQueryBuilder.Read(preset, "videos", $"http://localhost/watch/videos?library={Lectures:D}").LibraryChip);
+        Assert.Null(BrowseQueryBuilder.Read(preset, "videos", $"http://localhost/watch/videos?library={Recordings:D}").LibraryChip);
+        Assert.Null(BrowseQueryBuilder.Read(preset, "videos", "http://localhost/watch/videos").LibraryChip);
+        Assert.True(BrowseQueryBuilder.Read(preset, "videos", $"http://localhost/watch/videos?library={Lectures:D}&unmatched=true").Unmatched);
+        Assert.False(BrowseQueryBuilder.Read(preset, "videos", "http://localhost/watch/videos?unmatched=true").Unmatched);
     }
 
     [Fact]
@@ -77,10 +136,11 @@ public sealed class BrowseLibraryTabsTests
             new(Lectures, "Lectures", "other_videos", "watch", "Videos", true),
         ], FixedTabs);
 
-        Assert.Equal("youtube", BrowseQueryBuilder.FindTab(preset, "videos")?.Id);
-        Assert.Equal("youtube", BrowseQueryBuilder.FindTab(preset, "YouTube")?.Id);
+        Assert.Equal("videos", BrowseQueryBuilder.FindTab(preset, "videos")?.Id);
+        Assert.Equal("videos", BrowseQueryBuilder.FindTab(preset, "YouTube")?.Id);
+        Assert.Equal("videos", BrowseQueryBuilder.FindTab(preset, $"lib-{Lectures:N}")?.Id);
         Assert.Null(BrowseQueryBuilder.FindTab(preset, "movies"));
-        Assert.Equal("youtube", BrowseQueryBuilder.Read(preset, "movies", "http://localhost/watch/movies").ActiveTabId);
+        Assert.Equal("videos", BrowseQueryBuilder.Read(preset, "movies", "http://localhost/watch/movies").ActiveTabId);
     }
 
     [Fact]

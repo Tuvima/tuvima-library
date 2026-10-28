@@ -15,6 +15,8 @@ public static class BrowseQueryBuilder
         var grouping = ResolveGrouping(query["browse"], resolvedTab);
         var layout = ResolveLayout(query["view"], resolvedTab, grouping);
         var sortBy = ResolveSort(query["sort"], resolvedTab.EffectiveBehaviourId, grouping);
+        // A library chip only counts when the tab really lists that library (a chip hidden from this profile cannot be asked for).
+        Guid? chip = Guid.TryParse(query["library"], out var chipId) && resolvedTab.LibraryChips.Any(item => item.Id == chipId) ? chipId : null;
 
         return new BrowseState(
             resolvedTab.Id,
@@ -30,8 +32,9 @@ public static class BrowseQueryBuilder
             query["period"] == "decade" ? MediaEngine.Web.Components.Shared.TimelineGrouping.Decade : MediaEngine.Web.Components.Shared.TimelineGrouping.Year,
             ParseList(query.GetValues("vibe")),
             ParseList(query.GetValues("theme")),
-            // The Unmatched filter only exists on a library's own tab (Library setup spec D64).
-            resolvedTab.LibraryId is not null && string.Equals(query["unmatched"], "true", StringComparison.OrdinalIgnoreCase));
+            // The Unmatched filter only exists on a library's own tab, or on a gathering tab once a library chip is chosen (Library setup spec D64).
+            (resolvedTab.LibraryId is not null || chip is not null) && string.Equals(query["unmatched"], "true", StringComparison.OrdinalIgnoreCase),
+            chip);
     }
 
     /// <summary>
@@ -47,7 +50,8 @@ public static class BrowseQueryBuilder
 
         var name = requestedTab.Trim();
         return preset.Tabs.FirstOrDefault(tab => string.Equals(tab.Id, name, StringComparison.OrdinalIgnoreCase))
-            ?? preset.Tabs.FirstOrDefault(tab => string.Equals(tab.EffectiveBehaviourId, name, StringComparison.OrdinalIgnoreCase));
+            ?? preset.Tabs.FirstOrDefault(tab => string.Equals(tab.EffectiveBehaviourId, name, StringComparison.OrdinalIgnoreCase))
+            ?? preset.Tabs.FirstOrDefault(tab => tab.AlsoKnownAs.Contains(name, StringComparer.OrdinalIgnoreCase));
     }
 
     public static string ResolveGrouping(string? requestedGrouping, BrowseTabPreset tab)

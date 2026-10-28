@@ -76,6 +76,10 @@
                                     SetupSession="@SetupSession"
                                     InitialPath="@_initialPath"
                                     OnConfirmed="OnFolderConfirmed" />
+                @if (SubfolderHints.For(_type.Area) is { } subfolderHint)
+                {
+                    <AppQuietNote data-subfolder-hint="@_type.Area">@subfolderHint</AppQuietNote>
+                }
                 @if (_footagePending && LooksLikeFootage)
                 {
                     <div class="add-wizard__hint" role="note">

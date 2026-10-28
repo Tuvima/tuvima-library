@@ -27,6 +27,9 @@ public sealed record BrowseGroupingOption(
     bool Disabled = false,
     string? Description = null);
 
+/// <summary>One library chip on a gathering tab: the library's id and the name on the chip.</summary>
+public sealed record BrowseLibraryChip(Guid Id, string Label);
+
 public sealed record BrowseTabPreset
 {
     public required string Id { get; init; }
@@ -41,6 +44,15 @@ public sealed record BrowseTabPreset
 
     /// <summary>The library this tab browses (a <c>BrowseLibraryDto</c> id); null for a fixed tab such as Playlists.</summary>
     public Guid? LibraryId { get; init; }
+
+    /// <summary>
+    /// The libraries a gathering tab (Watch's Videos) can narrow to, one chip each after "All"; empty for every other tab. Only libraries the
+    /// profile may see are ever in the list, so a hidden library has no chip.
+    /// </summary>
+    public IReadOnlyList<BrowseLibraryChip> LibraryChips { get; init; } = [];
+
+    /// <summary>Other names an old link may use for this tab (the YouTube tab and a library's own tab now live in Videos).</summary>
+    public IReadOnlyList<string> AlsoKnownAs { get; init; } = [];
 
     /// <summary>The fixed tab whose per-tab rules (sort, columns, links) this library tab follows; null means this tab's own <see cref="Id"/>.</summary>
     public string? BehaviourId { get; init; }

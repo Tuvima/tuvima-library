@@ -103,27 +103,82 @@ public sealed partial class UiShellRenderTests
             .Distinct(StringComparer.Ordinal)];
 
     [Fact]
-    public void Watch_ShowsOneTabPerKindAndPerNamedLibraryThatHasFolders()
+    public void Watch_ShowsOneTabPerKindAndOneVideosTabGatheringTheVideoLibrariesAsChips()
     {
         UseBrowseLibraries(WatchLibraries());
 
-        var cut = RenderLanePage<WatchPage>("/watch", null);
+        var cut = RenderLanePage<WatchPage>("/watch/videos", "videos");
 
         cut.WaitForAssertion(() => Assert.Equal(
-            ["/watch/movies", "/watch/tv", "/watch/youtube", $"/watch/lib-{LecturesLibrary:N}"],
+            ["/watch/movies", "/watch/tv", "/watch/videos"],
             TabRoutes(cut, "/watch")));
         Assert.Contains(">TV Shows<", cut.Markup);
-        Assert.Contains(">YouTube<", cut.Markup);
-        Assert.Contains(">Lectures<", cut.Markup);
+        Assert.Equal(["All", "YouTube", "Lectures"], ChipLabels(cut));
         Assert.DoesNotContain(">Empty<", cut.Markup);
     }
 
+    private static string[] ChipLabels(IRenderedComponent<IComponent> cut) =>
+        [.. cut.FindAll("[data-library-chips] .app-chip").Select(chip => chip.TextContent.Trim())];
+
+    private static readonly Guid HomeVideosLibrary = Guid.Parse("a0000000-0000-0000-0000-000000000011");
+    private static readonly Guid TikTokLibrary = Guid.Parse("a0000000-0000-0000-0000-000000000012");
+
+    private static BrowseLibraryDto[] ThreeOtherVideos() =>
+    [
+        new(HomeVideosLibrary, "Home videos", "other_videos", "watch", "Videos", true),
+        new(TikTokLibrary, "TikTok edits", "other_videos", "watch", "Videos", true),
+        new(LecturesLibrary, "Other videos", "other_videos", "watch", "Videos", true),
+    ];
+
     [Fact]
-    public void Watch_OpeningANamedLibraryTabBrowsesWithThatLibrary()
+    public void Watch_ThreeOtherVideosLibrariesShowThreeChips()
+    {
+        UseBrowseLibraries(ThreeOtherVideos());
+
+        var cut = RenderLanePage<WatchPage>("/watch/videos", "videos");
+
+        cut.WaitForAssertion(() => Assert.Equal(["All", "Home videos", "TikTok edits", "Other videos"], ChipLabels(cut)));
+    }
+
+    [Fact]
+    public void Watch_AProfileThatCannotSeeOneOfThreeLibrariesGetsNeitherItsChipNorItsVideos()
+    {
+        // The Engine leaves a library the profile cannot see out of the list, so the page has no chip for it, and asking for it by address does nothing.
+        var all = ThreeOtherVideos();
+        UseBrowseLibraries([all[0], all[2]]);
+
+        var cut = RenderLanePage<WatchPage>($"/watch/videos?library={TikTokLibrary:D}", "videos");
+
+        cut.WaitForAssertion(() => Assert.Equal(["All", "Home videos", "Other videos"], ChipLabels(cut)));
+        Assert.DoesNotContain("TikTok edits", cut.Markup);
+        cut.WaitForAssertion(() => Assert.NotEmpty(_browseCalls));
+        Assert.Null(_browseCalls[0][BrowseLibraryIdArgument]);
+    }
+
+    [Fact]
+    public void Watch_ChoosingALibraryChipBrowsesWithThatLibraryAndKeepsItInTheAddress()
+    {
+        UseBrowseLibraries(WatchLibraries());
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var cut = RenderLanePage<WatchPage>("/watch/videos", "videos");
+        cut.WaitForAssertion(() => Assert.NotEmpty(_browseCalls));
+        Assert.Null(_browseCalls[0][BrowseLibraryIdArgument]);
+
+        cut.FindAll("[data-library-chips] .app-chip").Single(chip => chip.TextContent.Trim() == "Lectures").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(LecturesLibrary, _browseCalls[^1][BrowseLibraryIdArgument]);
+            Assert.Contains($"library={LecturesLibrary:D}", navigation.Uri, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void Watch_OpeningTheVideosTabWithALibraryChipBrowsesWithThatLibrary()
     {
         UseBrowseLibraries(WatchLibraries());
 
-        var cut = RenderLanePage<WatchPage>($"/watch/lib-{LecturesLibrary:N}", $"lib-{LecturesLibrary:N}");
+        var cut = RenderLanePage<WatchPage>($"/watch/videos?library={LecturesLibrary:D}", "videos");
 
         cut.WaitForAssertion(() =>
         {
@@ -140,7 +195,8 @@ public sealed partial class UiShellRenderTests
 
         var cut = RenderLanePage<WatchPage>("/watch", null);
 
-        cut.WaitForAssertion(() => Assert.Equal([$"/watch/lib-{LecturesLibrary:N}"], TabRoutes(cut, "/watch")));
+        cut.WaitForAssertion(() => Assert.Equal(["/watch/videos"], TabRoutes(cut, "/watch")));
+        Assert.Empty(ChipLabels(cut));
     }
 
     [Fact]
@@ -154,16 +210,17 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void Watch_AnOldVideosLinkOpensTheFirstVideosTab()
+    public void Watch_AnOldYouTubeLinkOpensTheVideosTabOnAll()
     {
         UseBrowseLibraries(WatchLibraries());
 
-        var cut = RenderLanePage<WatchPage>("/watch/videos", "videos");
+        var cut = RenderLanePage<WatchPage>("/watch/youtube", "youtube");
 
         cut.WaitForAssertion(() =>
         {
             var call = Assert.Single(_browseCalls.Take(1));
-            Assert.Equal(YouTubeLibrary, call[BrowseLibraryIdArgument]);
+            Assert.Null(call[BrowseLibraryIdArgument]);
+            Assert.Equal("Videos", call[BrowseMediaTypeArgument]);
         });
     }
 
@@ -171,9 +228,9 @@ public sealed partial class UiShellRenderTests
     public void Watch_TheUnmatchedChipSendsUnmatchedWithTheTabsLibraryAndKeepsItInTheAddress()
     {
         UseBrowseLibraries(WatchLibraries());
-        var route = $"/watch/lib-{LecturesLibrary:N}";
+        var route = $"/watch/videos?library={LecturesLibrary:D}";
         var navigation = Services.GetRequiredService<NavigationManager>();
-        var cut = RenderLanePage<WatchPage>(route, $"lib-{LecturesLibrary:N}");
+        var cut = RenderLanePage<WatchPage>(route, "videos");
         cut.WaitForAssertion(() => Assert.NotEmpty(_browseCalls));
         Assert.Null(_browseCalls[0][BrowseUnmatchedArgument]);
 
@@ -193,7 +250,7 @@ public sealed partial class UiShellRenderTests
     {
         UseBrowseLibraries(WatchLibraries());
 
-        var cut = RenderLanePage<WatchPage>($"/watch/lib-{LecturesLibrary:N}?unmatched=true", $"lib-{LecturesLibrary:N}");
+        var cut = RenderLanePage<WatchPage>($"/watch/videos?library={LecturesLibrary:D}&unmatched=true", "videos");
 
         cut.WaitForAssertion(() =>
         {
@@ -279,7 +336,7 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll("[aria-label='Loading tabs']"));
-            Assert.Contains("/watch/youtube", TabRoutes(cut, "/watch"));
+            Assert.Contains("/watch/videos", TabRoutes(cut, "/watch"));
         });
     }
 
@@ -291,7 +348,7 @@ public sealed partial class UiShellRenderTests
         var cut = RenderLanePage<WatchPage>("/watch", null);
 
         cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("a"), link =>
-            link.GetAttribute("href") == $"/watch/lib-{LecturesLibrary:N}?status=in-progress"));
+            link.GetAttribute("href") == "/watch/videos?status=in-progress"));
         Assert.DoesNotContain(cut.FindAll("a"), link => link.GetAttribute("href")?.StartsWith("/watch/movies", StringComparison.Ordinal) == true);
     }
 
@@ -334,7 +391,7 @@ public sealed partial class UiShellRenderTests
     {
         UseBrowseLibraries(WatchLibraries());
         var navigation = (Bunit.TestDoubles.BunitNavigationManager)Services.GetRequiredService<NavigationManager>();
-        var cut = RenderLanePage<WatchPage>($"/watch/lib-{LecturesLibrary:N}?unmatched=true", $"lib-{LecturesLibrary:N}");
+        var cut = RenderLanePage<WatchPage>($"/watch/videos?library={LecturesLibrary:D}&unmatched=true", "videos");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Remove Unmatched filter']")));
 
         cut.Find("button[aria-label='Remove Unmatched filter']").Click();
@@ -345,7 +402,7 @@ public sealed partial class UiShellRenderTests
             Assert.True(navigation.History.First().Options.ReplaceHistoryEntry);
         });
 
-        navigation.NavigateTo($"/watch/lib-{LecturesLibrary:N}?unmatched=true");
+        navigation.NavigateTo($"/watch/videos?library={LecturesLibrary:D}&unmatched=true");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-active-filter-summary__clear")));
         cut.Find(".app-active-filter-summary__clear").Click();
 
