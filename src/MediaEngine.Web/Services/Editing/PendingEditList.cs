@@ -11,6 +11,7 @@ namespace MediaEngine.Web.Services.Editing;
 public sealed class PendingEditList
 {
     private readonly List<EditSessionChange> _changes = [];
+    private readonly Dictionary<string, string> _labels = new(StringComparer.Ordinal);
 
     public event Action? Changed;
 
@@ -67,8 +68,11 @@ public sealed class PendingEditList
         return field is not null;
     }
 
-    /// <summary>Stages an artwork choice for one slot of an item (target is the picked picture), replacing an earlier choice for it.</summary>
-    public void SetArtwork(Guid entityId, string slot, string targetId)
+    /// <summary>
+    /// Stages an artwork choice for one slot of an item (target is the picked picture), replacing an earlier choice for it.
+    /// <paramref name="label"/> is an optional name for the picture, shown in Review changes; it is never sent to the Engine.
+    /// </summary>
+    public void SetArtwork(Guid entityId, string slot, string targetId, string? label = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slot);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetId);
@@ -81,11 +85,14 @@ public sealed class PendingEditList
             EntityId = entityId,
             Slot = slot,
             TargetId = targetId,
-        });
+        }, label);
     }
 
-    /// <summary>Stages an identity, relationship or file-move change; one per item and kind, a later one replacing the earlier.</summary>
-    public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null)
+    /// <summary>
+    /// Stages an identity, relationship or file-move change; one per item and kind, a later one replacing the earlier.
+    /// <paramref name="label"/> is an optional name for the chosen record or destination, shown in Review changes; it is never sent to the Engine.
+    /// </summary>
+    public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null)
     {
         if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork || !EditSessionChangeKinds.IsKnown(kind))
         {
@@ -100,8 +107,11 @@ public sealed class PendingEditList
             EntityId = entityId,
             TargetId = targetId,
             Token = token,
-        });
+        }, label);
     }
+
+    /// <summary>The name given for a staged identity, relationship or artwork choice, or null when none was given.</summary>
+    public string? Label(string changeId) => _labels.GetValueOrDefault(changeId);
 
     /// <summary>Removes one staged change by its id (the row's menu in Review changes).</summary>
     public bool Remove(string changeId)
@@ -109,6 +119,7 @@ public sealed class PendingEditList
         var removed = _changes.RemoveAll(c => c.Id == changeId) > 0;
         if (removed)
         {
+            _labels.Remove(changeId);
             Changed?.Invoke();
         }
 
@@ -118,9 +129,11 @@ public sealed class PendingEditList
     /// <summary>Drops everything staged for one item (it was removed from the library meanwhile).</summary>
     public int RemoveForItem(Guid entityId)
     {
+        var gone = _changes.Where(c => c.EntityId == entityId).Select(c => c.Id).ToList();
         var removed = _changes.RemoveAll(c => c.EntityId == entityId);
         if (removed > 0)
         {
+            gone.ForEach(id => _labels.Remove(id));
             Changed?.Invoke();
         }
 
@@ -136,6 +149,7 @@ public sealed class PendingEditList
         }
 
         _changes.Clear();
+        _labels.Clear();
         Changed?.Invoke();
     }
 
@@ -147,8 +161,17 @@ public sealed class PendingEditList
     private EditSessionChange? Find(string kind, Guid entityId) =>
         _changes.FirstOrDefault(c => c.Kind == kind && c.EntityId == entityId);
 
-    private void Replace(EditSessionChange? existing, EditSessionChange next)
+    private void Replace(EditSessionChange? existing, EditSessionChange next, string? label = null)
     {
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            _labels.Remove(next.Id);
+        }
+        else
+        {
+            _labels[next.Id] = label.Trim();
+        }
+
         if (existing is null)
         {
             _changes.Add(next);

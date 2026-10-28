@@ -1,0 +1,30 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject ILogger<ReviewFilesStatus> Logger
+
+@* The small read-only "Files will be updated: On/Off" line in Review changes (universal editor spec D15). PLACEHOLDER for WP10: for now it
+   reads the existing batched write-back switch (the file write schedule's Enabled flag); WP10 replaces this source with the one
+   "Save changes into the files" setting per library and adds the link to Settings and the per-session override. Nothing is drawn when
+   the setting cannot be read, so the dialog never claims something it does not know. *@
+@if (_enabled is { } enabled)
+{
+    <p class="review-changes__files" data-write-back="@(enabled ? "on" : "off")">Files will be updated: <strong>@(enabled ? "On" : "Off")</strong></p>
+}
+
+@code {
+    private bool? _enabled;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _enabled = (await ApiClient.GetFileWriteScheduleAsync())?.Enabled;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            Logger.LogWarning(ex, "The write-back setting could not be read for Review changes");
+            _enabled = null;
+        }
+    }
+}
