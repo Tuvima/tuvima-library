@@ -1399,7 +1399,7 @@ public sealed class FolderKindChangeTests : IDisposable
                 NamingTemplate = "default",
             };
             var kinds = new FixedKinds([.. LibraryKindsConfiguration.BuiltIn(), vaultKind]);
-            var visibilityRule = new LibraryVisibilityRule(_profileAccess, vaultLibraries);
+            var visibilityRule = TestLibraryVisibility.Rule(_profileAccess, vaultLibraries);
             Visibility = new SwitchableVisibility(new VisibilityAfterMoveReadService(
                 _accounts, new ProfileRepository(Database), _profileAccess, new MediaAssetLibraryCountRepository(Database), vaultLibraries, Config, visibilityRule));
 

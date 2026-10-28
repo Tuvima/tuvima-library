@@ -947,22 +947,6 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         await Task.CompletedTask;
     }
 
-    [Fact]
-    public async Task AddFolderOnATypePageOpensTheWizardAtTheFolderStepAndTheNewFolderShowsInTheTable()
-    {
-        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, MoviesId));
-        cut.WaitForElement(".folder-table");
-        cut.FindAll(".libpage__actions button").Single(button => Text(button) == "Add folder").Click();
-        _dialogs.WaitForElement(".add-wizard");
-        Assert.Equal("1 Folder · 2 How", Steps);
-
-        PickFolder(path: "E:\\Incoming\\Films");
-        GoToHow();
-        await AddFolderAsync();
-
-        cut.WaitForAssertion(() => Assert.Contains("E:\\Incoming\\Films", cut.Markup));
-    }
-
     // 9. First-run setup uses the setup calls.
     [Fact]
     public async Task SetupAddsAFolderThroughTheWizardWithTheSetupCalls()

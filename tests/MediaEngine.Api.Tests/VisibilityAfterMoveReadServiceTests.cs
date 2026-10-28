@@ -51,7 +51,7 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
             Library(Music, "Music", LibraryAreas.Listen));
         _service = new VisibilityAfterMoveReadService(
             _accounts, new ProfileRepository(_database), _profileAccess, new MediaAssetLibraryCountRepository(_database),
-            vaultLibraries, libraries, new LibraryVisibilityRule(_profileAccess, vaultLibraries));
+            vaultLibraries, libraries, TestLibraryVisibility.Rule(_profileAccess, vaultLibraries));
         var work = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute("INSERT INTO works(id,media_type,work_kind) VALUES(@work,'Movies','child');", new { work });

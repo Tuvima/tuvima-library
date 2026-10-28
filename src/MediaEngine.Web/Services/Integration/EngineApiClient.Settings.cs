@@ -451,9 +451,31 @@ public sealed partial class EngineApiClient
     public Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default) =>
         PostAsync<LibraryMutationRequest, LibrariesConfigurationDto>("POST /settings/libraries/mutations", "/settings/libraries/mutations", request, ct: ct);
 
+    public Task<LibraryAccessGrantsDto?> GetLibraryAccessAsync(string libraryId, CancellationToken ct = default) =>
+        GetAsync<LibraryAccessGrantsDto>(
+            "GET /settings/libraries/{libraryId}/access", $"/settings/libraries/{Uri.EscapeDataString(libraryId)}/access", ct: ct);
+
+    public Task<LibraryAccessGrantsDto?> SetLibraryProfilesAsync(string libraryId, IReadOnlyList<Guid> profileIds, CancellationToken ct = default) =>
+        PutAsync<SetLibraryProfileGrantsRequest, LibraryAccessGrantsDto>(
+            "PUT /settings/libraries/{libraryId}/access/profiles",
+            $"/settings/libraries/{Uri.EscapeDataString(libraryId)}/access/profiles",
+            new SetLibraryProfileGrantsRequest(profileIds), ct: ct);
+
     public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default) =>
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
             "POST /library/unmatched/libraries/{libraryId}/retry", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}/retry", null, ct: ct);
+
+    public Task<MediaEngine.Contracts.Ingestion.RescanAcceptedResponse?> ScanLibraryAsync(string libraryId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Ingestion.RescanAcceptedResponse>(
+            "POST /library/libraries/{libraryId}/scan", $"/library/libraries/{Uri.EscapeDataString(libraryId)}/scan", null, ct: ct);
+
+    public Task<MediaEngine.Contracts.Library.LibraryFolderTitlesDto?> GetLibraryFolderTitlesAsync(string libraryId, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Library.LibraryFolderTitlesDto>(
+            "GET /library/libraries/{libraryId}/folder-titles", $"/library/libraries/{Uri.EscapeDataString(libraryId)}/folder-titles", ct: ct);
+
+    public Task<MediaEngine.Contracts.Library.LibraryAddFilesResultDto?> AddFilesToLibraryAsync(string libraryId, MediaEngine.Contracts.Library.LibraryAddFilesRequest request, CancellationToken ct = default) =>
+        PostAsync<MediaEngine.Contracts.Library.LibraryAddFilesRequest, MediaEngine.Contracts.Library.LibraryAddFilesResultDto>(
+            "POST /library/libraries/{libraryId}/add-files", $"/library/libraries/{Uri.EscapeDataString(libraryId)}/add-files", request, ct: ct);
 
     public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> KeepAllUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default) =>
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(

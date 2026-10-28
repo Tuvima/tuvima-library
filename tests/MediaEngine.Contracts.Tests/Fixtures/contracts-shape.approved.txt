@@ -3648,6 +3648,18 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstCheckItem
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstChecksDto
   Items: System.Collections.Generic.List<MediaEngine.Contracts.Library.FolderFirstCheckItemDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryAddFilesRefusalCodes
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryAddFilesRequest
+  Paths: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryAddFilesResultDto
+  Copied: System.Int32 | nullability=not-null | accessors=get,init
+  SkippedDuplicates: System.Int32 | nullability=not-null | accessors=get,init
+  Unreadable: System.Int32 | nullability=not-null | accessors=get,init
+  Unsupported: System.Int32 | nullability=not-null | accessors=get,init
+  BytesCopied: System.Int64 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchDistinctValue
   Value: System.String | nullability=not-null | accessors=get,init
   Count: System.Int32 | nullability=not-null | accessors=get,init
@@ -3708,6 +3720,9 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryFieldChange
   Op: System.String | nullability=not-null | accessors=get,init
   Value: System.String | nullability=nullable | accessors=get,init
   Values: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryFolderTitlesDto
+  Counts: System.Collections.Generic.Dictionary<System.String, System.Int32> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveBlockedReasons
 
@@ -8229,6 +8244,8 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.BrowseServerFolder
   StorageLocationId: System.String | nullability=not-null | accessors=get,init
   RelativePath: System.String | nullability=nullable | accessors=get,init
   Search: System.String | nullability=nullable | accessors=get,init
+  IncludeFiles: System.Boolean | nullability=not-null | accessors=get,init
+  KindKey: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.BrowseServerFoldersResultDto
   StorageLocation: MediaEngine.Contracts.Settings.ServerStorageLocationDto | nullability=not-null | accessors=get,init
@@ -8236,6 +8253,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.BrowseServerFolder
   ParentRelativePath: System.String | nullability=nullable | accessors=get,init
   DisplayPath: System.String | nullability=not-null | accessors=get,init
   Directories: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFolderEntryDto> | nullability=not-null | accessors=get,init
+  Files: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFileEntryDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.DismissProfileNoticeRequest
   Fingerprint: System.String | nullability=not-null | accessors=get,init
@@ -8477,6 +8495,21 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrariesConfigura
   PersonalLibraryPolicy: MediaEngine.Contracts.Settings.PersonalLibraryPolicyDto | nullability=not-null | accessors=get,init
   FileHandling: MediaEngine.Contracts.Settings.FileHandlingDto | nullability=not-null | accessors=get,init
   ImportFolderStatus: MediaEngine.Contracts.Settings.ImportFolderStatusDto | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryAccessGrantsDto
+  LibraryId: System.Guid | nullability=not-null | accessors=get,init
+  Access: System.String | nullability=not-null | accessors=get,init
+  ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Settings.LibraryAccessProfileDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryAccessProfileDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+  AvatarColor: System.String | nullability=not-null | accessors=get,init
+  AvatarIcon: System.String | nullability=nullable | accessors=get,init
+  AvatarImageUrl: System.String | nullability=nullable | accessors=get,init
+  IsKids: System.Boolean | nullability=not-null | accessors=get,init
+  IsServerAdmin: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFileHandlingDto
   DuplicatePolicy: System.String | nullability=nullable | accessors=get,set
@@ -9002,6 +9035,14 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SeriesMissingItemP
   ShowMissing: System.Boolean? | nullability=nullable | accessors=get,init
   UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerFileEntryDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  RelativePath: System.String | nullability=not-null | accessors=get,init
+  Path: System.String | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  ModifiedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  Supported: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerFolderEntryDto
   Name: System.String | nullability=not-null | accessors=get,init
   RelativePath: System.String | nullability=not-null | accessors=get,init
@@ -9051,6 +9092,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerStorageLocat
   AllowWrite: System.Boolean | nullability=not-null | accessors=get,set
   AvailableBytes: System.Int64? | nullability=nullable | accessors=get,init
   FileSystem: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SetLibraryProfileGrantsRequest
+  ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SettingsCatalogEntryResponse
   key: System.String | nullability=not-null | accessors=get,init

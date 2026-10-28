@@ -90,6 +90,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<MissingUniverseSweepService>();
         services.AddSingleton<MediaEngine.Api.Services.Libraries.HeldSubtitleExporter>();
         services.AddSingleton<MediaEngine.Api.Services.Libraries.FolderFirstCheckService>();
+        services.AddSingleton<MediaEngine.Api.Services.Libraries.LibraryAccessChangeService>();
         services.AddHostedService<MediaEngine.Api.Services.Libraries.FolderFirstCheckHostedService>();
         services.AddSingleton<MediaEngine.Api.Services.Unmatched.UnmatchedRetryWake>();
         services.AddSingleton<MediaEngine.Api.Services.Unmatched.UnmatchedAssetService>();

@@ -402,6 +402,6 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         RecycleBin = option.MediaTypes[0] == "Videos",
         MediaTypes = [option.MediaTypes[0]],
         AcceptedIntakeModes = ["incoming_folder"],
-        OrganizationPolicy = new LibraryOrganizationPolicyDto { Mode = "tuvima_standard", WriteTags = true },
+        OrganizationPolicy = new LibraryOrganizationPolicyDto { Mode = LibraryFileHandlingChoices.PreserveNames, WriteTags = false },
     };
 }

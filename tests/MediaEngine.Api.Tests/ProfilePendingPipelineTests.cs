@@ -120,6 +120,8 @@ public sealed class ProfilePendingPipelineTests : IDisposable
         builder.Services.AddScoped<IRequestAuthorityResolver, RequestAuthorityResolver>();
         builder.Services.AddScoped<DashboardAuthorityProjector>();
         builder.Services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryProfileGrantRepository>(new MediaEngine.Storage.LibraryProfileGrantRepository(_database));
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryAccessCatalog>(new FixedLibraryAccessCatalog());
         builder.Services.AddSingleton<LibraryVisibilityRule>();
         builder.Services.AddScoped<IAccountAccessDecisionService, AccountAccessDecisionService>();
         builder.Services.AddScoped<ISelfServiceAuthorizationService>(sp => (AccountAccessDecisionService)sp.GetRequiredService<IAccountAccessDecisionService>());

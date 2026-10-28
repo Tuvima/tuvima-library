@@ -405,7 +405,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     public void ALibrarysOwnPageShowsItsTypeCountsStatusActionsAndTheFiveTabsOnlyWhereTheyApply()
     {
         var cut = Open(MoviesId);
-        cut.WaitForElement(".folder-table");
+        cut.WaitForElement(".folder-grid");
 
         var header = Text(cut.Find(".libpage__header"));
         Assert.Contains("Movies", header);
@@ -430,18 +430,29 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     [Fact]
     public void TheOtherTabsAreFilledInLaterAndSaySoWithAPlaceholder()
     {
-        var cut = Open(MoviesId, query: "tab=access");
+        var cut = Open(MoviesId, query: "tab=activity");
 
         cut.WaitForAssertion(() => Assert.Contains("Coming in the next step", cut.Markup));
-        Assert.Equal("true", cut.FindAll(PageTabs)[1].GetAttribute("aria-selected"));
+        Assert.Equal("true", cut.FindAll(PageTabs)[3].GetAttribute("aria-selected"));
         Assert.Empty(cut.FindAll(".folder-table"));
+    }
+
+    [Fact]
+    public void TheFileHandlingTabShowsItsFourCardsInsteadOfAPlaceholder()
+    {
+        var cut = Open(MoviesId, query: "tab=file-handling");
+
+        cut.WaitForAssertion(() => Assert.Contains("Deleted files", cut.Markup));
+        Assert.Equal("true", cut.FindAll(PageTabs)[2].GetAttribute("aria-selected"));
+        Assert.DoesNotContain("Coming in the next step", cut.Markup);
+        Assert.Empty(cut.FindAll(".folder-grid"));
     }
 
     [Fact]
     public void SelectingATabOfALibrarysPageKeepsTheTabInTheAddress()
     {
         var cut = Open(MoviesId);
-        cut.WaitForElement(".folder-table");
+        cut.WaitForElement(".folder-grid");
 
         cut.FindAll(PageTabs)[2].Click();
 
@@ -455,7 +466,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         _configuration.Libraries.Add(new() { Id = OtherVideosId, Name = "Other videos", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], Sources = [new() { Id = "other-1", Path = "E:\\Other" }] });
 
         var cut = Open(OtherVideosId);
-        cut.WaitForElement(".folder-table");
+        cut.WaitForElement(".folder-grid");
 
         Assert.Contains("E:\\Other", cut.Markup);
         Assert.DoesNotContain("E:\\Home", cut.Markup);

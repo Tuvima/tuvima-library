@@ -1,0 +1,340 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Formatting
+
+@* A library's folders (Libraries spec D7): Folder (short name, full path under it), Titles, Access, Scan (on or off), Import destination and a
+   "..." menu. Built from the shared table and row menu. On a phone it is read-only: no switch, no choice, no menu. The host owns every save;
+   this component only raises what was changed. One polite live region announces what is organising or merging, instead of one per row. *@
+<span class="sr-only" role="status">@LiveStatusText</span>
+<AppTable CardsOn="AppTableCardsMode.Phone" Class="folder-grid" Hover="true" aria-label="@($"{PluralLabel} folders")">
+    <thead>
+        <tr>
+            <th data-card-role="title">Folder</th>
+            <th data-card-role="value">Titles</th>
+            <th data-label="Access">Access</th>
+            <th data-label="Scan">Scan</th>
+            <th data-label="Import destination">
+                Import destination
+                <AppInfoTip Text="@ImportDestinationHint" Label="About the import destination" />
+            </th>
+            <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var source in Library.Sources)
+        {
+            var managed = IsManaged(source);
+            var job = JobFor(source);
+            var name = source.DisplayName();
+            var issue = IssueFor(source);
+            var marked = IsImportDestination(source);
+            <tr @key="source.Id" class="@RowClass(source)" data-source="@source.Id" data-highlighted="@(IsHighlighted(source) ? "true" : null)">
+                <td data-card-role="title">
+                    <div class="folder-grid__folder">
+                        <span class="@HandlingIconClass(source)" role="img" aria-label="@HandlingTitle(source)" title="@HandlingTitle(source)">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
+                            @if (!managed)
+                            {
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Lock" Class="folder-grid__lock" />
+                            }
+                        </span>
+                        <div class="folder-grid__text">
+                            <strong>@name</strong>
+                            <span class="folder-grid__path" title="@source.Path">@source.Path</span>
+                            @if (IsScanning(source))
+                            {
+                                <span class="folder-grid__status" data-scanning="true"><AppSpinner Indeterminate="true" Size="AppSize.Small" />Scanning</span>
+                            }
+                            @if (job is not null)
+                            {
+                                <FolderJobStatusLine Job="@job"
+                                                     Name="@name"
+                                                     ReadOnly="@(ReadOnly || Busy)"
+                                                     OnControl="@(action => OnJobControl.InvokeAsync(new LibraryFolderTable.FolderJobControl(source, job, action)))" />
+                            }
+                            else if (IsConverting(source))
+                            {
+                                <span class="folder-grid__status">Organising…</span>
+                            }
+                            else if (IsMerging(source))
+                            {
+                                <span class="folder-grid__status">Merging…</span>
+                            }
+                            @if (IsMerged(source))
+                            {
+                                <span class="folder-grid__status">@MergedText(source)</span>
+                            }
+                            @if (!source.ScanEnabled)
+                            {
+                                <span class="folder-grid__status" data-paused="true">Scanning is paused</span>
+                            }
+                            @if (OnSetSuitableForLimited.HasDelegate && !ReadOnly && !IsMerged(source))
+                            {
+                                @* Simpler access D7: unrated items from this folder reach profiles with a rating limit. Saved straight away by the host. *@
+                                <div class="folder-grid__limited" title="@LibraryFolderTable.SuitableForLimitedHint">
+                                    <AppSwitchRow Label="Suitable for limited profiles"
+                                                  Size="AppSize.Small"
+                                                  AriaLabel="@($"Suitable for limited profiles: {name}")"
+                                                  Value="@source.OkForLimitedProfiles"
+                                                  Disabled="@(ReadOnly || Busy)"
+                                                  ValueChanged="@((bool value) => OnSetSuitableForLimited.InvokeAsync(new LibraryFolderTable.SuitableForLimitedChange(source, value)))" />
+                                </div>
+                            }
+                            @if (OnKeepGoing.HasDelegate && source.FirstCheck is { } firstCheck)
+                            {
+                                if (firstCheck.State == "paused")
+                                {
+                                    <span class="folder-grid__status folder-grid__status--warning" data-first-check="paused">
+                                        @LibraryFolderTable.PausedText(firstCheck)
+                                        <AppButton Label="Keep going" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
+                                                   Disabled="@Busy"
+                                                   aria-label="@($"Keep going with {name}")"
+                                                   OnClick="@(() => OnKeepGoing.InvokeAsync(source))" />
+                                    </span>
+                                }
+                                else if (firstCheck.State == "checking")
+                                {
+                                    <span class="folder-grid__status" data-first-check="checking">Checking the first files…</span>
+                                }
+                            }
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(issue))
+                    {
+                        @* An offline folder gets an amber warning row under it, in words, so it is never colour alone. *@
+                        <div class="folder-grid__warning" role="alert" data-warning="offline">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
+                            <span>@WarningText(issue, name)</span>
+                        </div>
+                    }
+                </td>
+                <td data-card-role="value" data-label="Titles">@TitlesText(source)</td>
+                <td data-label="Access"><span class="folder-grid__access" data-access="@AccessKey(source)">@AccessText(source)</span></td>
+                <td data-label="Scan">
+                    @if (ReadOnly)
+                    {
+                        <span>@(source.ScanEnabled ? "On" : "Paused")</span>
+                    }
+                    else
+                    {
+                        <AppSwitchRow Size="AppSize.Small"
+                                      AriaLabel="@($"Scan {name}")"
+                                      Value="@source.ScanEnabled"
+                                      Disabled="@(Busy || IsMerged(source))"
+                                      ValueChanged="@((bool value) => OnSetScan.InvokeAsync(new ScanChange(source, value)))" />
+                    }
+                </td>
+                <td data-label="Import destination">
+                    @if (!managed)
+                    {
+                        <span class="folder-grid__none">
+                            <span role="img" aria-label="Not an import destination">—</span>
+                            <AppInfoTip Text="@AsIsHint" Label="@($"Why {name} is not an import destination")" />
+                        </span>
+                    }
+                    else if (ReadOnly)
+                    {
+                        <span>@(marked ? "Import destination" : "—")</span>
+                    }
+                    else
+                    {
+                        <div role="radiogroup" aria-label="Import destination">
+                            <AppNativeButton Type="button"
+                                             Class="folder-grid__radio"
+                                             role="radio"
+                                             aria-checked="@(marked ? "true" : "false")"
+                                             Disabled="@(Busy || IsMerged(source))"
+                                             AriaLabel="@(marked ? $"{name} is the import destination" : $"Make {name} the import destination")"
+                                             OnClick="@(_ => marked ? Task.CompletedTask : OnSetDestination.InvokeAsync(source))">
+                                <AppMaterialIcon Icon="@(marked ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
+                                @if (marked)
+                                {
+                                    <span>Import destination</span>
+                                }
+                            </AppNativeButton>
+                        </div>
+                    }
+                </td>
+                <td data-card-role="actions">
+                    @if (!ReadOnly)
+                    {
+                        <AppRowMenu AriaLabel="@($"Actions for {name}")" Title="@name" Items="@MenuItems(source, job, managed, marked)" />
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</AppTable>
+
+@code {
+    /// <summary>What the Import destination column's (i) says, once for the whole table. Shared with tests so the wording has one owner.</summary>
+    public const string ImportDestinationHint = "Added and imported files are copied into the import destination. Only one managed folder per library can be it, and every folder is still scanned.";
+
+    /// <summary>Why an As-is folder cannot be the import destination.</summary>
+    public const string AsIsHint = "This folder is As-is: Library never changes its files, so nothing can be copied into it. Only a managed folder can be the import destination.";
+
+    [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = new();
+    [Parameter] public string PluralLabel { get; set; } = string.Empty;
+    /// <summary>Phones: nothing changes from this table (no switch, no choice, no menu).</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    /// <summary>Folder path to a plain-English problem ("Folder unavailable", "No access"); absent when the folder is fine.</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
+    /// <summary>True once the folder checks have run; before that no access word is claimed.</summary>
+    [Parameter] public bool PathsChecked { get; set; }
+    /// <summary>Titles the catalogue holds for each folder, by source id; null until read.</summary>
+    [Parameter] public IReadOnlyDictionary<string, int>? Titles { get; set; }
+    /// <summary>The folder just added: its row is pointed at.</summary>
+    [Parameter] public string? HighlightSourceId { get; set; }
+    /// <summary>The latest folder job for each folder (by folder id).</summary>
+    [Parameter] public IReadOnlyDictionary<string, FolderJobStatusDto>? Jobs { get; set; }
+    [Parameter] public EventCallback<LibraryFolderTable.FolderJobControl> OnJobControl { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnSetDestination { get; set; }
+    [Parameter] public EventCallback<ScanChange> OnSetScan { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnOverride { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnChangeKind { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnRemove { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnChangeHandling { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnLabel { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnOrganiseNow { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnMerge { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnKeepGoing { get; set; }
+    [Parameter] public EventCallback<LibraryFolderTable.SuitableForLimitedChange> OnSetSuitableForLimited { get; set; }
+
+    /// <summary>One turn of a folder's Scan switch.</summary>
+    public sealed record ScanChange(LibrarySourceDto Source, bool Value);
+
+    /// <summary>The access words (Libraries spec D7, D17): Accessible, Folder offline or Needs access; nothing until the folders were checked.</summary>
+    public static string AccessWords(string? issue) => issue switch
+    {
+        LibraryFolderHealth.Unavailable => "Folder offline",
+        LibraryFolderHealth.NoAccess => "Needs access",
+        _ => "Accessible",
+    };
+
+    private IReadOnlyList<AppRowMenuItem> MenuItems(LibrarySourceDto source, FolderJobStatusDto? job, bool managed, bool marked)
+    {
+        var jobOpen = job is not null && FolderJobFormat.IsOpen(job);
+        var items = new List<AppRowMenuItem>
+        {
+            new() { Label = "Override file handling for this folder…", Icon = AppMaterialIcons.Outlined.Tune, Disabled = Busy, OnClick = Raise(OnOverride, source) },
+            new()
+            {
+                Label = source.ScanEnabled ? "Pause scanning" : "Resume scanning",
+                Icon = source.ScanEnabled ? AppMaterialIcons.Filled.Pause : AppMaterialIcons.Outlined.PlayArrow,
+                Disabled = Busy || IsMerged(source),
+                OnClick = EventCallback.Factory.Create(this, () => OnSetScan.InvokeAsync(new ScanChange(source, !source.ScanEnabled))),
+            },
+        };
+        if (OnChangeKind.HasDelegate && LibraryFolderTable.CanChangeKindOf(Library, source, jobOpen))
+        {
+            items.Add(new() { Label = "Change what this folder is…", Icon = AppMaterialIcons.Outlined.Category, OnClick = Raise(OnChangeKind, source) });
+        }
+
+        // What the older folder menu offered stays until the File handling tab (next step) decides where it belongs.
+        if (managed && job is null)
+        {
+            items.Add(new() { Label = "Organise files now", Icon = AppMaterialIcons.Outlined.DriveFileMove, OnClick = Raise(OnOrganiseNow, source) });
+        }
+
+        if (LibraryFolderTable.CanMergeInto(Library, source, jobOpen))
+        {
+            items.Add(new() { Label = "Merge into…", Icon = AppMaterialIcons.Outlined.ArrowForward, OnClick = Raise(OnMerge, source) });
+        }
+
+        items.Add(new()
+        {
+            Label = managed ? "Switch to Read-only" : "Switch to Managed",
+            Icon = managed ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove,
+            Disabled = IsMerging(source),
+            OnClick = Raise(OnChangeHandling, source),
+        });
+        items.Add(new() { Label = "Label", Icon = AppMaterialIcons.Outlined.Edit, OnClick = Raise(OnLabel, source) });
+        items.Add(new() { Label = "Remove folder", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = Raise(OnRemove, source) });
+        return items;
+    }
+
+    private EventCallback Raise(EventCallback<LibrarySourceDto> callback, LibrarySourceDto source) =>
+        EventCallback.Factory.Create(this, () => callback.InvokeAsync(source));
+
+    private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
+    private static bool IsConverting(LibrarySourceDto source) => string.Equals(source.ConversionState, "converting", StringComparison.OrdinalIgnoreCase);
+    private static bool IsMerging(LibrarySourceDto source) => string.Equals(source.MergeState, "merging", StringComparison.OrdinalIgnoreCase);
+    private static bool IsMerged(LibrarySourceDto source) => string.Equals(source.MergeState, "merged", StringComparison.OrdinalIgnoreCase);
+
+    // The same rule the Engine uses: only a managed folder can hold the import destination.
+    private bool IsImportDestination(LibrarySourceDto source) => IsManaged(source) && ReferenceEquals(source, Library.GetPrimaryDestination());
+
+    private bool IsHighlighted(LibrarySourceDto source) => !string.IsNullOrWhiteSpace(HighlightSourceId) && source.Id == HighlightSourceId;
+
+    private bool IsScanning(LibrarySourceDto source) => source.ScanEnabled && source.FirstCheck is { State: "checking" };
+
+    private string? IssueFor(LibrarySourceDto source) =>
+        PathsChecked && PathIssues is not null && PathIssues.TryGetValue(source.Path, out var issue) ? issue : null;
+
+    private string AccessText(LibrarySourceDto source) => PathsChecked ? AccessWords(IssueFor(source)) : "—";
+
+    private string AccessKey(LibrarySourceDto source) => !PathsChecked ? "unknown" : IssueFor(source) switch
+    {
+        LibraryFolderHealth.Unavailable => "offline",
+        LibraryFolderHealth.NoAccess => "needs-access",
+        _ => "accessible",
+    };
+
+    private static string WarningText(string issue, string name) => issue == LibraryFolderHealth.Unavailable
+        ? $"{name} is offline. Library cannot reach this folder, so its titles stay as they are until it is back."
+        : $"{name} needs access. Library cannot read or write this folder the way it is set up.";
+
+    private string TitlesText(LibrarySourceDto source) =>
+        Titles is not null && Titles.TryGetValue(source.Id, out var count) ? DisplayFormat.FormatCount(count) : "—";
+
+    private FolderJobStatusDto? JobFor(LibrarySourceDto source) =>
+        Jobs is not null && Jobs.TryGetValue(source.Id, out var job) && (job.State is "queued" or "running" or "paused" || job.HasLog || !string.IsNullOrWhiteSpace(job.Message))
+            ? job
+            : null;
+
+    private bool IsOrganising(LibrarySourceDto source) =>
+        IsConverting(source) || IsMerging(source) || (JobFor(source) is { State: "queued" or "running" or "paused" });
+
+    private string HandlingTitle(LibrarySourceDto source) => IsOrganising(source)
+        ? IsMerging(source) || (JobFor(source) is { } job && FolderJobFormat.IsMerge(job) && FolderJobFormat.IsOpen(job)) ? "Merging" : "Converting"
+        : IsManaged(source) ? "Managed: Library has full access" : "As-is: Library never changes these files";
+
+    private string HandlingIconClass(LibrarySourceDto source) =>
+        $"folder-grid__icon {(IsOrganising(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-readonly")}";
+
+    private string RowClass(LibrarySourceDto source) =>
+        $"folder-grid__row{(IsHighlighted(source) ? " is-highlighted" : string.Empty)}{(source.ScanEnabled ? string.Empty : " is-paused")}";
+
+    private string MergedText(LibrarySourceDto source)
+    {
+        var target = Library.Sources.FirstOrDefault(candidate => candidate.Id == source.MergeTargetSourceId);
+        return FolderJobFormat.MergedLine(target?.DisplayName() ?? "another folder", source.MergedAt);
+    }
+
+    // What the one live region says: which folders are organising or merging, and how finished jobs ended. No progress numbers, so it
+    // changes (and is read out) only when a job starts, pauses, ends or a folder is merged.
+    private string LiveStatusText => string.Join(". ", Library.Sources.Select(LiveStatusFor).Where(text => text.Length > 0));
+
+    private string LiveStatusFor(LibrarySourceDto source)
+    {
+        var name = source.DisplayName();
+        if (JobFor(source) is { } job)
+        {
+            if (FolderJobFormat.IsOpen(job))
+            {
+                var verb = FolderJobFormat.IsMerge(job) ? "Merging" : "Organising";
+                return job.State == "paused" ? $"{verb} {name} is paused" : $"{verb} {name}";
+            }
+
+            return string.IsNullOrWhiteSpace(job.Message) ? string.Empty : $"{name}: {job.Message}";
+        }
+
+        if (IsConverting(source)) return $"Organising {name}";
+        if (IsMerging(source)) return $"Merging {name}";
+        if (OnKeepGoing.HasDelegate && source.FirstCheck is { State: "paused" }) return $"{name} is paused: most of its files aren't matching";
+        return IsMerged(source) ? $"{name}: {MergedText(source)}" : string.Empty;
+    }
+}

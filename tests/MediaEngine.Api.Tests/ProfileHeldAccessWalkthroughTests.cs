@@ -48,7 +48,7 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
             TimeProvider.System, new FixedPolicy());
         _resolver = new RequestAuthorityResolver(_accounts, new ApplicationRepository(_database));
         _decisions = new AccountAccessDecisionService(_access, new GrantAdminUnlockService(_access, new StubProfilePins(), TimeProvider.System),
-            new LibraryVisibilityRule(_access, new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(_access, new VaultLibraryRepository(_database)));
     }
 
     [Fact]

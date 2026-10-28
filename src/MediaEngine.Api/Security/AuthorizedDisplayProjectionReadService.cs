@@ -18,6 +18,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     IHttpContextAccessor http,
     IRequestAuthorityResolver authorities,
     IProfileAccessRepository profileAccess,
+    LibraryVisibilityRule libraryVisibility,
     IAuthorizationEvaluator evaluator,
     IDatabaseConnection database,
     IConfigurationLoader? configuration = null,
@@ -455,7 +456,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
                 return cached.Hidden;
             }
 
-            var loading = profileAccess.GetHiddenLibrariesAsync(profileId, ct);
+            var loading = libraryVisibility.LoadHiddenAsync(profileId, ct).AsTask();
             _hidden = (profileId, loading);
             return loading;
         }

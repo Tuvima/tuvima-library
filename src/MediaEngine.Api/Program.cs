@@ -440,6 +440,7 @@ builder.Services.AddScoped<IAccountAccessMutationService, AccountAccessMutationS
 builder.Services.AddScoped<ApplicationAdministrationService>();
 builder.Services.AddScoped<IntegrationHealthService>();
 builder.Services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
+builder.Services.AddSingleton<ILibraryAccessCatalog, ConfigurationLibraryAccessCatalog>();
 builder.Services.AddSingleton<LibraryVisibilityRule>();
 builder.Services.AddScoped<IAccountAccessDecisionService, AccountAccessDecisionService>();
 builder.Services.AddScoped<ISelfServiceAuthorizationService>(sp => (AccountAccessDecisionService)sp.GetRequiredService<IAccountAccessDecisionService>());
