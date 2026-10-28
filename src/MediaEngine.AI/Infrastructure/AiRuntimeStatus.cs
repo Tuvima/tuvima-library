@@ -30,6 +30,7 @@ public sealed class AiRuntimeStatus : IAiRuntimeStatus
     private readonly object _gate = new();
     private ProbeResult? _text;
     private ProbeResult? _audio;
+    private readonly HashSet<string> _notInstalledLogged = [];
 
     public AiRuntimeStatus(SharedAiRuntime runtime, ILogger<AiRuntimeStatus> logger, TimeProvider? time = null)
     {
@@ -74,9 +75,19 @@ public sealed class AiRuntimeStatus : IAiRuntimeStatus
             load();
             return new ProbeResult(true, _time.GetUtcNow());
         }
+        catch (AiRuntimeNotInstalledException)
+        {
+            // The normal case on a machine that never ran the AI runtime install: say so once, calmly, with no exception attached.
+            if (_notInstalledLogged.Add(name))
+            {
+                _logger.LogInformation("Local AI is off: the {Runtime} AI runtime is not installed. Settings, Tools and requirements shows how to add it.", name);
+            }
+
+            return new ProbeResult(false, _time.GetUtcNow());
+        }
         catch (Exception ex)
         {
-            // A missing or broken install fails in many ways (files, manifest, native loader); all mean "not loaded",
+            // An install that is present but cannot load fails in many ways (files, manifest, native loader); all mean "not loaded",
             // and the reason is in the log.
             _logger.LogWarning(ex, "The {Runtime} AI runtime could not be loaded.", name);
             return new ProbeResult(false, _time.GetUtcNow());

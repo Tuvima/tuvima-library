@@ -49,26 +49,37 @@
                 <p><b>Next step:</b> @NextStep(tool)</p>
             </AppAlert>
         }
-        @* Optional tools never stop setup, so they are quiet info boxes (no warning colour). Local AI is not part of setup: its
-           models are large and are chosen after setup, in Settings. *@
-        @foreach (var tool in OptionalTools)
+        @* Every tool the Library uses, ready or not, so a ready tool is visibly checked. The sentence under each name comes from
+           SetupToolRules, so a tool never says two things at once. Local AI is not part of setup: its engine and models are
+           handled in Settings. *@
+        @if (MediaTools.Count > 0)
         {
-            <AppAlert Tone="AppUiTone.Info" Class="setup-tool-info" data-tool-id="@tool.Id">
-                <strong>@OptionalHeadline(tool)</strong>
-                <p>@OptionalNote(tool)</p>
-                @if (tool.State == ToolRequirementStates.Downloading)
+            <h3 class="setup-tools__title">Your media tools</h3>
+            <div class="setup-checks setup-tools" data-testid="setup-media-tools">
+                @foreach (var tool in MediaTools)
                 {
-                    <p>@(tool.DownloadPercent is { } percent ? $"Downloading ({percent}%). Library finishes this in the background." : "Downloading. Library finishes this in the background.")</p>
+                    <article data-tool-id="@tool.Id">
+                        <span class="setup-checks__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Build" /></span>
+                        <div>
+                            <strong>@tool.Name</strong>
+                            <small>@SetupToolRules.StateLine(tool)</small>
+                            @if (tool.State == ToolRequirementStates.Downloading && tool.DownloadPercent is { } percent)
+                            {
+                                <AppProgressBar Value="@percent" Decorative="true" />
+                            }
+                            @if (SetupToolRules.Action(tool) == SetupToolAction.RunInstaller)
+                            {
+                                <AppButton Label="Run installer" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => RunInstaller.InvokeAsync(tool))" />
+                            }
+                            else if (SetupToolRules.Action(tool) == SetupToolAction.Download)
+                            {
+                                <AppButton Label="@($"Download {tool.Name}")" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => InstallTool.InvokeAsync(tool))" />
+                            }
+                        </div>
+                        <AppStatusBadge Text="@SetupToolRules.BadgeText(tool)" Tone="@BadgeTone(tool)" />
+                    </article>
                 }
-                else if (tool.State == ToolRequirementStates.InstallerReady)
-                {
-                    <p>Downloaded. After setup, open Settings, Tools and requirements and choose Run installer.</p>
-                }
-                else
-                {
-                    <p><AppButton Label="@($"Download {tool.Name}")" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => InstallTool.InvokeAsync(tool))" /> Or do it later in Settings, Tools and requirements.</p>
-                }
-            </AppAlert>
+            </div>
         }
         @if (!string.IsNullOrWhiteSpace(SampleScanDetail))
         {
@@ -88,6 +99,7 @@
     [Parameter] public bool Failed { get; set; }
     [Parameter] public EventCallback Retry { get; set; }
     [Parameter] public EventCallback<ToolRequirementDto> InstallTool { get; set; }
+    [Parameter] public EventCallback<ToolRequirementDto> RunInstaller { get; set; }
     [Parameter] public EventCallback SampleScan { get; set; }
     [Parameter] public EventCallback Complete { get; set; }
     [Parameter] public EventCallback Back { get; set; }
@@ -102,8 +114,6 @@
             ? "Library is ready to start finding your media."
             : "A few things need attention before you open your library.";
 
-    private const string TesseractNote = "Scanned documents won't be readable until Tesseract is installed.";
-
     private IReadOnlyList<ToolRequirementDto> RequiredTools => Tools?.Tools
         .Where(tool => tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Required && tool.State != ToolRequirementStates.Ready)
         .ToList() ?? [];
@@ -116,16 +126,14 @@
         ? "None. Library finishes this in the background."
         : "Open your library, then go to Settings, Tools and requirements to install it.";
 
-    // Optional tools are only offered; none of them blocks setup. Local AI models are left out on purpose.
-    private IReadOnlyList<ToolRequirementDto> OptionalTools => Tools?.Tools
-        .Where(tool => tool.State != ToolRequirementStates.Ready
-            && tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Optional)
-        .ToList() ?? [];
+    private IReadOnlyList<ToolRequirementDto> MediaTools => SetupToolRules.ListedTools(Tools);
 
-    private static string OptionalHeadline(ToolRequirementDto tool) => tool.Name;
-
-    private static string OptionalNote(ToolRequirementDto tool) =>
-        tool.Id == ToolRequirementIds.Tesseract ? TesseractNote : tool.Effect;
+    private static AppUiTone BadgeTone(ToolRequirementDto tool) => tool.State switch
+    {
+        ToolRequirementStates.Ready => AppUiTone.Success,
+        ToolRequirementStates.Problem => AppUiTone.Warning,
+        _ => AppUiTone.Neutral,
+    };
 
     private static bool ShowRow(SetupCapabilityDto item) => item.Key != "readiness" && (item.Key != "preflight" || item.Status == "blocked");
     private static string CapabilityLabel(string key) => key switch { "server" => "Server", "preflight" => "Server check", "administrator" => "Your Account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };

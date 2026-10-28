@@ -195,28 +195,54 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     // ── Setup: the last step ─────────────────────────────────────────────────
 
     [Fact]
-    public void ReadinessStep_SaysTesseractIsMissingInAnInfoBoxWithADownloadButton()
+    public void ReadinessStep_ListsEveryToolIncludingReadyOnes_WithATickAndItsVersion()
     {
         var cut = RenderReadiness(Tools(
-            Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready),
+            Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready) with { Version = "7.1" },
             Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional)));
 
-        var box = Assert.Single(cut.FindAll(".setup-tool-info"));
-        Assert.Equal("Scanned documents won't be readable until Tesseract is installed.", box.QuerySelectorAll("p")[0].TextContent.Trim());
-        Assert.Contains("Download Tesseract", box.TextContent, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll(".setup-tool-warning"));
+        var ffmpeg = cut.Find("[data-testid=setup-media-tools] [data-tool-id=ffmpeg]");
+        Assert.Contains("Ready. Version 7.1.", ffmpeg.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Ready", ffmpeg.QuerySelector(".tl-badge, [class*=badge]")?.TextContent ?? ffmpeg.TextContent, StringComparison.Ordinal);
+        Assert.Equal(2, cut.FindAll("[data-testid=setup-media-tools] article").Count);
+    }
+
+    [Theory]
+    [InlineData(ToolRequirementStates.Missing, "Download Tesseract", "You can download it now or later")]
+    [InlineData(ToolRequirementStates.Downloading, null, "Downloading. Library finishes this in the background.")]
+    [InlineData(ToolRequirementStates.InstallerReady, "Run installer", "Downloaded. One more step: run its installer.")]
+    [InlineData(ToolRequirementStates.Problem, null, "did not start")]
+    [InlineData(ToolRequirementStates.Ready, null, "Ready.")]
+    public void ReadinessStep_ShowsTesseractWithExactlyOneMessageThatDependsOnlyOnItsState(string state, string? button, string line)
+    {
+        var cut = RenderReadiness(Tools(Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, state: state)));
+
+        var row = cut.Find("[data-tool-id=tesseract]");
+        Assert.Single(row.QuerySelectorAll("small"));
+        Assert.Contains(line, row.QuerySelector("small")!.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("won't be readable", row.TextContent, StringComparison.Ordinal);
+        if (button is null)
+        {
+            Assert.Empty(row.QuerySelectorAll("button"));
+        }
+        else
+        {
+            Assert.Contains(button, Assert.Single(row.QuerySelectorAll("button")).TextContent, StringComparison.Ordinal);
+        }
     }
 
     [Fact]
-    public void ReadinessStep_UsesTheEffectTextForOtherOptionalTools_AndSaysNothingWhenTheyAreReady()
+    public void ReadinessStep_NeverShowsLocalAiAtAnyState()
     {
-        var cut = RenderReadiness(Tools(
-            Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Problem)));
-        Assert.Equal([FfmpegEffect], cut.FindAll(".setup-tool-info").Select(box => box.QuerySelectorAll("p")[0].TextContent.Trim()));
+        foreach (var state in new[] { ToolRequirementStates.Missing, ToolRequirementStates.Problem, ToolRequirementStates.Downloading, ToolRequirementStates.Ready })
+        {
+            var cut = RenderReadiness(Tools(
+                Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional, state: state),
+                Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready)));
 
-        var quiet = RenderReadiness(Tools(
-            Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready)));
-        Assert.Empty(quiet.FindAll(".setup-tool-info"));
+            Assert.DoesNotContain("Local AI", cut.Markup, StringComparison.Ordinal);
+            Assert.Empty(cut.FindAll("[data-tool-id=ai_runtime]"));
+        }
     }
 
     [Fact]
