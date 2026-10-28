@@ -230,6 +230,21 @@ public partial interface IEngineApiClient
     /// <summary>PUT /settings/libraries/{libraryId}/access/profiles — replaces the profiles chosen for a Selected-profiles library (administrators); the saved choice, or null when the Engine refused.</summary>
     Task<LibraryAccessGrantsDto?> SetLibraryProfilesAsync(string libraryId, IReadOnlyList<Guid> profileIds, CancellationToken ct = default);
 
+    /// <summary>GET /settings/vault-libraries — the Vault-protected libraries of the content types, for an administrator whose Vault mode is on; null for anyone else (the Engine answers "not found") or when it could not be read.</summary>
+    Task<IReadOnlyList<LibraryFolderDto>?> GetVaultSiblingLibrariesAsync(CancellationToken ct = default);
+
+    /// <summary>POST /settings/vault-libraries — makes the Vault-protected library of a content type with its first folder (administrators; no PIN). The new library, or null when the Engine refused (<see cref="LastError"/> says why in plain words).</summary>
+    Task<LibraryFolderDto?> CreateVaultLibraryAsync(CreateVaultLibraryFromKindRequest request, CancellationToken ct = default);
+
+    /// <summary>POST /settings/vault-libraries/folders — adds a folder as a Vault folder of a content type, making that type's Vault library first when it has none (administrators; no PIN). The library it joined, or null when the Engine refused.</summary>
+    Task<LibraryFolderDto?> AddVaultFolderAsync(AddVaultFolderRequest request, CancellationToken ct = default);
+
+    /// <summary>PUT /settings/vault-libraries/{libraryId}/online-lookup — turns "Look up details online" on or off for one Vault library. The library, or null when the Engine refused.</summary>
+    Task<LibraryFolderDto?> SetVaultOnlineLookupAsync(string libraryId, bool enabled, CancellationToken ct = default);
+
+    /// <summary>GET /settings/vault-libraries/destination — where Move to Vault would put an item of a content type (administrators); null when the Engine refused or could not be read.</summary>
+    Task<VaultMoveDestinationDto?> GetVaultMoveDestinationAsync(string kindKey, CancellationToken ct = default);
+
     /// <summary>POST /library/unmatched/libraries/{libraryId}/retry — Retry now for one library's Unmatched files (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default);
 

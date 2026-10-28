@@ -779,7 +779,8 @@ public sealed class FolderKindChangeTests : IDisposable
             return start;
         }
 
-        Assert.Contains("Vault", (await Refused(folder.Id, new() { KindKey = "adult_content" })).Message, StringComparison.Ordinal);
+        Assert.Contains("Vault", (await Refused(folder.Id, new() { KindKey = "vault_only_kind" })).Message, StringComparison.Ordinal);
+        Assert.Contains("Adult content library instead", (await Refused(folder.Id, new() { KindKey = "adult_content" })).Message, StringComparison.Ordinal);
         Assert.Contains("not in the same area", (await Refused(folder.Id, new() { KindKey = "music" })).Message, StringComparison.Ordinal);
         Assert.Contains("already is Movies", (await Refused(folder.Id, new() { KindKey = "movies" })).Message, StringComparison.Ordinal);
         Assert.Contains("does not exist", (await Refused(folder.Id, new() { KindKey = "no_such_kind" })).Message, StringComparison.Ordinal);
@@ -1390,7 +1391,7 @@ public sealed class FolderKindChangeTests : IDisposable
 
             var vaultKind = new LibraryKindDefinition
             {
-                Key = "adult_content",
+                Key = "vault_only_kind",
                 Area = LibraryAreas.Vault,
                 Label = "Adult content",
                 Format = "Videos",

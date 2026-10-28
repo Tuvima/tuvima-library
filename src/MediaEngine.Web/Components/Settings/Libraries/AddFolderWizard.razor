@@ -406,7 +406,7 @@
     public void Dispose() => Nsfw.Changed -= OnVaultModeChanged;
 
     private IEnumerable<LibraryTypeOption> KindsOf(LibraryGroup group) =>
-        group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>();
+        group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>().Where(kind => kind.Key != LibraryLookupRules.AdultContentKindKey);
 
     private void ChooseGroup(LibraryGroup group)
     {

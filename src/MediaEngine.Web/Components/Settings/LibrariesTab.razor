@@ -87,6 +87,7 @@
                              ReadOnly="@readOnly"
                              Tab="@TabQuery"
                              HighlightAddFolder="@HighlightAdd"
+                             VaultVisible="@VaultVisible"
                              Changed="FolderAddedAsync" />
                 break;
             case LevelKind.ViewKind:
@@ -167,7 +168,12 @@
     }
 
     // Vault mode switching on or off lists or removes Vault-protected libraries at once.
-    private void OnVaultModeChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnVaultModeChanged() => _ = InvokeAsync(async () =>
+    {
+        // The Vault-protected libraries are read only while the person may see them, so they are added or dropped here.
+        await RefreshConfigurationAsync();
+        StateHasChanged();
+    });
 
     public void Dispose() => Nsfw.Changed -= OnVaultModeChanged;
 
@@ -261,7 +267,7 @@
     {
         _loading = true;
         _loadError = null;
-        _configuration = await Orchestrator.GetLibrariesAsync();
+        _configuration = await ReadConfigurationAsync();
         _engineUnavailable = _configuration is null;
         if (_configuration is null) _loadError = ApiClient.LastError;
         else if (!LibraryKinds.Loaded) _loadError = "The list of library kinds could not be loaded, so the kinds of library are missing from this page. Try again in a moment.";
@@ -315,8 +321,27 @@
     // The folders panel saves on its own; keep this page's copy current for the View settings and the counts.
     private async Task RefreshConfigurationAsync()
     {
-        var latest = await Orchestrator.GetLibrariesAsync();
+        var latest = await ReadConfigurationAsync();
         if (latest is not null) _configuration = latest;
+    }
+
+    // The ordinary library list never holds Vault-protected libraries. Only for someone who may see the Vault (an unlocked administrator
+    // with Vault mode on) the Engine is asked for them as well; for everyone else nothing is asked, so no trace of them reaches the page.
+    private async Task<LibrariesConfigurationDto?> ReadConfigurationAsync()
+    {
+        var configuration = await Orchestrator.GetLibrariesAsync();
+        if (configuration is null || !VaultVisible) return configuration;
+        var vault = await ApiClient.GetVaultSiblingLibrariesAsync();
+        if (vault is null) return configuration;
+        foreach (var library in vault)
+        {
+            if (configuration.Libraries.All(existing => !string.Equals(existing.Id, library.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                configuration.Libraries.Add(library);
+            }
+        }
+
+        return configuration;
     }
 
     // A jump from the Import folder's "Choose" arrives with ?highlight=add so Add Folder is pointed at on the type's page.

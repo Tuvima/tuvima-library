@@ -11,7 +11,8 @@
 
 @* Add library: one screen. The media area, a name, the content type, who can see it, and the first source folder, checked as it is chosen.
    Create saves the library with that folder, starts a scan and opens the new library's page: no "go to..." question. First-run setup uses the
-   same dialog with Simple on (Standard access only, no Vault) and stays where it is. *@
+   same dialog with Simple on (Standard access only, no Vault) and stays where it is. For an administrator the Access choices include
+   Vault-protected (Library pages D10): chosen here, never switched on or off later; Adult content comes with that tick on (D12). *@
 <AppDialogShell Title="Add library" Size="Large" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="create-library">
@@ -53,18 +54,24 @@
             </section>
 
             <section class="create-library__section">
-                <h3 class="create-library__heading">Access <AppInfoTip Text="Standard: everyone who can use this area. Selected profiles: only the profiles you choose. Vault-protected: kept in the Vault, and it cannot be changed later." Label="About access" /></h3>
-                <LibraryAccessOptions Value="@_access" ValueChanged="@((string value) => _access = value)" ShowVault="ShowVaultOption" Disabled="@_saving" />
+                <h3 class="create-library__heading">Access <AppInfoTip Text="@AccessTipText" Label="About access" /></h3>
+                <LibraryAccessOptions Value="@_access"
+                                      ValueChanged="ChooseAccess"
+                                      ShowVault="ShowVaultOption"
+                                      VaultEnabled="@(VaultChoice.Enabled)"
+                                      VaultDisabledReason="@VaultChoice.Reason"
+                                      Disabled="@_saving" />
                 @if (_access == LibraryAccessChoices.Selected)
                 {
                     <AppAlert Tone="AppUiTone.Warning" Dense="true">Nobody but administrators will see this library until you tick profiles on its Access tab.</AppAlert>
                 }
-                @if (IsAdultContent)
+                @if (IsAdultContent && ShowVaultOption)
                 {
                     <AppSwitchRow Label="Protect with the Vault"
-                                  Description="Adult content is protected by the Vault. Available after the Vault update."
-                                  Value="true"
-                                  Disabled="true" />
+                                  Description="@(_access == LibraryAccessChoices.Vault ? "Kept in the Vault, away from everyone who can't open it." : "Stays a Watch library that only administrators see until you choose profiles on its Access tab.")"
+                                  Value="@(_access == LibraryAccessChoices.Vault)"
+                                  Disabled="@(_saving || !VaultChoice.Enabled)"
+                                  ValueChanged="SetVaultTick" />
                 }
             </section>
 
@@ -133,12 +140,20 @@
     [Parameter] public string? SetupSession { get; set; }
     /// <summary>Called with the new library's id once it is saved, so the host can read the libraries again.</summary>
     [Parameter] public Func<string, Task>? OnCreated { get; set; }
+    /// <summary>Opens with this access chosen (Add a Vault library from Move to Vault arrives with Vault-protected chosen). Ignored when the person may not choose it.</summary>
+    [Parameter] public string? StartAccessKey { get; set; }
+    /// <summary>True when the host shows Vault libraries (the administrator's Vault mode is on); only then does Create open the new Vault library's page.</summary>
+    [Parameter] public bool VaultVisible { get; set; }
+    /// <summary>False when the host carries on with what it was doing (Move to Vault continues from its preview) instead of opening the new library.</summary>
+    [Parameter] public bool OpenCreated { get; set; } = true;
 
     private string _area = "watch";
     private string? _kindKey;
     private string _name = string.Empty;
     private bool _nameTouched;
     private string _access = LibraryAccessChoices.Standard;
+    // True while the access was set for the person by the content type (Adult content), so leaving that type puts it back.
+    private bool _accessFollowsKind;
     private ServerFolderValidationResultDto? _folder;
     // Where the folder picker opens: the folder already chosen when the content type changes under it.
     private string? _pickerStart;
@@ -146,14 +161,20 @@
     private string? _error;
 
     private FolderAddScope Scope => new(Simple, SetupSession);
+    // Only a server administrator is offered Vault-protected, and never in first-run setup. For anyone else the dialog holds no Vault word at all.
     private bool ShowVaultOption => !Simple && Session.Authority?.EffectiveAdministrator == true;
+
+    private string AccessTipText => ShowVaultOption
+        ? "Standard: everyone who can use this area. Selected profiles: only the profiles you choose. Vault-protected: kept in the Vault, and it cannot be changed later."
+        : "Standard: everyone who can use this area. Selected profiles: only the profiles you choose.";
 
     private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Groups.Where(group => OfferedAreas.Contains(group.Key, StringComparer.Ordinal))];
 
     private IReadOnlyList<AppSelectOption> AreaOptions => [.. Areas.Select(group => new AppSelectOption(group.Key, group.Label, group.Icon))];
 
+    // Adult content is offered to administrators only, and never in first-run setup, which offers Standard access only.
     private IReadOnlyList<LibraryTypeOption> KindsOfArea => Kinds.TryGetGroup(_area) is { } group
-        ? [.. group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>()]
+        ? [.. group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>().Where(kind => ShowVaultOption || kind.Key != AdultContentKindKey)]
         : [];
 
     private LibraryTypeOption? Kind => _kindKey is null ? null : KindsOfArea.FirstOrDefault(kind => kind.Key == _kindKey);
@@ -173,10 +194,28 @@
             : (true, null);
     }
 
-    private string PickerMode => Kind is { DefaultHandling: "managed" } ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary;
+    // A Vault library's folders are added as they are (read-only); a folder Library manages in the Vault is part of the Vault update.
+    private bool IsVaultChoice => _access == LibraryAccessChoices.Vault;
+
+    private string PickerMode => Kind is { DefaultHandling: "managed" } && !IsVaultChoice ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary;
 
     // Read-only (As-is) unless the kind's own default is Managed.
-    private AddFolderHandling Handling => Kind is { DefaultHandling: "managed" } ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly;
+    private AddFolderHandling Handling => Kind is { DefaultHandling: "managed" } && !IsVaultChoice ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly;
+
+    // Each content type has one Vault library beside its ordinary one. Known only to a viewer who sees Vault libraries; the Engine refuses a second in any case.
+    private (bool Enabled, string? Reason) VaultChoice
+    {
+        get
+        {
+            if (Kind is { } kind && Configuration.Libraries.Any(library => string.Equals(library.Access, LibraryAccessChoices.Vault, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(library.KindKey, kind.Key, StringComparison.Ordinal)))
+            {
+                return (false, $"You already have a Vault-protected {kind.Label} library. Add a folder to it instead.");
+            }
+
+            return (true, null);
+        }
+    }
 
     private string? SubfolderHint => SubfolderHints.For(_area);
 
@@ -198,7 +237,7 @@
 
     private bool AccessChoosable => _access == LibraryAccessChoices.Standard
         || (_access == LibraryAccessChoices.Selected && LibraryAccessOptions.SelectedProfilesAvailable)
-        || (_access == LibraryAccessChoices.Vault && LibraryAccessOptions.VaultAvailable && ShowVaultOption);
+        || (_access == LibraryAccessChoices.Vault && LibraryAccessOptions.VaultAvailable && ShowVaultOption && VaultChoice.Enabled);
 
     private bool FolderUsable => _folder is { CanSelect: true, Exists: true, HasRead: true };
 
@@ -209,7 +248,6 @@
         && Kind is not null
         && AvailabilityOf(Kind).Enabled
         && AccessChoosable
-        && !IsAdultContent
         && FolderUsable;
 
     protected override void OnInitialized()
@@ -220,6 +258,15 @@
         _area = start?.Key ?? "watch";
         var wanted = KindsOfArea.FirstOrDefault(kind => string.Equals(kind.Key, StartKindKey?.Trim(), StringComparison.OrdinalIgnoreCase) && AvailabilityOf(kind).Enabled);
         _kindKey = (wanted ?? KindsOfArea.FirstOrDefault(kind => AvailabilityOf(kind).Enabled))?.Key;
+        if (string.Equals(StartAccessKey, LibraryAccessChoices.Vault, StringComparison.Ordinal) && ShowVaultOption && VaultChoice.Enabled)
+        {
+            _access = LibraryAccessChoices.Vault;
+        }
+        else
+        {
+            FollowKindAccess();
+        }
+
         PrefillName();
     }
 
@@ -228,6 +275,7 @@
         if (_area == area) return Task.CompletedTask;
         _area = area;
         _kindKey = KindsOfArea.FirstOrDefault(kind => AvailabilityOf(kind).Enabled)?.Key;
+        FollowKindAccess();
         PrefillName();
         RestartPicker();
         return Task.CompletedTask;
@@ -237,10 +285,48 @@
     {
         if (_kindKey == kind.Key) return Task.CompletedTask;
         _kindKey = kind.Key;
+        FollowKindAccess();
         PrefillName();
         RestartPicker();
         return Task.CompletedTask;
     }
+
+    // Adult content comes with the Vault tick on (Library pages D12). Where the person may not choose the Vault, or after they untick it, it starts as
+    // Selected profiles so it never opens to every profile by accident (D21). Moving to another type puts back what the type had set.
+    private void FollowKindAccess()
+    {
+        if (IsAdultContent)
+        {
+            if (!_accessFollowsKind || _access == LibraryAccessChoices.Standard)
+            {
+                _access = ShowVaultOption && VaultChoice.Enabled ? LibraryAccessChoices.Vault : LibraryAccessChoices.Selected;
+                _accessFollowsKind = true;
+            }
+
+            return;
+        }
+
+        if (_accessFollowsKind)
+        {
+            _access = LibraryAccessChoices.Standard;
+            _accessFollowsKind = false;
+        }
+
+        // A Vault choice that no longer fits the type (it already has a Vault library) falls back to Standard rather than blocking Create.
+        if (_access == LibraryAccessChoices.Vault && (!ShowVaultOption || !VaultChoice.Enabled))
+        {
+            _access = LibraryAccessChoices.Standard;
+        }
+    }
+
+    private void ChooseAccess(string value)
+    {
+        _access = value;
+        _accessFollowsKind = false;
+        PrefillName();
+    }
+
+    private void SetVaultTick(bool ticked) => ChooseAccess(ticked ? LibraryAccessChoices.Vault : LibraryAccessChoices.Selected);
 
     // The folder is checked for the content type, so a new type checks it again (the picker is rebuilt on the folder already chosen).
     private void RestartPicker()
@@ -261,14 +347,18 @@
             return;
         }
 
-        var suggestion = kind.Label;
+        var stem = IsVaultChoice ? VaultNameStem(kind.Label) : kind.Label;
+        var suggestion = stem;
         for (var number = 2; NameTaken(suggestion); number++)
         {
-            suggestion = $"{kind.Label} {number}";
+            suggestion = $"{stem} {number}";
         }
 
         _name = suggestion;
     }
+
+    // "Private Movies" beside "Movies" (the library the Vault shortcuts make carries the same stem).
+    private static string VaultNameStem(string kindLabel) => $"Private {kindLabel}";
 
     private void NameChanged(string? value)
     {
@@ -283,6 +373,23 @@
         return Task.CompletedTask;
     }
 
+    // Vault-protected: the Engine makes the Vault library beside the content type's ordinary one (an administrator is enough, no PIN). The new library is
+    // opened only for someone who sees Vault libraries; otherwise the dialog just closes, so nothing about it shows on the page.
+    private async Task CreateVaultAsync(LibraryTypeOption kind, ServerFolderValidationResultDto folder)
+    {
+        var created = await Api.CreateVaultLibraryAsync(new CreateVaultLibraryFromKindRequest(kind.Key, _name.Trim(), folder.Path));
+        if (created is null || string.IsNullOrWhiteSpace(created.Id))
+        {
+            _error = Api.LastError ?? "The library could not be created. Check the folder and try again.";
+            return;
+        }
+
+        Toasts.Add($"{_name.Trim()} created.", AppSeverity.Success);
+        if (OnCreated is not null) await OnCreated(created.Id);
+        Dialog.Close(AppDialogResult.Ok(created.Id));
+        if (VaultVisible && OpenCreated) Navigation.NavigateTo($"/settings/libraries/{created.Id}");
+    }
+
     private async Task CreateAsync()
     {
         if (!CanCreate || Kind is not { } kind || _folder is not { } folder) return;
@@ -290,6 +397,12 @@
         _error = null;
         try
         {
+            if (IsVaultChoice)
+            {
+                await CreateVaultAsync(kind, folder);
+                return;
+            }
+
             var plan = new AddFolderPlan(
                 kind.Key,
                 folder,
@@ -315,7 +428,7 @@
 
             if (OnCreated is not null) await OnCreated(libraryId);
             Dialog.Close(AppDialogResult.Ok(libraryId));
-            if (!Simple) Navigation.NavigateTo($"/settings/libraries/{libraryId}");
+            if (!Simple && OpenCreated) Navigation.NavigateTo($"/settings/libraries/{libraryId}");
         }
         finally
         {

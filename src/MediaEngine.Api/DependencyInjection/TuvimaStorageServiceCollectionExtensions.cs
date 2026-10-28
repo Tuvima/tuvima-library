@@ -159,6 +159,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultAdministrationService>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultOperationGate>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultFolderAttachmentService>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultSiblingLibraryService>();
         services.AddTuvimaSecurity();
         services.AddSingleton<SetupSessionService>();
         services.AddSingleton<SetupPreflightService>();

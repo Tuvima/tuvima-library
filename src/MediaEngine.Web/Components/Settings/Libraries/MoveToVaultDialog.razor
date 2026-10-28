@@ -1,0 +1,94 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@inject IEngineApiClient Api
+
+@* Move to Vault, from the "..." menu of a folder on the Folders tab (Library pages D11; Vault sections D31, D33). It is a doorway: before anything is
+   touched it checks where the items would go. With no Vault-protected library of this content type it says so plainly and an administrator gets
+   "Add a Vault library", which opens Add library with the area, content type and Vault-protected already chosen; when that library is made, the
+   preview opens again. With a Vault library that has no folder Library manages, it says that Move to Vault needs one. The move itself (the
+   durable job, the hash check, progress kept) is the Vault update's work; this dialog never moves a file, and it holds no Vault word for anyone
+   who is not an administrator because only an administrator is ever offered the menu entry. *@
+<AppDialogShell Title="Move to Vault" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="move-to-vault" data-testid="move-to-vault">
+            @if (_loading)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="Checking where it would go" />
+            }
+            else if (_destination is null)
+            {
+                <AppPageState Kind="AppPageStateKind.Error"
+                              Icon="@AppMaterialIcons.Outlined.CloudOff"
+                              Title="Library couldn't check"
+                              Message="@(Api.LastError ?? "Check that the Library server is running, then try again.")">
+                    <Actions>
+                        <AppButton Label="Try again" OnClick="LoadAsync" />
+                    </Actions>
+                </AppPageState>
+            }
+            else if (_destination.State == VaultMoveDestinationStates.None)
+            {
+                <p class="move-to-vault__lead" data-testid="move-to-vault-none">There is no Vault-protected @PluralLabel library yet.</p>
+                <p class="move-to-vault__note">Nothing has been moved. Add one, and the move continues from here.</p>
+            }
+            else if (_destination.State == VaultMoveDestinationStates.NeedsManagedFolder)
+            {
+                <p class="move-to-vault__lead" data-testid="move-to-vault-managed">Move to Vault needs a folder that Library manages, and @(_destination.LibraryName ?? "the Vault library") has none yet.</p>
+                <p class="move-to-vault__note">Nothing has been moved.</p>
+            }
+            else
+            {
+                <p class="move-to-vault__lead" data-testid="move-to-vault-ready">@(_destination.LibraryName ?? "The Vault library") can take items from @FolderName.</p>
+                <p class="move-to-vault__note">Moving items into the Vault arrives with the next Vault update. Nothing has been moved.</p>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar Align="AppHorizontalAlignment.End">
+            <AppButton Label="@(_destination is { State: VaultMoveDestinationStates.None } ? "Cancel" : "Close")" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+            @if (_destination is { State: VaultMoveDestinationStates.None })
+            {
+                <AppButton Label="Add a Vault library" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(AddVaultLibrary)))" />
+            }
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    /// <summary>What the dialog hands back when the person chose Add a Vault library.</summary>
+    public const string AddVaultLibrary = "add-vault-library";
+
+    /// <summary>The centred dialog Move to Vault opens with.</summary>
+    public static AppDialogOptions DialogOptions { get; } = new()
+    {
+        MaxWidth = AppMaxWidth.Medium,
+        FullWidth = true,
+        CloseButton = false,
+        NoHeader = true,
+        CloseOnEscapeKey = true,
+    };
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>The content type of the folder the items are in (its key), so the right Vault library is looked for.</summary>
+    [Parameter, EditorRequired] public string KindKey { get; set; } = string.Empty;
+
+    /// <summary>The content type's plural name ("Movies"), for the plain sentence.</summary>
+    [Parameter] public string PluralLabel { get; set; } = "items";
+
+    /// <summary>The folder the move starts from, by the name the table shows.</summary>
+    [Parameter] public string FolderName { get; set; } = "this folder";
+
+    private VaultMoveDestinationDto? _destination;
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _destination = await Api.GetVaultMoveDestinationAsync(KindKey);
+        _loading = false;
+    }
+}

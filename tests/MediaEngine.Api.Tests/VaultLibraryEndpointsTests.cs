@@ -1,0 +1,451 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Encodings.Web;
+using Dapper;
+using MediaEngine.Api.Endpoints;
+using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Api.Services.Settings;
+using MediaEngine.Api.Services.Vault;
+using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
+using MediaEngine.Identity;
+using MediaEngine.Identity.Contracts;
+using MediaEngine.Storage;
+using MediaEngine.Storage.Configuration;
+using MediaEngine.TestSupport;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+
+namespace MediaEngine.Api.Tests;
+
+// Vault-protected libraries on the Libraries pages (Library pages WP9, D10, D11, D26a, D34): who may make one, add a Vault folder, list them,
+// switch their online lookup and ask where Move to Vault would go. A real temp data store and configuration folder, a real host.
+// Whoever is not a signed-in server administrator gets the answer an unknown address gets, with nothing in the body that names the Vault,
+// a folder or a title, and a Vault library never appears in the places ordinary libraries are listed or counted.
+public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
+{
+    private readonly string _root = Path.Combine(Path.GetTempPath(), $"tuvima_vault_siblings_{Guid.NewGuid():N}");
+    private readonly string _moviesFolder;
+    private readonly string _privateMovies;
+    private readonly string _privateMusic;
+    private readonly string _managedFolder;
+    private readonly string _ordinaryMovies;
+    private readonly Guid _adminProfile = Guid.NewGuid();
+    private readonly Guid _adminSession = Guid.NewGuid();
+    private DatabaseConnection _database = default!;
+    private ConfigurationDirectoryLoader _configuration = default!;
+    private VaultLibraryRepository _vaultLibraries = default!;
+    private SwitchableNsfwAccess _nsfw = default!;
+    private WebApplication _app = default!;
+    private HttpClient _client = default!;
+
+    public VaultLibraryEndpointsTests()
+    {
+        _moviesFolder = Path.Combine(_root, "Movies");
+        _ordinaryMovies = Path.Combine(_root, "OrdinaryMovies");
+        _privateMovies = Path.Combine(_root, "PrivateMovies");
+        _privateMusic = Path.Combine(_root, "PrivateMusic");
+        _managedFolder = Path.Combine(_root, "Managed");
+    }
+
+    public async Task InitializeAsync()
+    {
+        foreach (var folder in new[] { _moviesFolder, _ordinaryMovies, _privateMovies, _privateMusic, _managedFolder })
+        {
+            Directory.CreateDirectory(folder);
+        }
+
+        DapperConfiguration.Configure();
+        _database = new DatabaseConnection(Path.Combine(_root, "library.db"));
+        _database.InitializeSchema();
+        _database.RunStartupChecks();
+        _vaultLibraries = new VaultLibraryRepository(_database);
+        _configuration = new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
+        Directory.CreateDirectory(Path.Combine(_root, "config"));
+        _configuration.SaveLibraries(new LibrariesConfiguration
+        {
+            StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Media", Path = _root, AllowWrite = true }],
+            Libraries =
+            [
+                new LibraryFolderConfig
+                {
+                    Id = Guid.NewGuid().ToString("D"), Name = "Movies", Category = "Movies", Kind = LibraryKinds.Catalogued, KindKey = "movies",
+                    Area = "watch", MediaTypes = ["Movies"], Access = LibraryAccessLevels.Standard,
+                    Sources = [new LibrarySourceConfig { Id = Guid.NewGuid().ToString("D"), Path = _ordinaryMovies, ManagementMode = "existing_library", AccessMode = "read_only" }],
+                },
+            ],
+        });
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,'Administrator','#7C4DFF','Administrator',NULL,@now);",
+                new { id = _adminProfile, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        _nsfw = new SwitchableNsfwAccess();
+        var identities = new IdentityRepository(_database);
+        var profiles = new ProfileRepository(_database);
+        var clock = TimeProvider.System;
+        var real = new NsfwAccessRepository(_database);
+        var identity = new FirstPartyIdentityService(
+            identities, new AccountRepository(_database), profiles,
+            new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(), clock, new FixedPolicy(),
+            nsfwAccess: real);
+        var administration = new VaultAdministrationService(_vaultLibraries, real, profiles, identities, identity, clock, NullLogger<VaultAdministrationService>.Instance);
+        var attachment = new VaultFolderAttachmentService(
+            administration, _vaultLibraries, _configuration, new ServerFolderBrowserService(_configuration, NullLogger<ServerFolderBrowserService>.Instance),
+            NullLogger<VaultFolderAttachmentService>.Instance);
+        var plugins = new PluginCatalog([], new PluginSettingsService(_configuration), _configuration, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
+        var kinds = new LibraryKindListService(_configuration, plugins);
+        var siblings = new VaultSiblingLibraryService(_vaultLibraries, _configuration, attachment, kinds, clock, NullLogger<VaultSiblingLibraryService>.Instance);
+
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Logging.ClearProviders();
+        builder.Services.AddAuthentication("test").AddScheme<AuthenticationSchemeOptions, SignedInHandler>("test", _ => { });
+        builder.Services.AddAuthorization(options => options.AddPolicy(AuthPolicies.Authenticated, policy => policy.RequireAuthenticatedUser()));
+        builder.Services.AddSingleton<IRequestAuthorityResolver>(new HeaderAuthorityResolver(_adminProfile, _adminSession));
+        builder.Services.AddSingleton(new VaultAccessResolver(_vaultLibraries, _nsfw, clock));
+        builder.Services.AddSingleton(siblings);
+        _app = builder.Build();
+        _app.UseAuthentication();
+        _app.UseAuthorization();
+        _app.MapGroup("/settings").MapVaultLibraries();
+        await _app.StartAsync();
+        var address = new Uri(_app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
+        _client = new HttpClient { BaseAddress = address };
+    }
+
+    public async Task DisposeAsync()
+    {
+        _client.Dispose();
+        await _app.DisposeAsync();
+        _configuration.Dispose();
+        _database.Dispose();
+        TestTemp.ReleaseSqlitePool(Path.Combine(_root, "library.db"));
+        try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
+    }
+
+    private HttpRequestMessage Request(HttpMethod method, string url, string who, object? body = null)
+    {
+        var request = new HttpRequestMessage(method, url);
+        request.Headers.Add("X-Test-Who", who);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return request;
+    }
+
+    private Task<HttpResponseMessage> SendAsync(HttpMethod method, string url, string who, object? body = null) =>
+        _client.SendAsync(Request(method, url, who, body));
+
+    private static CreateVaultLibraryFromKindRequest Create(string kind, string name, string folder) => new(kind, name, folder);
+
+    [Fact]
+    public void EveryRoute_RequiresASignedInCaller()
+    {
+        var routes = ((IEndpointRouteBuilder)_app).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText!.Contains("vault-libraries", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.Equal(5, routes.Count);
+        Assert.All(routes, route => Assert.Contains(
+            route.Metadata.GetOrderedMetadata<IAuthorizeData>(), data => data.Policy == AuthPolicies.Authenticated));
+    }
+
+    [Theory]
+    [InlineData("user")]
+    [InlineData("kids")]
+    [InlineData("app")]
+    public async Task EveryRoute_AnswersNotFoundForAnyoneWhoIsNotAnAdministrator_WithNothingThatNamesTheVaultOrTheFolder(string who)
+    {
+        var id = Guid.NewGuid();
+        var calls = new[]
+        {
+            await SendAsync(HttpMethod.Get, "/settings/vault-libraries", who),
+            await SendAsync(HttpMethod.Post, "/settings/vault-libraries", who, Create("movies", "Private Movies", _privateMovies)),
+            await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", who, new AddVaultFolderRequest("movies", _privateMovies)),
+            await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination?kind_key=movies", who),
+            await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{id:D}/online-lookup", who, new SetVaultOnlineLookupRequest(true)),
+            // A malformed body is not read before the caller is known, so it cannot tell this caller anything either.
+            await SendAsync(HttpMethod.Post, "/settings/vault-libraries", who, "not a request"),
+        };
+
+        foreach (var response in calls)
+        {
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.DoesNotContain("vault", body, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(_root, body, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Empty(await _vaultLibraries.GetIdsAsync());
+        Assert.Single(_configuration.LoadLibraries().Libraries);
+    }
+
+    [Fact]
+    public async Task AnAdministrator_MakesTheVaultLibraryOfAContentTypeWithoutAPin_AndItLivesInTheVaultTables()
+    {
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var library = (await response.Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        Assert.Equal("Private Movies", library.Name);
+        Assert.Equal("movies", library.KindKey);
+        Assert.Equal(LibraryAccessLevels.Vault, library.Access);
+        Assert.Equal("local_only", library.MetadataPolicy);
+        Assert.Equal(_privateMovies, Assert.Single(library.Sources).Path);
+        Assert.Equal("read_only", library.Sources[0].AccessMode);
+        Assert.Contains(library.Id, await _vaultLibraries.GetIdsAsync());
+        var saved = _configuration.LoadLibraries().Libraries.Single(item => item.Id == library.Id);
+        Assert.Equal(LibraryAccessLevels.Vault, saved.Access);
+        Assert.False(saved.OrganizationPolicy.WriteTags);
+        Assert.Equal(LibraryOrganizationModes.KeepOriginalNames, saved.OrganizationPolicy.Mode);
+        Assert.Equal(2, _configuration.LoadLibraries().Libraries.Count);
+    }
+
+    [Fact]
+    public async Task ASecondVaultLibraryForTheSameContentType_IsRefusedPlainly_ButAnotherTypeIsFine()
+    {
+        await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies));
+
+        var again = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "More movies", _moviesFolder));
+        var music = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("music", "Private Music", _privateMusic));
+
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Equal(VaultSiblingLibraryService.AlreadyExistsMessage, await DetailOf(again));
+        Assert.Equal(HttpStatusCode.OK, music.StatusCode);
+        Assert.Equal(2, (await _vaultLibraries.GetIdsAsync()).Count);
+    }
+
+    [Fact]
+    public async Task ARefusedRequest_NeverEchoesTheFolderOrTheTitle()
+    {
+        var missingFolder = Path.Combine(_root, "NoSuchSecretFolder");
+        var onOrdinary = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Secret Title Name", _ordinaryMovies));
+        var missing = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Secret Title Name", missingFolder));
+        var noName = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "  ", _privateMovies));
+        var badKind = await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("photos", "Private Photos", _privateMovies));
+
+        foreach (var (label, response) in new[] { ("ordinary", onOrdinary), ("missing", missing), ("noName", noName), ("badKind", badKind) })
+        {
+            Assert.True(response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict, $"{label} -> {response.StatusCode}");
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.DoesNotContain("SecretFolder", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("Secret Title Name", body, StringComparison.Ordinal);
+            Assert.DoesNotContain(_root, body, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Nothing half-made is left behind: no Vault row and no library entry.
+        Assert.Empty(await _vaultLibraries.GetIdsAsync());
+        Assert.Single(_configuration.LoadLibraries().Libraries);
+    }
+
+    [Fact]
+    public async Task AFolderAlreadyInAnOrdinaryLibrary_CannotBecomeAVaultFolder()
+    {
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", _ordinaryMovies));
+
+        Assert.True(response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict);
+        Assert.Empty(await _vaultLibraries.GetIdsAsync());
+    }
+
+    [Fact]
+    public async Task AddingAVaultFolder_MakesTheVaultLibraryFirstWhenThereIsNone_AndThenJoinsIt()
+    {
+        var first = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", _privateMovies));
+        var second = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", _moviesFolder));
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var library = (await second.Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        Assert.Equal(LibraryAccessLevels.Vault, library.Access);
+        Assert.Equal(2, library.Sources.Count);
+        Assert.Single(await _vaultLibraries.GetIdsAsync());
+        Assert.Equal(2, _configuration.LoadLibraries().Libraries.Count);
+    }
+
+    [Fact]
+    public async Task TheListAndTheOnlineLookupSwitch_NeedTheAdministratorsVaultModeToBeOn()
+    {
+        var made = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies)))
+            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+
+        _nsfw.Unlocked = false;
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(HttpMethod.Get, "/settings/vault-libraries", "admin")).StatusCode);
+        var lockedSwitch = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{made.Id}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true));
+        Assert.Equal(HttpStatusCode.NotFound, lockedSwitch.StatusCode);
+        Assert.Equal("local_only", _configuration.LoadLibraries().Libraries.Single(item => item.Id == made.Id).MetadataPolicy);
+
+        _nsfw.Unlocked = true;
+        var list = (await (await SendAsync(HttpMethod.Get, "/settings/vault-libraries", "admin")).Content.ReadFromJsonAsync<List<LibraryFolderDto>>())!;
+        Assert.Equal(made.Id, Assert.Single(list).Id);
+    }
+
+    [Fact]
+    public async Task TheOnlineLookupSwitch_IsOffByDefault_TurnsOnAndOffForThatLibraryOnly_AndRefusesAnOrdinaryLibrary()
+    {
+        _nsfw.Unlocked = true;
+        var movies = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies)))
+            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        var music = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("music", "Private Music", _privateMusic)))
+            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        var ordinary = _configuration.LoadLibraries().Libraries.First(item => item.Access == LibraryAccessLevels.Standard).Id;
+
+        var on = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{movies.Id}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true));
+
+        Assert.Equal(HttpStatusCode.OK, on.StatusCode);
+        Assert.Equal("enriched", (await on.Content.ReadFromJsonAsync<LibraryFolderDto>())!.MetadataPolicy);
+        var saved = _configuration.LoadLibraries().Libraries;
+        Assert.Equal("enriched", saved.Single(item => item.Id == movies.Id).MetadataPolicy);
+        Assert.Equal("local_only", saved.Single(item => item.Id == music.Id).MetadataPolicy);
+
+        var off = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{movies.Id}/online-lookup", "admin", new SetVaultOnlineLookupRequest(false));
+        Assert.Equal("local_only", (await off.Content.ReadFromJsonAsync<LibraryFolderDto>())!.MetadataPolicy);
+
+        // An ordinary library, and an id that names nothing, are both "not found": the switch is never a way to touch other libraries.
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{ordinary}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{Guid.NewGuid():D}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true))).StatusCode);
+        Assert.Equal(LibraryAccessLevels.Standard, _configuration.LoadLibraries().Libraries.Single(item => item.Id == ordinary).Access);
+    }
+
+    [Fact]
+    public async Task TheMoveDestination_SaysNoneThenNeedsAManagedFolder_AndNamesNoFolder()
+    {
+        var none = (await (await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination?kind_key=movies", "admin")).Content.ReadFromJsonAsync<VaultMoveDestinationDto>())!;
+        Assert.Equal(VaultMoveDestinationStates.None, none.State);
+        Assert.Null(none.LibraryId);
+
+        await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies));
+        var raw = await (await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination?kind_key=movies", "admin")).Content.ReadAsStringAsync();
+        var needs = System.Text.Json.JsonSerializer.Deserialize<VaultMoveDestinationDto>(raw)!;
+
+        Assert.Equal(VaultMoveDestinationStates.NeedsManagedFolder, needs.State);
+        Assert.Equal("Private Movies", needs.LibraryName);
+        Assert.Equal(0, needs.ManagedFolders);
+        Assert.DoesNotContain(_root, raw, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination", "admin")).StatusCode);
+    }
+
+    [Fact]
+    public async Task AVaultLibrary_NeverAppearsWhereOrdinaryLibrariesAreListedCountedOrGranted()
+    {
+        var made = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies)))
+            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        var vaultIds = await _vaultLibraries.GetIdsAsync();
+
+        // The ordinary list of libraries, as the settings route and the Dashboard get it, holds no trace.
+        var visible = VaultLibrarySettings.WithoutVault(_configuration.LoadLibraries(), vaultIds);
+        Assert.DoesNotContain(visible.Libraries, library => library.Id == made.Id);
+        Assert.DoesNotContain(visible.Libraries.SelectMany(library => library.Sources), source => source.Path == _privateMovies);
+
+        // The Selected-profiles catalogue, which every profile's visibility is worked out from, never lists it.
+        var selected = await new ConfigurationLibraryAccessCatalog(_configuration).GetSelectedLibraryIdsAsync();
+        Assert.DoesNotContain(Guid.Parse(made.Id), selected);
+
+        // And the visibility rule itself says no to everyone, administrators included: the Vault has its own doors.
+        Assert.False(LibraryVisibilityRule.MaySee(isAdministrator: true, isVault: true, hasArea: true, isHidden: false));
+        Assert.False(LibraryVisibilityRule.MaySee(isAdministrator: false, isVault: true, hasArea: true, isHidden: false));
+    }
+
+    [Fact]
+    public async Task ASavedVaultLibrary_SurvivesAnOrdinarySaveOfTheLibrariesFile()
+    {
+        var made = (await (await SendAsync(HttpMethod.Post, "/settings/vault-libraries", "admin", Create("movies", "Private Movies", _privateMovies)))
+            .Content.ReadFromJsonAsync<LibraryFolderDto>())!;
+        var vaultIds = await _vaultLibraries.GetIdsAsync();
+        var current = _configuration.LoadLibraries();
+        var proposed = VaultLibrarySettings.WithoutVault(current, vaultIds);
+
+        VaultLibrarySettings.KeepVault(current, proposed, vaultIds);
+
+        Assert.Contains(proposed.Libraries, library => library.Id == made.Id && library.Access == LibraryAccessLevels.Vault);
+    }
+
+    private static async Task<string?> DetailOf(HttpResponseMessage response)
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.TryGetProperty("detail", out var detail) ? detail.GetString() : null;
+    }
+
+    // Everyone is signed in; the "who" header decides what kind of caller the Engine sees.
+    private sealed class SignedInHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+        : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    {
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            var identity = new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "test")], "test");
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new System.Security.Claims.ClaimsPrincipal(identity), "test")));
+        }
+    }
+
+    private sealed class HeaderAuthorityResolver(Guid adminProfile, Guid adminSession) : IRequestAuthorityResolver
+    {
+        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default)
+        {
+            var who = context.Request.Headers["X-Test-Who"].ToString();
+            var account = Guid.NewGuid();
+            var household = Guid.NewGuid();
+            RequestAuthority authority = who switch
+            {
+                "admin" => new RequestAuthority(
+                    PrincipalKind.Human, true, account, adminProfile, SessionId: adminSession, AccountEnabled: true, ActiveProfileInUserHousehold: true,
+                    ActiveProfileIsServerAdministrator: true, ActiveProfileHouseholdId: household),
+                "kids" => new RequestAuthority(
+                    PrincipalKind.Human, true, account, Guid.NewGuid(), SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,
+                    ActiveProfileIsServerAdministrator: true, ActiveProfileIsRestricted: true, ActiveProfileHouseholdId: household),
+                "app" => new RequestAuthority(PrincipalKind.ServiceApplication, true, ApplicationId: Guid.NewGuid(), ApplicationEnabled: true, ApplicationIsAdministrator: true),
+                _ => new RequestAuthority(
+                    PrincipalKind.Human, true, account, Guid.NewGuid(), SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,
+                    ActiveProfileHouseholdId: household),
+            };
+            return ValueTask.FromResult(authority);
+        }
+    }
+
+    // Whether this device session has switched Vault mode on.
+    private sealed class SwitchableNsfwAccess : INsfwAccessRepository
+    {
+        public bool Unlocked { get; set; } = true;
+
+        public Task<ProfileNsfwAccess> GetAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task SetAsync(Guid profileId, NsfwAccessMode mode, int? idleLockMinutes, Guid? changedByProfileId, DateTimeOffset now, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<bool> IsUnlockedAsync(Guid sessionId, Guid profileId, DateTimeOffset now, CancellationToken ct = default) => Task.FromResult(Unlocked);
+
+        public Task UnlockAsync(Guid sessionId, Guid profileId, NsfwUnlockMethod method, int idleLockMinutes, DateTimeOffset now, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<bool> TouchAsync(Guid sessionId, Guid profileId, int idleLockMinutes, DateTimeOffset now, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task LockSessionAsync(Guid sessionId, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task LockProfileAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
+    private sealed class FixedPolicy : IAuthenticationPolicyProvider
+    {
+        public AuthSettings GetCurrent() => new();
+    }
+}

@@ -129,6 +129,7 @@ public static class SettingsEndpoints
         var grp = app.MapGroup("/settings").WithTags("Settings");
         grp.MapLibraryMutations();
         grp.MapLibraryAccess();
+        grp.MapVaultLibraries();
 
         grp.MapGet("/security/auth", (AuthenticationProviderConfigurationService providerConfiguration, IConfigurationLoader configLoader) =>
         {

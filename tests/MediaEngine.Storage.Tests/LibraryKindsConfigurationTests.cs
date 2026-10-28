@@ -59,7 +59,7 @@ public sealed class LibraryKindsConfigurationTests : IDisposable
     {
         var kinds = new ConfigurationDirectoryLoader(_directory).LoadLibraryKinds();
 
-        Assert.Equal(13, kinds.Kinds.Count);
+        Assert.Equal(14, kinds.Kinds.Count);
         Assert.Equal("movies", kinds.Kinds[0].Key);
     }
 

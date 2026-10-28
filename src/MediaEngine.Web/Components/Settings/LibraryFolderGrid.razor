@@ -200,6 +200,8 @@
     [Parameter] public EventCallback<LibrarySourceDto> OnLabel { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnOrganiseNow { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnMerge { get; set; }
+    /// <summary>Move to Vault (Library pages D11): offered only when the host sets it, which it does for a server administrator on an ordinary library.</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnMoveToVault { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnKeepGoing { get; set; }
     [Parameter] public EventCallback<LibraryFolderTable.SuitableForLimitedChange> OnSetSuitableForLimited { get; set; }
 
@@ -242,6 +244,11 @@
         if (LibraryFolderTable.CanMergeInto(Library, source, jobOpen))
         {
             items.Add(new() { Label = "Merge into…", Icon = AppMaterialIcons.Outlined.ArrowForward, OnClick = Raise(OnMerge, source) });
+        }
+
+        if (OnMoveToVault.HasDelegate && !IsMerged(source))
+        {
+            items.Add(new() { Label = "Move to Vault…", Icon = AppMaterialIcons.Outlined.Lock, OnClick = Raise(OnMoveToVault, source) });
         }
 
         items.Add(new()

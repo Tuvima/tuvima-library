@@ -605,6 +605,8 @@ public static class JsonConfigValidator
             // the library and its kind (LibraryKindRules.LibraryProblems) says so when a library's own fields disagree. A kind this file
             // does not list may belong to a plugin, so its policy is left to the Engine's check against the full list of kinds.
             else if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched
+                // A Vault-protected library looks nothing up online until an administrator switches that on for it (Vault sections D34).
+                && !string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
                 && LibraryKindLookupPolicy.ModeOf(library.KindKey, libraryKinds) != LibraryLookupMode.Plain
                 && !IsKindOnlyAPluginCouldSupply(library.KindKey, libraryKinds))
             {

@@ -31,6 +31,8 @@ public sealed class LibraryKindsConfiguration
             LibraryKindMisfits.Unmatched, "Videos saved from YouTube, found by the video ID in the file name.", 3),
         Kind("other_videos", LibraryAreas.Watch, "Videos", "VideoLibrary", MediaType.Videos, null, LibraryKindGroupings.VideoSeriesFolder, "Videos",
             LibraryKindMisfits.Keep, "Courses, talks and downloads. Nothing is looked up.", 4, allowsMultiple: true),
+        Kind("adult_content", LibraryAreas.Watch, "Adult content", "Slideshow", MediaType.Videos, null, LibraryKindGroupings.VideoSeriesFolder, "Videos",
+            LibraryKindMisfits.Keep, "Adult videos and pictures. Nothing is looked up by default.", 5),
         Kind("music", LibraryAreas.Listen, "Music", "MusicNote", MediaType.Music, ["musicbrainz", "apple_api", "lrclib"], LibraryKindGroupings.MusicAlbum, "Music",
             LibraryKindMisfits.Unmatched, "Albums and songs, tagged or in artist and album folders.", 1),
         Kind("audiobooks", LibraryAreas.Listen, "Audiobooks", "Headphones", MediaType.Audiobooks, ["apple_api"], LibraryKindGroupings.Audiobook, "Audiobooks",

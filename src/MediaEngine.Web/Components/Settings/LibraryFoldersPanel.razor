@@ -36,7 +36,7 @@
         {
         <AppCard Class="library-folders__types">
         <nav class="library-folders__nav" aria-label="Library types">
-            @foreach (var type in LibraryTypes)
+            @foreach (var type in LibraryTypes.Where(type => type.Key != LibraryLookupRules.AdultContentKindKey || FolderCount(type) > 0))
             {
                 var count = FolderCount(type);
                 <AppNativeButton Type="button"
@@ -281,6 +281,8 @@
     [Parameter] public bool Embedded { get; set; }
     [Parameter] public string? SetupSession { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Raised by a folder's "Move to Vault" menu entry; the entry is drawn only when the host sets this (server administrators, ordinary libraries).</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnMoveToVault { get; set; }
     /// <summary>Empty-state links open the screen on a given type, for example ?type=movies.</summary>
     [SupplyParameterFromQuery(Name = "type")] public string? PreselectedType { get; set; }
     /// <summary>The type to show (a standard key, "import" or "other-{libraryId}") when the type list is not drawn.</summary>
@@ -1113,6 +1115,7 @@
                                    OnLabel="LabelFolderAsync"
                                    OnOrganiseNow="OrganiseNowAsync"
                                    OnMerge="MergeIntoAsync"
+                                   OnMoveToVault="@(Embedded ? default : OnMoveToVault)"
                                    OnKeepGoing="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
                                    OnSetSuitableForLimited="@(Embedded ? default : EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))" />
             }

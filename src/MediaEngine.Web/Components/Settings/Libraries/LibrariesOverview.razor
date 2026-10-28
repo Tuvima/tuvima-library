@@ -208,6 +208,7 @@
             { component => component.Configuration, Configuration },
             { component => component.Kinds, Kinds },
             { component => component.StartAreaKey, SelectedArea.Key },
+            { component => component.VaultVisible, ShowVault },
             { component => component.OnCreated, (Func<string, Task>)(_ => FolderAdded.InvokeAsync()) },
         };
         await DialogService.ShowAsync<CreateLibraryDialog>(string.Empty, parameters, CreateLibraryDialog.DialogOptions);

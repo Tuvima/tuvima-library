@@ -45,7 +45,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
+                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()), accounts, new ProfileAccessRepository(database), firstParty);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
                         true,
@@ -159,7 +159,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
+                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()), accounts, new ProfileAccessRepository(database), firstParty);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
                         true,
@@ -254,7 +254,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
+                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()), accounts, new ProfileAccessRepository(database), firstParty);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,
@@ -331,7 +331,7 @@ public sealed class AccountEmailRequiredTests
                         new ProfileAccessRepository(database), new IdentityRepository(database), new ProfileRepository(database), configuration,
                         new AllowAdministratorDecisions(), new AllowEvaluator(),
                         new NoOpInvalidation(), new NoOpAudit(),
-                        firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
+                        firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()), accounts, new ProfileAccessRepository(database), firstParty);
                     var human = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,

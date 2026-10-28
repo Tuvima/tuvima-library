@@ -2,19 +2,25 @@
 @using System.Text.Json
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
 @inject IAppToastService Toast
+@inject DashboardSessionAccessor Session
 
 @* A library's Access tab (Library pages D9, D11): who may see it. Three choices are drawn: Standard (everyone who has the area, within each
    profile's limits), Selected profiles (only the profiles ticked below, plus administrators) and Vault-protected (chosen when a library is
-   made, never switched on or off here, and not available yet). A library that is already Vault-protected shows that read-only. Edits are
+   made and never switched on or off here). The Vault-protected row is drawn only for an administrator; for anyone else the tab holds no Vault
+   word. A library that is already Vault-protected shows that read-only (D11), and only to someone who may see the Vault. Edits are
    kept until Save changes; Discard puts the saved choice back, and leaving with unsaved edits asks first. A phone shows the choice only. *@
 @if (IsVaultLibrary)
 {
-    <section class="library-access" aria-label="Access">
-        <LibraryAccessOptions Value="@LibraryAccessChoices.Vault" ShowVault="true" VaultEnabled="true" Disabled="true" />
-        <p class="library-access__note">This library is Vault-protected. That is chosen when a library is made and can't be switched on or off later.</p>
-    </section>
+    @if (CanSeeVault)
+    {
+        <section class="library-access" aria-label="Access">
+            <LibraryAccessOptions Value="@LibraryAccessChoices.Vault" ShowVault="true" VaultEnabled="true" Disabled="true" />
+            <p class="library-access__note">This library is Vault-protected. That is chosen when a library is made and can't be switched on or off later.</p>
+        </section>
+    }
 }
 else if (_loading)
 {
@@ -34,10 +40,12 @@ else if (_loadFailed)
 else
 {
     <section class="library-access" aria-label="Access">
-        <h3 class="library-access__heading">Who can see this library <AppInfoTip Text="Standard: everyone who can use this area. Selected profiles: only the profiles you tick, and administrators. Vault-protected is chosen when a library is made and can't be changed later; it is available after the Vault update." Label="About access" /></h3>
+        <h3 class="library-access__heading">Who can see this library <AppInfoTip Text="@AccessTipText" Label="About access" /></h3>
         <LibraryAccessOptions Value="@_access"
                               ValueChanged="@((string value) => ChooseAccess(value))"
-                              ShowVault="true"
+                              ShowVault="@CanOfferVault"
+                              VaultEnabled="false"
+                              VaultDisabledReason="Chosen when a library is made, and can't be changed later."
                               SelectedProfilesEnabled="true"
                               Disabled="@(ReadOnly || _saving)" />
 
@@ -91,6 +99,15 @@ else
     private bool _saving;
 
     private bool IsVaultLibrary => string.Equals(Library.Access, LibraryAccessChoices.Vault, StringComparison.OrdinalIgnoreCase);
+
+    // Only a server administrator is told the Vault choice exists; the Engine decides what they may do with it.
+    private bool CanOfferVault => Session.Authority?.EffectiveAdministrator == true;
+
+    private bool CanSeeVault => CanOfferVault;
+
+    private string AccessTipText => CanOfferVault
+        ? "Standard: everyone who can use this area. Selected profiles: only the profiles you tick, and administrators. Vault-protected is chosen when a library is made and can't be changed later."
+        : "Standard: everyone who can use this area. Selected profiles: only the profiles you tick, and administrators.";
 
     private bool HasChanges => _access != _savedAccess
         || (_access == LibraryAccessChoices.Selected && !_granted.SetEquals(_savedGranted));

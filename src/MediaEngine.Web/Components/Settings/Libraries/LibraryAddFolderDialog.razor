@@ -1,0 +1,102 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+
+@* Add folder on a library's page (Library pages D7, D10): the folder picker on the library's content type, which checks the folder as it is chosen. For a
+   server administrator it also holds one switch, "Add as a Vault folder": the folder then joins the Vault-protected library of this content type
+   (made first when there is none) and not this library. Anyone else sees the picker alone, with no Vault word. On a Vault library's own page the
+   folder always joins that Vault library, so the switch is not drawn. A Vault folder is added as it is (read-only). *@
+<AppDialogShell Title="Add folder" Size="Large" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="add-folder">
+            <p class="add-folder__help">@HelpText</p>
+            <ServerFolderPicker @key="@PickerKey"
+                                Inline="true"
+                                HideConfirm="true"
+                                SelectionMode="@PickerMode"
+                                KindKey="@KindKey"
+                                MediaType="@MediaType"
+                                InitialPath="@_pickerStart"
+                                OnValidationChanged="FolderChecked" />
+            @if (OfferVault)
+            {
+                <AppSwitchRow Label="Add as a Vault folder"
+                              Description="Kept in the Vault-protected library for this content type, away from everyone who can't open it."
+                              Value="@_asVault"
+                              ValueChanged="SetVault" />
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar Align="AppHorizontalAlignment.End">
+            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+            <AppButton Label="Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!FolderUsable)" OnClick="Confirm" />
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    /// <summary>What the dialog hands back: the folder that was checked and whether it is to be a Vault folder.</summary>
+    public sealed record Choice(ServerFolderValidationResultDto Folder, bool AsVault);
+
+    /// <summary>The centred dialog Add folder opens with.</summary>
+    public static AppDialogOptions DialogOptions { get; } = new()
+    {
+        MaxWidth = AppMaxWidth.ExtraExtraLarge,
+        FullWidth = false,
+        CloseButton = false,
+        NoHeader = true,
+        CloseOnEscapeKey = true,
+    };
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>The library's content type key, so the picker checks for the right kind of files.</summary>
+    [Parameter, EditorRequired] public string KindKey { get; set; } = string.Empty;
+    [Parameter] public string? MediaType { get; set; }
+    [Parameter] public string HelpText { get; set; } = "Choose a folder on the Library server.";
+    /// <summary>The content type's own default: a managed folder is checked for write access.</summary>
+    [Parameter] public bool Managed { get; set; }
+    /// <summary>Draws the "Add as a Vault folder" switch: only for a server administrator, on an ordinary library's page.</summary>
+    [Parameter] public bool OfferVault { get; set; }
+    /// <summary>The folder always joins a Vault library (the Vault library's own page); the switch is not drawn.</summary>
+    [Parameter] public bool ForceVault { get; set; }
+
+    private ServerFolderValidationResultDto? _folder;
+    private string? _pickerStart;
+    private bool _asVault;
+
+    private bool VaultChosen => ForceVault || (OfferVault && _asVault);
+
+    // A Vault folder is added as it is, so it is checked as a read-only folder whatever the content type's default.
+    private string PickerMode => Managed && !VaultChosen ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary;
+
+    private string PickerKey => $"{KindKey}|{PickerMode}";
+
+    private bool FolderUsable => _folder is { CanSelect: true, Exists: true, HasRead: true };
+
+    private Task FolderChecked(ServerFolderValidationResultDto? folder)
+    {
+        _folder = folder;
+        return Task.CompletedTask;
+    }
+
+    private void SetVault(bool value)
+    {
+        if (_asVault == value) return;
+        var before = PickerMode;
+        _asVault = value;
+        // The folder is checked again only when the way it will be used changes how it is checked (a managed folder needs write access).
+        if (PickerMode == before) return;
+        _pickerStart = _folder?.Path;
+        _folder = null;
+    }
+
+    private void Confirm()
+    {
+        if (_folder is { } folder && FolderUsable)
+        {
+            Dialog.Close(AppDialogResult.Ok(new Choice(folder, VaultChosen)));
+        }
+    }
+}

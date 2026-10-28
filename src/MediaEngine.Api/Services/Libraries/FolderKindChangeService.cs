@@ -213,6 +213,12 @@ public sealed class FolderKindChangeService
             throw new FolderJobException("A folder cannot be changed into a Vault kind from here. The Vault has its own screens.");
         }
 
+        // Adult content is only ever made as a library of its own with its access chosen (Library pages D12, D21), so a folder cannot be turned into it.
+        if (string.Equals(toKind.Key, "adult_content", StringComparison.Ordinal))
+        {
+            throw new FolderJobException("A folder cannot be changed into Adult content from here. Add an Adult content library instead.");
+        }
+
         var fromKind = kinds.FirstOrDefault(kind => string.Equals(kind.Key, holder.KindKey, StringComparison.Ordinal))
             ?? throw new FolderJobException("This folder's library does not have a kind that can be changed.");
         if (!string.Equals(fromKind.Area, toKind.Area, StringComparison.OrdinalIgnoreCase))

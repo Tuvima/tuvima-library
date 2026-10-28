@@ -749,7 +749,7 @@ public sealed class HouseholdAdministratorTests
                 new NoOpAudit(),
                 identity,
                 world.Photos,
-                TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+                TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
                 world.Accounts, new ProfileAccessRepository(world._database), identity);
 
             if (sharedLibraryFirst)

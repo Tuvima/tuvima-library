@@ -255,12 +255,12 @@
     }
 
     private string TypesText(LibraryGroup group) =>
-        string.Join(", ", group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Select(type => type.Label));
+        string.Join(", ", group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Where(type => type.Key != LibraryLookupRules.AdultContentKindKey).Select(type => type.Label));
 
     // The group's standard types, then any older library in the same area, so none of its folders hides.
     private IReadOnlyList<LibraryTypeOption> TypesOf(LibraryGroup group) =>
     [
-        .. group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Where(type => CanAddView || !LibraryTypeCatalog.IsViewKind(type)),
+        .. group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Where(type => type.Key != LibraryLookupRules.AdultContentKindKey && (CanAddView || !LibraryTypeCatalog.IsViewKind(type))),
         .. LibraryRollup.OthersIn(_kinds, _configuration, group),
     ];
 
