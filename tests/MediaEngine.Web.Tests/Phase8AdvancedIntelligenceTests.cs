@@ -24,7 +24,7 @@ public sealed class Phase8AdvancedIntelligenceTests : AsyncBunitContext
         Services.AddHttpClient();
         Services.AddScoped<DashboardSessionAccessor>();
         Services.AddScoped<DashboardIdentityClient>();
-        Services.AddScoped<MediaEngine.Web.Services.Editing.MediaEditorLauncherService>();
+        Services.AddSingleton<IAdministratorSurfaceAccessService>(new UnlockedAdministratorSurfaceAccess());
     }
 
     [Fact]

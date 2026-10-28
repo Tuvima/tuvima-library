@@ -28,7 +28,7 @@ public sealed class UniverseWireContractTests : AsyncBunitContext
         Services.AddHttpClient();
         Services.AddScoped<DashboardSessionAccessor>();
         Services.AddScoped<DashboardIdentityClient>();
-        Services.AddScoped<MediaEngine.Web.Services.Editing.MediaEditorLauncherService>();
+        Services.AddSingleton<IAdministratorSurfaceAccessService>(new UnlockedAdministratorSurfaceAccess());
         Services.AddScoped<DeviceContextService>();
     }
 

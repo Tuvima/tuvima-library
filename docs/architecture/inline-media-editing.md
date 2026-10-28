@@ -19,7 +19,6 @@ How Tuvima lets users correct media from the surface where they find the issue.
 
 ## Where this lives in the code
 
-- `src/MediaEngine.Web/Services/Editing/MediaEditorLauncherService.cs`
 - `src/MediaEngine.Web/Services/Editing/EditorDeviceRule.cs`
 - `src/MediaEngine.Web/Services/Editing/EditingModeContext.cs`
 - `src/MediaEngine.Web/Components/Details/EditingBanner.razor`
@@ -33,16 +32,16 @@ Tuvima no longer uses a separate media management workbench. Users browse throug
 ## Product model
 
 - Normal single-item correction happens in **Editing Mode** on the detail page: choosing Edit in the page's "..." menu shows a banner and per-field pencils, and Manage Artwork, Match and Identity and History open as one section directly below the hero (`EditingSectionSlot`), which hosts the same `SharedMediaEditorShell` sections in line. There is no drawer. See [Editing Mode](#editing-mode).
-- Review, browse-row and Recently Added correction, and the people, series-shelf and curated-collection editors, open the same editor shell in a dialog through `MediaEditorLauncherService.OpenAsync` because they originate outside a single item's detail page.
+- Review, browse-row and Recently Added correction, and the people, series-shelf and curated-collection editors, open the item's own page in the universal editor; the old modal launcher no longer exists.
 - Review Queue is only for blocked, uncertain, or low-confidence items that need human confirmation.
 - Settings/Admin is for folders, providers, profiles, ingestion status, system health, logs, and configuration.
 - No current feature should route users to a separate media library workspace.
 
 ## Shared editor
 
-**Desktop-only rule.** `EditorDeviceRule.CanEdit` is the one device rule: the form factor is desktop AND the primary pointer is fine and can hover (`DeviceContextService.CanEdit`, fed by the same four signals the browser snapshot reports). `MediaEditorLauncherService`, `CollectionEditorLauncherService` and `GalleryEditorLauncherService` check it before anything else (before the administrator unlock). Where it is false `TryOpenAsync` returns `EditorLaunchResult.NotAvailableOnThisDevice`, shows the toast "Edit on a computer" and opens no dialog; `OpenAsync` keeps its boolean contract (true only when a change was applied). A missing device context also refuses. Entry points are hidden off the desktop too, so the refusal is a safety net for deep links and query-string launches. Phone, tablet, TV, a native shell, an unknown form factor and an undetectable pointer cannot edit in the Dashboard. This is a Dashboard rule: the Engine never receives the device, its permission check (the Edit action it offers and the authorization on each save) still decides who may edit, and the Engine does not block coarse-pointer or touch devices.
+**Desktop-only rule.** `EditorDeviceRule.CanEdit` is the one device rule: the form factor is desktop AND the primary pointer is fine and can hover (`DeviceContextService.CanEdit`, fed by the same four signals the browser snapshot reports). `CollectionEditorLauncherService` and `GalleryEditorLauncherService` check it before anything else (before the administrator unlock). Where it is false `TryOpenAsync` returns `EditorLaunchResult.NotAvailableOnThisDevice`, shows the toast "Edit on a computer" and opens no dialog; `OpenAsync` keeps its boolean contract (true only when a change was applied). A missing device context also refuses. Entry points are hidden off the desktop too, so the refusal is a safety net for deep links and query-string launches. Phone, tablet, TV, a native shell, an unknown form factor and an undetectable pointer cannot edit in the Dashboard. This is a Dashboard rule: the Engine never receives the device, its permission check (the Edit action it offers and the authorization on each save) still decides who may edit, and the Engine does not block coarse-pointer or touch devices.
 
-All media editing renders `SharedMediaEditorShell`: through `MediaEditorLauncherService.OpenAsync` as a dialog for Review, Batch and the callers listed above, and in line in the Editing Mode section slot on a single item's detail page (and on a Universe page). Review supplies its review context and Batch is limited to a real selection. `MediaEditorSurface` supplies the common shell without duplicating editor state or persistence logic.
+All media editing renders `SharedMediaEditorShell`: in line in the Editing Mode section slot on a single item's detail page (and on a Universe page). Review supplies its review context and Batch is limited to a real selection. `MediaEditorSurface` supplies the common shell without duplicating editor state or persistence logic.
 
 The launch request should include the current context:
 

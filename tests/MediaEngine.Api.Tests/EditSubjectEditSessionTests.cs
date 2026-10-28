@@ -26,6 +26,7 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     private readonly PersonRepository _persons;
     private readonly CollectionRepository _collections;
     private readonly CollectionDisplayOverrideRepository _overrides;
+    private readonly FictionalEntityRepository _entities;
     private readonly ArtworkAssetService _artwork;
     private readonly EditSubjectDirectory _subjects;
     private readonly DetailsEditSessionChangeHandler _details;
@@ -41,6 +42,7 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         _persons = new PersonRepository(_db);
         _collections = new CollectionRepository(_db);
         _overrides = new CollectionDisplayOverrideRepository(_db);
+        _entities = new FictionalEntityRepository(_db);
         _artwork = new ArtworkAssetService(_db, new AssetPathService(_root), new NoHttpClientFactory());
         _subjects = new EditSubjectDirectory(
         [
@@ -48,6 +50,7 @@ public sealed class EditSubjectEditSessionTests : IDisposable
             new SeriesEditSubject(_collections, _overrides),
             new UniverseEditSubject(_collections, _overrides),
             new CuratedCollectionEditSubject(_collections),
+            new FictionalEntityEditSubject(_entities),
         ]);
         var items = new ItemCanonicalRepository(_db, NullLogger<ItemCanonicalRepository>.Instance);
         var activity = new SystemActivityRepository(_db);
@@ -303,6 +306,75 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(stored.BackgroundArtworkPath));
     }
 
+    // -- Character, place or organisation (Chronicle explorer) ---------------------
+
+    [Fact]
+    public async Task FictionalEntity_Opens_WithNameDescriptionFactsAndPortraitSlots()
+    {
+        var entity = await SeedEntityAsync("Paul Atreides", "Heir to House Atreides.");
+
+        var subject = await _subjects.LoadAsync(entity);
+
+        Assert.NotNull(subject);
+        Assert.Equal(EditorSubjectKinds.FictionalEntity, subject.Kind);
+        Assert.Equal(["name", "description"], subject.Fields.Select(field => field.Key));
+        Assert.Equal(["CharacterPortrait", "Background"], subject.ArtworkSlots);
+        Assert.Contains(subject.Facts, fact => fact.Label == "Kind" && fact.Value == "Character");
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Apply_SavesALocalNameAndDescription()
+    {
+        var entity = await SeedEntityAsync("Paul Atreides", "Heir to House Atreides.");
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", entity, ("name", "Muad'Dib"), ("description", string.Empty))), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        var stored = (await _entities.FindByIdAsync(entity))!;
+        Assert.Equal("Muad'Dib", stored.Label);
+        Assert.True(string.IsNullOrEmpty(stored.Description));
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Check_RefusesAnEmptyNameAndAFieldItDoesNotHave()
+    {
+        var entity = await SeedEntityAsync("Paul Atreides", null);
+
+        var empty = await CreateService().RunAsync(Request(previewOnly: true, DetailsChange("d1", entity, ("name", " "))), NoRefusals);
+        var unknown = await CreateService().RunAsync(Request(previewOnly: true, DetailsChange("d2", entity, ("species", "Human"))), NoRefusals);
+
+        Assert.False(empty.Valid);
+        Assert.False(unknown.Valid);
+        Assert.Equal("Paul Atreides", (await _entities.FindByIdAsync(entity))!.Label);
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Undo_PutsTheNameBack()
+    {
+        var entity = await SeedEntityAsync("Paul Atreides", "Heir.");
+
+        var undo = await _details.ApplyAsync(DetailsChange("d1", entity, ("name", "Someone Else")));
+        Assert.Equal("Someone Else", (await _entities.FindByIdAsync(entity))!.Label);
+        await undo!(CancellationToken.None);
+
+        Assert.Equal("Paul Atreides", (await _entities.FindByIdAsync(entity))!.Label);
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Artwork_ChoosesAPortrait()
+    {
+        var entity = await SeedEntityAsync("Paul Atreides", null);
+        var portrait = SeedAsset("portrait");
+        await _artwork.LinkAsync("FictionalEntity", entity, new(portrait, "Portrait", Preferred: false, SourceAssetType: "CharacterPortrait"), CancellationToken.None);
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, ArtworkChange("a1", entity, "CharacterPortrait", portrait)), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(portrait, (await _artwork.GetChosenAsync("FictionalEntity", entity, "Portrait", CancellationToken.None))?.ArtworkAssetId);
+    }
+
     // -- Curated collection ------------------------------------------------------
 
     [Fact]
@@ -382,6 +454,23 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         Slot = slot,
         TargetId = asset.ToString(),
     };
+
+    private async Task<Guid> SeedEntityAsync(string label, string? description)
+    {
+        var entity = new FictionalEntity
+        {
+            Id = Guid.NewGuid(),
+            WikidataQid = "Q" + Random.Shared.Next(1000, 999999),
+            Label = label,
+            Description = description,
+            EntitySubType = "Character",
+            FictionalUniverseQid = "Q3041974",
+            FictionalUniverseLabel = "Dune universe",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await _entities.CreateAsync(entity);
+        return entity.Id;
+    }
 
     private async Task<Guid> SeedPersonAsync()
     {

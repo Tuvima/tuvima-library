@@ -81,7 +81,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<ContextSidebarCoordinator>();
         Services.AddScoped<MediaReactionService>();
         Services.AddScoped<SavedItemService>();
-        Services.AddScoped<MediaEditorLauncherService>();
         Services.AddSingleton<IAdministratorSurfaceAccessService>(new AlwaysUnlockedAdministratorSurfaceAccessService());
         var profileId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(

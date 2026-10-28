@@ -46,7 +46,6 @@ public sealed class DetailsOverlayBrowseShellTests : AsyncBunitContext
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<UIOrchestratorService>();
-        Services.AddScoped<MediaEditorLauncherService>();
         Services.AddScoped<CollectionEditorLauncherService>();
         Services.AddSingleton(new SavedItemService(_api));
         Services.AddSingleton(new MediaReactionService(_api));

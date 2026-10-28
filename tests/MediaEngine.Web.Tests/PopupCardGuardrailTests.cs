@@ -29,7 +29,6 @@ public sealed class PopupCardGuardrailTests
         ["Components/Cinematic/PhoneHeroCard.razor"] = "Phone hero actions sheet.",
         ["Components/Details/OverflowActionMenu.razor"] = "Phone details actions sheet.",
         // Editors (Group C): their layout belongs to the edit panels work; they use the shared close prompt.
-        ["Components/MediaEditor/SharedEntityEditorWorkspace.razor"] = "Editor workspace.",
         ["Components/Profiles/ProfileEditorSheet.razor"] = "Profile editor sheet.",
         ["Components/Details/DetailsOverlayHost.razor"] = "The details page overlay host.",
         ["Components/Details/FloatingArtworkPicker.razor"] = "The universal editor's Artwork picker: a non-modal tool window that floats over the page, can be dragged and shrunk to a chip (universal editor spec D8); role=\"dialog\" names it for screen readers, it is not a popup card.",
