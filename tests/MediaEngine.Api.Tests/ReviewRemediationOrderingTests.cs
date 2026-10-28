@@ -23,7 +23,8 @@ public sealed class ReviewRemediationOrderingTests
     [Fact]
     public void MatchEndpoints_ResolveReviewAfterRemediationSideEffects()
     {
-        var source = ReadSource("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs");
+        var source = ReadSource("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs")
+            + ReadSource("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.RetailMatch.cs");
         var retailPublish = source.IndexOf("new RetailMetadataHarvestedEvent", StringComparison.Ordinal);
         var retailResolve = source.IndexOf("UpdateStatusAsync(reviewItemId", retailPublish, StringComparison.Ordinal);
         var wikidataPublish = source.IndexOf("new WikidataMetadataHarvestedEvent", StringComparison.Ordinal);

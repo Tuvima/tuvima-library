@@ -669,6 +669,31 @@ public sealed partial class ConfigDrivenAdapter
         return null;
     }
 
+    // -- Search scope filtering ----------------------------------------------
+
+    /// <summary>
+    /// A manual search that says what it looks for (hint <c>search_scope</c>) keeps the strategies that list that scope and the ones
+    /// that list none. Without the hint every strategy runs except the ones marked <c>scope_only</c>.
+    /// </summary>
+    private static List<SearchStrategyConfig>? FilterStrategiesBySearchScope(
+        List<SearchStrategyConfig>? strategies, ProviderLookupRequest request)
+    {
+        if (strategies is null or { Count: 0 })
+        {
+            return strategies;
+        }
+
+        if (request.Hints?.TryGetValue("search_scope", out var scope) != true || string.IsNullOrWhiteSpace(scope))
+        {
+            return strategies.Any(s => s.ScopeOnly) ? strategies.Where(s => !s.ScopeOnly).ToList() : strategies;
+        }
+
+        return strategies
+            .Where(s => s.SearchScopes is null or { Count: 0 }
+                     || s.SearchScopes.Any(item => string.Equals(item, scope.Trim(), StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+    }
+
     // -- Media type filtering ------------------------------------------------
 
     /// <summary>

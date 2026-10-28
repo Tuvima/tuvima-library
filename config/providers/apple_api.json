@@ -145,6 +145,7 @@
     },
     {
       "name": "music_album_search",
+      "search_scopes": ["album"],
       "priority": 3,
       "required_fields": [
         "title"
@@ -163,6 +164,7 @@
     },
     {
       "name": "music_search",
+      "search_scopes": ["track"],
       "priority": 2,
       "required_fields": [
         "title"

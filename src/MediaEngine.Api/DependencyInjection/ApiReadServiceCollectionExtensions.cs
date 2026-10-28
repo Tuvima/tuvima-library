@@ -33,6 +33,10 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<ILibraryBatchEditService, LibraryBatchEditService>();
         services.AddScoped<LibraryBatchEditAccessService>();
         services.AddSingleton<IEditSessionChangeHandler, DetailsEditSessionChangeHandler>();
+        services.AddScoped<RetailMatchWriter>();
+        services.AddScoped<IRetailMatchWriter>(sp => sp.GetRequiredService<RetailMatchWriter>());
+        services.AddSingleton<EditSessionCallerAccessor>();
+        services.AddSingleton<IEditSessionChangeHandler, IdentityEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionService, EditSessionService>();
         services.AddSingleton<IMetadataClaimHistoryReadService, MetadataClaimHistoryReadService>();
         services.AddSingleton<ICollectionBrowseReadService, CollectionBrowseReadService>();
@@ -56,6 +60,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<PersonEditorReadService>();
         services.AddSingleton<ArtworkLibraryReadService>();
         services.AddSingleton<ArtworkAssetService>();
+        services.AddSingleton<IEditSessionChangeHandler, ArtworkEditSessionChangeHandler>();
         services.AddSingleton<ArtworkRenditionQueue>();
         services.AddSingleton<IArtworkRenditionService, ArtworkRenditionService>();
         services.AddSingleton<MediaEditorNavigationReadService>();

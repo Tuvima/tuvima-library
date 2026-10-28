@@ -20,7 +20,11 @@ public sealed partial class EditPendingPreview
     {
         _session = session;
         _fields = fields;
+        Artwork = new ArtworkEditPreview(session, fields);
     }
+
+    /// <summary>The pictures picked or staged in the Artwork tool, so the hero and the temporary view show them before Save changes.</summary>
+    public ArtworkEditPreview Artwork { get; }
 
     /// <summary>The title as staged, else <paramref name="current"/>.</summary>
     public string? Title(string? current)

@@ -25,6 +25,20 @@ public sealed class ItemCanonicalSearchRequestDto
 
     [JsonPropertyName("max_candidates")]
     public int MaxCandidates { get; set; } = 6;
+
+    /// <summary>Searches only this retail provider (the editor's "Search in" choice, by its <c>name</c>). Null or empty searches every provider that fits the item.</summary>
+    [JsonPropertyName("provider_name")]
+    public string? ProviderName { get; set; }
+}
+
+/// <summary>A retail provider the editor can search in.</summary>
+public sealed class ItemCanonicalSearchProviderDto
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("display_name")]
+    public string DisplayName { get; set; } = string.Empty;
 }
 
 public sealed class ItemCanonicalSearchResponseDto
@@ -48,6 +62,10 @@ public sealed class ItemCanonicalSearchResponseDto
 
     [JsonPropertyName("retail_candidates")]
     public List<ItemCanonicalRetailCandidateDto> RetailCandidates { get; set; } = [];
+
+    /// <summary>Every retail provider that can search for this kind of item, so the editor can offer "Search in". Empty when the search did not use retail providers.</summary>
+    [JsonPropertyName("providers")]
+    public List<ItemCanonicalSearchProviderDto> Providers { get; set; } = [];
 
     [JsonPropertyName("linked_candidates")]
     public List<ItemCanonicalLinkedCandidateDto> LinkedCandidates { get; set; } = [];

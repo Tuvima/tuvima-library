@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1266; api=0; web-client=54
+# scopes: contracts=1267; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -5722,6 +5722,12 @@
   QidFields: System.Collections.Generic.Dictionary<System.String, System.String> | json=qid_fields | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"candidate_id":"sample","provider_id":"sample","provider_name":"sample","provider_item_id":"sample","title":"sample","year":"sample","author":"sample","director":"sample","description":"sample","cover_url":"sample","preview_url":"sample","confidence":7,"extra_fields":{},"composite_score":7,"match_scores":null,"link_state":"sample","link_status_label":"sample","is_applicable":true,"blocked_reason":"sample","required_fields":{},"suggested_fields":{},"bridge_ids":{},"qid_fields":{}}
 
+[contracts] MediaEngine.Contracts.Matching.ItemCanonicalSearchProviderDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","display_name":"sample"}
+
 [contracts] MediaEngine.Contracts.Matching.ItemCanonicalSearchRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
   MediaType: System.String | json=media_type | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -5731,7 +5737,8 @@
   QueryOverride: System.String | json=query_override | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SearchMode: System.String | json=search_mode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MaxCandidates: System.Int32 | json=max_candidates | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"media_type":"sample","target_kind":"sample","target_field_group":"sample","draft_fields":{},"query_override":"sample","search_mode":"sample","max_candidates":7}
+  ProviderName: System.String | json=provider_name | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"media_type":"sample","target_kind":"sample","target_field_group":"sample","draft_fields":{},"query_override":"sample","search_mode":"sample","max_candidates":7,"provider_name":"sample"}
 
 [contracts] MediaEngine.Contracts.Matching.ItemCanonicalSearchResponseDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -5742,6 +5749,7 @@
   TargetFieldGroup: System.String | json=target_field_group | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Query: System.String | json=query | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RetailCandidates: System.Collections.Generic.List<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto> | json=retail_candidates | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Providers: System.Collections.Generic.List<MediaEngine.Contracts.Matching.ItemCanonicalSearchProviderDto> | json=providers | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LinkedCandidates: System.Collections.Generic.List<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto> | json=linked_candidates | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FallbackActions: System.Collections.Generic.List<System.String> | json=fallback_actions | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NoResultMessage: System.String | json=no_result_message | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -5749,7 +5757,7 @@
   MissingRequiredFields: System.Collections.Generic.List<System.String> | json=missing_required_fields | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UnlinkedFields: System.Collections.Generic.Dictionary<System.String, System.String> | json=unlinked_fields | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DraftFields: System.Collections.Generic.Dictionary<System.String, System.String> | json=draft_fields | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"providerErrors":[],"entity_id":"11111111-2222-3333-4444-555555555555","media_type":"sample","target_kind":"sample","target_field_group":"sample","query":"sample","retail_candidates":[],"linked_candidates":[],"fallback_actions":[],"no_result_message":"sample","can_apply_unlinked_canonical":true,"missing_required_fields":[],"unlinked_fields":{},"draft_fields":{}}
+  sample={"providerErrors":[],"entity_id":"11111111-2222-3333-4444-555555555555","media_type":"sample","target_kind":"sample","target_field_group":"sample","query":"sample","retail_candidates":[],"providers":[],"linked_candidates":[],"fallback_actions":[],"no_result_message":"sample","can_apply_unlinked_canonical":true,"missing_required_fields":[],"unlinked_fields":{},"draft_fields":{}}
 
 [contracts] MediaEngine.Contracts.Matching.ReplaceRetailMatchRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default

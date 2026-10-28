@@ -443,7 +443,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     public async Task ThePencilsTheOldBannerAndTheSectionBelowTheHeroAreGoneWhileEditing()
     {
         var cut = await StartEditingAsync();
-        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Artwork").Click();
+        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Match").Click();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-panel")));
 
         Assert.Empty(cut.FindAll(".tl-editing-pencil"));

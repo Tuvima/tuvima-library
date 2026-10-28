@@ -96,7 +96,9 @@ public sealed class Phase5EditorEndpointRouteTests
     [Fact]
     public void RetailReplacement_UsesExplicitScopeProviderProvenanceAndPipelineJob()
     {
-        var canonical = ReadSource("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs");
+        // The retail-match write lives in its own file so the editor's action and the edit session's identity change share it.
+        var canonical = ReadSource("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs")
+            + ReadSource("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.RetailMatch.cs");
         var models = ReadSource("src/MediaEngine.Contracts/Matching/MatchingDtos.cs");
 
         Assert.Contains("ResolveTargetPolicy(context.MediaType, request.TargetKind, request.TargetFieldGroup)", canonical, StringComparison.Ordinal);

@@ -58,7 +58,7 @@ public sealed class ItemEndpointRouteTests
     {
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
 
-        Assert.Contains("public static class ItemCanonicalEndpoints", source, StringComparison.Ordinal);
+        Assert.Contains("public static partial class ItemCanonicalEndpoints", source, StringComparison.Ordinal);
         Assert.Contains("MapItemCanonicalEndpoints", source, StringComparison.Ordinal);
         Assert.Contains(".WithTags(\"Items\")", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPut(\"/{entityId:guid}/preferences\", async (", source, StringComparison.Ordinal);
@@ -70,7 +70,7 @@ public sealed class ItemEndpointRouteTests
         Assert.Contains("group.MapPost(\"/{entityId:guid}/retail-match\", async (", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/{entityId:guid}/wikidata-match\", async (", source, StringComparison.Ordinal);
         Assert.Contains("expected_identity_revision", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Contracts/Matching/MatchingDtos.cs")), StringComparison.Ordinal);
-        Assert.Contains("IsGenericTvChildPolicy(policy)", source, StringComparison.Ordinal);
+        Assert.Contains("IsGenericTvChildPolicy(policy)", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.RetailMatch.cs")), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -169,9 +169,8 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void ItemCanonicalEndpoints_RetailReplacementQueuesBeforeOptionalProviderSideEffects()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
-        var retailRoute = source[source.IndexOf("/{entityId:guid}/retail-match", StringComparison.Ordinal)..];
-        retailRoute = retailRoute[..retailRoute.IndexOf("/{entityId:guid}/wikidata-match", StringComparison.Ordinal)];
+        // The retail-match write (shared by the route and the edit session) lives in its own file.
+        var retailRoute = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.RetailMatch.cs"));
 
         var enqueueIndex = retailRoute.IndexOf("await pipeline.EnqueueAsync", StringComparison.Ordinal);
         var artworkIndex = retailRoute.IndexOf("ReplaceProviderArtworkAsync", StringComparison.Ordinal);

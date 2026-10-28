@@ -3006,6 +3006,8 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.UniversalSearchSecti
   TotalCount: System.Int32 | nullability=not-null | accessors=get,init
   SeeAllRoute: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionArtworkTargets
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChange
   Id: System.String | nullability=not-null | accessors=get,init
   Kind: System.String | nullability=not-null | accessors=get,init
@@ -3029,6 +3031,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeSta
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionFieldChange
   Key: System.String | nullability=not-null | accessors=get,init
   Value: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionIdentityTarget
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionRequest
   PreviewOnly: System.Boolean | nullability=not-null | accessors=get,init
@@ -4829,6 +4833,10 @@ MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalRetai
   BridgeIds: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   QidFields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearchProviderDto
+  Name: System.String | nullability=not-null | accessors=get,set
+  DisplayName: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearchRequestDto
   MediaType: System.String | nullability=nullable | accessors=get,set
   TargetKind: System.String | nullability=not-null | accessors=get,set
@@ -4837,6 +4845,7 @@ MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearc
   QueryOverride: System.String | nullability=nullable | accessors=get,set
   SearchMode: System.String | nullability=not-null | accessors=get,set
   MaxCandidates: System.Int32 | nullability=not-null | accessors=get,set
+  ProviderName: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearchResponseDto
   ProviderErrors: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -4846,6 +4855,7 @@ MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearc
   TargetFieldGroup: System.String | nullability=not-null | accessors=get,set
   Query: System.String | nullability=not-null | accessors=get,set
   RetailCandidates: System.Collections.Generic.List<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto> | nullability=not-null | accessors=get,set
+  Providers: System.Collections.Generic.List<MediaEngine.Contracts.Matching.ItemCanonicalSearchProviderDto> | nullability=not-null | accessors=get,set
   LinkedCandidates: System.Collections.Generic.List<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto> | nullability=not-null | accessors=get,set
   FallbackActions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   NoResultMessage: System.String | nullability=nullable | accessors=get,set

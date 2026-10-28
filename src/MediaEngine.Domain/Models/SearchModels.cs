@@ -91,7 +91,8 @@ public sealed record SearchRetailRequest(
     [property: JsonPropertyName("local_author")] string? LocalAuthor = null,
     [property: JsonPropertyName("local_year")] string? LocalYear = null,
     [property: JsonPropertyName("file_hints")] IReadOnlyDictionary<string, string>? FileHints = null,
-    [property: JsonPropertyName("search_fields")] IReadOnlyDictionary<string, string>? SearchFields = null);
+    [property: JsonPropertyName("search_fields")] IReadOnlyDictionary<string, string>? SearchFields = null,
+    [property: JsonPropertyName("provider_name")] string? ProviderName = null);
 
 /// <summary>A single retail provider candidate with cover art and basic metadata.</summary>
 public sealed class RetailCandidate
@@ -149,7 +150,13 @@ public sealed record SearchRetailResult(
     [property: JsonPropertyName("media_type")] string MediaType)
 {
     public IReadOnlyList<string> ProviderErrors { get; init; } = [];
+
+    /// <summary>Every retail provider that could answer this search, whether or not <see cref="SearchRetailRequest.ProviderName"/> narrowed it to one. Lets the editor offer a "Search in" choice.</summary>
+    public IReadOnlyList<RetailSearchProvider> Providers { get; init; } = [];
 }
+
+/// <summary>A retail provider that can take a search: its internal name and the name a person reads.</summary>
+public sealed record RetailSearchProvider(string Name, string DisplayName);
 
 // ── Apply Match ───────────────────────────────────────────────────────────────
 

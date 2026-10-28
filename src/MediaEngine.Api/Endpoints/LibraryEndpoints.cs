@@ -17,6 +17,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -216,6 +217,10 @@ public static class LibraryEndpoints
             EditSessionRequest request,
             IEditSessionService editSession,
             LibraryBatchEditAccessService access,
+            [FromServices] EditSessionCallerAccessor callers,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            [FromServices] IProfileRepository profiles,
+            [FromServices] CatalogueResourceAuthorizationService resources,
             HttpContext http,
             CancellationToken ct) =>
         {
@@ -229,8 +234,25 @@ public static class LibraryEndpoints
                 return ApiErrors.BadRequest($"An edit session takes at most {EditSessionRequest.MaxChanges} changes.");
             }
 
+            // Moving an item between albums and seasons runs the library move, which needs to know who is asking and what they may edit.
+            // A session with no such change never needs it.
+            EditSessionCaller? caller = null;
+            if (request.Changes.Any(change => change.Kind == EditSessionChangeKinds.Relationship))
+            {
+                var actor = await LibraryItemEndpoints.ResolveMoveActorAsync(http, authorityResolver, profiles, ct);
+                if (actor is null)
+                {
+                    return ApiErrors.NotFound("The editing session is unavailable.");
+                }
+
+                caller = new EditSessionCaller(actor, LibraryItemEndpoints.CanEdit(http, resources));
+            }
+
             var refusals = await access.FindRefusalsAsync(http, request.Changes.Select(change => change.EntityId).ToList(), ct);
-            return Results.Ok(await editSession.RunAsync(request, refusals, ct));
+            using (callers.Use(caller))
+            {
+                return Results.Ok(await editSession.RunAsync(request, refusals, ct));
+            }
         })
         .WithName("RunEditSession")
         .WithSummary("Check, or check and save, everything staged in the universal editor: all data changes together or none, file moves last.")
