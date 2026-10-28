@@ -7071,6 +7071,23 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCheckStepDto
   Ok: System.Boolean | nullability=not-null | accessors=get,set
   Detail: System.String | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionDto
+  Name: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Description: System.String | nullability=not-null | accessors=get,set
+  Linked: System.Boolean | nullability=not-null | accessors=get,set
+  LinkedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionLinkRequest
+  Value: System.String | nullability=not-null | accessors=get,set
+  Agreed: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionsResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  PluginName: System.String | nullability=not-null | accessors=get,set
+  Consent: System.String | nullability=not-null | accessors=get,set
+  Connections: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginConnectionDto> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeletedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   deleted: System.Boolean | nullability=not-null | accessors=get,init

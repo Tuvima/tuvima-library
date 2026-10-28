@@ -1261,6 +1261,20 @@ The libraries an administrator limited a plugin or metadata source to (Plugin ar
 
 **Key:** `PRIMARY KEY (plugin_id, library_id)`. Added by upgrade step `0052_plugin_library_limits`.
 
+### plugin_profile_connections
+
+Accounts a person linked to a plugin for their own profile (Plugin architecture spec C13), such as a ListenBrainz token. The value is protected with this machine's Data Protection key before it is stored, so it is not readable here, is not part of a backup or a user export, and each person links again after a restore. Removing a profile or the plugin removes its rows.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id |
+| `profile_id` | BLOB | The profile that linked it (`profiles.id`, cascade delete) |
+| `credential_name` | TEXT | The personal credential's name from the plugin's declaration |
+| `secret_ciphertext` | TEXT | The value, protected with this machine's key |
+| `linked_at` | TEXT | ISO 8601 UTC |
+
+**Key:** `PRIMARY KEY (plugin_id, profile_id, credential_name)`. Added by upgrade step `0053_plugin_profile_connections`.
+
 ### plugin_event_cursors
 
 Where each plugin has got to in the Library's event list (`application_events`): the sequence of the newest event already handed to it. The plugin event dispatcher reads events after this sequence, so a restart carries on where it stopped. A plugin that subscribes for the first time, or that is switched off and on again, starts at the newest event with no backlog.

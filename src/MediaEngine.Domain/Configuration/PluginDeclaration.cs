@@ -80,7 +80,8 @@ public sealed class PluginDeclaration
     public Dictionary<string, string> CredentialScopes
     {
         get;
-        set => field = value ?? new(StringComparer.OrdinalIgnoreCase);
+        // A deserialized dictionary is case-sensitive; keep the lookup case-insensitive however it arrived.
+        set => field = value is null ? new(StringComparer.OrdinalIgnoreCase) : new(value, StringComparer.OrdinalIgnoreCase);
     } = new(StringComparer.OrdinalIgnoreCase);
 }
 

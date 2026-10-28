@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
@@ -439,6 +440,12 @@ internal sealed class BoundPluginSecrets(string pluginId, IPluginPermissionGate 
         var registration = permissions.Demand(pluginId, PluginPermissionIds.PluginSecrets);
         if (string.IsNullOrWhiteSpace(name)
             || !registration.Manifest.Secrets.Any(secret => string.Equals(secret.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        // A personal credential belongs to each profile, never to the household's secrets file, even if an old shared value is still there.
+        if (PluginDeclarationRules.IsPersonalCredential(registration.Manifest.Declaration, name))
         {
             return null;
         }
