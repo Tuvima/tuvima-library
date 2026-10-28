@@ -377,6 +377,33 @@ public static class StreamEndpoints
         .RequireClientScope(ClientApiScopes.PlaybackWrite)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
 
+        group.MapGet("/{assetId:guid}/plugin-actions", async (
+            Guid assetId,
+            HttpContext http,
+            PlayerPluginActionService actions,
+            IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            var requester = PluginAccessGate.RequesterOf(await authorityResolver.ResolveAsync(http, ct));
+            var offered = await actions.ListAsync(assetId, requester, ct);
+            return Results.Ok(offered.Select(action => new PlayerPluginActionDto
+            {
+                plugin_id = action.PluginId,
+                plugin_name = action.PluginName,
+                action_id = action.ActionId,
+                kind = action.Kind,
+                label = action.Label,
+                slot = action.Slot,
+                priority = action.Priority,
+                edits = action.Edits,
+            }).ToList());
+        })
+        .WithName("GetPlayerPluginActions")
+        .WithSummary("The actions switched-on plugins and sources offer on the player for this item, to the person asking, in menu order.")
+        .Produces<IReadOnlyList<PlayerPluginActionDto>>(StatusCodes.Status200OK)
+        .RequireClientScope(ClientApiScopes.PlaybackRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackRead);
+
         group.MapGet("/{assetId:guid}/text-tracks/alternatives", async (
             Guid assetId,
             string? kind,

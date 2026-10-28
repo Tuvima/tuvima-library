@@ -1,4 +1,3 @@
-using System.Reflection;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
@@ -121,14 +120,14 @@ public sealed class PluginPlayDetailsTests
     }
 
     private PluginPlayDetailsService Service() => new(
-        Stub.Create<IMediaAssetRepository>(("FindByIdAsync", _ => Task.FromResult<MediaAsset?>(_assetExists ? new MediaAsset { Id = _asset, LibraryId = "lib-1" } : null))),
-        Stub.Create<IWorkRepository>(("GetLineageByAssetAsync", _ => Task.FromResult<WorkLineage?>(
+        MethodStub.Create<IMediaAssetRepository>(("FindByIdAsync", _ => Task.FromResult<MediaAsset?>(_assetExists ? new MediaAsset { Id = _asset, LibraryId = "lib-1" } : null))),
+        MethodStub.Create<IWorkRepository>(("GetLineageByAssetAsync", _ => Task.FromResult<WorkLineage?>(
             new WorkLineage(_asset, Guid.NewGuid(), _work, _album, _album, WorkKind.Standalone, _mediaType)))),
-        Stub.Create<ICanonicalValueRepository>(("GetByEntitiesAsync", _ => Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalValue>>>(
+        MethodStub.Create<ICanonicalValueRepository>(("GetByEntitiesAsync", _ => Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalValue>>>(
             _values.GroupBy(value => value.EntityId).ToDictionary(group => group.Key, group => (IReadOnlyList<CanonicalValue>)group.ToList())))),
-        Stub.Create<IBridgeIdRepository>(("GetByEntitiesAsync", _ => Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<BridgeIdEntry>>>(
+        MethodStub.Create<IBridgeIdRepository>(("GetByEntitiesAsync", _ => Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<BridgeIdEntry>>>(
             _bridges.GroupBy(entry => entry.EntityId).ToDictionary(group => group.Key, group => (IReadOnlyList<BridgeIdEntry>)group.ToList())))),
-        Stub.Create<IVaultLibraryRepository>(("GetIdsAsync", _ => Task.FromResult<IReadOnlySet<string>>(_vaultLibraries))),
+        MethodStub.Create<IVaultLibraryRepository>(("GetIdsAsync", _ => Task.FromResult<IReadOnlySet<string>>(_vaultLibraries))),
         _gate);
 
     private static CanonicalValue Value(Guid entity, string key, string value) => new() { EntityId = entity, Key = key, Value = value };
@@ -146,24 +145,5 @@ public sealed class PluginPlayDetailsTests
             Seen = query;
             return Task.FromResult(Outcome);
         }
-    }
-
-    /// <summary>Answers only the methods a test names; any other call fails loudly so a test never silently relies on an unplanned read.</summary>
-    private class Stub : DispatchProxy
-    {
-        private Dictionary<string, Func<object?[], object?>> _answers = [];
-
-        public static T Create<T>(params (string Method, Func<object?[], object?> Answer)[] answers)
-            where T : class
-        {
-            var proxy = Create<T, Stub>();
-            ((Stub)(object)proxy)._answers = answers.ToDictionary(entry => entry.Method, entry => entry.Answer);
-            return proxy;
-        }
-
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
-            targetMethod is not null && _answers.TryGetValue(targetMethod.Name, out var answer)
-                ? answer(args ?? [])
-                : throw new NotSupportedException($"{targetMethod?.Name} was not expected in this test.");
     }
 }

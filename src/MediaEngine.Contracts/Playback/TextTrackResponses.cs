@@ -114,3 +114,22 @@ public sealed record TextTrackChoiceResponse
     /// <summary>The track now in use, or null when none is.</summary>
     public Guid? track_id { get; init; }
 }
+
+/// <summary>One action a switched-on plugin or source offers on the player for an item, to the person asking.</summary>
+public sealed record PlayerPluginActionDto
+{
+    public string plugin_id { get; init; } = string.Empty;
+    public string plugin_name { get; init; } = string.Empty;
+    public string action_id { get; init; } = string.Empty;
+
+    /// <summary>What it does: <c>find_lyrics</c>, <c>find_subtitles</c> or <c>rescan_skip_markers</c>.</summary>
+    public string kind { get; init; } = string.Empty;
+    public string label { get; init; } = string.Empty;
+
+    /// <summary><c>player_overflow</c>, <c>player_core</c> or <c>panel</c>.</summary>
+    public string slot { get; init; } = string.Empty;
+    public int priority { get; init; }
+
+    /// <summary>True when it changes metadata or files, which makes it desktop-only.</summary>
+    public bool edits { get; init; }
+}

@@ -6722,6 +6722,16 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayerHeartbeatDto
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayerPlaybackStates
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayerPluginActionDto
+  plugin_id: System.String | nullability=not-null | accessors=get,init
+  plugin_name: System.String | nullability=not-null | accessors=get,init
+  action_id: System.String | nullability=not-null | accessors=get,init
+  kind: System.String | nullability=not-null | accessors=get,init
+  label: System.String | nullability=not-null | accessors=get,init
+  slot: System.String | nullability=not-null | accessors=get,init
+  priority: System.Int32 | nullability=not-null | accessors=get,init
+  edits: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayerQueueItemDto
   QueueItemId: System.Guid | nullability=not-null | accessors=get,init
   WorkId: System.Guid | nullability=not-null | accessors=get,init
