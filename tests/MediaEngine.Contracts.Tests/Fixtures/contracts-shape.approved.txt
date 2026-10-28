@@ -2903,6 +2903,14 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroDto
   PreviewTotalCount: System.Int32? | nullability=nullable | accessors=get,init
   IsContinued: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroSettingsDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+  SlideCount: System.Int32 | nullability=not-null | accessors=get,init
+  AllowWatch: System.Boolean | nullability=not-null | accessors=get,init
+  AllowRead: System.Boolean | nullability=not-null | accessors=get,init
+  AllowListen: System.Boolean | nullability=not-null | accessors=get,init
+  ContinuedOnly: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayItemsRequest
   Ids: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
 

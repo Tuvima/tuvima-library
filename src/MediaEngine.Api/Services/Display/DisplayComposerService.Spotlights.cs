@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.Display;
@@ -12,8 +13,15 @@ public sealed partial class DisplayComposerService
         IReadOnlyDictionary<Guid, DisplayJourneyRow> states,
         IReadOnlyList<DisplayCardDto> shows,
         IReadOnlyList<DisplayCardDto> continueCards,
-        IReadOnlyList<DisplayCardDto> candidates)
+        IReadOnlyList<DisplayCardDto> candidates,
+        ProfileHeroSettings? settings = null)
     {
+        settings ??= ProfileHeroSettings.Default;
+        if (!settings.Enabled)
+        {
+            return [];
+        }
+
         // A hero is the first thing on Home, so it only features items that have finished settling and
         // carry real artwork. Anything still being identified waits for the shelves.
         var heroReady = works
@@ -110,34 +118,33 @@ public sealed partial class DisplayComposerService
 
         // Hero order: everything the person is in the middle of comes first, most recently touched first,
         // then newly added items, newest first. A show is one slide; one never started shows as the series.
-        var slides = new List<(DisplayHeroDto Hero, bool Continued, DateTimeOffset At)>();
+        var slides = new List<HeroSlideCandidate>();
         foreach (var hero in showHeroes)
         {
             var touched = LastStarted(hero);
             var inTheMiddle = touched.HasValue && hero.ContinuationState != DisplayContinuationState.Completed
                 && hero.Actions[0].Label != "Restart Episode";
             var showCard = shows.First(card => card.Id == hero.EpisodeContext!.ShowWorkId);
-            slides.Add((hero with { IsContinued = inTheMiddle }, inTheMiddle, inTheMiddle ? touched!.Value : showCard.SortTimestamp));
+            slides.Add(new(hero with { IsContinued = inTheMiddle }, inTheMiddle, inTheMiddle ? touched!.Value : showCard.SortTimestamp));
         }
         var continuedIds = continueCards
             .Where(card => card.MediaType != "TV")
             .Select(card => card.Id).ToHashSet();
         foreach (var card in continueCards.Where(card => card.MediaType != "TV" && IsHeroReady(card)))
         {
-            slides.Add((DisplayCardBuilder.ToHero(card, "Continue Across Media") with { IsContinued = true }, true, card.SortTimestamp));
+            slides.Add(new(DisplayCardBuilder.ToHero(card, "Continue Across Media") with { IsContinued = true }, true, card.SortTimestamp));
         }
         foreach (var card in candidates.Where(card => card.MediaType != "TV" && !continuedIds.Contains(card.Id)))
         {
-            slides.Add((DisplayCardBuilder.ToHero(card, "Featured Content") with { IsContinued = false }, false, card.SortTimestamp));
+            slides.Add(new(DisplayCardBuilder.ToHero(card, "Featured Content") with { IsContinued = false }, false, card.SortTimestamp));
         }
 
-        return slides
-            .OrderByDescending(slide => slide.Continued)
-            .ThenByDescending(slide => slide.At)
+        // Two steps (D6): the person's settings decide what is allowed, then the orderer ranks only those.
+        return _heroOrderer.Order(HomeHeroAllowedItems.Filter(slides, settings))
             .Select(slide => slide.Hero)
             .DistinctBy(hero => hero.EpisodeContext is { } episode ? $"show:{episode.ShowWorkId:D}" :
                 hero.Subject == DisplaySubjectKind.Album ? $"album:{hero.Id}" : $"work:{hero.WorkId ?? hero.Id}")
-            .Take(MaxHomeSpotlights)
+            .Take(Math.Min(MaxHomeSpotlights, settings.SlideCount))
             .ToList();
     }
 

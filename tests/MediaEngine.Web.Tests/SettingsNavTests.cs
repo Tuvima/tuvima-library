@@ -349,7 +349,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["Local AI", "Integrations", "Plugins", "Developer Tools"], Labels(groups, "developer"));
 
         Assert.Empty(ChildLabels(groups, "Profiles"));
-        Assert.Equal(["Playback", "Listening", "Reading"], ChildLabels(groups, "Preferences"));
+        Assert.Equal(["Playback", "Listening", "Reading", "Home"], ChildLabels(groups, "Preferences"));
         Assert.Equal(["Libraries", "Metadata Providers"], ChildLabels(groups, "Library and Ingestion"));
         Assert.Equal(["Ingestion Flow"], ChildLabels(groups, "Metadata Providers"));
         Assert.Equal(["Local Network", "Remote Access", "Advanced"], ChildLabels(groups, "Network and Remote Access"));
@@ -459,6 +459,7 @@ public sealed class SettingsNavTests
     [InlineData("profiles", SettingsSection.Profiles, "/settings/profiles")]
     [InlineData("playback", SettingsSection.Playback, "/settings/playback")]
     [InlineData("listening", SettingsSection.Listening, "/settings/listening")]
+    [InlineData("home", SettingsSection.Home, "/settings/home")]
     [InlineData("reading", SettingsSection.Reading, "/settings/reading")]
     [InlineData("security", SettingsSection.Security, "/settings/security")]
     [InlineData("system", SettingsSection.AdminOverview, "/settings/system")]
@@ -543,7 +544,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["personal"], groups.Select(group => group.Key));
         // Profiles is for administrators: a member (and a Kids profile, which the shell keeps out of Settings) never sees it.
         Assert.Equal(["Overview", "Preferences", "Security"], groups[0].Nodes.Select(node => node.Label));
-        Assert.Equal(["Playback", "Listening", "Reading"], groups[0].Nodes[1].Children.Select(node => node.Label));
+        Assert.Equal(["Playback", "Listening", "Reading", "Home"], groups[0].Nodes[1].Children.Select(node => node.Label));
     }
 
     [Fact]
@@ -763,7 +764,7 @@ public sealed class SettingsNavTests
             [
                 SettingsSection.Overview, SettingsSection.Overview, SettingsSection.Overview,
                 SettingsSection.Preferences, SettingsSection.Playback,
-                SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Security,
+                SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Home, SettingsSection.Security,
                 SettingsSection.Security,
             ],
             sections);

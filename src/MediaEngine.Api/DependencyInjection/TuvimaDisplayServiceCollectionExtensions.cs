@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Canonical;
@@ -48,6 +49,7 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<DisplayShelfBuilder>();
         services.AddSingleton<DisplayFormatReader>();
         services.AddSingleton<DisplayGridPersonalReader>();
+        services.TryAddSingleton<IHeroOrderer, DefaultHeroOrderer>();
         services.AddScoped<DisplayComposerService>();
         services.AddScoped<BrowseLibraryListService>();
         services.AddScoped<RecentCatalogueReadService>();

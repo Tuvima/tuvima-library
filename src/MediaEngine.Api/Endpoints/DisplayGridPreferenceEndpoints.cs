@@ -92,6 +92,65 @@ public static class DisplayGridPreferenceEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireClientScope(ClientApiScopes.ProgressWrite);
 
+        var hero = app.MapGroup("/api/v1/display/hero-settings")
+            .WithTags("Display");
+
+        hero.MapGet("", async (
+            ClaimsPrincipal user,
+            IProfileHeroSettingsRepository repository,
+            CancellationToken ct) =>
+        {
+            if (ProfileId(user) is not { } profileId)
+            {
+                return Unauthenticated();
+            }
+
+            var settings = await repository.GetAsync(profileId, ct);
+            return Results.Ok(new DisplayHeroSettingsDto(
+                settings.Enabled, settings.SlideCount, settings.AllowWatch, settings.AllowRead, settings.AllowListen, settings.ContinuedOnly));
+        })
+            .WithName("GetDisplayHeroSettings")
+            .WithSummary("Returns how the active profile wants the Home hero to behave.")
+            .Produces<DisplayHeroSettingsDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .RequireClientScope(ClientApiScopes.LibraryRead);
+
+        hero.MapPut("", async (
+            DisplayHeroSettingsDto request,
+            ClaimsPrincipal user,
+            IProfileHeroSettingsRepository repository,
+            CancellationToken ct) =>
+        {
+            if (ProfileId(user) is not { } profileId)
+            {
+                return Unauthenticated();
+            }
+
+            if (request is null || request.SlideCount is < 1 or > ProfileHeroSettings.MaxSlides)
+            {
+                return ApiErrors.BadRequest($"The hero shows between 1 and {ProfileHeroSettings.MaxSlides} slides.");
+            }
+
+            try
+            {
+                await repository.SaveAsync(profileId, new ProfileHeroSettings(
+                    request.Enabled, request.SlideCount, request.AllowWatch, request.AllowRead, request.AllowListen, request.ContinuedOnly), ct);
+            }
+            catch (KeyNotFoundException)
+            {
+                return ApiErrors.NotFound("The profile was not found.");
+            }
+
+            return Results.NoContent();
+        })
+            .WithName("SetDisplayHeroSettings")
+            .WithSummary("Remembers how the active profile wants the Home hero to behave.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireClientScope(ClientApiScopes.ProgressWrite);
+
         return app;
     }
 

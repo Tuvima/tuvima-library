@@ -289,4 +289,10 @@ public sealed partial class EngineApiClient
             new DisplayGridSortPreferenceRequest(sort),
             ct: ct);
 
+    public Task<DisplayHeroSettingsDto?> GetDisplayHeroSettingsAsync(CancellationToken ct = default) =>
+        GetAsync<DisplayHeroSettingsDto>("GET /api/v1/display/hero-settings", "/api/v1/display/hero-settings", ct: ct);
+
+    public Task<bool> SetDisplayHeroSettingsAsync(DisplayHeroSettingsDto settings, CancellationToken ct = default) =>
+        PutAsync("PUT /api/v1/display/hero-settings", "/api/v1/display/hero-settings", settings, ct: ct);
+
 }

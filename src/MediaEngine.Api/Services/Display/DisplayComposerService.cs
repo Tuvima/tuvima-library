@@ -17,6 +17,8 @@ public sealed partial class DisplayComposerService
     private readonly ICanonicalValueArrayRepository? _arrays;
     private readonly ICollectionRepository? _collections;
     private readonly IUnmatchedAssetRepository? _unmatched;
+    private readonly IProfileHeroSettingsRepository? _heroSettings;
+    private readonly IHeroOrderer _heroOrderer;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
@@ -28,8 +30,12 @@ public sealed partial class DisplayComposerService
         ISeriesManifestRepository? manifests = null,
         ICanonicalValueArrayRepository? arrays = null,
         ICollectionRepository? collections = null,
-        IUnmatchedAssetRepository? unmatched = null)
+        IUnmatchedAssetRepository? unmatched = null,
+        IProfileHeroSettingsRepository? heroSettings = null,
+        IHeroOrderer? heroOrderer = null)
     {
+        _heroSettings = heroSettings;
+        _heroOrderer = heroOrderer ?? new DefaultHeroOrderer();
         _readService = readService;
         _cards = cards;
         _shelves = shelves;
@@ -130,8 +136,11 @@ public sealed partial class DisplayComposerService
         DisplayShelfBuilder.AddShelf(shelves, "listen-next", "Listen", "Music and audiobooks ready to resume", listenCards, DisplayGridCatalog.RouteFor("home", "listen-next"));
         DisplayShelfBuilder.AddShelf(shelves, "home-collections", "Collections & Lists", "Curated lists and broader rollups from your library", collectionCards, "/collections");
 
+        var heroSettings = _heroSettings is not null && profileId is { } heroProfile
+            ? await _heroSettings.GetAsync(heroProfile, ct)
+            : ProfileHeroSettings.Default;
         var spotlights = BuildHomeSpotlights(works, progressByWork, tvShowCards, continueCards,
-            continueCards.Concat(watchCards).Concat(readCards).Concat(listenCards).Concat(freshCandidates).ToList());
+            continueCards.Concat(watchCards).Concat(readCards).Concat(listenCards).Concat(freshCandidates).ToList(), heroSettings);
 
         return new DisplayPageDto(
             Key: "home",
