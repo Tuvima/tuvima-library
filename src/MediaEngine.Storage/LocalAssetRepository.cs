@@ -576,15 +576,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                LEFT JOIN view_sources tvs ON tvs.id = tlfs.source_id
                LEFT JOIN view_source_policies tvsp ON tvsp.source_id = tvs.id
               WHERE tlif.item_id = li.id
-                AND (vsa.item_id IS NOT NULL OR COALESCE((
-                    SELECT vftp.include_in_timeline
-                      FROM view_folder_timeline_policies vftp
-                     WHERE vftp.source_id = tvs.id
-                       AND (tlfs.file_path = vftp.absolute_path COLLATE NOCASE
-                            OR (substr(tlfs.file_path, 1, length(vftp.absolute_path)) = vftp.absolute_path COLLATE NOCASE
-                                AND substr(tlfs.file_path, length(vftp.absolute_path) + 1, 1) IN ('/', '\')))
-                     ORDER BY length(vftp.absolute_path) DESC
-                     LIMIT 1), tvsp.include_in_timeline,
+                AND (vsa.item_id IS NOT NULL OR COALESCE(
+                    tvsp.include_in_timeline,
                     CASE WHEN tvs.source_type = 'browser_upload' THEN 1 ELSE 0 END) = 1))
         )
         """;

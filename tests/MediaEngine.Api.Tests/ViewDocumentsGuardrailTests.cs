@@ -76,10 +76,6 @@ public sealed class ViewDocumentsGuardrailTests
             Assert.Contains("DocumentsBlockedAsync", endpoint[start..end], StringComparison.Ordinal);
         }
 
-        var folderStart = endpoint.IndexOf("group.MapGet(\"/folders\"", StringComparison.Ordinal);
-        var folderEnd = endpoint.IndexOf(".WithName(\"GetViewFolders\")", folderStart, StringComparison.Ordinal);
-        Assert.Contains("MayUseDocumentsAsync", endpoint[folderStart..folderEnd], StringComparison.Ordinal);
-
         var listStart = endpoint.IndexOf("group.MapGet(\"/assets\"", StringComparison.Ordinal);
         var listEnd = endpoint.IndexOf(".WithName(\"GetViewAssets\")", listStart, StringComparison.Ordinal);
         Assert.Contains("KindsWithoutBlockedDocumentsAsync", endpoint[listStart..listEnd], StringComparison.Ordinal);

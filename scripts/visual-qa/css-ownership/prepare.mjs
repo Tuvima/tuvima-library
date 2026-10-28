@@ -82,7 +82,7 @@ export async function prepareOwnershipState({ browser, tab, state, route, width,
     await tab.playwright.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     await tab.playwright.getByRole('textbox', { name: 'Rename Coast Queue', exact: true }).waitFor({ state: 'visible' });
   } else if (state.prepare === 'view-checked') {
-    await tab.playwright.getByRole('checkbox', { name: 'Include subfolders', exact: true }).check();
+    await tab.playwright.getByRole('switch', { name: 'Show in Photos timeline', exact: true }).first().check();
   } else if (state.prepare === 'collection-editor') {
     await tab.playwright.getByRole('button', { name: 'More actions', exact: true }).click();
     await tab.playwright.getByRole('menuitem', { name: /^Edit this /i }).click();

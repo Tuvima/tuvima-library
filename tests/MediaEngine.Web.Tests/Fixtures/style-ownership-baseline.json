@@ -439,10 +439,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Pages/ViewFoldersPage.razor.css": {
-      "important": 0,
-      "deep": 16
-    },
     "src/MediaEngine.Web/Components/Pages/ViewGalleriesPage.razor.css": {
       "important": 0,
       "deep": 0
@@ -1412,10 +1408,6 @@
     "src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Pages/ViewFoldersPage.razor.css": {
-      "important": 0,
-      "deep": 16
     },
     "src/MediaEngine.Web/Components/Pages/ViewGalleriesPage.razor.css": {
       "important": 0,
