@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.Details
+
+@* What the right-hand panel shows while the fields of the item just switched to are loading (universal editor spec D7): grey bars where the
+   fields will be, so the panel never shows the item that was left. It is a status for screen readers and changes nothing. *@
+<div class="tl-editor-busy" role="status" aria-busy="true" aria-live="polite">
+    <span class="sr-only">@Label</span>
+    <div aria-hidden="true">
+        <AppSkeleton Height="1rem" Width="30%" />
+        <AppSkeleton Height="2.5rem" Width="100%" />
+        <AppSkeleton Height="1rem" Width="40%" />
+        <AppSkeleton Height="2.5rem" Width="100%" />
+        <AppSkeleton Height="1rem" Width="25%" />
+        <AppSkeleton Height="7rem" Width="100%" />
+    </div>
+</div>
+
+@code {
+    /// <summary>What the screen reader says while the bars show.</summary>
+    [Parameter] public string Label { get; set; } = "Loading this item's details";
+}

@@ -178,6 +178,22 @@ public sealed class ArtworkPickerSession
         }
     }
 
+    /// <summary>
+    /// The item being edited changed while the picker is open (spec D7): a pick that was not used is dropped, the tabs follow the new item,
+    /// and the picker stays on the same kind of picture when the new item has it. Pictures already staged for either item stay staged.
+    /// </summary>
+    public async Task FollowItemAsync()
+    {
+        var slot = ActiveSlot;
+        _preview.ClearPicks();
+        _pickedProviderId = null;
+        ActiveSlot = null;
+        Provider = null;
+        Saved = [];
+        Message = null;
+        await OpenAsync(slot);
+    }
+
     /// <summary>Leaves the temporary view for the normal page while the tool stays open ("Return to series view").</summary>
     public void ReturnToNormalView()
     {

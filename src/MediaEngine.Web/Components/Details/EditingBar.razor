@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.MediaTiles
 @using MediaEngine.Web.Services.Ui
 @using Microsoft.AspNetCore.Components.Routing
 @implements IDisposable
@@ -25,12 +26,44 @@
             <div class="tl-editing-bar__where">
                 <span class="tl-editing-bar__dot" aria-hidden="true"></span>
                 <strong class="tl-editing-bar__title">Editing</strong>
-                <ol class="tl-editing-bar__trail" aria-label="Item being edited">
-                    @foreach (var step in session.Trail)
+                <ol class="tl-editing-bar__trail" aria-label="Item being edited" aria-busy="@(flow.Switching ? "true" : null)">
+                    @for (var index = 0; index < session.Trail.Count; index++)
                     {
-                        <li>@step.Title</li>
+                        var step = session.Trail[index];
+                        var options = flow.Catalog.ChildrenOf(step.EntityId);
+                        var isActive = index == session.Trail.Count - 1;
+                        <li class="@(isActive ? "is-active" : null)">
+                            @if (options.Count > 0)
+                            {
+                                @* Each step is a dropdown of the item and its children (spec D7); choosing one switches the item being edited. *@
+                                <AppOverflowMenu Label="@step.Title"
+                                                 ShowIcon="false"
+                                                 EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
+                                                 AriaLabel="@($"{step.Title}. Choose another item to edit")"
+                                                 Class="tl-editing-bar__step"
+                                                 TriggerClass="tl-editing-bar__step-trigger"
+                                                 PopoverClass="tl-editing-bar__step-menu"
+                                                 AnchorOrigin="AppOrigin.BottomLeft"
+                                                 TransformOrigin="AppOrigin.TopLeft"
+                                                 Disabled="@(flow.Switching || flow.Saving)">
+                                    @StepOption(flow, session, step)
+                                    @foreach (var child in options)
+                                    {
+                                        @StepOption(flow, session, child)
+                                    }
+                                </AppOverflowMenu>
+                            }
+                            else
+                            {
+                                @step.Title
+                            }
+                        </li>
                     }
                 </ol>
+                @if (flow.Switching)
+                {
+                    <span class="tl-editing-bar__opening" role="status">Opening...</span>
+                }
             </div>
 
             <div class="tl-editing-bar__tools" role="group" aria-label="Editing tools">
@@ -43,7 +76,7 @@
                                Class="@($"tl-editing-bar__tool{(isOpen ? " is-open" : string.Empty)}")"
                                id="@ToolButtonId(tool.Tool)"
                                StartIcon="@tool.Icon"
-                               Disabled="@(!mode.Fields.Loaded || flow.Saving)"
+                               Disabled="@(!mode.Fields.Loaded || flow.Saving || flow.Switching)"
                                aria-pressed="@(isOpen ? "true" : "false")"
                                OnClick="@(() => flow.SelectToolAsync(tool.Tool))">
                         @tool.Label
@@ -172,6 +205,29 @@
             // The circuit ended; there is no page left to focus.
         }
     }
+    // One row of a step's dropdown: a small picture, the name, and a dot when the item already has changes waiting.
+    private RenderFragment StepOption(EditSessionFlow flow, EditSessionState session, EditTrailItem item) => __builder =>
+    {
+        var isActive = session.ActiveItem?.EntityId == item.EntityId;
+        var hasChanges = session.Pending.Changes.Any(change => change.EntityId == item.EntityId);
+        <AppMenuItem Class="tl-editing-bar__option"
+                     Checked="@isActive"
+                     OnClick="@(() => flow.SwitchToAsync(item.EntityId, item.Title))">
+            @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+            {
+                <img class="tl-editing-bar__thumb" src="@MediaTileArtworkUrl.ForDrawnSize(item.ImageUrl, 40)" alt="" loading="lazy" decoding="async" />
+            }
+            else
+            {
+                <span class="tl-editing-bar__thumb tl-editing-bar__thumb--blank" aria-hidden="true"></span>
+            }
+            <span class="tl-editing-bar__option-text">@item.Title</span>
+            @if (hasChanges)
+            {
+                <span class="tl-editing-bar__option-dot" role="img" aria-label="Has changes waiting" title="Has changes waiting"></span>
+            }
+        </AppMenuItem>
+    };
 
     private static string SaveLabel(int count, bool saving) =>
         saving ? "Saving..." : count == 0 ? "Save changes" : $"Save {count} {(count == 1 ? "change" : "changes")}";

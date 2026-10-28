@@ -16,6 +16,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     private readonly EditSessionSaver _saver;
     private readonly Func<IReadOnlyList<EditTrailItem>> _trail;
     private readonly Func<Task<bool>> _confirmDiscard;
+    private EditTrailCatalog _catalog = EditTrailCatalog.Empty;
 
     /// <param name="trail">Where the item being edited sits (the page's own item for now).</param>
     /// <param name="confirmDiscard">Asks "Unsaved changes"; true means discard them.</param>
@@ -41,6 +42,29 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     public Func<Task>? Saved { get; set; }
 
     public bool Saving { get; private set; }
+
+    /// <summary>True while another item's fields are being loaded after the person switched to it (the bar and panel show a busy state).</summary>
+    public bool Switching { get; private set; }
+
+    /// <summary>The items the trail can switch between, read from the page (set by the page whenever the page's item changes).</summary>
+    public EditTrailCatalog Catalog
+    {
+        get => _catalog;
+        set
+        {
+            _catalog = value ?? EditTrailCatalog.Empty;
+            _session.ItemNameFallback = id => _catalog.NameOf(id);
+        }
+    }
+
+    /// <summary>
+    /// Loads the fields of an item the person switches to, so the Details and Match panels and the Artwork picker follow it. True when the
+    /// item is ready to edit. Unset, switching only moves the session (a list's selection bar has nothing to load).
+    /// </summary>
+    public Func<EditTrailItem, Task<bool>>? OpenItem { get; set; }
+
+    /// <summary>Raised after the item being edited changed, so the page can move the Artwork picker and the History block with it.</summary>
+    public Func<Task>? ItemSwitched { get; set; }
 
     /// <summary>The changes the last save did not accept, with the Engine's reasons. Empty when nothing failed.</summary>
     public IReadOnlyList<EditSessionFailure> Failures { get; private set; } = [];
@@ -319,9 +343,10 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
             return;
         }
 
-        if (_session.ActiveItem?.EntityId != row.EntityId && _session.TrailTo(row.EntityId) is { } trail)
+        // Any staged item can be jumped to: one the session visited, one the page lists, or one only ticked in a list (named by its row).
+        if (_session.ActiveItem?.EntityId != row.EntityId && !await SwitchToAsync(row.EntityId, row.Item))
         {
-            _session.SwitchItem(trail);
+            return;
         }
 
         if (_session.ActiveTool != row.Tool)
@@ -330,10 +355,98 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         }
     }
 
+    /// <summary>
+    /// Switches the item being edited to one the page knows or the session has visited (spec D7), keeping every item's staged changes. The item's
+    /// fields are loaded first (a skeleton shows meanwhile); if they cannot be loaded the person stays on the item they were editing, with the
+    /// reason in the bar. Nothing is saved. False means the item did not change.
+    /// </summary>
+    /// <param name="name">What to call the item when neither the page nor the session knows it (a Review row names it).</param>
+    public async Task<bool> SwitchToAsync(Guid entityId, string? name = null)
+    {
+        var trail = Catalog.TrailTo(entityId)
+                    ?? _session.TrailTo(entityId)
+                    ?? [new EditTrailItem(entityId, string.IsNullOrWhiteSpace(name) || name == EditReviewRows.UnknownItem ? _session.ItemName(entityId) ?? EditReviewRows.UnknownItem : name, "Item")];
+        return await SwitchToAsync(trail);
+    }
+
+    /// <inheritdoc cref="SwitchToAsync(Guid, string?)"/>
+    /// <param name="trail">Where the item sits, outermost first, ending with the item to edit.</param>
+    public async Task<bool> SwitchToAsync(IReadOnlyList<EditTrailItem> trail)
+    {
+        ArgumentNullException.ThrowIfNull(trail);
+        if (trail.Count == 0 || !_session.IsActive || !_mode.CanEdit || Saving || Switching)
+        {
+            return false;
+        }
+
+        var target = trail[^1];
+        if (_session.ActiveItem?.EntityId == target.EntityId)
+        {
+            return true;
+        }
+
+        // Input a section hosted in the panel still holds is settled first, as closing it would; staying keeps the item as it is.
+        if (_mode.SectionDirty && !await _mode.CloseSectionAsync())
+        {
+            return false;
+        }
+
+        if (!_session.IsActive)
+        {
+            return false;
+        }
+
+        var previous = _session.ActiveItem;
+        Switching = true;
+        Message = null;
+        Failures = [];
+        Changed?.Invoke();
+        var ready = true;
+        try
+        {
+            if (OpenItem is { } open)
+            {
+                ready = await open(target);
+                if (!ready && previous is not null)
+                {
+                    // The fields of the item being left are put back, so the panel never shows an item that is not the active one.
+                    await open(previous);
+                }
+            }
+        }
+        finally
+        {
+            Switching = false;
+        }
+
+        if (!_session.IsActive)
+        {
+            return false;
+        }
+
+        if (!ready)
+        {
+            Message = previous is null
+                ? $"{target.Title} could not be opened for editing."
+                : $"{target.Title} could not be opened for editing. You are still editing {previous.Title}.";
+            Changed?.Invoke();
+            return false;
+        }
+
+        _session.SwitchItem(trail);
+        if (ItemSwitched is { } switched)
+        {
+            await switched();
+        }
+
+        Changed?.Invoke();
+        return true;
+    }
+
     /// <summary>A short line for one failed change: the item, the fields it touched, and why it did not go through.</summary>
     public string Describe(EditSessionFailure failure)
     {
-        var item = _session.Trail.FirstOrDefault(step => step.EntityId == failure.EntityId)?.Title;
+        var item = _session.Trail.FirstOrDefault(step => step.EntityId == failure.EntityId)?.Title ?? _session.ItemName(failure.EntityId);
         var change = _session.Pending.Changes.FirstOrDefault(candidate => candidate.Id == failure.ChangeId);
         string what;
         if (change is { Kind: EditSessionChangeKinds.Details, Fields.Count: > 0 })
