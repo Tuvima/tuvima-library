@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
+using SkiaSharp;
 
 namespace MediaEngine.Api.Tests;
 
@@ -107,16 +108,79 @@ public sealed class ArtworkEditSessionChangeHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Apply_WhenThePictureWasNeverLinkedToTheItem_LinksAndChoosesIt()
+    public async Task Check_WhenThePictureBelongsToAnotherItem_RefusesItAndChoosesNothing()
+    {
+        var work = await SeedWorkWithChosenPictureAsync();
+        var other = await SeedWorkWithChosenPictureAsync();
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, ArtworkChange("a1", work.Id, "CoverArt", other.OtherAssetId.ToString())), NoRefusals);
+
+        Assert.False(result.DataSaved);
+        var change = Assert.Single(result.Changes);
+        Assert.Equal(EditSessionChangeStatuses.Invalid, change.Status);
+        Assert.Equal(ArtworkEditSessionChangeHandler.NotThisItemsPicture, change.Reason);
+        Assert.Equal(work.ChosenAssetId, await ChosenAsync(work.Id, "Primary"));
+        Assert.Equal(other.ChosenAssetId, await ChosenAsync(other.Id, "Primary"));
+    }
+
+    [Fact]
+    public async Task Check_WhenThePictureWasNeverLinkedToAnyItem_RefusesIt()
     {
         var work = await SeedWorkWithChosenPictureAsync();
         var unlinked = SeedAsset("unlinked");
 
         var result = await CreateService().RunAsync(
-            Request(previewOnly: false, ArtworkChange("a1", work.Id, "CoverArt", unlinked.ToString())), NoRefusals);
+            Request(previewOnly: true, ArtworkChange("a1", work.Id, "CoverArt", unlinked.ToString())), NoRefusals);
+
+        Assert.False(result.Valid);
+        Assert.Equal(ArtworkEditSessionChangeHandler.NotThisItemsPicture, Assert.Single(result.Changes).Reason);
+    }
+
+    [Fact]
+    public async Task Apply_WhenAnotherItemsPictureReachesTheHandlerDirectly_ThrowsAndChoosesNothing()
+    {
+        var work = await SeedWorkWithChosenPictureAsync();
+        var other = await SeedWorkWithChosenPictureAsync();
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _handler.ApplyAsync(ArtworkChange("a1", work.Id, "CoverArt", other.OtherAssetId.ToString())));
+
+        Assert.Equal(ArtworkEditSessionChangeHandler.NotThisItemsPicture, thrown.Message);
+        Assert.Equal(work.ChosenAssetId, await ChosenAsync(work.Id, "Primary"));
+    }
+
+    [Fact]
+    public async Task Apply_WhenThePictureWasJustUploadedForTheItem_ChoosesIt()
+    {
+        var work = await SeedWorkWithChosenPictureAsync();
+        using var bitmap = new SKBitmap(40, 60);
+        bitmap.Erase(SKColors.Teal);
+        using var encoded = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+        await using var stream = new MemoryStream(encoded.ToArray());
+        var uploaded = await _artwork.UploadAsync(
+            stream, ".png", "Work", work.Id, new(Guid.Empty, "Primary", Preferred: false, SourceAssetType: "CoverArt"), "upload", null, CancellationToken.None);
+        Assert.Equal(work.ChosenAssetId, await ChosenAsync(work.Id, "Primary"));
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, ArtworkChange("a1", work.Id, "CoverArt", uploaded.Id.ToString())), NoRefusals);
 
         Assert.True(result.DataSaved);
-        Assert.Equal(unlinked, await ChosenAsync(work.Id, "Primary"));
+        Assert.Equal(uploaded.Id, await ChosenAsync(work.Id, "Primary"));
+    }
+
+    [Fact]
+    public async Task Apply_WhenThePictureIsAnUnchosenOneOfTheItemInAnotherRole_ChoosesIt()
+    {
+        var work = await SeedWorkWithChosenPictureAsync();
+        var spare = SeedAsset("spare");
+        await _artwork.LinkAsync("Work", work.Id, new(spare, "Background", Preferred: false, SourceAssetType: "Background"), CancellationToken.None);
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, ArtworkChange("a1", work.Id, "Background", spare.ToString())), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(spare, await ChosenAsync(work.Id, "Background"));
     }
 
     [Fact]

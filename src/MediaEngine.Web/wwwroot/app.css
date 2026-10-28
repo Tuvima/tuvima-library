@@ -5893,6 +5893,17 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-editing-bar__trail li{overflow:hidden;text-overflow:ellipsis}
 .tl-editing-bar__trail li+li::before{content:"\203A";margin:0 var(--tl-space-2)}
 .tl-editing-bar__trail li:last-child{color:var(--tl-text-primary)}
+.tl-editing-bar__trail li.is-active{overflow:visible}
+.tl-editing-bar__step-trigger{display:inline-flex;align-items:center;gap:var(--tl-space-1);height:auto;min-height:0;max-width:16rem;padding:var(--tl-space-1) var(--tl-space-2);border:1px solid var(--tl-border-default);border-radius:var(--tl-radius-pill);background:transparent;color:inherit;font:inherit;cursor:pointer}
+.tl-editing-bar__step-trigger:hover,.tl-editing-bar__step-trigger[aria-expanded=true]{background:var(--tl-bg-surface-hover)}
+.tl-editing-bar__trail li.is-active .tl-editing-bar__step-trigger{border-color:var(--tl-accent-primary,#8852FC);color:var(--tl-text-primary)}
+.tl-editing-bar__step-menu{min-width:14rem;max-width:min(24rem,90vw);max-height:min(24rem,60vh);overflow-y:auto}
+.tl-editing-bar__option{display:flex;align-items:center;gap:var(--tl-space-2)}
+.tl-editing-bar__option-text{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-editing-bar__thumb{flex:0 0 auto;width:1.75rem;height:1.75rem;border-radius:var(--tl-radius-sm);background:var(--tl-bg-surface-raised);object-fit:cover}
+.tl-editing-bar__option-dot{flex:0 0 auto;width:.5rem;height:.5rem;border-radius:50%;background:var(--tl-accent-primary,#8852FC)}
+.tl-editing-bar__opening{flex:0 0 auto;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
+.tl-editor-busy>div{display:flex;flex-direction:column;gap:var(--tl-space-3);padding:var(--tl-space-4)}
 .tl-editing-bar__tools{display:flex;flex:0 0 auto;gap:var(--tl-space-2)}
 .tl-editing-bar__end{display:flex;flex:1 1 0;align-items:center;justify-content:flex-end;gap:var(--tl-space-2)}
 .tl-editing-bar__notice{display:flex;align-items:flex-start;gap:var(--tl-space-2);margin-top:var(--tl-space-2);padding:var(--tl-space-2) var(--tl-space-3);border:1px solid var(--tl-status-warning-border);border-radius:var(--tl-radius-lg);color:var(--tl-text-secondary);font-size:var(--tl-font-size-sm)}

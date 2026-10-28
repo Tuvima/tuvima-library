@@ -26,10 +26,18 @@ public sealed partial class EditPendingPreview
     /// <summary>The pictures picked or staged in the Artwork tool, so the hero and the temporary view show them before Save changes.</summary>
     public ArtworkEditPreview Artwork { get; }
 
+    /// <summary>
+    /// The item the page itself shows (its own title). While another item of the page is being edited (an episode, a track), the page keeps
+    /// showing its own item's staged values, not the other item's. Null means the page shows whichever item is being edited.
+    /// </summary>
+    public Guid? PageEntityId { get; set; }
+
+    private bool EditingPageItem => PageEntityId is null || PageEntityId == _fields.EntityId;
+
     /// <summary>The title as staged, else <paramref name="current"/>.</summary>
     public string? Title(string? current)
     {
-        var heading = _fields.Presentation.Heading;
+        var heading = EditingPageItem ? _fields.Presentation.Heading : null;
         string[] keys = heading is null ? TitleKeys : [heading.OverrideKey, heading.Key, .. TitleKeys];
         return Staged(keys) ?? current;
     }
@@ -37,7 +45,7 @@ public sealed partial class EditPendingPreview
     /// <summary>The description as staged, else <paramref name="current"/>.</summary>
     public string? Description(string? current)
     {
-        var synopsis = _fields.Presentation.Synopsis;
+        var synopsis = EditingPageItem ? _fields.Presentation.Synopsis : null;
         string[] keys = synopsis is null ? DescriptionKeys : [synopsis.OverrideKey, synopsis.Key, .. DescriptionKeys];
         return Staged(keys) ?? current;
     }
@@ -65,7 +73,7 @@ public sealed partial class EditPendingPreview
 
     private string? Staged(params string[] keys)
     {
-        var entityId = _fields.EntityId;
+        var entityId = PageEntityId ?? _fields.EntityId;
         if (!_session.IsActive || entityId == Guid.Empty)
         {
             return null;

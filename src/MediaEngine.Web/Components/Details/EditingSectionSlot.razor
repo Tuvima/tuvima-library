@@ -35,7 +35,7 @@
             </header>
         }
         <div class="tl-editing-slot__body">
-            <SharedMediaEditorShell @key="mode.OpenSectionKind"
+            <SharedMediaEditorShell @key="@((mode.OpenSectionKind, ItemKey))"
                                     @ref="_shell"
                                     Request="@_request"
                                     Inline="true"
@@ -73,6 +73,7 @@
     private bool _swallowNextCommit;
     private MediaEditorLaunchRequest? _request;
     private EditingSection? _builtFor;
+    private Guid? _builtForItem;
     private EditingModeContext? _subscribed;
     private bool _wasOpen;
     private bool _focusSlot;
@@ -100,6 +101,12 @@
     /// scrolling the page to it, and no height cap, so the panel stays the one scroll area.
     /// </summary>
     [Parameter] public bool InPanel { get; set; }
+
+    /// <summary>
+    /// The item the page is editing now (spec D7). When it changes while a section is open, the section is built again for the new item,
+    /// so the History block never shows the item that was left. Null for a page that only ever edits one item.
+    /// </summary>
+    [Parameter] public Guid? ItemKey { get; set; }
 
     private static string SectionId(EditingSection? section) => section switch
     {
@@ -147,8 +154,9 @@
         {
             // A fresh opening, or a swap to another section, builds a fresh editor session; asking again for the section
             // that is open flows through the shell's parameters instead.
-            if (_builtFor != section || _request is null)
+            if (_builtFor != section || _request is null || _builtForItem != ItemKey)
             {
+                _builtForItem = ItemKey;
                 _request = BuildRequest(SectionId(section), Mode.OpenSectionArtworkSlot);
                 _builtFor = _request is null ? null : section;
                 _focusSlot = _request is not null && !InPanel;

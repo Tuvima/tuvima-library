@@ -28,6 +28,7 @@ public sealed class ItemFieldEditSession
     private IReadOnlyDictionary<string, string>? _profileOverrides;
     private ItemEditorPreferencesResponse? _preferences;
     private MediaEditorDetailsPresentation _presentation = new();
+    private bool _suggestionsLoaded;
 
     public ItemFieldEditSession(IEngineApiClient api, DeviceContextService? device, ILogger? logger = null)
     {
@@ -58,6 +59,41 @@ public sealed class ItemFieldEditSession
 
     /// <summary>What kind of item owns the artwork (Work, Person, ...).</summary>
     public string ArtworkEntityKind => _scope?.ArtworkOwnerEntityKind ?? _scope?.FieldEntityKind ?? "Work";
+
+    /// <summary>
+    /// Where the item opened sits in the Engine's own answer: show, season and episode, or album and track, outermost first, each with the id
+    /// its fields are staged under (spec D7). Empty for a movie, a book, a person or any type that has no such chain.
+    /// </summary>
+    public IReadOnlyList<EditTrailItem> ScopeChain
+    {
+        get
+        {
+            if (_context is null || _subject is not null)
+            {
+                return [];
+            }
+
+            var tv = string.Equals(_context.MediaType, "TV", StringComparison.OrdinalIgnoreCase);
+            var music = string.Equals(_context.MediaType, "Music", StringComparison.OrdinalIgnoreCase);
+            return _context.Scopes
+                .OrderBy(scope => scope.Order)
+                .Select(scope => (Scope: scope, Kind: scope.ScopeId.ToLowerInvariant() switch
+                {
+                    "series" when tv => EditTrailKinds.Show,
+                    "season" when tv => EditTrailKinds.Season,
+                    "episode" when tv => EditTrailKinds.Episode,
+                    "album" when music => EditTrailKinds.Album,
+                    "track" when music => EditTrailKinds.Track,
+                    _ => null,
+                }))
+                .Where(entry => entry.Kind is not null && entry.Scope.FieldEntityId != Guid.Empty)
+                .Select(entry => new EditTrailItem(
+                    entry.Scope.FieldEntityId,
+                    string.IsNullOrWhiteSpace(entry.Scope.DisplayTitle) ? entry.Scope.Label : entry.Scope.DisplayTitle,
+                    entry.Kind!))
+                .ToList();
+        }
+    }
 
     /// <summary>The id of the active scope (movie, series, season, episode, album...), which names the kind of item being edited.</summary>
     public string ScopeId => _scope?.ScopeId ?? string.Empty;
@@ -161,7 +197,11 @@ public sealed class ItemFieldEditSession
             }
 
             Rebuild();
-            await LoadSuggestionsAsync(ct);
+            // The library's genres and tags do not depend on the item: switching items (spec D7) reuses the lists, so it stays quick.
+            if (!_suggestionsLoaded)
+            {
+                await LoadSuggestionsAsync(ct);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -304,6 +344,7 @@ public sealed class ItemFieldEditSession
             await Task.WhenAll(genres, tags);
             GenreSuggestions = genres.Result;
             TagSuggestions = tags.Result;
+            _suggestionsLoaded = true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

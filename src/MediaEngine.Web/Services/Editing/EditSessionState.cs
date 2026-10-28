@@ -16,7 +16,8 @@ public enum EditViewContext
 }
 
 /// <summary>One step of the item trail ("Le Continental > Season 1 > Episode 1").</summary>
-public sealed record EditTrailItem(Guid EntityId, string Title, string Kind);
+/// <param name="ImageUrl">A small picture for the item's row in the trail's dropdown, when the page has one.</param>
+public sealed record EditTrailItem(Guid EntityId, string Title, string Kind, string? ImageUrl = null);
 
 /// <summary>
 /// The state of one edit session on one page, as four separate pieces on purpose (spec WP2): the active item, the active tool,
@@ -138,7 +139,11 @@ public sealed class EditSessionState
     }
 
     /// <summary>The name of an item the session has visited (Review changes names the item on each row), or null when it is not known.</summary>
-    public string? ItemName(Guid entityId) => _known.TryGetValue(entityId, out var trail) ? trail[^1].Title : null;
+    public string? ItemName(Guid entityId) =>
+        _known.TryGetValue(entityId, out var trail) ? trail[^1].Title : ItemNameFallback?.Invoke(entityId);
+
+    /// <summary>Names an item the session never visited (a ticked episode or song staged from the page's list), so Review changes can still name it.</summary>
+    public Func<Guid, string?>? ItemNameFallback { get; set; }
 
     /// <summary>The trail that ends at an item the session has visited, so Review changes can jump back to it; null when it is not known.</summary>
     public IReadOnlyList<EditTrailItem>? TrailTo(Guid entityId) => _known.GetValueOrDefault(entityId);

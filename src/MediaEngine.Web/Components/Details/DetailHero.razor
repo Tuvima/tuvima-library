@@ -109,7 +109,7 @@
         <DetailHeroContent AllowAiSummary="@(Model.EntityType is not (DetailEntityType.TvEpisode or DetailEntityType.TvShow or DetailEntityType.TvSeason))" Title="@HeroTitle"
                            Class="@EditingClass"
                            UseLogo="@Presentation.UseLogo"
-                           LogoUrl="@(Pending?.Artwork.Url("Logo") ?? Presentation.LogoUrl)"
+                           LogoUrl="@(Pending?.Artwork.PageUrl("Logo") ?? Presentation.LogoUrl)"
                            Subtitle="@Presentation.Subtitle"
                            SecondaryTitleText="@Presentation.SecondaryTitleText"
                            Synopsis="@HeroCopy"

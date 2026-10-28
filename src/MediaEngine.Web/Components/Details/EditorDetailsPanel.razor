@@ -7,7 +7,12 @@
 @* The Details tool (spec D3, D4, D5, WP5): the item's fields from the editor's own per-type field list. Typing only stages a change in the
    pending list, which the page shows at once and Save changes writes later. Provider facts are read-only with a lock and the provider's
    name; a field you have overridden shows a purple dot and a way back to the provider's value. *@
-@if (Mode is { IsOn: true } mode && Session is { IsActive: true } session && mode.Fields.Loaded)
+@if (Mode is { IsOn: true, Fields.Loading: true } && Session is { IsActive: true })
+{
+    @* Another item's fields are on their way (the person switched items): never show the item that was left. *@
+    <EditorPanelBusy />
+}
+else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session && mode.Fields.Loaded)
 {
     var fields = mode.Fields;
     var canEdit = mode.CanEdit && fields.CanEditFields;
@@ -46,6 +51,7 @@
 
 @code {
     private EditSessionState? _subscribed;
+    private EditingModeContext? _subscribedMode;
 
     [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
 
@@ -211,6 +217,21 @@
 
     protected override void OnParametersSet()
     {
+        // The fields loading or being replaced (the person switched items) redraws the panel on its own, whatever page hosts it.
+        if (!ReferenceEquals(_subscribedMode, Mode))
+        {
+            if (_subscribedMode is not null)
+            {
+                _subscribedMode.Changed -= OnChanged;
+            }
+
+            _subscribedMode = Mode;
+            if (_subscribedMode is not null)
+            {
+                _subscribedMode.Changed += OnChanged;
+            }
+        }
+
         if (ReferenceEquals(_subscribed, Session))
         {
             return;
@@ -233,6 +254,11 @@
         if (_subscribed is not null)
         {
             _subscribed.Changed -= OnChanged;
+        }
+
+        if (_subscribedMode is not null)
+        {
+            _subscribedMode.Changed -= OnChanged;
         }
     }
 
