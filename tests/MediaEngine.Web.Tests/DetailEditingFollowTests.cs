@@ -84,7 +84,12 @@ public sealed class DetailEditingFollowTests : AsyncBunitContext
     {
         cut.Find("button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
+
+        // The move is made from Match, which the editor hosts in its right-hand panel.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool")));
+        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Match").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-slot")));
     }
 
     // What the shell does after a move that removed the title: asks the host to follow.
@@ -114,7 +119,7 @@ public sealed class DetailEditingFollowTests : AsyncBunitContext
         first.Dispose();
         var second = RenderPage(SurvivorId);
 
-        second.WaitForAssertion(() => Assert.Equal("Done", second.Find("button.tl-editing-banner__done").TextContent.Trim()));
+        second.WaitForAssertion(() => Assert.Single(second.FindAll(".tl-editing-bar")));
         var slot = second.FindComponent<EditingSectionSlot>();
         second.WaitForAssertion(() => Assert.Equal(EditingSection.Match, slot.Instance.Mode!.OpenSectionKind));
         second.WaitForAssertion(() => Assert.Equal(Line, second.FindComponent<SharedMediaEditorShell>().Instance.Request.InitialMoveResult));
@@ -154,7 +159,7 @@ public sealed class DetailEditingFollowTests : AsyncBunitContext
         Assert.False(followed);
         Assert.EndsWith($"/details/movie/{MovieId}", Nav.Uri, StringComparison.Ordinal);
         Assert.False(State.TryTakeEditResume(SurvivorId, out _));
-        Assert.Equal("Done", page.Find("button.tl-editing-banner__done").TextContent.Trim());
+        Assert.Single(page.FindAll(".tl-editing-bar"));
     }
 
     [Fact]
@@ -181,7 +186,7 @@ public sealed class DetailEditingFollowTests : AsyncBunitContext
 
         var page = RenderPage(SurvivorId);
 
-        Assert.Empty(page.FindAll("button.tl-editing-banner__done"));
+        Assert.Empty(page.FindAll(".tl-editing-bar"));
         Assert.False(State.TryTakeEditResume(SurvivorId, out _));
     }
 
@@ -193,7 +198,7 @@ public sealed class DetailEditingFollowTests : AsyncBunitContext
 
         var page = RenderPage(MovieId);
 
-        Assert.Empty(page.FindAll("button.tl-editing-banner__done"));
+        Assert.Empty(page.FindAll(".tl-editing-bar"));
         Assert.False(State.TryTakeEditResume(SurvivorId, out _));
     }
 

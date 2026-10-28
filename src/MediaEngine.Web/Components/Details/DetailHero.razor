@@ -106,13 +106,13 @@
     }
     else
     {
-        <DetailHeroContent AllowAiSummary="@(Model.EntityType is not (DetailEntityType.TvEpisode or DetailEntityType.TvShow or DetailEntityType.TvSeason))" Title="@Presentation.Title"
+        <DetailHeroContent AllowAiSummary="@(Model.EntityType is not (DetailEntityType.TvEpisode or DetailEntityType.TvShow or DetailEntityType.TvSeason))" Title="@HeroTitle"
                            Class="@EditingClass"
                            UseLogo="@Presentation.UseLogo"
                            LogoUrl="@Presentation.LogoUrl"
                            Subtitle="@Presentation.Subtitle"
                            SecondaryTitleText="@Presentation.SecondaryTitleText"
-                           Synopsis="@Presentation.HeroCopy"
+                           Synopsis="@HeroCopy"
                            SynopsisHeading="@WatchEpisodeHeading"
                            SynopsisClass="@HeroSummaryClass">
             <TitleTrailingContent>
@@ -164,7 +164,7 @@
                 }
             </IdentityAfterTitle>
             <MetadataContent>
-                <HeroMetadataPills Metadata="Model.Metadata"
+                <HeroMetadataPills Metadata="PreviewMetadata"
                                    EntityType="Model.EntityType"
                                    IsWatchHero="Presentation.IsWatchHero"
                                    UsePrimaryHeroChrome="Presentation.UsePrimaryHeroChrome"
@@ -218,6 +218,47 @@
     [Parameter] public bool CanDelete { get; set; }
 
     [CascadingParameter] private EditingModeContext? Editing { get; set; }
+
+    /// <summary>The changes staged in the universal editor, so the title, year, genres and description show them before Save changes.</summary>
+    [CascadingParameter] private EditPendingPreview? Pending { get; set; }
+
+    private string HeroTitle => Pending?.Title(Presentation.Title) ?? Presentation.Title;
+
+    private string? HeroCopy => string.IsNullOrWhiteSpace(Model.Tagline)
+        ? Pending?.Description(Presentation.HeroCopy) ?? Presentation.HeroCopy
+        : Pending?.Tagline(Presentation.HeroCopy) ?? Presentation.HeroCopy;
+
+    // The year and genre pills read the staged values while there are any; every other pill stays as the page loaded it.
+    private IReadOnlyList<MetadataPill> PreviewMetadata
+    {
+        get
+        {
+            if (Pending is null)
+            {
+                return Model.Metadata;
+            }
+
+            var year = Pending.Year(null);
+            var genres = Pending.Genres();
+            if (year is null && genres is null)
+            {
+                return Model.Metadata;
+            }
+
+            var pills = Model.Metadata
+                .Where(pill => genres is null || !string.Equals(pill.Kind, "genre", StringComparison.OrdinalIgnoreCase))
+                .Select(pill => year is not null && string.Equals(pill.Kind, "year", StringComparison.OrdinalIgnoreCase)
+                    ? new MetadataPill { Label = year, Icon = pill.Icon, Kind = pill.Kind, Route = null, Tooltip = pill.Tooltip }
+                    : pill)
+                .ToList();
+            if (genres is not null)
+            {
+                pills.AddRange(genres.Select(genre => new MetadataPill { Label = genre, Kind = "genre" }));
+            }
+
+            return pills;
+        }
+    }
 
     private EditingModeContext? _subscribedEditing;
 

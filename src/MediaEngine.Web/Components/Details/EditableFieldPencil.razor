@@ -6,7 +6,7 @@
 @* One small pencil beside an editable single-item field, only while Editing Mode is on. Provider-owned facts that
    cannot be changed here show a lock and one short reason instead. Pressing the pencil opens the editor's own inline
    field (or the tag editor for genres and tags) in place; Enter or the check saves that one field, Esc cancels. *@
-@if (Mode is { IsOn: true } mode && mode.Fields.Loaded && ResolveField(mode) is { } field)
+@if (Mode is { ShowsPencils: true } mode && mode.Fields.Loaded && ResolveField(mode) is { } field)
 {
     var fields = mode.Fields;
     @if (fields.IsEditing(field.Key, Owner))

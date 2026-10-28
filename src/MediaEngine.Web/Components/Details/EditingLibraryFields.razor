@@ -4,7 +4,7 @@
 
 @* Editing Mode on the Overview: the other single-item fields the editor's Details section edits (tags, language,
    original title and the like), each with the same pencil, and provider-owned facts with a lock and a reason. *@
-@if (Mode is { IsOn: true } mode && mode.Fields.Loaded && Rows(mode) is { Count: > 0 } rows)
+@if (Mode is { ShowsPencils: true } mode && mode.Fields.Loaded && Rows(mode) is { Count: > 0 } rows)
 {
     <section class="tl-editing-fields" aria-label="Fields you can edit">
         <header class="tl-editing-fields__heading"><span>Fields</span></header>
