@@ -34,8 +34,12 @@ public sealed class HomeSpotlightStateTests
         var partial = Episode(Guid.NewGuid(), 5, "Half watched");
         var freshMovie = new DisplayWorkRow
         {
-            WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Movie", Title = "Fresh movie",
-            CreatedAt = DateTimeOffset.UtcNow.AddDays(1), BackgroundUrl = "/movie.jpg",
+            WorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            MediaType = "Movie",
+            Title = "Fresh movie",
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(1),
+            BackgroundUrl = "/movie.jpg",
         };
         var home = await Composer(new Repository([freshMovie, partial], [State(profile, partial, 40)])).BuildHomeAsync(profileId: profile);
         Assert.Equal(2, home.Spotlights.Count);
@@ -53,13 +57,25 @@ public sealed class HomeSpotlightStateTests
         var showState = State(profile, show, 40); showState.LastAccessed = DateTimeOffset.UtcNow.AddHours(-5);
         var book = new DisplayWorkRow
         {
-            WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Book", Title = "Midway book",
-            CreatedAt = DateTimeOffset.UtcNow.AddDays(-90), CoverUrl = "/book.jpg", BackgroundUrl = "/book-bg.jpg",
+            WorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            MediaType = "Book",
+            Title = "Midway book",
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-90),
+            CoverUrl = "/book.jpg",
+            BackgroundUrl = "/book-bg.jpg",
         };
         var bookState = new DisplayJourneyRow
         {
-            ProfileId = profile, WorkId = book.WorkId, RootWorkId = book.WorkId, AssetId = book.AssetId, MediaType = "Book",
-            Title = book.Title, ProgressPct = 62, LastAccessed = DateTimeOffset.UtcNow.AddHours(-1), CoverUrl = book.CoverUrl,
+            ProfileId = profile,
+            WorkId = book.WorkId,
+            RootWorkId = book.WorkId,
+            AssetId = book.AssetId,
+            MediaType = "Book",
+            Title = book.Title,
+            ProgressPct = 62,
+            LastAccessed = DateTimeOffset.UtcNow.AddHours(-1),
+            CoverUrl = book.CoverUrl,
         };
         var home = await Composer(new Repository([show, book], [showState, bookState])).BuildHomeAsync(profileId: profile);
         Assert.Equal(["Midway book", "The Show"], home.Spotlights.Select(hero => hero.Title));
