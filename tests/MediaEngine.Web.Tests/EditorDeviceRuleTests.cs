@@ -166,14 +166,14 @@ public sealed class EditorDeviceRuleTests
     }
 
     [Fact]
-    public async Task ThePersonEditorStillOpensFromTheLauncher()
+    public async Task ThePersonRequestIsRefusedBecauseThePersonEditsInPlace()
     {
         var dialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
         var spy = (DialogSpy)(object)dialogs;
         var launcher = new MediaEditorLauncherService(dialogs, null, await DesktopAsync(), new AppToastService());
         var personId = Guid.Parse("33333333-3333-4444-5555-666666666666");
 
-        await launcher.TryOpenAsync(new MediaEditorLaunchRequest
+        var personResult = await launcher.TryOpenAsync(new MediaEditorLaunchRequest
         {
             EntityIds = [personId],
             LaunchEntityId = personId,
@@ -181,8 +181,8 @@ public sealed class EditorDeviceRuleTests
             Mode = SharedMediaEditorMode.Normal,
         });
 
-        Assert.Equal(1, spy.ShowCount);
-        Assert.Equal(typeof(PersonEditorDialog), spy.LastShell);
+        Assert.Equal(EditorLaunchResult.NotAvailable, personResult);
+        Assert.Equal(0, spy.ShowCount);
     }
 
     [Theory]

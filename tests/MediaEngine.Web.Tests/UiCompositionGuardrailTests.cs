@@ -357,20 +357,19 @@ public sealed class UiCompositionGuardrailTests
         var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "NeedsReviewPageContent.razor"));
         var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
 
-        // The pop-up stays for people (and the Universe editor); a single item edits in place and Needs Review opens its page.
-        Assert.Contains("MediaEditorLauncher.OpenAsync", detailPage);
+        // A single item, person or series edits in place and Needs Review opens its page; the pop-up stays only for the Chronicle explorer.
+        Assert.DoesNotContain("MediaEditorLauncher.OpenAsync", detailPage);
         Assert.DoesNotContain("MediaEditorLauncher.BeginInline", detailPage);
         Assert.DoesNotContain("MediaEditorLauncher", reviewTab);
         Assert.DoesNotContain("MediaEditorInlineSession", launcher);
-        Assert.Contains("SharedMediaEditorMode.Normal", detailPage);
         Assert.Contains("EditingSection.Match", reviewTab);
         Assert.Contains("SharedMediaEditorMode.Batch", launcher);
     }
 
-    // No route opens the old pop-up for a single item (universal editor spec D1 and D17): the only callers left are the person
-    // editor on the detail page and the Universe editor, and the launcher itself refuses any other request.
+    // No route opens the old pop-up for a single item (universal editor spec D1 and D17): the only caller left is the
+    // Chronicle explorer's shared entity target, and the launcher itself refuses any other request.
     [Fact]
-    public void TheOldPopUpOpensOnlyForAPersonOrAUniverse()
+    public void TheOldPopUpOpensOnlyForTheChronicleExplorer()
     {
         var webSource = Path.Combine(RepoRoot, "src", "MediaEngine.Web");
         var callers = Directory.EnumerateFiles(webSource, "*.*", SearchOption.AllDirectories)
@@ -385,12 +384,11 @@ public sealed class UiCompositionGuardrailTests
 
         Assert.Equal(
         [
-            "src/MediaEngine.Web/Components/Details/DetailPage.razor",
             "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor",
         ], callers);
 
         var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
-        Assert.Contains("if (sharedTarget is null && !IsPersonRequest(request))", launcher);
+        Assert.Contains("if (sharedTarget is null)", launcher);
     }
 
     [Fact]
@@ -398,7 +396,7 @@ public sealed class UiCompositionGuardrailTests
     {
         var detailPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
 
-        Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*RefreshCurrentDetailAsync", detailPage);
+        Assert.Matches(@"RefreshAfterEditSavedAsync\(\)\s*\{[^}]*RefreshCurrentDetailAsync", detailPage);
         Assert.Contains("GetDetailPageAsync", detailPage);
     }
 
