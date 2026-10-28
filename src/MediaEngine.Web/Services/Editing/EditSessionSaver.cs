@@ -8,10 +8,15 @@ public sealed record EditSessionFailure(string ChangeId, Guid EntityId, string K
 
 /// <summary>
 /// How a save ended. <see cref="Saved"/> is true when the data changes are in the library; <see cref="Failures"/> lists the changes that
-/// did not go through (empty after a clean save), <see cref="AppliedIds"/> names the changes that are now in the library, and
-/// <see cref="Message"/> is the plain sentence for a save that could not be tried at all.
+/// did not go through (empty after a clean save), <see cref="AppliedIds"/> names the changes that are now in the library,
+/// <see cref="Results"/> gives the Engine's answer for every change (Review changes shows one status per row), and <see cref="Message"/> is the plain sentence for a save that could not be tried at all.
 /// </summary>
-public sealed record EditSessionSaveOutcome(bool Saved, IReadOnlyList<EditSessionFailure> Failures, string? Message = null, IReadOnlyList<string>? AppliedIds = null)
+public sealed record EditSessionSaveOutcome(
+    bool Saved,
+    IReadOnlyList<EditSessionFailure> Failures,
+    string? Message = null,
+    IReadOnlyList<string>? AppliedIds = null,
+    IReadOnlyList<EditSessionChangeResult>? Results = null)
 {
     public static EditSessionSaveOutcome Success { get; } = new(true, []);
 
@@ -51,8 +56,8 @@ public sealed class EditSessionSaver
 
         var failures = FailuresOf(checkedList.Value!);
         return failures.Count == 0 && checkedList.Value!.Valid
-            ? EditSessionSaveOutcome.Success
-            : new EditSessionSaveOutcome(false, failures);
+            ? EditSessionSaveOutcome.Success with { Results = checkedList.Value!.Changes }
+            : new EditSessionSaveOutcome(false, failures, Results: checkedList.Value!.Changes);
     }
 
     /// <summary>
@@ -78,11 +83,11 @@ public sealed class EditSessionSaver
         var failures = FailuresOf(result);
         if (!result.DataSaved)
         {
-            return new EditSessionSaveOutcome(false, failures, failures.Count == 0 ? "Nothing was saved." : null);
+            return new EditSessionSaveOutcome(false, failures, failures.Count == 0 ? "Nothing was saved." : null, Results: result.Changes);
         }
 
         var applied = result.Changes.Where(change => change.Status == EditSessionChangeStatuses.Ok).Select(change => change.Id).ToList();
-        return new EditSessionSaveOutcome(true, failures, AppliedIds: applied);
+        return new EditSessionSaveOutcome(true, failures, AppliedIds: applied, Results: result.Changes);
     }
 
     // A change that was only held back because another one failed is not the cause, so it is left out when the cause is listed.

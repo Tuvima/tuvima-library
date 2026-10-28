@@ -28,23 +28,37 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     private readonly List<string> _overrideSaves = [];
     private Func<EditSessionRequest, EditSessionResult> _answer = request => Ok(request);
     private int _refreshes;
+    private MediaEditorContextDto? _context;
+    private readonly IRenderedComponent<AppDialogHost> _dialogs;
 
     public UniversalEditorBarTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddSingleton(_device);
+        // Save changes opens Review changes, which reads the write-back setting through the same client the editor uses.
+        Services.AddSingleton(Api());
         Render<AppPopoverHost>();
+        _dialogs = Render<AppDialogHost>();
+    }
+
+    // Save changes opens Review changes; saving happens from its footer.
+    private void SaveFromReview(IRenderedComponent<EditingBar> bar)
+    {
+        bar.Find("button.tl-editing-bar__save").Click();
+        _dialogs.WaitForElement(".review-changes");
+        _dialogs.WaitForAssertion(() => Assert.False(_dialogs.Find(".app-dialog-shell__footer button:last-child").HasAttribute("disabled")));
+        _dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
     }
 
     private Task UseDesktopAsync() =>
         _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
 
-    private IEngineApiClient Api(MediaEditorContextDto? context = null)
+    private IEngineApiClient Api()
     {
         var api = EngineApiClientStub.Create(stub =>
         {
-            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(context ?? EditingModeTestData.MovieContext()));
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(_context ?? EditingModeTestData.MovieContext()));
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
             stub.SetHandler(nameof(IEngineApiClient.SaveItemDisplayOverridesAsync), _ =>
             {
@@ -80,7 +94,8 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     private async Task<Editor> StartEditorAsync(MediaEditorContextDto? context = null, bool discardWhenAsked = false, bool turnOn = true)
     {
         await UseDesktopAsync();
-        var api = Api(context);
+        _context = context;
+        var api = Services.GetRequiredService<IEngineApiClient>();
         var fields = new ItemFieldEditSession(api, _device);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
         mode.Loader = () => fields.LoadAsync(MovieId, context?.MediaType ?? "Movies", context?.InitialScope ?? "movie", null);
@@ -483,10 +498,10 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
         var cut = RenderBar(editor);
 
-        cut.Find("button.tl-editing-bar__save").Click();
+        SaveFromReview(cut);
 
         cut.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
-        Assert.Equal([true, false], _sessionCalls);
+        Assert.Equal([true, true, false], _sessionCalls);
         Assert.Equal(1, _refreshes);
         Assert.True(editor.Session.Pending.IsEmpty);
         Assert.False(editor.Session.IsActive);
@@ -507,15 +522,11 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         };
         var cut = RenderBar(editor);
 
+        // The check runs when Review changes opens and the dialog shows the reason on its row; Save stays off.
         cut.Find("button.tl-editing-bar__save").Click();
 
-        cut.WaitForAssertion(() =>
-        {
-            var notice = cut.Find(".tl-editing-bar__notice");
-            Assert.Contains("Some changes could not be saved", notice.TextContent);
-            Assert.Contains("This item is no longer in your library.", notice.TextContent);
-            Assert.Contains("Title, Rating", notice.TextContent);
-        });
+        _dialogs.WaitForAssertion(() => Assert.Contains("This item is no longer in your library.", _dialogs.Find(".review-changes").TextContent));
+        Assert.True(_dialogs.Find(".app-dialog-shell__footer button:last-child").HasAttribute("disabled"));
         Assert.Equal([true], _sessionCalls);
         Assert.True(editor.Mode.IsOn);
         Assert.Equal(2, editor.Session.Pending.ChangeCount);

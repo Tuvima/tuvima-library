@@ -31,6 +31,8 @@ public sealed class EditSessionState
         Pending.Changed += RaiseChanged;
     }
 
+    private readonly Dictionary<Guid, IReadOnlyList<EditTrailItem>> _known = [];
+
     public PendingEditList Pending { get; }
 
     public event Action? Changed;
@@ -62,6 +64,7 @@ public sealed class EditSessionState
         IsActive = true;
         Trail = trail;
         ActiveItem = trail[^1];
+        Remember(trail);
         RaiseChanged();
     }
 
@@ -81,6 +84,7 @@ public sealed class EditSessionState
 
         Trail = trail;
         ActiveItem = trail[^1];
+        Remember(trail);
         // The temporary artwork view belongs to the item it was opened for.
         ViewContext = EditViewContext.Normal;
         RaiseChanged();
@@ -127,9 +131,24 @@ public sealed class EditSessionState
         IsActive = false;
         ActiveItem = null;
         Trail = [];
+        _known.Clear();
         ActiveTool = null;
         ViewContext = EditViewContext.Normal;
         RaiseChanged();
+    }
+
+    /// <summary>The name of an item the session has visited (Review changes names the item on each row), or null when it is not known.</summary>
+    public string? ItemName(Guid entityId) => _known.TryGetValue(entityId, out var trail) ? trail[^1].Title : null;
+
+    /// <summary>The trail that ends at an item the session has visited, so Review changes can jump back to it; null when it is not known.</summary>
+    public IReadOnlyList<EditTrailItem>? TrailTo(Guid entityId) => _known.GetValueOrDefault(entityId);
+
+    private void Remember(IReadOnlyList<EditTrailItem> trail)
+    {
+        for (var i = 0; i < trail.Count; i++)
+        {
+            _known[trail[i].EntityId] = [.. trail.Take(i + 1)];
+        }
     }
 
     private void RaiseChanged() => Changed?.Invoke();

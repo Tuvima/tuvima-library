@@ -409,13 +409,17 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     [Fact]
     public async Task SaveChangesChecksThenSaves_AndLeavesEditModeOnThePage()
     {
+        var dialogs = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
         TypeIntoTheTitle(cut, "Dune Messiah");
 
+        // Save changes opens Review changes; the save happens from its footer.
         cut.Find("button.tl-editing-bar__save").Click();
+        dialogs.WaitForAssertion(() => Assert.False(dialogs.Find(".app-dialog-shell__footer button:last-child").HasAttribute("disabled")));
+        dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
 
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
-        Assert.Equal([true, false], _sessionCalls);
+        Assert.Equal([true, true, false], _sessionCalls);
         Assert.Empty(_saves);
         Assert.Empty(cut.FindAll(".tl-editor-panel"));
     }
