@@ -15,6 +15,7 @@ public sealed class PluginSegmentDetectionService
     private readonly IPluginExecutionContextFactory _contexts;
     private readonly ILogger<PluginSegmentDetectionService> _logger;
     private readonly PluginActivityService? _activity;
+    private readonly PluginLibraryLimitService? _libraryLimits;
 
     public PluginSegmentDetectionService(
         PluginCatalog catalog,
@@ -22,9 +23,11 @@ public sealed class PluginSegmentDetectionService
         IMediaAssetRepository assets,
         IPluginExecutionContextFactory contexts,
         ILogger<PluginSegmentDetectionService> logger,
-        PluginActivityService? activity = null)
+        PluginActivityService? activity = null,
+        PluginLibraryLimitService? libraryLimits = null)
     {
         _activity = activity;
+        _libraryLimits = libraryLimits;
         _catalog = catalog;
         _segments = segments;
         _assets = assets;
@@ -55,6 +58,12 @@ public sealed class PluginSegmentDetectionService
         foreach (var registration in registrations)
         {
             if (!registration.Enabled || registration.LoadError is not null)
+            {
+                continue;
+            }
+
+            // An administrator can limit a detector to chosen libraries (D6); an item elsewhere is simply not its work.
+            if (_libraryLimits is not null && !await _libraryLimits.IsAllowedAsync(registration.Manifest.Id, asset.LibraryId, ct).ConfigureAwait(false))
             {
                 continue;
             }

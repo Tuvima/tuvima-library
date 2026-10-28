@@ -23,6 +23,23 @@ internal sealed class MutableClock(DateTimeOffset start) : TimeProvider
     public void Advance(TimeSpan by) => _now += by;
 }
 
+/// <summary>A detector a test plugin declares. Counts how many items it was asked to look at.</summary>
+internal sealed class TestSegmentDetector : IPlaybackSegmentDetector
+{
+    private int _analyzed;
+
+    public string Kind => "playback-segment-detector";
+    public int Analyzed => Volatile.Read(ref _analyzed);
+
+    public bool CanAnalyze(PluginMediaAssetContext asset, IPluginExecutionContext context) => true;
+
+    public Task<IReadOnlyList<PluginPlaybackSegment>> AnalyzeAsync(PluginMediaAssetContext asset, IPluginExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref _analyzed);
+        return Task.FromResult<IReadOnlyList<PluginPlaybackSegment>>([]);
+    }
+}
+
 /// <summary>A recurring job a test plugin declares. Counts its runs and does whatever the test says.</summary>
 internal sealed class TestScheduledJob(
     string key,
@@ -149,10 +166,12 @@ internal sealed class HostServicesTestPlugin : ITuvimaPlugin
         IReadOnlyList<string>? permissions = null,
         string name = "Test plugin",
         IReadOnlyList<PluginNetworkDestination>? network = null,
-        string? pagesJson = null)
+        string? pagesJson = null,
+        PluginDeclaration? declaration = null)
     {
         Manifest = new PluginManifest
         {
+            Declaration = declaration,
             Id = id,
             Name = name,
             Version = "1.0.0",
@@ -175,6 +194,13 @@ internal sealed class HostServicesTestPlugin : ITuvimaPlugin
         var job = new TestScheduledJob(key, displayName ?? "Refresh the " + key, schedule ?? PluginSchedule.Every(TimeSpan.FromMinutes(30)), body);
         _capabilities.Add(job);
         return job;
+    }
+
+    public TestSegmentDetector AddDetector()
+    {
+        var detector = new TestSegmentDetector();
+        _capabilities.Add(detector);
+        return detector;
     }
 
     public TestEventSubscriber Subscribe(params string[] eventTypes)
@@ -224,8 +250,8 @@ internal sealed class HostServicesContextFactory(
             new BoundPluginRecords(pluginId, gate, records, limits, statuses.Get(pluginId), clock));
     }
 
-    public IPluginExecutionContext CreateForMedia(string pluginId, string purpose, PluginMediaAssetContext asset) =>
-        throw new NotSupportedException();
+    /// <summary>Same as <see cref="Create"/>: a test that only needs to know the detector was asked does not need real media access.</summary>
+    public IPluginExecutionContext CreateForMedia(string pluginId, string purpose, PluginMediaAssetContext asset) => Create(pluginId, purpose);
 }
 
 /// <summary>
@@ -271,8 +297,8 @@ internal sealed class HostServicesHarness : IDisposable
     public HostServicesContextFactory Contexts { get; private set; } = null!;
     public string LibraryRoot => Path.Combine(_root, "library");
 
-    public PluginJobScheduler NewScheduler() =>
-        new(Catalog, Statuses, Contexts, Runner, Runs, Limits, Clock, NullLogger<PluginJobScheduler>.Instance);
+    public PluginJobScheduler NewScheduler(MediaEngine.Api.Services.IIngestionQueueProgressService? ingestion = null) =>
+        new(Catalog, Statuses, Contexts, Runner, Runs, Limits, Clock, NullLogger<PluginJobScheduler>.Instance, ingestion: ingestion);
 
     public PluginEventDispatcher NewDispatcher() =>
         new(Catalog, Statuses, Contexts, Events, Cursors, Limits, Clock, NullLogger<PluginEventDispatcher>.Instance);

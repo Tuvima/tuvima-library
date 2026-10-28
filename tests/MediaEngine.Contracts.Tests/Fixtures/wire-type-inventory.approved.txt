@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1253; api=0; web-client=54
+# scopes: contracts=1256; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8397,6 +8397,25 @@
 [contracts] MediaEngine.Contracts.Plugins.PluginJsonUpdateRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Json: System.String | json=json | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Plugins.PluginLibraryChoiceDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Selected: System.Boolean | json=selected | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","name":"sample","selected":true}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginLibraryLimitRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  LibraryIds: System.Collections.Generic.List<System.String> | json=library_ids | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"library_ids":[]}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginLibraryLimitResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PluginId: System.String | json=plugin_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Limited: System.Boolean | json=limited | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Libraries: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginLibraryChoiceDto> | json=libraries | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","limited":true,"libraries":[]}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginLoreSourceCandidateDto
   kind=class | converter=default | number-handling=default | unmapped=default

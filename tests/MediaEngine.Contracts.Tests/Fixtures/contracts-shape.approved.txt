@@ -7159,6 +7159,19 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginJobSnapshot
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginJsonUpdateRequest
   Json: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginLibraryChoiceDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Selected: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginLibraryLimitRequest
+  LibraryIds: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginLibraryLimitResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Limited: System.Boolean | nullability=not-null | accessors=get,set
+  Libraries: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginLibraryChoiceDto> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginLoreSourceCandidateDto
   SourceKey: System.String | nullability=not-null | accessors=get,init
   SourceName: System.String | nullability=not-null | accessors=get,init
