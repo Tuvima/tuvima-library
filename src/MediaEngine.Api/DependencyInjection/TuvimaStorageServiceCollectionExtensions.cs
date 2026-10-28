@@ -154,6 +154,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<AuthenticationProviderConfigurationService>();
         services.AddSingleton<AuthenticationPolicyMutationGate>();
         services.AddSingleton<ExternalIdentityTransactionService>();
+        services.AddSingleton<IFirstRunSetupState, MediaEngine.Api.Services.FirstRunSetupState>();
         services.AddSingleton<IFirstPartyIdentityService, FirstPartyIdentityService>();
         services.AddSingleton<IProfilePinVerifier>(sp => (FirstPartyIdentityService)sp.GetRequiredService<IFirstPartyIdentityService>());
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultAdministrationService>();

@@ -53,7 +53,7 @@ public sealed class SharedAiRuntimeTests
     {
         using var directory = new Scratch();
         var missing = Path.Combine(directory.Path, "not-installed");
-        Assert.Throws<FileNotFoundException>(() => SharedAiRuntime.VerifyManifest(missing, "1.0", "win-x64"));
+        Assert.Throws<AiRuntimeNotInstalledException>(() => SharedAiRuntime.VerifyManifest(missing, "1.0", "win-x64"));
         Assert.False(Directory.Exists(missing));
         var errors = AiSettingsValidator.Validate(new AiSettings { NativeRuntimeDirectory = "relative/runtimes" });
         Assert.Contains(errors, error => error.Path == "native_runtime_directory");
