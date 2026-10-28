@@ -782,7 +782,7 @@ are not overloaded as locations or organizations.
 | `wikidata_revision_id` | INTEGER | Last observed Wikidata revision for lore-delta refresh |
 
 User-authored display fields are kept separately in `fictional_entity_user_overrides` and
-`narrative_root_user_overrides`, so enrichment never overwrites a curator edit.
+`narrative_root_user_overrides`, so enrichment never overwrites a curator edit. In `fictional_entity_user_overrides` the name and the description are each optional: a field with no value keeps following the provider.
 
 ### fictional_entity_work_links
 

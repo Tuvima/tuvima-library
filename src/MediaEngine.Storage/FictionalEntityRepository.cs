@@ -250,10 +250,14 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
     }
 
     /// <inheritdoc/>
-    public Task UpdateUserDetailsAsync(Guid entityId, string label, string? description, CancellationToken ct = default)
+    public Task UpdateUserDetailsAsync(Guid entityId, string? label, string? description, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        if (label is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        }
+
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             conn.Execute("""
@@ -263,8 +267,20 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                     label = excluded.label,
                     description = excluded.description,
                     updated_at = datetime('now');
-                """, new { entityId, label = label.Trim(), description }, tx);
+                """, new { entityId, label = label?.Trim(), description }, tx);
         }, ct);
+    }
+
+    /// <inheritdoc/>
+    public Task<(string? Label, string? Description)?> GetUserDetailsAsync(Guid entityId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        using var conn = _db.CreateConnection();
+        var row = conn.QueryFirstOrDefault<(string? Label, string? Description)?>(
+            "SELECT label AS Label, description AS Description FROM fictional_entity_user_overrides WHERE entity_id = @entityId LIMIT 1;",
+            new { entityId });
+        return Task.FromResult(row);
     }
 
     /// <inheritdoc/>
