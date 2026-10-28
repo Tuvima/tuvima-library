@@ -194,6 +194,9 @@ else
                                                      ProfileId="@PlaybackProfileId"
                                                      TargetNameChanged="OnPlaybackTargetNameChanged" />
                                 break;
+                            case SettingsSection.Home:
+                                <HomeSettingsPage />
+                                break;
                             case SettingsSection.Libraries:
                                 <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
                                 break;
@@ -925,6 +928,7 @@ else
         SettingsSection.Playback => "How you watch.",
         SettingsSection.Listening => "How you listen.",
         SettingsSection.Reading => "How you read.",
+        SettingsSection.Home => "What the top banner on Home may show.",
         SettingsSection.Security => _activeSubsection == "devices"
             ? "The phones, TVs and browsers signed in to Library, and who they belong to."
             : "Password, email and extra protection.",

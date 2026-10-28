@@ -616,6 +616,8 @@ public sealed class DatabaseStartupSafetyTests
             ("profile_credentials", "id"),
             ("profile_credentials", "profile_id"),
             ("profile_grid_preferences", "profile_id"),
+            ("profile_hero_plugin_switches", "profile_id"),
+            ("profile_hero_settings", "profile_id"),
             ("profile_person_preferences", "person_id"),
             ("profile_person_preferences", "profile_id"),
             ("profile_reactions", "entity_id"),

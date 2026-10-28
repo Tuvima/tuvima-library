@@ -2902,6 +2902,26 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroDto
   PreviewItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayCardPreviewItemDto> | nullability=not-null | accessors=get,init
   PreviewTotalCount: System.Int32? | nullability=nullable | accessors=get,init
   IsContinued: System.Boolean | nullability=not-null | accessors=get,init
+  SuggestedBy: System.String | nullability=nullable | accessors=get,init
+  SuggestedReason: System.String | nullability=nullable | accessors=get,init
+  SuggestedByAi: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroPluginDto
+  PluginId: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroPluginSwitchRequest
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroSettingsDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+  SlideCount: System.Int32 | nullability=not-null | accessors=get,init
+  AllowWatch: System.Boolean | nullability=not-null | accessors=get,init
+  AllowRead: System.Boolean | nullability=not-null | accessors=get,init
+  AllowListen: System.Boolean | nullability=not-null | accessors=get,init
+  ContinuedOnly: System.Boolean | nullability=not-null | accessors=get,init
+  Plugins: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayHeroPluginDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayItemsRequest
   Ids: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init

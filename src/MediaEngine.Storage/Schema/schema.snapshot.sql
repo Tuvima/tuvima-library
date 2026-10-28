@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0059 text_track_rejections).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0061 profile_hero_plugin_switches).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2196,6 +2196,24 @@ CREATE TABLE profile_grid_preferences (
     sort        TEXT NOT NULL CHECK (sort IN ('added', 'title', 'year', 'played')),
     updated_at  TEXT NOT NULL,   -- ISO 8601 UTC
     PRIMARY KEY (profile_id, grid_key)
+);
+
+CREATE TABLE profile_hero_plugin_switches (
+    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    plugin_id  TEXT NOT NULL,
+    updated_at TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (profile_id, plugin_id)
+);
+
+CREATE TABLE profile_hero_settings (
+    profile_id     BLOB    NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+    hero_enabled   INTEGER NOT NULL DEFAULT 1 CHECK (hero_enabled IN (0, 1)),
+    slide_count    INTEGER NOT NULL DEFAULT 5 CHECK (slide_count BETWEEN 1 AND 5),
+    allow_watch    INTEGER NOT NULL DEFAULT 1 CHECK (allow_watch IN (0, 1)),
+    allow_read     INTEGER NOT NULL DEFAULT 1 CHECK (allow_read IN (0, 1)),
+    allow_listen   INTEGER NOT NULL DEFAULT 1 CHECK (allow_listen IN (0, 1)),
+    continued_only INTEGER NOT NULL DEFAULT 0 CHECK (continued_only IN (0, 1)),
+    updated_at     TEXT    NOT NULL   -- ISO 8601 UTC
 );
 
 CREATE TABLE profile_library_hidden (

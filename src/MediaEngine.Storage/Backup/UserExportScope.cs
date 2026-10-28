@@ -171,6 +171,8 @@ public static class UserExportScope
                 [new UserRowCheck.ProfileColumn("profile_id"), new UserRowCheck.ColumnIn("feature_id", ["read", "watch", "listen", "view"])]),
             new("profile_credentials", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_grid_preferences", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
+            new("profile_hero_settings", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
+            new("profile_hero_plugin_switches", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_notice_dismissals", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_sequence_preferences", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),
             new("profile_view_policies", "profile_id IN (" + InProfiles + ")", [], [new UserRowCheck.ProfileColumn("profile_id")]),

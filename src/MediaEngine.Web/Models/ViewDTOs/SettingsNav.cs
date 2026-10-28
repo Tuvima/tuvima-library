@@ -14,6 +14,7 @@ public enum SettingsSection
     Playback,
     Listening,
     Reading,
+    Home,
     Security,
 
     AdminOverview,
@@ -184,6 +185,7 @@ public static class SettingsNav
             [SettingsSection.Playback] = Complete(),
             [SettingsSection.Listening] = Complete(),
             [SettingsSection.Reading] = Complete(),
+            [SettingsSection.Home] = Complete(),
             [SettingsSection.Security] = Complete(),
             [SettingsSection.AdminOverview] = Complete(),
             [SettingsSection.Libraries] = Complete(),
@@ -243,6 +245,7 @@ public static class SettingsNav
         new(SettingsSection.Playback, "personal", "playback", AppMaterialIcons.Outlined.PlayCircleOutline, "Playback", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Listening, "personal", "listening", AppMaterialIcons.Outlined.Headphones, "Listening", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Reading, "personal", "reading", AppMaterialIcons.Outlined.MenuBook, "Reading", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Home, "personal", "home", AppMaterialIcons.Outlined.Home, "Home", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security", false, null, ["account"], "sqlite", Status: SettingsStatusKind.Live),
 
         new(SettingsSection.Ingestion, "server", "ingestion", AppMaterialIcons.Outlined.VideoLibrary, "Library and Ingestion", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
@@ -290,6 +293,7 @@ public static class SettingsNav
                 Node("Playback", AppMaterialIcons.Outlined.PlayCircleOutline, SettingsSection.Playback),
                 Node("Listening", AppMaterialIcons.Outlined.Headphones, SettingsSection.Listening),
                 Node("Reading", AppMaterialIcons.Outlined.MenuBook, SettingsSection.Reading),
+                Node("Home", AppMaterialIcons.Outlined.Home, SettingsSection.Home),
             ]),
             Node("Security", AppMaterialIcons.Outlined.Lock, SettingsSection.Security, children:
             [
@@ -375,6 +379,7 @@ public static class SettingsNav
             [SettingsSection.Playback] = [],
             [SettingsSection.Listening] = [],
             [SettingsSection.Reading] = [],
+            [SettingsSection.Home] = [],
             [SettingsSection.Security] =
             [
                 new("devices", "Devices", AppMaterialIcons.Outlined.Devices),
@@ -454,6 +459,7 @@ public static class SettingsNav
         SettingsSection.Playback,
         SettingsSection.Listening,
         SettingsSection.Reading,
+        SettingsSection.Home,
         SettingsSection.Security,
         SettingsSection.AdminOverview,
         SettingsSection.Libraries,
@@ -699,7 +705,7 @@ public static class SettingsNav
         // Overview is everyone's own page. Profiles is for administrators only: a member (and a Kids profile) never sees it. A household administrator reaches it
         // through HouseholdAdminAccess; the Engine still limits what they can do there to their own household.
         return administrationAllowed || section is SettingsSection.Overview or SettingsSection.Preferences or SettingsSection.Playback
-            or SettingsSection.Listening or SettingsSection.Reading or SettingsSection.Security
+            or SettingsSection.Listening or SettingsSection.Reading or SettingsSection.Home or SettingsSection.Security
             || householdAdministrator && item.HouseholdAdminAccess;
     }
 

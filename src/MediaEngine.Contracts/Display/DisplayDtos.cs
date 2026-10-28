@@ -66,6 +66,15 @@ public sealed record DisplayHeroDto(
 
     /// <summary>True when the person is in the middle of this item (Home hero "started"); false for newly added ("new").</summary>
     public bool IsContinued { get; init; }
+
+    /// <summary>The name of the plugin that suggested this slide ("Suggested by ..."); null for slides the Library chose itself.</summary>
+    public string? SuggestedBy { get; init; }
+
+    /// <summary>The plugin's short reason for suggesting the slide, such as "Because you finished Dune".</summary>
+    public string? SuggestedReason { get; init; }
+
+    /// <summary>True when Local AI produced the suggestion, so the Dashboard can mark it "AI".</summary>
+    public bool SuggestedByAi { get; init; }
 }
 
 public sealed record DisplayShelfDto(

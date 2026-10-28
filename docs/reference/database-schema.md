@@ -1862,6 +1862,29 @@ Each person's own record of what they watched, listened to and read, and what th
 
 The small pictures `personal_activity` rows point at: a copy of the cover with a longest edge of at most 240 px (JPEG, or WebP when the cover has transparency), made once when the activity began and shared by every row with the same source cover. `key` is the SHA-256 of the source cover file (primary key), with `image` (BLOB), `content_type`, `width`, `height` and `created_at`. Deleting history removes the pictures no row uses any more.
 
+### profile_hero_settings
+
+How a person wants the Home hero (the big banner at the top of Home) to behave. Added by upgrade step `0060_profile_hero_settings`. One row per profile; a profile with no row gets the defaults (hero on, five slides, every type, in-progress items first and new items after). The settings only narrow what the hero rules choose from. Deleting a profile removes its row.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `profile_id` | BLOB | The profile. References `profiles(id)` with `ON DELETE CASCADE`. Primary key. |
+| `hero_enabled` | INTEGER | 1 shows the hero, 0 hides it and Home starts at the first row. |
+| `slide_count` | INTEGER | How many slides at most, 1 to 5. |
+| `allow_watch` / `allow_read` / `allow_listen` | INTEGER | 1 lets movies and shows / books and comics / music and audiobooks appear in the hero. |
+| `continued_only` | INTEGER | 1 shows only things the person has started; 0 adds new items after them. |
+| `updated_at` | TEXT | ISO 8601 UTC. |
+
+### profile_hero_plugin_switches
+
+Which plugins' Home slides a person switched off for themselves (Home page redesign spec WP8). Added by upgrade step `0061_profile_hero_plugin_switches`. A row means the profile does not want that plugin's slides; no row means they are on. Deleting a profile removes its rows.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `profile_id` | BLOB | The profile. References `profiles(id)` with `ON DELETE CASCADE`. Part of the primary key. |
+| `plugin_id` | TEXT | The plugin's manifest id. Part of the primary key. |
+| `updated_at` | TEXT | ISO 8601 UTC. |
+
 ### profile_grid_preferences
 
 The order a person last chose on each "View all" grid (Watch, Read, Listen, My list, Liked), remembered per profile so it follows them to every device. Added by upgrade step `0016_profile_grid_preferences`. One row per profile and grid; a grid with no row uses its default order. Deleting a profile removes its rows.
