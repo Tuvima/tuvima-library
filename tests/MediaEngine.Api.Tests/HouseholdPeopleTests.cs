@@ -546,7 +546,7 @@ public sealed class HouseholdPeopleTests
                 new NoOpInvalidation(),
                 fixture.Audit,
                 fixture.Identity,
-                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
                 fixture.Accounts, fixture.Access, fixture.Identity);
             return Task.FromResult(fixture);
         }
@@ -573,7 +573,7 @@ public sealed class HouseholdPeopleTests
             new NoOpInvalidation(),
             Audit,
             Identity,
-            new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+            new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries());
 
         public Task<Account> CreateOwnerAsync(params AccountFeatureId[] features) => Mutations.CreateAsync(Actor,
             new CreateAccountAccessCommand(

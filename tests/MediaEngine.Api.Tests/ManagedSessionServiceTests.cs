@@ -207,7 +207,7 @@ public sealed class ManagedSessionServiceTests
             world._mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                 world._accounts,
                 new ProfileAccessRepository(world._database), world.Identities, world._profiles, world._configuration,
-                new AllowAllDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit, world._identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
+                new AllowAllDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit, world._identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
                 world._accounts, new ProfileAccessRepository(world._database), world._identity);
             world._setupActor = new RequestAuthority(
                 PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(), SessionId: Guid.NewGuid(),

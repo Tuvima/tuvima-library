@@ -8251,6 +8251,10 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AdaptiveHlsSetting
   CleanupIntervalMinutes: System.Int32 | nullability=not-null | accessors=get,set
   Renditions: System.Collections.Generic.List<MediaEngine.Contracts.Settings.HlsRenditionProfile> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AddVaultFolderRequest
+  KindKey: System.String | nullability=not-null | accessors=get,init
+  FolderPath: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AuthSettingsDto
   Mode: System.String | nullability=not-null | accessors=get,init
   LocalhostBypass: System.Boolean | nullability=not-null | accessors=get,init
@@ -8283,6 +8287,11 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.BrowseServerFolder
   DisplayPath: System.String | nullability=not-null | accessors=get,init
   Directories: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFolderEntryDto> | nullability=not-null | accessors=get,init
   Files: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFileEntryDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.CreateVaultLibraryFromKindRequest
+  KindKey: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  FolderPath: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.DismissProfileNoticeRequest
   Fingerprint: System.String | nullability=not-null | accessors=get,init
@@ -9125,6 +9134,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerStorageLocat
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SetLibraryProfileGrantsRequest
   ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SetVaultOnlineLookupRequest
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SettingsCatalogEntryResponse
   key: System.String | nullability=not-null | accessors=get,init
   label: System.String | nullability=not-null | accessors=get,init
@@ -9394,6 +9406,19 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ValidateServerFold
   SelectionMode: System.String | nullability=not-null | accessors=get,init
   CurrentSourceId: System.String | nullability=nullable | accessors=get,init
   KindKey: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.VaultLibraryActionResultDto
+  Ok: System.Boolean | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.VaultMoveDestinationDto
+  KindKey: System.String | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  LibraryId: System.Guid? | nullability=nullable | accessors=get,init
+  LibraryName: System.String | nullability=nullable | accessors=get,init
+  ManagedFolders: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.VaultMoveDestinationStates
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ViewStorageDto
   StorageLocationId: System.String | nullability=not-null | accessors=get,set

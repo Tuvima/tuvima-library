@@ -330,6 +330,31 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
         Assert.Empty(LibraryKindRules.LibraryProblems(VaultLibrarySettings.WithoutVault(sent, ids), LibraryKindsConfiguration.BuiltIn()));
     }
 
+    [Fact]
+    public void AnEntryThatSaysVault_IsLeftOutOfTheSettingsAndKeptWhenSaved_EvenWithNoRowInTheVaultTables()
+    {
+        SeedOrdinaryMoviesLibrary();
+        var current = _configuration.LoadLibraries();
+        var orphan = new LibraryFolderConfig
+        {
+            Id = Guid.NewGuid().ToString("D"),
+            Name = "Private Movies",
+            KindKey = "movies",
+            Access = LibraryAccessLevels.Vault,
+        };
+        current.Libraries.Add(orphan);
+        var none = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal(MoviesLibraryId, Assert.Single(VaultLibrarySettings.WithoutVault(current, none).Libraries).Id);
+
+        // A save that sends back an entry saying vault cannot add one, and the existing one is kept as it was.
+        var sent = new LibrariesConfiguration { StorageLocations = current.StorageLocations, Libraries = [.. current.Libraries.Where(library => library.Id == MoviesLibraryId)] };
+        sent.Libraries.Add(new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Sneaky", KindKey = "movies", Access = LibraryAccessLevels.Vault });
+        VaultLibrarySettings.KeepVault(current, sent, none);
+        Assert.Equal(2, sent.Libraries.Count);
+        Assert.Same(orphan, Assert.Single(sent.Libraries, library => library.Access == LibraryAccessLevels.Vault));
+    }
+
     // ── Setup ───────────────────────────────────────────────────────────────────────────────────
 
     private async Task<VaultLibrary> NewVaultLibraryAsync()

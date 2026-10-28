@@ -163,6 +163,9 @@ public static partial class LibraryKindRules
         return problems;
     }
 
+    /// <summary>The key of the kind that is only ever offered Vault-protected or for Selected profiles (Library pages D12, D21).</summary>
+    public const string AdultContentKey = "adult_content";
+
     /// <summary>
     /// What is wrong with the link between catalogued libraries and their kinds: a missing <c>kind_key</c>, one that names no
     /// kind (unless <paramref name="allowUnknownKeys"/>, for a file read without the plugins' kinds), and a library whose media
@@ -215,6 +218,13 @@ public static partial class LibraryKindRules
                 problems.Add($"{prefix}.media_types must include {kind.Format ?? "a format"}, the format of the library kind \"{kind.Key}\".");
             }
 
+            // Adult content is never open to every profile (Library pages D12, D21): it is Vault-protected, or Selected profiles that only administrators start with.
+            if (string.Equals(kind.Key, AdultContentKey, StringComparison.Ordinal)
+                && !string.Equals(library.Access, LibraryAccessLevels.Selected, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase))
+            {
+                problems.Add($"{prefix}.access must be \"selected\" or \"vault\" for the library kind \"{kind.Key}\".");
+            }
         }
 
         AddCountAndNameProblems(libraries, kinds, problems);
@@ -281,10 +291,14 @@ public static partial class LibraryKindRules
     // kind's label: that is the default name of the first one).
     private static void AddCountAndNameProblems(LibrariesConfiguration libraries, IReadOnlyList<LibraryKindDefinition> kinds, List<string> problems)
     {
+        // A Vault-protected library is the Vault sibling of an ordinary one (Library pages D10, D11; Vault sections D26a): each content type
+        // has one normal and one Vault library, so a sibling is not counted against the normal library and its name is never compared with
+        // the ordinary names (comparing would tell a reader of the ordinary list that a Vault library of that name exists).
         var catalogued = libraries.Libraries
             .Select((library, index) => (library, index))
             .Where(entry => string.Equals(entry.library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrEmpty(entry.library.KindKey))
+                && !string.IsNullOrEmpty(entry.library.KindKey)
+                && !string.Equals(entry.library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         foreach (var group in catalogued.Where(entry => IsValidKey(entry.library.KindKey)).GroupBy(entry => entry.library.KindKey, StringComparer.Ordinal))

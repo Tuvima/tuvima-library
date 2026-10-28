@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Components.Shared
-@* The three Access choices of a library, in one place so they can be switched on one at a time as their packets arrive: Selected profiles
-   (the Access tab packet) and Vault-protected (the Vault packet). A choice that is not available yet is drawn, disabled, with the reason. *@
+@* The three Access choices of a library, in one place: Standard, Selected profiles and, for a server administrator only (the host passes ShowVault),
+   Vault-protected. A choice that cannot be picked is drawn, disabled, with the reason. *@
 <div class="library-access-options" role="group" aria-label="Access">
     <AppChoiceRow Title="Standard"
                   Description="Everyone who can use this area, within each profile's limits."
@@ -16,7 +16,7 @@
     @if (ShowVault)
     {
         <AppChoiceRow Title="Vault-protected"
-                      Description="@(VaultEnabled ? "Kept in the Vault, for administrators with Vault access." : VaultReason)"
+                      Description="@(VaultEnabled ? "Kept in the Vault, for the people you give Vault access." : (VaultDisabledReason ?? VaultReason))"
                       Selected="@(Value == LibraryAccessChoices.Vault)"
                       Disabled="@(Disabled || !VaultEnabled)"
                       OnClick="@(() => Choose(LibraryAccessChoices.Vault))" />
@@ -27,11 +27,11 @@
     /// <summary>Selected profiles can be chosen when a library is created and on the Access tab.</summary>
     public static readonly bool SelectedProfilesAvailable = true;
 
-    /// <summary>Vault-protected can be chosen when a library is created. Switched on by the Vault packet.</summary>
-    public static readonly bool VaultAvailable = false;
+    /// <summary>Vault-protected can be chosen when a library is created (Library pages WP9).</summary>
+    public static readonly bool VaultAvailable = true;
 
     public const string SelectedProfilesReason = "Not available here.";
-    public const string VaultReason = "Available after the Vault update.";
+    public const string VaultReason = "Not available here.";
 
     /// <summary>The chosen access value (<see cref="LibraryAccessChoices"/>).</summary>
     [Parameter] public string Value { get; set; } = LibraryAccessChoices.Standard;
@@ -40,6 +40,8 @@
     [Parameter] public bool ShowVault { get; set; }
     [Parameter] public bool SelectedProfilesEnabled { get; set; } = SelectedProfilesAvailable;
     [Parameter] public bool VaultEnabled { get; set; } = VaultAvailable;
+    /// <summary>The words shown when the Vault choice is drawn but cannot be picked (for example the content type already has one).</summary>
+    [Parameter] public string? VaultDisabledReason { get; set; }
     [Parameter] public bool Disabled { get; set; }
 
     private Task Choose(string value) => Value == value ? Task.CompletedTask : ValueChanged.InvokeAsync(value);

@@ -66,6 +66,28 @@ public sealed class LibraryKindLookupValidationTests
         Assert.DoesNotContain(errors, error => !error.Contains("absolute path"));
     }
 
+    [Fact]
+    public void AVaultLibraryOfAKindThatLooksThingsUpMayStayLocalOnlyBesideTheOrdinaryLibraryOfThatKind()
+    {
+        var vault = Plain("movies", "Movies", LibraryAreas.Watch, "Private Movies");
+        vault.Access = LibraryAccessLevels.Vault;
+
+        var errors = Errors(ShippedWith(vault));
+
+        Assert.DoesNotContain(errors, error => error.Contains("enriched", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(errors, error => error.Contains("holds one library", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void AnOrdinaryLibraryOfAKindThatLooksThingsUpStillMustUseEnrichedMetadata()
+    {
+        var ordinary = Plain("books", "Books", LibraryAreas.Read, "Second books");
+
+        var errors = Errors(ShippedWith(ordinary));
+
+        Assert.Contains(errors, error => error.Contains("enriched", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Theory]
     [InlineData("other_audio", "Music", LibraryAreas.Listen, "Recordings")]
     [InlineData("other_reading", "Books", LibraryAreas.Read, "Loose books")]

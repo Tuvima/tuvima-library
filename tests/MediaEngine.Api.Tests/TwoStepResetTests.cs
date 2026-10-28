@@ -43,7 +43,7 @@ public sealed class TwoStepResetTests : IDisposable
             accounts,
                         new ProfileAccessRepository(_database), identities, profiles, _configuration,
             new AllowDecisions(), new AllowEvaluator(),
-            new NoOpInvalidation(), _audit, _firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+            new NoOpInvalidation(), _audit, _firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries());
     }
 
     [Fact]

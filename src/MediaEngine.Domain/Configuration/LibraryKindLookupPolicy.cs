@@ -63,6 +63,11 @@ public static class LibraryKindLookupPolicy
         var mode = ModeOf(library.KindKey, kinds);
         return mode switch
         {
+            // A Vault-protected library asks no outside provider for anything until the Vault's own lookup gates exist (Vault sections WP1): whatever its
+            // stored "Look up details online" choice says, the effective policy stays local only, so no identity job, retail search, Wikidata bridge or
+            // video-site lookup runs. The stored choice is kept as it is, so it takes effect when the gates arrive.
+            _ when string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
+                => new EffectiveLibraryLookup(mode, LibraryMetadataPolicies.LocalOnly, YoutubeLookup: false),
             LibraryLookupMode.Plain => new EffectiveLibraryLookup(mode, LocalPolicy(library.MetadataPolicy), YoutubeLookup: false),
             LibraryLookupMode.YouTube => new EffectiveLibraryLookup(mode, LocalPolicy(library.MetadataPolicy), YoutubeLookup: true),
             _ => new EffectiveLibraryLookup(mode, library.MetadataPolicy, library.YoutubeLookup),

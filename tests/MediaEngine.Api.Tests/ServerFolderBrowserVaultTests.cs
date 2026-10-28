@@ -97,4 +97,56 @@ public sealed class ServerFolderBrowserVaultTests : IDisposable
         var visible = _service.Validate(Typed(_vaultFolder), []);
         Assert.True(visible.Exists);
     }
+
+    [Fact]
+    public void Validate_OfAFolderThatIsHoldsOrSitsInsideAVaultSiblingLibrary_NeverNamesItAndAnswersGenerically()
+    {
+        // A Vault sibling library has a name the person chose, so it is told apart by its access, not by a fixed name.
+        var parent = Path.Combine(_shared, "Group");
+        var vaultRoot = Path.Combine(parent, "Hidden");
+        Directory.CreateDirectory(Path.Combine(vaultRoot, "Inner"));
+        var configuration = new ConfigurationDirectoryLoader(Path.Combine(_root, "config-sibling"));
+        var settings = new LibrariesConfiguration
+        {
+            StorageLocations =
+            [
+                new ServerStorageLocationConfig { Id = "shared", Label = "Shared", Path = _shared, AllowWrite = true },
+                new ServerStorageLocationConfig { Id = "view", Label = "View", Path = Path.Combine(_root, "view"), AllowWrite = true },
+            ],
+            ViewStorage = new ViewStorageConfig { StorageLocationId = "view", RelativeRoot = "." },
+            Libraries =
+            [
+                new LibraryFolderConfig
+                {
+                    Id = Guid.NewGuid().ToString("D"),
+                    Name = "Private Movies",
+                    Category = "Movies",
+                    Kind = LibraryKinds.Catalogued,
+                    KindKey = "movies",
+                    Area = LibraryAreas.Watch,
+                    MediaTypes = ["Movies"],
+                    Access = LibraryAccessLevels.Vault,
+                    Sources = [new LibrarySourceConfig { Id = Guid.NewGuid().ToString("D"), Path = vaultRoot }],
+                },
+            ],
+        };
+        configuration.SaveLibraries(settings);
+        var service = new ServerFolderBrowserService(configuration, NullLogger<ServerFolderBrowserService>.Instance);
+
+        foreach (var path in new[] { vaultRoot, Path.Combine(vaultRoot, "Inner"), parent })
+        {
+            var result = service.Validate(new ValidateServerFolderRequest
+            {
+                StorageLocationId = "shared",
+                ManualPath = path,
+                SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+            }, []);
+
+            Assert.False(result.CanSelect);
+            var issue = Assert.Single(result.Issues, candidate => candidate.Code == "folder_not_allowed");
+            Assert.Null(issue.LibraryName);
+            Assert.DoesNotContain("Private Movies", issue.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("library", issue.Message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
 }

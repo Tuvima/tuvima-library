@@ -134,6 +134,7 @@
             .Select(Kinds.Find)
             .OfType<LibraryTypeOption>()
             .Where(kind => !string.Equals(kind.Key, Library.KindKey, StringComparison.OrdinalIgnoreCase)
+                && kind.Key != LibraryLookupRules.AdultContentKindKey
                 && !string.Equals(kind.Area, LibraryGroupCatalog.VaultKey, StringComparison.OrdinalIgnoreCase))];
 
     private bool CanLeaveKindStep => _kind is not null

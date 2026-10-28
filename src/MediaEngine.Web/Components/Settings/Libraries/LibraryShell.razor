@@ -10,17 +10,22 @@
 @inject LibraryFolderAddService AddService
 @inject IAppToastService Toast
 @inject IAppDialogService DialogService
+@inject DashboardSessionAccessor Session
+@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 
 @* One library's page (Library pages D7, D17, D18, D19): its content type, access, counts and status, the header actions, and the tab
    strip (Folders, Access, File handling, Activity, plus Lookup for a kind with lookup settings). The Settings frame above carries the
    breadcrumb Libraries > area > name and the library's name as the title. Folders embeds the existing folders panel for this one
    library; the other tabs are filled in by the next steps. The selected tab lives in the address (?tab=).
    Scan now scans this library only. Add folder adds a folder to THIS library and comes straight back to its table with the new row pointed
-   at and one confirmation (no "go to..." question). Add files copies server files into the import destination, so it waits for one. *@
+   at and one confirmation (no "go to..." question). Add files copies server files into the import destination, so it waits for one.
+   Vault-protected libraries (Library pages WP9) are reached only by someone who may see the Vault: their folders are listed as they are, Add
+   folder adds a Vault folder, Scan and Add files are not offered, and the Lookup tab holds the library's online lookup switch. For a server
+   administrator Add folder also offers "Add as a Vault folder" and the Folders menu "Move to Vault". Anyone else sees no Vault word. *@
 @{
     var row = Row;
 }
-<LibraryUploadZone Kinds="@Kinds" Configuration="@Configuration" Type="@row.Type" ReadOnly="@ReadOnly" FolderAdded="FolderAddedAsync">
+<LibraryUploadZone Kinds="@Kinds" Configuration="@Configuration" Type="@row.Type" ReadOnly="@(ReadOnly || IsVault)" FolderAdded="FolderAddedAsync">
     <div class="libpage" data-library="@row.Key">
         @if (ReadOnly)
         {
@@ -44,27 +49,33 @@
             @if (!ReadOnly)
             {
                 <div class="libpage__actions">
-                    <AppButton Label="Scan now"
-                               StartIcon="@AppMaterialIcons.Outlined.Sync"
-                               ButtonStyle="AppButtonStyle.Outlined"
-                               Loading="@_scanning"
-                               Disabled="@(_scanning || row.Folders == 0)"
-                               OnClick="ScanNowAsync" />
+                    @if (!IsVault)
+                    {
+                        <AppButton Label="Scan now"
+                                   StartIcon="@AppMaterialIcons.Outlined.Sync"
+                                   ButtonStyle="AppButtonStyle.Outlined"
+                                   Loading="@_scanning"
+                                   Disabled="@(_scanning || row.Folders == 0)"
+                                   OnClick="ScanNowAsync" />
+                    }
                     <AppButton Label="Add folder"
                                StartIcon="@AppMaterialIcons.Outlined.Add"
                                ButtonStyle="@(HighlightAddFolder ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
                                Tone="@(HighlightAddFolder ? AppUiTone.Primary : AppUiTone.Neutral)"
                                data-highlighted="@(HighlightAddFolder ? "true" : null)"
                                OnClick="AddFolderAsync" />
-                    <AppButton Label="Add files"
-                               StartIcon="@AppMaterialIcons.Outlined.UploadFile"
-                               ButtonStyle="AppButtonStyle.Outlined"
-                               Disabled="@(!HasImportDestination)"
-                               data-add-files="@(HasImportDestination ? "ready" : "needs-import-folder")"
-                               OnClick="AddFilesAsync" />
-                    @if (!HasImportDestination)
+                    @if (!IsVault)
                     {
-                        <AppInfoTip Text="@AddFilesWording.NeedsImportFolderHint" Label="@AddFilesWording.ChooseImportFolderFirst" />
+                        <AppButton Label="Add files"
+                                   StartIcon="@AppMaterialIcons.Outlined.UploadFile"
+                                   ButtonStyle="AppButtonStyle.Outlined"
+                                   Disabled="@(!HasImportDestination)"
+                                   data-add-files="@(HasImportDestination ? "ready" : "needs-import-folder")"
+                                   OnClick="AddFilesAsync" />
+                        @if (!HasImportDestination)
+                        {
+                            <AppInfoTip Text="@AddFilesWording.NeedsImportFolderHint" Label="@AddFilesWording.ChooseImportFolderFirst" />
+                        }
                     }
                 </div>
             }
@@ -74,7 +85,24 @@
             @foreach (var tab in Tabs)
             {
                 <AppTabPanel Text="@tab.Label">
-                    @if (tab.Slug == FoldersTab)
+                    @if (tab.Slug == FoldersTab && IsVault)
+                    {
+                        @if (Library.Sources.Count == 0)
+                        {
+                            <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FolderOpen" Title="No folders yet" Message="Choose Add folder to point Library at where these files live." />
+                        }
+                        else
+                        {
+                            <LibraryFolderGrid Library="@Library"
+                                               PluralLabel="@row.Type.PluralLabel"
+                                               ReadOnly="true"
+                                               PathIssues="@PathIssues"
+                                               PathsChecked="@(PathIssues is not null)"
+                                               HighlightSourceId="@_highlightSourceId" />
+                            <AppQuietNote>These folders are watched as they are. Library never changes their files.</AppQuietNote>
+                        }
+                    }
+                    else if (tab.Slug == FoldersTab)
                     {
                         <LibraryFoldersPanel @key="@_panelVersion"
                                              TypeKey="@row.Type.Key"
@@ -83,6 +111,7 @@
                                              HostOwnsActions="true"
                                              HighlightSourceId="@_highlightSourceId"
                                              ReadOnly="@ReadOnly"
+                                             OnMoveToVault="@(CanOfferVault ? EventCallback.Factory.Create<LibrarySourceDto>(this, MoveToVaultAsync) : default)"
                                              Changed="ChangedAsync" />
                     }
                     else if (tab.Slug == AccessTab)
@@ -97,9 +126,18 @@
                                                 ReadOnly="@ReadOnly"
                                                 Changed="ChangedAsync" />
                     }
+                    else if (tab.Slug == ActivityTab && IsVault)
+                    {
+                        @* A Vault library's activity is listed in the Vault, never here (Vault sections D40), so nothing about it is read from this page. *@
+                        <AppQuietNote>This library's activity is listed in the Vault, not here. <AppLink Href="/vault">Open the Vault</AppLink></AppQuietNote>
+                    }
                     else if (tab.Slug == ActivityTab)
                     {
                         <LibraryActivityTab Library="@Library" />
+                    }
+                    else if (tab.Slug == LookupTab && IsVault)
+                    {
+                        <LibraryVaultLookupTab Library="@Library" ReadOnly="@ReadOnly" Changed="ChangedAsync" />
                     }
                     else if (tab.Slug == LookupTab)
                     {
@@ -138,6 +176,8 @@
     [Parameter] public bool HighlightAddFolder { get; set; }
     /// <summary>Raised after a folder was added or changed, so the page can read the library list and counts again.</summary>
     [Parameter] public EventCallback Changed { get; set; }
+    /// <summary>True when the host shows Vault libraries (the administrator's Vault mode is on), so a library made from Move to Vault can be opened.</summary>
+    [Parameter] public bool VaultVisible { get; set; }
 
     private bool _scanning;
     private int _panelVersion;
@@ -145,6 +185,16 @@
 
     // Add files needs somewhere to copy into: a managed folder that is this library's import destination.
     private bool HasImportDestination => Library.GetPrimaryDestination() is { ManagementMode: "managed_by_tuvima" };
+
+    private bool IsVault => LibraryLookupRules.IsVaultLibrary(Library);
+
+    // The Vault choices on this page (Add as a Vault folder, Move to Vault) are for a server administrator whose Vault mode is on, on an ordinary library of a content
+    // type that can have a Vault library. With Vault mode off they are not drawn at all, so nothing here tells an administrator the Vault exists (review of WP9).
+    private bool CanOfferVault => !ReadOnly
+        && !IsVault
+        && LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false)
+        && Kinds.Find(Library.KindKey) is { } kind
+        && !LibraryTypeCatalog.IsViewKind(kind);
 
     private LibraryListRow Row => LibraryListing.RowFor(Kinds, Library, Configuration, Overview, PathIssues);
 
@@ -161,7 +211,7 @@
                 new(FileHandlingTab, "File handling"),
                 new(ActivityTab, "Activity"),
             };
-            if (LibraryLookupRules.HasLookupTab(Library.KindKey))
+            if (LibraryLookupRules.HasLookupTab(Library, Kinds.Find(Library.KindKey)))
             {
                 tabs.Add(new(LookupTab, "Lookup"));
             }
@@ -209,23 +259,23 @@
         var kind = Kinds.Find(Library.KindKey);
         if (kind is null) return;
         var managed = kind.DefaultHandling == "managed";
-        var parameters = new AppDialogParameters<ServerFolderPicker>
+        var parameters = new AppDialogParameters<LibraryAddFolderDialog>
         {
-            { component => component.SelectionMode, managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
             { component => component.KindKey, Library.KindKey },
-            { component => component.Title, "Add folder" },
-            { component => component.HelpText, $"Choose a folder on the Library server that holds more of {row_name()}." },
             { component => component.MediaType, kind.MediaTypes.FirstOrDefault() },
-            { component => component.ConfirmLabel, "Add" },
+            { component => component.HelpText, $"Choose a folder on the Library server that holds more of {row_name()}." },
+            { component => component.Managed, managed },
+            { component => component.OfferVault, CanOfferVault },
+            { component => component.ForceVault, IsVault },
         };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
+        var dialog = await DialogService.ShowAsync<LibraryAddFolderDialog>(string.Empty, parameters, LibraryAddFolderDialog.DialogOptions);
+        if (await dialog.Result is not { Canceled: false, Data: LibraryAddFolderDialog.Choice choice }) return;
+        var selected = choice.Folder;
+        if (choice.AsVault)
         {
-            MaxWidth = AppMaxWidth.ExtraExtraLarge,
-            FullWidth = false,
-            CloseButton = false,
-            CloseOnEscapeKey = true,
-        });
-        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
+            await AddVaultFolderAsync(selected);
+            return;
+        }
 
         var plan = new AddFolderPlan(
             Library.KindKey,
@@ -254,6 +304,59 @@
 
         _highlightSourceId = result.Source?.Id;
         await FolderAddedAsync();
+    }
+
+    // A Vault folder joins the Vault-protected library of this content type, which the Engine makes first when there is none. An administrator is enough, with no PIN.
+    // The Engine starts watching and scanning the folder when it saves it, so nothing is asked of the Dashboard afterwards.
+    private async Task AddVaultFolderAsync(ServerFolderValidationResultDto selected)
+    {
+        var added = await Api.AddVaultFolderAsync(new AddVaultFolderRequest(Library.KindKey, selected.Path));
+        if (added is not { Ok: true })
+        {
+            Toast.Add(Api.LastError ?? "The folder could not be added. Check it and try again.", AppSeverity.Error);
+            return;
+        }
+
+        var name = Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        Toast.Add(IsVault ? $"Added {name} to {row_name()}." : "Added as a Vault folder.", AppSeverity.Success);
+        _highlightSourceId = null;
+        await FolderAddedAsync();
+    }
+
+    // Move to Vault: a doorway that checks where the items would go before anything is touched (Library pages D11). With no Vault library of this content
+    // type it offers Add a Vault library, which opens Add library with the area, type and Vault-protected chosen; once it is made, the preview opens again.
+    private async Task MoveToVaultAsync(LibrarySourceDto source)
+    {
+        var kind = Kinds.Find(Library.KindKey);
+        if (kind is null || !CanOfferVault) return;
+        while (true)
+        {
+            var parameters = new AppDialogParameters<MoveToVaultDialog>
+            {
+                { component => component.KindKey, kind.Key },
+                { component => component.PluralLabel, kind.PluralLabel },
+                { component => component.FolderName, source.DisplayName() },
+            };
+            var dialog = await DialogService.ShowAsync<MoveToVaultDialog>(string.Empty, parameters, MoveToVaultDialog.DialogOptions);
+            if (await dialog.Result is not { Canceled: false, Data: MoveToVaultDialog.AddVaultLibrary }) return;
+
+            var created = false;
+            var create = new AppDialogParameters<CreateLibraryDialog>
+            {
+                { component => component.Configuration, Configuration },
+                { component => component.Kinds, Kinds },
+                { component => component.StartAreaKey, kind.Area },
+                { component => component.StartKindKey, kind.Key },
+                { component => component.StartAccessKey, LibraryAccessChoices.Vault },
+                { component => component.VaultVisible, VaultVisible },
+                { component => component.OpenCreated, false },
+                { component => component.OnCreated, (Func<string, Task>)(_ => { created = true; return Task.CompletedTask; }) },
+            };
+            var made = await DialogService.ShowAsync<CreateLibraryDialog>(string.Empty, create, CreateLibraryDialog.DialogOptions);
+            await made.Result;
+            if (!created) return;
+            await Changed.InvokeAsync();
+        }
     }
 
     // Add files: the server file picker; the Engine copies the chosen files into the import destination and the dialog reports how it went.
