@@ -223,12 +223,6 @@
         {
             <div class="sme-details-inline-error" role="alert">@DetailsInlineError</div>
         }
-
-        <div class="sme-details-writeback" role="status">
-            <AppMaterialIcon Icon="@(DetailsMetadataWritebackState == "enabled" ? AppMaterialIcons.Outlined.CheckCircleOutline : AppMaterialIcons.Outlined.Info)" Size="AppSize.Small" />
-            <AppTooltip Text="@DetailsWritebackExplanation"><span>@DetailsWritebackStatusText</span></AppTooltip>
-            <span class="sme-details-writeback__hint">Library overrides stay local to this library.</span>
-        </div>
     </div>
 }
 else
@@ -274,8 +268,6 @@ else
     [Parameter] public bool HasPendingDetailsInlineEdit { get; set; } = default!;
     [Parameter] public MediaEditorDetailsFieldPresentation EmptyDetailsTagsField { get; set; } = default!;
     [Parameter] public string? DetailsInlineError { get; set; } = default!;
-    [Parameter] public string DetailsWritebackStatusText { get; set; } = default!;
-    [Parameter] public string DetailsWritebackExplanation { get; set; } = default!;
     [Parameter] public MediaEditorDetailsFieldPresentation? DetailsHeading { get; set; } = default!;
     [Parameter] public IReadOnlyList<MediaEditorDetailsFieldPresentation> DetailsSecondaryFields { get; set; } = [];
     [Parameter] public IReadOnlyList<MediaEditorDetailsFieldPresentation> DetailsAdditionalFields { get; set; } = [];
@@ -293,7 +285,6 @@ else
     [Parameter] public System.Nullable<int> DetailsOwnedArtworkCount { get; set; } = default!;
     [Parameter] public IReadOnlyList<(string Label, string Value)> DetailsTechnicalFacts { get; set; } = [];
     [Parameter] public IReadOnlyList<LibraryItemHistoryDto> DetailsRecentActivity { get; set; } = [];
-    [Parameter] public string DetailsMetadataWritebackState { get; set; } = default!;
     [Parameter] public bool CanAddDetailsTags { get; set; } = default!;
     [Parameter] public string? DetailsImageUrl { get; set; } = default!;
     [Parameter] public string? DetailsImageSrcSet { get; set; } = default!;

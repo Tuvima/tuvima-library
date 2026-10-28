@@ -227,6 +227,7 @@ else if (Model is not null)
         _flow = new EditSessionFlow(session, _editing, new EditSessionSaver(ApiClient), EditTrail, () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
         {
             Saved = RefreshAfterEditSavedAsync,
+            MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
         };
         _preview = new EditPendingPreview(session, _editing.Fields);
         _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);

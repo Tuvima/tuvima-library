@@ -184,18 +184,6 @@
                         </AppButton>
                     }
 
-                    @if (IsSingleItem && _activeTab != "details")
-                    {
-                        <div class="sme-section-nav__footer">
-                            <AppTooltip Text="@WritebackPolicyExplanation">
-                                <div class="sme-writeback-policy" role="status" aria-label="@WritebackPolicyExplanation">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" />
-                                    <span>Write-back @WritebackPolicyLabel</span>
-                                </div>
-                            </AppTooltip>
-                        </div>
-                    }
-
                 </nav>
                 }
                 <div class="sme-main-pane">
@@ -236,8 +224,6 @@
                         HasPendingDetailsInlineEdit="@(HasPendingDetailsInlineEdit)"
                         EmptyDetailsTagsField="@(EmptyDetailsTagsField)"
                         DetailsInlineError="@(DetailsInlineError)"
-                        DetailsWritebackStatusText="@(DetailsWritebackStatusText)"
-                        DetailsWritebackExplanation="@(DetailsWritebackExplanation)"
                         DetailsHeading="@(DetailsHeading)"
                         DetailsSecondaryFields="@(DetailsSecondaryFields)"
                         DetailsAdditionalFields="@(DetailsAdditionalFields)"
@@ -251,7 +237,6 @@
                         DetailsOwnedArtworkCount="@(DetailsOwnedArtworkCount)"
                         DetailsTechnicalFacts="@(DetailsTechnicalFacts)"
                         DetailsRecentActivity="@(DetailsRecentActivity)"
-                        DetailsMetadataWritebackState="@(DetailsMetadataWritebackState)"
                         CanAddDetailsTags="@(CanAddDetailsTags)"
                         DetailsImageUrl="@(DetailsImageUrl)"
                         DetailsImageSrcSet="@(DetailsImageSrcSet)"

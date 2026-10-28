@@ -107,6 +107,8 @@
         _session = new BulkEditSession(new PendingEditList(), new EditSessionSaver(Api), () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
         {
             Saved = AfterSavedAsync,
+            ItemName = TitleOf,
+            MediaTypes = RowMediaTypes,
         };
         _session.Changed += OnStateChanged;
         _selection.Changed += OnStateChanged;
@@ -156,15 +158,41 @@
         }
     }
 
+    // Save changes never saves straight away (spec D3, D12): it opens Review changes, the same dialog the editing bar opens on a detail
+    // page, which checks the list and saves it. The dialog handles Back, Discard and the save itself.
     private async Task SaveAsync()
     {
-        if (!_canEdit || EditorDeviceRule.TryRefuse(Device, null))
+        if (!_canEdit || EditorDeviceRule.TryRefuse(Device, null) || _session.Saving || !_session.HasPendingChanges)
         {
             return;
         }
 
-        await _session.SaveAsync();
+        var outcome = await ReviewChangesDialog.ShowAsync(Dialogs, _session);
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (outcome == ReviewChangesOutcome.Discarded)
+        {
+            _selection.ClosePanel();
+        }
+        else if (outcome == ReviewChangesOutcome.Edit && _selection.Panel == BulkPanelKind.None)
+        {
+            // A list has one panel for every change: Edit on a Review row brings it back.
+            _selection.OpenPanel(BulkPanelKind.Edit);
+        }
     }
+
+    // The editor media types of the rows (a row may know its own better than the list), which say which library's file setting applies.
+    private IReadOnlyList<string> RowMediaTypes() => _selection.Rows
+        .Select(row => row.MediaType ?? MediaType)
+        .Where(type => !string.IsNullOrWhiteSpace(type))
+        .Select(type => type!)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .DefaultIfEmpty(MediaType ?? string.Empty)
+        .Where(type => type.Length > 0)
+        .ToList();
 
     // The list reloads its rows; the panel reads the saved values again. Nothing about the list's own view is reset.
     private async Task AfterSavedAsync()

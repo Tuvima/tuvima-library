@@ -705,6 +705,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     public async Task Host_SavesTheStagedChangesWithOneCheckAndOneSave_ThenAsksTheListToReloadAndKeepsTheTicks()
     {
         await UseDevice("desktop");
+        var dialogs = Render<AppDialogHost>();
         var saved = 0;
         var cleared = 0;
         var rows = FourSongs();
@@ -719,11 +720,17 @@ public sealed class BulkEditingTests : AsyncBunitContext
         TypeScalar(host, "year", "2021");
         host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".tl-batch__pending")));
 
+        // Save changes opens Review changes, the same dialog the editing bar opens; nothing is saved until its own Save.
         host.Find(".tl-batch__save").Click();
+        dialogs.WaitForElement(".review-changes");
+        dialogs.WaitForAssertion(() => Assert.Empty(dialogs.FindAll(".review-changes__state")));
+        Assert.Equal(0, saved);
+        Assert.Equal([true], _sessions.Select(request => request.PreviewOnly));
+        dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
 
         host.WaitForAssertion(() => Assert.Equal(1, saved));
-        Assert.Equal([true, false], _sessions.Select(request => request.PreviewOnly));
-        Assert.Equal(4, _sessions[1].Changes.Count);
+        Assert.Equal([true, true, false], _sessions.Select(request => request.PreviewOnly));
+        Assert.Equal(4, _sessions[2].Changes.Count);
         Assert.Empty(host.FindAll(".tl-batch__pending"));
         Assert.Equal("4 selected", host.Find(".tl-batch__count").TextContent.Trim());
         Assert.NotEmpty(host.FindAll(".tl-editor-panel"));
@@ -734,6 +741,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     public async Task Host_RereadsTheSavedValuesAfterASave()
     {
         await UseDevice("desktop");
+        var dialogs = Render<AppDialogHost>();
         var host = Render<BulkEditHost>(parameters => parameters
             .Add(component => component.Rows, FourSongs())
             .Add(component => component.MediaType, "Music"));
@@ -744,6 +752,9 @@ public sealed class BulkEditingTests : AsyncBunitContext
         host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".tl-batch__save")));
 
         host.Find(".tl-batch__save").Click();
+        dialogs.WaitForElement(".review-changes");
+        dialogs.WaitForAssertion(() => Assert.Empty(dialogs.FindAll(".review-changes__state")));
+        dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
 
         host.WaitForAssertion(() => Assert.True(_previewReads >= readsBefore + 4));
     }

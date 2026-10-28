@@ -284,20 +284,6 @@ public partial class SharedMediaEditorShell
         _detailsInlineError = null;
     }
 
-    protected string DetailsWritebackStatusText
-    {
-        get
-        {
-            return DetailsMetadataWritebackState switch
-            {
-                "enabled" => "Write-back enabled",
-                "disabled" => "Write-back disabled",
-                "limited" => "Write-back limited",
-                _ => "Write-back unavailable",
-            };
-        }
-    }
-
     protected async Task SynchronizeDetailsDialogEscapeAsync()
     {
         if (DialogContext is null)
@@ -321,12 +307,4 @@ public partial class SharedMediaEditorShell
             _detailsDialogEscapeSuppressed = false;
         }
     }
-
-    protected string DetailsWritebackExplanation => DetailsMetadataWritebackState switch
-    {
-        "enabled" => "Metadata write-back is enabled by policy. This status does not confirm a write to this file.",
-        "disabled" => "Metadata write-back is disabled by policy. Library display overrides remain available.",
-        "limited" => "Metadata write-back is unavailable or limited for this scope. Library display overrides remain available.",
-        _ => "Metadata write-back status is unavailable.",
-    };
 }
