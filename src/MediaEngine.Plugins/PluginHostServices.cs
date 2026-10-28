@@ -184,3 +184,60 @@ public interface IPluginBackgroundService : IPluginCapability
 {
     Task RunAsync(IPluginExecutionContext context, CancellationToken stoppingToken);
 }
+
+/// <summary>
+/// The retry queue for a plugin that sends things to an outside service on a person's behalf (for example scrobbling a finished play).
+/// Queueing never waits on the service and never fails because it is offline; the Library delivers each item through the plugin's
+/// <see cref="IPluginOutboxDelivery"/> and tries again with a growing pause. Items belong to one profile and go if that profile
+/// unlinks its account, is removed, or the plugin is removed. Needs <c>plugin-outbox</c>.
+/// </summary>
+public interface IPluginOutbox
+{
+    /// <summary>Queues <paramref name="payloadJson"/> (valid JSON, at most 64 KB) for one profile.</summary>
+    Task EnqueueAsync(Guid profileId, string payloadJson, CancellationToken cancellationToken = default);
+}
+
+/// <summary>One queued item handed to the plugin for delivery.</summary>
+/// <param name="Id">The item's id.</param>
+/// <param name="ProfileId">The profile it belongs to.</param>
+/// <param name="PayloadJson">What the plugin queued.</param>
+/// <param name="CreatedAt">When it was queued.</param>
+/// <param name="Attempts">How many times delivery has already been tried.</param>
+/// <param name="ReadCredentialAsync">Reads one of this profile's own personal credentials by name; there is no way to read another profile's.</param>
+public sealed record PluginOutboxItem(
+    Guid Id,
+    Guid ProfileId,
+    string PayloadJson,
+    DateTimeOffset CreatedAt,
+    int Attempts,
+    Func<string, CancellationToken, Task<string?>> ReadCredentialAsync);
+
+public enum PluginDeliveryOutcome
+{
+    /// <summary>Sent. The item is removed.</summary>
+    Delivered,
+
+    /// <summary>The service could not take it now. Try again later.</summary>
+    RetryLater,
+
+    /// <summary>It can never be sent (for example the account was unlinked). The item is removed.</summary>
+    GiveUp,
+}
+
+/// <summary>How a delivery ended.</summary>
+/// <param name="Outcome">What to do with the item.</param>
+/// <param name="Reason">For a retry or a give-up: a short plain note kept in Activity. Never put keys or tokens in it.</param>
+public sealed record PluginDeliveryResult(PluginDeliveryOutcome Outcome, string? Reason = null)
+{
+    public static PluginDeliveryResult Delivered() => new(PluginDeliveryOutcome.Delivered);
+
+    public static PluginDeliveryResult RetryLater(string? reason = null) => new(PluginDeliveryOutcome.RetryLater, reason);
+
+    public static PluginDeliveryResult GiveUp(string? reason = null) => new(PluginDeliveryOutcome.GiveUp, reason);
+}
+
+/// <summary>Sends one queued item. The Library calls it from the retry queue, never from the player or the browser.</summary>
+public interface IPluginOutboxDelivery : IPluginCapability
+{
+    Task<PluginDeliveryResult> DeliverAsync(PluginOutboxItem item, IPluginExecutionContext context, CancellationToken cancellationToken);
+}

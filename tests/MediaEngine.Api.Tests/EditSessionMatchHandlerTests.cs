@@ -159,6 +159,78 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
         }
     }
 
+    // ----- relationship with a position token: renumbers inside the album ---------------------------------------------------------
+
+    [Fact]
+    public async Task Position_GivesTheSongTheTrackNumberInItsOwnAlbum_AndAsksForNoFileToMove()
+    {
+        var song = BestOfSong("Paranoid Android", 4, Files.Managed, out var oldPath, out var asset);
+        var album = _world.Work(song).Parent!.Value;
+
+        using (_callers.Use(Caller()))
+        {
+            var result = await Service().RunAsync(Request(previewOnly: false, Position("number", song, album, 1)), NoRefusals);
+
+            Assert.True(result.DataSaved);
+            Assert.Equal(EditSessionChangeStatuses.Ok, Assert.Single(result.Changes).Status);
+        }
+
+        var after = _world.Work(song);
+        Assert.Equal(album, after.Parent);
+        Assert.Equal(1, after.Ordinal);
+        Assert.Null(Files.Row(asset).MoveStep);
+        await Files.DrainQueueAsync();
+        Assert.Equal(oldPath, Files.StoredPath(asset));
+    }
+
+    [Fact]
+    public async Task Position_WhenALaterChangeFails_PutsEveryTrackNumberBack()
+    {
+        var song = BestOfSong("Paranoid Android", 4, Files.Managed, out _, out _);
+        var album = _world.Work(song).Parent!.Value;
+        var (other, _, _) = _world.AddChild(album, "Music", "Karma Police", 5);
+        _writer.Failure = "The provider is not available.";
+
+        using (_callers.Use(Caller()))
+        {
+            // Song 4 takes number 5, so the two songs trade places before the identity change fails.
+            var result = await Service().RunAsync(
+                Request(previewOnly: false, Position("number", song, album, 5), Identity("match", song)), NoRefusals);
+
+            Assert.False(result.DataSaved);
+        }
+
+        Assert.Equal(4, _world.Work(song).Ordinal);
+        Assert.Equal(5, _world.Work(other).Ordinal);
+    }
+
+    [Fact]
+    public async Task Position_ForAnAlbumTheSongIsNotIn_OrAnInvalidNumber_OrACallerWhoMayNotEdit_IsRefused()
+    {
+        var song = BestOfSong("Paranoid Android", 4, Files.Managed, out _, out _);
+        var album = _world.Work(song).Parent!.Value;
+        var (okComputer, _) = OkComputerAlbum();
+
+        using (_callers.Use(Caller()))
+        {
+            var elsewhere = await Service().RunAsync(Request(previewOnly: true, Position("number", song, okComputer, 2)), NoRefusals);
+            Assert.Equal(EditSessionReasons.NotInThatAlbum, Assert.Single(elsewhere.Changes).Reason);
+
+            var invalid = await Service().RunAsync(
+                Request(previewOnly: true, new EditSessionChange { Id = "number", Kind = EditSessionChangeKinds.Relationship, EntityId = song, TargetId = album.ToString(), Token = "position:0" }),
+                NoRefusals);
+            Assert.Equal(EditSessionReasons.BadPosition, Assert.Single(invalid.Changes).Reason);
+        }
+
+        using (_callers.Use(new EditSessionCaller(LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.Nothing)))
+        {
+            var denied = await Service().RunAsync(Request(previewOnly: true, Position("number", song, album, 2)), NoRefusals);
+            Assert.Equal(EditSessionReasons.NotAllowedToEdit, Assert.Single(denied.Changes).Reason);
+        }
+
+        Assert.Equal(4, _world.Work(song).Ordinal);
+    }
+
     // ----- file moves: last, one at a time, never undone ------------------------------------------------------------------------
 
     [Fact]
@@ -297,6 +369,15 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
         Kind = EditSessionChangeKinds.Relationship,
         EntityId = item,
         TargetId = destination.ToString(),
+    };
+
+    private static EditSessionChange Position(string id, Guid item, Guid album, int number) => new()
+    {
+        Id = id,
+        Kind = EditSessionChangeKinds.Relationship,
+        EntityId = item,
+        TargetId = album.ToString(),
+        Token = EditSessionPosition.Token(number),
     };
 
     private static EditSessionChange FileMove(string id, Guid item) => new() { Id = id, Kind = EditSessionChangeKinds.FileMove, EntityId = item };

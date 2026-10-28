@@ -1,8 +1,10 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Ui
 @using Microsoft.AspNetCore.Components.Routing
 @implements IDisposable
+@inject IAppDialogService Dialogs
 
 @* The universal editor's bar (spec section 4): one bar at the top of the page while editing, replacing the Editing Mode banner. Left,
    "Editing" and where the item sits (Show > Season > Episode); in the centre, the tools (Artwork and Match only where the type has them);
@@ -63,7 +65,7 @@
                                Class="tl-editing-bar__save"
                                StartIcon="@AppMaterialIcons.Outlined.Check"
                                Disabled="@(!hasChanges || flow.Saving)"
-                               OnClick="@(() => flow.SaveAsync())">
+                               OnClick="OpenReviewAsync">
                         @SaveLabel(count, flow.Saving)
                     </AppButton>
                 </AppTooltip>
@@ -193,6 +195,18 @@
     }
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Save changes never saves straight away (spec D3, D12): it settles any open input, then opens Review changes, which checks the
+    // list and saves it. The dialog handles Back, Edit, Discard and the save itself.
+    private async Task OpenReviewAsync()
+    {
+        if (Flow is not { Saving: false, Session.HasPendingChanges: true } flow || !await flow.SettleForReviewAsync())
+        {
+            return;
+        }
+
+        await ReviewChangesDialog.ShowAsync(Dialogs, flow);
+    }
 
     private async Task ConfirmNavigationAsync(LocationChangingContext context)
     {

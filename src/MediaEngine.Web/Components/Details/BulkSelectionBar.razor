@@ -1,0 +1,236 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject DeviceContextService Device
+@inject IAppToastService Toasts
+@inject IAppDialogService Dialogs
+@inject IServiceProvider Services
+
+@* The ticked rows' bar (universal editor spec D14), in the list column directly above the rows. It reads "{n} selected", then Edit, Match
+   and Move to album/season where they make sense for the ticked rows, a "..." menu holding Delete from library, and Clear. It only opens
+   the right-hand panel (the selection says which one); the panel stages, and the one Save changes saves. Nothing renders on a device
+   that may not edit, outside Editing Mode on a detail page, or while no row is ticked. *@
+@if (Active is { Count: > 0 } selection && IsAvailable)
+{
+    var rows = selection.Rows;
+    var busy = IsBusy;
+    <section class="tl-batch" aria-label="Selected rows">
+        <div class="tl-batch__bar" role="toolbar" aria-label="Selected rows">
+            <span class="tl-batch__count" role="status">@BulkEditRules.SelectedLabel(selection.Count)</span>
+            <span class="tl-batch__actions">
+                <AppButton Label="Edit"
+                           StartIcon="@AppMaterialIcons.Outlined.Edit"
+                           Class="tl-batch__edit"
+                           ButtonStyle="@Style(selection, BulkPanelKind.Edit)"
+                           Tone="@ToneOf(selection, BulkPanelKind.Edit)"
+                           Disabled="@busy"
+                           aria-pressed="@Pressed(selection, BulkPanelKind.Edit)"
+                           OnClick="@(() => TogglePanel(BulkPanelKind.Edit))" />
+                @if (BulkEditRules.CanMatch(rows, selection.MediaType))
+                {
+                    <AppButton Label="Match"
+                               StartIcon="@AppMaterialIcons.Outlined.TravelExplore"
+                               Class="tl-batch__match"
+                               ButtonStyle="@Style(selection, BulkPanelKind.Match)"
+                               Tone="@ToneOf(selection, BulkPanelKind.Match)"
+                               Disabled="@busy"
+                               aria-pressed="@Pressed(selection, BulkPanelKind.Match)"
+                               OnClick="@(() => TogglePanel(BulkPanelKind.Match))" />
+                }
+
+                @if (BulkEditRules.CanMove(rows))
+                {
+                    <AppButton Label="@BulkEditRules.MoveLabel(rows, selection.MediaType)"
+                               StartIcon="@AppMaterialIcons.Outlined.AccountTree"
+                               Class="tl-batch__move"
+                               ButtonStyle="@Style(selection, BulkPanelKind.Move)"
+                               Tone="@ToneOf(selection, BulkPanelKind.Move)"
+                               Disabled="@busy"
+                               aria-pressed="@Pressed(selection, BulkPanelKind.Move)"
+                               OnClick="@(() => TogglePanel(BulkPanelKind.Move))" />
+                }
+
+                @if (MenuActions(selection) is { Count: > 0 } menu)
+                {
+                    <OverflowActionMenu Actions="@menu"
+                                        ButtonClass="tl-batch__more"
+                                        OnActionSelected="OnMenuActionAsync" />
+                }
+
+                <AppButton Label="Clear"
+                           ButtonStyle="AppButtonStyle.Text"
+                           Disabled="@busy"
+                           OnClick="ClearAsync" />
+            </span>
+        </div>
+    </section>
+}
+
+@code {
+    private EditingModeContext? _mode;
+    private BulkEditSelection? _selection;
+    private bool _deleting;
+
+    [CascadingParameter] public EditingModeContext? Mode { get; set; }
+
+    [CascadingParameter] public BulkEditSelection? CascadedSelection { get; set; }
+
+    /// <summary>The ticked rows of a list that is not on a detail page; a detail page cascades its own.</summary>
+    [Parameter] public BulkEditSelection? Selection { get; set; }
+
+    /// <summary>A host that is saving or asking a question greys the bar's buttons.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>Raised after the ticked rows were deleted, so the host can reload what it shows.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<Guid>> OnDeleted { get; set; }
+
+    /// <summary>Raised when Clear ran, so a list that keeps its own ticks can drop them.</summary>
+    [Parameter] public EventCallback OnCleared { get; set; }
+
+    private BulkEditSelection? Active => Selection ?? CascadedSelection;
+
+    // On a detail page the bar belongs to Editing Mode; on a list it only needs a device that may edit.
+    private bool IsAvailable => Mode is not null ? Mode is { IsOn: true, CanEdit: true } : EditorDeviceRule.CanEdit(Device);
+
+    private bool IsBusy => Busy || _deleting || Mode is { IsSettling: true } || Mode is { SectionSaving: true };
+
+    private static AppButtonStyle Style(BulkEditSelection selection, BulkPanelKind kind) =>
+        selection.Panel == kind ? AppButtonStyle.Filled : AppButtonStyle.Outlined;
+
+    private static AppUiTone ToneOf(BulkEditSelection selection, BulkPanelKind kind) =>
+        selection.Panel == kind ? AppUiTone.Primary : AppUiTone.Neutral;
+
+    private static string Pressed(BulkEditSelection selection, BulkPanelKind kind) => selection.Panel == kind ? "true" : "false";
+
+    private IReadOnlyList<DetailAction> MenuActions(BulkEditSelection selection) =>
+        BulkEditRules.BarMenuActions(selection.Rows, CanDelete(selection), IsBusy);
+
+    private bool CanDelete(BulkEditSelection selection) =>
+        BulkEditRules.AreDeletable(selection.Rows)
+        && LibraryItemDeletionFlow.CanDelete(Device, Services.GetService<DashboardSessionAccessor>());
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_mode, Mode))
+        {
+            if (_mode is not null)
+            {
+                _mode.Changed -= OnStateChanged;
+            }
+
+            _mode = Mode;
+            if (_mode is not null)
+            {
+                _mode.Changed += OnStateChanged;
+            }
+        }
+
+        if (!ReferenceEquals(_selection, Active))
+        {
+            if (_selection is not null)
+            {
+                _selection.Changed -= OnStateChanged;
+            }
+
+            _selection = Active;
+            if (_selection is not null)
+            {
+                _selection.Changed += OnStateChanged;
+            }
+        }
+    }
+
+    private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // One panel at a time: pressing the open one again closes it. The device rule is checked here too; a hidden button is never the only protection.
+    private void TogglePanel(BulkPanelKind kind)
+    {
+        if (Active is null || EditorDeviceRule.TryRefuse(Device, Toasts))
+        {
+            return;
+        }
+
+        if (Active.Panel == kind)
+        {
+            Active.ClosePanel();
+            return;
+        }
+
+        if (kind == BulkPanelKind.Match && !BulkEditRules.CanMatch(Active.Rows, Active.MediaType))
+        {
+            return;
+        }
+
+        if (kind == BulkPanelKind.Move && !BulkEditRules.CanMove(Active.Rows))
+        {
+            return;
+        }
+
+        Active.OpenPanel(kind);
+    }
+
+    private async Task OnMenuActionAsync(DetailAction action)
+    {
+        if (action.Key == DetailActionKeys.DeleteFromLibrary)
+        {
+            await DeleteAsync();
+        }
+    }
+
+    // One dialog listing every file. The gate is the single Delete's own, checked again here; the Engine checks as well.
+    private async Task DeleteAsync()
+    {
+        if (Active is null || _deleting || Active.Count == 0)
+        {
+            return;
+        }
+
+        if (LibraryItemDeletionFlow.TryRefuse(Device, Services.GetService<DashboardSessionAccessor>(), Toasts)
+            || !BulkEditRules.AreDeletable(Active.Rows)
+            || Active.Count > BulkEditRules.MaxDeleteItems)
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            var ids = Active.Ids;
+            var outcome = await LibraryItemDeletionFlow.RunAsync(Dialogs, Toasts, ids);
+            if (outcome != LibraryItemDeletionFlowOutcome.Canceled)
+            {
+                Active.Clear();
+                if (Active.RefreshAsync is { } refresh)
+                {
+                    await refresh();
+                }
+
+                await OnDeleted.InvokeAsync(ids);
+            }
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    private async Task ClearAsync()
+    {
+        Active?.Clear();
+        await OnCleared.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        if (_mode is not null)
+        {
+            _mode.Changed -= OnStateChanged;
+        }
+
+        if (_selection is not null)
+        {
+            _selection.Changed -= OnStateChanged;
+        }
+    }
+}

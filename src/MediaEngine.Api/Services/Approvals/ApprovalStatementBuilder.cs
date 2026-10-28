@@ -76,6 +76,7 @@ internal static class ApprovalStatementBuilder
         ["watch-activity"] = "Is told what people watch, read and listen to",
         ["background-work"] = "Runs continuously in the background while switched on",
         ["plugin-pages"] = "Adds pages and menu entries to the Library",
+        ["plugin-outbox"] = "Queues messages for an outside service on a person's behalf and sends them later, retrying if it is offline",
     };
 
     private static readonly IReadOnlyDictionary<string, string> AiRoleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -218,7 +219,7 @@ internal static class ApprovalStatementBuilder
 
         foreach (var (name, scope) in declaration?.CredentialScopes ?? [])
         {
-            if (string.Equals(scope, "personal", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(scope?.Trim(), "personal", StringComparison.OrdinalIgnoreCase))
             {
                 yield return $"Each profile links its own {name}";
             }

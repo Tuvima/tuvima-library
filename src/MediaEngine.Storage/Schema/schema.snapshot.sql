@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0052 plugin_library_limits).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0054 plugin_outbox).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2096,6 +2096,26 @@ CREATE TABLE plugin_lore_sources (
     UNIQUE (universe_qid, plugin_id, source_key)
 );
 
+CREATE TABLE plugin_outbox (
+    id              BLOB NOT NULL PRIMARY KEY,
+    plugin_id       TEXT NOT NULL,   -- the plugin's manifest id
+    profile_id      BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    payload_json    TEXT NOT NULL,   -- what to send, written by the plugin, at most 64 KB
+    created_at      TEXT NOT NULL,   -- ISO 8601 UTC
+    attempts        INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL,   -- ISO 8601 UTC; the item is due when this has passed
+    last_reason     TEXT NULL        -- the last failure word from the fixed list, or NULL
+);
+
+CREATE TABLE plugin_profile_connections (
+    plugin_id         TEXT NOT NULL,   -- the plugin's manifest id
+    profile_id        BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    credential_name   TEXT NOT NULL,   -- the personal credential's name from the plugin's declaration
+    secret_ciphertext TEXT NOT NULL,   -- the value, protected with this machine's Data Protection key
+    linked_at         TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (plugin_id, profile_id, credential_name)
+);
+
 CREATE TABLE plugin_records (
     plugin_id    TEXT    NOT NULL,   -- the plugin's manifest id
     collection   TEXT    NOT NULL,   -- the plugin's own grouping name, 1 to 128 printable characters
@@ -3501,6 +3521,8 @@ CREATE INDEX idx_plugin_lore_relationships_universe
 
 CREATE INDEX idx_plugin_lore_sources_universe
     ON plugin_lore_sources (universe_qid, status);
+
+CREATE INDEX idx_plugin_outbox_due ON plugin_outbox (plugin_id, next_attempt_at);
 
 CREATE INDEX idx_prc_expires ON provider_response_cache (expires_at);
 

@@ -741,6 +741,9 @@ public sealed class DatabaseStartupSafetyTests
             ("import_uploads", "created_by"),
             ("import_upload_pieces", "upload_id"),
             ("plugin_activity", "item_id"),
+            ("plugin_profile_connections", "profile_id"),
+            ("plugin_outbox", "id"),
+            ("plugin_outbox", "profile_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)

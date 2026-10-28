@@ -2097,15 +2097,37 @@ public partial class ListenPage
         CloseTrackContextMenu();
     }
 
-    private async Task EditSelectedTrackAsync()
+    // After the songs table's bulk panel saved (universal editor spec D14): read the songs again and leave everything else as it is,
+    // so the table keeps its sort, filters, scroll and ticks. LoadAsync would blank the page and drop them.
+    private async Task RefreshSongsAsync()
     {
-        var target = SelectedTrackWorks.FirstOrDefault();
-        if (target is null)
+        try
         {
-            return;
-        }
+            using var timeoutCts = new CancellationTokenSource(LoadTimeout);
+            var works = await Orchestrator.GetLibraryWorksAsync(timeoutCts.Token);
 
-        await EditTrackAsync(target);
+            _allWorks.Clear();
+            _allWorks.AddRange(works);
+
+            _musicWorks.Clear();
+            _musicWorks.AddRange(_allWorks.Where(IsMusicWork).OrderBy(work => work.Artist ?? work.Author).ThenBy(work => work.Album).ThenBy(work => ParseTrackNumber(work.TrackNumber)).ThenBy(DisplayTrackTitle));
+
+            _audiobookWorks.Clear();
+            _audiobookWorks.AddRange(_allWorks.Where(IsAudiobookWork).OrderBy(work => work.Author).ThenBy(work => work.Series).ThenBy(work => work.Title));
+
+            _workLookup.Clear();
+            foreach (var work in _allWorks.GroupBy(work => work.Id).Select(group => group.First()))
+            {
+                _workLookup[work.Id] = work;
+            }
+
+            _artistDetailCache.Clear();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or HttpRequestException)
+        {
+            Snackbar.Add("The songs were saved, but the list could not be refreshed. Reload the page to see them.", AppSeverity.Warning);
+        }
     }
 
     private async Task AddSelectedTracksToPlaylistAsync(Guid? collectionId = null)

@@ -5,11 +5,8 @@ namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
 /// The sections the Editing Mode banner can open below the hero, one at a time. Details is only used by the Universe
-/// editor (one workspace with its own categories); an item's own fields are edited in place with pencils. Batch is the
-/// "Edit together" section of the ticked rows: it opens above the rows in the list column, not in the hero's section slot,
-/// but it shares the one-open-section rule and the "Save or discard?" guard. BatchMove is the selection bar's "Move" (the destination
-/// picker and Match step for the ticked rows): it is hosted by the batch panel the same way, and the picks made in it count as
-/// unsaved input, so Esc, Done, Back or opening another section ask "Save or discard?" first (Save continues to the move confirmation).
+/// editor (one workspace with its own categories); an item's own fields are edited in place with pencils. Several ticked rows are
+/// edited in the right-hand bulk panel instead (universal editor spec D14), which is not a section.
 /// </summary>
 public enum EditingSection
 {
@@ -17,14 +14,6 @@ public enum EditingSection
     Artwork,
     Match,
     History,
-    Batch,
-    BatchMove,
-}
-
-public static class EditingSectionKinds
-{
-    /// <summary>True for the sections hosted above the rows by the batch panel, not in the hero's section slot.</summary>
-    public static bool IsBatch(this EditingSection? section) => section is EditingSection.Batch or EditingSection.BatchMove;
 }
 
 /// <summary>The person's answer to "Save or discard?". Closing the dialog (Esc or the close button) is <see cref="Cancel"/>.</summary>

@@ -2,9 +2,11 @@
 @using System.Globalization
 @using System.Security.Cryptography
 @using System.Text
+@using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Display
 @using MediaEngine.Contracts.Realtime
 @using MediaEngine.Domain.Enums
+@using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Models.ViewDTOs
@@ -331,6 +333,7 @@
                              OnQueueRequested="QueueSongAsync"
                              OnPlayNextRequested="PlayNextSongAsync"
                              OnAlbumRequested="OpenSongAlbumAsync"
+                             OnTracksChanged="ReloadAsync"
                              OnDragStarted="BeginSongDragAsync"
                              OnDragEnded="EndSongDragAsync" />
         </div>
@@ -338,6 +341,11 @@
     else if (UseListLayout)
     {
         <div class="browse-shell__list">
+            @if (!IsContainerGrouping)
+            {
+                @* Ticked rows get the selection bar and the right-hand "Edit N items" panel (universal editor spec D14). Filters, sort and scroll stay. *@
+                <BulkEditHost Rows="@BulkRows" MediaType="@CurrentTab.MediaType" OnSaved="ReloadAsync" OnCleared="ClearBulkSelectionAsync" OnDeleted="OnBulkDeletedAsync" />
+            }
             <LibraryConfigurableTable Columns="@ActiveColumns"
                                       VisibleColumnKeys="@VisibleColumnKeys"
                                       Items="@ActiveTableItems"
@@ -1873,6 +1881,37 @@
     private async Task LoadMoreAsync()
     {
         await LoadBrowseContentAsync(append: true);
+    }
+
+    // The ticked rows in the order the table shows them. Only single titles can be edited together.
+    private IReadOnlyList<BulkEditRow> BulkRows => _selectedItems.Count == 0
+        ? []
+        : [.. ActiveTableItems
+            .Where(item => _selectedItems.Contains(item.EntityId))
+            .Select(item => new BulkEditRow(item.EntityId, item.Title, BulkKindFor(item.MediaType), null, item.MediaType))
+            .Where(row => BulkEditRules.IsSelectableKind(row.Kind))];
+
+    private static DetailEntityType BulkKindFor(string? mediaType) => mediaType switch
+    {
+        "Movies" => DetailEntityType.Movie,
+        "Books" => DetailEntityType.Book,
+        "TV" => DetailEntityType.TvEpisode,
+        "Comics" => DetailEntityType.ComicIssue,
+        "Audiobooks" => DetailEntityType.Audiobook,
+        "Music" => DetailEntityType.Work,
+        _ => DetailEntityType.Collection,
+    };
+
+    private Task ClearBulkSelectionAsync()
+    {
+        _selectedItems.Clear();
+        return Task.CompletedTask;
+    }
+
+    private Task OnBulkDeletedAsync(IReadOnlyList<Guid> ids)
+    {
+        _selectedItems.ExceptWith(ids);
+        return ReloadAsync();
     }
 
     private Task OnSelectionChanged(HashSet<Guid> selected)

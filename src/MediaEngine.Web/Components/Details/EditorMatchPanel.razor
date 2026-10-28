@@ -554,7 +554,8 @@
         if (_useRetail)
         {
             var request = EditorMatchRules.RequestFor(_selected, Subject, _group);
-            pending.SetTarget(EditSessionChangeKinds.Identity, id, EditSessionIdentityTarget.Serialize(request));
+            var facts = EditorMatchRules.FactsOf(_selected);
+            pending.SetTarget(EditSessionChangeKinds.Identity, id, EditSessionIdentityTarget.Serialize(request), label: $"{facts.Title} ({facts.Provider})");
         }
         else
         {
@@ -571,7 +572,7 @@
 
         if (_moveParent && _destination is not null)
         {
-            pending.SetTarget(EditSessionChangeKinds.Relationship, id, _destination.Id.ToString("D"));
+            pending.SetTarget(EditSessionChangeKinds.Relationship, id, _destination.Id.ToString("D"), label: string.IsNullOrWhiteSpace(_destination.ParentLabel) ? _destination.Label : $"{_destination.Label} ({_destination.ParentLabel})");
         }
         else
         {

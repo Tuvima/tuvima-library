@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
@@ -101,7 +102,8 @@ internal sealed class PluginExecutionContextFactory(
     PluginHostStatusRegistry hostStatus,
     PluginHttpRateLimiter httpLimiter,
     PluginHostLimits limits,
-    TimeProvider clock) : IPluginExecutionContextFactory
+    TimeProvider clock,
+    PluginOutboxService outbox) : IPluginExecutionContextFactory
 {
     public IPluginExecutionContext Create(string pluginId, string purpose) => CreateCore(pluginId, purpose, null);
 
@@ -133,7 +135,8 @@ internal sealed class PluginExecutionContextFactory(
             new BoundPluginToolRuntime(registration.Manifest.Id, registration.Settings, storage, permissions, tools),
             new BoundPluginAiClient(registration.Manifest.Id, permissions, ai),
             new BoundPluginSecrets(registration.Manifest.Id, permissions, secrets),
-            new BoundPluginRecords(registration.Manifest.Id, permissions, records, limits, status, clock));
+            new BoundPluginRecords(registration.Manifest.Id, permissions, records, limits, status, clock),
+            new BoundPluginOutbox(registration.Manifest.Id, permissions, outbox));
     }
 
     private static string SafeSegment(string value, string parameter)
@@ -157,7 +160,8 @@ internal sealed class PluginExecutionContext(
     IPluginToolRuntime tools,
     IPluginAiClient ai,
     IPluginSecrets secrets,
-    IPluginRecordStore records) : IPluginExecutionContext
+    IPluginRecordStore records,
+    IPluginOutbox? outbox = null) : IPluginExecutionContext
 {
     public string PluginId { get; } = pluginId;
     public IReadOnlyDictionary<string, JsonElement> Settings { get; } = settings;
@@ -168,6 +172,7 @@ internal sealed class PluginExecutionContext(
     public IPluginAiClient Ai { get; } = ai;
     public IPluginSecrets Secrets { get; } = secrets;
     public IPluginRecordStore Records { get; } = records;
+    public IPluginOutbox Outbox => outbox ?? throw new NotSupportedException("This context has no retry queue.");
 
     public ValueTask DisposeAsync()
     {
@@ -439,6 +444,12 @@ internal sealed class BoundPluginSecrets(string pluginId, IPluginPermissionGate 
         var registration = permissions.Demand(pluginId, PluginPermissionIds.PluginSecrets);
         if (string.IsNullOrWhiteSpace(name)
             || !registration.Manifest.Secrets.Any(secret => string.Equals(secret.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        // A personal credential belongs to each profile, never to the household's secrets file, even if an old shared value is still there.
+        if (PluginDeclarationRules.IsPersonalCredential(registration.Manifest.Declaration, name))
         {
             return null;
         }
