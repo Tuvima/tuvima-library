@@ -216,7 +216,7 @@ public sealed class PluginActivityTests
 
     [Theory]
     [InlineData("failed with api_key=SECRET12345 on request", "SECRET12345")]
-    [InlineData("Authorization: Bearer abcdef.ghijkl-123", "abcdef.ghijkl-123")]
+    [InlineData("Authorization: Bearer " + "not-a-real-token", "not-a-real-token")]
     [InlineData(@"cannot open C:\Users\Dana\Videos\movie.mkv", "Dana")]
     [InlineData("cannot open /home/dana/media/movie.mkv", "dana")]
     [InlineData("password: hunter2hunter2", "hunter2hunter2")]
