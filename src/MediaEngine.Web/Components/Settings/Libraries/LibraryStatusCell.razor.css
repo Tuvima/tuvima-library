@@ -1,0 +1,4 @@
+.lib-status { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+.lib-status--warning { color: var(--tl-status-warning); }
+.lib-status--muted { color: var(--tl-text-muted); }
+a.lib-status:hover { text-decoration: underline; }

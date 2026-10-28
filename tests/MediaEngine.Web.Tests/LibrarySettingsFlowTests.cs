@@ -6,6 +6,7 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
@@ -247,17 +248,26 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         ["Comics"] = ("read", "comics"),
     };
 
-    private IRenderedComponent<LibrariesTab> Open(string typeLabel)
+    // The folders panel as a library page hosts it: the type's own page, with no type list.
+    private IRenderedComponent<LibraryFoldersPanel> Open(string typeLabel, bool highlightAdd = false, bool readOnly = false)
     {
-        var (group, type) = TypePages[typeLabel];
-        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, group).Add(x => x.Detail, type));
+        var (_, type) = TypePages[typeLabel];
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
+            .Add(x => x.ShowTypeNav, false)
+            .Add(x => x.TypeKey, type)
+            .Add(x => x.HighlightAddFolder, highlightAdd)
+            .Add(x => x.ReadOnly, readOnly));
         cut.WaitForElement(".folder-table, .library-folders__empty");
         return cut;
     }
 
-    private IRenderedComponent<LibrariesTab> OpenImport()
+    private IRenderedComponent<LibraryFoldersPanel> OpenImport()
     {
-        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "import"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
+            .Add(x => x.ShowTypeNav, false)
+            .Add(x => x.TypeKey, "import"));
         cut.WaitForElement("#library-import-title");
         return cut;
     }
@@ -275,17 +285,19 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
-    // The front door lists the groups (Watch, Listen, Read, View) with their types and folder counts; the Import folder is one row under them.
+    // The overview has the four area tabs; the selected one lists its libraries with their folder counts, and the Import folder is one line under them.
     [Fact]
-    public void OverviewListsEveryGroupWithItsTypesAndFolderCount()
+    public void OverviewListsTheAreaTabsAndTheSelectedAreasLibrariesWithTheirFolderCount()
     {
         var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".lib-door__group");
-        Assert.Equal(4, cut.FindAll(".lib-door__group").Count);
-        Assert.Contains(cut.FindAll(".lib-door__group"), x => x.TextContent.Contains("Listen") && x.TextContent.Contains("Audiobooks") && x.TextContent.Contains("1 folder"));
-        Assert.Contains(cut.FindAll(".lib-door__group"), x => x.TextContent.Contains("Watch") && x.TextContent.Contains("Movies") && x.TextContent.Contains("4 folders"));
-        Assert.Contains("/settings/libraries/view", cut.Markup);
-        Assert.Contains("Import folder", Text(cut.Find(".lib-door__import")));
+        cut.WaitForElement(".libs__row");
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll("[role=tab]").Select(Text).ToArray());
+        Assert.Contains("3 folders", Text(cut.Find($".libs__row[data-library='{MoviesId}']")));
+
+        var listen = Render<LibrariesTab>(parameters => parameters.AddCascadingValue(RoutedPageQuery.CascadingName, "http://localhost/settings/libraries?area=listen"));
+        listen.WaitForElement(".libs__row");
+        Assert.Contains("1 folder", Text(listen.Find($".libs__row[data-library='{AudiobooksId}']")));
+        Assert.Contains("Import folder", Text(cut.Find(".libs__note")));
     }
 
     private static ImportFolderStatusDto ConfiguredImport() => new()
@@ -305,10 +317,10 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void ImportFolderIsOneRowOnTheFrontDoorAndShowsOnlySetWhenNotSet()
     {
         var front = Render<LibrariesTab>();
-        front.WaitForElement(".lib-door__import");
-        Assert.Equal("Import folder", Text(front.Find(".lib-door__import strong")));
-        Assert.Equal("Not set", Text(front.Find(".lib-door__import .lib-door__counts")));
-        Assert.Equal("/settings/libraries/import", front.Find(".lib-door__import").GetAttribute("href"));
+        front.WaitForElement(".libs__note a");
+        Assert.Equal("Import folder", Text(front.Find(".libs__note a")));
+        Assert.Contains("not set", Text(front.Find(".libs__note")));
+        Assert.Equal("/settings/libraries/import", front.Find(".libs__note a").GetAttribute("href"));
         var cut = OpenImport();
         cut.WaitForAssertion(() => Assert.Contains("Set import folder", cut.Markup));
         Assert.Empty(cut.FindAll(".library-folders__destination"));
@@ -325,8 +337,9 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         _configuration.ImportFolderStatus = ConfiguredImport();
         var front = Render<LibrariesTab>();
-        front.WaitForElement(".lib-door__import");
-        Assert.Equal("Set", Text(front.Find(".lib-door__import .lib-door__counts")));
+        front.WaitForElement(".libs__note a");
+        Assert.Contains("set", Text(front.Find(".libs__note")));
+        Assert.DoesNotContain("not set", Text(front.Find(".libs__note")));
         var cut = OpenImport();
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".library-folders__destination").Count));
         Assert.Contains("C:\\media\\Import", cut.Find(".library-folders__table-row").TextContent);
@@ -364,18 +377,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = OpenImport();
         cut.WaitForElement(".library-folders__destination");
         cut.FindAll(".library-folders__destination").Single(x => x.TextContent.Contains("Audiobooks")).QuerySelector("button")!.Click();
-        Assert.EndsWith("/settings/libraries/listen/audiobooks?highlight=add", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+        Assert.EndsWith($"/settings/libraries/{AudiobooksId}?highlight=add", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
     }
 
     // The jump keeps pointing at Add Folder: the type's page opened that way highlights it, and opened any other way does not.
     [Fact]
     public void ATypePageOpenedFromAnImportChooseHighlightsAddFolder()
     {
-        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/libraries/listen/audiobooks?highlight=add");
-        var highlighted = Open("Audiobooks");
+        var highlighted = Open("Audiobooks", highlightAdd: true);
         Assert.NotEmpty(highlighted.FindAll(".library-folders__add.is-highlighted"));
 
-        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/libraries/listen/audiobooks");
         var plain = Open("Audiobooks");
         Assert.Empty(plain.FindAll(".library-folders__add.is-highlighted"));
     }
@@ -437,7 +448,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = Open("Movies");
         Assert.DoesNotContain("Library settings", cut.Markup);
         Assert.DoesNotContain("/settings/libraries/" + MoviesId, cut.Markup);
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, MoviesId));
+        // A library's own page is read on a phone (counts and status, nothing to change).
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, MoviesId));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, "view"));
     }
 
@@ -1133,7 +1145,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".library-folders__advanced"));
     }
 
-    private async Task OpenMenuItemAsync(IRenderedComponent<LibrariesTab> cut, int row, string label)
+    private async Task OpenMenuItemAsync(IRenderedComponent<LibraryFoldersPanel> cut, int row, string label)
     {
         await cut.ClickAsync(page => page.FindAll(".folder-table__row")[row].QuerySelector(".folder-table__menu-trigger")!);
         cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role=menuitem]"), x => Text(x) == label));
@@ -1141,7 +1153,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     // Switching a folder's handling is the row menu's "Switch to Read-only" or "Switch to Managed" item (the folder's icon only shows the state).
-    private async Task SwitchHandlingAsync(IRenderedComponent<LibrariesTab> cut, int row)
+    private async Task SwitchHandlingAsync(IRenderedComponent<LibraryFoldersPanel> cut, int row)
     {
         await cut.ClickAsync(page => page.FindAll(".folder-table__row")[row].QuerySelector(".folder-table__menu-trigger")!);
         cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role=menuitem]"), x => Text(x).StartsWith("Switch to", StringComparison.Ordinal)));
@@ -1571,7 +1583,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public async Task MobileKeepsTheTableReadOnly()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync("mobile");
-        var cut = Open("Movies");
+        // The library page passes the phone's read-only state down to its folders panel.
+        var cut = Open("Movies", readOnly: true);
         Assert.Empty(cut.FindAll(".folder-table__menu-trigger"));
         Assert.All(cut.FindAll(".folder-table__radio"), button => Assert.True(button.HasAttribute("disabled")));
     }

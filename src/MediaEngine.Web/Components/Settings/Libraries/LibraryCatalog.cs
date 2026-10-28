@@ -152,10 +152,10 @@ public sealed record LibraryLevelDescription(string Title, IReadOnlyList<Library
 public static class LibraryAddress
 {
     public const string FrontDoorTitle = "Libraries";
-    private const string OtherLibraryTitle = "Other library";
     private const string LibrariesAddress = "/settings/libraries";
 
-    public static LibraryLevelDescription Describe(LibraryKindCatalog kinds, string? subsection, string? detail, bool showVault)
+    /// <param name="configuration">The libraries, for a library's own address (/settings/libraries/{libraryId}); without it that page is titled "Library".</param>
+    public static LibraryLevelDescription Describe(LibraryKindCatalog kinds, string? subsection, string? detail, bool showVault, LibrariesConfigurationDto? configuration = null)
     {
         var front = new LibraryLevelDescription(FrontDoorTitle, []);
         var sub = subsection?.Trim();
@@ -171,33 +171,39 @@ public static class LibraryAddress
             return string.IsNullOrEmpty(det) ? Level("Import folder", libraries) : front;
         }
 
-        if (string.Equals(sub, "other", StringComparison.OrdinalIgnoreCase))
+        if (Guid.TryParse(sub, out _) && string.IsNullOrEmpty(det))
         {
-            return det is not null && det.StartsWith("other-", StringComparison.OrdinalIgnoreCase) ? Level(OtherLibraryTitle, libraries) : front;
+            return DescribeLibrary(kinds, sub, configuration, showVault, libraries, front);
         }
 
-        if (kinds.TryGetVisibleGroup(sub, showVault) is not { } group)
+        // View keeps its own settings per kind: Libraries > View > Photos. The older group, type and "other" addresses redirect, so they name nothing here.
+        if (string.Equals(sub, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase) && kinds.FindViewKind(det) is { } viewKind)
+        {
+            return Level(viewKind.Label, libraries, new LibraryCrumb(kinds.TryGetGroup(sub)?.Label ?? "View", LibraryListing.OverviewAddress(sub.ToLowerInvariant())));
+        }
+
+        return front;
+    }
+
+    // Libraries > Watch > Movies: the library's area is the middle step, linking back to that area's tab of the overview.
+    private static LibraryLevelDescription DescribeLibrary(
+        LibraryKindCatalog kinds, string id, LibrariesConfigurationDto? configuration, bool showVault, LibraryCrumb libraries, LibraryLevelDescription front)
+    {
+        if (configuration is null)
+        {
+            return Level("Library", libraries);
+        }
+
+        var library = configuration.Libraries.FirstOrDefault(item => LibraryRollup.IsCatalogued(item) && string.Equals(item.Id, id, StringComparison.OrdinalIgnoreCase));
+        if (library is null || (LibraryListing.AccessOf(library) == LibraryListing.Vault && !showVault))
         {
             return front;
         }
 
-        var groupCrumb = new LibraryCrumb(group.Label, LibraryGroupCatalog.GroupAddress(group));
-        if (string.IsNullOrEmpty(det))
-        {
-            return Level(group.Label, libraries);
-        }
-
-        if (group.Key == LibraryTypeCatalog.ViewArea)
-        {
-            return kinds.FindViewKind(det) is { } viewKind ? Level(viewKind.Label, libraries, groupCrumb) : front;
-        }
-
-        if (group.TypeKeys.FirstOrDefault(key => string.Equals(key, det, StringComparison.OrdinalIgnoreCase)) is { } typeKey)
-        {
-            return Level(kinds.Find(typeKey)!.Label, libraries, groupCrumb);
-        }
-
-        return det.StartsWith("other-", StringComparison.OrdinalIgnoreCase) ? Level(OtherLibraryTitle, libraries, groupCrumb) : front;
+        var name = string.IsNullOrWhiteSpace(library.Name) ? LibraryListing.TypeOf(kinds, library).Label : library.Name;
+        return LibraryListing.AreaOf(kinds, library) is { } area && kinds.TryGetGroup(area) is { } group
+            ? Level(name, libraries, new LibraryCrumb(group.Label, LibraryListing.OverviewAddress(group.Key)))
+            : Level(name, libraries);
     }
 
     // The last step is the page itself, so it has no link.

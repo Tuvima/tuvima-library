@@ -151,6 +151,9 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
         return cut;
     }
 
+    // The overview's Add library button starts the add flow (the Create library dialog replaces it later).
+    private void OpenAddLibrary() => Open().FindAll("button").First(button => Text(button) == "Add library").Click();
+
     private AngleSharp.Dom.IElement Button(string text) => _dialogs.FindAll("button").Single(x => Text(x) == text);
 
     private void PickFolder(string path)
@@ -201,8 +204,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
         Assert.Equal("/settings/libraries", vaultAddress.Find("a[href='/settings/libraries']").GetAttribute("href"));
         Assert.DoesNotContain("vault", vaultAddress.Markup, StringComparison.OrdinalIgnoreCase);
 
-        var front = Open();
-        front.Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
         Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.FindAll(".add-wizard__tile").Select(Text).ToArray());
         Assert.DoesNotContain("vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
@@ -220,89 +222,12 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
         Assert.False(LibraryVaultAccess.CanShow(State, session, isKids: true));
     }
 
-    // 2. With Vault mode on for an administrator: the strip, then its page.
-    [Fact]
-    public async Task WithVaultModeOnTheFrontDoorEndsWithAThinVaultStripThatLinksToTheVaultPage()
-    {
-        await SetUpAsync();
-
-        var cut = Open();
-
-        var cards = cut.FindAll(".lib-door__group");
-        Assert.Equal(["watch", "listen", "read", "view", "vault"], cards.Select(card => card.GetAttribute("data-group")!).ToArray());
-        var strip = cards.Last();
-        Assert.Contains("lib-door__group--strip", strip.ClassName);
-        Assert.Equal("/settings/libraries/vault", strip.GetAttribute("href"));
-        Assert.Equal("Vault", Text(strip.QuerySelector(".lib-door__name")!));
-        // The Vault's folders are not part of what the Dashboard can read, so the strip shows no count rather than a wrong zero.
-        Assert.Equal(string.Empty, Text(strip.QuerySelector(".lib-door__counts")!));
-        Assert.Equal("Vault", strip.GetAttribute("aria-label"));
-    }
-
-    [Fact]
-    public async Task TheVaultPageShowsTheVaultLibraryItsLookupAndALinkToManageItInTheVault()
-    {
-        await SetUpAsync();
-        _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "stash_box" }];
-
-        var cut = Open("vault");
-
-        var row = cut.WaitForElement("[data-vault-library=vault-1]");
-        Assert.Contains("Vault", Text(row.QuerySelector(".lib-page__name")!));
-        Assert.Equal("Stash-box", Text(row.QuerySelector(".lib-page__counts")!));
-        var manage = row.QuerySelector("a.lib-page__manage")!;
-        Assert.Equal("Manage in the Vault", Text(manage));
-        Assert.Equal("/vault/library-settings", manage.GetAttribute("href"));
-        Assert.NotNull(cut.Find(".lib-page__add"));
-    }
-
-    [Fact]
-    public async Task WithoutAVaultLibraryTheVaultPageSaysSoInOneLineAndOffersAddFolder()
-    {
-        await SetUpAsync();
-
-        var cut = Open("vault");
-
-        cut.WaitForAssertion(() => Assert.Equal("No Vault library yet.", Text(cut.Find(".lib-page__empty"))));
-        Assert.Empty(cut.FindAll("[data-vault-library]"));
-        Assert.NotNull(cut.Find(".lib-page__add"));
-    }
-
-    [Fact]
-    public async Task ThePageAndItsAddressDisappearAtOnceWhenVaultModeIsSwitchedOff()
-    {
-        await SetUpAsync();
-        var cut = Open("vault");
-        cut.WaitForElement(".lib-page__add");
-
-        await State.LockAsync();
-
-        cut.WaitForAssertion(() => Assert.Contains("This library page does not exist", cut.Markup));
-        Assert.DoesNotContain("vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task TheSettingsFrameTitlesTheVaultPageOnlyWhileTheVaultMayBeShown()
-    {
-        await SetUpAsync();
-        var session = Services.GetRequiredService<DashboardSessionAccessor>();
-
-        var shown = LibraryAddress.Describe(LibraryKindsTestData.Catalog, "vault", null, LibraryVaultAccess.CanShow(State, session, isKids: false));
-        await State.LockAsync();
-        var hidden = LibraryAddress.Describe(LibraryKindsTestData.Catalog, "vault", null, LibraryVaultAccess.CanShow(State, session, isKids: false));
-
-        Assert.Equal("Vault", shown.Title);
-        Assert.Equal(["Libraries", "Vault"], shown.Crumbs.Select(crumb => crumb.Label).ToArray());
-        Assert.Equal("Libraries", hidden.Title);
-        Assert.Empty(hidden.Crumbs);
-    }
-
     // 3. The wizard's Vault tile.
     [Fact]
     public async Task TheWizardOffersTheVaultTileAndPickingItSkipsStraightToTheFolderStep()
     {
         await SetUpAsync();
-        Open().Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
 
         Assert.Equal(["Watch", "Listen", "Read", "View", "Vault"], _dialogs.FindAll(".add-wizard__tile").Select(Text).ToArray());
@@ -314,22 +239,10 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AddFolderOnTheVaultPageOpensTheWizardOnTheFolderStepForTheVault()
-    {
-        await SetUpAsync();
-        var cut = Open("vault");
-
-        cut.WaitForElement(".lib-page__add").Click();
-
-        _dialogs.WaitForElement(".server-folder-picker");
-        Assert.Equal("1 What is it? · 2 Folder · 3 Vault", Text(_dialogs.Find(".add-wizard__steps")));
-    }
-
-    [Fact]
     public async Task WithNoVaultLibraryStepThreeAsksForTheLookupTheAdultsConfirmationAndThePinThenCreatesTheLibraryAndAddsTheFolder()
     {
         await SetUpAsync();
-        Open().Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
         _dialogs.Find(".add-wizard__tile[data-group=vault]").Click();
         PickFolder(NewFolder);
@@ -360,7 +273,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     {
         await SetUpAsync();
         _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
-        Open().Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
         _dialogs.Find(".add-wizard__tile[data-group=vault]").Click();
         PickFolder(NewFolder);
@@ -381,7 +294,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     {
         await SetUpAsync();
         _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
-        Open().Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
         _dialogs.Find(".add-wizard__tile[data-group=vault]").Click();
         PickFolder(NewFolder);
@@ -400,7 +313,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     {
         await SetUpAsync();
         _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
-        Open().Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
         _dialogs.Find(".add-wizard__tile[data-group=vault]").Click();
         PickFolder(OrdinaryFolder);
@@ -420,7 +333,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     {
         _hasPin = false;
         await SetUpAsync();
-        Open().Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
         _dialogs.Find(".add-wizard__tile[data-group=vault]").Click();
         PickFolder(NewFolder);
@@ -434,7 +347,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     public async Task TheVaultTileLeavesStepOneAtOnceWhenVaultModeIsSwitchedOffWhileTheWizardIsOpen()
     {
         await SetUpAsync();
-        Open().Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
         Assert.Contains("Vault", _dialogs.FindAll(".add-wizard__tile").Select(Text));
 
@@ -445,28 +358,11 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AVaultLibraryThatCannotBeReadShowsAnErrorWithTryAgainOnTheVaultPageNotASkeletonForever()
-    {
-        await SetUpAsync();
-        _librariesUnreadable = true;
-        var cut = Open("vault");
-
-        cut.WaitForAssertion(() => Assert.Contains("The Vault library could not be read", cut.Markup));
-        Assert.Empty(cut.FindAll(".lib-page__empty, [data-vault-library]"));
-        _librariesUnreadable = false;
-        _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
-        cut.FindAll("button").Single(button => Text(button) == "Try again").Click();
-
-        cut.WaitForElement("[data-vault-library=vault-1]");
-        Assert.DoesNotContain("could not be read", cut.Markup);
-    }
-
-    [Fact]
     public async Task WhenTheVaultLibraryCannotBeReadStepThreeOffersNeitherCreationNorAddingUntilTryAgainWorks()
     {
         await SetUpAsync();
         _librariesUnreadable = true;
-        Open().Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
         _dialogs.Find(".add-wizard__tile[data-group=vault]").Click();
         PickFolder(NewFolder);
@@ -489,7 +385,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     public async Task TheWizardClosesWhenVaultModeIsSwitchedOffWhileItIsOpenOnTheVault()
     {
         await SetUpAsync();
-        Open().Find(".lib-door__add").Click();
+        OpenAddLibrary();
         _dialogs.WaitForElement(".add-wizard");
         _dialogs.Find(".add-wizard__tile[data-group=vault]").Click();
         _dialogs.WaitForElement(".server-folder-picker");
