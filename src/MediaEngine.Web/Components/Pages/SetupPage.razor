@@ -88,7 +88,7 @@
                                          Back="@(() => { _languageConfirmed = false; return Task.CompletedTask; })" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 default:
-                    <SetupReadinessStage Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" InstallTool="InstallOptionalToolAsync" Tools="@_preflight?.Tools" SampleScanDetail="@_sampleScanDetail" Busy="@_busy" SampleScan="SampleScanAsync" Complete="CompleteAsync"
+                    <SetupReadinessStage Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" InstallTool="InstallOptionalToolAsync" RunInstaller="RunToolInstallerAsync" Tools="@_preflight?.Tools" SampleScanDetail="@_sampleScanDetail" Busy="@_busy" SampleScan="SampleScanAsync" Complete="CompleteAsync"
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
             }
@@ -546,6 +546,15 @@
         catch (Exception) { started = false; }
         if (started) Snackbar.Add($"Downloading {tool.Name}. Library finishes this in the background.", AppSeverity.Info);
         else Snackbar.Add($"The download of {tool.Name} could not start. You can try again from Settings, Tools and requirements.", AppSeverity.Warning);
+        _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
+    }
+    private async Task RunToolInstallerAsync(ToolRequirementDto tool)
+    {
+        bool started;
+        try { started = (await ApiClient.RunToolInstallerAsync(tool.Id)).Success; }
+        catch (Exception) { started = false; }
+        if (started) Snackbar.Add($"The {tool.Name} installer is running. Finish it, then check again.", AppSeverity.Info);
+        else Snackbar.Add($"The {tool.Name} installer could not start from here. After setup, open Settings, Tools and requirements and choose Run installer.", AppSeverity.Warning);
         _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
     }
     private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }
