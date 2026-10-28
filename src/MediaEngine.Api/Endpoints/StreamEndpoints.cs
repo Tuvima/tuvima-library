@@ -340,6 +340,8 @@ public static class StreamEndpoints
             Guid assetId,
             Guid trackId,
             ITextTrackRepository textTrackRepo,
+            IMediaAssetRepository assetRepo,
+            ITextTrackExportService exportService,
             CancellationToken ct) =>
         {
             var track = await textTrackRepo.FindByIdAsync(trackId, ct);
@@ -349,6 +351,18 @@ public static class StreamEndpoints
             }
 
             await textTrackRepo.SetPreferredAsync(trackId, ct);
+
+            // A changed lyrics choice replaces the one lyrics file the Library wrote beside the song (only when write-back allows it).
+            if (track.Kind == TextTrackKind.Lyrics && await assetRepo.FindByIdAsync(assetId, ct) is { } asset)
+            {
+                var chosen = await textTrackRepo.FindByIdAsync(trackId, ct) ?? track;
+                if (await exportService.ExportPreferredLyricsAsync(asset, chosen, ct) is { Length: > 0 } written)
+                {
+                    chosen.SidecarPath = written;
+                    await textTrackRepo.UpsertAsync(chosen, ct);
+                }
+            }
+
             return Results.Ok(new PreferredTextTrackResponse
             {
                 asset_id = assetId,

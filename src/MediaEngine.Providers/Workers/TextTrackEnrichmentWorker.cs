@@ -263,6 +263,11 @@ public sealed class TextTrackEnrichmentWorker
                     {
                         await ExportPreferredSubtitleAsync(asset, saved, ct).ConfigureAwait(false);
                     }
+                    else if (existingPreferred is null && canAutoPrefer && kind == TextTrackKind.Lyrics
+                        && _textTrackExportService is not null)
+                    {
+                        await ExportPreferredLyricsAsync(asset, saved, ct).ConfigureAwait(false);
+                    }
 
                     var afterDownload = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
                     return new("Updated", kind, before.Count, afterDownload.Count,
@@ -608,6 +613,19 @@ public sealed class TextTrackEnrichmentWorker
     private async Task ExportPreferredSubtitleAsync(MediaAsset asset, TextTrack track, CancellationToken ct)
     {
         var exportPath = await _textTrackExportService!.ExportPreferredSubtitleAsync(asset, track, ct)
+            .ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(exportPath))
+        {
+            return;
+        }
+
+        track.SidecarPath = exportPath;
+        await _trackRepo.UpsertAsync(track, ct).ConfigureAwait(false);
+    }
+
+    private async Task ExportPreferredLyricsAsync(MediaAsset asset, TextTrack track, CancellationToken ct)
+    {
+        var exportPath = await _textTrackExportService!.ExportPreferredLyricsAsync(asset, track, ct)
             .ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(exportPath))
         {
