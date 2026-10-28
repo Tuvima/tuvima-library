@@ -265,6 +265,20 @@ public sealed partial class ReconciliationAdapter
                     continue;
                 }
 
+                // P2047 (duration) is a quantity whose unit decides the meaning of the number
+                // ("3.5" minutes is not "3.5" seconds). Store whole seconds, reading the unit from
+                // Wikidata; a duration with no recognised unit is dropped rather than guessed.
+                if (string.Equals(pCode, "P2047", StringComparison.OrdinalIgnoreCase)
+                    && claim.Value?.Kind == WikidataValueKind.Quantity)
+                {
+                    var seconds = DurationQuantityToSeconds(claim.Value.Amount, claim.Value.Unit);
+                    if (seconds is not null)
+                    {
+                        yield return new ProviderClaim("duration_seconds", seconds, ClaimConfidence.Duration);
+                    }
+                    continue;
+                }
+
                 // Determine confidence and string value.
                 // GetPropertiesAsync (v0.8+) calls ResolveClaimsEntityLabelsAsync internally,
                 // populating EntityLabel for all entity references. v0.9+ made EntityLabel
@@ -333,6 +347,29 @@ public sealed partial class ReconciliationAdapter
                 }
             }
         }
+    }
+
+    /// <summary>Converts a Wikidata duration quantity to whole seconds using its unit entity; null when the unit is unknown.</summary>
+    internal static string? DurationQuantityToSeconds(decimal? amount, string? unitUri)
+    {
+        if (amount is null or <= 0 || string.IsNullOrWhiteSpace(unitUri))
+        {
+            return null;
+        }
+
+        var unit = unitUri[(unitUri.LastIndexOf('/') + 1)..];
+        var factor = unit switch
+        {
+            "Q723733" => 0.001m,  // millisecond
+            "Q11574" => 1m,       // second
+            "Q7727" => 60m,       // minute
+            "Q25235" => 3600m,    // hour
+            _ => 0m,
+        };
+
+        return factor == 0m
+            ? null
+            : decimal.Round(amount.Value * factor, MidpointRounding.AwayFromZero).ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static (string? value, double confidence) ExtractValueAndConfidence(

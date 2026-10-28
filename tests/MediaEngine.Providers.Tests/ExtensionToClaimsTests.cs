@@ -391,4 +391,50 @@ public sealed class ExtensionToClaimsTests
 
         Assert.Empty(claims);
     }
+
+    private static WikidataClaim QuantityClaim(string propertyId, decimal amount, string? unit) =>
+        new()
+        {
+            PropertyId = propertyId,
+            Rank = "normal",
+            Value = new WikidataValue
+            {
+                Kind = WikidataValueKind.Quantity,
+                RawValue = amount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Amount = amount,
+                Unit = unit,
+            }
+        };
+
+    [Theory]
+    [InlineData(3.5, "http://www.wikidata.org/entity/Q7727", "210")]
+    [InlineData(243, "http://www.wikidata.org/entity/Q11574", "243")]
+    [InlineData(243000, "http://www.wikidata.org/entity/Q723733", "243")]
+    [InlineData(0.5, "http://www.wikidata.org/entity/Q25235", "1800")]
+    public void DurationQuantity_IsStoredInSecondsUsingItsUnit(double amount, string unit, string expectedSeconds)
+    {
+        var properties = new Dictionary<string, IReadOnlyList<WikidataClaim>>
+        {
+            ["P2047"] = [QuantityClaim("P2047", (decimal)amount, unit)],
+        };
+        var labels = new Dictionary<string, string> { ["P2047"] = "duration" };
+
+        var claims = ConvertToClaims("Q1", properties, labels);
+
+        var claim = Assert.Single(claims);
+        Assert.Equal("duration_seconds", claim.Key);
+        Assert.Equal(expectedSeconds, claim.Value);
+    }
+
+    [Fact]
+    public void DurationQuantity_WithAnUnknownUnit_IsDroppedRatherThanGuessed()
+    {
+        var properties = new Dictionary<string, IReadOnlyList<WikidataClaim>>
+        {
+            ["P2047"] = [QuantityClaim("P2047", 3.5m, null)],
+        };
+        var labels = new Dictionary<string, string> { ["P2047"] = "duration" };
+
+        Assert.Empty(ConvertToClaims("Q1", properties, labels));
+    }
 }

@@ -29,6 +29,12 @@
             else
             {
                 <section class="playback-popover-surface" role="dialog" aria-label="@Title">
+                    @if (Kind == "lyrics")
+                    {
+                        <AppNativeButton Type="button" Class="playback-panel-dismiss" AriaLabel="@($"Close {Title}")" title="@($"Close {Title}")" OnClick="CloseAsync">
+                            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
+                        </AppNativeButton>
+                    }
                     @if (ShowHeading) { <h2 class="playback-popover-heading">@Title</h2> }
                     <div class="playback-popover-content"><CascadingValue Name="PlaybackPopoverOwner" Value="@PanelId">@ChildContent</CascadingValue></div>
                 </section>

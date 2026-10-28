@@ -116,7 +116,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             CreateItem("Later", "Artist") with { StreamUrl = "/stream/later" });
         AddWorkspaceServices(playback, EngineApiClientStub.CreateDefault());
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue"));
-        var clear = cut.FindComponents<AppNativeButton>().Single(button => button.Instance.AriaLabel == "Clear upcoming queue").Instance.OnClick;
+        var clear = cut.FindComponents<AppButton>().Single(button => button.Instance.AdditionalAttributes?.GetValueOrDefault("aria-label") as string == "Clear upcoming queue").Instance.OnClick;
         await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
         await cut.InvokeAsync(() => clear.InvokeAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
         Assert.Equal(3, playback.Queue.Count);
