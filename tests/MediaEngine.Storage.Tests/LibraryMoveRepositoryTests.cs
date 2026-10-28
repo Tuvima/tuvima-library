@@ -201,6 +201,79 @@ public sealed class LibraryMoveRepositoryTests : IDisposable
         Assert.Equal(3, Scalar("SELECT COUNT(*) FROM editions WHERE work_id = @source;", new { source }));
     }
 
+    [Fact]
+    public async Task GivingASongAFreeTrackNumber_WritesItsPlaceAndItsTrackNumberClaim()
+    {
+        var album = Parent("Music", "OK Computer");
+        var song = Child(album, "Music", "Airbag", 1);
+
+        var outcome = await _repository.SetPositionAsync(song, album, 7);
+
+        Assert.Null(outcome.Refusal);
+        Assert.Equal(7, Scalar("SELECT ordinal FROM works WHERE id = @song;", new { song }));
+        Assert.Equal(7, Scalar("SELECT CAST(ordinal_sort AS INTEGER) FROM works WHERE id = @song;", new { song }));
+        Assert.Equal("7", Scalar<string>("SELECT value FROM canonical_values WHERE entity_id = @song AND key = 'track_number';", new { song }));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM metadata_claims WHERE entity_id = @song AND claim_key = 'track_number' AND is_current = 1;", new { song }));
+    }
+
+    [Fact]
+    public async Task GivingASongANumberAnotherSongHolds_TradesThePlacesSoTheAlbumNeverHoldsANumberTwice()
+    {
+        var album = Parent("Music", "OK Computer");
+        var first = Child(album, "Music", "Airbag", 1);
+        var second = Child(album, "Music", "Paranoid Android", 2);
+
+        var outcome = await _repository.SetPositionAsync(first, album, 2);
+
+        Assert.Null(outcome.Refusal);
+        Assert.Equal(2, outcome.Before.Count);
+        Assert.Equal(2, Scalar("SELECT ordinal FROM works WHERE id = @first;", new { first }));
+        Assert.Equal(1, Scalar("SELECT ordinal FROM works WHERE id = @second;", new { second }));
+        Assert.Equal("1", Scalar<string>("SELECT value FROM canonical_values WHERE entity_id = @second AND key = 'track_number';", new { second }));
+    }
+
+    [Fact]
+    public async Task RestoringThePlacementsOfATrade_PutsBothSongsAndTheirNumbersBack()
+    {
+        var album = Parent("Music", "OK Computer");
+        var first = Child(album, "Music", "Airbag", 1);
+        var second = Child(album, "Music", "Paranoid Android", 2);
+        var outcome = await _repository.SetPositionAsync(first, album, 2);
+
+        await _repository.RestorePlacementsAsync(outcome.Before);
+
+        Assert.Equal(1, Scalar("SELECT ordinal FROM works WHERE id = @first;", new { first }));
+        Assert.Equal(2, Scalar("SELECT ordinal FROM works WHERE id = @second;", new { second }));
+        Assert.Equal("1", Scalar<string>("SELECT value FROM canonical_values WHERE entity_id = @first AND key = 'track_number';", new { first }));
+        Assert.Equal("2", Scalar<string>("SELECT value FROM canonical_values WHERE entity_id = @second AND key = 'track_number';", new { second }));
+    }
+
+    [Fact]
+    public async Task GivingASongANumberInAnAlbumItIsNotIn_IsRefusedAndNothingChanges()
+    {
+        var album = Parent("Music", "OK Computer");
+        var other = Parent("Music", "The Best Of");
+        var song = Child(album, "Music", "Airbag", 1);
+
+        var outcome = await _repository.SetPositionAsync(song, other, 3);
+
+        Assert.NotNull(outcome.Refusal);
+        Assert.Equal(1, Scalar("SELECT ordinal FROM works WHERE id = @song;", new { song }));
+    }
+
+    [Fact]
+    public async Task GivingASongItsOwnNumberAgain_ChangesNothing()
+    {
+        var album = Parent("Music", "OK Computer");
+        var song = Child(album, "Music", "Airbag", 4);
+
+        var outcome = await _repository.SetPositionAsync(song, album, 4);
+
+        Assert.Null(outcome.Refusal);
+        Assert.Empty(outcome.Before);
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM metadata_claims WHERE entity_id = @song AND claim_key = 'track_number';", new { song }));
+    }
+
     // ----- helpers ---------------------------------------------------------------------------------------------------------------
 
     private static LibraryMovePlanRow Row(IReadOnlyList<LibraryMoveItem> items, Guid id, LibraryMoveMode mode, LibraryMoveTarget target)

@@ -66,4 +66,19 @@ public interface ILibraryMoveRepository
         LibraryMovePlan plan,
         Guid? sourceCollectionId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Gives a song the track number <paramref name="number"/> in the album it already sits in (universal editor spec D14, "Renumber
+    /// sequentially"). The song must be a music title directly under <paramref name="expectedAlbumId"/>. When another song of the album
+    /// holds that number the two trade places, so the album never holds one number twice. The change is one transaction; it bumps the
+    /// identity revision and asks for the tags to be written again, and it asks for no file to be renamed or moved.
+    /// </summary>
+    Task<LibraryPositionOutcome> SetPositionAsync(
+        Guid workId,
+        Guid expectedAlbumId,
+        int number,
+        CancellationToken ct = default);
+
+    /// <summary>Puts titles back where <see cref="SetPositionAsync"/> found them (its undo). Numbers and "not matched" marks return with them.</summary>
+    Task RestorePlacementsAsync(IReadOnlyList<LibraryPlacement> placements, CancellationToken ct = default);
 }

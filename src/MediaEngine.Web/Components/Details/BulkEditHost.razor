@@ -1,0 +1,197 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject DeviceContextService Device
+@inject IAppDialogService Dialogs
+
+@* Bulk editing for a list that has no detail page behind it (the songs list, a library table; universal editor spec D14). The list
+   hands over the rows it has ticked; this draws the selection bar, the right-hand "Edit N items" panel and, while anything is staged,
+   a strip with Cancel and Save changes. The staged changes use the same pending list and the same check-then-save as the editing bar
+   on a detail page. The list's own filters, sort and scroll are never touched: after a save the host only asks the list to reload.
+   Nothing renders on a device that may not edit. *@
+@if (_canEdit)
+{
+    <NavigationLock ConfirmExternalNavigation="@_session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+
+    @if (_session.HasPendingChanges)
+    {
+        <div class="tl-batch__pending" role="region" aria-label="Unsaved changes">
+            <span class="tl-batch__count" role="status">@PendingText</span>
+            <span class="tl-batch__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Disabled="@_session.Saving" Class="tl-batch__cancel" OnClick="CancelAsync">Cancel</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_session.Saving" Class="tl-batch__save"
+                           StartIcon="@AppMaterialIcons.Outlined.Check" OnClick="SaveAsync">@SaveLabel</AppButton>
+            </span>
+        </div>
+    }
+
+    @if (_session.Failures.Count > 0 || !string.IsNullOrWhiteSpace(_session.Message))
+    {
+        <div class="tl-editing-bar__notice" role="alert">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" />
+            <div>
+                <strong>@(_session.Failures.Count > 0 ? "Some changes could not be saved." : _session.Message)</strong>
+                @if (_session.Failures.Count > 0)
+                {
+                    <ul>
+                        @foreach (var failure in _session.Failures)
+                        {
+                            <li>@_session.Describe(failure, TitleOf)</li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    }
+
+    <BulkSelectionBar Selection="_selection" Busy="_session.Saving" OnCleared="OnClearedAsync" OnDeleted="OnDeletedAsync" />
+
+    @if (_selection.Panel != BulkPanelKind.None && _selection.Count > 0)
+    {
+        <aside class="tl-editor-panel tl-editor-panel--narrow tl-editor-panel--list" aria-labelledby="tl-bulk-panel-title" data-tool="details">
+            <header class="tl-editor-panel__header">
+                <h2 id="tl-bulk-panel-title" class="tl-editor-panel__title" tabindex="-1">@PanelTitle</h2>
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                               Size="AppControlSize.Large"
+                               Tone="AppUiTone.Neutral"
+                               Class="tl-editor-panel__close"
+                               Tooltip="@($"Close {PanelTitle}")"
+                               AriaLabel="@($"Close {PanelTitle}")"
+                               OnClick="ClosePanel" />
+            </header>
+            <div class="tl-editor-panel__body">
+                <BulkEditPanel Selection="_selection" Pending="_session.Pending" CanEdit="true" />
+            </div>
+        </aside>
+    }
+}
+
+@code {
+    private readonly BulkEditSelection _selection = new();
+    private readonly Dictionary<Guid, string> _titles = [];
+    private BulkEditSession _session = default!;
+    private bool _canEdit;
+    private bool _disposed;
+
+    /// <summary>The rows the list has ticked, in the order it shows them.</summary>
+    [Parameter] public IReadOnlyList<BulkEditRow> Rows { get; set; } = [];
+
+    /// <summary>The list's editor media type ("Music", "TV"...) when its rows do not carry their own.</summary>
+    [Parameter] public string? MediaType { get; set; }
+
+    /// <summary>Raised after a save reached the library: the list reloads its rows (its filters, sort and scroll stay).</summary>
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    /// <summary>Raised when the bar's Clear ran: the list drops its ticks.</summary>
+    [Parameter] public EventCallback OnCleared { get; set; }
+
+    /// <summary>Raised after the bar deleted the ticked rows: the list drops them.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<Guid>> OnDeleted { get; set; }
+
+    private string SaveLabel => _session.Saving ? "Saving..." : $"Save {_session.Pending.ChangeCount} {(_session.Pending.ChangeCount == 1 ? "change" : "changes")}";
+
+    private string PendingText => $"{_session.Pending.ChangeCount} unsaved {(_session.Pending.ChangeCount == 1 ? "change" : "changes")}";
+
+    private string PanelTitle => _selection.Panel switch
+    {
+        BulkPanelKind.Move => BulkEditRules.MoveLabel(_selection.Rows, _selection.MediaType),
+        BulkPanelKind.Match => $"Match {_selection.Count} {BulkEditRules.Noun(_selection.Rows, _selection.MediaType)}",
+        _ => BulkEditRules.EditTitle(_selection.Rows, _selection.MediaType),
+    };
+
+    protected override void OnInitialized()
+    {
+        _session = new BulkEditSession(new PendingEditList(), new EditSessionSaver(Api), () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
+        {
+            Saved = AfterSavedAsync,
+        };
+        _session.Changed += OnStateChanged;
+        _selection.Changed += OnStateChanged;
+        Device.OnChanged += OnDeviceChanged;
+        _canEdit = EditorDeviceRule.CanEdit(Device);
+    }
+
+    protected override void OnParametersSet()
+    {
+        _selection.MediaType = MediaType;
+        foreach (var row in Rows)
+        {
+            _titles[row.Id] = row.Title;
+        }
+
+        // A list that stops qualifying for editing (the window became a tablet) drops the ticks; what is staged is kept for the guard to ask about.
+        _selection.Replace(_canEdit ? Rows : []);
+    }
+
+    private string? TitleOf(Guid id) => _titles.GetValueOrDefault(id);
+
+    private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnDeviceChanged() => _ = InvokeAsync(() =>
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _canEdit = EditorDeviceRule.CanEdit(Device);
+        if (!_canEdit)
+        {
+            _selection.Clear();
+        }
+
+        StateHasChanged();
+    });
+
+    private void ClosePanel() => _selection.ClosePanel();
+
+    private async Task CancelAsync()
+    {
+        if (await _session.CancelAsync())
+        {
+            _selection.ClosePanel();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!_canEdit || EditorDeviceRule.TryRefuse(Device, null))
+        {
+            return;
+        }
+
+        await _session.SaveAsync();
+    }
+
+    // The list reloads its rows; the panel reads the saved values again. Nothing about the list's own view is reset.
+    private async Task AfterSavedAsync()
+    {
+        _selection.NotifySaved();
+        await OnSaved.InvokeAsync();
+    }
+
+    private async Task OnClearedAsync() => await OnCleared.InvokeAsync();
+
+    private async Task OnDeletedAsync(IReadOnlyList<Guid> ids) => await OnDeleted.InvokeAsync(ids);
+
+    // Leaving the page in the app with staged changes asks "Unsaved changes"; the browser asks for reload and tab close.
+    private async Task ConfirmNavigationAsync(LocationChangingContext context)
+    {
+        if (_session.HasPendingChanges && !await _session.CancelAsync())
+        {
+            context.PreventNavigation();
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _session.Changed -= OnStateChanged;
+        _session.Detach();
+        _selection.Changed -= OnStateChanged;
+        Device.OnChanged -= OnDeviceChanged;
+    }
+}

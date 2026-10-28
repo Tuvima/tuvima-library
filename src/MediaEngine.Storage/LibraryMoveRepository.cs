@@ -8,6 +8,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Services;
 using Microsoft.Data.Sqlite;
@@ -738,6 +739,171 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         }
 
         return null;
+    }
+
+    // ----- renumbering within an album ---------------------------------------------------------------------------------------
+
+    public async Task<LibraryPositionOutcome> SetPositionAsync(Guid workId, Guid expectedAlbumId, int number, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (number < 1)
+        {
+            return LibraryPositionOutcome.Refused("A track number starts at 1.");
+        }
+
+        return await db.ExecuteWriteAsync(
+            (connection, transaction, innerCt) => SetPosition(connection, transaction, workId, expectedAlbumId, number, innerCt),
+            ct).ConfigureAwait(false);
+    }
+
+    private static LibraryPositionOutcome SetPosition(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid workId,
+        Guid albumId,
+        int number,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var item = LoadItems(connection, transaction, [workId]).FirstOrDefault();
+        if (item is null || item.IsEdition)
+        {
+            return LibraryPositionOutcome.Refused("This item is no longer in your library.");
+        }
+
+        if (item.IsContainer
+            || !string.Equals(item.MediaType, "Music", StringComparison.OrdinalIgnoreCase)
+            || item.ParentWorkId != albumId)
+        {
+            return LibraryPositionOutcome.Refused("This song is no longer in that album.");
+        }
+
+        if (item.ProcessingRunning)
+        {
+            return LibraryPositionOutcome.Refused("This song is being processed. Wait for that to finish, then try again.");
+        }
+
+        var sort = OrdinalNormalizer.Normalize(null, item.DiscNumber ?? 1, number).SortValue ?? number;
+        var occupant = connection.QueryFirstOrDefault<PlacementRow>(
+            """
+            -- readiness: renumbering works on titles by id or by the album they sit in, whatever their readiness
+            SELECT id AS WorkId, ordinal AS Ordinal, ordinal_sort AS OrdinalSort, placement_unmatched AS Unmatched
+            FROM works
+            WHERE parent_work_id = @album AND ordinal_sort = @sort AND id <> @workId;
+            """,
+            new { album = albumId, sort, workId },
+            transaction);
+
+        if (occupant is not null && item.OrdinalSort is null)
+        {
+            return LibraryPositionOutcome.Refused($"Track {number.ToString(CultureInfo.InvariantCulture)} is already taken by another song in this album.");
+        }
+
+        if (occupant is null && item.Ordinal == number && item.OrdinalSort is { } same && Math.Abs(same - sort) < 0.0001d && !item.IsUnmatched)
+        {
+            return LibraryPositionOutcome.Done([]);
+        }
+
+        var before = new List<LibraryPlacement> { new(item.WorkId, item.Ordinal, item.OrdinalSort, item.IsUnmatched) };
+        var now = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        var token = "move:" + Guid.NewGuid().ToString("N");
+
+        // The unique index allows one title per place, so the song that holds the number steps aside first and takes the place
+        // this song leaves. The other song's number is written to its own claims, like any other number.
+        if (occupant is not null)
+        {
+            before.Add(new LibraryPlacement(occupant.WorkId, occupant.Ordinal, occupant.OrdinalSort, occupant.Unmatched != 0));
+            connection.Execute("UPDATE works SET ordinal_sort = NULL WHERE id = @id;", new { id = occupant.WorkId }, transaction);
+        }
+
+        PlaceInAlbum(connection, transaction, item.WorkId, number, sort);
+        SetNumbers(connection, transaction, [item.WorkId, .. item.AssetIds], [(MetadataFieldConstants.TrackNumber, number.ToString(CultureInfo.InvariantCulture))], now);
+        BumpRevision(connection, transaction, item.WorkId, now);
+        MarkWritebackPending(connection, transaction, item.AssetIds, token, now, requestFileMoves: false);
+
+        if (occupant is not null)
+        {
+            ApplyPlacement(connection, transaction, new LibraryPlacement(occupant.WorkId, item.Ordinal, item.OrdinalSort, item.IsUnmatched), now, token);
+        }
+
+        return LibraryPositionOutcome.Done(before);
+    }
+
+    public Task RestorePlacementsAsync(IReadOnlyList<LibraryPlacement> placements, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(placements);
+        ct.ThrowIfCancellationRequested();
+        if (placements.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        return db.ExecuteWriteAsync(
+            (connection, transaction, innerCt) =>
+            {
+                innerCt.ThrowIfCancellationRequested();
+                var now = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+                var token = "move:" + Guid.NewGuid().ToString("N");
+
+                // Every title steps aside before any takes its old place, so a trade never meets itself on the unique index.
+                connection.Execute(
+                    "UPDATE works SET ordinal_sort = NULL WHERE id IN @ids;",
+                    new { ids = ToBlobs([.. placements.Select(p => p.WorkId)]) },
+                    transaction);
+                foreach (var placement in placements)
+                {
+                    ApplyPlacement(connection, transaction, placement, now, token);
+                }
+            },
+            ct);
+    }
+
+    // Writes one title's place in its album and the track number that goes with it (or removes the number when it has no place).
+    private static void ApplyPlacement(SqliteConnection connection, SqliteTransaction transaction, LibraryPlacement placement, string now, string token)
+    {
+        connection.Execute(
+            "UPDATE works SET ordinal = @ordinal, ordinal_sort = @sort, placement_unmatched = @unmatched WHERE id = @id;",
+            new { ordinal = placement.Ordinal, sort = placement.OrdinalSort, unmatched = placement.Unmatched ? 1 : 0, id = placement.WorkId },
+            transaction);
+
+        var assets = connection.Query<Guid>(
+            """
+            -- readiness: renumbering works on titles by id, whatever their readiness
+            SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @id;
+            """,
+            new { id = placement.WorkId },
+            transaction).ToList();
+        var entities = new List<Guid> { placement.WorkId };
+        entities.AddRange(assets);
+
+        if (placement.Ordinal is { } track)
+        {
+            SetNumbers(connection, transaction, entities, [(MetadataFieldConstants.TrackNumber, track.ToString(CultureInfo.InvariantCulture))], now);
+        }
+        else
+        {
+            ClearNumbers(connection, transaction, entities, [MetadataFieldConstants.TrackNumber], now);
+        }
+
+        BumpRevision(connection, transaction, placement.WorkId, now);
+        MarkWritebackPending(connection, transaction, assets, token, now, requestFileMoves: false);
+    }
+
+    private static void PlaceInAlbum(SqliteConnection connection, SqliteTransaction transaction, Guid workId, int ordinal, double sort) =>
+        connection.Execute(
+            "UPDATE works SET ordinal = @ordinal, ordinal_sort = @sort, placement_unmatched = 0 WHERE id = @workId;",
+            new { ordinal, sort, workId },
+            transaction);
+
+    private sealed class PlacementRow
+    {
+        public Guid WorkId { get; init; }
+
+        public int? Ordinal { get; init; }
+
+        public double? OrdinalSort { get; init; }
+
+        public long Unmatched { get; init; }
     }
 
     private static void Relocate(
