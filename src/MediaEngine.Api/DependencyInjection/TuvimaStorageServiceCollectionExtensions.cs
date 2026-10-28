@@ -123,6 +123,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IVaultLibraryRepository, VaultLibraryRepository>();
         services.AddSingleton<INsfwAccessRepository, NsfwAccessRepository>();
         services.AddSingleton<IVaultSectionGrantRepository, VaultSectionGrantRepository>();
+        services.AddSingleton<IVaultMoveRepository, VaultMoveRepository>();
+        services.AddSingleton<IMovedItemStateCarry, MovedItemStateCarry>();
         services.AddSingleton<IVaultNameRepository, VaultNameRepository>();
         services.AddSingleton<IVaultArtworkRepository, VaultArtworkRepository>();
         // How each Vault video was matched, where its fields came from, its fingerprints and the quiet Vault activity list (WP12).
@@ -162,6 +164,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultOperationGate>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultFolderAttachmentService>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultSiblingLibraryService>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultMoveSignal>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultMoveService>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultMoveRunner>();
         services.AddTuvimaSecurity();
         services.AddSingleton<SetupSessionService>();
         services.AddSingleton<SetupPreflightService>();

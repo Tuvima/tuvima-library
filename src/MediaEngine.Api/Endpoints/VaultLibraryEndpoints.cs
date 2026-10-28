@@ -109,7 +109,7 @@ internal static class VaultLibraryEndpoints
             : null;
     }
 
-    private static async Task<Guid?> UnlockedAdministratorAsync(HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver access)
+    internal static async Task<Guid?> UnlockedAdministratorAsync(HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver access)
     {
         if (await AdministratorAsync(http, authorities) is not { } profileId)
         {

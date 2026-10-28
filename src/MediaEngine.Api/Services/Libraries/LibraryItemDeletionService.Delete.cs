@@ -11,7 +11,8 @@ using Microsoft.Extensions.Logging;
 namespace MediaEngine.Api.Services.Libraries;
 
 /// <summary>Who confirmed a deletion: kept on the activity entry and on the excluded-file rows. The display name is a snapshot.</summary>
-public sealed record LibraryItemDeletionActor(Guid? AccountId, Guid? ProfileId, string DisplayName);
+/// <param name="VaultMove">True when the titles are being moved to or out of the Vault: nothing then names a title, no file goes to the shared recycle bin, and the activity entry says only that an item was moved.</param>
+public sealed record LibraryItemDeletionActor(Guid? AccountId, Guid? ProfileId, string DisplayName, bool VaultMove = false);
 
 /// <summary>
 /// The second half of Delete from library: acts on a plan the person confirmed. Order matters and is fixed: re-check the plan, stop
@@ -67,7 +68,38 @@ public sealed partial class LibraryItemDeletionService
         }
     }
 
-    private async Task<LibraryItemDeletionResultDto> ExecuteAsync(LibraryItemDeletionPlan plan, LibraryItemDeletionActor actor)
+    /// <summary>
+    /// Removes titles after a Move to Vault or Move out has copied and checked their files. The same steps and the same safety gate as
+    /// <see cref="DeleteAsync"/>, with no preview to confirm (the move job holds the plan), and nothing that names a title. A file the gate
+    /// will not let go of (a Read-only folder) stays where it is and is remembered so the next scan does not bring the title back.
+    /// </summary>
+    /// <param name="fromVault">True for Move out: the titles are Vault titles, which no other deletion can reach.</param>
+    public async Task<LibraryItemDeletionResult<LibraryItemDeletionResultDto>> RetireForVaultMoveAsync(
+        IReadOnlyList<Guid> workIds,
+        bool fromVault,
+        LibraryItemDeletionActor actor,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        await _deleteLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var planned = await BuildPlanAsync(workIds, ct, fromVault).ConfigureAwait(false);
+            if (!planned.IsSuccess)
+            {
+                return LibraryItemDeletionResult<LibraryItemDeletionResultDto>.Refused(planned.Refusal!);
+            }
+
+            var result = await ExecuteAsync(planned.Value!, actor with { VaultMove = true }, announce: !fromVault).ConfigureAwait(false);
+            return LibraryItemDeletionResult<LibraryItemDeletionResultDto>.Ok(result);
+        }
+        finally
+        {
+            _deleteLock.Release();
+        }
+    }
+
+    private async Task<LibraryItemDeletionResultDto> ExecuteAsync(LibraryItemDeletionPlan plan, LibraryItemDeletionActor actor, bool announce = true)
     {
         var ct = CancellationToken.None;
 
@@ -75,12 +107,12 @@ public sealed partial class LibraryItemDeletionService
         await repository.CancelProcessingAsync(plan.WorkIds, ct).ConfigureAwait(false);
 
         // 4. Files, each one through the gate again.
-        var files = DeleteFiles(plan);
+        var files = DeleteFiles(plan, actor.VaultMove);
 
         // 5. Media files that are still on disk are remembered so the next scan does not bring the title back.
         try
         {
-            await RecordExclusionsAsync(plan, files, actor).ConfigureAwait(false);
+            await RecordExclusionsAsync(plan, files, actor, actor.VaultMove).ConfigureAwait(false);
         }
         finally
         {
@@ -141,17 +173,27 @@ public sealed partial class LibraryItemDeletionService
         };
 
         // 9. The one entry the server keeps: who deleted what.
-        await LogActivityAsync(plan, actor, result).ConfigureAwait(false);
+        if (actor.VaultMove)
+        {
+            await LogVaultMoveActivityAsync(plan, actor).ConfigureAwait(false);
+        }
+        else
+        {
+            await LogActivityAsync(plan, actor, result).ConfigureAwait(false);
+        }
 
-        // 10. Open screens drop the titles.
-        await PublishRemovedAsync(plan.WorkIds, data.AssetIds).ConfigureAwait(false);
+        // 10. Open screens drop the titles. Vault titles are not announced to everyone; the Vault screens read the list again.
+        if (announce)
+        {
+            await PublishRemovedAsync(plan.WorkIds, data.AssetIds).ConfigureAwait(false);
+        }
 
         return result;
     }
 
     // ----- step 4: files ---------------------------------------------------------------------------------------------------
 
-    private FileRun DeleteFiles(LibraryItemDeletionPlan plan)
+    private FileRun DeleteFiles(LibraryItemDeletionPlan plan, bool vaultMove)
     {
         var run = new FileRun();
         var titles = plan.Preview.Items.ToDictionary(item => item.WorkId, item => item.Title);
@@ -187,7 +229,7 @@ public sealed partial class LibraryItemDeletionService
                 continue;
             }
 
-            var attempt = TryDelete(file, titles.GetValueOrDefault(file.WorkId));
+            var attempt = TryDelete(file, titles.GetValueOrDefault(file.WorkId), vaultMove);
             switch (attempt.Kind)
             {
                 case DeleteAttemptKind.Deleted:
@@ -219,7 +261,7 @@ public sealed partial class LibraryItemDeletionService
     /// Deletes one file. The source is resolved again and the policy rebuilt now, and the gate is asked at this moment: the plan's own
     /// policy is never trusted, because a folder can be switched to as-is, or a merge can list the file, between the plan and here.
     /// </summary>
-    private DeleteAttempt TryDelete(LibraryItemDeletionPlannedFile file, string? title)
+    private DeleteAttempt TryDelete(LibraryItemDeletionPlannedFile file, string? title, bool vaultMove)
     {
         var path = file.FullPath;
         var resolved = string.IsNullOrWhiteSpace(path) ? null : folders.ResolveSourceForPath(path);
@@ -243,7 +285,8 @@ public sealed partial class LibraryItemDeletionService
             }
 
             // A library type with its recycle bin on moves the file there instead; nothing is freed until the bin is emptied.
-            if (resolved?.Library.RecycleBin == true)
+            // A moved title's file is already safe in its new place, and the shared bin would show its name, so a move skips the bin.
+            if (resolved?.Library.RecycleBin == true && !vaultMove)
             {
                 Bin.MoveIn(path, title, resolved.Library.Id);
                 return DeleteAttempt.WasDeleted(0);
@@ -277,7 +320,7 @@ public sealed partial class LibraryItemDeletionService
 
     // ----- step 5: exclusions ----------------------------------------------------------------------------------------------
 
-    private async Task RecordExclusionsAsync(LibraryItemDeletionPlan plan, FileRun run, LibraryItemDeletionActor actor)
+    private async Task RecordExclusionsAsync(LibraryItemDeletionPlan plan, FileRun run, LibraryItemDeletionActor actor, bool vaultMove)
     {
         var hashes = plan.Works.SelectMany(work => work.Assets)
             .GroupBy(asset => asset.AssetId)
@@ -333,7 +376,7 @@ public sealed partial class LibraryItemDeletionService
                 hash,
                 size,
                 lastWrite,
-                titles.GetValueOrDefault(file.WorkId),
+                vaultMove ? null : titles.GetValueOrDefault(file.WorkId),
                 DateTimeOffset.UtcNow,
                 actor.AccountId,
                 actor.DisplayName,
@@ -579,6 +622,27 @@ public sealed partial class LibraryItemDeletionService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Deleted {Count} title(s) from the library but could not write the activity entry", plan.WorkIds.Count);
+        }
+    }
+
+    // A move names no title, id or path in anything a profile without the Vault can read (Vault sections D40); the full record is the Vault's own move list.
+    private async Task LogVaultMoveActivityAsync(LibraryItemDeletionPlan plan, LibraryItemDeletionActor actor)
+    {
+        var entry = new SystemActivityEntry
+        {
+            ActionType = SystemActionType.MediaRemoved,
+            EntityType = "Work",
+            ProfileId = actor.ProfileId,
+            Detail = plan.WorkIds.Count == 1 ? "An item was moved to the Vault." : $"{plan.WorkIds.Count.ToString(CultureInfo.InvariantCulture)} items were moved to the Vault.",
+        };
+
+        try
+        {
+            await activity.LogAsync(entry).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Moved {Count} item(s) but could not write the activity entry", plan.WorkIds.Count);
         }
     }
 

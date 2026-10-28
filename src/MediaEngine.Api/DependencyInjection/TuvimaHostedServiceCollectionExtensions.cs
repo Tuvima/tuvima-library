@@ -26,6 +26,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         // The Vault's folder list for the logging and activity writers (Videos spec D17). Started first so no line is written before it is known.
         services.AddSingleton<VaultLocationGuardRefreshService>();
         services.AddHostedService(sp => sp.GetRequiredService<VaultLocationGuardRefreshService>());
+        services.AddHostedService<MediaEngine.Api.Services.Vault.VaultMoveWorker>();
 
         // Logs page and log/activity retention (recurring runs are recorded through the ScheduledTaskRunner).
         services.AddSingleton(EngineLogLocation.FromEnvironment());

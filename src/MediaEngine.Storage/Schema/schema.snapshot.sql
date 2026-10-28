@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0062 vault_section_grants).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0063 vault_moves).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2876,6 +2876,41 @@ CREATE TABLE vault_matches (
     matched_at  TEXT NOT NULL
 );
 
+CREATE TABLE vault_move_items (
+    id             BLOB NOT NULL PRIMARY KEY,
+    move_id        BLOB NOT NULL REFERENCES vault_moves(id) ON DELETE CASCADE,
+    position       INTEGER NOT NULL,
+    work_id        BLOB,
+    asset_id       BLOB,
+    new_asset_id   BLOB,
+    source_path    TEXT NOT NULL,
+    final_name     TEXT NOT NULL,
+    size_bytes     INTEGER NOT NULL DEFAULT 0,
+    content_hash   TEXT,
+    files_json     TEXT,
+    snapshot_json  TEXT,
+    original_left  INTEGER NOT NULL DEFAULT 0 CHECK (original_left IN (0, 1)),
+    state          TEXT NOT NULL CHECK (state IN ('planned', 'copied', 'retired', 'published', 'done', 'skipped', 'failed')),
+    reason         TEXT,
+    updated_at     TEXT NOT NULL
+);
+
+CREATE TABLE vault_moves (
+    id                         BLOB NOT NULL PRIMARY KEY,
+    direction                  TEXT NOT NULL CHECK (direction IN ('in', 'out')),
+    kind_key                   TEXT NOT NULL,
+    source_library_id          TEXT NOT NULL COLLATE NOCASE,
+    destination_library_id     TEXT NOT NULL COLLATE NOCASE,
+    source_folder              TEXT NOT NULL,
+    destination_folder         TEXT NOT NULL,
+    remove_read_only_originals INTEGER NOT NULL DEFAULT 0 CHECK (remove_read_only_originals IN (0, 1)),
+    state                      TEXT NOT NULL CHECK (state IN ('queued', 'running', 'done', 'attention', 'failed')),
+    message                    TEXT,
+    created_by_profile_id      BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at                 TEXT NOT NULL,
+    updated_at                 TEXT NOT NULL
+);
+
 CREATE TABLE vault_performers (
     id         BLOB NOT NULL PRIMARY KEY,
     library_id TEXT NOT NULL REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
@@ -3877,6 +3912,10 @@ CREATE INDEX ix_vault_image_items_folder  ON vault_image_items(folder_id, item_i
 CREATE INDEX ix_vault_image_items_library ON vault_image_items(library_id, item_id);
 
 CREATE INDEX ix_vault_image_tags_tag      ON vault_image_tags(tag_id, item_id);
+
+CREATE INDEX ix_vault_move_items_move ON vault_move_items(move_id, state);
+
+CREATE INDEX ix_vault_moves_state ON vault_moves(state);
 
 CREATE INDEX ix_vault_section_grants_profile ON vault_section_grants(profile_id);
 

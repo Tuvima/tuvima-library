@@ -8,6 +8,7 @@ using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.Vault;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -123,10 +124,14 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new HeaderAuthorityResolver(_adminProfile, _adminSession));
         builder.Services.AddSingleton(new VaultAccessResolver(_vaultLibraries, _nsfw, clock));
         builder.Services.AddSingleton(siblings);
+        builder.Services.AddSingleton(new VaultMoveService(
+            _configuration, _vaultLibraries, new VaultMoveRepository(_database), new MediaEngine.Storage.Services.MediaTypeExtensionCatalog(), administration,
+            new VaultMoveSignal(), clock, NullLogger<VaultMoveService>.Instance));
         _app = builder.Build();
         _app.UseAuthentication();
         _app.UseAuthorization();
         _app.MapGroup("/settings").MapVaultLibraries();
+        _app.MapGroup("/settings").MapVaultMoves();
         await _app.StartAsync();
         var address = new Uri(_app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
         _client = new HttpClient { BaseAddress = address };
@@ -209,6 +214,52 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
 
         Assert.Empty(await _vaultLibraries.GetIdsAsync());
         Assert.Single(_configuration.LoadLibraries().Libraries);
+    }
+
+    [Theory]
+    [InlineData("user")]
+    [InlineData("kids")]
+    [InlineData("app")]
+    public async Task EveryMoveRoute_AnswersNotFoundForAnyoneWhoIsNotAnAdministrator_WithNothingThatNamesTheVault(string who)
+    {
+        var calls = new[]
+        {
+            await SendAsync(HttpMethod.Post, "/settings/vault-moves/preview", who, new VaultMovePreviewRequest { Direction = "in", SourceId = Guid.NewGuid().ToString("D") }),
+            await SendAsync(HttpMethod.Post, "/settings/vault-moves", who, new StartVaultMoveRequest { Direction = "in", SourceId = Guid.NewGuid().ToString("D") }),
+            await SendAsync(HttpMethod.Get, "/settings/vault-moves", who),
+            await SendAsync(HttpMethod.Get, $"/settings/vault-moves/{Guid.NewGuid():D}", who),
+            await SendAsync(HttpMethod.Post, "/settings/vault-moves", who, "not a request"),
+        };
+
+        foreach (var response in calls)
+        {
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.DoesNotContain("vault", body, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public async Task AMoveCannotBeStartedWithoutTheAdministratorsOwnPin_AndNothingIsSaved()
+    {
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-moves", "admin",
+            new StartVaultMoveRequest { Direction = "in", SourceId = Guid.NewGuid().ToString("D"), AdminPin = "0000" });
+
+        Assert.Equal(HttpStatusCode.PreconditionRequired, response.StatusCode);
+        var list = await SendAsync(HttpMethod.Get, "/settings/vault-moves", "admin");
+        Assert.Equal("[]", (await list.Content.ReadAsStringAsync()).Trim());
+    }
+
+    [Fact]
+    public async Task APreviewOfAnUnknownFolder_IsRefusedInPlainWords_ForTheUnlockedAdministrator()
+    {
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-moves/preview", "admin",
+            new VaultMovePreviewRequest { Direction = "in", SourceId = Guid.NewGuid().ToString("D") });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var preview = (await response.Content.ReadFromJsonAsync<VaultMovePreviewDto>())!;
+        Assert.Equal(VaultMovePreviewStates.Refused, preview.State);
+        Assert.Equal(0, preview.Items);
     }
 
     [Fact]
