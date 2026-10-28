@@ -26,7 +26,7 @@ public sealed class LibraryVisibilityRuleTests : IDisposable
         _database.RunStartupChecks();
         _accounts = new AccountRepository(_database);
         _profileAccess = new ProfileAccessRepository(_database);
-        _rule = new LibraryVisibilityRule(_profileAccess, new VaultLibraryRepository(_database));
+        _rule = TestLibraryVisibility.Rule(_profileAccess, new VaultLibraryRepository(_database));
     }
 
     [Theory]
@@ -109,6 +109,89 @@ public sealed class LibraryVisibilityRuleTests : IDisposable
 
         Assert.Equal(new HashSet<Guid> { byFirst }, (await _rule.LoadHiddenAsync(first)).ToHashSet());
         Assert.Empty(await _rule.LoadHiddenAsync(second));
+    }
+
+    private (LibraryVisibilityRule Rule, LibraryProfileGrantRepository Grants, FixedLibraryAccessCatalog Catalog) SelectedAwareRule(params Guid[] selected)
+    {
+        var grants = new LibraryProfileGrantRepository(_database);
+        var catalog = new FixedLibraryAccessCatalog(selected);
+        return (new LibraryVisibilityRule(_profileAccess, new VaultLibraryRepository(_database), grants, catalog), grants, catalog);
+    }
+
+    [Fact]
+    public async Task ASelectedLibrary_IsVisibleOnlyToTheProfilesChosen_AndToAdministrators()
+    {
+        var library = Guid.NewGuid();
+        var chosen = await CreateProfileAsync("chosen@example.test", new HashSet<Guid>());
+        var notChosen = await CreateProfileAsync("notchosen@example.test", new HashSet<Guid>());
+        var (rule, grants, _) = SelectedAwareRule(library);
+        await grants.ReplaceGrantedProfilesAsync(library, new HashSet<Guid> { chosen }, _now, null);
+
+        Assert.True(await rule.MaySeeAsync(chosen, false, library, true));
+        Assert.False(await rule.MaySeeAsync(notChosen, false, library, true));
+        Assert.True(await rule.MaySeeAsync(notChosen, true, library, true));
+        Assert.True(await rule.IsHiddenAsync(notChosen, library));
+        Assert.False(await rule.IsHiddenAsync(chosen, library));
+    }
+
+    [Fact]
+    public async Task ANewProfile_HasNoAccessToASelectedLibrary_AndFullAccessToAStandardOne()
+    {
+        var selected = Guid.NewGuid();
+        var standard = Guid.NewGuid();
+        var earlier = await CreateProfileAsync("earlier@example.test", new HashSet<Guid>());
+        var (rule, grants, _) = SelectedAwareRule(selected);
+        await grants.ReplaceGrantedProfilesAsync(selected, new HashSet<Guid> { earlier }, _now, null);
+
+        var later = await CreateProfileAsync("later@example.test", new HashSet<Guid>());
+
+        Assert.False(await rule.MaySeeAsync(later, false, selected, true));
+        Assert.True(await rule.MaySeeAsync(later, false, standard, true));
+        Assert.Empty(await grants.GetGrantedLibrariesAsync(later));
+    }
+
+    [Fact]
+    public async Task LoadHidden_ListsEverySelectedLibraryTheProfileWasNotChosenFor_NextToItsOwnHiddenOnes()
+    {
+        var hiddenByAdmin = Guid.NewGuid();
+        var chosenFor = Guid.NewGuid();
+        var notChosenFor = Guid.NewGuid();
+        var profile = await CreateProfileAsync("loader@example.test", new HashSet<Guid> { hiddenByAdmin });
+        var (rule, grants, _) = SelectedAwareRule(chosenFor, notChosenFor);
+        await grants.ReplaceGrantedProfilesAsync(chosenFor, new HashSet<Guid> { profile }, _now, null);
+
+        Assert.Equal(new HashSet<Guid> { hiddenByAdmin, notChosenFor }, (await rule.LoadHiddenAsync(profile)).ToHashSet());
+    }
+
+    [Fact]
+    public async Task ASelectedLibrary_StillNeedsTheArea_AndStillHonoursAHiddenRow_EvenWhenChosen()
+    {
+        var library = Guid.NewGuid();
+        var profile = await CreateProfileAsync("limits@example.test", new HashSet<Guid> { library });
+        var (rule, grants, _) = SelectedAwareRule(library);
+        await grants.ReplaceGrantedProfilesAsync(library, new HashSet<Guid> { profile }, _now, null);
+
+        Assert.False(await rule.MaySeeAsync(profile, false, library, true));
+        Assert.False(await rule.MaySeeAsync(profile, false, library, false));
+    }
+
+    [Fact]
+    public async Task AVaultLibrary_IsNeverAcceptedAsAGrant_AndNeverVisibleThroughASelectedChoice()
+    {
+        var vault = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES(@vault,'none',@now,@now,@now);",
+                new { vault = vault.ToString("D"), now = _now.ToString("O") });
+        }
+
+        var profile = await CreateProfileAsync("vaultgrant@example.test", new HashSet<Guid>());
+        var (rule, grants, _) = SelectedAwareRule(vault);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => grants.ReplaceGrantedProfilesAsync(vault, new HashSet<Guid> { profile }, _now, null));
+        Assert.False(await rule.MaySeeAsync(profile, false, vault, true));
+        Assert.False(await rule.MaySeeAsync(profile, true, vault, true));
     }
 
     private async Task<Guid> CreateProfileAsync(string email, IReadOnlySet<Guid> hidden)

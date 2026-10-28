@@ -430,10 +430,10 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     [Fact]
     public void TheOtherTabsAreFilledInLaterAndSaySoWithAPlaceholder()
     {
-        var cut = Open(MoviesId, query: "tab=access");
+        var cut = Open(MoviesId, query: "tab=file-handling");
 
         cut.WaitForAssertion(() => Assert.Contains("Coming in the next step", cut.Markup));
-        Assert.Equal("true", cut.FindAll(PageTabs)[1].GetAttribute("aria-selected"));
+        Assert.Equal("true", cut.FindAll(PageTabs)[2].GetAttribute("aria-selected"));
         Assert.Empty(cut.FindAll(".folder-table"));
     }
 

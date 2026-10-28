@@ -128,6 +128,7 @@ public static class SettingsEndpoints
     {
         var grp = app.MapGroup("/settings").WithTags("Settings");
         grp.MapLibraryMutations();
+        grp.MapLibraryAccess();
 
         grp.MapGet("/security/auth", (AuthenticationProviderConfigurationService providerConfiguration, IConfigurationLoader configLoader) =>
         {
@@ -426,7 +427,7 @@ public static class SettingsEndpoints
         .Produces<IReadOnlyList<MediaEngine.Contracts.Settings.LibraryKindDto>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
 
-        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, [FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService libraryKinds, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Libraries.FolderFirstCheckService firstChecks, CancellationToken ct) =>
+        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, [FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService libraryKinds, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Libraries.FolderFirstCheckService firstChecks, [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Libraries.LibraryAccessChangeService accessChanges, CancellationToken ct) =>
         {
             await LibraryMutationEndpoints.WriteGate.WaitAsync(ct);
             try
@@ -462,6 +463,17 @@ public static class SettingsEndpoints
                     return ApiErrors.BadRequest(sourceError);
                 }
 
+                // Vault-protected is never switched on or off here, and a library whose access changed starts with no profiles chosen.
+                var accessError = MediaEngine.Api.Services.Libraries.LibraryAccessChangeService.Validate(
+                    configLoader.LoadLibraries(), MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds), vaultIds);
+                if (accessError is not null)
+                {
+                    return ApiErrors.BadRequest(accessError);
+                }
+
+                await accessChanges.ClearChangedAsync(
+                    MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(configLoader.LoadLibraries(), vaultIds),
+                    MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds), ct);
                 await firstChecks.SaveLibrariesWithFirstChecksAsync(configLoader.SaveLibraries, configLoader.LoadLibraries(), config, vaultIds, ct);
                 await folderJobs.StopJobsForUnmanagedFoldersAsync(config, ct);
                 await importFolder.ApplyAsync(ct);

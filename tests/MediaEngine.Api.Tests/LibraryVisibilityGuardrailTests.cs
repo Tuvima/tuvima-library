@@ -39,11 +39,30 @@ public sealed class LibraryVisibilityGuardrailTests
         ["src/MediaEngine.Domain/Contracts/IProfileAccessRepository.cs"] = "the repository contract",
         ["src/MediaEngine.Storage/ProfileAccessRepository.cs"] = "the repository that owns the table",
         [RuleType] = "the one visibility rule",
-        ["src/MediaEngine.Api/Security/AuthorizedDisplayProjectionReadService.cs"] = "browse, search, Home, counts: loads the set once per request, applies LibraryVisibilityRule.MaySee",
-        ["src/MediaEngine.Api/Realtime/IntercomAudience.cs"] = "Dashboard event audiences: applies LibraryVisibilityRule.MaySee",
-        ["src/MediaEngine.Api/Services/Playback/PlaybackTelemetryReadService.cs"] = "playback telemetry scope: hands the set to the repository query",
         ["src/MediaEngine.Api/Security/AccountAccessMutationService.cs"] = "a household administrator's save keeps what is hidden from their own profile hidden",
         ["src/MediaEngine.Api/Endpoints/AccountEndpoints.cs"] = "the administrator's read of a person's access and the library picker",
+    };
+
+    // The files that may read which profiles a Selected-profiles library is given to, or which libraries are Selected. Viewer-facing reads
+    // go through LibraryVisibilityRule (its hidden set already includes every Selected library the profile was not chosen for), so only
+    // the rule, the catalog behind it, the repository, and administration screens appear here (Library pages D9).
+    private static readonly Dictionary<string, string> MayReadTheSelectedProfileChoices = new(StringComparer.Ordinal)
+    {
+        ["src/MediaEngine.Domain/Contracts/ILibraryProfileGrantRepository.cs"] = "the repository contract",
+        ["src/MediaEngine.Domain/Contracts/ILibraryAccessCatalog.cs"] = "the catalog contract",
+        ["src/MediaEngine.Storage/LibraryProfileGrantRepository.cs"] = "the repository that owns the table",
+        ["src/MediaEngine.Api/Security/ConfigurationLibraryAccessCatalog.cs"] = "reads which libraries are Selected from the libraries file",
+        [RuleType] = "the one visibility rule",
+        ["src/MediaEngine.Api/Endpoints/LibraryAccessEndpoints.cs"] = "the administrator's read and save of the chosen profiles",
+        ["src/MediaEngine.Api/Services/Libraries/LibraryAccessChangeService.cs"] = "clears the chosen profiles when a library's access changes",
+        ["src/MediaEngine.Api/Endpoints/AccountEndpoints.cs"] = "the library picker leaves out Selected libraries a household administrator was not chosen for",
+        ["src/MediaEngine.Storage/Backup/BackupTableClassification.cs"] = "every table is classified for backup by name",
+        ["src/MediaEngine.Storage/Backup/UserExportScope.cs"] = "every access table is named as left out of a user export",
+        ["src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"] = "the development reset lists every table it empties",
+        ["src/MediaEngine.Storage/Schema/schema.snapshot.sql"] = "the generated data structure",
+        ["src/MediaEngine.Storage/Schema/Upgrades/0053_library_profile_grants.sql"] = "the step that creates the table",
+        ["src/MediaEngine.Api/DependencyInjection/TuvimaStorageServiceCollectionExtensions.cs"] = "registers the repository",
+        ["src/MediaEngine.Api/Program.cs"] = "registers the catalog",
     };
 
     private static readonly string[] ScannedExtensions = [".cs", ".razor", ".sql", ".json", ".cshtml", ".js"];
@@ -95,10 +114,25 @@ public sealed class LibraryVisibilityGuardrailTests
         [
             ("src/MediaEngine.Storage/ProfileAccessRepository.cs", "SELECT library_id FROM profile_library_hidden; GetHiddenLibrariesAsync IsLibraryHiddenAsync"),
             (RuleType, "access.GetHiddenLibrariesAsync(profileId, ct); access.IsLibraryHiddenAsync(profileId, libraryId, ct);"),
-            ("src/MediaEngine.Api/Realtime/IntercomAudience.cs", "profileAccess.IsLibraryHiddenAsync(profile.ProfileId, library, ct)"),
+            ("src/MediaEngine.Api/Security/AccountAccessMutationService.cs", "profileAccess.GetHiddenLibrariesAsync(profile, ct)"),
         ]);
 
         Assert.Empty(offences);
+    }
+
+    [Fact]
+    public void TheScanner_FlagsASeededReadOfTheSelectedProfileChoices_AndAcceptsTheRule()
+    {
+        var offences = FindOffences(
+        [
+            ("src/MediaEngine.Api/Services/Foo.cs", "var rows = conn.Query(\"SELECT library_id FROM library_profile_grants\");"),
+            ("src/MediaEngine.Api/Services/Bar.cs", "var granted = await grants.GetGrantedLibrariesAsync(id, ct);"),
+            (RuleType, "grants.GetGrantedLibrariesAsync(profileId, ct); catalog.GetSelectedLibraryIdsAsync(ct);"),
+        ]);
+
+        Assert.Equal(2, offences.Count);
+        Assert.Contains(offences, offence => offence.Contains("Services/Foo.cs", StringComparison.Ordinal));
+        Assert.Contains(offences, offence => offence.Contains("Services/Bar.cs", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -129,6 +163,14 @@ public sealed class LibraryVisibilityGuardrailTests
             if (!MayNameTheTable.ContainsKey(path) && text.Contains("profile_library_hidden", StringComparison.Ordinal))
             {
                 offences.Add($"{path} mentions profile_library_hidden; only the repository and the rule type may");
+            }
+
+            foreach (var name in new[] { "library_profile_grants", "GetGrantedLibrariesAsync", "GetGrantedProfilesAsync", "GetSelectedLibraryIdsAsync", "ILibraryProfileGrantRepository", "ILibraryAccessCatalog" })
+            {
+                if (!MayReadTheSelectedProfileChoices.ContainsKey(path) && text.Contains(name, StringComparison.Ordinal))
+                {
+                    offences.Add($"{path} mentions {name}; Selected-profiles visibility has one rule, use LibraryVisibilityRule, or add the file to the reviewed list with a reason");
+                }
             }
 
             foreach (var call in new[] { "GetHiddenLibrariesAsync", "IsLibraryHiddenAsync" })

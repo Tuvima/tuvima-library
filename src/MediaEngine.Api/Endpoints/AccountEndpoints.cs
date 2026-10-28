@@ -499,24 +499,31 @@ public static class AccountEndpoints
     private static void MapManagedProfiles(RouteGroupBuilder access)
     {
         access.MapGet("/libraries", async (HttpContext http, IRequestAuthorityResolver resolver,
-            IProfileAccessRepository profileAccess, IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
+            IProfileAccessRepository profileAccess, IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries,
+            [Microsoft.AspNetCore.Mvc.FromServices] ILibraryAccessCatalog accessCatalog, [Microsoft.AspNetCore.Mvc.FromServices] ILibraryProfileGrantRepository libraryGrants, CancellationToken ct) =>
         {
             // The Vault is in no library list, not even the one an administrator picks the libraries to hide from (Videos spec D45).
             var vaultIds = await vaultLibraries.GetIdsAsync(ct);
             // A household administrator sees every library, with the ones hidden from their own profile marked: they can't be changed.
             var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
             IReadOnlySet<Guid>? hiddenFromActor = null;
+            // A Selected-profiles library the household administrator was not chosen for is not named to them (Library pages D9).
+            IReadOnlySet<Guid> unseenSelected = new HashSet<Guid>();
             if (household is not null)
             {
                 var actor = await resolver.ResolveAsync(http, ct);
                 hiddenFromActor = actor.ActiveProfileId is { } actingProfile
                     ? await profileAccess.GetHiddenLibrariesAsync(actingProfile, ct)
                     : new HashSet<Guid>();
+                var granted = actor.ActiveProfileId is { } grantedProfile
+                    ? await libraryGrants.GetGrantedLibrariesAsync(grantedProfile, ct)
+                    : new HashSet<Guid>();
+                unseenSelected = (await accessCatalog.GetSelectedLibraryIdsAsync(ct)).Where(id => !granted.Contains(id)).ToHashSet();
             }
 
             var values = configuration.LoadLibraries().Libraries
                 .Where(library => library.Kind == LibraryKinds.Catalogued && !vaultIds.Contains(library.Id) &&
-                    Guid.TryParse(library.Id, out _))
+                    Guid.TryParse(library.Id, out var parsedId) && !unseenSelected.Contains(parsedId))
                 .Select(library => new AccessLibraryOptionDto(Guid.Parse(library.Id),
                     library.Name, library.Category, library.Area,
                     hiddenFromActor?.Contains(Guid.Parse(library.Id)) == true))

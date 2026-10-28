@@ -46,7 +46,8 @@ public sealed class IntercomAudienceTests : IDisposable
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
-            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
 
@@ -103,7 +104,8 @@ public sealed class IntercomAudienceTests : IDisposable
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
-            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
         var watch = new HashSet<AccountFeatureId> { AccountFeatureId.Watch };
@@ -134,7 +136,8 @@ public sealed class IntercomAudienceTests : IDisposable
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
-            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
 
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.ReviewItemCreated,
@@ -153,7 +156,8 @@ public sealed class IntercomAudienceTests : IDisposable
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
-            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var removed = new LibraryItemsRemovedEvent([Guid.NewGuid()], [Guid.NewGuid()]);
 
@@ -191,7 +195,8 @@ public sealed class IntercomAudienceTests : IDisposable
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
-            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Videos", "Secret", _assetId);
 
@@ -223,12 +228,34 @@ public sealed class IntercomAudienceTests : IDisposable
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
-            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         await _identities.RevokeSessionAsync(_sessionId, DateTimeOffset.UtcNow, "test");
 
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded,
             new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Hidden", _assetId)));
+    }
+
+    [Fact]
+    public async Task LiveAudience_DoesNotReachAProfileNotChosenForASelectedLibrary_UntilItIsChosen()
+    {
+        await SeedHumanAsync();
+        var grants = new LibraryProfileGrantRepository(_database);
+        var rule = new LibraryVisibilityRule(
+            new ProfileAccessRepository(_database), new VaultLibraryRepository(_database), grants, new FixedLibraryAccessCatalog(_libraryId));
+        var authorizer = new IntercomAudienceAuthorizer(
+            _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(), rule);
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+        var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Selected film", _assetId);
+
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
+
+        await grants.ReplaceGrantedProfilesAsync(
+            _libraryId, new HashSet<Guid> { Profile.SeedProfileId }, DateTimeOffset.UtcNow, null);
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
     }
 
     [Fact]

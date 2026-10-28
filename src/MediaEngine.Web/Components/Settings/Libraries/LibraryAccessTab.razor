@@ -1,0 +1,209 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@inject IEngineApiClient Api
+@inject IAppToastService Toast
+
+@* A library's Access tab (Library pages D9, D11): who may see it. Three choices are drawn: Standard (everyone who has the area, within each
+   profile's limits), Selected profiles (only the profiles ticked below, plus administrators) and Vault-protected (chosen when a library is
+   made, never switched on or off here, and not available yet). A library that is already Vault-protected shows that read-only. Edits are
+   kept until Save changes; Discard puts the saved choice back, and leaving with unsaved edits asks first. A phone shows the choice only. *@
+@if (IsVaultLibrary)
+{
+    <section class="library-access" aria-label="Access">
+        <LibraryAccessOptions Value="@LibraryAccessChoices.Vault" ShowVault="true" VaultEnabled="true" Disabled="true" />
+        <p class="library-access__note">This library is Vault-protected. That is chosen when a library is made and can't be switched on or off later.</p>
+    </section>
+}
+else if (_loading)
+{
+    <AppPageState Kind="AppPageStateKind.Loading" Title="Loading access" />
+}
+else if (_loadFailed)
+{
+    <AppPageState Kind="AppPageStateKind.Error"
+                  Icon="@AppMaterialIcons.Outlined.CloudOff"
+                  Title="Access could not be loaded"
+                  Message="Check that the Library server is running, then try again.">
+        <Actions>
+            <AppButton Label="Try again" OnClick="LoadAsync" />
+        </Actions>
+    </AppPageState>
+}
+else
+{
+    <section class="library-access" aria-label="Access">
+        <h3 class="library-access__heading">Who can see this library <AppInfoTip Text="Standard: everyone who can use this area. Selected profiles: only the profiles you tick, and administrators. Vault-protected is chosen when a library is made and can't be changed later; it is available after the Vault update." Label="About access" /></h3>
+        <LibraryAccessOptions Value="@_access"
+                              ValueChanged="@((string value) => ChooseAccess(value))"
+                              ShowVault="true"
+                              SelectedProfilesEnabled="true"
+                              Disabled="@(ReadOnly || _saving)" />
+
+        @if (_access == LibraryAccessChoices.Selected)
+        {
+            @if (_granted.Count == 0)
+            {
+                <AppAlert Tone="AppUiTone.Warning">Nobody but administrators will see this library until you tick at least one profile.</AppAlert>
+            }
+
+            <div class="library-access__profiles" role="group" aria-label="Profiles that can see this library">
+                @foreach (var profile in _profiles)
+                {
+                    <div class="library-access__profile" data-profile="@profile.Id">
+                        <span class="library-access__avatar"><ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" /></span>
+                        <AppCheckboxRow Label="@profile.DisplayName"
+                                        Description="@DescriptionOf(profile)"
+                                        Value="@(profile.IsServerAdmin || _granted.Contains(profile.Id))"
+                                        Disabled="@(ReadOnly || _saving || profile.IsServerAdmin)"
+                                        ValueChanged="@((bool ticked) => Tick(profile.Id, ticked))" />
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    @if (!ReadOnly)
+    {
+        <AppSaveBar HasChanges="@HasChanges" Saving="@_saving" OnSave="SaveAsync" OnDiscard="DiscardAsync" />
+    }
+}
+
+@code {
+    /// <summary>The library being shown, as the Engine last returned it (its access value is the saved one).</summary>
+    [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
+
+    /// <summary>Phones: the choice is shown and nothing can be changed.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>Raised after the access was saved, so the page reads the libraries again.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private IReadOnlyList<LibraryAccessProfileDto> _profiles = [];
+    private HashSet<Guid> _granted = [];
+    private HashSet<Guid> _savedGranted = [];
+    private string _access = LibraryAccessChoices.Standard;
+    private string _savedAccess = LibraryAccessChoices.Standard;
+    private string? _loadedFor;
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _saving;
+
+    private bool IsVaultLibrary => string.Equals(Library.Access, LibraryAccessChoices.Vault, StringComparison.OrdinalIgnoreCase);
+
+    private bool HasChanges => _access != _savedAccess
+        || (_access == LibraryAccessChoices.Selected && !_granted.SetEquals(_savedGranted));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var key = $"{Library.Id}|{Library.Access}";
+        if (IsVaultLibrary || key == _loadedFor)
+        {
+            return;
+        }
+
+        _loadedFor = key;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadFailed = false;
+        var result = await Api.GetLibraryAccessAsync(Library.Id);
+        if (result is null)
+        {
+            _loadFailed = true;
+            _loading = false;
+            return;
+        }
+
+        _profiles = result.Profiles;
+        _savedAccess = result.Access == LibraryAccessChoices.Selected ? LibraryAccessChoices.Selected : LibraryAccessChoices.Standard;
+        _access = _savedAccess;
+        _savedGranted = [.. result.ProfileIds];
+        _granted = [.. result.ProfileIds];
+        _loading = false;
+    }
+
+    private void ChooseAccess(string value)
+    {
+        if (value != LibraryAccessChoices.Standard && value != LibraryAccessChoices.Selected)
+        {
+            return;
+        }
+
+        // Switching a Standard library to Selected starts with nobody ticked; flipping back and forth before saving keeps what was saved.
+        _access = value;
+        _granted = _savedAccess == LibraryAccessChoices.Selected ? [.. _savedGranted] : [];
+    }
+
+    private void Tick(Guid profileId, bool ticked)
+    {
+        if (ticked)
+        {
+            _granted.Add(profileId);
+        }
+        else
+        {
+            _granted.Remove(profileId);
+        }
+    }
+
+    private static string? DescriptionOf(LibraryAccessProfileDto profile) =>
+        profile.IsServerAdmin ? "Administrators always see every library" : profile.IsKids ? "Kids profile" : null;
+
+    private Task DiscardAsync()
+    {
+        _access = _savedAccess;
+        _granted = [.. _savedGranted];
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!HasChanges || _saving)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            // The access value goes through the library's own save (compare-and-swap on the whole library), so the libraries file stays the one
+            // place that holds it; the Engine clears the profiles chosen for a library whose access changed.
+            if (_access != _savedAccess)
+            {
+                var edited = JsonSerializer.Deserialize<LibraryFolderDto>(JsonSerializer.Serialize(Library))!;
+                edited.Access = _access;
+                var saved = await Api.MutateLibraryAsync(new LibraryMutationRequest { Library = edited, ExpectedLibrary = Library });
+                if (saved is null)
+                {
+                    Toast.Add(Api.LastError ?? "The access could not be saved. Reload the page and try again.", AppSeverity.Error);
+                    return;
+                }
+            }
+
+            if (_access == LibraryAccessChoices.Selected)
+            {
+                var chosen = await Api.SetLibraryProfilesAsync(Library.Id, [.. _granted.Order()]);
+                if (chosen is null)
+                {
+                    Toast.Add(Api.LastError ?? "The profiles could not be saved. Try again.", AppSeverity.Error);
+                    _loadedFor = null;
+                    await Changed.InvokeAsync();
+                    return;
+                }
+            }
+
+            Toast.Add("Access saved.", AppSeverity.Success);
+            _loadedFor = null;
+            await Changed.InvokeAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

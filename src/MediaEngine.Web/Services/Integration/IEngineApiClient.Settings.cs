@@ -221,6 +221,12 @@ public partial interface IEngineApiClient
     Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default);
 
+    /// <summary>GET /settings/libraries/{libraryId}/access — a library's access value, the profiles chosen for it and every profile to choose from (administrators); null when the Engine refused, the library is unknown or it could not be read.</summary>
+    Task<LibraryAccessGrantsDto?> GetLibraryAccessAsync(string libraryId, CancellationToken ct = default);
+
+    /// <summary>PUT /settings/libraries/{libraryId}/access/profiles — replaces the profiles chosen for a Selected-profiles library (administrators); the saved choice, or null when the Engine refused.</summary>
+    Task<LibraryAccessGrantsDto?> SetLibraryProfilesAsync(string libraryId, IReadOnlyList<Guid> profileIds, CancellationToken ct = default);
+
     /// <summary>POST /library/unmatched/libraries/{libraryId}/retry — Retry now for one library's Unmatched files (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default);
 

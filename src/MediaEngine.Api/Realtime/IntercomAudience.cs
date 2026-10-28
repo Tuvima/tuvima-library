@@ -34,7 +34,8 @@ public sealed class IntercomAudienceAuthorizer(
     TimeProvider timeProvider,
     IVaultLibraryRepository vaultLibraries,
     INsfwAccessRepository nsfw,
-    IVaultPathClassifier vaultPaths) : IIntercomAudienceAuthorizer
+    IVaultPathClassifier vaultPaths,
+    LibraryVisibilityRule libraryVisibility) : IIntercomAudienceAuthorizer
 {
     /// <summary>
     /// Events whose payload names a file, a folder or an item, so the audience decides by where it sits: an item or path in a Vault
@@ -143,7 +144,7 @@ public sealed class IntercomAudienceAuthorizer(
             // The area first (cheap, and it decides whether hiding can matter), then the one library visibility rule.
             var hasArea = (await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(provenance.FeatureId);
             var isVault = (await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false)).Contains(provenance.LibraryId.ToString("D"));
-            var isHidden = hasArea && !isVault && await profileAccess.IsLibraryHiddenAsync(profile.ProfileId, provenance.LibraryId, ct).ConfigureAwait(false);
+            var isHidden = hasArea && !isVault && await libraryVisibility.IsHiddenAsync(profile.ProfileId, provenance.LibraryId, ct).ConfigureAwait(false);
             return LibraryVisibilityRule.MaySee(false, isVault, hasArea, isHidden);
         }
 

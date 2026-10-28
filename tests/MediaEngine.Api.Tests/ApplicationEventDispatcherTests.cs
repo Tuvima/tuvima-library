@@ -214,7 +214,7 @@ public sealed class ApplicationEventDispatcherTests : IDisposable
         var authorizer = new ApplicationEventSubscriptionAuthorizer(
             new AllowAuthorizationEvaluator(), _accounts, new ProfileAccessRepository(_database), _applications, _clients, permissions, registry,
             new ApplicationEventDeliveryAuthorizer(_applications, permissions, registry), TimeProvider.System,
-            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)),
             new ConfigurationDirectoryLoader(Path.Combine(Path.GetTempPath(), $"tuvima_application_event_dispatch_config_{Guid.NewGuid():N}")));
         _services = new ServiceCollection().AddSingleton(authorizer).BuildServiceProvider();
         return new ApplicationEventDispatcher(

@@ -55,6 +55,10 @@
             <section class="create-library__section">
                 <h3 class="create-library__heading">Access <AppInfoTip Text="Standard: everyone who can use this area. Selected profiles: only the profiles you choose. Vault-protected: kept in the Vault, and it cannot be changed later." Label="About access" /></h3>
                 <LibraryAccessOptions Value="@_access" ValueChanged="@((string value) => _access = value)" ShowVault="ShowVaultOption" Disabled="@_saving" />
+                @if (_access == LibraryAccessChoices.Selected)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" Dense="true">Nobody but administrators will see this library until you tick profiles on its Access tab.</AppAlert>
+                }
                 @if (IsAdultContent)
                 {
                     <AppSwitchRow Label="Protect with the Vault"

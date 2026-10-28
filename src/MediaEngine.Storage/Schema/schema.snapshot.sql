@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0052 plugin_library_limits).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0053 library_profile_grants).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1217,6 +1217,14 @@ CREATE TABLE ingestion_log (
     error_detail      TEXT,
     created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE TABLE library_profile_grants (
+    library_id            BLOB NOT NULL,
+    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at            TEXT NOT NULL,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    PRIMARY KEY (library_id, profile_id)
 );
 
 CREATE TABLE local_file_sources (
@@ -3697,6 +3705,8 @@ CREATE INDEX ix_doc_rules_owner_order
 CREATE INDEX ix_folder_first_checks_held ON folder_first_checks (state, library_id) WHERE state IN ('checking', 'paused');
 
 CREATE INDEX ix_folder_first_checks_library ON folder_first_checks (library_id);
+
+CREATE INDEX ix_library_profile_grants_profile ON library_profile_grants(profile_id);
 
 CREATE INDEX ix_local_file_sources_device
     ON local_file_sources(device_id, indexed_at DESC, id);
