@@ -47,6 +47,11 @@
     border-top: 1px solid var(--tl-border-subtle);
 }
 
+.settings-plugin-library-picker {
+    display: grid;
+    gap: 6px;
+}
+
 .settings-plugin-detail-header {
     display: flex;
     align-items: center;

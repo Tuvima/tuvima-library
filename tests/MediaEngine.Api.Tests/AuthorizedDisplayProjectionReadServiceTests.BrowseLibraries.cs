@@ -50,7 +50,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Library(HiddenVaultLibrary, "Private", "other_videos", LibraryAreas.Watch, "Videos", true));
 
     // Not async: the request context lives in an async-local the service reads later, so it must be set in the caller's own flow.
-    private BrowseLibraryListService CreateBrowseLibraryList(Guid account)
+    private BrowseLibraryListService CreateBrowseLibraryList(Guid account, LibrariesOnlyBrowseLoader? libraries = null)
     {
         using (var connection = _database.CreateConnection())
         {
@@ -60,7 +60,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
                 new { library = HiddenVaultLibrary.ToString("D"), now });
         }
 
-        var config = BrowseLibrariesConfig();
+        var config = libraries ?? BrowseLibrariesConfig();
         var service = CreateService(HumanContext(account, ProfileOf(account)), new StubRawProjection([], []), config);
         return new BrowseLibraryListService(service, config, new VaultLibraryRepository(_database));
     }
@@ -119,6 +119,39 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.DoesNotContain(forSam, library => library.Id == LecturesLibrary);
         Assert.Contains(forOther, library => library.Id == LecturesLibrary);
+    }
+
+    private static readonly Guid HomeVideosLibrary = Guid.Parse("b0000000-0000-4000-8000-000000000011");
+    private static readonly Guid TikTokLibrary = Guid.Parse("b0000000-0000-4000-8000-000000000012");
+
+    private static LibrariesOnlyBrowseLoader ThreeOtherVideosConfig() => new(
+        Library(HomeVideosLibrary, "Home videos", "other_videos", LibraryAreas.Watch, "Videos", true),
+        Library(TikTokLibrary, "TikTok edits", "other_videos", LibraryAreas.Watch, "Videos", true),
+        Library(LecturesLibrary, "Other videos", "other_videos", LibraryAreas.Watch, "Videos", true));
+
+    // Library pages D22: the Watch Videos chips come from this list, one per library the profile may see.
+    [Fact]
+    public async Task BrowseLibraries_ThreeOtherVideosLibraries_AreListedAsThreeLibraries()
+    {
+        var account = Guid.NewGuid();
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid>());
+
+        var libraries = await CreateBrowseLibraryList(account, ThreeOtherVideosConfig()).ListAsync(default);
+
+        Assert.Equal(["Home videos", "Other videos", "TikTok edits"], libraries.Select(library => library.Name).ToArray());
+        Assert.All(libraries, library => Assert.Equal("other_videos", library.KindKey));
+    }
+
+    [Fact]
+    public async Task BrowseLibraries_AProfileThatCannotSeeOneOfThreeOtherVideosLibraries_IsNotGivenIt()
+    {
+        var account = Guid.NewGuid();
+        await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { TikTokLibrary });
+
+        var libraries = await CreateBrowseLibraryList(account, ThreeOtherVideosConfig()).ListAsync(default);
+
+        Assert.Equal(["Home videos", "Other videos"], libraries.Select(library => library.Name).ToArray());
+        Assert.DoesNotContain(libraries, library => library.Id == TikTokLibrary);
     }
 
     [Fact]

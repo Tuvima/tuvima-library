@@ -233,6 +233,28 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal($"/settings/libraries/{OtherVideosId}", Row(cut, OtherVideosId).QuerySelector("a")!.GetAttribute("href"));
     }
 
+    // D22: Other videos can hold several named libraries, one row each; Movies keeps one.
+    [Fact]
+    public void ThreeOtherVideosLibrariesShowAsThreeRows()
+    {
+        foreach (var (id, name) in new[] { (HomeVideosId, "Home videos"), (OtherVideosId, "TikTok edits"), ("77777777-7777-4777-8777-777777777773", "Other videos") })
+        {
+            _configuration!.Libraries.Add(new()
+            {
+                Id = id,
+                Name = name,
+                KindKey = "other_videos",
+                Area = "watch",
+                MediaTypes = ["Videos"],
+                Sources = [new() { Id = $"src-{id}", Path = $"E:\\{name}" }],
+            });
+        }
+
+        var cut = OpenAndSettle();
+
+        Assert.Equal(["Movies", "Home videos", "TikTok edits", "Other videos"], cut.FindAll(".libs__link").Select(Text).ToArray());
+    }
+
     // 6. The status words.
     [Fact]
     public void AnOfflineFolderReadsFolderOfflineAndAnEmptyLibraryReadsEmpty()
