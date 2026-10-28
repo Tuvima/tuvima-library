@@ -255,13 +255,13 @@ public sealed class ServerFolderBrowserService(
         catch (ServerFolderAccessException exception)
         {
             // Same wording as a missing file so a hidden Vault folder cannot be told apart from one that is not there.
-            logger.LogDebug(exception, "Add files could not resolve {FilePath}", path);
+            logger.LogDebug(exception, "Add files could not resolve a picked file");
             refusal = "That file is no longer there.";
             return false;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            logger.LogDebug(exception, "Add files could not read {FilePath}", path);
+            logger.LogDebug(exception, "Add files could not read a picked file");
             refusal = "Library cannot read this file from the server.";
             return false;
         }

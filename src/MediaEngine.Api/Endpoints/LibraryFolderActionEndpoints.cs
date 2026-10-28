@@ -113,7 +113,7 @@ public static class LibraryFolderActionEndpoints
                 catch (Exception exception) when (exception is IOException or InvalidOperationException)
                 {
                     // The files are copied; the next scan takes them in if this one could not start.
-                    logger.LogWarning(exception, "Add files copied into library {LibraryId} but the scan did not start", libraryId);
+                    logger.LogWarning(exception, "Add files copied the files but the scan did not start");
                 }
             }
 

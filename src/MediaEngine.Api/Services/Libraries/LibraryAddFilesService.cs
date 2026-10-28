@@ -142,7 +142,7 @@ public sealed class LibraryAddFilesService(
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                logger.LogWarning(exception, "Add files could not copy {FileName} into library {LibraryId}", Path.GetFileName(path), libraryId);
+                logger.LogWarning(exception, "Add files could not copy a picked file");
                 unreadable++;
             }
         }
