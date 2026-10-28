@@ -8,6 +8,7 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Persons;
@@ -92,13 +93,14 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<Guid>? authorizedAssetIds = null,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks = null,
         SequenceWindowRequest? sequenceWindow = null,
-        UniverseLinkResolver? universeLinks = null)
+        UniverseLinkResolver? universeLinks = null,
+        ViewerCatalogue? viewerCatalogue = null)
     {
         var favoriteWorkIds = await _reader.LoadFavoriteWorkIdsAsync(profileId, ct);
 
         var model = entityType switch
         {
-            DetailEntityType.Person => await BuildPersonAsync(id, entityType, context, actionAuthorization, authorizedWorks, ct),
+            DetailEntityType.Person => await BuildPersonAsync(id, entityType, context, actionAuthorization, authorizedWorks, viewerCatalogue ?? ViewerCatalogue.Nothing, ct),
             DetailEntityType.BookSeries => await BuildBookSeriesAsync(id, context, actionAuthorization, favoriteWorkIds, profileId, selectedContainerId, authorizedWorks, ct),
             DetailEntityType.Collection or DetailEntityType.TvShow or DetailEntityType.MovieSeries
                 or DetailEntityType.ComicSeries or DetailEntityType.MusicAlbum => await BuildCollectionAsync(

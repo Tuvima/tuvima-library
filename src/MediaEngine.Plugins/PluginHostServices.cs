@@ -298,3 +298,42 @@ public interface IPluginDisplay
     /// <summary>Takes one of the plugin's contributions down. Does nothing when it is not there.</summary>
     Task WithdrawAsync(PluginDisplaySlot slot, string? subjectId, string key, CancellationToken cancellationToken = default);
 }
+
+/// <summary>What a person finished playing, for a plugin that shares plays with an outside service.</summary>
+/// <param name="Title">The track title.</param>
+/// <param name="Artist">The artist's name.</param>
+/// <param name="Album">The album or release name, when known.</param>
+/// <param name="DurationSeconds">The track length, when known.</param>
+/// <param name="RecordingMbid">The MusicBrainz recording id, when the Library has matched it.</param>
+/// <param name="ReleaseMbid">The MusicBrainz release id, when the Library has matched it.</param>
+/// <param name="ArtistMbids">The MusicBrainz artist ids the Library has matched.</param>
+/// <param name="TrackNumber">The track's position on the release, when known.</param>
+public sealed record PluginPlayedTrack(
+    string Title,
+    string Artist,
+    string? Album,
+    double? DurationSeconds,
+    string? RecordingMbid,
+    string? ReleaseMbid,
+    IReadOnlyList<string> ArtistMbids,
+    int? TrackNumber);
+
+/// <summary>
+/// Reads the details of a track that was played (title, artist, album, MusicBrainz ids). Needs <c>play-details</c>. The Library
+/// answers only for music the plugin may work on: a Vault item, a library the plugin is limited away from, or anything that is not
+/// music gets no answer, so a plugin cannot share what it must not.
+/// </summary>
+public interface IPluginPlayDetails
+{
+    /// <returns>The track, or null when the plugin may not see it or the Library knows too little about it to name it.</returns>
+    Task<PluginPlayedTrack?> GetTrackAsync(Guid assetId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Says whether a profile has linked one of the plugin's own personal credentials (never what it is). A plugin that shares on a
+/// person's behalf asks this before it queues anything, so a profile that has not linked sends nothing and nothing waits for it.
+/// </summary>
+public interface IPluginProfileLinks
+{
+    Task<bool> IsLinkedAsync(Guid profileId, string credentialName, CancellationToken cancellationToken = default);
+}

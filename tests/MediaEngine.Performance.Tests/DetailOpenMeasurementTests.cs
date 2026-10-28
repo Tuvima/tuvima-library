@@ -353,7 +353,7 @@ public sealed class DetailOpenMeasurementTests : IClassFixture<LibraryListFixtur
             (Task<DetailPageViewModel?>)BuildAuthorized.Invoke(_composer,
             [
                 target.Type, target.Id, DetailPresentationContext.Default, ct, null, profileId, _authorization,
-                assetIds, works, null, null,
+                assetIds, works, null, null, null,
             ])!;
 
         private async Task<T> Stage<T>(Dictionary<string, StageResult> stages, string name, Func<Task<T>> body)

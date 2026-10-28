@@ -34,6 +34,9 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddScoped<AuthorizedDisplayProjectionReadService>();
         services.AddScoped<IDisplayProjectionReadService>(services =>
             services.GetRequiredService<AuthorizedDisplayProjectionReadService>());
+        // The one access service every viewer read goes through (Vault sections spec D32): people, counts and anything that is not a list of works
+        // start from its catalogue, built from the same authorized projection.
+        services.AddScoped<IViewerAccessService, ViewerAccessService>();
         services.AddSingleton<DisplayWorkProjectionReader>();
         services.AddSingleton<DisplayVisibleWorkReader>();
         services.AddScoped<ContributorShelfReadService>();

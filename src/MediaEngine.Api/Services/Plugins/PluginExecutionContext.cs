@@ -104,7 +104,9 @@ internal sealed class PluginExecutionContextFactory(
     PluginHostLimits limits,
     TimeProvider clock,
     PluginOutboxService outbox,
-    PluginDisplayService display) : IPluginExecutionContextFactory
+    PluginDisplayService display,
+    PluginPlayDetailsService playDetails,
+    PluginProfileConnectionService connections) : IPluginExecutionContextFactory
 {
     public IPluginExecutionContext Create(string pluginId, string purpose) => CreateCore(pluginId, purpose, null);
 
@@ -138,7 +140,9 @@ internal sealed class PluginExecutionContextFactory(
             new BoundPluginSecrets(registration.Manifest.Id, permissions, secrets),
             new BoundPluginRecords(registration.Manifest.Id, permissions, records, limits, status, clock),
             new BoundPluginOutbox(registration.Manifest.Id, permissions, outbox),
-            new BoundPluginDisplay(registration.Manifest.Id, permissions, display));
+            new BoundPluginDisplay(registration.Manifest.Id, permissions, display),
+            new BoundPluginPlayDetails(registration.Manifest.Id, permissions, playDetails),
+            new BoundPluginProfileLinks(registration.Manifest.Id, permissions, connections));
     }
 
     private static string SafeSegment(string value, string parameter)
@@ -164,7 +168,9 @@ internal sealed class PluginExecutionContext(
     IPluginSecrets secrets,
     IPluginRecordStore records,
     IPluginOutbox? outbox = null,
-    IPluginDisplay? display = null) : IPluginExecutionContext
+    IPluginDisplay? display = null,
+    IPluginPlayDetails? playDetails = null,
+    IPluginProfileLinks? profileLinks = null) : IPluginExecutionContext
 {
     public string PluginId { get; } = pluginId;
     public IReadOnlyDictionary<string, JsonElement> Settings { get; } = settings;
@@ -177,6 +183,8 @@ internal sealed class PluginExecutionContext(
     public IPluginRecordStore Records { get; } = records;
     public IPluginOutbox Outbox => outbox ?? throw new NotSupportedException("This context has no retry queue.");
     public IPluginDisplay Display => display ?? throw new NotSupportedException("This context has no display slots.");
+    public IPluginPlayDetails PlayDetails => playDetails ?? throw new NotSupportedException("This context has no play details.");
+    public IPluginProfileLinks ProfileLinks => profileLinks ?? throw new NotSupportedException("This context has no profile links.");
 
     public ValueTask DisposeAsync()
     {

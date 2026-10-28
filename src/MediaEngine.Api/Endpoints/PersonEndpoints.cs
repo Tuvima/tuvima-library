@@ -247,6 +247,7 @@ public static class PersonEndpoints
             IEntityAssetRepository assetRepo,
             IPersonCreditReadService personCreditReadService,
             PersonEditorReadService editorData,
+            IViewerAccessService viewerAccess,
             CancellationToken ct) =>
         {
             var person = await personRepo.FindByIdAsync(id, ct);
@@ -255,8 +256,9 @@ public static class PersonEndpoints
                 return ApiErrors.NotFound($"Person '{id}' not found.");
             }
 
-            var groupMembers = await personCreditReadService.GetGroupMembersAsync(id, person.IsGroup, ct);
-            var memberOfGroups = await personCreditReadService.GetGroupMembersAsync(id, false, ct);
+            var viewer = await viewerAccess.GetCatalogueAsync(ct);
+            var groupMembers = await personCreditReadService.GetGroupMembersAsync(id, person.IsGroup, viewer, ct);
+            var memberOfGroups = await personCreditReadService.GetGroupMembersAsync(id, false, viewer, ct);
             var preferredBackground = await assetRepo.GetPreferredAsync(id.ToString(), "Background", ct);
             var preferredLogo = await assetRepo.GetPreferredAsync(id.ToString(), "Logo", ct);
             var preferredHeadshot = await assetRepo.GetPreferredAsync(id.ToString(), "Headshot", ct);
@@ -304,9 +306,10 @@ public static class PersonEndpoints
         group.MapGet("/{id:guid}/aliases", async (
             Guid id,
             IPersonAliasReadService aliasReadService,
+            IViewerAccessService viewerAccess,
             CancellationToken ct) =>
         {
-            var response = await aliasReadService.GetAliasesAsync(id, ct);
+            var response = await aliasReadService.GetAliasesAsync(id, await viewerAccess.GetCatalogueAsync(ct), ct);
             return response is null
                 ? ApiErrors.NotFound($"Person '{id}' not found.")
                 : Results.Ok(response);
@@ -462,14 +465,11 @@ public static class PersonEndpoints
         group.MapGet("/by-collection/{collectionId:guid}", async (
             Guid collectionId,
             IPersonAssetScopeReadService personScopeReadService,
-            IDisplayProjectionReadService display,
+            IViewerAccessService viewerAccess,
             CancellationToken ct) =>
         {
-            var persons = await personScopeReadService.GetByCollectionAsync(collectionId, ct);
-            var assetIds = (await display.LoadWorksAsync(ct)).Select(work => work.AssetId).ToArray();
-            var visiblePersonIds = await personScopeReadService.GetCanonicalPersonIdsForCollectionAsync(
-                collectionId, assetIds, ct);
-            return Results.Ok(persons.Where(person => visiblePersonIds.Contains(person.Id)).ToList());
+            var viewer = await viewerAccess.GetCatalogueAsync(ct);
+            return Results.Ok(await personScopeReadService.GetByCollectionAsync(collectionId, viewer, ct));
         })
         .Produces<IReadOnlyList<PersonSummaryResponse>>(StatusCodes.Status200OK)
         .RequireClientScope(ClientApiScopes.LibraryRead)
@@ -479,16 +479,11 @@ public static class PersonEndpoints
         group.MapGet("/by-work/{workId:guid}", async (
             Guid workId,
             IPersonAssetScopeReadService personScopeReadService,
-            IDisplayProjectionReadService display,
+            IViewerAccessService viewerAccess,
             CancellationToken ct) =>
         {
-            var persons = await personScopeReadService.GetByWorkAsync(workId, ct);
-            var assetIds = (await display.LoadWorksAsync(ct))
-                .Where(work => work.WorkId == workId)
-                .Select(work => work.AssetId)
-                .ToArray();
-            var visiblePersonIds = await personScopeReadService.GetCanonicalPersonIdsAsync(assetIds, ct);
-            return Results.Ok(persons.Where(person => visiblePersonIds.Contains(person.Id)).ToList());
+            var viewer = await viewerAccess.GetCatalogueAsync(ct);
+            return Results.Ok(await personScopeReadService.GetByWorkAsync(workId, viewer, ct));
         })
         .Produces<IReadOnlyList<PersonSummaryResponse>>(StatusCodes.Status200OK)
         .RequireClientScope(ClientApiScopes.LibraryRead)
@@ -499,7 +494,7 @@ public static class PersonEndpoints
             Guid id,
             IPersonRepository personRepo,
             IPersonCreditReadService personCreditReadService,
-            IDisplayProjectionReadService display,
+            IViewerAccessService viewerAccess,
             CancellationToken ct) =>
         {
             var person = await personRepo.FindByIdAsync(id, ct);
@@ -511,7 +506,7 @@ public static class PersonEndpoints
             var credits = await personCreditReadService.GetLibraryCreditsAsync(id, ct);
             return Results.Ok(PersonLibraryCreditAuthorizationPolicy.Filter(
                 credits,
-                await display.LoadWorksAsync(ct)));
+                await viewerAccess.GetVisibleWorksAsync(ct)));
         })
         .WithName("GetPersonLibraryCredits")
         .WithSummary("Owned work credits for a person, grouped client-side by role and media type.")
@@ -525,7 +520,7 @@ public static class PersonEndpoints
             IPersonRepository personRepo,
             ICollectionRepository collectionRepo,
             IPersonWorksReadService personWorksReadService,
-            IDisplayProjectionReadService display,
+            IViewerAccessService viewerAccess,
             CancellationToken ct) =>
         {
             var person = await personRepo.FindByIdAsync(id, ct);
@@ -540,7 +535,7 @@ public static class PersonEndpoints
                 return Results.Ok(Array.Empty<MediaEngine.Contracts.Collections.CollectionDto>());
             }
 
-            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
+            var visibleWorkIds = await viewerAccess.GetVisibleWorkIdsAsync(ct);
             var allCollections = await collectionRepo.GetAllAsync(ct);
             var dtos = allCollections
                 .Where(h => collectionIds.Contains(h.Id))
@@ -561,12 +556,12 @@ public static class PersonEndpoints
         // Excludes Composer (absorbed into Artist/Performer in the UI).
         group.MapGet("/role-counts", async (
             bool? catalog,
-            IDisplayProjectionReadService display,
+            IViewerAccessService viewerAccess,
             IPersonAssetScopeReadService personScopeReadService,
             CancellationToken ct) =>
         {
-            var assetIds = (await display.LoadWorksAsync(ct)).Select(work => work.AssetId).ToArray();
-            return Results.Ok(await personScopeReadService.GetCanonicalRoleCountsAsync(assetIds, ct));
+            var viewer = await viewerAccess.GetCatalogueAsync(ct);
+            return Results.Ok(await personScopeReadService.GetCanonicalRoleCountsAsync(viewer, ct));
         })
         .WithName("GetPersonRoleCounts")
         .WithSummary("Count of persons per role.")
@@ -577,8 +572,7 @@ public static class PersonEndpoints
         group.MapGet("/presence", async (
             string ids,
             IPersonPresenceReadService presenceReadService,
-            IPersonAssetScopeReadService personScopeReadService,
-            IDisplayProjectionReadService display,
+            IViewerAccessService viewerAccess,
             CancellationToken ct) =>
         {
             var personIds = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -586,12 +580,10 @@ public static class PersonEndpoints
                 .Where(id => id != Guid.Empty)
                 .Take(500)
                 .ToList();
-            var visiblePersonIds = await personScopeReadService.GetCanonicalPersonIdsAsync(
-                (await display.LoadWorksAsync(ct)).Select(work => work.AssetId).ToArray(),
-                ct);
-            var presence = await presenceReadService.GetPresenceAsync(
-                personIds.Where(visiblePersonIds.Contains).ToList(), ct);
-            return Results.Ok(presence);
+            // The counts follow what this viewer may see: a title in the Vault, in a library hidden from the viewer or above their
+            // content limit adds nothing, and a person with no visible credit has no entry (Vault sections spec D27, D32).
+            var viewer = await viewerAccess.GetCatalogueAsync(ct);
+            return Results.Ok(await presenceReadService.GetPresenceAsync(personIds, viewer, ct));
         })
         .WithName("GetPersonPresence")
         .WithSummary("Media type counts per person.")
@@ -609,7 +601,7 @@ public static class PersonEndpoints
             int? limit,
             IPersonRepository personRepo,
             IPersonAssetScopeReadService personScopeReadService,
-            IDisplayProjectionReadService display,
+            IViewerAccessService viewerAccess,
             ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
@@ -639,7 +631,7 @@ public static class PersonEndpoints
                 })
                 .Where(p => p.Roles.Count > 0); // Exclude persons with no remaining roles
             var visiblePersonIds = await personScopeReadService.GetCanonicalPersonIdsAsync(
-                (await display.LoadWorksAsync(ct)).Select(work => work.AssetId).ToArray(),
+                await viewerAccess.GetCatalogueAsync(ct),
                 ct);
             filtered = filtered.Where(person => visiblePersonIds.Contains(person.Id));
 

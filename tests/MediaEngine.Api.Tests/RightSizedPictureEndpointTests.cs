@@ -283,6 +283,7 @@ public sealed class RightSizedPictureEndpointTests : IDisposable
         builder.Services.AddSingleton<ICanonicalValueRepository>(_ => null!);
         builder.Services.AddSingleton<ICollectionRepository>(_ => null!);
         builder.Services.AddSingleton<MediaEngine.Api.Services.Display.IDisplayProjectionReadService>(_ => null!);
+        builder.Services.AddSingleton<MediaEngine.Api.Security.IViewerAccessService>(_ => null!);
         builder.Services.AddSingleton<IMediaAssetRepository>(_ => null!);
         builder.Services.AddSingleton<IMediaOperationRepository>(_ => null!);
         builder.Services.AddSingleton<IPersonAliasReadService>(_ => null!);

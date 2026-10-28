@@ -53,6 +53,14 @@ public interface IVaultLibraryRepository
     Task<bool> IsInVaultAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
+    /// True when <paramref name="personId"/> may be known only from Vault items, so an event naming them must not reach a session that
+    /// cannot see the Vault (security review leak 3). It fails closed: it is true when every credited file is in a Vault library, and also
+    /// when no credited file is known yet (credits are written after the person is created) or a credited file has no library yet. It is
+    /// false only when at least one credited file sits in a known library outside the Vault, which puts the person on the shared people list.
+    /// </summary>
+    Task<bool> MayPersonBeVaultOnlyAsync(Guid personId, CancellationToken ct = default);
+
+    /// <summary>
     /// True when the Library already holds an ordinary (non-Vault) file inside <paramref name="folderPath"/>, so adding the folder to
     /// a Vault would turn those files into Vault files. Vault and ordinary files are kept in separate folders on disk.
     /// </summary>
