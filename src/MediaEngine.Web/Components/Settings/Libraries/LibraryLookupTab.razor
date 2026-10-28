@@ -1,0 +1,213 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@inject IEngineApiClient Api
+@inject IAppToastService Toast
+
+@* A library's Lookup tab (Library pages D15), for a kind with lookup settings: today the YouTube kind. YouTube lookup works without a key
+   (title, channel and thumbnail); a person's own free key adds the description and upload date. The key is saved with the existing provider
+   credentials actions, checked before it is kept, and never shown again: the field only says one is saved. A phone shows the state and the
+   steps and changes nothing. *@
+<section class="library-lookup" aria-label="Lookup">
+    <h3 class="library-lookup__heading">YouTube lookup <AppInfoTip Text="Library looks up a video's title, channel and thumbnail from its YouTube ID. A key of your own adds the description and upload date." Label="About YouTube lookup" /></h3>
+    <AppQuietNote data-testid="lookup-privacy">@LibraryLookupRules.PrivacyLine</AppQuietNote>
+
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading lookup" />
+    }
+    else if (_loadFailed)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="Lookup settings could not be loaded"
+                      Message="Check that the Library server is running, then try again.">
+            <Actions>
+                <AppButton Label="Try again" OnClick="LoadAsync" />
+            </Actions>
+        </AppPageState>
+    }
+    else
+    {
+        <p class="library-lookup__state" data-testid="lookup-key-state">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Key" Size="AppSize.Small" />
+            <span>@(_configured ? "Using your key" : "Using the shared key")</span>
+        </p>
+        <p class="library-lookup__note">@(_configured ? "Titles, channels, thumbnails, descriptions and upload dates are looked up." : "Titles, channels and thumbnails are looked up. Add your own key to get descriptions and upload dates too.")</p>
+
+        @if (!ReadOnly)
+        {
+            <div class="library-lookup__key">
+                <AppTextField Label="Your YouTube key (optional)"
+                              Value="@_key"
+                              ValueChanged="@((string? value) => OnKeyChanged(value))"
+                              InputType="AppInputType.Password"
+                              Placeholder="@(_configured ? "A key is saved. Enter a new one to replace it." : "Paste your key")"
+                              HelpText="Kept on this server, encrypted, and never shown again."
+                              Disabled="@_busy"
+                              Error="@(_error is not null)"
+                              ErrorText="@_error"
+                              autocomplete="off" />
+                <div class="library-lookup__actions">
+                    <AppButton Label="Save" Loading="@_saving" Disabled="@(_busy || string.IsNullOrWhiteSpace(_key))" OnClick="SaveAsync" />
+                    <AppButton Label="Test key" ButtonStyle="AppButtonStyle.Outlined" Loading="@_testing" Disabled="@(_busy || string.IsNullOrWhiteSpace(_key))" OnClick="TestAsync" />
+                    @if (_configured)
+                    {
+                        <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Loading="@_removing" Disabled="@_busy" OnClick="RemoveAsync" />
+                    }
+                </div>
+                @if (_message is not null)
+                {
+                    <AppAlert Tone="@(_messageOk ? AppUiTone.Success : AppUiTone.Warning)" Dense="true">@_message</AppAlert>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="library-lookup__note">Use a desktop or tablet to change the key.</p>
+        }
+
+        <AppExpansionPanel Text="How do I get a key?" KeepContentAlive="true" Class="library-lookup__help">
+            <ol class="library-lookup__steps" data-testid="lookup-key-steps">
+                @foreach (var step in LibraryLookupRules.KeySteps)
+                {
+                    <li>@step</li>
+                }
+            </ol>
+            <p class="library-lookup__link">
+                <AppLink Href="@LibraryLookupRules.GoogleKeyConsoleUrl" Target="_blank">Open the Google Cloud console</AppLink>
+            </p>
+            <p class="library-lookup__note">The key is free and personal. It is only ever used to ask YouTube about a video's details.</p>
+        </AppExpansionPanel>
+    }
+</section>
+
+@code {
+    /// <summary>The library being shown.</summary>
+    [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
+
+    /// <summary>Phones: the state and the steps are shown and nothing can be changed.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private string? _key;
+    private string? _error;
+    private string? _message;
+    private bool _messageOk;
+    private bool _configured;
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _saving;
+    private bool _testing;
+    private bool _removing;
+
+    private bool _busy => _saving || _testing || _removing;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadFailed = false;
+        var catalogue = await Api.GetProviderCatalogueAsync();
+        var provider = catalogue.FirstOrDefault(item => string.Equals(item.Name, LibraryLookupRules.YouTubeProvider, StringComparison.OrdinalIgnoreCase));
+        if (provider is null)
+        {
+            _loadFailed = true;
+            _loading = false;
+            return;
+        }
+
+        _configured = provider.Onboarding?.Credentials.Any(field =>
+            string.Equals(field.Key, LibraryLookupRules.YouTubeKeyField, StringComparison.OrdinalIgnoreCase) && field.Configured) == true;
+        _loading = false;
+    }
+
+    private void OnKeyChanged(string? value)
+    {
+        _key = value;
+        _error = null;
+        _message = null;
+    }
+
+    private ProviderCredentialWriteRequest Request() => new()
+    {
+        Credentials = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [LibraryLookupRules.YouTubeKeyField] = (_key ?? string.Empty).Trim(),
+        },
+    };
+
+    private async Task TestAsync()
+    {
+        _testing = true;
+        try
+        {
+            var result = await Api.TestProviderCredentialsAsync(LibraryLookupRules.YouTubeProvider, Request());
+            Show(result, "YouTube accepted the key.");
+        }
+        finally
+        {
+            _testing = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        try
+        {
+            var result = await Api.SaveProviderCredentialsAsync(LibraryLookupRules.YouTubeProvider, Request());
+            Show(result, "Key saved.");
+            if (result is { Success: true })
+            {
+                // The key is never shown again; the field only says one is saved.
+                _key = null;
+                _configured = true;
+                Toast.Add("YouTube key saved.", AppSeverity.Success);
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task RemoveAsync()
+    {
+        _removing = true;
+        try
+        {
+            var result = await Api.RemoveProviderCredentialsAsync(LibraryLookupRules.YouTubeProvider);
+            if (result is { Success: true })
+            {
+                _configured = false;
+                _key = null;
+                _message = null;
+                Toast.Add("YouTube key removed. Library is using the shared key.", AppSeverity.Success);
+            }
+            else
+            {
+                Show(result, "The key could not be removed.");
+            }
+        }
+        finally
+        {
+            _removing = false;
+        }
+    }
+
+    // Plain words only; the key itself is never part of any message.
+    private void Show(ProviderCredentialOperationResultDto? result, string okText)
+    {
+        if (result is null)
+        {
+            _messageOk = false;
+            _message = "The Library server could not be reached. Try again.";
+            return;
+        }
+
+        _messageOk = result.Success;
+        _message = result.Success ? okText : (string.IsNullOrWhiteSpace(result.Message) ? "The key could not be checked. Try again." : result.Message);
+        _error = result.FieldErrors.TryGetValue(LibraryLookupRules.YouTubeKeyField, out var field) ? field : null;
+    }
+}

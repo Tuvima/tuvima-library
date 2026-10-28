@@ -295,6 +295,8 @@
     [Parameter] public string? LibraryId { get; set; }
     /// <summary>The host draws Add folder and Add files itself and wraps this panel in its own upload zone, so the panel draws neither.</summary>
     [Parameter] public bool HostOwnsActions { get; set; }
+    /// <summary>The folder just added on a library page: its row is pointed at.</summary>
+    [Parameter] public string? HighlightSourceId { get; set; }
 
     private LibrariesConfigurationDto? _configuration;
     private string _baseline = string.Empty;
@@ -305,6 +307,10 @@
     private LibraryTypeOption _selected = ImportEntry;
     private bool _unknownType;
     private IReadOnlyDictionary<string, string> _pathIssues = new Dictionary<string, string>();
+    // False until the live folder check has answered, so the table claims no access word before then.
+    private bool _pathsChecked;
+    // Titles the catalogue holds for each folder of a library page's library (the Titles column); null until read.
+    private IReadOnlyDictionary<string, int>? _titles;
 
     // Advanced tabs follow the order of the list of kinds; the template key is the kind's entry in organization_templates.
     private IReadOnlyList<LibraryAdvancedSettings.AdvancedType> AdvancedTypes => LibraryTypes
@@ -358,8 +364,19 @@
 
         await InvokeAsync(StateHasChanged);
         await RefreshPathIssuesAsync();
+        await RefreshTitlesAsync();
         await RefreshWaitingAsync();
         await RefreshJobsAsync();
+    }
+
+    // The Titles column of a library page's folder table: one read per library, after load and after a save.
+    private async Task RefreshTitlesAsync()
+    {
+        if (!HostOwnsActions || Embedded || SelectedLibrary is not { } library) return;
+        var counts = await ApiClient.GetLibraryFolderTitlesAsync(library.Id);
+        if (counts is null) return;
+        _titles = counts.Counts;
+        await InvokeAsync(StateHasChanged);
     }
 
     // Live read/write check of every folder; a problem shows as one status line under the path, nothing when healthy.
@@ -368,6 +385,7 @@
     {
         if (_configuration is null || Embedded) return;
         _pathIssues = await LibraryFolderHealth.CheckAsync(_configuration, path => Orchestrator.TestPathAsync(path));
+        _pathsChecked = true;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -861,6 +879,37 @@
             : "Unrated items from this folder follow each limited profile's own setting.");
     }
 
+    // The folder's Scan switch (and Pause or Resume scanning in its menu): saved straight away through the folder save. What is already
+    // catalogued from a paused folder stays; only new scans and watching stop.
+    private async Task SetScanAsync(LibraryFolderGrid.ScanChange change)
+    {
+        var library = Clone(LibraryHolding(change.Source));
+        var target = library?.Sources.FirstOrDefault(item => item.Id == change.Source.Id);
+        if (library is null || target is null || _saving || Embedded || ReadOnly) return;
+        target.ScanEnabled = change.Value;
+        await SaveAsync(library, change.Value
+            ? $"Scanning {target.DisplayName()} again."
+            : $"Scanning paused for {target.DisplayName()}. What is already in your library stays.");
+    }
+
+    // Override file handling for this folder: the small dialog answers, the folder's override is saved through the same folder save.
+    private async Task OverrideFileHandlingAsync(LibrarySourceDto source)
+    {
+        var library = Clone(LibraryHolding(source));
+        var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
+        if (library is null || target is null || _saving || Embedded || ReadOnly) return;
+        var dialog = await DialogService.ShowAsync<FolderFileHandlingDialog>(string.Empty, new AppDialogParameters<FolderFileHandlingDialog>
+        {
+            { component => component.Current, target.FileHandlingOverride },
+            { component => component.FolderName, target.DisplayName() },
+        }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
+        if (await dialog.Result is not { Canceled: false, Data: FolderFileHandlingDialog.Answer answer }) return;
+        target.FileHandlingOverride = answer.Override;
+        await SaveAsync(library, answer.Override is null
+            ? $"{target.DisplayName()} follows the library's file handling."
+            : $"File handling saved for {target.DisplayName()}.");
+    }
+
     private async Task SetRecycleBinAsync(LibraryFolderDto source, bool value)
     {
         var library = Clone(source);
@@ -889,6 +938,7 @@
         finally { _saving = false; }
         await Changed.InvokeAsync();
         await RefreshPathIssuesAsync();
+        await RefreshTitlesAsync();
         await RefreshWaitingAsync();
         await RefreshJobsAsync();
         return true;
@@ -1042,6 +1092,32 @@
         }
         else
         {
+            @if (HostOwnsActions)
+            {
+                <LibraryFolderGrid Library="@library"
+                                   PluralLabel="@Selected.PluralLabel"
+                                   ReadOnly="@ReadOnly"
+                                   Busy="@_saving"
+                                   PathIssues="@_pathIssues"
+                                   PathsChecked="@_pathsChecked"
+                                   Titles="@_titles"
+                                   HighlightSourceId="@HighlightSourceId"
+                                   Jobs="@_jobs"
+                                   OnJobControl="ControlJobAsync"
+                                   OnSetDestination="SetDestinationAsync"
+                                   OnSetScan="SetScanAsync"
+                                   OnOverride="OverrideFileHandlingAsync"
+                                   OnChangeKind="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, ChangeKindAsync))"
+                                   OnRemove="RemoveFolderAsync"
+                                   OnChangeHandling="ChangeModeAsync"
+                                   OnLabel="LabelFolderAsync"
+                                   OnOrganiseNow="OrganiseNowAsync"
+                                   OnMerge="MergeIntoAsync"
+                                   OnKeepGoing="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
+                                   OnSetSuitableForLimited="@(Embedded ? default : EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))" />
+            }
+            else
+            {
             <LibraryFolderTable Library="@library"
                                 TypeLabel="@Selected.Label"
                                 PluralLabel="@Selected.PluralLabel"
@@ -1060,6 +1136,7 @@
                                 OnOrganiseNow="OrganiseNowAsync"
                                 OnMerge="MergeIntoAsync"
                                 OnChangeKind="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, ChangeKindAsync))" />
+            }
             if (!library.Sources.Any(IsManaged))
             {
                 <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>

@@ -1660,7 +1660,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new ProfileAccessRepository(_database),
             new StubProfilePins(),
             TimeProvider.System);
-        var decisions = new AccountAccessDecisionService(new ProfileAccessRepository(_database), unlocks, new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+        var decisions = new AccountAccessDecisionService(new ProfileAccessRepository(_database), unlocks, SelectedAwareRule());
         var evaluator = new AuthorizationEvaluator(
             decisions,
             _applications,
@@ -1672,6 +1672,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             accessor,
             new RequestAuthorityResolver(_accounts, _applications),
             new ProfileAccessRepository(_database),
+            SelectedAwareRule(),
             evaluator,
             _database,
             configuration,
@@ -1688,7 +1689,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 new ProfileAccessRepository(_database),
                 new StubProfilePins(),
                 TimeProvider.System),
-            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            SelectedAwareRule());
         return new CatalogueResourceAuthorizationService(
             _database,
             new RequestAuthorityResolver(_accounts, _applications),

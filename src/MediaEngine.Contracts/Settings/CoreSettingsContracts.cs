@@ -489,6 +489,38 @@ public sealed class BrowseServerFoldersRequest
 
     [JsonPropertyName("search")]
     public string? Search { get; init; }
+
+    /// <summary>Also lists the files of the folder (Add files); a listing without it holds folders only.</summary>
+    [JsonPropertyName("include_files")]
+    public bool IncludeFiles { get; init; }
+
+    /// <summary>With <see cref="IncludeFiles"/>: the library kind the files are for, so each file says whether that kind can take it.</summary>
+    [JsonPropertyName("kind_key")]
+    public string? KindKey { get; init; }
+}
+
+/// <summary>One file in a folder listing that asked for files (Libraries spec D8).</summary>
+public sealed class ServerFileEntryDto
+{
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
+
+    [JsonPropertyName("relative_path")]
+    public string RelativePath { get; init; } = string.Empty;
+
+    /// <summary>The file's full path on the server, which Add files sends back.</summary>
+    [JsonPropertyName("path")]
+    public string Path { get; init; } = string.Empty;
+
+    [JsonPropertyName("size_bytes")]
+    public long SizeBytes { get; init; }
+
+    [JsonPropertyName("modified_at")]
+    public DateTimeOffset? ModifiedAt { get; init; }
+
+    /// <summary>False when the library kind cannot take this kind of file; the picker greys it out.</summary>
+    [JsonPropertyName("supported")]
+    public bool Supported { get; init; } = true;
 }
 
 public sealed class ServerFolderEntryDto
@@ -519,6 +551,10 @@ public sealed class BrowseServerFoldersResultDto
 
     [JsonPropertyName("directories")]
     public List<ServerFolderEntryDto> Directories { get; init; } = [];
+
+    /// <summary>The folder's files; filled only when the request asked for them.</summary>
+    [JsonPropertyName("files")]
+    public List<ServerFileEntryDto> Files { get; init; } = [];
 }
 
 public sealed class ValidateServerFolderRequest

@@ -1,0 +1,20 @@
+.app-save-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tl-space-2) var(--tl-space-3);
+    padding: var(--tl-space-3);
+    background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
+    border-top: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md) var(--tl-radius-md) 0 0;
+}
+
+.app-save-bar__message {
+    margin-right: auto;
+    font-weight: 600;
+    color: var(--tl-text-primary);
+}

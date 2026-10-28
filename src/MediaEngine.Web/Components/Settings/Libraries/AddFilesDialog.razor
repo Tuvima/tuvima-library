@@ -1,0 +1,217 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+
+@* Add files (Libraries spec D8): pick files on the Library server and COPY them into this library's import destination. The originals are never
+   moved or changed. Files the library's content type cannot take are greyed with an (i). The selection line reads "2 videos selected, 7.8 GB".
+   The Engine checks free space before any copy and refuses with "Not enough space: N needed, M free" without starting; afterwards the
+   dialog shows what was copied, what was already in the library and what could not be read. *@
+<AppDialogShell Title="Add files" Subtitle="@Subtitle" Size="Large" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        @if (_result is { } result)
+        {
+            <AppAlert Tone="@(result.Copied > 0 ? AppUiTone.Success : AppUiTone.Info)" data-add-files="summary">@AddFilesWording.SummaryText(result)</AppAlert>
+        }
+        else if (_loadingRoots)
+        {
+            <AppProgressBar Indeterminate="true" />
+        }
+        else if (_locations.Count == 0)
+        {
+            <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FolderOff" Title="No folders to browse" Message="This server has no drives or folders available for Library to browse." />
+        }
+        else
+        {
+            <AppSelect Label="Location" Value="@_locationId" ValueChanged="ChooseLocationAsync" Options="LocationOptions" Disabled="@_copying" />
+            <div class="add-files__bar">
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
+                               Tooltip="Up one level"
+                               AriaLabel="Up one level"
+                               Disabled="@(_browse?.ParentRelativePath is null || _loading || _copying)"
+                               OnClick="UpAsync" />
+                <span class="add-files__path" title="@_browse?.DisplayPath">@_browse?.DisplayPath</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <AppAlert Tone="AppUiTone.Error" data-add-files="error">@_error</AppAlert>
+            }
+
+            @if (_loading)
+            {
+                <AppProgressBar Indeterminate="true" />
+            }
+            else if (_browse is { } browse)
+            {
+                <ul class="add-files__list" aria-label="Folders and files">
+                    @foreach (var folder in browse.Directories)
+                    {
+                        <li class="add-files__row">
+                            <AppNativeButton Type="button"
+                                             Class="add-files__folder"
+                                             AriaLabel="@($"Open folder {folder.Name}")"
+                                             Disabled="@_copying"
+                                             OnClick="@(_ => OpenAsync(folder.RelativePath))">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
+                                <strong>@folder.Name</strong>
+                            </AppNativeButton>
+                        </li>
+                    }
+                    @foreach (var file in browse.Files)
+                    {
+                        <li class="add-files__row" data-file="@file.Name" data-supported="@(file.Supported ? "true" : "false")">
+                            <AppCheckbox Label="@file.Name"
+                                         Value="@IsSelected(file)"
+                                         Disabled="@(!file.Supported || _copying)"
+                                         ValueChanged="@((bool value) => Toggle(file, value))" />
+                            <span class="add-files__size">@(DisplayFormat.FormatFileSize(file.SizeBytes) ?? "—")</span>
+                            @if (!file.Supported)
+                            {
+                                <AppInfoTip Text="@AddFilesWording.UnsupportedHint" Label="@($"Why {file.Name} is greyed out")" />
+                            }
+                        </li>
+                    }
+                    @if (browse.Directories.Count == 0 && browse.Files.Count == 0)
+                    {
+                        <li class="add-files__empty">Nothing here.</li>
+                    }
+                </ul>
+            }
+        }
+    </ChildContent>
+    <FooterContent>
+        @if (_result is not null)
+        {
+            <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(_result)))" />
+        }
+        else
+        {
+            <span class="add-files__selection" data-add-files="selection" aria-live="polite">@SelectionLine</span>
+            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_copying" OnClick="@(() => Dialog.Cancel())" />
+            <AppButton Label="Copy files" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_copying" Disabled="@(_selected.Count == 0 || _copying)" OnClick="CopyAsync" />
+        }
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    /// <summary>The centred dialog Add files opens in.</summary>
+    public static AppDialogOptions DialogOptions { get; } = new()
+    {
+        MaxWidth = AppMaxWidth.Medium,
+        FullWidth = true,
+        CloseButton = false,
+        NoHeader = true,
+        CloseOnEscapeKey = true,
+    };
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public string LibraryId { get; set; } = string.Empty;
+    [Parameter] public string? LibraryName { get; set; }
+    /// <summary>The library's kind (for example <c>movies</c>): the Engine marks each file as supported or not for it.</summary>
+    [Parameter, EditorRequired] public string KindKey { get; set; } = string.Empty;
+    /// <summary>What one file is called ("video", "audio file", "book"), for the selection line.</summary>
+    [Parameter] public string Noun { get; set; } = "file";
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly Dictionary<string, long> _selected = new(StringComparer.Ordinal);
+    private IReadOnlyList<ServerStorageLocationDto> _locations = [];
+    private BrowseServerFoldersResultDto? _browse;
+    private string _locationId = string.Empty;
+    private bool _loadingRoots = true;
+    private bool _loading;
+    private bool _copying;
+    private string? _error;
+    private LibraryAddFilesResultDto? _result;
+
+    private string? Subtitle => string.IsNullOrWhiteSpace(LibraryName) ? "Files are copied. Your originals stay where they are." : $"Copied into {LibraryName}. Your originals stay where they are.";
+    private string SelectionLine => AddFilesWording.SelectionText(_selected.Count, _selected.Values.Sum(), Noun);
+    private IReadOnlyList<AppSelectOption> LocationOptions => [.. _locations.Select(location => new AppSelectOption(location.Id, location.Label))];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var roots = await Api.GetServerFolderRootsAsync(_lifetime.Token);
+        _loadingRoots = false;
+        _locations = roots ?? [];
+        if (_locations.Count == 0)
+        {
+            _error = roots is null ? "Library could not load the folders on this server." : null;
+            return;
+        }
+
+        _locationId = _locations[0].Id;
+        await OpenAsync(string.Empty);
+    }
+
+    private Task ChooseLocationAsync(string? id)
+    {
+        _locationId = id ?? _locationId;
+        return OpenAsync(string.Empty);
+    }
+
+    private Task UpAsync() => _browse?.ParentRelativePath is { } parent ? OpenAsync(parent) : Task.CompletedTask;
+
+    private async Task OpenAsync(string relativePath)
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var browse = await Api.BrowseServerFoldersAsync(
+                new BrowseServerFoldersRequest { StorageLocationId = _locationId, RelativePath = relativePath, IncludeFiles = true, KindKey = KindKey },
+                _lifetime.Token);
+            if (browse is null)
+            {
+                _error = Api.LastError ?? "Library could not open this folder. Check that the location is online and try again.";
+                return;
+            }
+
+            _browse = browse;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool IsSelected(ServerFileEntryDto file) => _selected.ContainsKey(file.Path);
+
+    private void Toggle(ServerFileEntryDto file, bool on)
+    {
+        if (!file.Supported) return;
+        if (on) _selected[file.Path] = file.SizeBytes;
+        else _selected.Remove(file.Path);
+    }
+
+    private async Task CopyAsync()
+    {
+        if (_selected.Count == 0 || _copying) return;
+        _copying = true;
+        _error = null;
+        try
+        {
+            var result = await Api.AddFilesToLibraryAsync(LibraryId, new LibraryAddFilesRequest { Paths = [.. _selected.Keys] }, _lifetime.Token);
+            if (result is null)
+            {
+                // Refused before anything was copied: the Engine's plain sentence (for example "Not enough space: 9 GB needed, 3 GB free.").
+                _error = Api.LastError ?? "The files could not be added. Nothing was copied.";
+                return;
+            }
+
+            _result = result;
+        }
+        finally
+        {
+            _copying = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

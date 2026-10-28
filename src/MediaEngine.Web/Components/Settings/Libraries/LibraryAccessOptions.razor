@@ -24,13 +24,13 @@
 </div>
 
 @code {
-    /// <summary>Selected profiles can be chosen when a library is created. Switched on by the Access tab packet.</summary>
-    public static readonly bool SelectedProfilesAvailable = false;
+    /// <summary>Selected profiles can be chosen when a library is created and on the Access tab.</summary>
+    public static readonly bool SelectedProfilesAvailable = true;
 
     /// <summary>Vault-protected can be chosen when a library is created. Switched on by the Vault packet.</summary>
     public static readonly bool VaultAvailable = false;
 
-    public const string SelectedProfilesReason = "Choose profiles on the Access tab once the library exists.";
+    public const string SelectedProfilesReason = "Not available here.";
     public const string VaultReason = "Available after the Vault update.";
 
     /// <summary>The chosen access value (<see cref="LibraryAccessChoices"/>).</summary>

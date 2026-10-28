@@ -1,16 +1,22 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Ui
 @inject NavigationManager Navigation
-@inject UIOrchestratorService Orchestrator
+@inject IEngineApiClient Api
+@inject LibraryFolderAddService AddService
 @inject IAppToastService Toast
 @inject IAppDialogService DialogService
 
 @* One library's page (Library pages D7, D17, D18, D19): its content type, access, counts and status, the header actions, and the tab
    strip (Folders, Access, File handling, Activity, plus Lookup for a kind with lookup settings). The Settings frame above carries the
    breadcrumb Libraries > area > name and the library's name as the title. Folders embeds the existing folders panel for this one
-   library; the other tabs are filled in by the next steps. The selected tab lives in the address (?tab=). *@
+   library; the other tabs are filled in by the next steps. The selected tab lives in the address (?tab=).
+   Scan now scans this library only. Add folder adds a folder to THIS library and comes straight back to its table with the new row pointed
+   at and one confirmation (no "go to..." question). Add files copies server files into the import destination, so it waits for one. *@
 @{
     var row = Row;
 }
@@ -50,7 +56,16 @@
                                Tone="@(HighlightAddFolder ? AppUiTone.Primary : AppUiTone.Neutral)"
                                data-highlighted="@(HighlightAddFolder ? "true" : null)"
                                OnClick="AddFolderAsync" />
-                    <LibraryAddFilesButton />
+                    <AppButton Label="Add files"
+                               StartIcon="@AppMaterialIcons.Outlined.UploadFile"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Disabled="@(!HasImportDestination)"
+                               data-add-files="@(HasImportDestination ? "ready" : "needs-import-folder")"
+                               OnClick="AddFilesAsync" />
+                    @if (!HasImportDestination)
+                    {
+                        <AppInfoTip Text="@AddFilesWording.NeedsImportFolderHint" Label="@AddFilesWording.ChooseImportFolderFirst" />
+                    }
                 </div>
             }
         </div>
@@ -67,8 +82,29 @@
                                              LibraryId="@row.Key"
                                              Kinds="@Kinds"
                                              HostOwnsActions="true"
+                                             HighlightSourceId="@_highlightSourceId"
                                              ReadOnly="@ReadOnly"
                                              Changed="ChangedAsync" />
+                    }
+                    else if (tab.Slug == AccessTab)
+                    {
+                        <LibraryAccessTab Library="@Library" ReadOnly="@ReadOnly" Changed="ChangedAsync" />
+                    }
+                    else if (tab.Slug == FileHandlingTab)
+                    {
+                        <LibraryFileHandlingTab Library="@Library"
+                                                Kinds="@Kinds"
+                                                ServerDuplicatePolicy="@Configuration.FileHandling.DuplicatePolicy"
+                                                ReadOnly="@ReadOnly"
+                                                Changed="ChangedAsync" />
+                    }
+                    else if (tab.Slug == ActivityTab)
+                    {
+                        <LibraryActivityTab Library="@Library" />
+                    }
+                    else if (tab.Slug == LookupTab)
+                    {
+                        <LibraryLookupTab Library="@Library" ReadOnly="@ReadOnly" />
                     }
                     else
                     {
@@ -90,9 +126,6 @@
     public const string ActivityTab = "activity";
     public const string LookupTab = "lookup";
 
-    /// <summary>The kinds with lookup settings of their own (the Lookup tab); the Vault's per-section switch joins them with the Vault work.</summary>
-    private static readonly string[] KindsWithLookupSettings = ["youtube"];
-
     [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
@@ -109,6 +142,10 @@
 
     private bool _scanning;
     private int _panelVersion;
+    private string? _highlightSourceId;
+
+    // Add files needs somewhere to copy into: a managed folder that is this library's import destination.
+    private bool HasImportDestination => Library.GetPrimaryDestination() is { ManagementMode: "managed_by_tuvima" };
 
     private LibraryListRow Row => LibraryListing.RowFor(Kinds, Library, Configuration, Overview, PathIssues);
 
@@ -125,7 +162,7 @@
                 new(FileHandlingTab, "File handling"),
                 new(ActivityTab, "Activity"),
             };
-            if (KindsWithLookupSettings.Contains(Library.KindKey, StringComparer.OrdinalIgnoreCase))
+            if (LibraryLookupRules.HasLookupTab(Library.KindKey))
             {
                 tabs.Add(new(LookupTab, "Lookup"));
             }
@@ -147,14 +184,16 @@
         Navigation.NavigateTo($"{LibraryListing.AddressOf(Library.Id)}?tab={tabs[index].Slug}");
     }
 
-    // Scan now checks the watched folders for changes (the Engine has no scan of one library yet; a folder's own scan switch comes with the Folders tab).
+    // Scan now scans this library's own folders only (those with scanning on), never the whole server.
     private async Task ScanNowAsync()
     {
         _scanning = true;
         try
         {
-            var started = await Orchestrator.TriggerRescanAsync();
-            Toast.Add(started ? "Checking your folders for changes." : "The scan could not start. Try again in a moment.", started ? AppSeverity.Success : AppSeverity.Error);
+            var started = await Api.ScanLibraryAsync(Library.Id);
+            Toast.Add(
+                started is not null ? $"Scanning {row_name()}." : Api.LastError ?? "The scan could not start. Try again in a moment.",
+                started is not null ? AppSeverity.Success : AppSeverity.Error);
         }
         finally
         {
@@ -162,17 +201,79 @@
         }
     }
 
-    // The old Add folder flow, started on this library's kind; the Add folder step is rebuilt in the next steps.
+    private string row_name() => string.IsNullOrWhiteSpace(Library.Name) ? "this library" : Library.Name;
+
+    // Add folder: the folder picker on this library's content type (it shows the file count and says why a folder is refused), then the folder
+    // is added to THIS library and the table comes back with the new row pointed at. The confirmation is the toast; nothing else is asked.
     private async Task AddFolderAsync()
     {
-        var parameters = new AppDialogParameters<AddFolderWizard>
+        var kind = Kinds.Find(Library.KindKey);
+        if (kind is null) return;
+        var managed = kind.DefaultHandling == "managed";
+        var parameters = new AppDialogParameters<ServerFolderPicker>
         {
-            { component => component.StartTypeKey, Library.KindKey },
-            { component => component.Configuration, Configuration },
-            { component => component.Kinds, Kinds },
-            { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAddedAsync()) },
+            { component => component.SelectionMode, managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
+            { component => component.KindKey, Library.KindKey },
+            { component => component.Title, "Add folder" },
+            { component => component.HelpText, $"Choose a folder on the Library server that holds more of {row_name()}." },
+            { component => component.MediaType, kind.MediaTypes.FirstOrDefault() },
+            { component => component.ConfirmLabel, "Add" },
         };
-        await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.ExtraExtraLarge,
+            FullWidth = false,
+            CloseButton = false,
+            CloseOnEscapeKey = true,
+        });
+        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
+
+        var plan = new AddFolderPlan(
+            Library.KindKey,
+            selected,
+            managed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly,
+            MarkNewMediaHere: false,
+            LibraryId: Library.Id,
+            SuccessMessage: $"Added {Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))} to {row_name()}.");
+        var result = await AddService.AddAsync(plan, Kinds, Configuration, FolderAddScope.Settings);
+        if (!result.Saved)
+        {
+            Toast.Add(result.Error ?? "The folder could not be added. Check it and try again.", AppSeverity.Error);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.Notice))
+        {
+            Toast.Add(result.Notice, AppSeverity.Warning);
+        }
+
+        // The new folder is scanned at once, so its titles start to fill in.
+        if (!await Api.TriggerRescanAsync(selected.Path))
+        {
+            Toast.Add("The folder was added, but its first scan could not start. Use Scan now.", AppSeverity.Warning);
+        }
+
+        _highlightSourceId = result.Source?.Id;
+        await FolderAddedAsync();
+    }
+
+    // Add files: the server file picker; the Engine copies the chosen files into the import destination and the dialog reports how it went.
+    private async Task AddFilesAsync()
+    {
+        if (!HasImportDestination) return;
+        var kind = Kinds.Find(Library.KindKey);
+        var parameters = new AppDialogParameters<AddFilesDialog>
+        {
+            { component => component.LibraryId, Library.Id },
+            { component => component.LibraryName, row_name() },
+            { component => component.KindKey, Library.KindKey },
+            { component => component.Noun, AddFilesWording.NounFor(kind?.MediaTypes ?? [.. Library.MediaTypes]) },
+        };
+        var dialog = await DialogService.ShowAsync<AddFilesDialog>(string.Empty, parameters, AddFilesDialog.DialogOptions);
+        if (await dialog.Result is { Canceled: false, Data: MediaEngine.Contracts.Library.LibraryAddFilesResultDto { Copied: > 0 } })
+        {
+            await FolderAddedAsync();
+        }
     }
 
     private async Task FolderAddedAsync()

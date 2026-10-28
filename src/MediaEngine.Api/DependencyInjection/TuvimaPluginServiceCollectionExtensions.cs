@@ -23,15 +23,13 @@ public static class TuvimaPluginServiceCollectionExtensions
         // Registered in name order, ahead of the assembly scan, so the plugin list is deterministic.
         services.AddSingleton<ITuvimaPlugin, DescriptionInsightsPlugin>();
         services.AddSingleton<ITuvimaPlugin, SeriesOrderPlugin>();
-        services.AddSingleton<ITuvimaPlugin, SmartLabellingPlugin>();
+        services.AddSingleton<ITuvimaPlugin, SmartFilingPlugin>();
         services.AddSingleton<ITuvimaPlugin, TasteSummaryPlugin>();
-        services.AddSingleton<ITuvimaPlugin, TypeHelperPlugin>();
-        services.AddSingleton<ITuvimaPlugin, VibeTagsPlugin>();
         services.AddSingletonImplementations<ITuvimaPlugin>(
-            expectedCount: 5,
+            expectedCount: 3,
             typeof(CommercialSkipPlugin).Assembly,
             typeof(FandomLorePlugin).Assembly,
-            typeof(IntroSkipPlugin).Assembly);
+            typeof(SkipMarkersPlugin).Assembly);
         services.AddSingleton<AiFeatureRetractionService>();
         services.AddSingleton<DeclarativeAiStepRunner>();
         services.AddSingleton<PluginSettingsService>();

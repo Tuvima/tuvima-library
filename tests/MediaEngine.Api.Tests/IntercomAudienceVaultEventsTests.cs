@@ -178,7 +178,8 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
         _identities, _accounts, new ProfileAccessRepository(_database),
         new Resources(_vaultAsset, _vaultLibrary, _ordinaryAsset, _ordinaryLibrary), TimeProvider.System,
         new VaultLibraryRepository(_database), new NsfwAccessRepository(_database),
-        new VaultPathClassifier(new VaultLibraryRepository(_database), _configuration));
+        new VaultPathClassifier(new VaultLibraryRepository(_database), _configuration),
+        TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
 
     private static async Task<bool> Receives(IntercomAudienceAuthorizer authorizer, IntercomAudienceConnection connection, string eventName, object payload) =>
         await authorizer.CanReceiveAsync(connection, eventName, payload);

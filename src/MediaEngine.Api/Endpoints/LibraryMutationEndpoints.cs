@@ -27,7 +27,7 @@ internal static class LibraryMutationEndpoints
         group.MapPost("/libraries/mutations", async (LibraryMutationRequest request,
             IConfigurationLoader configuration, ServerFolderBrowserService folders, [Microsoft.AspNetCore.Mvc.FromServices] LibraryKindListService libraryKinds, HttpContext http,
             IFileOrganizer organizer, ViewStorageService storage, IProfileRepository profiles,
-            IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, [Microsoft.AspNetCore.Mvc.FromServices] FolderFirstCheckService firstChecks, CancellationToken ct) =>
+            IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, [Microsoft.AspNetCore.Mvc.FromServices] FolderFirstCheckService firstChecks, [Microsoft.AspNetCore.Mvc.FromServices] LibraryAccessChangeService accessChanges, CancellationToken ct) =>
         {
             await WriteGate.WaitAsync(ct);
             try
@@ -114,6 +114,14 @@ internal static class LibraryMutationEndpoints
                         return ApiErrors.BadRequest(result.Issues.First(x => x.Severity == "error").Message);
                     }
                 }
+                // Vault-protected is never switched on or off here, and a library whose access changed starts with no profiles chosen.
+                var accessError = LibraryAccessChangeService.Validate(current, proposed, vaultIds);
+                if (accessError is not null)
+                {
+                    return ApiErrors.BadRequest(accessError);
+                }
+
+                await accessChanges.ClearChangedAsync(current, proposed, ct);
                 await firstChecks.SaveLibrariesWithFirstChecksAsync(configuration.SaveLibraries, current, proposed, vaultIds, ct);
                 await folderJobs.StopJobsForUnmanagedFoldersAsync(proposed, ct);
                 await importFolder.ApplyAsync(ct);

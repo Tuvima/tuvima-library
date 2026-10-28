@@ -829,7 +829,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var downloadDecisions = new AccountAccessDecisionService(
             new ProfileAccessRepository(_database),
             new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
-            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var downloadApplications = new ApplicationRepository(_database);
         var downloadEvaluator = new AuthorizationEvaluator(
             downloadDecisions, downloadApplications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts), downloadAccessor);
@@ -1017,7 +1017,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var decisions = new AccountAccessDecisionService(
             new ProfileAccessRepository(_database),
             new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
-            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var applications = new ApplicationRepository(_database);
         return new CatalogueResourceAuthorizationService(
             _database,

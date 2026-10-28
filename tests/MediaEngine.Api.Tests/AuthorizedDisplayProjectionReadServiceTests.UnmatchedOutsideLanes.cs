@@ -728,8 +728,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             new HttpContextAccessor { HttpContext = world.Context },
             Authorities(),
             new ProfileAccessRepository(_database),
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)),
             new AuthorizationEvaluator(
-                new AccountAccessDecisionService(new ProfileAccessRepository(_database), new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System), new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database))),
+                new AccountAccessDecisionService(new ProfileAccessRepository(_database), new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System), TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database))),
                 _applications,
                 new PermissionRegistry(),
                 new AuthorizationAuditWriter(_accounts),

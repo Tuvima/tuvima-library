@@ -207,6 +207,10 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
             provider.GetRequiredService<ICollectionRepository>(), _database, NullLogger<CollectionBrowseReadService>.Instance));
         builder.Services.AddSingleton<DisplayWorkProjectionReader>();
         builder.Services.AddSingleton<IRawDisplayProjectionReadService, LiveProjection>();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IVaultLibraryRepository>(new FixedVaultLibraries());
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryProfileGrantRepository, TestLibraryVisibility.NoLibraryProfileGrants>();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryAccessCatalog>(new FixedLibraryAccessCatalog());
+        builder.Services.AddSingleton<MediaEngine.Api.Security.LibraryVisibilityRule>();
         builder.Services.AddScoped<AuthorizedDisplayProjectionReadService>();
         builder.Services.AddScoped<IDisplayProjectionReadService>(provider =>
             provider.GetRequiredService<AuthorizedDisplayProjectionReadService>());

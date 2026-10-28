@@ -153,6 +153,7 @@ public sealed class EngineCompositionValidationTests
         services.AddScoped<ApplicationAdministrationService>();
         services.AddScoped<IntegrationHealthService>();
         services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
+        services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryAccessCatalog, ConfigurationLibraryAccessCatalog>();
         services.AddSingleton<LibraryVisibilityRule>();
         services.AddScoped<IAccountAccessDecisionService, AccountAccessDecisionService>();
         services.AddScoped<ISelfServiceAuthorizationService>(provider =>
@@ -300,7 +301,7 @@ public sealed class EngineCompositionValidationTests
             .ToArray();
 
         Assert.Equal(6, strategies.Length);
-        Assert.Equal(11, plugins.Length);
+        Assert.Equal(7, plugins.Length);
         Assert.Equal(
             strategies.Select(strategy => strategy.GetType().FullName).Order(),
             strategies.Select(strategy => strategy.GetType().FullName));

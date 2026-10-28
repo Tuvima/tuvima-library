@@ -79,6 +79,7 @@ public static class UserExportScope
     public static IReadOnlyDictionary<string, string> NotInAUserExport { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["profile_library_hidden"] = "Library ids differ between Libraries, so hidden libraries are never carried by a user file (users spec D9, simpler access D3).",
+        ["library_profile_grants"] = "Library ids differ between Libraries, so the profiles chosen for a Selected-profiles library are never carried by a user file (library pages D9).",
         ["profile_admin_protections"] = "Administrator settings are never carried by a user file (users spec D9).",
         ["client_devices"] = "Paired devices sign in again on the new Library.",
         ["applications"] = "Server settings: outside applications belong to the Library.",

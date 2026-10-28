@@ -20,6 +20,7 @@
   "hydration_stages": [],
   "cache_ttl_hours": 0,
   "adapter_type": "coded",
+  "http_client": { "timeout_seconds": 10, "user_agent": "Tuvima Library/1.0 (https://github.com/shyfaruqi/tuvima-library)", "api_key": "", "api_key_delivery": "header", "api_key_param_name": "x-goog-api-key", "username": null, "password": null },
   "can_handle": { "media_types": ["Videos"], "entity_types": ["MediaAsset"] },
   "onboarding": {
     "classification": "optional",
@@ -50,6 +51,20 @@
         "validation_pattern": "^[^\\s]+$"
       }
     ],
-    "authentication_probe": null
+    "authentication_probe": { "path": "/videos?part=id&id=dQw4w9WgXcQ", "method": "GET", "success_status_codes": [200] }
+  },
+  "ui_metadata": {
+    "accent_color": "#E53935",
+    "material_icon": "PlayCircle",
+    "category": "Open",
+    "requires_key": false,
+    "auth_type": "none"
+  },
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "quiet",
+    "changelog": "First built-in version: details for online videos by their YouTube id."
   }
 }

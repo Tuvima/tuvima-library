@@ -30,6 +30,12 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     private List<ScheduledTaskDto> _tasks = [];
     private Func<string, PluginHealthResponse?> _onHealth = _ => null;
     private Func<ToolRequirementsDto?> _onTools = () => null;
+    private PluginDependenciesResponse? _dependencies;
+    private PluginLibraryLimitResponse? _libraryLimit;
+    private PluginRemovalPreviewResponse? _removalPreview;
+    private PluginActionResult _removeResult = PluginActionResult.Success;
+    private object? _removed;
+    private IReadOnlyList<string>? _savedLibraries;
     private int _pluginListReads;
     private int _taskListReads;
 
@@ -53,6 +59,19 @@ public sealed class PluginsListPageTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.CheckPluginHealthAsync), args =>
                 Task.FromResult(_onHealth((string)args![0]!)));
             stub.SetHandler(nameof(IEngineApiClient.GetToolRequirementsAsync), _ => Task.FromResult(_onTools()));
+            stub.SetHandler(nameof(IEngineApiClient.GetPluginDependenciesAsync), _ => Task.FromResult(_dependencies));
+            stub.SetHandler(nameof(IEngineApiClient.GetPluginLibrariesAsync), _ => Task.FromResult(_libraryLimit));
+            stub.SetHandler(nameof(IEngineApiClient.SetPluginLibrariesAsync), args =>
+            {
+                _savedLibraries = (IReadOnlyList<string>)args![1]!;
+                return Task.FromResult(true);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetPluginRemovalPreviewAsync), _ => Task.FromResult(_removalPreview));
+            stub.SetHandler(nameof(IEngineApiClient.RemovePluginAsync), args =>
+            {
+                _removed = args![1];
+                return Task.FromResult(_removeResult);
+            });
         });
         Services.AddSingleton(_api);
         Services.AddSingleton(_session);
@@ -127,6 +146,143 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         Assert.Contains("Nothing else depends on it.", sections.TextContent);
         Assert.Contains("Nothing has run yet.", sections.TextContent);
         Assert.Contains(sections.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Check now");
+    }
+
+    [Fact]
+    public void Configure_ShowsWhatTheEngineSaysAboutAccess_AndTheUpdateNote()
+    {
+        var plugin = Plugin("a", "Alpha", enabled: true);
+        plugin.Access = new PluginAccessDto
+        {
+            Audience = "everyone",
+            VaultWords = "Only if the section's online lookup is on",
+            DataLeaving = "The song title goes to LRCLIB",
+            WeightClass = "heavy",
+            Changelog = "Reads chapter names first.",
+        };
+        _plugins = [plugin];
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
+
+        OpenDetail(cut);
+
+        var text = cut.WaitForElement("[data-testid=plugin-detail-sections]").TextContent;
+        Assert.Contains("Everyone who can use this Library", text);
+        Assert.Contains("Only if the section's online lookup is on", text);
+        Assert.Contains("The song title goes to LRCLIB", text);
+        Assert.Contains("Heavy: works when the machine is idle", text);
+        Assert.Contains("Reads chapter names first.", text);
+    }
+
+    [Fact]
+    public void Configure_ListsWhatThePluginNeedsAndWhatNeedsIt()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true)];
+        _dependencies = new PluginDependenciesResponse
+        {
+            PluginId = "a",
+            Needs = [new PluginNeedDto { Id = "b", Name = "Skip markers", State = "off" }],
+            NeededBy = [new PluginNeededByDto { Id = "c", Name = "Gamma" }],
+        };
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
+
+        OpenDetail(cut);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Skip markers - off", cut.Find("[data-testid=plugin-needs]").TextContent);
+            Assert.Contains("Gamma", cut.Find("[data-testid=plugin-needed-by]").TextContent);
+        });
+    }
+
+    [Fact]
+    public void Configure_LetsAnAdministratorLimitThePluginToChosenLibraries()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true)];
+        _libraryLimit = new PluginLibraryLimitResponse
+        {
+            PluginId = "a",
+            Libraries =
+            [
+                new PluginLibraryChoiceDto { Id = "tv", Name = "TV" },
+                new PluginLibraryChoiceDto { Id = "movies", Name = "Movies" },
+            ],
+        };
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
+        OpenDetail(cut);
+        cut.WaitForAssertion(() => Assert.Contains("All libraries", cut.Find("[data-testid=plugin-detail-sections]").TextContent));
+
+        cut.FindAll("[data-testid=plugin-detail-sections] button").First(button => button.TextContent.Trim() == "Change").Click();
+        var picker = cut.WaitForElement("[data-testid=plugin-library-picker]");
+        picker.QuerySelectorAll("input[type=checkbox]").First().Change(true);
+        picker.QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Save").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(["tv"], _savedLibraries));
+    }
+
+    [Fact]
+    public void Removing_ShowsThePreview_AndSendsTheChoicesMade()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true)];
+        _removalPreview = new PluginRemovalPreviewResponse
+        {
+            PluginId = "a",
+            Name = "Alpha",
+            Lines = ["Its files, settings and schedule are removed.", "12 skip markers it saved can go with it or stay."],
+            SavedOutput = "skip markers",
+            SavedOutputCount = 12,
+            NeededBy = ["Gamma"],
+        };
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
+        OpenDetail(cut);
+
+        cut.WaitForElement("[data-testid=plugin-detail-sections]").QuerySelectorAll("button")
+            .First(button => button.TextContent.Trim() == "Delete plugin").Click();
+
+        var preview = cut.WaitForElement("[data-testid=plugin-removal-preview]");
+        Assert.Contains("12 skip markers it saved can go with it or stay.", preview.TextContent);
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Remove the skip markers").Click();
+        cut.Find("[data-testid=plugin-detail-sections] input[type=checkbox]").Change(true);
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Confirm delete").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            var request = Assert.IsType<PluginRemoveRequest>(_removed);
+            Assert.Equal("remove", request.Output);
+            Assert.True(request.AlsoSwitchOffDependants);
+        });
+    }
+
+    [Fact]
+    public void Removing_ShowsTheEnginesWordsWhenItRefuses()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true)];
+        _removalPreview = new PluginRemovalPreviewResponse { PluginId = "a", Name = "Alpha", Lines = ["Its files are removed."] };
+        _removeResult = PluginActionResult.Failure("Gamma needs this plugin. Switch it off too, or cancel.");
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
+        OpenDetail(cut);
+        cut.WaitForElement("[data-testid=plugin-detail-sections]").QuerySelectorAll("button")
+            .First(button => button.TextContent.Trim() == "Delete plugin").Click();
+        cut.WaitForElement("[data-testid=plugin-removal-preview]");
+
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Confirm delete").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Gamma needs this plugin.", cut.Markup));
+    }
+
+    [Fact]
+    public void ACardWaitsForWhatItNeeds_BeforeItIsOpened()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true)];
+        _dependencies = new PluginDependenciesResponse { PluginId = "a", WaitingFor = "Waiting for Skip markers" };
+
+        var cut = Render<PluginSettingsTab>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Waiting for Skip markers", cut.Markup));
     }
 
     [Fact]
@@ -291,6 +447,10 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     private static int CardCount(IRenderedComponent<PluginSettingsTab> cut) => cut.FindAll("[data-state-card=plugin]").Count;
 
     private static string Squash(AngleSharp.Dom.IElement element) => System.Text.RegularExpressions.Regex.Replace(element.TextContent, "\\s+", "");
+
+    private static void OpenDetail(IRenderedComponent<PluginSettingsTab> cut) =>
+        cut.Find("[data-state-card=plugin]").QuerySelectorAll("button")
+            .First(button => button.TextContent.Trim() == "Configure").Click();
 
     private static PluginSummaryResponse Plugin(
         string id,

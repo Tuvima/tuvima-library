@@ -40,7 +40,7 @@ internal static class PluginEndpoints
             CancellationToken ct) =>
         {
             var summaries = new List<PluginSummaryResponse>();
-            foreach (var registration in catalog.List())
+            foreach (var registration in catalog.List().Where(registration => !registration.Manifest.Hidden))
             {
                 summaries.Add(ToDto(
                     registration,

@@ -92,6 +92,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<FolderKindChangeRunner>();
         services.AddSingleton<FolderKindChangeService>();
         services.AddSingleton<ServerFolderBrowserService>();
+        services.AddSingleton<MediaEngine.Api.Services.Libraries.LibraryAddFilesService>();
         services.AddSingleton<ImportFolderApplier>();
         services.AddSingleton<SetupMediaLocationValidationService>();
         services.AddSingleton<IFileHashCacheRepository, FileHashCacheRepository>();
@@ -115,6 +116,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAccountAccessMutationRepository>(sp => sp.GetRequiredService<AccountRepository>());
         services.AddSingleton<IHouseholdRepository, HouseholdRepository>();
         services.AddSingleton<IProfileAccessRepository, ProfileAccessRepository>();
+        services.AddSingleton<ILibraryProfileGrantRepository, LibraryProfileGrantRepository>();
         services.AddSingleton<IApplicationRepository, ApplicationRepository>();
         services.AddSingleton<IIdentityRepository, IdentityRepository>();
         // The Vault (Videos spec WP9): the list of Vault libraries, per-profile Vault access and device-session unlocks (Vault mode uses the profile PIN),
@@ -230,12 +232,15 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
         services.AddSingleton<IImportUploadRepository, ImportUploadRepository>();
         services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();
+        services.AddSingleton<ILibraryFolderTitleCountRepository, LibraryFolderTitleCountRepository>();
         // The first check of a newly added folder (Library setup D35, D61). The hold is registered here, before the ingestion modules,
         // so their "nothing is ever held" default does not apply.
         services.AddSingleton<FolderFirstCheckSignal>();
         services.AddSingleton<IFolderFirstCheckRepository, FolderFirstCheckRepository>();
         // Files per library for a folder or a list of files: the one grouped read behind "who would lose sight" (simpler access D13).
         services.AddSingleton<IMediaAssetLibraryCountRepository, MediaAssetLibraryCountRepository>();
+        // One library's events, read from the tables that already hold them (Library pages D16).
+        services.AddSingleton<ILibraryActivityReadRepository, LibraryActivityReadRepository>();
         services.AddSingleton<ISuitableFolderAssetRepository, SuitableFolderAssetRepository>();
         services.AddSingleton<MediaEngine.Domain.Contracts.IFilingHold, FolderFirstCheckFilingHold>();
         services.AddSingleton<MediaEngine.Ingestion.Services.UnmatchedFileMarker>();

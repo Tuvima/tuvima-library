@@ -211,7 +211,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
         return new(NewAuthorizer(ConfiguredLibraries()), subscriber);
     }
 
-    private ApplicationEventSubscriptionAuthorizer NewAuthorizer(IConfigurationLoader configuration)
+    private ApplicationEventSubscriptionAuthorizer NewAuthorizer(IConfigurationLoader configuration, LibraryVisibilityRule? rule = null)
     {
         var permissions = new PermissionRegistry();
         var registry = new ApplicationEventRegistry(permissions);
@@ -225,7 +225,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
             registry,
             new ApplicationEventDeliveryAuthorizer(_applications, permissions, registry),
             _clock,
-            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)),
+            rule ?? TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)),
             configuration);
     }
 
@@ -275,6 +275,34 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
         // A library hidden from the account is refused too.
         await new ProfileAccessRepository(_database).ReplaceAccessAsync(Profile.SeedProfileId, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { _libraryId }, _clock.GetUtcNow());
         Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { _libraryId }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ASelectedLibrary_IsNeitherSubscribedToNorDeliveredToANativeClientOfAProfileNotChosen_AndMaySubscribeOnceChosen()
+    {
+        var fixture = await CreateSubscriptionAsync();
+        var grants = new LibraryProfileGrantRepository(_database);
+        var rule = new LibraryVisibilityRule(
+            new ProfileAccessRepository(_database), new VaultLibraryRepository(_database), grants, new FixedLibraryAccessCatalog(_libraryId));
+        var authorizer = NewAuthorizer(ConfiguredLibraries(), rule);
+        var types = new List<string> { "library.item_added" };
+        var libraries = new HashSet<Guid> { _libraryId };
+
+        Assert.False(await authorizer.CanSubscribeAsync(fixture.Subscriber.Authority, fixture.Subscriber.Consent, types, libraries, CancellationToken.None));
+        Assert.False(await authorizer.CanDeliverDelegatedAsync(fixture.Subscriber, Event()));
+
+        await grants.ReplaceGrantedProfilesAsync(_libraryId, new HashSet<Guid> { Profile.SeedProfileId }, _clock.GetUtcNow(), null);
+
+        // Choosing a profile raises its authorization version, so a native token issued before it must be refreshed (as for any access change);
+        // a connection that carries the current version may subscribe.
+        long version;
+        using (var connection = _database.CreateConnection())
+        {
+            version = connection.ExecuteScalar<long>("SELECT authorization_version FROM profiles WHERE id=@id;", new { id = Profile.SeedProfileId });
+        }
+
+        var refreshed = fixture.Subscriber with { Authority = fixture.Subscriber.Authority with { ProfileAuthorizationVersion = version } };
+        Assert.True(await authorizer.CanSubscribeAsync(refreshed.Authority, refreshed.Consent, types, libraries, CancellationToken.None));
     }
 
     public void Dispose()

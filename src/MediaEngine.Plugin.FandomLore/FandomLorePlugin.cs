@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Plugin.FandomLore;
@@ -59,6 +60,16 @@ public sealed class FandomLorePlugin : ITuvimaPlugin
             ["user_agent_contact"] = JsonSerializer.SerializeToElement(""),
         },
         SettingsSchema = SettingsSchema(),
+        Declaration = new PluginDeclaration
+        {
+            Audience = "everyone",
+            Vault = "never",
+            WeightClass = "light",
+            OnFailure = "skip_and_retry",
+            Notify = "quiet",
+            Stores = new PluginStores { Records = true, SavedOutput = "lore", OnRemoval = "keep" },
+            Changelog = "Everyone can read the lore; setting it up stays with administrators. Never used for Vault items.",
+        },
     };
 
     public IReadOnlyList<IPluginCapability> CreateCapabilities() =>

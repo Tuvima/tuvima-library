@@ -1,0 +1,61 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.AspNetCore.Components.Routing
+@inject IAppDialogService Dialogs
+
+@* The Save changes / Discard bar of a settings tab that keeps edits until they are saved (Library pages: the Access tab and the File handling
+   tab). It sticks to the bottom of the screen while there is something to save and is not drawn otherwise. Leaving with unsaved edits asks
+   first: the browser's own question for a reload or a closed tab, and the "You have unsaved changes" prompt for moving inside the app. *@
+<NavigationLock ConfirmExternalNavigation="@HasChanges" OnBeforeInternalNavigation="ConfirmLeaveAsync" />
+@if (HasChanges)
+{
+    <div class="app-save-bar" role="region" aria-label="Unsaved changes">
+        <span class="app-save-bar__message">@Message</span>
+        <AppButton Label="Discard"
+                   ButtonStyle="AppButtonStyle.Outlined"
+                   Disabled="@Saving"
+                   OnClick="OnDiscard" />
+        <AppButton Label="Save changes"
+                   ButtonStyle="AppButtonStyle.Filled"
+                   Tone="AppUiTone.Primary"
+                   Loading="@Saving"
+                   Disabled="@(Saving || !CanSave)"
+                   OnClick="OnSave" />
+    </div>
+}
+
+@code {
+    /// <summary>True while there is something to save.</summary>
+    [Parameter] public bool HasChanges { get; set; }
+
+    /// <summary>True while a save is running: both buttons wait.</summary>
+    [Parameter] public bool Saving { get; set; }
+
+    /// <summary>False when the edits cannot be saved yet (Save changes is off, Discard still works).</summary>
+    [Parameter] public bool CanSave { get; set; } = true;
+
+    [Parameter] public string Message { get; set; } = "You have unsaved changes";
+
+    [Parameter] public EventCallback OnSave { get; set; }
+
+    [Parameter] public EventCallback OnDiscard { get; set; }
+
+    private async Task ConfirmLeaveAsync(LocationChangingContext context)
+    {
+        if (!HasChanges)
+        {
+            return;
+        }
+
+        var answer = await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            "You have unsaved changes",
+            "If you leave now, they will be lost.",
+            primaryLabel: "Leave without saving",
+            secondaryLabel: "Stay",
+            primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary)
+        {
+            context.PreventNavigation();
+        }
+    }
+}

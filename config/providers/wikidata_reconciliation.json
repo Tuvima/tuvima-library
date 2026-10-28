@@ -289,5 +289,12 @@
       "P4895": "time_index",
       "P7528": "spoiler_for_work"
     }
+  },
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "tell_me",
+    "changelog": "First built-in version: the canonical identity bridge for every kind of media."
   }
 }

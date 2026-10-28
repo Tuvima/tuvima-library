@@ -389,5 +389,12 @@
     ],
     "credentials": [],
     "authentication_probe": { "path": "/artist/?query=artist%3AThe%20Beatles&fmt=json&limit=1", "method": "GET", "success_status_codes": [200] }
+  },
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "tell_me",
+    "changelog": "First built-in version: music identity and track listings from MusicBrainz."
   }
 }

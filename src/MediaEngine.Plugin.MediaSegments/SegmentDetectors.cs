@@ -8,6 +8,7 @@ namespace MediaEngine.Plugin.MediaSegments;
 public sealed class IntroSkipSegmentDetector : FfmpegSegmentDetector
 {
     public IntroSkipSegmentDetector(PluginManifest manifest) : base(manifest) { }
+    protected override string SwitchKey => SkipMarkersPlugin.DetectIntroKey;
     public override async Task<IReadOnlyList<PluginPlaybackSegment>> AnalyzeAsync(PluginMediaAssetContext asset, IPluginExecutionContext context, CancellationToken cancellationToken = default)
     {
         var duration = await ProbeDurationAsync(asset, context, cancellationToken).ConfigureAwait(false);
@@ -34,6 +35,7 @@ public sealed class CreditsSegmentDetector : FfmpegSegmentDetector
     private static readonly Regex DurationRegex = new(@"Duration:\s*(?<h>\d+):(?<m>\d+):(?<s>\d+(?:\.\d+)?)", RegexOptions.Compiled);
 
     public CreditsSegmentDetector(PluginManifest manifest) : base(manifest) { }
+    protected override string SwitchKey => SkipMarkersPlugin.DetectCreditsKey;
     public override async Task<IReadOnlyList<PluginPlaybackSegment>> AnalyzeAsync(PluginMediaAssetContext asset, IPluginExecutionContext context, CancellationToken cancellationToken = default)
     {
         var duration = await ProbeDurationAsync(asset, context, cancellationToken).ConfigureAwait(false)
@@ -80,7 +82,8 @@ public sealed class CreditsSegmentDetector : FfmpegSegmentDetector
 public sealed class RecapSegmentDetector : IPlaybackSegmentDetector
 {
     public string Kind => "playback-segment-detector";
-    public bool CanAnalyze(PluginMediaAssetContext asset, IPluginExecutionContext context) => FfmpegSegmentDetector.IsVideo(asset, context);
+    public bool CanAnalyze(PluginMediaAssetContext asset, IPluginExecutionContext context) =>
+        FfmpegSegmentDetector.IsVideo(asset, context) && FfmpegSegmentDetector.IsSwitchedOn(context, SkipMarkersPlugin.DetectRecapKey);
 
     public Task<IReadOnlyList<PluginPlaybackSegment>> AnalyzeAsync(PluginMediaAssetContext asset, IPluginExecutionContext context, CancellationToken cancellationToken = default)
     {
@@ -105,7 +108,12 @@ public abstract class FfmpegSegmentDetector : IPlaybackSegmentDetector
         _manifest = manifest;
     }
 
-    public bool CanAnalyze(PluginMediaAssetContext asset, IPluginExecutionContext context) => IsVideo(asset, context);
+    /// <summary>The setting that switches this kind of marker on or off; empty for a detector that has no switch.</summary>
+    protected virtual string SwitchKey => "";
+
+    public bool CanAnalyze(PluginMediaAssetContext asset, IPluginExecutionContext context) =>
+        IsVideo(asset, context) && (SwitchKey.Length == 0 || IsSwitchedOn(context, SwitchKey));
+
     public abstract Task<IReadOnlyList<PluginPlaybackSegment>> AnalyzeAsync(PluginMediaAssetContext asset, IPluginExecutionContext context, CancellationToken cancellationToken = default);
 
     public static bool IsVideo(PluginMediaAssetContext asset, IPluginExecutionContext context) =>
@@ -141,6 +149,10 @@ public abstract class FfmpegSegmentDetector : IPlaybackSegmentDetector
         var resolved = await context.Tools.ResolveToolAsync(requirement.Id, ct).ConfigureAwait(false);
         return resolved.IsAvailable ? resolved : null;
     }
+
+    /// <summary>True unless the setting is explicitly false (a missing setting means on).</summary>
+    public static bool IsSwitchedOn(IPluginExecutionContext context, string key) =>
+        !context.Settings.TryGetValue(key, out var value) || value.ValueKind != JsonValueKind.False;
 
     public static PluginPlaybackSegment Segment(string kind, double start, double end, string source, double confidence) => new()
     {

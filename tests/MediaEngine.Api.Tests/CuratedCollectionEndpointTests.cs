@@ -378,6 +378,10 @@ public sealed class CuratedCollectionEndpointTests : IDisposable
         builder.Services.AddSingleton<IDatabaseConnection>(_database);
         builder.Services.AddTuvimaStorage();
         builder.Services.AddTuvimaDisplay();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IVaultLibraryRepository>(new FixedVaultLibraries());
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryProfileGrantRepository, TestLibraryVisibility.NoLibraryProfileGrants>();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryAccessCatalog>(new FixedLibraryAccessCatalog());
+        builder.Services.AddSingleton<MediaEngine.Api.Security.LibraryVisibilityRule>();
         // Who is calling, and what they may do, is faked; the collection rules under test are real.
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(authority));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new LibraryAccess(_library));

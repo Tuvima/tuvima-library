@@ -496,7 +496,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     private AccountAccessDecisionService CreateDecisions() =>
         new(new ProfileAccessRepository(_database), new GrantAdminUnlockService(
             new ProfileAccessRepository(_database), new StubProfilePins(), _clock),
-            new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
 
     private async Task<MediaEngine.Domain.Entities.Application> CreateApplicationAsync(
         ApplicationType type,

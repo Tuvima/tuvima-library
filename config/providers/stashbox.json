@@ -52,5 +52,20 @@
       }
     ],
     "authentication_probe": null
+  },
+  "ui_metadata": {
+    "accent_color": "#8E24AA",
+    "material_icon": "Videocam",
+    "category": "Open",
+    "requires_key": true,
+    "auth_type": "api_key"
+  },
+  "declaration": {
+    "audience": "administrators",
+    "vault": "own_source",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "quiet",
+    "changelog": "First built-in version: the Vault's own source for video details."
   }
 }

@@ -1,0 +1,520 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Navigation
+@inject IEngineApiClient Api
+@inject IAppToastService Toast
+@inject IAppDialogService DialogService
+@inject LibraryFolderAddService AddService
+
+@* A library's File handling tab (Library pages D6): four cards (Organization, File changes, Duplicates, Deleted files), each with one (i) on its
+   heading and an Example line. Edits are kept until Save changes; Discard puts the saved values back, and leaving with unsaved edits asks first.
+   Turning "Rename or move files automatically" on for a library that already has files shows how many will change and starts the existing
+   organising job only after the person confirms it when saving; nothing is ever applied silently. A phone shows the values only. *@
+<section class="library-handling" aria-label="File handling">
+    @if (!CanChange)
+    {
+        <AppAlert Tone="AppUiTone.Info">@(IsVault ? "This library is Vault-protected, so its files are handled by the Vault's own rules and can't be changed here." : "Library never renames, moves or tags files of this kind.")</AppAlert>
+    }
+
+    <AppCard Class="library-handling__card" Title="Organization">
+        <Actions><AppInfoTip Text="How Library names and files the files it may change. Preserve original names leaves every file and folder as it is." Label="About organization" /></Actions>
+        <ChildContent>
+            <div class="library-handling__choices" role="group" aria-label="Organization">
+                <AppChoiceRow Title="Preserve original names"
+                              Description="Files and folders keep the names they have now."
+                              Selected="@(_mode == LibraryFileHandlingChoices.PreserveNames)"
+                              Disabled="@Locked"
+                              OnClick="@(() => ChooseModeAsync(LibraryFileHandlingChoices.PreserveNames))" />
+                <AppChoiceRow Title="Library standard"
+                              Description="Library names and files each title the same way."
+                              Selected="@(_mode == LibraryFileHandlingChoices.LibraryStandard)"
+                              Disabled="@Locked"
+                              OnClick="@(() => ChooseModeAsync(LibraryFileHandlingChoices.LibraryStandard))" />
+                <AppChoiceRow Title="Custom pattern"
+                              Description="Write your own naming pattern."
+                              Selected="@(_mode == LibraryFileHandlingChoices.Custom)"
+                              Disabled="@Locked"
+                              OnClick="@(() => ChooseModeAsync(LibraryFileHandlingChoices.Custom))" />
+            </div>
+            @if (_mode == LibraryFileHandlingChoices.Custom)
+            {
+                <AppTextField Label="Custom pattern"
+                              Value="@_template"
+                              ValueChanged="EditTemplateAsync"
+                              Error="@(!string.IsNullOrEmpty(_templateError))"
+                              ErrorText="@_templateError"
+                              HelpText="@($"Tokens: {LibraryFileHandlingChoices.TokensFor(TemplateKey)}. Add ? after a token, like {{TrackNumber?}}, to leave it out when empty.")"
+                              Disabled="@Locked" />
+            }
+            <div class="library-handling__example"><span>Example</span><code>@OrganizationExample</code></div>
+        </ChildContent>
+    </AppCard>
+
+    <AppCard Class="library-handling__card" Title="File changes">
+        <Actions><AppInfoTip Text="Both are off until you switch them on. Renaming and moving use the naming above; writing metadata puts titles, people and artwork into the files themselves." Label="About file changes" /></Actions>
+        <ChildContent>
+            <AppSwitchRow Label="Rename or move files automatically"
+                          Description="@RenameDescription"
+                          Value="@_rename"
+                          ValueChanged="RenameChangedAsync"
+                          Disabled="@(Locked || ChangeableCount == 0)" />
+            @if (_rename && !_savedRename)
+            {
+                @if (_countLoading)
+                {
+                    <p class="library-handling__note" role="status">Counting files...</p>
+                }
+                else if (_countError is not null)
+                {
+                    <AppAlert Tone="AppUiTone.Error">@_countError</AppAlert>
+                }
+                else if (_pendingFiles > 0)
+                {
+                    <AppAlert Tone="AppUiTone.Warning"><span data-pending-files="@_pendingFiles">@_pendingFiles.ToString("N0") @(_pendingFiles == 1 ? "file" : "files") will be renamed or moved.</span> This can take hours, Library keeps a log of every move, and it can't be undone automatically. You will be asked to confirm when you save.</AppAlert>
+                }
+                else
+                {
+                    <p class="library-handling__note">There are no files to rename yet. Library will name and organise the files it adds from now on.</p>
+                }
+            }
+            @if (_savedRename && !_rename)
+            {
+                <p class="library-handling__note">Library will stop renaming and moving files. Files already renamed keep their new names; nothing is undone.</p>
+            }
+            <AppSwitchRow Label="Write metadata into media files"
+                          Description="Titles, people and artwork are written into the files themselves, in folders Library may change."
+                          Value="@_tags"
+                          ValueChanged="@((bool value) => _tags = value)"
+                          Disabled="@Locked" />
+            <p class="library-handling__note">Writing metadata waits for a regular pass over your files. <AppLink Href="@HowWritingWorksAddress" Target="_blank">How writing metadata works</AppLink></p>
+            <div class="library-handling__example"><span>Example</span><code>@FileChangesExample</code></div>
+        </ChildContent>
+    </AppCard>
+
+    <AppCard Class="library-handling__card" Title="Duplicates">
+        <Actions><AppInfoTip Text="When the same file arrives twice. Library compares what is inside the files, so a renamed copy counts as the same file." Label="About duplicates" /></Actions>
+        <ChildContent>
+            <AppSegmentedControl Options="DuplicateOptions"
+                                 Value="@_dup"
+                                 ValueChanged="@((string value) => _dup = value)"
+                                 AriaLabel="When the same file arrives twice"
+                                 Disabled="@Locked" />
+            @if (_dup == LibraryFileHandlingChoices.ServerDefault)
+            {
+                <p class="library-handling__note">Using the server default (@LibraryFileHandlingChoices.DuplicateText(ServerDefaultPolicy))</p>
+            }
+            <div class="library-handling__example"><span>Example</span><code>@DuplicateExample</code></div>
+        </ChildContent>
+    </AppCard>
+
+    <AppCard Class="library-handling__card" Title="Deleted files">
+        <Actions><AppInfoTip Text="When on, deleting a title from disk moves its files to the Recycle bin instead of removing them. They leave the disk only when the bin is emptied." Label="About deleted files" /></Actions>
+        <ChildContent>
+            <AppSwitchRow Label="Use Recycle bin"
+                          Description="Deleted files wait in the Recycle bin until it is emptied."
+                          Value="@_recycle"
+                          ValueChanged="@((bool value) => _recycle = value)"
+                          Disabled="@Locked" />
+            <div class="library-handling__example"><span>Example</span><code>@(_recycle ? "Delete Dune (2021) and its file waits in the Recycle bin, where you can restore it." : "Delete Dune (2021) and its file is removed from the disk straight away.")</code></div>
+        </ChildContent>
+    </AppCard>
+
+    <p class="library-handling__note">A folder can override these from its menu on the <AppLink Href="@FoldersAddress">Folders tab</AppLink>.</p>
+</section>
+
+@if (!ReadOnly && CanChange)
+{
+    <AppSaveBar HasChanges="@HasChanges" Saving="@_saving" CanSave="@CanSave" OnSave="SaveAsync" OnDiscard="DiscardAsync" />
+}
+
+@code {
+    private static readonly IReadOnlyList<AppSelectOption> DuplicateOptions =
+    [
+        new(LibraryFileHandlingChoices.KeepOne, "Keep one copy"),
+        new(LibraryFileHandlingChoices.KeepBoth, "Keep both"),
+        new(LibraryFileHandlingChoices.ServerDefault, "Use server default"),
+    ];
+
+    /// <summary>The library being shown, as the Engine last returned it.</summary>
+    [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
+
+    /// <summary>The kinds the Engine offers, to know whether this library's files can be changed at all.</summary>
+    [Parameter] public LibraryKindCatalog Kinds { get; set; } = LibraryKindCatalog.Empty;
+
+    /// <summary>The server-wide duplicate rule a library follows when it has none of its own.</summary>
+    [Parameter] public string? ServerDuplicatePolicy { get; set; }
+
+    /// <summary>Phones: the values are shown and nothing can be changed.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>Raised after a save, so the page reads the libraries again.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    // What the tab edits, as one value so "has anything changed" is a single comparison.
+    private sealed record Values(string Mode, string Template, bool Rename, bool Tags, string Duplicate, bool Recycle);
+
+    private Values _saved = new(LibraryFileHandlingChoices.PreserveNames, string.Empty, false, false, LibraryFileHandlingChoices.ServerDefault, false);
+    private string _mode = LibraryFileHandlingChoices.PreserveNames;
+    private string _template = string.Empty;
+    private bool _rename;
+    private bool _tags;
+    private string _dup = LibraryFileHandlingChoices.ServerDefault;
+    private bool _recycle;
+    private bool _savedRename;
+    private bool _initialised;
+    private bool _saving;
+    private string? _templateError;
+    private string? _templateExample;
+    private string? _standardExample;
+    private string? _loadedExampleFor;
+    private bool _countLoading;
+    private string? _countError;
+    private int _pendingFiles;
+    private readonly Dictionary<string, FolderConversionPreviewResponse> _quick = new(StringComparer.OrdinalIgnoreCase);
+
+    private LibraryTypeOption? Kind => Kinds.Find(Library.KindKey);
+    private string? TemplateKey => Kind?.NamingTemplate;
+    private bool IsVault => string.Equals(Library.Access, LibraryFileHandlingChoices.VaultAccess, StringComparison.OrdinalIgnoreCase);
+    private bool CanChange => LibraryFileHandlingChoices.CanChangeFiles(Library, Kind);
+    private bool Locked => ReadOnly || _saving || !CanChange;
+    private int ChangeableCount => LibraryFileHandlingChoices.ChangeableFolders(Library).Count;
+    private string ServerDefaultPolicy => LibraryFileHandlingChoices.ServerDuplicate(ServerDuplicatePolicy);
+    private string FoldersAddress => $"{LibraryListing.AddressOf(Library.Id)}?tab={LibraryShell.FoldersTab}";
+    private static string HowWritingWorksAddress => ProjectLinks.DocsSite + "guides/library-settings/#when-changes-reach-your-files";
+
+    private Values Current => new(_mode, _template.Trim(), _rename, _tags, _dup, _recycle);
+    private bool HasChanges => Current != _saved;
+    private bool CanSave => _mode != LibraryFileHandlingChoices.Custom
+        || (!string.IsNullOrWhiteSpace(_template) && string.IsNullOrEmpty(_templateError) && !string.IsNullOrEmpty(_templateExample));
+
+    private string RenameDescription => ChangeableCount == 0
+        ? "Add a folder first. Library renames and moves files only in folders it may change."
+        : "Library may rename and move the files in this library's folders to match the organization above.";
+
+    private string OrganizationExample => _mode switch
+    {
+        LibraryFileHandlingChoices.PreserveNames => "Original folder/Original name.ext (nothing is renamed)",
+        LibraryFileHandlingChoices.Custom => _templateExample ?? "Type a pattern to see an example",
+        _ => _standardExample ?? LibraryFileHandlingChoices.FallbackExample(TemplateKey),
+    };
+
+    private string FileChangesExample => _rename
+        ? $"Dune.2021.1080p.mkv becomes {(_mode == LibraryFileHandlingChoices.PreserveNames ? "Dune.2021.1080p.mkv (kept)" : OrganizationExample)}"
+        : "Files stay exactly where they are and keep their names.";
+
+    private string DuplicateExample
+    {
+        get
+        {
+            var policy = _dup == LibraryFileHandlingChoices.ServerDefault ? ServerDefaultPolicy : _dup;
+            return policy == LibraryFileHandlingChoices.KeepBoth
+                ? "Dune (2021).mkv and Dune copy.mkv are the same film: both files stay on disk, and the film is listed once."
+                : "Dune (2021).mkv and Dune copy.mkv are the same film: one copy is kept and the other is removed where its folder allows it.";
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var saved = SavedValues();
+        var firstTime = !_initialised;
+        if (firstTime || Current == _saved)
+        {
+            _mode = saved.Mode;
+            _template = saved.Template;
+            _rename = saved.Rename;
+            _tags = saved.Tags;
+            _dup = saved.Duplicate;
+            _recycle = saved.Recycle;
+            _templateError = null;
+            _templateExample = null;
+            ClearCount();
+        }
+
+        _saved = saved;
+        _savedRename = saved.Rename;
+        _initialised = true;
+        await LoadStandardExampleAsync();
+        if (_mode == LibraryFileHandlingChoices.Custom && _templateExample is null && !string.IsNullOrWhiteSpace(_template))
+        {
+            await ValidateTemplateAsync(_template);
+        }
+    }
+
+    private Values SavedValues()
+    {
+        var folders = LibraryFileHandlingChoices.ChangeableFolders(Library);
+        var policy = Library.OrganizationPolicy;
+        var mode = policy.Mode is LibraryFileHandlingChoices.PreserveNames or LibraryFileHandlingChoices.Custom
+            ? policy.Mode
+            : LibraryFileHandlingChoices.LibraryStandard;
+        return new Values(
+            mode,
+            (policy.CustomTemplate ?? string.Empty).Trim(),
+            folders.Count > 0 && folders.All(LibraryFileHandlingChoices.IsManaged),
+            policy.WriteTags,
+            LibraryFileHandlingChoices.DuplicateChoice(Library),
+            Library.RecycleBin);
+    }
+
+    // The Engine's own example for the library standard pattern of this kind; the built-in sample stands in when it cannot be read.
+    private async Task LoadStandardExampleAsync()
+    {
+        var key = TemplateKey;
+        if (key is null || key == _loadedExampleFor)
+        {
+            return;
+        }
+
+        _loadedExampleFor = key;
+        _standardExample = null;
+        var templates = await Api.GetOrganizationTemplateAsync();
+        if (templates?.Templates is null || !templates.Templates.TryGetValue(key, out var template))
+        {
+            return;
+        }
+
+        var preview = await Api.PreviewOrganizationTemplateAsync(template);
+        if (!string.IsNullOrWhiteSpace(preview?.Preview))
+        {
+            _standardExample = preview.Preview;
+        }
+    }
+
+    private async Task ChooseModeAsync(string mode)
+    {
+        if (_mode == mode)
+        {
+            return;
+        }
+
+        _mode = mode;
+        if (mode == LibraryFileHandlingChoices.Custom)
+        {
+            // Start from the saved custom pattern, else a pattern the person can edit.
+            if (string.IsNullOrWhiteSpace(_template))
+            {
+                _template = _saved.Template;
+            }
+
+            await ValidateTemplateAsync(_template);
+        }
+    }
+
+    private async Task EditTemplateAsync(string? value)
+    {
+        _template = value ?? string.Empty;
+        await ValidateTemplateAsync(_template);
+    }
+
+    // The Engine's own template check; its answer decides the inline error and the Example line.
+    private async Task ValidateTemplateAsync(string template)
+    {
+        if (string.IsNullOrWhiteSpace(template))
+        {
+            _templateError = "Enter a pattern, for example the Library standard one.";
+            _templateExample = null;
+            return;
+        }
+
+        var preview = await Api.PreviewOrganizationTemplateAsync(template.Trim());
+        // Ignore an answer for text the person has already edited past.
+        if (!string.Equals(_template, template, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(preview?.Preview))
+        {
+            _templateError = "That pattern isn't valid. Use only the tokens listed, each inside { } braces.";
+            _templateExample = null;
+        }
+        else
+        {
+            _templateError = null;
+            _templateExample = preview.Preview;
+        }
+    }
+
+    private async Task RenameChangedAsync(bool on)
+    {
+        _rename = on;
+        ClearCount();
+        if (on && !_savedRename)
+        {
+            await LoadCountAsync();
+        }
+    }
+
+    private void ClearCount()
+    {
+        _countLoading = false;
+        _countError = null;
+        _pendingFiles = 0;
+        _quick.Clear();
+    }
+
+    // Counting what turning rename on would touch: a quick count from folder listings, nothing is changed.
+    private async Task LoadCountAsync()
+    {
+        _countLoading = true;
+        _countError = null;
+        _pendingFiles = 0;
+        _quick.Clear();
+        try
+        {
+            foreach (var source in LibraryFileHandlingChoices.ChangeableFolders(Library).Where(source => !LibraryFileHandlingChoices.IsManaged(source)))
+            {
+                var quick = await Api.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
+                if (quick is null)
+                {
+                    _countError = Api.LastError ?? "Library could not count the files in this library, so nothing can be changed yet.";
+                    return;
+                }
+
+                _quick[source.Id] = quick;
+                _pendingFiles += quick.TotalFiles;
+            }
+        }
+        finally
+        {
+            _countLoading = false;
+        }
+    }
+
+    private Task DiscardAsync()
+    {
+        _mode = _saved.Mode;
+        _template = _saved.Template;
+        _rename = _saved.Rename;
+        _tags = _saved.Tags;
+        _dup = _saved.Duplicate;
+        _recycle = _saved.Recycle;
+        _templateError = null;
+        _templateExample = null;
+        ClearCount();
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!HasChanges || _saving || !CanSave || _countLoading || _countError is not null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var edited = JsonSerializer.Deserialize<LibraryFolderDto>(JsonSerializer.Serialize(Library))!;
+            // Naming is only written when it was edited, so a mode this tab does not draw (a View one) is never overwritten by a save of something else.
+            if (_mode != _saved.Mode || (_mode == LibraryFileHandlingChoices.Custom && _template.Trim() != _saved.Template))
+            {
+                edited.OrganizationPolicy.Mode = _mode;
+                edited.OrganizationPolicy.CustomTemplate = _mode == LibraryFileHandlingChoices.Custom ? _template.Trim() : null;
+            }
+
+            edited.OrganizationPolicy.WriteTags = _tags;
+            edited.FileHandling.DuplicatePolicy = _dup == LibraryFileHandlingChoices.ServerDefault ? null : _dup;
+            edited.RecycleBin = _recycle;
+
+            var toConvert = new List<LibrarySourceDto>();
+            if (_rename && !_savedRename)
+            {
+                if (!await PrepareRenameOnAsync(edited, toConvert))
+                {
+                    return;
+                }
+            }
+            else if (!_rename && _savedRename && !await PrepareRenameOffAsync(edited))
+            {
+                return;
+            }
+
+            // The whole library goes through its own save (compare-and-swap), so a change made in another session is refused with its own sentence.
+            var saved = await Api.MutateLibraryAsync(new LibraryMutationRequest { Library = edited, ExpectedLibrary = Library });
+            if (saved is null)
+            {
+                Toast.Add(Api.LastError ?? "The file handling could not be saved. Reload the page and try again.", AppSeverity.Error);
+                return;
+            }
+
+            // The organising job starts only now: confirmed above, and after the naming it will use has been saved.
+            foreach (var source in toConvert)
+            {
+                var followUp = await AddService.StartConversionAsync(source);
+                if (!followUp.Started)
+                {
+                    Toast.Add(followUp.Notice ?? "Library could not start organising this folder.", AppSeverity.Error);
+                }
+            }
+
+            Toast.Add("File handling saved.", AppSeverity.Success);
+            ClearCount();
+            await Changed.InvokeAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // Folders with no files become Managed in the save itself; a folder that already has files asks first (the existing question: what changes,
+    // hours, no automatic undo) and is converted by the existing job only after it is confirmed. Returns false when anything was declined.
+    private async Task<bool> PrepareRenameOnAsync(LibraryFolderDto edited, List<LibrarySourceDto> toConvert)
+    {
+        foreach (var source in LibraryFileHandlingChoices.ChangeableFolders(edited).Where(source => !LibraryFileHandlingChoices.IsManaged(source)))
+        {
+            if (!_quick.TryGetValue(source.Id, out var quick))
+            {
+                quick = await Api.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
+                if (quick is null)
+                {
+                    Toast.Add(Api.LastError ?? "Library could not count the files in this folder, so nothing was changed.", AppSeverity.Error);
+                    return false;
+                }
+            }
+
+            if (quick.TotalFiles == 0)
+            {
+                source.ManagementMode = LibraryFileHandlingChoices.ManagedMode;
+                source.AccessMode = LibraryFileHandlingChoices.WritableAccess;
+                continue;
+            }
+
+            if (!await AddService.AskToConvertAsync(source, quick, alreadyManaged: false))
+            {
+                return false;
+            }
+
+            toConvert.Add(source);
+        }
+
+        return true;
+    }
+
+    // Turning it off is the existing as-is switch: it stops any organising that is running, and files already renamed keep their names.
+    private async Task<bool> PrepareRenameOffAsync(LibraryFolderDto edited)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Stop renaming and moving files?",
+            "Library will stop organising this library's folders, and any organising that is running stops. Files already renamed keep their new names; nothing is undone and nothing else on disk changes.",
+            yesText: "Stop renaming",
+            cancelText: "Keep renaming");
+        if (confirmed != true)
+        {
+            return false;
+        }
+
+        foreach (var source in LibraryFileHandlingChoices.ChangeableFolders(edited).Where(LibraryFileHandlingChoices.IsManaged))
+        {
+            source.ManagementMode = LibraryFileHandlingChoices.AsIsMode;
+            source.AccessMode = LibraryFileHandlingChoices.ReadOnlyAccess;
+            source.ConversionState = LibraryFileHandlingChoices.NotConverting;
+            source.ConversionOperationId = null;
+        }
+
+        return true;
+    }
+}

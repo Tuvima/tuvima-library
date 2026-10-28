@@ -55,6 +55,10 @@
             <section class="create-library__section">
                 <h3 class="create-library__heading">Access <AppInfoTip Text="Standard: everyone who can use this area. Selected profiles: only the profiles you choose. Vault-protected: kept in the Vault, and it cannot be changed later." Label="About access" /></h3>
                 <LibraryAccessOptions Value="@_access" ValueChanged="@((string value) => _access = value)" ShowVault="ShowVaultOption" Disabled="@_saving" />
+                @if (_access == LibraryAccessChoices.Selected)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" Dense="true">Nobody but administrators will see this library until you tick profiles on its Access tab.</AppAlert>
+                }
                 @if (IsAdultContent)
                 {
                     <AppSwitchRow Label="Protect with the Vault"
@@ -174,13 +178,7 @@
     // Read-only (As-is) unless the kind's own default is Managed.
     private AddFolderHandling Handling => Kind is { DefaultHandling: "managed" } ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly;
 
-    private string? SubfolderHint => _area switch
-    {
-        "watch" => "Subfolders give structure: a folder of several videos is a series, folders inside it are sections, and a folder with one video stays on its own.",
-        "listen" => "Audio in subfolders is scanned too and stays grouped with the folder it sits in.",
-        "read" => "Books and comics in subfolders are scanned too and stay grouped with the folder they sit in.",
-        _ => null,
-    };
+    private string? SubfolderHint => SubfolderHints.For(_area);
 
     // The name must be there, fit, and be new within the area ("Home videos" twice would be two rows nobody could tell apart).
     private string? NameProblem

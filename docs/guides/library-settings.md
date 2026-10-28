@@ -16,7 +16,7 @@ Use Settings in Tuvima Library to add folders and check background work. This fi
 Libraries is **Settings > Libraries**, in two levels. Each has its own address, so Back and a reload keep your place, and the page title and breadcrumb above it show where you are.
 
 1. **The overview** has four tabs, **Watch**, **Listen**, **Read** and **View**. The tabs filter the list: pick one and the table under it shows only that area's libraries, one row per library. A row has the library's name with its icon, its content type, who can see it (**Standard** or **Selected profiles**), its folder and title counts ("3 folders · 1,284 titles", or "Nothing added yet") and a status: **Healthy**, **Needs review** (with the number of files; it opens Needs Review), **Empty**, **Folder offline** (the folders at fault in a tooltip) or **Scanning**. The whole row opens the library, and a chevron and a highlight on hover show that it does. Search and a status filter sit above the table, and an area with nothing in it says "No Watch libraries yet" with one **Add library** button. A Vault-protected library appears, with a lock, only while Vault mode is on for you and your profile may use it; otherwise there is no row and no hint. Under the table is a line for the [Import folder](#import-folder) (it reads "set" or "not set").
-2. **A library page** (for example Movies) shows the library's content type, who can see it, its counts and status, and **Scan now**, **Add folder** and **Add files**. Its tabs are **Folders** (the table of folders), **Access**, **File handling** and **Activity**, plus **Lookup** for a kind that has lookup settings (YouTube). Access, File handling, Activity and Lookup are being built and say "Coming in the next step" for now. An amber count and a short **Paused** note on the Folders tab mean a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
+2. **A library page** (for example Movies) shows the library's content type, who can see it, its counts and status, and **Scan now**, **Add folder** and **Add files**. Its tabs are **Folders** (the table of folders), **Access**, **File handling** and **Activity**, plus **Lookup** for a kind that has lookup settings (YouTube). Activity and Lookup are described [below](#see-what-happened-in-one-library). **Scan now** scans this library's folders only (folders with scanning paused or offline are left alone). An amber count and a short **Paused** note on the Folders tab mean a new folder is waiting for you (see [the first check](#the-first-check-of-a-new-folder)).
 
 The kinds are:
 
@@ -121,6 +121,43 @@ If the Engine refuses the change, the dialog shows its one sentence and only **C
 
 Everyone with a library's area (Read, Watch, Listen or View) sees it, including a library you have just added; nothing needs ticking. To keep one from a person, open their page under **Settings > Profiles**, find the area, and untick the library in its **Libraries** list. It saves at once and says "Hidden from {name}"; the list shows only when the area has more than one library, administrators always see everything, and the Vault keeps its own rules and never appears in the list. Moving a folder or changing its kind tells you who will stop seeing its files before you confirm. See [Set up a household](households.md) for who may change this.
 
+### Choose who sees one library
+
+Open the library and pick its **Access** tab. There are three choices:
+
+- **Standard** is the rule above: everyone with the area sees the library.
+- **Selected profiles** shows the library only to the profiles you tick, and to administrators (who always see everything). Each profile shows its picture; Kids profiles are marked. Every other limit still applies on top: a profile also needs the area, must not have the library hidden, and keeps its content limit and the household ceiling.
+- **Vault-protected** is chosen when a library is made and can never be switched on or off here. It is not available yet, so the choice is greyed out.
+
+Switching a Standard library to **Selected profiles** starts with nobody ticked, and the tab warns that only administrators will see it until you tick someone. A new profile starts with no Selected libraries. Nothing is saved until you press **Save changes** in the bar at the bottom (**Discard** puts the saved choice back, and leaving with unsaved changes asks first). Switching a library between Standard and Selected clears its ticked profiles, and a profile that gains or loses a library signs in again to refresh what it can see. Only administrators can change this, and on a phone the tab shows the choice but cannot change it. You can also pick **Selected profiles** when you add a library; the same warning appears and you tick profiles on its Access tab afterwards.
+
+## Choose how Library treats a library's files
+
+Open the library and pick its **File handling** tab. It has four cards, each with one (i) on its heading and an **Example** line that shows what the choice does:
+
+- **Organization**: **Preserve original names** (the default; every file and folder keeps its name), **Library standard** or **Custom pattern**. A custom pattern is checked by the Library server as you type, and a pattern it does not accept shows its error under the field and cannot be saved.
+- **File changes**: two switches, both off for a new library. **Rename or move files automatically** lets Library rename and move the files in all of the library's folders that can be changed (off means they are left read-only). **Write metadata into media files** writes titles, people and artwork into the files themselves; it is separate from renaming and waits for a regular pass over your files (see [when changes reach your files](#when-changes-reach-your-files)). Both switches are greyed out, with the reason, for a Vault-protected library and for a type Library never changes.
+- **Duplicates**: **Keep one copy** (Library compares what is inside the files, so a renamed copy counts) or **Keep both**. **Use server default** removes the library's own choice, and the tab says "Using the server default (Keep one copy)" while it follows the server.
+- **Deleted files**: the **Use Recycle bin** switch (on for Videos, off for the other types).
+
+Nothing is saved until you press **Save changes** in the bar at the bottom (**Discard** puts the saved values back, and leaving with unsaved changes asks first). Turning **Rename or move files automatically** on for a library that already has files shows how many files will be renamed or moved; when you press **Save changes**, Library asks the same question as converting a folder (it can take hours and cannot be undone automatically, though a full log of every move is kept) and starts the visible background job only after you confirm. Turning it off asks first and stops any organising that is running; files already renamed keep their new names. A folder can still override duplicates and metadata from its menu on the **Folders** tab. On a phone the tab shows the values but cannot change them.
+## See what happened in one library
+
+Open the library and pick its **Activity** tab. It lists what has happened in this library only, newest first, each line with a time, an icon whose colour says the kind, and a plain sentence: titles added ("Added Dune."), items that need review ("Arrival needs review", with a **Needs review** link to [Review Queue](resolving-reviews.md)), files that could not be taken in, the first check of a folder, renames and merges, and folders whose kind was changed. Nothing new is stored; the tab is a filtered view of events the Library already records, so a line appears only for the library its files belong to. It never shows another library's events, and it is shown to administrators only. A library with no events yet says "Nothing has happened in this library yet". If the Library server cannot be reached the tab says so and offers **Try again**.
+
+## Add your own YouTube key
+
+A library of the YouTube kind also has a **Lookup** tab. YouTube lookup works without a key: it finds a video's title, channel and thumbnail from the video ID, and the tab says **Using the shared key**. A free key of your own adds the description and upload date, and then says **Using your key**. Only video IDs are sent to YouTube, never your files.
+
+To get a key, open **How do I get a key?** on the tab:
+
+1. Sign in to the [Google Cloud console](https://console.cloud.google.com/apis/credentials) with a Google account and create a project. Any name will do.
+2. Open YouTube Data API v3 for that project and choose **Enable**.
+3. Open Credentials, choose **Create credentials**, then **API key**.
+4. Copy the key, paste it into the field on the Lookup tab and choose **Save**.
+
+**Save** checks the key with YouTube before keeping it, and **Test key** checks it without saving. The key is kept on your server in the secrets store, never in the data store, and is never shown again or written to a log: the field only says that a key is saved. **Remove** deletes it and goes back to the shared key. Only administrators can change the key, and on a phone the tab shows the state and the steps but cannot change anything.
+
 ## Advanced settings
 
 Each type has an **Advanced** section with its naming template (**Naming template**, **Apply template**) and **Save changes into the files** (only affects managed folders; it is the one setting the editor reads, so the editor's Review changes dialog shows it as "Files will be updated: On" or "Off" with a link back here). The section **File handling for every type** holds the library-wide rules **When the same file arrives twice** (**Keep one copy** or **Keep both**) and **Embed artwork in files**.
@@ -193,7 +230,17 @@ If the file is no longer on disk, **Add back** removes the row and nothing is sc
 
 The **Import folder** is the line under the table on the Libraries overview. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
 
+### The Folders tab
+
+The Folders tab is a table with one row per folder: **Folder** (its short name, with the full path under it), **Titles** (how many titles the catalogue holds from that folder), **Access** (Accessible, Folder offline or Needs access, always in words), **Scan** (a switch; off pauses scanning of just that folder) and **Import destination**. Exactly one managed folder is the import destination; an As-is folder cannot be one, and the (i) beside it says why. An offline folder gets an amber warning row under it, and a folder that is being scanned shows a small spinner. The "..." menu on a row has **Override file handling for this folder** (a small dialog where the duplicate rule and writing tags each default to "Use library setting"), **Pause scanning** or **Resume scanning**, **Change what this folder is** and **Remove folder**. On a phone the table is read-only.
+
+**Add folder** (page header) opens the folder picker for this library's content type and adds the folder to this library. The new row is highlighted and one line confirms it; nothing else is asked.
+
+**Add files** (page header, not on phones) copies files from the server into this library's import destination, so it is disabled with "Choose an import folder first" until the library has one. The picker lists server files, greys out the ones this library cannot take, and says for example "2 videos selected, 7.8 GB". Before anything is copied the Engine checks free space and refuses with "Not enough space: N needed, M free". The originals are only read, never moved or changed; a file already in the library is skipped when the duplicate rule is Keep one copy ("Already in your library"), and copied under a numbered name with Keep both. The summary reads "Copied N. Already in your library: N. Could not be read: N." Only administrators can do this, and every file must sit inside an approved storage location.
+
 ### Add files by dropping them
+
+Library pages have their own **Add files** that copies server files (see [The Folders tab](#the-folders-tab)); the dropping flow below belongs to the older Watch, Listen and Read pages.
 
 On a Watch, Listen or Read page, or on a type's own page, you can drop files from your computer onto the list, or choose **Add files** beside **Add folder** (a touch screen or a pointer that cannot hover gets the button only; phones and tablets get neither, since libraries are read-only there). The files are sent to the server in pieces and land in the Import folder under that type, where Library files them on its next run. If a file does not fit the page (a film dropped on Music), one dialog asks which kind it is for, with the usual kind cards; a kind with several libraries also asks which library. A file name already in use gets a number added, never an overwrite. A file above `large_upload_warning_bytes` (50 GB by default) first shows an amber warning that large uploads can fail and that copying straight into the Import folder on the server is more reliable, with that folder's path and **Copy path**; **Upload anyway** goes ahead and **Cancel** drops just those files. Each file shows a progress bar with **Cancel**, which deletes the partly sent file; uploads keep going while you move between Libraries pages, if the connection drops the upload carries on from the missing pieces, and after a reload choosing the same file again resumes it. A refusal says why in one sentence and links to the fix, for example **Set an Import folder first**. Adding files to the Vault by dropping is not available yet, and photos go through View's own upload. Only administrators can add files this way, and an administrator can turn it off with `allow_drag_and_drop`.
 

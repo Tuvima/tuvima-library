@@ -1,0 +1,10 @@
+.add-files__bar { display: flex; align-items: center; gap: 8px; margin: 8px 0; min-width: 0; }
+.add-files__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-muted); font-size: 0.9rem; }
+.add-files__list { max-height: 320px; margin: 0; padding: 0; overflow-y: auto; list-style: none; border: 1px solid var(--tl-border-subtle); border-radius: var(--app-radius-md, 8px); }
+.add-files__row { display: flex; align-items: center; gap: 12px; padding: 4px 12px; border-top: 1px solid var(--tl-border-subtle); }
+.add-files__row:first-child { border-top: 0; }
+.add-files__row[data-supported="false"] { opacity: 0.6; }
+.add-files__folder { display: inline-flex; align-items: center; gap: 8px; padding: 6px 0; border: 0; background: none; color: inherit; cursor: pointer; }
+.add-files__size { margin-left: auto; color: var(--tl-text-muted); font-size: 0.85rem; white-space: nowrap; }
+.add-files__empty { padding: 16px; color: var(--tl-text-muted); }
+.add-files__selection { margin-right: auto; color: var(--tl-text-secondary); }

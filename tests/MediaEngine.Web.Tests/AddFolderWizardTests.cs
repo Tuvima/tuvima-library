@@ -702,6 +702,25 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         Assert.Equal(AddedSource(request).Id, request.Library!.PrimaryDestinationSourceId);
     }
 
+    // D23: the folder step says in one line what subfolders mean for the area.
+    [Fact]
+    public async Task TheFolderStepSaysWhatSubfoldersMeanInWatch()
+    {
+        await OpenWizardAsync(type: "movies");
+
+        Assert.Contains("a folder of several videos is a series", Text(_dialogs.Find("[data-subfolder-hint=watch]")), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("view", "Include subfolders")]
+    [InlineData("watch", "folder with one video stays on its own")]
+    [InlineData("listen", "stays grouped")]
+    [InlineData("read", "stay grouped")]
+    public void EachAreaHasOneSubfolderLine(string area, string expected)
+    {
+        Assert.Contains(expected, Components.Settings.SubfolderHints.For(area), StringComparison.Ordinal);
+    }
+
     // 4. Phone footage.
     [Fact]
     public async Task APhoneFootageFolderInAWatchKindShowsTheHintAndAddToViewSwitchesBeforeAnythingIsSaved()
@@ -945,22 +964,6 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         _dialogs.WaitForElement(".add-wizard");
         Assert.Equal("true", _dialogs.Find(".add-wizard__tile[data-group=read]").GetAttribute("aria-pressed"));
         await Task.CompletedTask;
-    }
-
-    [Fact]
-    public async Task AddFolderOnATypePageOpensTheWizardAtTheFolderStepAndTheNewFolderShowsInTheTable()
-    {
-        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, MoviesId));
-        cut.WaitForElement(".folder-table");
-        cut.FindAll(".libpage__actions button").Single(button => Text(button) == "Add folder").Click();
-        _dialogs.WaitForElement(".add-wizard");
-        Assert.Equal("1 Folder · 2 How", Steps);
-
-        PickFolder(path: "E:\\Incoming\\Films");
-        GoToHow();
-        await AddFolderAsync();
-
-        cut.WaitForAssertion(() => Assert.Contains("E:\\Incoming\\Films", cut.Markup));
     }
 
     // 9. First-run setup uses the setup calls.
