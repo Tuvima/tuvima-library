@@ -52,7 +52,6 @@
                                     Loading="@_loading"
                                     Adding="@_adding"
                                     AddingChanged="@((bool value) => _adding = value)"
-                                    InitialPath="@InitialPath"
                                     SourcesChanged="LoadSourcesAsync"
                                     RootChanged="RootChanged" />
                 }
@@ -78,10 +77,6 @@
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>The selected tab (folders, access, file-handling); the first when empty or unknown.</summary>
     [Parameter] public string? Tab { get; set; }
-    /// <summary>Opens with the add form shown (the Add folder wizard hands View over this way).</summary>
-    [Parameter] public bool StartAdding { get; set; }
-    /// <summary>A folder to pre-fill in the add form, when the wizard noticed phone or camera footage.</summary>
-    [Parameter] public string? InitialPath { get; set; }
     /// <summary>Raised after the View root was saved, so the page reads the library settings again.</summary>
     [Parameter] public EventCallback RootChanged { get; set; }
 
@@ -115,11 +110,7 @@
 
     private int ActiveIndex => Math.Max(Tabs.ToList().FindIndex(tab => string.Equals(tab.Slug, Tab?.Trim(), StringComparison.OrdinalIgnoreCase)), 0);
 
-    protected override async Task OnInitializedAsync()
-    {
-        _adding = StartAdding && !ReadOnly;
-        await LoadSourcesAsync();
-    }
+    protected override Task OnInitializedAsync() => LoadSourcesAsync();
 
     // The same folder is counted once, however many profiles list it.
     private int DistinctFolders() => _reviews.Values

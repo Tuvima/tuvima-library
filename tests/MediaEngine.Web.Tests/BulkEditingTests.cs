@@ -229,12 +229,53 @@ public sealed class BulkEditingTests : AsyncBunitContext
 
     // -- Tick boxes ----------------------------------------------------------------------------
 
-    private async Task<(EditingModeContext Mode, BulkEditSelection Selection)> EditingModeAsync(string formFactor = "desktop")
+    [Fact]
+    public async Task ARowsOwnEdit_StartsEditMode_TicksTheRow_AndOpensTheEditPanel()
+    {
+        var (mode, selection) = await EditingModeAsync(enter: false);
+        var row = new BulkEditRow(Guid.NewGuid(), "Paranoid Android", DetailEntityType.Work, Guid.NewGuid(), "Music");
+
+        Assert.True(await RowEditEntry.StartAsync(mode, selection, row));
+
+        Assert.True(mode.IsOn);
+        Assert.Equal([row.Id], selection.Rows.Select(ticked => ticked.Id));
+        Assert.Equal(BulkPanelKind.Edit, selection.Panel);
+    }
+
+    [Fact]
+    public async Task ARowsOwnEdit_WhenTheRowIsAlreadyTicked_KeepsTheTicksAndOpensThePanel()
+    {
+        var (mode, selection) = await EditingModeAsync();
+        var first = new BulkEditRow(Guid.NewGuid(), "Karma Police", DetailEntityType.Work, null, "Music");
+        var second = new BulkEditRow(Guid.NewGuid(), "No Surprises", DetailEntityType.Work, null, "Music");
+        selection.Toggle(first);
+        selection.Toggle(second);
+
+        Assert.True(await RowEditEntry.StartAsync(mode, selection, second));
+
+        Assert.Equal(2, selection.Count);
+        Assert.Equal(BulkPanelKind.Edit, selection.Panel);
+    }
+
+    [Fact]
+    public async Task ARowsOwnEdit_OffTheDesktop_DoesNothing()
+    {
+        var (mode, selection) = await EditingModeAsync("phone");
+        var row = new BulkEditRow(Guid.NewGuid(), "Paranoid Android", DetailEntityType.Work, null, "Music");
+
+        Assert.False(await RowEditEntry.StartAsync(mode, selection, row));
+
+        Assert.False(mode.IsOn);
+        Assert.Equal(0, selection.Count);
+        Assert.Equal(BulkPanelKind.None, selection.Panel);
+    }
+
+    private async Task<(EditingModeContext Mode, BulkEditSelection Selection)> EditingModeAsync(string formFactor = "desktop", bool enter = true)
     {
         await UseDevice(formFactor);
         var session = new ItemFieldEditSession(Services.GetRequiredService<IEngineApiClient>(), _device);
         var mode = new EditingModeContext(_device, session) { HasPermission = true };
-        if (formFactor == "desktop")
+        if (formFactor == "desktop" && enter)
         {
             Assert.True(await mode.EnterAsync());
         }
@@ -705,6 +746,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     public async Task Host_SavesTheStagedChangesWithOneCheckAndOneSave_ThenAsksTheListToReloadAndKeepsTheTicks()
     {
         await UseDevice("desktop");
+        var dialogs = Render<AppDialogHost>();
         var saved = 0;
         var cleared = 0;
         var rows = FourSongs();
@@ -719,11 +761,17 @@ public sealed class BulkEditingTests : AsyncBunitContext
         TypeScalar(host, "year", "2021");
         host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".tl-batch__pending")));
 
+        // Save changes opens Review changes, the same dialog the editing bar opens; nothing is saved until its own Save.
         host.Find(".tl-batch__save").Click();
+        dialogs.WaitForElement(".review-changes");
+        dialogs.WaitForAssertion(() => Assert.Empty(dialogs.FindAll(".review-changes__state")));
+        Assert.Equal(0, saved);
+        Assert.Equal([true], _sessions.Select(request => request.PreviewOnly));
+        dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
 
         host.WaitForAssertion(() => Assert.Equal(1, saved));
-        Assert.Equal([true, false], _sessions.Select(request => request.PreviewOnly));
-        Assert.Equal(4, _sessions[1].Changes.Count);
+        Assert.Equal([true, true, false], _sessions.Select(request => request.PreviewOnly));
+        Assert.Equal(4, _sessions[2].Changes.Count);
         Assert.Empty(host.FindAll(".tl-batch__pending"));
         Assert.Equal("4 selected", host.Find(".tl-batch__count").TextContent.Trim());
         Assert.NotEmpty(host.FindAll(".tl-editor-panel"));
@@ -734,6 +782,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     public async Task Host_RereadsTheSavedValuesAfterASave()
     {
         await UseDevice("desktop");
+        var dialogs = Render<AppDialogHost>();
         var host = Render<BulkEditHost>(parameters => parameters
             .Add(component => component.Rows, FourSongs())
             .Add(component => component.MediaType, "Music"));
@@ -744,6 +793,9 @@ public sealed class BulkEditingTests : AsyncBunitContext
         host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".tl-batch__save")));
 
         host.Find(".tl-batch__save").Click();
+        dialogs.WaitForElement(".review-changes");
+        dialogs.WaitForAssertion(() => Assert.Empty(dialogs.FindAll(".review-changes__state")));
+        dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
 
         host.WaitForAssertion(() => Assert.True(_previewReads >= readsBefore + 4));
     }

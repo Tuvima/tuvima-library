@@ -1564,18 +1564,6 @@
 
 .sme-context-band ::deep .editor-context { flex: 1; min-width: 0; }
 
-.sme-writeback-policy {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 40px;
-    padding: 8px 12px;
-    color: var(--tl-text-secondary);
-    font-size: .8rem;
-}
-
-.sme-writeback-policy ::deep .tl-icon-root { color: var(--tl-text-secondary); }
-
 @media (max-width: 900px) {
 .sme-context-band { flex-wrap: wrap; padding-inline: 16px; }
 

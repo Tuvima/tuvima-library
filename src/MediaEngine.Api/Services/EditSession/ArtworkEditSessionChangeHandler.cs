@@ -15,7 +15,8 @@ namespace MediaEngine.Api.Services.EditSession;
 public sealed class ArtworkEditSessionChangeHandler(
     ArtworkAssetService artwork,
     IItemCanonicalRepository itemCanonicalRepository,
-    ISystemActivityRepository activityRepository) : IEditSessionChangeHandler
+    ISystemActivityRepository activityRepository,
+    EditSubjectDirectory? subjects = null) : IEditSessionChangeHandler
 {
     public const string UnknownSlot = "That kind of artwork cannot be changed here.";
     public const string NoTargetPicture = "No picture was chosen.";
@@ -107,7 +108,8 @@ public sealed class ArtworkEditSessionChangeHandler(
         string.Equals(targetId?.Trim(), EditSessionArtworkTargets.None, StringComparison.OrdinalIgnoreCase);
 
     // The edit session names an item by id only: an item that already has stored pictures says what kind it is; a library item with
-    // none yet is a work (the kind the editor's Details and Artwork tools open on).
+    // none yet is a work (the kind the editor's Details and Artwork tools open on); a person, Series, curated collection or Universe
+    // with none yet says what it is through its own kind (universal editor spec D17, D17a).
     private async Task<string?> ResolveEntityTypeAsync(Guid entityId, CancellationToken ct)
     {
         var linked = await artwork.FindLinkedEntityTypeAsync(entityId, ct).ConfigureAwait(false);
@@ -117,6 +119,11 @@ public sealed class ArtworkEditSessionChangeHandler(
         }
 
         var state = await itemCanonicalRepository.LoadDisplayOverridesAsync(entityId, ct).ConfigureAwait(false);
-        return state.WorkExists ? "Work" : null;
+        if (state.WorkExists)
+        {
+            return "Work";
+        }
+
+        return subjects is null ? null : (await subjects.FindAsync(entityId, ct).ConfigureAwait(false))?.ArtworkEntityType;
     }
 }

@@ -64,27 +64,12 @@ public sealed class MediaEditorLauncherService
             return EditorLaunchResult.NotAvailable;
         }
 
-        if (string.Equals(request.LaunchEntityKind, "Person", StringComparison.OrdinalIgnoreCase))
+        // A single title, track, episode, person or series is edited in place on its own page (the universal editor: the editing bar and
+        // the right-hand panel, spec D1 to D3, D17), never in this pop-up. It stays only for the shared entity target used by the
+        // Chronicle explorer; a request for anything else is refused rather than quietly opened.
+        if (sharedTarget is null)
         {
-            var personDialog = await _dialogService.ShowAsync<PersonEditorDialog>(
-                "Edit Person",
-                new AppDialogParameters { { nameof(PersonEditorDialog.Request), request } },
-                new AppDialogOptions
-                {
-                    CloseButton = false,
-                    NoHeader = true,
-                    MaxWidth = AppMaxWidth.ExtraLarge,
-                    FullWidth = true,
-                    BackdropClick = false,
-                    CloseOnEscapeKey = true,
-                });
-            if (personDialog is null)
-            {
-                return EditorLaunchResult.NotAvailable;
-            }
-
-            var personResult = await personDialog.Result;
-            return personResult is not null && !personResult.Canceled ? EditorLaunchResult.Applied : EditorLaunchResult.Dismissed;
+            return EditorLaunchResult.NotAvailable;
         }
 
         var dialog = await _dialogService.ShowAsync<SharedMediaEditorShell>(

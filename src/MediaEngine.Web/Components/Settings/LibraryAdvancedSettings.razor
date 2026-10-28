@@ -171,8 +171,9 @@
             </section>
             <section aria-label="@($"{type.Label} tags")">
                 <h4>Tags</h4>
-                <AppSwitchRow Label="Update tags inside files"
-                              Description="Library writes title, people, artwork and other fields into files in managed folders where the file type allows it (MP3, M4A/M4B, FLAC, MP4/MKV, EPUB; PDF and CBZ are never changed). A backup copy is kept while writing. Files it cannot write are left as they are."
+                @* The one write-back setting (universal editor spec D15). The editor only shows it, read-only, beside a link to this switch. *@
+                <AppSwitchRow Label="Save changes into the files"
+                              Description="When on, Library also writes title, people, artwork and other fields into files in managed folders where the file type allows it (MP3, M4A/M4B, FLAC, MP4/MKV, EPUB; PDF and CBZ are never changed). The editor shows this as Files will be updated: On. A backup copy is kept while writing. Files it cannot write are left as they are."
                               Value="@policy.WriteTags"
                               ValueChanged="@(value => SetTagsAsync(type, value))"
                               Disabled="@(ReadOnly || Busy)" />

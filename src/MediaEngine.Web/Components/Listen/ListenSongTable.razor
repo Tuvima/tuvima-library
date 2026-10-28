@@ -71,7 +71,7 @@ else
     if (ShowSelect)
     {
         @* Ticking songs shows the selection bar (Edit, Match, Move to album, Delete in "...") and its right-hand panel (universal editor spec D14). *@
-        <BulkEditHost Rows="@BulkRows" MediaType="Music" OnSaved="OnEditedAsync" OnCleared="ClearSelectionAsync" OnDeleted="OnDeletedAsync" />
+        <BulkEditHost @ref="_bulkHost" Rows="@BulkRows" MediaType="Music" OnSaved="OnEditedAsync" OnCleared="ClearSelectionAsync" OnDeleted="OnDeletedAsync" />
     }
     <div class="listen-song-table"
          role="table"
@@ -233,7 +233,7 @@ else
                             break;
                         case "edit":
                             <div class="listen-song-table__edit" role="cell" @onkeydown:stopPropagation="true">
-                                @if (!DeviceContext.IsPhone)
+                                @if (ShowSelect)
                                 {
                                     <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
@@ -291,7 +291,6 @@ else
     [Parameter] public Func<WorkViewModel, Task>? OnQueueRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnAlbumRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnPlayNextRequested { get; set; }
-    [Parameter] public Func<WorkViewModel, Task>? OnEditRequested { get; set; }
 
     /// <summary>Asks the host to reload its songs after the bulk panel saved changes; the table keeps its sort and selection.</summary>
     [Parameter] public Func<Task>? OnTracksChanged { get; set; }
@@ -711,8 +710,32 @@ else
             ? PlayAsync(trackId, false)
             : Task.CompletedTask;
 
+    // A song's Edit button ticks the song and opens the Edit panel beside the list (universal editor spec D2, D19): the list's filters, sort
+    // and scroll stay where they are, and nothing opens in a pop-up.
     private Task EditAsync(WorkViewModel track)
-        => OnEditRequested?.Invoke(track) ?? Task.CompletedTask;
+    {
+        if (!ShowSelect)
+        {
+            return Task.CompletedTask;
+        }
+
+        _selected.Add(track.Id);
+        _openEditPanelAfterRender = true;
+        return Task.CompletedTask;
+    }
+
+    private BulkEditHost? _bulkHost;
+    private bool _openEditPanelAfterRender;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // The host takes the ticked rows when this table renders; only then can its panel open for the song just ticked.
+        if (_openEditPanelAfterRender && _bulkHost is not null)
+        {
+            _openEditPanelAfterRender = false;
+            _bulkHost.OpenEditPanel();
+        }
+    }
 
     private Task StartDragAsync(Guid trackId)
         => CanDrag ? OnDragStarted?.Invoke(trackId) ?? Task.CompletedTask : Task.CompletedTask;

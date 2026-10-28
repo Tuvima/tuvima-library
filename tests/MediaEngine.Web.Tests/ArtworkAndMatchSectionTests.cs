@@ -523,44 +523,6 @@ public sealed class ArtworkAndMatchSectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheNeedsReviewModalOpensTheSameSectionsAndKeepsItsOwnMatchHeading()
-    {
-        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-        var host = Render<AppDialogHost>();
-        var launcher = Services.GetRequiredService<MediaEditorLauncherService>();
-
-        var opened = launcher.TryOpenAsync(Request("links"));
-
-        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".sme-section-nav")));
-        host.WaitForAssertion(() => Assert.Empty(host.FindAll(".sme-loading")));
-        var sections = host.FindAll(".sme-section-nav button").Select(button => button.TextContent.Trim()).ToArray();
-        Assert.Equal(["Details", "Artwork", "Match & Identity", "History"], sections);
-        Assert.Equal("Match & Identity", host.Find(".sme-match-page-heading").TextContent.Trim());
-        Assert.False(opened.IsCompleted);
-    }
-
-    [Fact]
-    public async Task TheNeedsReviewModalAsksTheSameRemoveQuestionForArtwork()
-    {
-        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-        var host = Render<AppDialogHost>();
-        var launcher = Services.GetRequiredService<MediaEditorLauncherService>();
-
-        _ = launcher.TryOpenAsync(Request("artwork"));
-        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll("button[aria-label='Remove Cover artwork variant']")));
-        host.FindAll("button[aria-label='Remove Cover artwork variant']").First().Click();
-
-        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".app-confirm")));
-        Assert.Equal("Remove this cover?", host.Find(".app-confirm").Closest(".app-dialog-shell")!
-            .QuerySelector(".app-dialog-shell__title")!.TextContent.Trim());
-        Assert.Empty(_removedLinks);
-        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Remove").Click();
-
-        host.WaitForAssertion(() => Assert.Equal(PreferredLink, Assert.Single(_removedLinks)));
-        host.WaitForAssertion(() => Assert.Equal(1, _artworkChanged));
-    }
-
-    [Fact]
     public async Task TheModalsFooterSaveStillSavesStagedDetailsChanges()
     {
         var cut = Render<EditorShell>(parameters => parameters.Add(shell => shell.Request, Request("details")));

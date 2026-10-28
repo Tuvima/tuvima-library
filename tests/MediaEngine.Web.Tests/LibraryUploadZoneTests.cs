@@ -74,14 +74,13 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
     private LibraryTypeOption Kind(string key) => LibraryKindsTestData.Catalog.Find(key)!;
 
     // The wrapped list stands in for the page's own list.
-    private IRenderedComponent<LibraryUploadZone> RenderZone(LibraryTypeOption? type = null, LibraryGroup? group = null, bool readOnly = false, bool embedded = false) =>
+    private IRenderedComponent<LibraryUploadZone> RenderZone(LibraryTypeOption? type = null, LibraryGroup? group = null, bool readOnly = false) =>
         Render<LibraryUploadZone>(parameters => parameters
             .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
             .Add(x => x.Configuration, _configuration)
             .Add(x => x.Type, type)
             .Add(x => x.Group, group)
             .Add(x => x.ReadOnly, readOnly)
-            .Add(x => x.Embedded, embedded)
             .Add(x => x.ChildContent, (RenderFragment)(builder => builder.AddMarkupContent(0, "<div class=\"page-list\">the page's list</div><button type=\"button\">Add folder</button>"))));
 
     private IReadOnlyList<(string Kind, string? Library, object? Token)> Begins() =>
@@ -169,16 +168,16 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         _dialogs.WaitForElement(".upload-dialog");
         Assert.Single(_dialogs.FindAll(".upload-dialog__section"));
         Assert.Contains("These look like videos, not music", Text(_dialogs.Find(".upload-dialog__section h3")));
-        var cards = _dialogs.FindAll(".add-wizard__kind-option").Select(Text).ToList();
+        var cards = _dialogs.FindAll(".lib-choice__kind-option").Select(Text).ToList();
         Assert.Contains("Movies", cards);
         Assert.Contains("TV Shows", cards);
         Assert.DoesNotContain("Music", cards);
         // The usual kind card: tile, Metadata icons and the (i).
-        Assert.NotEmpty(_dialogs.FindAll(".add-wizard__kind .lib-meta"));
-        Assert.NotEmpty(_dialogs.FindAll(".add-wizard__info"));
-        Assert.Contains("a.mkv", Text(_dialogs.Find(".upload-dialog__section .add-wizard__lead")));
+        Assert.NotEmpty(_dialogs.FindAll(".lib-choice__kind .lib-meta"));
+        Assert.NotEmpty(_dialogs.FindAll(".lib-choice__info"));
+        Assert.Contains("a.mkv", Text(_dialogs.Find(".upload-dialog__section .lib-choice__lead")));
 
-        _dialogs.Find(".add-wizard__kind-option[data-type=movies]").Click();
+        _dialogs.Find(".lib-choice__kind-option[data-type=movies]").Click();
         _dialogs.FindAll("button").Single(button => Text(button) == "Add files").Click();
         await drop;
 
@@ -210,20 +209,20 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
 
         _dialogs.WaitForElement(".upload-dialog");
         Assert.Contains("Which kind of videos are these?", Text(_dialogs.Find(".upload-dialog__section h3")));
-        Assert.Contains("is-selected", _dialogs.Find(".add-wizard__kind-option[data-type=movies]").ClassName);
+        Assert.Contains("is-selected", _dialogs.Find(".lib-choice__kind-option[data-type=movies]").ClassName);
         _dialogs.FindAll("button").Single(button => Text(button) == "Add files").Click();
         await drop;
         Assert.Equal("movies", Begins().Single().Kind);
     }
 
     [Fact]
-    public async Task APlainKindAsksWhichLibrary_AndNewCustomLibraryOpensAddFolderInsteadOfSending()
+    public async Task APlainKindAsksWhichLibrary_AndNewCustomLibraryOpensCreateLibraryInsteadOfSending()
     {
         var cut = RenderZone(group: LibraryKindsTestData.Catalog.TryGetGroup("watch"));
 
         var drop = Choose(cut, File("f1", "clip.mp4"));
         _dialogs.WaitForElement(".upload-dialog");
-        _dialogs.Find(".add-wizard__kind-option[data-type=other_videos]").Click();
+        _dialogs.Find(".lib-choice__kind-option[data-type=other_videos]").Click();
 
         _dialogs.WaitForElement("[data-library=new]");
         Assert.NotNull(_dialogs.Find("#upload-dialog-0-library"));
@@ -233,7 +232,7 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         await drop;
 
         Assert.Empty(_module.Invocations["begin"]);
-        _dialogs.WaitForElement(".add-wizard");
+        _dialogs.WaitForElement(".create-library");
     }
 
     // 4. A photo dropped on a Watch page is pointed at View and never uploaded here.
@@ -304,29 +303,22 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         Assert.Contains("Carrying on where it stopped", Text(cut.Find(".upload-row")));
     }
 
-    // 8. Touch devices see the button only; there is no drop area in first-run setup, on a phone, or on the Vault.
+    // 8. Touch devices get no drop hint; there is no drop area on a phone or on the Vault.
     [Fact]
-    public void WithoutAFinePointer_ThereIsTheAddFilesButtonButNoDropHint()
+    public void WithoutAFinePointer_ThereIsNoDropHint()
     {
-        var cut = Render<LibraryGroupPage>(parameters => parameters
-            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
-            .Add(x => x.Group, LibraryKindsTestData.Catalog.TryGetGroup("listen")!)
-            .Add(x => x.Configuration, _configuration));
+        var cut = RenderZone(Kind("music"));
 
         cut.WaitForAssertion(() => Assert.NotEmpty(_module.Invocations["attach"]));
-        Assert.Single(cut.FindAll("button"), button => Text(button) == "Add files");
         Assert.Empty(cut.FindAll(".upload-zone__hint"));
         Assert.Equal(false, _module.Invocations["attach"].Single().Arguments[2]);
     }
 
     [Fact]
-    public async Task WithAFinePointerThatCanHover_TheGroupPageHasADropHint_ThatOpensTheChooser()
+    public async Task WithAFinePointerThatCanHover_TheTypePageHasADropHint_ThatOpensTheChooser()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-        var cut = Render<LibraryGroupPage>(parameters => parameters
-            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
-            .Add(x => x.Group, LibraryKindsTestData.Catalog.TryGetGroup("listen")!)
-            .Add(x => x.Configuration, _configuration));
+        var cut = RenderZone(Kind("music"));
 
         cut.WaitForElement(".upload-zone__hint");
 
@@ -334,19 +326,16 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         Assert.Equal(true, _module.Invocations["attach"].Single().Arguments[2]);
         cut.Find(".upload-zone__hint").Click();
         Assert.Single(_module.Invocations["choose"]);
-        cut.FindAll("button").Single(button => Text(button) == "Add files").Click();
-        Assert.Equal(2, _module.Invocations["choose"].Count);
     }
 
     [Fact]
-    public void ThereIsNoDropAreaOrAddFilesInSetup_OnAPhone_OnTheVault_OrOnView()
+    public void ThereIsNoDropAreaOnAPhone_OnTheVault_OrOnView()
     {
-        var setup = RenderZone(Kind("movies"), embedded: true);
         var phone = RenderZone(Kind("movies"), readOnly: true);
         var vault = RenderZone(group: LibraryKindsTestData.Catalog.TryGetGroup("vault"));
         var view = RenderZone(group: LibraryKindsTestData.Catalog.TryGetGroup("view"));
 
-        Assert.All(new[] { setup, phone, vault, view }, cut =>
+        Assert.All(new[] { phone, vault, view }, cut =>
         {
             Assert.Empty(cut.FindAll("[data-upload-anchor]"));
             Assert.Contains("the page's list", cut.Markup);

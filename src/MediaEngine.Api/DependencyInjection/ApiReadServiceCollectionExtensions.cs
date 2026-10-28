@@ -33,11 +33,18 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<ILibraryCurationReadService, LibraryCurationReadService>();
         services.AddSingleton<ILibraryBatchEditService, LibraryBatchEditService>();
         services.AddScoped<LibraryBatchEditAccessService>();
+        services.AddScoped<EditSessionAccessService>();
+        services.AddSingleton<IEditSubject, PersonEditSubject>();
+        services.AddSingleton<IEditSubject, SeriesEditSubject>();
+        services.AddSingleton<IEditSubject, UniverseEditSubject>();
+        services.AddSingleton<IEditSubject, CuratedCollectionEditSubject>();
+        services.AddSingleton<EditSubjectDirectory>();
         services.AddSingleton<IEditSessionChangeHandler, DetailsEditSessionChangeHandler>();
         services.AddScoped<RetailMatchWriter>();
         services.AddScoped<IRetailMatchWriter>(sp => sp.GetRequiredService<RetailMatchWriter>());
         services.AddSingleton<EditSessionCallerAccessor>();
         services.AddSingleton<IEditSessionChangeHandler, IdentityEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionFileWrites, EditSessionFileWrites>();
         services.AddSingleton<IEditSessionService, EditSessionService>();
         services.AddSingleton<IMetadataClaimHistoryReadService, MetadataClaimHistoryReadService>();
         services.AddSingleton<ICollectionBrowseReadService, CollectionBrowseReadService>();

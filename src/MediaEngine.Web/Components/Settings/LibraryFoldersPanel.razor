@@ -13,10 +13,9 @@
 @inject NavigationManager Navigation
 @implements IDisposable
 
-@* One screen for libraries: media types on the left, the selected type's folders on the right.
-   Used by the first-run setup step and by Settings > Libraries, so both behave identically. Settings > Libraries opens it on
-   one type's address instead (ShowTypeNav false, TypeKey set), so the type list is not drawn there. *@
-<div class="@(ShowTypeNav ? "library-folders" : "library-folders library-folders--single")">
+@* The folders of one library or of the Import folder, for Settings > Libraries: a library's page hosts it (Folders tab), and the Import
+   folder's address shows the Import entry. The host chose the type (TypeKey) or the library (LibraryId). *@
+<div class="library-folders">
     @if (_loading)
     {
         <AppPageState Kind="AppPageStateKind.Loading" Title="Loading libraries" />
@@ -32,53 +31,6 @@
     {
         @* Shown on phones only (see the stylesheet): folders are read-only there, so every control that adds, converts or merges is hidden. *@
         <p class="library-folders__phone-note">@PhoneNote</p>
-        @if (ShowTypeNav)
-        {
-        <AppCard Class="library-folders__types">
-        <nav class="library-folders__nav" aria-label="Library types">
-            @foreach (var type in LibraryTypes)
-            {
-                var count = FolderCount(type);
-                <AppNativeButton Type="button"
-                                 Class="@TypeClass(type)"
-                                 AriaLabel="@($"{type.Label}, {FolderCountText(count)}")"
-                                 aria-current="@(type.Key == _selected.Key ? "true" : null)"
-                                 OnClick="@(_ => Select(type))">
-                    <span class="@($"library-folders__icon library-folders__icon--{type.Key}")"><AppMaterialIcon Icon="@type.Icon" /></span>
-                    <span class="library-folders__type-text"><strong>@type.Label</strong><small>@FolderCountText(count)</small></span>
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
-                </AppNativeButton>
-            }
-            <AppNativeButton Type="button"
-                             Class="@ImportTypeClass"
-                             AriaLabel="@($"Import folder, {ImportSubtitle}")"
-                             aria-current="@(ImportSelected ? "true" : null)"
-                             OnClick="@(_ => SelectImport())">
-                <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
-                <span class="library-folders__type-text"><strong>Import folder</strong><small>@ImportSubtitle</small></span>
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
-            </AppNativeButton>
-            @if (OtherLibraries.Count > 0)
-            {
-                <p class="library-folders__group">Other libraries</p>
-                @foreach (var type in OtherLibraries)
-                {
-                    var count = FolderCount(type);
-                    <AppNativeButton Type="button"
-                                     Class="@TypeClass(type)"
-                                     AriaLabel="@($"{type.Label}, {FolderCountText(count)}")"
-                                     aria-current="@(type.Key == _selected.Key ? "true" : null)"
-                                     OnClick="@(_ => Select(type))">
-                        <span class="library-folders__icon library-folders__icon--other"><AppMaterialIcon Icon="@type.Icon" /></span>
-                        <span class="library-folders__type-text"><strong>@type.Label</strong><small>@FolderCountText(count)</small></span>
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
-                    </AppNativeButton>
-                }
-            }
-        </nav>
-        </AppCard>
-        }
-
         @if (_unknownType)
         {
             <AppCard Class="library-folders__detail">
@@ -95,8 +47,8 @@
                 <header class="library-folders__detail-header">
                     <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
                     <div>
-                        @* On its own type page the Settings title already says "Import folder", so the heading is kept for screen readers only. *@
-                        <h3 id="library-import-title" class="@(ShowTypeNav ? null : "sr-only")">Import folder</h3>
+                        @* The Settings title already says "Import folder", so the heading is kept for screen readers only. *@
+                        <h3 id="library-import-title" class="sr-only">Import folder</h3>
                         <p>One folder where new media can be dropped. Apps like Sonarr and Radarr can save finished downloads here too, and Library files them into your libraries.</p>
                     </div>
                     @if (!ImportStatus.Configured)
@@ -189,29 +141,13 @@
         else
         {
             <AppCard Class="library-folders__detail">
-                @* Dropping files on this type's page, or Add files, puts them in the Import folder (Library setup D44); only a type page offers it. *@
+                @* Dropping files on this type's page puts them in the Import folder (Library setup D44). *@
                 <LibraryUploadZone Kinds="@Kinds"
                                    Configuration="@_configuration"
                                    Type="@_selected"
-                                   ReadOnly="@(ReadOnly || !UploadsOffered || HostOwnsActions)"
-                                   Embedded="@Embedded"
-                                   FolderAdded="@(EventCallback.Factory.Create(this, () => FolderAddedAsync(null)))">
+                                   ReadOnly="@(ReadOnly || HostOwnsActions)"
+                                   FolderAdded="@(EventCallback.Factory.Create(this, FolderAddedAsync))">
                 @* The type's name is already the selected entry in the list on the left, so the pane starts with the folders. *@
-                @if (!HostOwnsActions)
-                {
-                    <header class="library-folders__detail-header">
-                        <div class="library-folders__detail-actions">
-                            <AppButton Label="Add Folder"
-                                       Class="@(_highlightAdd ? "library-folders__add is-highlighted" : "library-folders__add")"
-                                       StartIcon="@AppMaterialIcons.Outlined.Add"
-                                       ButtonStyle="AppButtonStyle.Outlined"
-                                       Disabled="@(_saving || ReadOnly)"
-                                       OnClick="AddFolderAsync" />
-                            <LibraryAddFilesButton />
-                        </div>
-                    </header>
-                }
-
                 @if (!string.IsNullOrWhiteSpace(_notice))
                 {
                     <AppAlert Tone="AppUiTone.Warning">@_notice</AppAlert>
@@ -242,7 +178,7 @@
                 }
                 else
                 {
-                    @if (!Embedded && SelectedLibrary is { UnmatchedCount: > 0 })
+                    @if (SelectedLibrary is { UnmatchedCount: > 0 })
                     {
                         <div class="library-folders__detail-actions">@UnmatchedBar(SelectedLibrary)</div>
                     }
@@ -253,18 +189,15 @@
             </AppCard>
         }
 
-        @if (!Embedded)
-        {
-            <details class="library-folders__advanced">
-                <summary><strong>Advanced</strong><span>File handling and naming</span></summary>
-                <LibraryAdvancedSettings Types="AdvancedTypes"
-                                         DuplicatePolicy="@(_configuration.FileHandling.DuplicatePolicy)"
-                                         ReadOnly="@ReadOnly"
-                                         Busy="@_saving"
-                                         OnLibraryChanged="SaveAdvancedLibraryAsync"
-                                         OnDuplicatePolicyChanged="SaveDuplicatePolicyAsync" />
-            </details>
-        }
+        <details class="library-folders__advanced">
+            <summary><strong>Advanced</strong><span>File handling and naming</span></summary>
+            <LibraryAdvancedSettings Types="AdvancedTypes"
+                                     DuplicatePolicy="@(_configuration.FileHandling.DuplicatePolicy)"
+                                     ReadOnly="@ReadOnly"
+                                     Busy="@_saving"
+                                     OnLibraryChanged="SaveAdvancedLibraryAsync"
+                                     OnDuplicatePolicyChanged="SaveDuplicatePolicyAsync" />
+        </details>
     }
 </div>
 
@@ -274,24 +207,15 @@
 
     private IReadOnlyList<LibraryTypeOption> LibraryTypes => Kinds.Types;
 
-    /// <summary>The Engine's list of library kinds; the type list, the Advanced tabs and Add folder are drawn from it.</summary>
+    /// <summary>The Engine's list of library kinds; the Advanced tabs and the folder table are drawn from it.</summary>
     [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
 
-    /// <summary>True when the first-run setup session is in use instead of the signed-in Settings endpoints.</summary>
-    [Parameter] public bool Embedded { get; set; }
-    [Parameter] public string? SetupSession { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
-    /// <summary>Empty-state links open the screen on a given type, for example ?type=movies.</summary>
-    [SupplyParameterFromQuery(Name = "type")] public string? PreselectedType { get; set; }
-    /// <summary>The type to show (a standard key, "import" or "other-{libraryId}") when the type list is not drawn.</summary>
+    /// <summary>The type to show (a standard key or "import").</summary>
     [Parameter] public string? TypeKey { get; set; }
-    /// <summary>False when the host already chose the type (its own address): the list of types is not drawn and the selection follows <see cref="TypeKey"/>.</summary>
-    [Parameter] public bool ShowTypeNav { get; set; } = true;
-    /// <summary>Opens with Add Folder pointed at (a jump from an Import line's Choose arrives this way when the type list is not drawn).</summary>
-    [Parameter] public bool HighlightAddFolder { get; set; }
     /// <summary>Raised after any saved change so the host can refresh its own state.</summary>
     [Parameter] public EventCallback Changed { get; set; }
-    /// <summary>Shows this one library (by its Id) instead of the kind's libraries, when the type list is not drawn: a library page holds one library, even when its kind holds several.</summary>
+    /// <summary>Shows this one library (by its Id) instead of the kind's libraries: a library page holds one library, even when its kind holds several.</summary>
     [Parameter] public string? LibraryId { get; set; }
     /// <summary>The host draws Add folder and Add files itself and wraps this panel in its own upload zone, so the panel draws neither.</summary>
     [Parameter] public bool HostOwnsActions { get; set; }
@@ -320,47 +244,24 @@
 
     // The seventh entry in the list is not a media type; it has its own panel.
     private static readonly LibraryTypeOption ImportEntry = new("import", "Import folder", "import", string.Empty, [], AppMaterialIcons.Outlined.MoveToInbox);
-    // Uploads belong to a type's own page (the host chose the type), never to the list of types or first-run setup.
-    private bool UploadsOffered => !Embedded && !ShowTypeNav;
     private bool ImportSelected => string.Equals(_selected.Key, ImportEntry.Key, StringComparison.Ordinal);
-    private string ImportSubtitle => ImportStatus.Configured ? "Set" : "Not set";
-    private string ImportTypeClass => $"library-folders__type{(ImportSelected ? " is-active" : string.Empty)}";
-    private bool _highlightAdd;
     private ImportFolderWaitingResponse? _waiting;
 
     private ImportFolderStatusDto ImportStatus => _configuration?.ImportFolderStatus ?? new ImportFolderStatusDto();
 
     private LibraryTypeOption Selected => _selected;
 
-    // The setup step offers Continue once a folder exists and only Skip for now before that, so the note says the true one.
-    private bool AnyFolders => _configuration?.Libraries.Any(library => library.Sources.Count > 0) == true;
-
-    private string PhoneNote => !Embedded
-        ? "Add or change folders on a computer or tablet."
-        : AnyFolders
-            ? "Add or change folders on a computer or tablet. You can continue and set them up later."
-            : "Add or change folders on a computer or tablet. You can skip this step and set up folders later.";
+    private const string PhoneNote = "Add or change folders on a computer or tablet.";
     private LibraryFolderDto? SelectedLibrary => LibraryFor(_selected);
 
     protected override async Task OnInitializedAsync()
     {
-        _highlightAdd = HighlightAddFolder;
         _selected = LibraryTypes.FirstOrDefault() ?? ImportEntry;
         await LoadAsync();
-        if (!ShowTypeNav)
-        {
-            // The host's address names the type; an unknown name shows a small state instead of a different type.
-            var chosen = string.IsNullOrWhiteSpace(LibraryId) ? ResolveTypeKey(TypeKey) : ResolveLibrary(LibraryId);
-            _unknownType = chosen is null;
-            if (chosen is not null) _selected = chosen;
-        }
-        else
-        {
-            _selected = LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, PreselectedType, StringComparison.OrdinalIgnoreCase))
-                ?? LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0)
-                ?? LibraryTypes.FirstOrDefault()
-                ?? ImportEntry;
-        }
+        // The host's address names the type; an unknown name shows a small state instead of a different type.
+        var chosen = string.IsNullOrWhiteSpace(LibraryId) ? ResolveTypeKey(TypeKey) : ResolveLibrary(LibraryId);
+        _unknownType = chosen is null;
+        if (chosen is not null) _selected = chosen;
 
         await InvokeAsync(StateHasChanged);
         await RefreshPathIssuesAsync();
@@ -372,7 +273,7 @@
     // The Titles column of a library page's folder table: one read per library, after load and after a save.
     private async Task RefreshTitlesAsync()
     {
-        if (!HostOwnsActions || Embedded || SelectedLibrary is not { } library) return;
+        if (!HostOwnsActions || SelectedLibrary is not { } library) return;
         var counts = await ApiClient.GetLibraryFolderTitlesAsync(library.Id);
         if (counts is null) return;
         _titles = counts.Counts;
@@ -380,10 +281,9 @@
     }
 
     // Live read/write check of every folder; a problem shows as one status line under the path, nothing when healthy.
-    // The setup session cannot call the signed-in path check, so the first-run screen skips it.
     private async Task RefreshPathIssuesAsync()
     {
-        if (_configuration is null || Embedded) return;
+        if (_configuration is null) return;
         _pathIssues = await LibraryFolderHealth.CheckAsync(_configuration, path => Orchestrator.TestPathAsync(path));
         _pathsChecked = true;
         await InvokeAsync(StateHasChanged);
@@ -392,9 +292,7 @@
     private async Task LoadAsync()
     {
         _loading = true;
-        _configuration = Embedded
-            ? await ApiClient.GetSetupLibrariesAsync(SetupSession)
-            : await Orchestrator.GetLibrariesAsync();
+        _configuration = await Orchestrator.GetLibrariesAsync();
         _loadError = _configuration is null ? ApiClient.LastError : null;
         _baseline = _configuration is null ? string.Empty : JsonSerializer.Serialize(_configuration);
         _loading = false;
@@ -426,28 +324,11 @@
             ?? OtherLibraries.FirstOrDefault(type => string.Equals(type.Key, key, StringComparison.OrdinalIgnoreCase));
     }
 
-    // A kind that holds several named libraries counts the folders of all of them.
-    private int FolderCount(LibraryTypeOption type) => type.LibraryId is null
-        ? LibraryRollup.LibrariesOf(_configuration, type).Sum(library => library.Sources.Count)
-        : LibraryFor(type)?.Sources.Count ?? 0;
-    private static string FolderCountText(int count) => count == 1 ? "1 folder" : $"{count} folders";
-    private string TypeClass(LibraryTypeOption type) => $"library-folders__type{(type.Key == _selected.Key ? " is-active" : string.Empty)}";
-    private void Select(LibraryTypeOption type) { _selected = type; _notice = null; _highlightAdd = false; }
-    private void SelectImport() => Select(ImportEntry);
-
-    // Choose on an Import line jumps to that type's folders and points at Add Folder.
-    // On its own address (no type list), the jump is a navigation to that type's address instead.
-    private void ChooseDestinationType(LibraryTypeOption type)
-    {
-        if (!ShowTypeNav && PrimaryLibraryFor(type) is { } library)
-        {
-            Navigation.NavigateTo(LibraryListing.AddressOf(library.Id) + "?highlight=add");
-            return;
-        }
-
-        Select(type);
-        _highlightAdd = true;
-    }
+    // Choose on an Import line jumps to the page of the library that holds that type and points at its Add folder; a type with no
+    // library yet goes to the overview, where Add library creates one.
+    private void ChooseDestinationType(LibraryTypeOption type) => Navigation.NavigateTo(PrimaryLibraryFor(type) is { } library
+        ? LibraryListing.AddressOf(library.Id) + "?highlight=add"
+        : LibraryListing.OverviewAddress(null));
 
     private LibraryTypeOption? TypeForDestination(ImportFolderDestinationDto destination) => LibraryTypes.FirstOrDefault(type =>
         string.Equals(type.Label, destination.MediaType, StringComparison.OrdinalIgnoreCase)
@@ -482,7 +363,7 @@
 
     private async Task RefreshWaitingAsync()
     {
-        if (Embedded || !ImportStatus.Configured)
+        if (!ImportStatus.Configured)
         {
             _waiting = null;
             return;
@@ -495,30 +376,11 @@
     private Task<ServerFolderValidationResultDto?> ValidateAsync(string path, string mode, string? sourceId = null) =>
         AddService.ValidateAsync(Scope, path, mode, sourceId);
 
-    // Add Folder opens the Add folder wizard at step 2 for this type (the type is already known); the wizard adds the folder
-    // through LibraryFolderAddService and tells this panel when one was added so it can show it.
-    private async Task AddFolderAsync()
-    {
-        if (_configuration is null || _saving) return;
-        _notice = null;
-        _highlightAdd = false;
-        var parameters = new AppDialogParameters<AddFolderWizard>
-        {
-            { component => component.StartTypeKey, _selected.Key },
-            { component => component.SetupSession, SetupSession },
-            { component => component.Embedded, Embedded },
-            { component => component.Configuration, _configuration },
-            { component => component.Kinds, Kinds },
-            { component => component.OnFolderAdded, (Func<string?, Task>)FolderAddedAsync },
-        };
-        await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
-    }
-
-    private async Task FolderAddedAsync(string? notice)
+    // A folder was added from a drop that needed a new library: the table and the checks are read again.
+    private async Task FolderAddedAsync()
     {
         await InvokeAsync(async () =>
         {
-            if (!string.IsNullOrWhiteSpace(notice)) _notice = notice;
             await ReloadConfigurationAsync();
             await Changed.InvokeAsync();
             await RefreshPathIssuesAsync();
@@ -529,13 +391,13 @@
 
     private bool IsVideosSelected => _selected.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase);
 
-    private FolderAddScope Scope => new(Embedded, SetupSession);
+    private static FolderAddScope Scope => FolderAddScope.Settings;
 
     // Row menu "Merge into": choose the managed folder and Copy or Move, look at a preview, then queue the merge job.
     private async Task MergeIntoAsync(LibrarySourceDto source)
     {
         var library = LibraryHolding(source);
-        if (library is null || _saving || Embedded) return;
+        if (library is null || _saving) return;
         await AfterFollowUpAsync(await AddService.MergeIntoAsync(Scope, library, source));
     }
 
@@ -543,7 +405,7 @@
     private async Task ChangeKindAsync(LibrarySourceDto source)
     {
         var library = LibraryHolding(source);
-        if (library is null || _configuration is null || _saving || Embedded || ReadOnly) return;
+        if (library is null || _configuration is null || _saving || ReadOnly) return;
         await AfterFollowUpAsync(await AddService.ChangeKindAsync(Scope, Kinds, _configuration, library, source));
     }
 
@@ -565,7 +427,7 @@
         var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
         if (library is null || target is null || _saving) return;
         var managed = !IsManaged(target);
-        if (managed && !Embedded)
+        if (managed)
         {
             await ConvertToManagedAsync(library, target);
             return;
@@ -654,7 +516,7 @@
 
     private async Task OfferOrganiseAsync(LibrarySourceDto source, bool alreadyManaged, bool quiet)
     {
-        if (_saving || Embedded) return;
+        if (_saving) return;
         await AfterFollowUpAsync(await AddService.OfferOrganiseAsync(Scope, source, alreadyManaged, quiet));
     }
 
@@ -691,7 +553,7 @@
             && (!string.Equals(before.Mode, library.OrganizationPolicy.Mode, StringComparison.Ordinal)
                 || !string.Equals(before.CustomTemplate ?? string.Empty, library.OrganizationPolicy.CustomTemplate ?? string.Empty, StringComparison.Ordinal));
         var saved = await SaveAsync(library, "Saved.");
-        if (saved && namingChanged && !Embedded && !ReadOnly) await OfferApplyNamingAsync(library.Id);
+        if (saved && namingChanged && !ReadOnly) await OfferApplyNamingAsync(library.Id);
     }
 
     private async Task OfferApplyNamingAsync(string libraryId)
@@ -764,7 +626,6 @@
             { component => component.CurrentSourceId, ImportLocationId },
             { component => component.InitialPath, ImportStatus.Configured ? ImportStatus.Path : SuggestedImportPath },
             { component => component.HelpText, "Choose a folder on the Library server where new media will be dropped. It must be separate from your library folders." },
-            { component => component.SetupSession, SetupSession },
         };
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
         {
@@ -816,7 +677,7 @@
         {
             var baseline = JsonSerializer.Deserialize<LibrariesConfigurationDto>(_baseline)!;
             var request = build(baseline);
-            var saved = Embedded ? await ApiClient.UpdateSetupLibrariesAsync(request, SetupSession) : await ApiClient.UpdateLibrariesAsync(request);
+            var saved = await ApiClient.UpdateLibrariesAsync(request);
             if (saved is null)
             {
                 _notice = ApiClient.LastError ?? "That change could not be saved. Check it and try again.";
@@ -872,7 +733,7 @@
     {
         var library = Clone(LibraryHolding(change.Source));
         var target = library?.Sources.FirstOrDefault(item => item.Id == change.Source.Id);
-        if (library is null || target is null || _saving || Embedded || ReadOnly) return;
+        if (library is null || target is null || _saving || ReadOnly) return;
         target.OkForLimitedProfiles = change.Value;
         await SaveAsync(library, change.Value
             ? "Unrated items from this folder are now shown to limited profiles."
@@ -885,7 +746,7 @@
     {
         var library = Clone(LibraryHolding(change.Source));
         var target = library?.Sources.FirstOrDefault(item => item.Id == change.Source.Id);
-        if (library is null || target is null || _saving || Embedded || ReadOnly) return;
+        if (library is null || target is null || _saving || ReadOnly) return;
         target.ScanEnabled = change.Value;
         await SaveAsync(library, change.Value
             ? $"Scanning {target.DisplayName()} again."
@@ -897,7 +758,7 @@
     {
         var library = Clone(LibraryHolding(source));
         var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
-        if (library is null || target is null || _saving || Embedded || ReadOnly) return;
+        if (library is null || target is null || _saving || ReadOnly) return;
         var dialog = await DialogService.ShowAsync<FolderFileHandlingDialog>(string.Empty, new AppDialogParameters<FolderFileHandlingDialog>
         {
             { component => component.Current, target.FileHandlingOverride },
@@ -953,7 +814,7 @@
     // Reads the saved configuration again without the loading flash (the conversion state changes when a job starts or ends).
     private async Task ReloadConfigurationAsync()
     {
-        var fresh = Embedded ? await ApiClient.GetSetupLibrariesAsync(SetupSession) : await Orchestrator.GetLibrariesAsync();
+        var fresh = await Orchestrator.GetLibrariesAsync();
         if (fresh is null) return;
         _configuration = fresh;
         _baseline = JsonSerializer.Serialize(fresh);
@@ -964,7 +825,7 @@
     // refreshed because the Engine has flipped the folder from Converting to Managed. Polling continues only while a job is open.
     private async Task RefreshJobsAsync()
     {
-        if (Embedded || _configuration is null) return;
+        if (_configuration is null) return;
         var list = await ApiClient.GetFolderJobsAsync();
         var previous = _jobs;
         var latest = new Dictionary<string, FolderJobStatusDto>(StringComparer.OrdinalIgnoreCase);
@@ -1016,7 +877,7 @@
 
     private void EnsurePolling()
     {
-        if (_polling || _disposed || Embedded) return;
+        if (_polling || _disposed) return;
         _polling = true;
         _pollCancellation = new CancellationTokenSource();
         _ = PollJobsAsync(_pollCancellation.Token);
@@ -1107,14 +968,14 @@
                                    OnSetDestination="SetDestinationAsync"
                                    OnSetScan="SetScanAsync"
                                    OnOverride="OverrideFileHandlingAsync"
-                                   OnChangeKind="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, ChangeKindAsync))"
+                                   OnChangeKind="@(EventCallback.Factory.Create<LibrarySourceDto>(this, ChangeKindAsync))"
                                    OnRemove="RemoveFolderAsync"
                                    OnChangeHandling="ChangeModeAsync"
                                    OnLabel="LabelFolderAsync"
                                    OnOrganiseNow="OrganiseNowAsync"
                                    OnMerge="MergeIntoAsync"
-                                   OnKeepGoing="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
-                                   OnSetSuitableForLimited="@(Embedded ? default : EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))" />
+                                   OnKeepGoing="@(EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
+                                   OnSetSuitableForLimited="@(EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))" />
             }
             else
             {
@@ -1124,18 +985,17 @@
                                 ReadOnly="@ReadOnly"
                                 Busy="@_saving"
                                 PathIssues="@_pathIssues"
-                                ShowAdvancedHint="@(!Embedded)"
                                 OnChangeHandling="ChangeModeAsync"
                                 OnSetDestination="SetDestinationAsync"
                                 OnLabel="LabelFolderAsync"
                                 OnRemove="RemoveFolderAsync"
-                                OnKeepGoing="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
-                                OnSetSuitableForLimited="@(Embedded ? default : EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))"
+                                OnKeepGoing="@(EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
+                                OnSetSuitableForLimited="@(EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))"
                                 Jobs="@_jobs"
                                 OnJobControl="ControlJobAsync"
                                 OnOrganiseNow="OrganiseNowAsync"
                                 OnMerge="MergeIntoAsync"
-                                OnChangeKind="@(Embedded ? default : EventCallback.Factory.Create<LibrarySourceDto>(this, ChangeKindAsync))" />
+                                OnChangeKind="@(EventCallback.Factory.Create<LibrarySourceDto>(this, ChangeKindAsync))" />
             }
             if (!library.Sources.Any(IsManaged))
             {
@@ -1144,7 +1004,7 @@
         }
 
         // Shown even when the last folder has been removed: files that stayed on disk can still be listed and added back.
-        if (!Embedded && library is not null)
+        if (library is not null)
         {
             <ExcludedFilesSection LibraryId="@library.Id" ReadOnly="@ReadOnly" />
         }
@@ -1153,7 +1013,7 @@
         if (library is not null)
         {
             <div class="library-folders__recycle">
-                @if (library.RecycleBin && !Embedded && showBin)
+                @if (library.RecycleBin && showBin)
                 {
                     <RecycleBinSection />
                 }
@@ -1167,10 +1027,10 @@
         }
     };
 
-    // The amber Unmatched count with Retry now and Keep all as they are. Unmatched is the signed-in administrator's, so first-run setup shows none.
+    // The amber Unmatched count with Retry now and Keep all as they are.
     private RenderFragment UnmatchedBar(LibraryFolderDto library) => __builder =>
     {
-        if (Embedded || library.UnmatchedCount <= 0) return;
+        if (library.UnmatchedCount <= 0) return;
         <LibraryUnmatchedCount Count="@library.UnmatchedCount" />
         <AppButton Label="Retry now"
                    ButtonStyle="AppButtonStyle.Outlined"

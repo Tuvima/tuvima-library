@@ -6,16 +6,31 @@
 
 @* The top of the Universe page: its name, a stack of covers from its first Series, and one line of totals. *@
 <header class="universe-hero">
+    @if (!string.IsNullOrWhiteSpace(BackgroundUrl))
+    {
+        <img class="universe-hero__backdrop" src="@MediaTileArtworkUrl.ForDrawnSize(BackgroundUrl, 1280)" alt="" aria-hidden="true" />
+    }
     <div class="universe-hero__art">
-        <TuvimaArtworkStack Items="@StackItems"
-                            Seed="@Detail.Qid"
-                            Variant="ArtworkStackVariant.Card"
-                            MaxVisible="4"
-                            PreserveOrder="true"
-                            IsDecorative="true" />
+        @if (!string.IsNullOrWhiteSpace(CoverUrl))
+        {
+            <img class="universe-hero__cover" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 256)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(CoverUrl, 256)" alt="" />
+        }
+        else
+        {
+            <TuvimaArtworkStack Items="@StackItems"
+                                Seed="@Detail.Qid"
+                                Variant="ArtworkStackVariant.Card"
+                                MaxVisible="4"
+                                PreserveOrder="true"
+                                IsDecorative="true" />
+        }
     </div>
     <div class="universe-hero__copy">
-        <h1 class="universe-hero__title">@Detail.Name</h1>
+        <h1 class="universe-hero__title">@(Name ?? Detail.Name)</h1>
+        @if (!string.IsNullOrWhiteSpace(Description ?? Detail.Description))
+        {
+            <p class="universe-hero__description">@(Description ?? Detail.Description)</p>
+        }
         <p class="universe-hero__totals">@UniversePageText.TotalsLine(Detail)</p>
         @if (EnrichmentRunning)
         {
@@ -42,6 +57,18 @@
 
     /// <summary>True only for a desktop administrator who may edit this Universe; the page decides.</summary>
     [Parameter] public bool CanEdit { get; set; }
+
+    /// <summary>The name to show in place of the Universe's own while an edit is staged; null shows the Universe's name.</summary>
+    [Parameter] public string? Name { get; set; }
+
+    /// <summary>The description to show in place of the Universe's own while an edit is staged.</summary>
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>The cover the person chose for the Universe (or is previewing); the Series' covers stand in while it has none.</summary>
+    [Parameter] public string? CoverUrl { get; set; }
+
+    /// <summary>The background the person chose for the Universe (or is previewing).</summary>
+    [Parameter] public string? BackgroundUrl { get; set; }
 
     [Parameter] public bool EditBusy { get; set; }
 

@@ -115,3 +115,14 @@ The shared editor owns artwork correction for normal and review flows. Each artw
 Deleting provider artwork removes the item association but keeps shared provider/image cache data when another work, edition, collection, or descendant still references it. Deleting user-uploaded artwork can also clean up the owned local file. Artwork type behavior is documented for users in [Artwork Types](../reference/artwork-types.md).
 
 
+
+## People, Series, curated collections and Universes
+
+These edit in place with the same bar, right-hand panel, floating artwork picker and Review changes as a title (universal editor spec D17, D17a); the old person pop-up and the Series and curated-collection pop-ups for an existing item are gone. The Engine describes each one through `GET /library/editor-subjects/{id}` (and `/library/editor-subjects/universes/{qid}` for a Universe), and `POST /library/edit-session` saves it with the existing Details and Artwork change kinds: the handlers find the subject by its id.
+
+- **Person:** Details (name, biography, sort name, tags), the provider facts read-only, and the photo (Headshot). Match is not offered until a provider record can be re-matched.
+- **Series:** title and description as local overrides over the provider's values; cover and background.
+- **Curated collection:** its own name and description (a name is required, and a curated collection must keep at least one item); cover and background. Creating a collection, a playlist or a gallery, and managing items and rules, still use `CollectionEditorShell`.
+- **Universe:** name and description as local overrides stored in `collections.display_overrides_json` (the Wikidata values are never touched and come back when the override is cleared), a cover and a background shown on the Universe hero, and a read-only list of its Series. No Match tool.
+
+Every save is refused for a profile that may not edit (`EditSessionAccessService`), and every Dashboard entry point checks `EditorDeviceRule.CanEdit`.

@@ -22,11 +22,15 @@
 <PageTitle>@PageTitleText - Library</PageTitle>
 
 @* A Universe: what the Library holds of one fictional world across every format, as a page to read, not a screen to manage.
-   Hero, then each Series in order, then the Universe's own standalone works, then Connections. Editing a Universe happens
-   in line, with the same banner and section slot Editing Mode uses on a title, for desktop administrators only. The Universe
-   editor brings its own sections, so the banner here has no Artwork, Match and Identity or History buttons. *@
+   Hero, then each Series in order, then the Universe's own standalone works, then Connections. Editing a Universe uses the
+   same bar, side panel and floating artwork picker as every other page (spec D17a), for desktop administrators only. Its name
+   and description are local overrides (the Wikidata values stay untouched and come back with "Reset to canonical value"), it
+   has Artwork, and it lists its Series read-only. A Universe has no Match tool. *@
 <div class="universe-page">
-    <EditingBanner Mode="_editing" ShowSections="false" InPage="true" />
+    <EditingBar Mode="_editing"
+                Flow="_flow"
+                CanDelete="false"
+                GuardInternalNavigation="true" />
 
     @switch (_state.Status)
     {
@@ -57,17 +61,42 @@
             if (_state.Page is { } overview)
             {
                 <UniverseHero Detail="@overview.Detail"
+                              Name="@_preview.Title(overview.Detail.Name)"
+                              Description="@_preview.Description(overview.Detail.Description)"
+                              CoverUrl="@(_preview.Artwork.Url("CoverArt") ?? overview.Detail.CoverUrl)"
+                              BackgroundUrl="@(_preview.Artwork.Url("Background") ?? overview.Detail.BackgroundUrl)"
                               StandaloneCards="@(overview.Standalone?.Items ?? [])"
                               CanEdit="@CanShowEdit"
                               EditBusy="@_openingEditor"
                               OnEdit="EditUniverseAsync"
                               EnrichmentRunning="@(overview.Enrichment.State == UniverseEnrichmentStateDto.Running)" />
 
-                <EditingSectionSlot Mode="_editing"
-                                    BuildRequest="BuildSectionRequest"
-                                    OnCommitted="ReloadAfterEditAsync"
-                                    DetailsHeading="Universe details"
-                                    HandlesEscape="true" />
+                @if (_editing is { IsOn: true, CanEdit: true } && _flow.Session is { IsActive: true, ActiveTool: EditTool.Artwork })
+                {
+                    <FloatingArtworkPicker Mode="_editing" Flow="_flow" Picker="_artworkPicker" />
+                }
+
+                <EditorPanelHost Mode="_editing" Flow="_flow">
+                    @if (context == EditTool.Details)
+                    {
+                        <EditorDetailsPanel Mode="_editing" Session="_flow.Session">
+                            @if (overview.Detail.Shelves.Count > 0)
+                            {
+                                <section class="tl-editor-details__group" aria-label="Series in this Universe">
+                                    <h3 class="tl-editor-details__heading">Series</h3>
+                                    @foreach (var shelf in overview.Detail.Shelves)
+                                    {
+                                        <div class="tl-editor-field tl-editor-field--locked" @key="shelf.CollectionId">
+                                            <div class="tl-editor-field__label"><span>@shelf.Shelf.Title</span></div>
+                                            <div class="tl-editor-field__value">@(shelf.ItemCount == 1 ? "1 item" : $"{shelf.ItemCount} items")</div>
+                                        </div>
+                                    }
+                                    <small class="tl-editor-field__count">Series are grouped by Wikidata and are not changed here.</small>
+                                </section>
+                            }
+                        </EditorDetailsPanel>
+                    }
+                </EditorPanelHost>
 
                 <div class="universe-page__series">
                     @foreach (var shelf in overview.Detail.Shelves)
@@ -98,6 +127,9 @@
     private readonly CancellationTokenSource _lifetime = new();
     private UniversePageState _state = default!;
     private EditingModeContext _editing = default!;
+    private EditSessionFlow _flow = default!;
+    private EditPendingPreview _preview = default!;
+    private ArtworkPickerSession _artworkPicker = default!;
     private string? _loadedQid;
     private bool _canEditUniverse;
     private bool _showFandomLine;
@@ -112,9 +144,6 @@
 
     // Desktop administrators who may edit this Universe: the same checks the explorer makes, and the Engine decides again.
     private bool CanShowEdit => IsAdministrator && DeviceContext.CanEdit && _canEditUniverse;
-
-    private SharedEntityEditorTargetDto UniverseTarget =>
-        new(SharedEntityEditorTargetKinds.Universe, CurrentQid, null, CurrentQid);
 
     private string CurrentQid => _state.Page?.Detail.Qid ?? Qid;
 
@@ -147,9 +176,19 @@
         _state = new UniversePageState(ApiClient);
         _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger))
         {
+            Loader = LoadEditingFieldsAsync,
             AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs),
         };
         _editing.Changed += OnEditingChanged;
+        var session = new EditSessionState(new PendingEditList());
+        _flow = new EditSessionFlow(session, _editing, new EditSessionSaver(ApiClient), EditTrail, () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
+        {
+            Saved = RefreshAfterEditSavedAsync,
+        };
+        _preview = new EditPendingPreview(session, _editing.Fields);
+        _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);
+        session.Changed += OnEditSessionChanged;
+        _artworkPicker.Changed += OnEditSessionChanged;
         State.OnStateChanged += OnEngineStateChanged;
         DeviceContext.OnChanged += OnAccessContextChanged;
         Session.OnAuthorityChanged += OnAccessContextChanged;
@@ -198,12 +237,9 @@
             return;
         }
 
-        if (DeviceContext.CanEdit)
-        {
-            var context = await ApiClient.GetSharedEntityEditorContextAsync(UniverseTarget, _lifetime.Token);
-            _canEditUniverse = context?.capabilities.Any(capability => capability.editable) == true;
-            _editing.HasPermission = _canEditUniverse;
-        }
+        // Administrators on a desktop may edit; the Engine decides again when the editor loads and for every save.
+        _canEditUniverse = DeviceContext.CanEdit;
+        _editing.HasPermission = _canEditUniverse;
 
         // An unreadable plugin list hides the line (the client logs it); an empty list means there is nothing to say.
         var plugins = await ApiClient.GetPluginsAsync(_lifetime.Token);
@@ -240,9 +276,9 @@
             }
 
             _editing.HasPermission = true;
-            if (await _editing.EnterAsync())
+            if (await _editing.EnterAsync() && _editing.Fields.Loaded)
             {
-                _editing.OpenSection(EditingSection.Details);
+                await _flow.SelectToolAsync(EditTool.Details);
             }
         }
         catch (OperationCanceledException)
@@ -260,21 +296,20 @@
         }
     }
 
-    private MediaEditorLaunchRequest? BuildSectionRequest(string tab, string? artworkSlot)
-    {
-        if (!_canEditUniverse)
-        {
-            return null;
-        }
+    // The Universe is a subject of its own: the Engine describes its fields, artwork slots and permissions by its Wikidata id.
+    private Task LoadEditingFieldsAsync() => _editing.Fields.LoadUniverseSubjectAsync(CurrentQid);
 
-        return new MediaEditorLaunchRequest
-        {
-            SharedEntityTarget = UniverseTarget,
-            HeaderTitle = _state.Page?.Detail.Name,
-            Mode = SharedMediaEditorMode.Normal,
-            OnArtworkChanged = ReloadAfterEditAsync,
-        };
+    private IReadOnlyList<EditTrailItem> EditTrail() =>
+        [new EditTrailItem(_editing.Fields.EntityId, _state.Page?.Detail.Name ?? "Universe", "Universe")];
+
+    // Save changes went through: show the page's new values and reload the editor's fields so the next edit starts from them.
+    private async Task RefreshAfterEditSavedAsync()
+    {
+        await ReloadAfterEditAsync();
+        await LoadEditingFieldsAsync();
     }
+
+    private void OnEditSessionChanged() => _ = InvokeAsync(StateHasChanged);
 
     // The editor saved something: read the page again without blanking it.
     private async Task ReloadAfterEditAsync()
@@ -295,17 +330,7 @@
         }
     }
 
-    private void OnEditingChanged()
-    {
-        // The editor closed: Editing Mode ends with it, since this page has no other editing surface. (While the editor is
-        // still being opened the mode is already on and the section not yet open, so that moment is left alone.)
-        if (!_openingEditor && _editing.IsOn && !_editing.SectionOpen && !_editing.HasUnsavedInput)
-        {
-            _editing.Leave();
-        }
-
-        _ = InvokeAsync(StateHasChanged);
-    }
+    private void OnEditingChanged() => _ = InvokeAsync(StateHasChanged);
 
     // Enrichment events carry no Universe, so the page reads its own overview again: at most once per ten seconds.
     // The container raises this on the SignalR thread, so the work moves onto the component's own context first.
@@ -374,6 +399,9 @@
         DeviceContext.OnChanged -= OnAccessContextChanged;
         Session.OnAuthorityChanged -= OnAccessContextChanged;
         _editing.Changed -= OnEditingChanged;
+        _flow.Session.Changed -= OnEditSessionChanged;
+        _artworkPicker.Changed -= OnEditSessionChanged;
+        _flow.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
         _editing.Dispose();

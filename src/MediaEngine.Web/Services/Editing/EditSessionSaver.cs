@@ -64,7 +64,7 @@ public sealed class EditSessionSaver
     /// Checks, then saves. A change the check refuses stops everything and nothing is written. The pending list is left as it is: the
     /// caller removes <see cref="EditSessionSaveOutcome.AppliedIds"/> once the page shows the saved values.
     /// </summary>
-    public async Task<EditSessionSaveOutcome> SaveAsync(PendingEditList pending, CancellationToken ct = default)
+    public async Task<EditSessionSaveOutcome> SaveAsync(PendingEditList pending, bool? writeIntoFiles = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(pending);
         var preview = await PreviewAsync(pending, ct);
@@ -73,7 +73,7 @@ public sealed class EditSessionSaver
             return preview;
         }
 
-        var saveCall = await _api.RunEditSessionAsync(pending.ToRequest(previewOnly: false), ct);
+        var saveCall = await _api.RunEditSessionAsync(pending.ToRequest(previewOnly: false, writeIntoFiles), ct);
         if (!saveCall.IsOk)
         {
             return EditSessionSaveOutcome.Unsaved(saveCall.Message ?? Unreachable);

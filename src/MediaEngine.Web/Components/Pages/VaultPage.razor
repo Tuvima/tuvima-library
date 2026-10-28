@@ -5,14 +5,25 @@
 @implements IDisposable
 @inject NsfwModeState Nsfw
 @inject NavigationManager Nav
+@inject NsfwModeSwitching Switching
 
 @* The Vault area (Videos spec D45). The page title is deliberately plain: nothing in the browser tab or history names the area.
-   Anyone whose Vault mode is not on, for any reason, is sent to the same "not found" page an unknown address gets. *@
+   Anyone the Engine says cannot use Vault mode is sent to the same "not found" page an unknown address gets. A profile that has
+   access but has not switched Vault mode on yet (for instance one that opened this from the navigation bar or from Settings) sees
+   only the usual unlock step, the PIN when its profile asks for one (Library pages D20). *@
 <PageTitle>Library</PageTitle>
 
 @if (Nsfw.Unlocked)
 {
     <MediaEngine.Web.Components.Vault.VaultArea View="@View" Id="@Id" />
+}
+else if (Nsfw.IsAvailable)
+{
+    <div class="vault-unlock" data-vault-unlock>
+        <h1>Vault</h1>
+        <p>@(Nsfw.NeedsPin ? "Enter your profile PIN to open the Vault." : "Open the Vault for this session.")</p>
+        <AppButton Label="Open the Vault" OnClick="UnlockAsync" />
+    </div>
 }
 
 @code {
@@ -37,11 +48,13 @@
     // Wait for the Engine's answer before deciding: until it has answered nothing is drawn and nothing is redirected.
     private void LeaveIfNotAllowed()
     {
-        if (Nsfw.Resolved && !Nsfw.Unlocked)
+        if (Nsfw.Resolved && !Nsfw.IsAvailable)
         {
             VaultExit.Leave(Nav, VaultExit.NotFound);
         }
     }
+
+    private Task UnlockAsync() => Switching.SetAsync(true);
 
     public void Dispose() => Nsfw.Changed -= OnChanged;
 }

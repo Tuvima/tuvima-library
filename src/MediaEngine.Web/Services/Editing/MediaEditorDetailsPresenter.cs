@@ -21,7 +21,8 @@ public sealed record MediaEditorDetailsFieldPresentation(
     string DisplayValue,
     bool IsUserLocked,
     string? SourceScopeId = null,
-    IReadOnlyList<MediaEditorDetailsLinkedValue>? LinkedValues = null);
+    IReadOnlyList<MediaEditorDetailsLinkedValue>? LinkedValues = null,
+    string? CanonicalName = null);
 
 public sealed record MediaEditorDetailsLinkedValue(string Label, string? Href);
 public sealed record MediaEditorDetailsSummaryFact(string Label, string Value);

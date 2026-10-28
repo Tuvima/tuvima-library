@@ -109,7 +109,7 @@
 
                 <AppSegmentedControl Class="tl-art-picker__sources"
                                      AriaLabel="Where to find artwork"
-                                     Options="Sources"
+                                     Options="@(Mode?.Fields.ProvidersAvailable == false ? SourcesWithoutProviders : Sources)"
                                      Value="@_source"
                                      ValueChanged="SelectSourceAsync" />
 
@@ -158,6 +158,9 @@
         new(SourceLink, "Link", AppMaterialIcons.Outlined.Link),
         new(SourceSaved, "Saved", AppMaterialIcons.Outlined.PhotoLibrary),
     ];
+
+    // People, series, curated collections and universes have no provider artwork to offer, so the Providers source is left out for them.
+    private static readonly IReadOnlyList<AppSelectOption> SourcesWithoutProviders = Sources.Where(option => option.Value != SourceProviders).ToList();
 
     private ElementReference _root;
     private ElementReference _handle;

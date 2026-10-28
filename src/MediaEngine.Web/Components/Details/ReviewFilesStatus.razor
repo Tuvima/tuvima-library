@@ -1,30 +1,41 @@
 @namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject ILogger<ReviewFilesStatus> Logger
 
-@* The small read-only "Files will be updated: On/Off" line in Review changes (universal editor spec D15). PLACEHOLDER for WP10: for now it
-   reads the existing batched write-back switch (the file write schedule's Enabled flag); WP10 replaces this source with the one
-   "Save changes into the files" setting per library and adds the link to Settings and the per-session override. Nothing is drawn when
-   the setting cannot be read, so the dialog never claims something it does not know. *@
-@if (_enabled is { } enabled)
+@* The one write-back control in the editor (universal editor spec D15). The setting itself, "Save changes into the files", lives per
+   library in Settings; here it is only a small read-only line with a link to Settings. When the library does update its files, one
+   checkbox lets this save skip them this once. It is the same line for every item type and every way into the editor (a detail page,
+   a list's selection bar, Needs Review's fix), because they all save through Review changes. Nothing is drawn when the setting cannot
+   be read, so the dialog never claims something it does not know. *@
+@if (_setting.Text is { } text)
 {
-    <p class="review-changes__files" data-write-back="@(enabled ? "on" : "off")">Files will be updated: <strong>@(enabled ? "On" : "Off")</strong></p>
+    <div class="review-changes__files-block">
+        <p class="review-changes__files" data-write-back="@(_setting.IsOn ? "on" : "off")">Files will be updated: <strong>@text</strong></p>
+        <AppLink Href="@FileWriteSetting.SettingsHref" Class="review-changes__files-link">Change in Settings</AppLink>
+    </div>
+    @if (_setting.CanOverride)
+    {
+        <AppCheckbox Value="@(Source.WriteIntoFiles != false)"
+                     ValueChanged="OnOverrideChanged"
+                     Label="Update the files when this is saved"
+                     Disabled="@Disabled"
+                     Class="review-changes__files-override" />
+    }
 }
 
 @code {
-    private bool? _enabled;
+    private FileWriteSetting _setting = FileWriteSetting.Unknown;
 
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            _enabled = (await ApiClient.GetFileWriteScheduleAsync())?.Enabled;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
-        {
-            Logger.LogWarning(ex, "The write-back setting could not be read for Review changes");
-            _enabled = null;
-        }
-    }
+    /// <summary>The pending list's holder: its media types say which library applies, and it keeps this save's own answer.</summary>
+    [Parameter, EditorRequired] public IReviewSource Source { get; set; } = default!;
+
+    /// <summary>True while the dialog is checking or saving, so the answer cannot change under it.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    protected override async Task OnInitializedAsync() =>
+        _setting = await FileWriteSettingReader.ReadAsync(ApiClient, Logger, Source.FileWriteMediaTypes);
+
+    private void OnOverrideChanged(bool update) => Source.WriteIntoFiles = update ? null : false;
 }

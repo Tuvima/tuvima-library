@@ -3,7 +3,7 @@ namespace MediaEngine.Web.Components.Settings;
 /// <summary>
 /// The one plain line the folder step shows about subfolders (Library pages D23): in Watch they give structure, in Listen and Read they are
 /// scanned and stay grouped with their folder, and in View they are scanned when "Include subfolders" is on and photos are shown by date.
-/// The Create library dialog and the Add folder wizard both draw it from here, so the wording is written once.
+/// The Create library dialog draws it from here, so the wording is written once.
 /// </summary>
 public static class SubfolderHints
 {

@@ -160,7 +160,7 @@ To get a key, open **How do I get a key?** on the tab:
 
 ## Advanced settings
 
-Each type has an **Advanced** section with its naming template (**Naming template**, **Apply template**) and **Update tags inside files** (only affects managed folders). The section **File handling for every type** holds the library-wide rules **When the same file arrives twice** (**Keep one copy** or **Keep both**) and **Embed artwork in files**.
+Each type has an **Advanced** section with its naming template (**Naming template**, **Apply template**) and **Save changes into the files** (only affects managed folders; it is the one setting the editor reads, so the editor's Review changes dialog shows it as "Files will be updated: On" or "Off" with a link back here). The section **File handling for every type** holds the library-wide rules **When the same file arrives twice** (**Keep one copy** or **Keep both**) and **Embed artwork in files**.
 
 ### When changes reach your files
 
@@ -175,7 +175,7 @@ The panel shows:
 - **3 files couldn't be written**, with the list of files and the reason for each.
 - **Write now** (administrators, on a desktop) starts a run at once. Phones show the status only.
 
-If ExifTool is missing, the panel says **Photos, videos and PDFs in View are waiting for ExifTool**, with a link to **Settings > Tools and requirements**. With **Update tags inside files** (or write-back) turned off, no tags are queued and the schedule is hidden; filing moves still wait for their run.
+If ExifTool is missing, the panel says **Photos, videos and PDFs in View are waiting for ExifTool**, with a link to **Settings > Tools and requirements**. With **Save changes into the files** (or write-back) turned off, no tags are queued and the schedule is hidden; filing moves still wait for their run.
 
 - A file that is busy, on an unplugged drive or read-only stays on the list for the next run.
 - A file that can't hold tags is **kept in Library only** and is not retried.

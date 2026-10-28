@@ -122,7 +122,6 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
     {
         var cut = Render<LibraryFoldersPanel>(parameters => parameters
             .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
-            .Add(x => x.ShowTypeNav, false)
             .Add(x => x.LibraryId, libraryId)
             .Add(x => x.HostOwnsActions, true)
             .Add(x => x.ReadOnly, readOnly));

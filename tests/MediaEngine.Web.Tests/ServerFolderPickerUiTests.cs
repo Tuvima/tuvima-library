@@ -74,15 +74,16 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
-    public void AddFolderWizard_PassesTheChosenMediaTypeAndOnlyThatCallerDoes()
+    public void TheLibrariesFlowPassesTheChosenMediaTypeAndOnlyThatCallerDoes()
     {
-        // The Add folder wizard opens the picker for a library folder; the panel only opens it for the Import folder.
-        var wizard = Read("src/MediaEngine.Web/Components/Settings/Libraries/AddFolderWizard.razor");
+        // A library's page opens the picker for a folder of its kind; the panel only opens it for the Import folder.
+        var shell = Read("src/MediaEngine.Web/Components/Settings/Libraries/LibraryShell.razor");
+        var create = Read("src/MediaEngine.Web/Components/Settings/Libraries/CreateLibraryDialog.razor");
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
 
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(wizard, @"MediaType=""@_type\.MediaTypes\.FirstOrDefault\(\)"""));
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(wizard, @"<ServerFolderPicker\b"));
-        Assert.Contains("Inline=\"true\"", wizard, StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(shell, @"component\.MediaType, kind\.MediaTypes\.FirstOrDefault\(\)"));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(create, @"<ServerFolderPicker\b"));
+        Assert.Contains("Inline=\"true\"", create, StringComparison.Ordinal);
         Assert.DoesNotContain("component.MediaType", panel, StringComparison.Ordinal);
         foreach (var untyped in new[]
                  {
@@ -98,25 +99,18 @@ public sealed class ServerFolderPickerUiTests
     public void Picker_IsReusedAcrossLibraryAndPersonalSpaceFlows()
     {
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
-        var wizard = Read("src/MediaEngine.Web/Components/Settings/Libraries/AddFolderWizard.razor");
+        var shell = Read("src/MediaEngine.Web/Components/Settings/Libraries/LibraryShell.razor");
+        var create = Read("src/MediaEngine.Web/Components/Settings/Libraries/CreateLibraryDialog.razor");
         var view = Read("src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor");
 
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", panel, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ManagedLibrary", panel, StringComparison.Ordinal);
-        Assert.Contains("<ServerFolderPicker", wizard, StringComparison.Ordinal);
-        Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", wizard, StringComparison.Ordinal);
+        Assert.Contains("<ServerFolderPicker", create, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", shell, StringComparison.Ordinal);
+        Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", shell, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceManaged", Read("src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor"), StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceExisting", view, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void LibraryFoldersPanel_ListsLibrariesOutsideTheSixTypes()
-    {
-        var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
-
-        Assert.Contains("Other libraries", panel, StringComparison.Ordinal);
-        Assert.Contains("OtherLibraries", panel, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -132,12 +126,12 @@ public sealed class ServerFolderPickerUiTests
 
         Assert.DoesNotContain("AcceptsNewMedia", panel, StringComparison.Ordinal);
         // The New media marker moves only on the person's say (the explicit radio, or Yes to "Should new media go here?"), never as a side effect.
-        // One method, LibraryFolderAddService.WithDestination, assigns it; neither the panel nor the wizard does.
+        // One method, LibraryFolderAddService.WithDestination, assigns it; neither the panel nor the Create library dialog does.
         var addService = Read("src/MediaEngine.Web/Components/Settings/Libraries/LibraryFolderAddService.cs");
-        var wizard = Read("src/MediaEngine.Web/Components/Settings/Libraries/AddFolderWizard.razor");
+        var create = Read("src/MediaEngine.Web/Components/Settings/Libraries/CreateLibraryDialog.razor");
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(addService, "PrimaryDestinationSourceId = "));
         Assert.DoesNotContain("PrimaryDestinationSourceId = ", panel, StringComparison.Ordinal);
-        Assert.DoesNotContain("PrimaryDestinationSourceId = ", wizard, StringComparison.Ordinal);
+        Assert.DoesNotContain("PrimaryDestinationSourceId = ", create, StringComparison.Ordinal);
         Assert.Contains("ImportFolderStatus", panel, StringComparison.Ordinal);
     }
 

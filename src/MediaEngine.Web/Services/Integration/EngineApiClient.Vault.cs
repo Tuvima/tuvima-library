@@ -48,6 +48,13 @@ public sealed partial class EngineApiClient
         return status is null ? FailedVaultCall<NsfwStatusDto>() : VaultCall<NsfwStatusDto>.Ok(status);
     }
 
+    public async Task<VaultCall<NsfwStatusDto>> SetNsfwNavigationAsync(bool show, CancellationToken ct = default)
+    {
+        var status = await PutAsync<NsfwNavigationRequest, NsfwStatusDto>(
+            "PUT /api/v1/nsfw/navigation", "/api/v1/nsfw/navigation", new NsfwNavigationRequest { ShowInNavigation = show }, logAsWarning: false, ct: ct);
+        return status is null ? FailedVaultCall<NsfwStatusDto>() : VaultCall<NsfwStatusDto>.Ok(status);
+    }
+
     public async Task<VaultCall<NsfwStatusDto>> SetProfileNsfwAccessAsync(Guid profileId, SetNsfwAccessRequest request, CancellationToken ct = default)
     {
         var status = await PutAsync<SetNsfwAccessRequest, NsfwStatusDto>(

@@ -1,9 +1,12 @@
 @namespace MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Components.Shared
+@using Microsoft.AspNetCore.Components
 @using Microsoft.JSInterop
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @inject IServiceProvider Services
+@inject DeviceContextService DeviceContext
 @implements IAsyncDisposable
 @inject PlaybackLyricsPresenter Presenter
 @inject IJSRuntime JS
@@ -18,6 +21,10 @@
                 {
                     <AppMenuItem Label="Look for lyrics again" Icon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(Presenter.Refreshing)" OnClick="Presenter.RefreshAsync" />
                     <AppMenuItem Label="Not right? Find another" Icon="@AppMaterialIcons.Outlined.Search" OnClick="Presenter.OpenAlternativesAsync" />
+                }
+                @if (CanManageLyrics)
+                {
+                    <AppMenuItem Label="Edit lyrics" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="ManageLyricsAsync" />
                 }
                 @if (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null)
                 {
@@ -123,7 +130,26 @@
         }
     }
     private bool IsAdministrator => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
-    private bool ShowMenu => Presenter.Offers("find_lyrics") || (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null);
+    private bool ShowMenu => CanManageLyrics || Presenter.Offers("find_lyrics") || (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null);
+    private bool CanManageLyrics => !DeviceContext.IsPhone && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+    // The lyrics button opens the editor on the page behind the player (universal editor spec D18): edit mode starts on the song's album page
+    // with this song ticked. A song that is not on an album has no such page, so it says so in plain words instead of opening a pop-up.
+    private Task ManageLyricsAsync()
+    {
+        if (!CanManageLyrics || _identity is not { } identity || Snapshot.CurrentIndex < 0 || Snapshot.CurrentIndex >= Snapshot.Queue.Count)
+            return Task.CompletedTask;
+        var item = Snapshot.Queue[Snapshot.CurrentIndex];
+        if (item.AlbumWorkId is not { } album || album == Guid.Empty)
+        {
+            Services.GetService<IAppToastService>()?.Add("Lyrics can be edited once this song is on an album.", AppSeverity.Info);
+            return Task.CompletedTask;
+        }
+        var row = new BulkEditRow(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, album, "Music");
+        Services.GetService<MediaEngine.Web.Services.Navigation.DetailsOverlayState>()?.OfferEditResume(
+            new MediaEngine.Web.Services.Navigation.DetailsEditResume(album, EditingSection.History, null, row));
+        Services.GetService<NavigationManager>()?.NavigateTo($"/details/musicalbum/{album:D}?context=listen&track={identity.WorkId:D}");
+        return Task.CompletedTask;
+    }
     private int ActiveIndex => Timeline.Select((line, index) => (line, index))
         .Where(row => row.line.StartSeconds is double time && time <= Snapshot.CurrentTimeSeconds
             && (!row.line.IsInstrumental || Snapshot.CurrentTimeSeconds < row.line.EndSeconds))
