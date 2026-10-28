@@ -65,6 +65,27 @@
                 </div>
             }
 
+            @if (CurrentTab.LibraryChips.Count > 0)
+            {
+                @* A gathering tab (Videos) narrows to one library with a chip each; only libraries this profile may see are listed. *@
+                <div class="browse-shell__library-chips" role="group" aria-label="@($"{CurrentTab.Label} libraries")" data-library-chips>
+                    <AppChip Text="All"
+                             Variant="@(_libraryChip is null ? AppVariant.Filled : null)"
+                             Color="@(_libraryChip is null ? AppColor.Primary : null)"
+                             aria-pressed="@(_libraryChip is null ? "true" : "false")"
+                             OnClick="@(() => OnLibraryChipChanged(null))" />
+                    @foreach (var chip in CurrentTab.LibraryChips)
+                    {
+                        <AppChip @key="chip.Id"
+                                 Text="@chip.Label"
+                                 Variant="@(_libraryChip == chip.Id ? AppVariant.Filled : null)"
+                                 Color="@(_libraryChip == chip.Id ? AppColor.Primary : null)"
+                                 aria-pressed="@(_libraryChip == chip.Id ? "true" : "false")"
+                                 OnClick="@(() => OnLibraryChipChanged(chip.Id))" />
+                    }
+                </div>
+            }
+
             <div class="browse-shell__filter-surface">
                 <div class="browse-shell__filter-search-row">
                     <AppTextField @key="_searchInputVersion"
@@ -211,7 +232,7 @@
                                                               Selected="@IsFinishedOnly"
                                                               SelectedChanged="OnFinishedChanged" />
                                     }
-                                    @if (CurrentTab.LibraryId is not null)
+                                    @if (ActiveLibraryId is not null)
                                     {
                                         <AppQuickFilterToggle Label="Unmatched"
                                                               Selected="@_unmatched"
@@ -467,6 +488,8 @@
     private string _status = string.Empty;
     // Unmatched is its own value, not a status: the Unmatched files of the tab's library (Library setup spec D64).
     private bool _unmatched;
+    // The library chosen on a gathering tab (Watch's Videos); null is "All".
+    private Guid? _libraryChip;
     private DisplayBrowseFacetsDto? _facets;
     private int _totalCount;
     private readonly List<MediaTileViewModel> _continueCards = [];
@@ -489,6 +512,9 @@
     private List<LibraryItemViewModel> _items = [];
     private List<ContentGroupViewModel> _groups = [];
     private static readonly StreamingServiceLogoResolver StreamingServiceLogos = new();
+
+    // The library the browse asks for: the tab's own library, or the chip chosen on a gathering tab.
+    private Guid? ActiveLibraryId => _libraryChip ?? CurrentTab.LibraryId;
 
     private BrowseTabPreset CurrentTab =>
         Preset.Tabs.FirstOrDefault(tab => string.Equals(tab.Id, _activeTabId, StringComparison.OrdinalIgnoreCase))
@@ -802,6 +828,7 @@
         _selectedCreators.UnionWith(state.Creators);
         _status = state.Status;
         _unmatched = state.Unmatched;
+        _libraryChip = state.LibraryChip;
         _selectedYears.Clear();
         _selectedYears.UnionWith(state.Years);
         _selectedVibes.Clear();
@@ -947,6 +974,7 @@
         string.Join(',', _selectedThemes.Order()),
         _status,
         _unmatched,
+        _libraryChip,
         _sortBy,
         _layout,
         _activeProfileId?.ToString("N") ?? string.Empty);
@@ -971,7 +999,7 @@
             themes: _selectedThemes.Count == 0 ? null : string.Join(',', _selectedThemes),
             profileId: _activeProfileId,
             sort: _sortBy,
-            libraryId: CurrentTab.LibraryId,
+            libraryId: ActiveLibraryId,
             unmatched: _unmatched ? true : null,
             ct: ct);
 
@@ -1035,7 +1063,7 @@
             themes: _selectedThemes.Count == 0 ? null : string.Join(',', _selectedThemes),
             profileId: _activeProfileId,
             sort: _sortBy,
-            libraryId: CurrentTab.LibraryId,
+            libraryId: ActiveLibraryId,
             unmatched: _unmatched ? true : null,
             ct: ct);
 
@@ -1099,8 +1127,8 @@
         var mediaType = CurrentTab.MediaType;
 
         var groups = systemGroupField is not null
-            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField, libraryId: CurrentTab.LibraryId, unmatched: _unmatched ? true : null)
-            : await ApiClient.GetContentGroupsAsync(libraryId: CurrentTab.LibraryId, unmatched: _unmatched ? true : null);
+            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField, libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null)
+            : await ApiClient.GetContentGroupsAsync(libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null);
         if (systemGroupField is null)
         {
             groups = groups
@@ -1131,7 +1159,7 @@
                 themes: _selectedThemes.Count == 0 ? null : string.Join(',', _selectedThemes),
                 profileId: _activeProfileId,
                 sort: _sortBy,
-                libraryId: CurrentTab.LibraryId,
+                libraryId: ActiveLibraryId,
                 unmatched: _unmatched ? true : null);
 
             if (qualifyingPage is not null)
@@ -1242,7 +1270,7 @@
             offset: 0,
             limit: 1,
             profileId: _activeProfileId,
-            libraryId: CurrentTab.LibraryId,
+            libraryId: ActiveLibraryId,
             unmatched: _unmatched ? true : null);
         _facets = facetPage?.Facets;
     }
@@ -1601,6 +1629,7 @@
         _selectedCreators.Clear();
         _status = string.Empty;
         _unmatched = false;
+        _libraryChip = null;
         _selectedYears.Clear();
         _selectedVibes.Clear();
         _selectedThemes.Clear();
@@ -1729,6 +1758,15 @@
     private async Task OnUnmatchedChanged(bool selected)
     {
         _unmatched = selected;
+        ClearActiveGroupState();
+        await NavigateAndReloadAsync(reloadData: true, replace: true);
+    }
+
+    // Choosing a library chip replaces the address entry, like the other filters on the lane; Unmatched belongs to one library, so it resets.
+    private async Task OnLibraryChipChanged(Guid? libraryId)
+    {
+        _libraryChip = libraryId;
+        _unmatched = false;
         ClearActiveGroupState();
         await NavigateAndReloadAsync(reloadData: true, replace: true);
     }
@@ -2096,6 +2134,11 @@
         if (!string.IsNullOrWhiteSpace(_status))
         {
             queryParts.Add($"status={Uri.EscapeDataString(_status)}");
+        }
+
+        if (_libraryChip is Guid chipLibrary)
+        {
+            queryParts.Add($"library={chipLibrary:D}");
         }
 
         if (_unmatched)

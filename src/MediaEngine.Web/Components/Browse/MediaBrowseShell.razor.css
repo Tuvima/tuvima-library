@@ -1121,3 +1121,11 @@
 :root[data-form-factor="phone"] .browse-shell__control-group--browse {
     grid-template-columns: minmax(0, 1fr);
 }
+
+/* The library chips of a gathering tab (Watch Videos): All plus one per library the profile may see. */
+.browse-shell__library-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-block: 8px;
+}
