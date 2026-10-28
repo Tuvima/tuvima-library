@@ -779,6 +779,34 @@ public sealed class BulkEditingTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Host_MovesFocusIntoThePanel_EscClosesIt_AndFocusGoesBackToTheBarsEditButton()
+    {
+        await UseDevice("desktop");
+        var host = Render<BulkEditHost>(parameters => parameters
+            .Add(component => component.Rows, FourSongs())
+            .Add(component => component.MediaType, "Music"));
+        Assert.Equal(BulkSelectionBar.ButtonId(BulkPanelKind.Edit), host.Find(".tl-batch__edit").Id);
+
+        host.Find(".tl-batch__edit").Click();
+        host.WaitForElement("[data-field-key='year']");
+        host.WaitForAssertion(() => Assert.Equal("tl-bulk-panel-title", FocusedIds().LastOrDefault()));
+        Assert.Contains(JSInterop.Invocations, call => call.Identifier == "import" && Equals(call.Arguments[0], "./js/editing-section-escape.js"));
+        TypeScalar(host, "year", "2021");
+
+        await host.InvokeAsync(() => host.Instance.HandleEscapeFromBrowser());
+
+        host.WaitForAssertion(() => Assert.Empty(host.FindAll(".tl-editor-panel")));
+        host.WaitForAssertion(() => Assert.Equal(BulkSelectionBar.ButtonId(BulkPanelKind.Edit), FocusedIds().LastOrDefault()));
+        // Closing only the panel asks nothing and keeps what is staged.
+        Assert.NotEmpty(host.FindAll(".tl-batch__pending"));
+    }
+
+    private List<string?> FocusedIds() => JSInterop.Invocations
+        .Where(call => call.Identifier == "tuvimaFocusById")
+        .Select(call => call.Arguments[0] as string)
+        .ToList();
+
+    [Fact]
     public async Task Host_RereadsTheSavedValuesAfterASave()
     {
         await UseDevice("desktop");

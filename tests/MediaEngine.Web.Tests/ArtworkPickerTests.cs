@@ -144,6 +144,24 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     // -- Tabs ----------------------------------------------------------------------------------
 
     [Fact]
+    public async Task ThePicker_IsANamedNonModalDialog_ThatTakesFocusWhenItOpens_AndNamesItsPictureGroups()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        var root = cut.Find(".tl-art-picker");
+        Assert.Equal("dialog", root.GetAttribute("role"));
+        Assert.Equal("false", root.GetAttribute("aria-modal"));
+        Assert.Equal("tl-art-picker-title", root.GetAttribute("aria-labelledby"));
+        Assert.Equal("-1", cut.Find("#tl-art-picker-title").GetAttribute("tabindex"));
+        cut.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, call =>
+            call.Identifier == "tuvimaFocusById" && Equals(call.Arguments[0], "tl-art-picker-title")));
+        var grid = cut.Find(".tl-art-picker__grid");
+        Assert.Equal("group", grid.GetAttribute("role"));
+        Assert.False(string.IsNullOrWhiteSpace(grid.GetAttribute("aria-label")));
+        Assert.All(cut.FindAll(".tl-art-picker__tile"), tile => Assert.False(string.IsNullOrWhiteSpace(tile.GetAttribute("aria-label"))));
+    }
+
+    [Fact]
     public async Task AMovieOffersBackgroundPosterAndLogo()
     {
         var (_, cut) = await OpenPickerAsync();

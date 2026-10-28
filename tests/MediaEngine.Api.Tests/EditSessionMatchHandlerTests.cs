@@ -11,6 +11,7 @@ using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -307,6 +308,11 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
 
         Assert.Equal(okComputer, _world.Work(song).Parent);
         Assert.True(File.Exists(oldPath));
+        // The reason with the file's name goes back to Review; the Engine log names the item by id only.
+        var line = Assert.Single(_log.Entries);
+        Assert.Contains(song.ToString(), line.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(Path.GetFileName(oldPath), line.Message, StringComparison.Ordinal);
+        Assert.Null(line.Exception);
     }
 
     [Fact]
@@ -372,7 +378,21 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
             handlers.Add(extra);
         }
 
-        return new EditSessionService(handlers, NullLogger<EditSessionService>.Instance);
+        return new EditSessionService(handlers, _log);
+    }
+
+    private readonly CapturingLogger _log = new();
+
+    private sealed class CapturingLogger : ILogger<EditSessionService>
+    {
+        public List<(string Message, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((formatter(state, exception), exception));
     }
 
     private static EditSessionCaller Caller() => new(LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.Everything);

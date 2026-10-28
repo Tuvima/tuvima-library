@@ -705,6 +705,9 @@ else
     }
 
     private string PanelClass => $"{MediaShapeClass}{(IsLongSequence ? " tl-series-placement--long" : string.Empty)}{(Compact ? " tl-series-placement--compact" : string.Empty)}";
+
+    // Four or fewer items fit on screen at once, so the strip drops the extra room kept above and below it (F29).
+    private bool IsFewItems => ActiveItems.Count <= 4;
     private string DetailSurfaceClass => $"tl-series-detail {MediaShapeClass}{(IsSeasonContainer ? " is-season-container" : UsesScrollingRail ? " is-scrolling-rail" : string.Empty)}";
     private string MediaShapeClass => Placement.CurrentItem.EntityType switch
     {
@@ -911,7 +914,7 @@ else
         _ => AppMaterialIcons.Outlined.AccountTree,
     };
     private string LowerContainerLabel => StringHelpers.FirstNonBlank(Placement.ContainerLabel, "sequence")!.ToLowerInvariant();
-    private string SequenceGridStyle => $"--series-count:{Math.Max(1, VisibleItems.Count)};";
+    private string SequenceGridStyle => $"--series-count:{Math.Max(1, VisibleItems.Count)};{(IsFewItems ? "padding-block:0.6rem;" : string.Empty)}";
     private int VisibleWindowSize => PortraitWindowSize;
     private int VisibleCount => Math.Min(ActiveItems.Count, VisibleWindowSize);
     private int WindowStart => Math.Clamp(_windowCenterIndex - (VisibleCount / 2), 0, Math.Max(0, ActiveItems.Count - VisibleCount));

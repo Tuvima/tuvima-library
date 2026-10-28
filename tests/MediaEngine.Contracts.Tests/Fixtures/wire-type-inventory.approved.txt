@@ -2869,6 +2869,7 @@
   Quality: System.String | json=quality | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProgressPercent: System.Double? | json=progressPercent | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Lane: System.String | json=lane | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Year: System.String | json=year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Roles: System.Collections.Generic.IReadOnlyList<System.String> | json=roles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Metadata: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.MetadataPill> | json=metadata | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Actions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailAction> | json=actions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -2876,7 +2877,7 @@
   IsFavorite: System.Boolean | json=isFavorite | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProgressState: MediaEngine.Contracts.Details.LibraryProgressState | json=progressState | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsUnmatched: System.Boolean | json=isUnmatched | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","entityType":0,"title":"sample","subtitle":"sample","description":"sample","artworkUrl":"sample","trackNumber":"sample","duration":"sample","durationSeconds":7,"artist":"sample","assetId":"sample","chapterIndex":7,"startSeconds":7,"endSeconds":7,"resumePositionSeconds":7,"isExplicit":true,"quality":"sample","progressPercent":7,"lane":"sample","roles":[],"metadata":[],"actions":[],"isOwned":true,"isFavorite":true,"progressState":0,"isUnmatched":true}
+  sample={"id":"sample","entityType":0,"title":"sample","subtitle":"sample","description":"sample","artworkUrl":"sample","trackNumber":"sample","duration":"sample","durationSeconds":7,"artist":"sample","assetId":"sample","chapterIndex":7,"startSeconds":7,"endSeconds":7,"resumePositionSeconds":7,"isExplicit":true,"quality":"sample","progressPercent":7,"lane":"sample","year":"sample","roles":[],"metadata":[],"actions":[],"isOwned":true,"isFavorite":true,"progressState":0,"isUnmatched":true}
 
 [contracts] MediaEngine.Contracts.Details.MediaGroupingViewModel
   kind=class | converter=default | number-handling=default | unmapped=default
