@@ -137,3 +137,31 @@
         animation: none;
     }
 }
+
+/* A preview from the clicked tile: the real cover and title, at the same size the real hero uses. */
+.tl-detail-skeleton__cover {
+    flex: none;
+    width: min(55vw, 13rem);
+    height: min(82vw, 19.5rem);
+    border-radius: 0.5rem;
+    object-fit: cover;
+}
+
+.tl-detail-skeleton__logo {
+    max-width: min(100%, 34rem);
+    max-height: 7rem;
+    object-fit: contain;
+    object-position: left center;
+}
+
+.tl-detail-skeleton__heading {
+    margin: 0;
+    font-size: clamp(1.75rem, 3vw, 2.75rem);
+}
+
+@media (min-width: 840px) {
+    .tl-detail-skeleton__cover {
+        width: clamp(12rem, 20vw, 20rem);
+        height: clamp(18rem, 30vw, 30rem);
+    }
+}

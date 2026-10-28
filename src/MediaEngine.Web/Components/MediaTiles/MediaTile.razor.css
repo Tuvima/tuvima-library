@@ -541,9 +541,7 @@
 .media-tile.is-cinematic-hover:hover,
 .media-tile.is-cinematic-hover:focus-within { transform: none; }
 
-/* Home discovery expands within the shelf; other surfaces never opt into this class. */
-.media-tile.is-cinematic-hover { transition: width 280ms var(--tl-motion-ease-standard); }
-.media-tile.is-cinematic-hover.is-hover-active { width: var(--media-tile-expanded-width) !important; }
+/* Movie and TV tiles on Home and Watch: the tile lifts a little and the preview fades in over it. The tile never changes width, so neighbours never move. */
 .media-tile.is-cinematic-hover.is-hover-active .media-tile-frame,
 .media-tile.is-cinematic-hover.is-hover-active .media-tile-media {
     height: var(--media-tile-hover-anchor-height); aspect-ratio: auto;
@@ -562,7 +560,7 @@
 }
 .media-tile.is-hover-overlay .media-tile-hover-identity-strip span + span::before { content: none; }
 
-@media (prefers-reduced-motion: reduce) { .media-tile.is-cinematic-hover { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .media-tile.is-cinematic-hover, .media-tile.is-cinematic-hover.is-hover-active { transition: none; transform: none; } .media-tile-hover-panel.is-inline-expanded { transition: none; } }
 
 /* Artwork keeps its height during both expansion and contraction. */
 .media-tile.is-cinematic-hover .media-tile-frame,
@@ -570,7 +568,7 @@
     height: var(--media-tile-media-height); aspect-ratio: auto; box-sizing: border-box;
 }
 .media-tile.is-cinematic-hover.is-hover-active,
-.media-tile.is-cinematic-hover.is-expanded { transform: none; box-shadow: none !important; }
+.media-tile.is-cinematic-hover.is-expanded { transform: translateY(-4px); box-shadow: none !important; }
 .media-tile-hover-panel.is-inline-expanded.is-cinematic {
     box-shadow: 0 0 0 1px rgba(136, 82, 252,.4);
 }
