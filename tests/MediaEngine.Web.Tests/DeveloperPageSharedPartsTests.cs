@@ -32,6 +32,31 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
     }
 
     [Fact]
+    public void PageHeader_WithoutATitle_ShowsOnlyTheButton()
+    {
+        var cut = Render<AppListPageHeader>(p => p.Add(c => c.Actions, b => b.AddMarkupContent(0, "<button id=\"main\">Upload plugin</button>")));
+
+        Assert.Empty(cut.FindAll(".app-list-page-header__copy"));
+        Assert.Empty(cut.FindAll(".app-list-page-header__title"));
+        Assert.Contains("app-list-page-header--actions-only", cut.Find("header").ClassList);
+        Assert.Equal("Upload plugin", cut.Find("#main").TextContent);
+    }
+
+    [Fact]
+    public void ListCard_PutsKindWarningAndBadgesInOneRowAndKeepsTheNameOnOneLine()
+    {
+        var cut = Render<AppListCard>(p => p
+            .Add(c => c.Title, "Commercial Skip")
+            .Add(c => c.Kind, "Media processing")
+            .Add(c => c.Warning, b => b.AddMarkupContent(0, "<button class=\"app-warning-strip\">Requires Comskip</button>")));
+
+        var row = cut.Find(".app-list-card__badges");
+        Assert.NotNull(row.QuerySelector(".app-list-card__kind"));
+        Assert.NotNull(row.QuerySelector(".app-list-card__warning .app-warning-strip"));
+        Assert.Equal("Commercial Skip", cut.Find(".app-list-card__title").GetAttribute("title"));
+    }
+
+    [Fact]
     public void PageHeader_WithoutSubtitleOrActions_LeavesThemOut()
     {
         var cut = Render<AppListPageHeader>(p => p.Add(c => c.Title, "Integrations"));
@@ -183,11 +208,11 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Pager_UnderOnePage_ShowsTheCountAndNoPageButtons()
+    public void Pager_UnderOnePage_DrawsNothing()
     {
-        var cut = Render<AppPager>(p => p.Add(c => c.Total, 11).Add(c => c.PageSize, 12).Add(c => c.Noun, "plugins"));
+        var cut = Render<AppPager>(p => p.Add(c => c.Total, 24).Add(c => c.PageSize, 24).Add(c => c.Noun, "plugins"));
 
-        Assert.Contains("Showing 11 of 11 plugins", cut.Markup);
+        Assert.Empty(cut.FindAll(".app-pager"));
         Assert.Empty(cut.FindAll(".app-pager__pages"));
     }
 

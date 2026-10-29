@@ -1,15 +1,21 @@
 @namespace MediaEngine.Web.Components.Shared
 
-@* The header every Developer-area list page shares: a title, one line saying what the page is for, and the page's one main
-   button on the right. *@
+@* The header the list pages share: a title, one line saying what the page is for, and the page's one main button on the right.
+   A page whose own page header already carries the name leaves Title empty (the name appears once), and only the button shows. *@
 <header class="@RootClass">
-    <div class="app-list-page-header__copy">
-        <h2 class="app-list-page-header__title">@Title</h2>
-        @if (!string.IsNullOrWhiteSpace(Subtitle))
-        {
-            <p class="app-list-page-header__subtitle">@Subtitle</p>
-        }
-    </div>
+    @if (!string.IsNullOrWhiteSpace(Title) || !string.IsNullOrWhiteSpace(Subtitle))
+    {
+        <div class="app-list-page-header__copy">
+            @if (!string.IsNullOrWhiteSpace(Title))
+            {
+                <h2 class="app-list-page-header__title">@Title</h2>
+            }
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <p class="app-list-page-header__subtitle">@Subtitle</p>
+            }
+        </div>
+    }
     @if (Actions is not null)
     {
         <div class="app-list-page-header__actions">@Actions</div>
@@ -17,12 +23,12 @@
 </header>
 
 @code {
-    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Title { get; set; } = string.Empty;
     [Parameter] public string? Subtitle { get; set; }
 
     /// <summary>The page's one main button (and anything beside it).</summary>
     [Parameter] public RenderFragment? Actions { get; set; }
     [Parameter] public string? Class { get; set; }
 
-    private string RootClass => string.Join(" ", new[] { "app-list-page-header", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string RootClass => string.Join(" ", new[] { "app-list-page-header", string.IsNullOrWhiteSpace(Title) && string.IsNullOrWhiteSpace(Subtitle) ? "app-list-page-header--actions-only" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
 }
