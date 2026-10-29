@@ -88,7 +88,6 @@ body {
 
 /* -- Glassmorphic AppSegmentedControl overrides ------------------------------ */
 
-.tl-tab,
 .tl-alert,
 .tl-popover,
 .tl-list-item,
@@ -120,17 +119,6 @@ body {
 .tl-dialog {
     z-index: var(--app-z-modal) !important;
 }
-/* Paces-style default tabs: simple bordered navigation, no heavy pill/card treatment. */
-
-.tl-tabs-toolbar .tl-tabs-toolbar-content {
-    gap: 4px !important;
-}
-
-.tl-tabs-toolbar .tl-tabs-inkbar {
-    height: 2px !important;
-
-}
-
 /* -- Muted the shared UI layer Input Overrides ----------------------------------- */
 
 /* -- Shared primary CTA button (no current Dashboard consumer) ----------------- */
@@ -427,37 +415,74 @@ body {
     line-height: 1.45 !important;
 }
 
+/* The one tab: flat, transparent, 2px accent underline on the active tab. AppTabs and AppCountTabs both render it, so
+   no page defines its own tab style (spec: one-shared-look). Labels sit one step up the type scale (D8). */
 .tl-tabs-toolbar {
-    min-height: 42px !important;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    min-height: var(--tl-tab-min-height, 44px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    background: transparent;
+    border-bottom: 1px solid var(--tl-divider);
+}
 
-    border-bottom: 1px solid var(--app-border) !important;
+.tl-tabs-toolbar::-webkit-scrollbar {
+    display: none;
 }
 
 .tl-tab {
-    min-height: var(--tl-tab-min-height, 42px) !important;
-    padding: 0 16px 10px !important;
-    border-radius: 0 !important;
-    color: var(--app-text-muted) !important;
-    font-family: var(--font-ui) !important;
-    font-size: var(--tl-control-font-size-md) !important;
-    font-weight: var(--tl-control-font-weight) !important;
-    line-height: var(--tl-control-line-height) !important;
-    letter-spacing: var(--tl-control-letter-spacing) !important;
-    text-transform: none !important;
-    white-space: nowrap !important;
-    max-width: 180px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: var(--tl-tab-min-height, 44px);
+    padding: 0 16px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-lg); /* one step up the type scale (D8) */
+    font-weight: var(--tl-control-font-weight);
+    line-height: var(--tl-control-line-height);
+    letter-spacing: var(--tl-control-letter-spacing);
+    text-decoration: none;
+    text-transform: none;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
-.tl-tab:hover,
+.tl-tab:hover {
+    color: var(--tl-text-primary);
+    background: transparent;
+}
+
 .tl-tab.tl-tab-active {
-    color: var(--tl-accent-primary) !important;
-    background: transparent !important;
+    color: var(--tl-accent-primary);
+    border-bottom-color: var(--tl-accent-primary);
+    background: transparent;
 }
 
-.tl-tabs-toolbar .tl-tabs-toolbar-content .tl-tabs-toolbar-inner {
-    min-height: 42px !important;
+.tl-tab:disabled {
+    color: var(--tl-text-disabled);
+    cursor: default;
+}
+
+.tl-tab__count {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    font-weight: 500;
+}
+
+.tl-tab.tl-tab-active .tl-tab__count {
+    color: inherit;
 }
 
 .app-filter-bar {
@@ -1227,32 +1252,6 @@ body,
     color: var(--tl-status-danger) !important;
     background: var(--tl-status-danger-soft) !important;
     border-color: var(--tl-status-danger-border) !important;
-}
-
-.tl-tabs-toolbar {
-    background: transparent !important;
-    border-bottom: 1px solid var(--tl-divider) !important;
-}
-
-.tl-tab {
-    color: var(--tl-text-secondary) !important;
-    border: 1px solid transparent !important;
-    border-radius: var(--tl-radius-sm) var(--tl-radius-sm) 0 0 !important;
-}
-
-.tl-tab:hover {
-    color: var(--tl-text-primary) !important;
-    background: var(--tl-bg-surface-hover) !important;
-}
-
-.tl-tab.tl-tab-active {
-    color: var(--tl-accent-primary) !important;
-    background: var(--tl-accent-primary-soft) !important;
-    border-color: var(--tl-accent-primary-border) !important;
-}
-
-.tl-tabs-toolbar .tl-tabs-inkbar {
-    background: var(--tl-accent-primary) !important;
 }
 
 .app-filter-bar {
@@ -5500,8 +5499,6 @@ input[type="reset"],
     .folder-table__menu { display: none; }
 }
 .library-advanced__tabs { min-width: 0; max-width: 100%; }
-.library-advanced__tabs .tl-tabs-toolbar { overflow-x: auto; }
-.library-advanced__tabs .tl-tab { flex: 0 0 auto; white-space: nowrap; }
 
 /* Settings banner X (SettingsNoticeBubble): an AppNativeButton, so its root styles live here. Touch and narrow windows grow it to 44px
    in the shared tap-target block. */

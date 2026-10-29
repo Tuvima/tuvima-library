@@ -144,83 +144,6 @@
     min-width: 13rem !important;
 }
 
-.settings-page-canvas ::deep .settings-tab-strip {
-    margin-bottom: var(--tl-space-4, 16px);
-}
-
-.settings-page-canvas ::deep .settings-tab-strip .tl-tabs-toolbar,
-.settings-page-canvas ::deep .settings-tab-strip .tl-tabs-tabbar,
-.settings-page-canvas ::deep .settings-tab-strip .tl-tabs-toolbar-primary,
-.settings-page-canvas ::deep .settings-tab-strip .tl-tabs-tabbar-primary {
-    min-height: 48px !important;
-    padding: 0 8px !important;
-    border-bottom: 1px solid var(--tl-border-subtle);
-    border-top: 0 !important;
-    border-right: 0 !important;
-    border-left: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-}
-
-.settings-page-canvas ::deep .settings-tab-strip .tl-tab {
-    min-height: 50px !important;
-    padding: 0 var(--tl-space-4, 16px) !important;
-    gap: 9px !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    line-height: 1.25 !important;
-}
-
-.settings-page-canvas ::deep .settings-tab-strip .tl-tab .tl-icon-root {
-    width: 19px !important;
-    height: 19px !important;
-    color: currentColor !important;
-    font-size: 19px !important;
-}
-
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tab {
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    padding-inline: 18px !important;
-    position: relative;
-}
-
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tabs-inkbar {
-    display: none !important;
-}
-
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tab.tl-tab-active::after {
-    content: "";
-    position: absolute;
-    right: 18px;
-    bottom: 0;
-    left: 18px;
-    height: 2px;
-    border-radius: 999px;
-    background: var(--tl-accent-primary);
-}
-
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tabs-toolbar-content,
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tabs-tabbar-content {
-    justify-content: flex-start !important;
-}
-
-.settings-page-canvas ::deep .settings-plugin-tabs .tl-tabs-toolbar-content,
-.settings-page-canvas ::deep .settings-plugin-tabs .tl-tabs-tabbar-content {
-    overflow-x: auto !important;
-    scrollbar-width: thin;
-}
-
-.settings-page-canvas ::deep .settings-plugin-tabs .tl-tab {
-    flex: 0 0 auto;
-    width: auto !important;
-    min-width: max-content !important;
-    padding-inline: var(--tl-space-3, 12px) !important;
-    font-size: 14px !important;
-}
-
 .settings-page-canvas ::deep .settings-tab-panel {
     padding-top: var(--tl-space-4, 16px);
 }
@@ -505,18 +428,6 @@
     .settings-page-canvas ::deep .settings-experience-profile {
         grid-column: 1 / -1;
     }
-
-    .settings-page-canvas ::deep .settings-tab-strip .tl-tabs-toolbar-content,
-    .settings-page-canvas ::deep .settings-tab-strip .tl-tabs-tabbar-content {
-        overflow-x: auto !important;
-        scrollbar-width: thin;
-    }
-
-    .settings-page-canvas ::deep .settings-tab-strip .tl-tab {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        min-width: max-content !important;
-    }
 }
 
 @media (max-width: 840px) {
@@ -548,15 +459,6 @@
         grid-template-columns: 1fr;
     }
 
-    .settings-page-canvas ::deep .settings-tab-strip .tl-tabs-toolbar-content {
-        overflow-x: auto;
-    }
-
-    .settings-page-canvas ::deep .settings-tab-strip .tl-tab {
-        flex: 0 0 auto;
-        min-width: max-content;
-    }
-
     .settings-page-canvas ::deep .settings-select-row {
         grid-template-columns: 1fr !important;
         align-items: stretch !important;
@@ -570,96 +472,6 @@
         min-width: 0 !important;
         justify-self: stretch !important;
     }
-}
-
-/* Settings owns its canvas and contextual third-party/control descendants.
-   :where replaces the former global canvas class weight with its scope attribute.
-   Shared popup roots remain in app.css because portals leave this ancestry. */
-:where(.settings-admin-panel) ::deep .settings-tab-strip {
-    background: transparent !important;
-    display: flex !important;
-    flex-direction: column !important;
-    width: 100% !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-primary,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-primary {
-    min-height: 60px !important;
-    padding: 0 10px !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: var(--app-radius-md, 8px) !important;
-    background: rgba(10, 13, 22, 0.76) !important;
-    box-shadow: none !important;
-    width: 100% !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-wrapper,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-content,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-inner,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-wrapper,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-content,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-inner {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: stretch !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    transform: none !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-panels {
-    width: 100% !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-inner,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-inner,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-content {
-    flex: 1 1 auto !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-scroll-button,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-scroll-button-hidden,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-scroll-button-left,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-scroll-button-right {
-    display: none !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tab {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    min-height: 58px !important;
-    justify-content: center !important;
-    gap: 10px !important;
-    padding: 0 18px !important;
-    border-radius: 0 !important;
-    color: var(--app-text-secondary) !important;
-    text-transform: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    border: 0 !important;
-    outline: 0 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tab.tl-tab-active {
-    color: var(--app-text-primary) !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    border: 0 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tab .tl-icon-root {
-    width: 24px !important;
-    height: 24px !important;
-    font-size: 24px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-inkbar {
-    height: 3px !important;
-    border-radius: 999px !important;
-    background: var(--app-primary) !important;
 }
 
 :where(.settings-admin-panel) ::deep .settings-tab-panel {
@@ -1059,10 +871,6 @@
     flex-wrap: wrap;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-tabs .tl-tabs-panels {
-    padding-top: 18px;
-}
-
 :where(.settings-admin-panel) ::deep .settings-plugin-danger-card {
     margin-top: 18px;
 }
@@ -1131,27 +939,6 @@
 @media (max-width: 1100px) {
 :where(.settings-admin-panel) ::deep .settings-plugin-summary__actions {
         justify-content: flex-start;
-    }
-
-}
-
-@media (max-width: 720px) {
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-wrapper,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-content,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-inner,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-wrapper,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-content,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-inner {
-        flex-direction: row !important;
-    }
-
-}
-
-@media (max-width: 720px) {
-:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tab {
-        justify-content: center !important;
-        min-height: 48px !important;
-        padding: 0 12px !important;
     }
 
 }
