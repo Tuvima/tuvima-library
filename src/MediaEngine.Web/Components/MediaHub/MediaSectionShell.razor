@@ -457,6 +457,7 @@
         "media-section-shell",
         HasNestedNavigation ? "media-section-shell--nested" : null,
         ShowMobileNavigation ? "media-section-shell--has-mobile-nav" : null,
+        IsFlatTree ? "media-section-shell--flat" : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private bool HasNestedNavigation => NavigationGroups.Any(group =>

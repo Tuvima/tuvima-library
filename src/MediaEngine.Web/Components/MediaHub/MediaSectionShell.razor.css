@@ -495,6 +495,11 @@
     color: var(--tl-status-warning);
 }
 
+/* Settings' larger menu text needs a wider column so labels such as "Network & Remote Access" are not cut off. */
+.media-section-shell--flat {
+    grid-template-columns: 296px minmax(0, 1fr);
+}
+
 /* Flat tree (Settings, no expanding rows): no chevron column, text one step up the type scale, group labels with stronger contrast. */
 .media-section-shell__tree--flat .media-section-shell__tree-row {
     grid-template-columns: minmax(0, 1fr);

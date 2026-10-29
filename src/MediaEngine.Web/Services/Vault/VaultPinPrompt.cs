@@ -11,7 +11,7 @@ public static class VaultMessages
     public const string Unreachable = "The Library couldn't be reached. Try again.";
     public const string NotAvailable = "That isn't available.";
     public const string ConfirmItsYou = "Confirm it's you to continue.";
-    public const string SetProfilePinFirst = "Set your own profile PIN first (Settings > Profiles > your profile > Profile details).";
+    public const string SetProfilePinFirst = "Set your own profile PIN first (Settings > Manage Profiles > your profile > Profile).";
 
     /// <summary>The sentence for a call that did not succeed, or null when it did.</summary>
     public static string? For<T>(VaultCall<T> call) => call.Outcome switch

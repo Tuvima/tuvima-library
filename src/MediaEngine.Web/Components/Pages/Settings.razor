@@ -887,13 +887,17 @@ else
             new("Settings", SettingsNav.RouteFor(SettingsSection.Overview)),
         };
 
-        breadcrumbs.Add(new SettingsBreadcrumb(
-            CurrentGroup.Label,
-            SettingsNav.RouteFor(CurrentGroup.DefaultSection)));
-
         // Settings > Group > Page > Tab, straight from the menu. Every step is a link except the last, which is where you are.
         var location = CurrentLocation;
         var pageLabel = location?.Page.Label ?? GetHeroTitle();
+        // A group with one page of the same name (System, Developer) is not said twice.
+        if (!string.Equals(CurrentGroup.Label, pageLabel, StringComparison.Ordinal))
+        {
+            breadcrumbs.Add(new SettingsBreadcrumb(
+                CurrentGroup.Label,
+                SettingsNav.RouteFor(CurrentGroup.DefaultSection)));
+        }
+
         var pageRoute = location?.Page.Route ?? SettingsNav.RouteFor(_activeSection);
         var steps = new List<SettingsBreadcrumb> { new(pageLabel, pageRoute) };
 
