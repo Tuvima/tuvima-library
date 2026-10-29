@@ -1,6 +1,6 @@
 # Spec: Library setup and add-folder flow (fewer steps, fewer info buttons, one screen for setup and Settings)
 
-> **Status:** Locked (Shy, 2026-10-29) · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** [Library pages](library-pages.md) (v14, Built; D3, D4, D5, D10) · [Simpler library access](library-access.md) (v2, Locked) · [One shared look for pages](one-shared-look.md) · [First-run setup flow](first-run-setup-flow.md) · [Library setup](library-setup-groups.md) (D13)
+> **Status:** Locked (Shy, 2026-10-29) · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** [Library pages](library-pages.md) (v14, Built; D3, D4, D5, D10) · [Simpler library access](library-access.md) (v3, Built, awaiting Local checks) · [One shared look for pages](one-shared-look.md) · [First-run setup flow](first-run-setup-flow.md) · [Library setup](library-setup-groups.md) (D13)
 
 > Written 2026-10-29 from Shy's local-review notes on the setup wizard's Libraries step, the Add folder dialog, the number of steps, the "go to music" prompt and the many "i" buttons. It was checked against the code on main (after PR #533). **Builds after packet 4 of One shared look**, because it reuses the shared tabs, cards and buttons.
 
@@ -11,7 +11,7 @@
 2. **Adding a folder to an existing library** is a different dialog: the folder picker is drawn *inside* the dialog (not as its own pop-up), with help text above and, for administrators, Vault switches below. So the same job looks different in two places.
 3. The old "go to music?" question is already gone (Library pages D4). What Shy may still be seeing is the long dialog and the pop-up on top of it, which feels like the same question in another form.
 4. **First-run setup** already shows the same Libraries table and the same Add library dialog as Settings (Library pages D13, "Simple" mode). What differs is only what Simple hides (access and Vault). Shy found the older look; this spec checks the new one and makes the match exact.
-5. **Access in the dialog** still offers "Standard / Selected profiles / Vault-protected". The Locked access spec removes "Selected profiles" and the library Access tab.
+5. **Access in the dialog** still offers "Standard / Selected profiles / Vault-protected". The Locked access spec removes "Selected profiles" and the library Access tab. *Note (2026-10-29): [library-access v3](library-access.md) is built; the Access choice is gone.*
 
 **What it feels like after this spec.**
 1. **Add library is three things on one calm screen**: *what is it* (pick a content type from the area; the name fills itself in and can be changed), *where is it* (one Browse button), and **Add library**. The media area is a tab you are already standing in, so it is pre-chosen from where you clicked. No "i" buttons: the two sentences that matter are plain lines of text under the folder, and anything longer lives in the docs.
@@ -19,7 +19,7 @@
 3. **No question afterwards, anywhere.** Add library lands on the new library's page with the first scan running. Add folder returns to the table, highlights the new row and shows one toast, "Added Movies folder, scanning now". Same in setup, except setup stays on its step and shows the row.
 4. **Setup and Settings are literally one screen.** Setup shows the Libraries table with the same four area tabs, the same dialog and the same pop-up. The only differences are what a first-time install must not show: no Vault option, no Access choice, and a "Continue" button below the table. There is no separate setup version of any of it.
 5. **At most one "i" per page, and none in these dialogs.** Where something needs a sentence it is a visible sentence. Where it is a rare detail, it is an "i" that opens on top of the dialog (the "behind the dialog" bug is fixed, which the earlier work already covers by drawing tooltips in the top layer).
-6. **Access matches the Locked access spec.** Add library has no Standard / Selected profiles choice. An administrator sees only one switch, **Vault**, which is the Vault-protected option as before (fixed at creation, as Library pages D10 says). Everyone else sees nothing about access.
+6. **Access matches the Locked access spec.** Add library has no Standard / Selected profiles choice. An administrator sees only one switch, **Vault**, which is the Vault-protected option as before (fixed at creation, as Library pages D10 says). Everyone else sees nothing about access. *Note (2026-10-29): [library-access v3](library-access.md) replaces the administrator Vault switch with the Vault as a fifth area; Add library offers no Vault option.*
 
 **What stays the same:** the folder checks and refusals, the content types, what a scan does, Add files, the Folders / File handling / Activity tabs, the Vault rules, administrators only for Vault choices.
 
@@ -88,7 +88,7 @@ None. Dialog and component structure only. (Vault and managed-folder flags keep 
 On SHY-DESKTOP with a small test library: add a library from Settings and from first-run setup, add a second folder, try a folder that is already used, try a Vault folder as an administrator. Count the clicks (A1). Screenshots at desktop and a narrow window.
 
 ## 8. Risks
-- The Access block removal depends on the access spec being built first; if it is not, the Vault switch ships first and Selected profiles is removed later.
+- The Access block removal depends on the access spec being built first; if it is not, the Vault switch ships first and Selected profiles is removed later. *Note (2026-10-29): the access spec is built, so the Access block is gone.*
 - Pre-filling the name must not overwrite a name the person typed.
 
 ## 9. Open questions
