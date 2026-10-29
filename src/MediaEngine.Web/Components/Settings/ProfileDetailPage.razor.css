@@ -14,6 +14,8 @@
 /* The rows sit inside a standard settings card, so the list draws no box of its own. */
 .profile-detail__list { margin: 0; padding: 0; list-style: none; }
 .profile-detail__item + .profile-detail__item { border-top: 1px solid var(--tl-border-subtle); }
+.profile-detail__kid { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--tl-border-subtle); }
+.profile-detail__kid > :first-child { flex: 1; min-width: 0; }
 .profile-detail__protection { display: grid; gap: 12px; }
 .profile-detail__protection + .profile-detail__protection { padding-top: 12px; border-top: 1px solid var(--tl-border-subtle); }
 .profile-detail__protection small { display: block; color: var(--tl-text-muted); }

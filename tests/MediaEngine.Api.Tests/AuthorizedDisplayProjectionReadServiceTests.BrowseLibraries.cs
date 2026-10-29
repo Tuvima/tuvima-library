@@ -61,7 +61,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         }
 
         var config = libraries ?? BrowseLibrariesConfig();
-        var service = CreateService(HumanContext(account, ProfileOf(account)), new StubRawProjection([], []), config);
+        var service = CreateService(HumanContext(account, ProfileOf(account)), new StubRawProjection([], []));
         return new BrowseLibraryListService(service, config, new VaultLibraryRepository(_database));
     }
 
@@ -196,7 +196,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task BrowseLibraries_AnUnlimitedProfile_GetsVideosLibrariesWhateverTheLimitedProfileSetting()
+    public async Task BrowseLibraries_ANonKidProfile_GetsVideosLibrariesWhateverTheKidSettings()
     {
         var account = Guid.NewGuid();
         await CreateHumanAsync(account, EveryFeature, new HashSet<Guid> { MoviesLibrary, ShowsLibrary, MusicLibrary, BooksLibrary });

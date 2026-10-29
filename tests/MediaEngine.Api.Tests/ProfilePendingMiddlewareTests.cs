@@ -35,7 +35,6 @@ public sealed class ProfilePendingMiddlewareTests
     [InlineData("GetProfile")]
     [InlineData("UpdateProfileExperience")]
     [InlineData("SetProfilePin")]
-    [InlineData("ExportMyData")]
     [InlineData("ChangeTemporaryPassword")]
     [InlineData(null)]
     public async Task APendingSession_IsRefusedEverywhereElse_AndTheEndpointNeverRuns(string? endpointName)

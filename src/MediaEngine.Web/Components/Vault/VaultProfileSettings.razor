@@ -144,7 +144,7 @@
     /// <summary>True when the signed-in administrator has a profile PIN of their own (Videos spec D25).</summary>
     [Parameter] public bool AdministratorHasPin { get; set; }
 
-    private bool IsLimited => Person.IsRestricted || !string.IsNullOrWhiteSpace(Person.ContentLimit);
+    private bool IsLimited => Person.IsRestricted;
 
     // Only the Engine's status route decides: a profile it answers "not found" to gets none of the person's own rows.
     private bool ShowOwn => IsSelf && !IsLimited && Nsfw.IsAvailable;

@@ -92,12 +92,3 @@
     font-size: 0.9rem;
     line-height: 1.4;
 }
-
-/* The Export my data row: text on the left, the button on the right (the row grid is shared with the sheet rows). */
-.security-settings__export .security-sheet__row {
-    padding-inline: var(--tl-space-4, 16px);
-}
-
-.security-settings__export-result {
-    color: var(--tl-text-secondary);
-}

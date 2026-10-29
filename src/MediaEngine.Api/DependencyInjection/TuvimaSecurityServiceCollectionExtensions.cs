@@ -13,6 +13,8 @@ public static class TuvimaSecurityServiceCollectionExtensions
         services.AddScoped<SecureAccountGate>();
         services.AddScoped<RecentSignInGuard>();
         services.AddScoped<HouseholdManagementService>();
+        services.AddScoped<HouseholdLibraryAccessService>();
+        services.AddScoped<HouseholdKidSettingsService>();
         services.AddScoped<IPersonalScopeAuthorizer, PersonalScopeAuthorizer>();
         services.AddScoped<AccountNoticeService>();
         services.AddScoped<ProfileNoticeService>();

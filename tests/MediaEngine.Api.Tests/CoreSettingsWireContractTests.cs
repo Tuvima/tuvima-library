@@ -178,7 +178,7 @@ public sealed class CoreSettingsWireContractTests
         var storage = SettingsContractMapper.ToStorage(request);
         var contract = SettingsContractMapper.ToContract(storage);
 
-        Assert.Equal("9.0", storage.SchemaVersion);
+        Assert.Equal("10.0", storage.SchemaVersion);
         Assert.Equal("keep_both", storage.FileHandling.DuplicatePolicy);
         Assert.Equal("keep_both", contract.FileHandling.DuplicatePolicy);
         Assert.Equal(@"D:\Media", storage.StorageLocations.Single().Path);
@@ -208,7 +208,7 @@ public sealed class CoreSettingsWireContractTests
                     KindKey = "movies",
                     Area = "watch",
                     MediaTypes = ["Movies"],
-                    Access = "selected",
+                    IsVault = true,
                     FileHandling = new LibraryFileHandlingDto { DuplicatePolicy = "keep_both" },
                     Sources =
                     [
@@ -236,7 +236,7 @@ public sealed class CoreSettingsWireContractTests
         var contract = SettingsContractMapper.ToContract(storage);
 
         var library = storage.Libraries.Single();
-        Assert.Equal("selected", library.Access);
+        Assert.True(library.IsVault);
         Assert.Equal("keep_both", library.FileHandling.DuplicatePolicy);
         Assert.False(library.Sources[0].ScanEnabled);
         Assert.Equal("keep_one", library.Sources[0].FileHandlingOverride!.DuplicatePolicy);
@@ -245,13 +245,13 @@ public sealed class CoreSettingsWireContractTests
         // An override that sets nothing is dropped on the way in.
         Assert.Null(library.Sources[1].FileHandlingOverride);
         var dto = contract.Libraries.Single();
-        Assert.Equal("selected", dto.Access);
+        Assert.True(dto.IsVault);
         Assert.Equal("keep_both", dto.FileHandling.DuplicatePolicy);
         Assert.False(dto.Sources[0].ScanEnabled);
         Assert.Equal("keep_one", dto.Sources[0].FileHandlingOverride!.DuplicatePolicy);
         Assert.False(dto.Sources[0].FileHandlingOverride!.WriteTags);
         var json = JsonSerializer.Serialize(contract, JsonOptions);
-        Assert.Contains("\"access\":\"selected\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"vault\":true", json, StringComparison.Ordinal);
         Assert.Contains("\"scan_enabled\":false", json, StringComparison.Ordinal);
         Assert.Contains("\"file_handling_override\":{\"duplicate_policy\":\"keep_one\",\"write_tags\":false}", json, StringComparison.Ordinal);
     }

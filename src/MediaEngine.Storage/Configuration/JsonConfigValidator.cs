@@ -452,7 +452,7 @@ public static class JsonConfigValidator
         {
             var library = config.Libraries[index];
             var prefix = $"libraries[{index}]";
-            if (string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase))
+            if (library.IsVault)
             {
                 vaultFieldPrefixes.Add(prefix + ".");
             }
@@ -489,11 +489,6 @@ public static class JsonConfigValidator
             if (!LibraryMetadataPolicies.IsValid(library.MetadataPolicy))
             {
                 errors.Add($"{prefix}.metadata_policy must be one of enriched, local_preferred, local_only, manual.");
-            }
-
-            if (!LibraryAccessLevels.IsValid(library.Access))
-            {
-                errors.Add($"{prefix}.access must be one of standard, selected, vault.");
             }
 
             if (library.FileHandling is null)
@@ -621,7 +616,7 @@ public static class JsonConfigValidator
             // does not list may belong to a plugin, so its policy is left to the Engine's check against the full list of kinds.
             else if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched
                 // A Vault-protected library looks nothing up online until an administrator switches that on for it (Vault sections D34).
-                && !string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
+                && !library.IsVault
                 && LibraryKindLookupPolicy.ModeOf(library.KindKey, libraryKinds) != LibraryLookupMode.Plain
                 && !IsKindOnlyAPluginCouldSupply(library.KindKey, libraryKinds))
             {

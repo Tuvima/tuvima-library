@@ -148,6 +148,110 @@ public sealed class HouseholdAdministratorTests
     }
 
     [Fact]
+    public async Task AHouseholdAdministrator_CannotTickALibraryTheHouseholdHides_AndTheServerAdministratorIsHeldToIt()
+    {
+        await using var world = await World.CreateAsync();
+        var libraries = world.ConfigureCataloguedLibraries(2);
+        var householdHidden = libraries[0];
+        var other = libraries[1];
+        var access = new ProfileAccessRepository(world.Database);
+        var read = new HashSet<AccountFeatureId> { AccountFeatureId.Read };
+        var secondAdult = await world.AddUserAsync(world.A, "second.adult@example.com");
+        var person = secondAdult.Profile.Id;
+        await new HouseholdLibraryAccessRepository(world.Database).ReplaceHiddenLibrariesAsync(
+            world.A.Household.Id, new HashSet<Guid> { householdHidden }, DateTimeOffset.UtcNow, null);
+
+        // A save that leaves out the household's hidden library is an attempt to show it: refused, nothing changes.
+        var refusedForHouseholdAdmin = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            world.Mutations.ReplaceProfileAccessAsync(world.AdminOfA, person, read, new HashSet<Guid>()));
+        Assert.Equal(AccountAccessMutationService.HouseholdHiddenLibraryMessage, refusedForHouseholdAdmin.Message);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, person, read, new HashSet<Guid> { other }));
+        Assert.Empty(await access.GetHiddenLibrariesAsync(person));
+
+        // Keeping it ticked while hiding another library works, and the household's own row is not copied onto the profile.
+        await world.Mutations.ReplaceProfileAccessAsync(world.AdminOfA, person, read, new HashSet<Guid> { householdHidden, other });
+        Assert.Equal([other], (await access.GetHiddenLibrariesAsync(person)).ToArray());
+
+        // Another household is not affected by household A's list.
+        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.B.Person.Id, read, new HashSet<Guid>());
+        Assert.Empty(await access.GetHiddenLibrariesAsync(world.B.Person.Id));
+    }
+
+    [Fact]
+    public async Task TheHouseholdsHiddenLibraries_AreReadByTheirOwnAdministratorAndAServerAdministrator_ButReplacedByTheServerAdministratorOnly()
+    {
+        await using var world = await World.CreateAsync();
+        var libraries = world.ConfigureCataloguedLibraries(2);
+        var service = world.HouseholdLibraries();
+
+        await service.ReplaceAsync(world.ServerAdmin, world.A.Household.Id, new HashSet<Guid> { libraries[0] });
+
+        Assert.Equal([libraries[0]], (await service.GetAsync(world.ServerAdmin, world.A.Household.Id)).ToArray());
+        Assert.Equal([libraries[0]], (await service.GetAsync(world.AdminOfA, world.A.Household.Id)).ToArray());
+        Assert.Empty(await service.GetAsync(world.ServerAdmin, world.B.Household.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetAsync(world.AdminOfA, world.B.Household.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetAsync(world.MemberOfA, world.A.Household.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.ReplaceAsync(world.AdminOfA, world.A.Household.Id, new HashSet<Guid>()));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            service.ReplaceAsync(world.ServerAdmin, Guid.NewGuid(), new HashSet<Guid>()));
+        Assert.Equal([libraries[0]], (await service.GetAsync(world.ServerAdmin, world.A.Household.Id)).ToArray());
+    }
+
+    [Fact]
+    public async Task AHouseholdList_RefusesAnUnknownLibrary_AndAVaultLibraryIsNeverAccepted()
+    {
+        await using var world = await World.CreateAsync();
+        var libraries = world.ConfigureCataloguedLibraries(1);
+        var service = world.HouseholdLibraries();
+        using (var connection = world.Database.CreateConnection())
+        {
+            var now = DateTimeOffset.UtcNow.ToString("O");
+            connection.Execute(
+                "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES(@vault,'none',@now,@now,@now);",
+                new { vault = VaultLibraryId.ToString("D"), now });
+        }
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.ReplaceAsync(world.ServerAdmin, world.A.Household.Id, new HashSet<Guid> { Guid.NewGuid() }));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            new HouseholdLibraryAccessRepository(world.Database).ReplaceHiddenLibrariesAsync(
+                world.A.Household.Id, new HashSet<Guid> { VaultLibraryId }, DateTimeOffset.UtcNow, null));
+        Assert.Empty(await service.GetAsync(world.ServerAdmin, world.A.Household.Id));
+
+        // A library that is known works, and clearing the list shows everything again.
+        await service.ReplaceAsync(world.ServerAdmin, world.A.Household.Id, new HashSet<Guid> { libraries[0] });
+        await service.ReplaceAsync(world.ServerAdmin, world.A.Household.Id, new HashSet<Guid>());
+        Assert.Empty(await service.GetAsync(world.ServerAdmin, world.A.Household.Id));
+    }
+
+    [Fact]
+    public async Task AHouseholdsHiddenLibraries_RaiseTheAuthorizationVersionOfItsProfilesOnlyWhenTheyReallyChange()
+    {
+        await using var world = await World.CreateAsync();
+        var libraries = world.ConfigureCataloguedLibraries(1);
+        var repository = new HouseholdLibraryAccessRepository(world.Database);
+
+        Assert.True(await repository.ReplaceHiddenLibrariesAsync(world.A.Household.Id, new HashSet<Guid> { libraries[0] }, DateTimeOffset.UtcNow, null));
+        var before = Version(world, world.A.Person.Id);
+        await repository.ReplaceHiddenLibrariesAsync(world.A.Household.Id, new HashSet<Guid> { libraries[0] }, DateTimeOffset.UtcNow, null);
+
+        Assert.Equal(before, Version(world, world.A.Person.Id));
+        await repository.ReplaceHiddenLibrariesAsync(world.A.Household.Id, new HashSet<Guid>(), DateTimeOffset.UtcNow, null);
+        Assert.True(Version(world, world.A.Person.Id) > before);
+        Assert.Equal(Version(world, world.B.Person.Id), Version(world, world.B.Person.Id));
+    }
+
+    private static readonly Guid VaultLibraryId = Guid.Parse("66666666-6666-4666-8666-666666666666");
+
+    private static long Version(World world, Guid profileId)
+    {
+        using var connection = world.Database.CreateConnection();
+        return connection.ExecuteScalar<long>("SELECT authorization_version FROM profiles WHERE id=@id;", new { id = profileId });
+    }
+
+    [Fact]
     public async Task AHiddenLibraryThatLeftTheConfiguration_DoesNotBlockASave_ButANewUnknownOneIsStillRefused()
     {
         await using var world = await World.CreateAsync();
@@ -687,6 +791,80 @@ public sealed class HouseholdAdministratorTests
         }
     }
 
+    [Fact]
+    public async Task TheHouseholdKidSettings_StartOnPgWithUnratedShown_AndAreChangedByTheirOwnAdministratorOrAServerAdministratorOnly()
+    {
+        await using var world = await World.CreateAsync();
+        var service = world.KidSettings();
+
+        var start = await service.GetAsync(world.AdminOfA, world.A.Household.Id);
+        Assert.Equal(HouseholdKidSettings.Default, start);
+
+        await service.ReplaceAsync(world.AdminOfA, world.A.Household.Id, new HouseholdKidSettings("G", "pg-13", "R", false));
+        Assert.Equal(new HouseholdKidSettings("G", "PG-13", "R", false), await service.GetAsync(world.ServerAdmin, world.A.Household.Id));
+
+        // Another household keeps its own settings, and an administrator never reaches another household's.
+        Assert.Equal(HouseholdKidSettings.Default, await service.GetAsync(world.ServerAdmin, world.B.Household.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetAsync(world.AdminOfA, world.B.Household.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.ReplaceAsync(world.AdminOfA, world.B.Household.Id, HouseholdKidSettings.Strictest));
+
+        // A member never reads or changes the levels, and nothing changed through a refused call.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetAsync(world.MemberOfA, world.A.Household.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.ReplaceAsync(world.MemberOfA, world.A.Household.Id, HouseholdKidSettings.Strictest));
+        Assert.Equal(new HouseholdKidSettings("G", "PG-13", "R", false), await service.GetAsync(world.ServerAdmin, world.A.Household.Id));
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.GetAsync(world.ServerAdmin, Guid.NewGuid()));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            service.ReplaceAsync(world.ServerAdmin, Guid.NewGuid(), HouseholdKidSettings.Default));
+    }
+
+    [Theory]
+    [InlineData("NC-17", "PG", "PG")]
+    [InlineData("PG", "", "PG")]
+    [InlineData("PG", "PG", "everything")]
+    [InlineData("PG", null, "PG")]
+    public async Task AHouseholdKidLevel_MustBeOneOfGPgPg13OrR_ForEveryArea(string? watch, string? read, string? listen)
+    {
+        await using var world = await World.CreateAsync();
+        var service = world.KidSettings();
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.ReplaceAsync(world.ServerAdmin, world.A.Household.Id, new HouseholdKidSettings(watch!, read!, listen!, true)));
+
+        Assert.Equal(HouseholdKidSettings.Default, await service.GetAsync(world.ServerAdmin, world.A.Household.Id));
+    }
+
+    [Fact]
+    public async Task ChangingTheHouseholdKidSettings_UpdatesEveryKidsProfileOfThatHouseholdAtOnce_AndNoOtherHousehold()
+    {
+        await using var world = await World.CreateAsync();
+        var service = world.KidSettings();
+        var first = await world.Mutations.AddHouseholdPersonAsync(world.AdminOfA,
+            new AddHouseholdPersonCommand(world.A.Household.Id, "Kid one", null, IsChild: true, Pin: null));
+        var second = await world.Mutations.AddHouseholdPersonAsync(world.AdminOfA,
+            new AddHouseholdPersonCommand(world.A.Household.Id, "Kid two", null, IsChild: true, Pin: null));
+        var elsewhere = await world.Mutations.AddHouseholdPersonAsync(world.AdminOfB,
+            new AddHouseholdPersonCommand(world.B.Household.Id, "Kid three", null, IsChild: true, Pin: null));
+        var limits = new ProfileContentLimitRepository(world.Database);
+
+        foreach (var kid in new[] { first, second, elsewhere })
+        {
+            Assert.Equal(new ProfileContentLimit(true, HouseholdKidSettings.Default), await limits.GetAsync(kid.Id));
+        }
+
+        await service.ReplaceAsync(world.AdminOfA, world.A.Household.Id, new HouseholdKidSettings("R", "G", "PG-13", false));
+
+        var changed = new ProfileContentLimit(true, new HouseholdKidSettings("R", "G", "PG-13", false));
+        Assert.Equal(changed, await limits.GetAsync(first.Id));
+        Assert.Equal(changed, await limits.GetAsync(second.Id));
+        Assert.Equal(new ProfileContentLimit(true, HouseholdKidSettings.Default), await limits.GetAsync(elsewhere.Id));
+
+        // A member of the household who is not a Kid's profile has no limit whatever the levels say.
+        Assert.True((await limits.GetAsync(world.A.Person.Id)).IsUnrestricted);
+    }
+
     private sealed class World : IAsyncDisposable
     {
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-household-admin-{Guid.NewGuid():N}.db");
@@ -710,6 +888,13 @@ public sealed class HouseholdAdministratorTests
         public RealAdministratorDecisions Decisions { get; } = new();
         public NoProfilePhotos Photos { get; } = new();
         public DatabaseConnection Database => _database;
+
+        public HouseholdKidSettingsService KidSettings() => new(
+            new HouseholdKidSettingsRepository(_database), Decisions, new AllowEvaluator(), new NoOpAudit(), TimeProvider.System);
+
+        public HouseholdLibraryAccessService HouseholdLibraries() => new(
+            Households, new HouseholdLibraryAccessRepository(_database), new FixedVaultLibraries(), _configuration,
+            Decisions, new AllowEvaluator(), new NoOpAudit(), TimeProvider.System);
 
         /// <summary>Writes a libraries file with catalogued libraries (all in the Read area), so a save has a configuration to check hidden ids against.</summary>
         public IReadOnlyList<Guid> ConfigureCataloguedLibraries(int count)
@@ -764,7 +949,8 @@ public sealed class HouseholdAdministratorTests
                 new NoOpAudit(),
                 identity,
                 world.Photos,
-                TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
+                TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries(),
+                householdLibraries: new HouseholdLibraryAccessRepository(world._database)),
                 world.Accounts, new ProfileAccessRepository(world._database), identity);
 
             if (sharedLibraryFirst)

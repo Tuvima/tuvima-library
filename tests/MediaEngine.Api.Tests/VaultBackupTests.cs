@@ -302,7 +302,7 @@ public sealed class VaultBackupTests : IDisposable
         using var connection = database.CreateConnection();
         connection.Execute(
             """
-            INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@admin,'Admin','#7C4DFF','Administrator',NULL,@now);
+            INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@admin,'Admin','#7C4DFF','Administrator',@now);
             INSERT INTO vault_libraries(library_id, lookup_source, lookup_server_id, adults_confirmed_at, created_by_profile_id, created_at, updated_at)
                 VALUES(@vault,'none',NULL,@now,@admin,@now,@now);
             INSERT INTO profile_credentials(id, profile_id, credential_kind, secret_hash, hash_scheme, hash_version, security_stamp, created_at, updated_at)

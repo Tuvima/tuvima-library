@@ -83,11 +83,6 @@ public sealed class BackupRestoreRepository
         return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
     }
 
-    /// <param name="plainInsert">
-    /// True for a user import (<see cref="UserImportRepository"/>): every row is written with a plain INSERT, so a row that already
-    /// exists fails the whole import instead of replacing or being skipped, and rows left pointing at nothing are not quietly removed
-    /// (the caller checks the foreign keys itself).
-    /// </param>
     internal static BackupRestoreResult ImportCore(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -97,8 +92,7 @@ public sealed class BackupRestoreRepository
         IBackupPortableValueCodec? codec,
         DateTimeOffset now,
         Guid restoreIdValue,
-        CancellationToken ct,
-        bool plainInsert = false)
+        CancellationToken ct)
     {
         // Parents are written first, but the check waits for the end, so the rows of a table cycle can go in any order.
         Execute(connection, transaction, "PRAGMA defer_foreign_keys = ON");
@@ -173,7 +167,7 @@ public sealed class BackupRestoreRepository
                     values.Add(StoredValue(rule, table.Table, table.Columns, row, i, codec, ref portableRestored, ref portableSkipped));
                 }
 
-                var verb = plainInsert ? "INSERT" : rule.Kind == BackupDataKind.Configuration ? "INSERT OR REPLACE" : "INSERT OR IGNORE";
+                var verb = rule.Kind == BackupDataKind.Configuration ? "INSERT OR REPLACE" : "INSERT OR IGNORE";
                 written += RestoredRowSql.Insert(connection, transaction, verb, table.Table, liveColumns, table.Columns, values);
             }
 
@@ -207,10 +201,7 @@ public sealed class BackupRestoreRepository
             InsertWaitingRow(connection, transaction, entry, titles, restoreId, createdAt);
         }
 
-        if (!plainInsert)
-        {
-            dropped += RemoveRowsWithMissingParents(connection, transaction);
-        }
+        dropped += RemoveRowsWithMissingParents(connection, transaction);
 
         var waitingRows = waiting.Count + carriedOver;
         Execute(

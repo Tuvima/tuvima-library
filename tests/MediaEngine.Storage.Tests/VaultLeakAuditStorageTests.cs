@@ -24,7 +24,7 @@ public sealed class VaultLeakAuditStorageTests : IDisposable
         var admin = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@admin,'Admin','#7C4DFF','Administrator',NULL,@now);",
+            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@admin,'Admin','#7C4DFF','Administrator',@now);",
             new { admin, now = _now.ToString("O") });
         connection.Execute(
             "INSERT INTO vault_libraries(library_id, lookup_source, lookup_server_id, adults_confirmed_at, created_by_profile_id, created_at, updated_at) VALUES(@id,'none',NULL,@now,@admin,@now,@now);",

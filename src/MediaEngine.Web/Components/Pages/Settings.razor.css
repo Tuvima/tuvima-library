@@ -185,6 +185,19 @@
     align-items: center;
     gap: 10px;
     margin-left: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .settings-page-canvas ::deep .settings-section-card__header {
+        flex-wrap: wrap;
+    }
+
+    .settings-page-canvas ::deep .settings-section-header__actions {
+        flex-basis: 100%;
+        margin-left: 0;
+    }
 }
 
 .settings-page-canvas ::deep .settings-section-card__title {

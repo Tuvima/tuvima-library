@@ -25,8 +25,6 @@ internal static class LibraryFileHandlingChoices
     public const string ReadOnlyAccess = LibrarySourceAccessModes.ReadOnly;
     public const string NotConverting = LibrarySourceConversionStates.None;
 
-    public const string VaultAccess = LibraryAccessLevels.Vault;
-
     /// <summary>The folders of a library that Library may be allowed to change: every folder that is not a finished merge source.</summary>
     public static IReadOnlyList<LibrarySourceDto> ChangeableFolders(LibraryFolderDto library) =>
         [.. library.Sources.Where(source => source.MergeState != LibrarySourceMergeStates.Merged)];
@@ -39,7 +37,7 @@ internal static class LibraryFileHandlingChoices
     /// </summary>
     public static bool CanChangeFiles(LibraryFolderDto library, LibraryTypeOption? kind)
     {
-        if (string.Equals(library.Access, VaultAccess, StringComparison.OrdinalIgnoreCase))
+        if (library.IsVault)
         {
             return false;
         }

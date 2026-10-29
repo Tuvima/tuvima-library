@@ -139,6 +139,7 @@ public sealed class MatchStepTests : AsyncBunitContext
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Add as another version").Click();
         step.WaitForAssertion(() => Assert.False(IsOff(Button(step, "Apply"))));
         Button(step, "Apply").Click();
+        step.WaitForAssertion(() => Assert.NotNull(_applied));
 
         var row = Assert.Single(Assert.IsType<LibraryMoveSelection>(_applied).ToCommitRequest().Rows);
         Assert.Equal(LibraryMoveModes.AddAsVersion, row.Mode);

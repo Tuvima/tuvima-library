@@ -5,7 +5,7 @@ namespace MediaEngine.Storage.Tests;
 
 /// <summary>
 /// The Vault sections each profile may open (Vault sections D28, D39), on real temp SQLite: nothing by default, only real Vault libraries,
-/// never a Kids or content-limited profile, and rows that go when the section or the profile does.
+/// never a Kids profile, and rows that go when the section or the profile does.
 /// </summary>
 public sealed class VaultSectionGrantRepositoryTests : IDisposable
 {
@@ -55,14 +55,12 @@ public sealed class VaultSectionGrantRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AKidsOrContentLimitedProfile_CanNeverHaveASection_WhateverRouteTheRowTakes()
+    public async Task AKidsProfile_CanNeverHaveASection_WhateverRouteTheRowTakes()
     {
         var movies = InsertVaultLibrary();
         var kids = InsertProfile("RestrictedProfile");
-        var limited = InsertProfile(contentLimit: "PG");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _grants.ReplaceGrantedAsync(kids, [movies], _now, null));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _grants.ReplaceGrantedAsync(limited, [movies], _now, null));
         await Assert.ThrowsAsync<KeyNotFoundException>(() => _grants.ReplaceGrantedAsync(Guid.NewGuid(), [movies], _now, null));
 
         // A direct insert is stopped by the data store itself.
@@ -72,7 +70,7 @@ public sealed class VaultSectionGrantRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AProfileThatBecomesKidsOrLimited_LosesItsSections_AndARemovedSectionOrProfileTakesItsRowsWithIt()
+    public async Task AProfileThatBecomesKids_LosesItsSections_AndARemovedSectionOrProfileTakesItsRowsWithIt()
     {
         var movies = InsertVaultLibrary();
         var music = InsertVaultLibrary();
@@ -83,7 +81,7 @@ public sealed class VaultSectionGrantRepositoryTests : IDisposable
 
         using (var connection = _database.CreateConnection())
         {
-            connection.Execute("UPDATE profiles SET content_limit='PG' WHERE id=@becomesKids;", new { becomesKids });
+            connection.Execute("UPDATE profiles SET role='RestrictedProfile' WHERE id=@becomesKids;", new { becomesKids });
             connection.Execute("DELETE FROM profiles WHERE id=@removed;", new { removed });
         }
 
@@ -103,13 +101,13 @@ public sealed class VaultSectionGrantRepositoryTests : IDisposable
         Assert.Equal([music], (await _grants.GetGrantedAsync(other)).ToArray());
     }
 
-    private Guid InsertProfile(string role = "StandardUser", string? contentLimit = null)
+    private Guid InsertProfile(string role = "StandardUser")
     {
         var id = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,@name,'#7C4DFF',@role,@contentLimit,@now);",
-            new { id, name = $"Person {id:N}", role, contentLimit, now = _now.ToString("O") });
+            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,@name,'#7C4DFF',@role,@now);",
+            new { id, name = $"Person {id:N}", role, now = _now.ToString("O") });
         return id;
     }
 

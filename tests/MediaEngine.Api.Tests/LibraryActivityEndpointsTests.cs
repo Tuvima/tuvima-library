@@ -63,10 +63,10 @@ public sealed class LibraryActivityEndpointsTests : IAsyncLifetime
         {
             Libraries =
             [
-                Library(_films, "Films", LibraryAccessLevels.Standard, "Movies", _filmsSource, FilmsPath),
-                Library(_shows, "Shows", LibraryAccessLevels.Standard, "TV", _showsSource, ShowsPath),
-                Library(_family, "Family", LibraryAccessLevels.Selected, "Videos", Guid.NewGuid(), Path.Combine(_root, "media", "family")),
-                Library(_vault, "Private", LibraryAccessLevels.Standard, "Videos", Guid.NewGuid(), Path.Combine(_root, "media", "private")),
+                Library(_films, "Films", false, "Movies", _filmsSource, FilmsPath),
+                Library(_shows, "Shows", false, "TV", _showsSource, ShowsPath),
+                Library(_family, "Family", false, "Videos", Guid.NewGuid(), Path.Combine(_root, "media", "family")),
+                Library(_vault, "Private", false, "Videos", Guid.NewGuid(), Path.Combine(_root, "media", "private")),
             ],
             StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Media", Path = Path.Combine(_root, "media"), AllowWrite = true }],
         }));
@@ -91,7 +91,7 @@ public sealed class LibraryActivityEndpointsTests : IAsyncLifetime
         builder.Services.AddSingleton<ILibraryActivityReadRepository>(new LibraryActivityReadRepository(_database));
         builder.Services.AddSingleton<LibraryActivityReadService>();
         builder.Services.AddSingleton(new LibraryVisibilityRule(
-            new ProfileAccessRepository(_database), vaultLibraries, new TestLibraryVisibility.NoLibraryProfileGrants(), new FixedLibraryAccessCatalog(_family)));
+            new ProfileAccessRepository(_database), new HouseholdLibraryAccessRepository(_database), vaultLibraries));
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver());
         _app = builder.Build();
         _app.UseAuthentication();
@@ -233,8 +233,15 @@ public sealed class LibraryActivityEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ASelectedLibrary_IsNotFoundForAProfileThatWasNotChosen()
+    public async Task ALibraryHiddenForTheHousehold_IsNotFoundForItsProfiles()
     {
+        var household = (await new HouseholdRepository(_database).CreateAsync("Household 2", _now)).Id;
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET household_id=@household WHERE id=@id;", new { household, id = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+        }
+
+        await new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(household, new HashSet<Guid> { _family }, _now, null);
         var (work, _) = InsertAsset(_family, Path.Combine(_root, "media", "family", "party.mkv"));
         await Log(SystemActionType.MediaAdded, "Birthday party", work, """{"media_type":"Movies"}""");
 
@@ -267,7 +274,7 @@ public sealed class LibraryActivityEndpointsTests : IAsyncLifetime
         Assert.Equal(["Added Film 4.", "Added Film 3."], result!.Entries.Select(entry => entry.Text));
     }
 
-    private static LibraryFolderConfig Library(Guid id, string name, string access, string mediaType, Guid sourceId, string path) => new()
+    private static LibraryFolderConfig Library(Guid id, string name, bool vault, string mediaType, Guid sourceId, string path) => new()
     {
         Id = id.ToString("D"),
         Name = name,
@@ -276,7 +283,7 @@ public sealed class LibraryActivityEndpointsTests : IAsyncLifetime
         KindKey = mediaType switch { "TV" => "tv", "Videos" => "other_videos", _ => "movies" },
         Area = "watch",
         MediaTypes = [mediaType],
-        Access = access,
+        IsVault = vault,
         Sources = [new LibrarySourceConfig { Id = sourceId.ToString("D"), Path = path }],
     };
 

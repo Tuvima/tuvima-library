@@ -26,15 +26,15 @@ public sealed class VaultSectionGrantRepository(IDatabaseConnection db) : IVault
         {
             token.ThrowIfCancellationRequested();
             var profile = conn.QueryFirstOrDefault<ProfileRow>(
-                "SELECT role AS Role, content_limit AS ContentLimit FROM profiles WHERE id=@profileId;", new { profileId }, tx);
+                "SELECT role AS Role FROM profiles WHERE id=@profileId;", new { profileId }, tx);
             if (profile is null)
             {
                 throw new KeyNotFoundException("Profile not found.");
             }
 
-            if (libraryIds.Count > 0 && (profile.Role == "RestrictedProfile" || profile.ContentLimit is not null))
+            if (libraryIds.Count > 0 && (profile.Role == "RestrictedProfile"))
             {
-                throw new InvalidOperationException("A Kids or content-limited profile cannot open a Vault section.");
+                throw new InvalidOperationException("A Kids profile cannot open a Vault section.");
             }
 
             var wanted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -72,6 +72,5 @@ public sealed class VaultSectionGrantRepository(IDatabaseConnection db) : IVault
     {
         public string Role { get; init; } = string.Empty;
 
-        public string? ContentLimit { get; init; }
     }
 }

@@ -19,9 +19,13 @@ public sealed record VisibilityAfterMoveResponse(
     [property: JsonPropertyName("people")] IReadOnlyList<VisibilityLossDto> People);
 
 /// <summary>
-/// One profile that would lose sight of <c>file_count</c> files (files, not titles). <c>display_name</c> is the profile's name.
+/// One profile that would lose sight of <c>file_count</c> files (files, not titles). <c>display_name</c> is the profile's name. When the
+/// household's own list of libraries (library access D2) hides the target library, every person in that household loses the files, so the
+/// household is named once instead: <c>household_id</c> is set, <c>profile_id</c> is empty and <c>display_name</c> is the household's name;
+/// <c>file_count</c> is the most any one of its people loses.
 /// </summary>
 public sealed record VisibilityLossDto(
     [property: JsonPropertyName("profile_id")] Guid ProfileId,
     [property: JsonPropertyName("display_name")] string DisplayName,
-    [property: JsonPropertyName("file_count")] int FileCount);
+    [property: JsonPropertyName("file_count")] int FileCount,
+    [property: JsonPropertyName("household_id")] Guid? HouseholdId = null);

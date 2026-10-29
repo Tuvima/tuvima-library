@@ -9,25 +9,13 @@ public sealed class LibraryFileHandlingTests
     private const string B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
     [Fact]
-    public void ANewLibraryIsStandardAccessAndFollowsTheServerForDuplicates()
+    public void ANewLibraryIsNotVaultAndFollowsTheServerForDuplicates()
     {
         var library = new LibraryFolderConfig();
 
-        Assert.Equal(LibraryAccessLevels.Standard, library.Access);
+        Assert.False(library.IsVault);
         Assert.Null(library.FileHandling.DuplicatePolicy);
         Assert.Equal(LibraryDuplicatePolicies.KeepBoth, library.ResolveDuplicatePolicy(null, LibraryDuplicatePolicies.KeepBoth));
-    }
-
-    [Theory]
-    [InlineData("standard", true)]
-    [InlineData("selected", true)]
-    [InlineData("vault", true)]
-    [InlineData("everyone", false)]
-    [InlineData("", false)]
-    [InlineData(null, false)]
-    public void AccessIsStandardSelectedOrVaultOnly(string? value, bool valid)
-    {
-        Assert.Equal(valid, LibraryAccessLevels.IsValid(value));
     }
 
     [Fact]
@@ -111,7 +99,7 @@ public sealed class LibraryFileHandlingTests
     {
         var library = new LibraryFolderConfig
         {
-            Access = LibraryAccessLevels.Selected,
+            IsVault = true,
             FileHandling = new LibraryFileHandlingConfig { DuplicatePolicy = LibraryDuplicatePolicies.KeepBoth },
             Sources =
             [
@@ -127,11 +115,12 @@ public sealed class LibraryFileHandlingTests
         var json = JsonSerializer.Serialize(library);
         var parsed = JsonSerializer.Deserialize<LibraryFolderConfig>(json)!;
 
-        Assert.Contains("\"access\":\"selected\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"vault\":true", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"access\"", json, StringComparison.Ordinal);
         Assert.Contains("\"file_handling\":{\"duplicate_policy\":\"keep_both\"}", json, StringComparison.Ordinal);
         Assert.Contains("\"scan_enabled\":false", json, StringComparison.Ordinal);
         Assert.Contains("\"file_handling_override\":{\"duplicate_policy\":\"keep_one\",\"write_tags\":false}", json, StringComparison.Ordinal);
-        Assert.Equal(LibraryAccessLevels.Selected, parsed.Access);
+        Assert.True(parsed.IsVault);
         Assert.Equal(LibraryDuplicatePolicies.KeepBoth, parsed.FileHandling.DuplicatePolicy);
         Assert.False(parsed.Sources[0].ScanEnabled);
         Assert.Equal(LibraryDuplicatePolicies.KeepOne, parsed.Sources[0].FileHandlingOverride!.DuplicatePolicy);
@@ -141,8 +130,8 @@ public sealed class LibraryFileHandlingTests
     [Fact]
     public void TheLibrariesFileVersionIsNinePointZero()
     {
-        Assert.Equal("9.0", LibrariesConfiguration.CurrentSchemaVersion);
-        Assert.Equal("9.0", new LibrariesConfiguration().SchemaVersion);
+        Assert.Equal("10.0", LibrariesConfiguration.CurrentSchemaVersion);
+        Assert.Equal("10.0", new LibrariesConfiguration().SchemaVersion);
     }
 
     private static LibrarySourceConfig Source(string id) => new()

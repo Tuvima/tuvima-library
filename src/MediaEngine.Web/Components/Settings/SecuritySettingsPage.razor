@@ -58,23 +58,6 @@
                             <SettingsNavRow Key="extra-protection" Icon="@AppMaterialIcons.Outlined.Security" Title="Extra protection" Status="@ExtraProtectionStatus" OnClick="@(() => OpenSheet(SecuritySheet.ExtraProtection))" />
                         </li>
                     }
-                    @* Only the server administrator exports (users spec D16); everyone else is just a user and is never offered this. A file that moves this person to another Library; anyone holding it can sign in as them, so the Engine asks to confirm it is them first. *@
-                    @if (IsServerAdministrator)
-                    {
-                    <li class="security-settings__item security-settings__export" data-testid="export-my-data">
-                        <div class="security-sheet__row">
-                            <div>
-                                <strong>Export my data</strong>
-                                <span>Download a file with your sign-in, profiles, progress, bookmarks and favourites. Anyone with this file can sign in as you. Keep it somewhere safe.</span>
-                                @if (!string.IsNullOrWhiteSpace(_exportResult))
-                                {
-                                    <span class="security-settings__export-result" role="@(_exportFailed ? "alert" : "status")" data-testid="export-my-data-result">@_exportResult</span>
-                                }
-                            </div>
-                            <AppButton Label="Export" Loading="@_exporting" Disabled="@(_busy || _exporting)" OnClick="ExportMyDataAsync" data-testid="export-my-data-button" />
-                        </div>
-                    </li>
-                    }
                 </ul>
             </SettingsSectionPanel>
 
@@ -394,9 +377,6 @@
     private bool _loginsLoading = true;
     private bool _passkeysLoading = true;
     private bool _busy;
-    private bool _exporting;
-    private bool _exportFailed;
-    private string _exportResult = string.Empty;
     private bool _changingPassword;
     private bool _registeringPasskey;
     private bool _generatingRecoveryCodes;
@@ -660,39 +640,6 @@
             else Snackbar.Add(NotChangedMessage(result, "Other sessions could not be signed out."), AppSeverity.Error);
         }
         finally { _busy = false; }
-    }
-
-    // Hands the file to the browser. A failure is told in one plain sentence, the Engine's own when it gives one.
-    private async Task ExportMyDataAsync()
-    {
-        if (_busy || _exporting || _disposed || !IsServerAdministrator) return;
-        _exporting = true;
-        _exportFailed = false;
-        _exportResult = string.Empty;
-        try
-        {
-            var result = await Confirmed.RunAsync(() => Identity.ExportMyDataResultAsync(_lifetime.Token), _lifetime.Token);
-            if (result.Value is { } file)
-            {
-                await JS.SaveZipAsync(file);
-                _exportResult = "Your file was downloaded. Keep it somewhere safe.";
-            }
-            else
-            {
-                _exportFailed = true;
-                _exportResult = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou ? "Nothing was downloaded. Confirm it's you to continue."
-                    : !string.IsNullOrWhiteSpace(result.Message) ? result.Message
-                    : result.Failure == DashboardAccessMutationFailure.Transient ? "The Engine is unavailable. Try again."
-                    : "The file couldn't be made. Try again.";
-            }
-        }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (JSException)
-        {
-            _exportFailed = true;
-            _exportResult = "The file couldn't be saved. Try again.";
-        }
-        finally { _exporting = false; }
     }
 
     private async Task GenerateRecoveryCodesAsync()

@@ -53,8 +53,7 @@ public sealed class ProfileEditingWorkflow(DashboardIdentityClient identity, Con
         }
 
         var added = await confirmed.RunAsync(() => identity.AddHouseholdPersonResultAsync(household,
-            new AddHouseholdPersonRequest(result.DisplayName, result.Color, result.IsChild, result.NewPin, result.Icon,
-                result.ContentLimit, result.ContentLimitAllowUnrated))).ConfigureAwait(false);
+            new AddHouseholdPersonRequest(result.DisplayName, result.Color, result.IsChild, result.NewPin, result.Icon))).ConfigureAwait(false);
         if (!added.Succeeded || added.Value is null)
         {
             // A refusal such as the eight-person limit is shown in the Engine's own sentence.
@@ -81,7 +80,7 @@ public sealed class ProfileEditingWorkflow(DashboardIdentityClient identity, Con
         // An empty icon tells the Engine to go back to the initial; leaving it out would keep the old icon.
         var updated = await confirmed.RunAsync(() => identity.UpdateManagedProfileResultAsync(profile.Id,
             new UpdateManagedProfileRequest(result.DisplayName, result.Color, result.Icon ?? string.Empty,
-                result.ContentLimit, result.ContentLimitAllowUnrated))).ConfigureAwait(false);
+                IsKids: result.IsChild))).ConfigureAwait(false);
         if (!updated.Succeeded)
         {
             return Fail(updated.Failure, afterUnlock);

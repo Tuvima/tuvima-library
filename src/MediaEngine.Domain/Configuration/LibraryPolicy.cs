@@ -79,21 +79,6 @@ public static class LibraryDuplicatePolicies
     public static bool DeletesIncomingDuplicate(string? value) => value == KeepOne;
 }
 
-/// <summary>Who may see a library: everyone with the area, only chosen profiles, or under Vault rules (D9 of the Libraries spec).</summary>
-public static class LibraryAccessLevels
-{
-    /// <summary>Visible to everyone who has the area, subject to profile limits. The default.</summary>
-    public const string Standard = "standard";
-
-    /// <summary>Only the profiles chosen for the library.</summary>
-    public const string Selected = "selected";
-
-    /// <summary>Vault rules apply. Vault libraries live in the Vault tables, so this is accepted but not written for normal libraries today.</summary>
-    public const string Vault = "vault";
-
-    public static bool IsValid(string? value) => value is Standard or Selected or Vault;
-}
-
 /// <summary>Picks the file handling that applies to one folder: its own override, else its library's, else the server-wide default.</summary>
 public static class LibraryFileHandlingResolver
 {

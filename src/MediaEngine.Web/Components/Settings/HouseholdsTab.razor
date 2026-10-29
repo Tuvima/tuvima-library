@@ -109,6 +109,8 @@ else
                                     <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_busy"
                                                aria-label="@($"Remove {household.Name}")" OnClick="@(() => RemoveAsync(household))" />
                                 </div>
+                                <HouseholdLibraryCeiling Household="@household" Libraries="@_libraries"
+                                                         LibrariesUnavailable="@_librariesUnavailable" OnSave="SaveCeilingAsync" />
                             }
                         </li>
                     }
@@ -125,6 +127,8 @@ else
     private const int MaximumNameLength = 60;
 
     private List<HouseholdResponse> _households = [];
+    private List<AccessLibraryOptionDto> _libraries = [];
+    private bool _librariesUnavailable;
     private bool _loading = true;
     private bool _loadFailed;
     private bool _busy;
@@ -160,6 +164,9 @@ else
             _households = (await Identity.GetManagedHouseholdsAsync())
                 .OrderBy(household => household.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
+            var libraries = await Identity.GetAccessLibrariesAsync();
+            _librariesUnavailable = libraries is null;
+            _libraries = libraries ?? [];
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -250,6 +257,41 @@ else
             _notice = $"Renamed to {result.Value?.Name ?? name}.";
             return true;
         });
+    }
+
+    // Saves one household's library ceiling. Answers null when it went through, or the sentence to show beside the ticks. A missing
+    // administrator PIN opens the unlock prompt; the person saves again once it is granted, so the ticks are never lost.
+    private async Task<string?> SaveCeilingAsync(Guid householdId, IReadOnlyList<Guid> hiddenLibraryIds)
+    {
+        _justUnlocked = false;
+        _error = null;
+        _notice = null;
+        var result = await Confirmed.RunAsync(() => Identity.ReplaceHouseholdLibraryAccessResultAsync(householdId, hiddenLibraryIds));
+        if (result.Succeeded)
+        {
+            await LoadAsync();
+            return null;
+        }
+
+        if (result.Failure == DashboardAccessMutationFailure.Forbidden)
+        {
+            _needsUnlock = true;
+            _unlockError = null;
+            _afterUnlock = null;
+            return "Confirm it's you, then save again.";
+        }
+
+        return !string.IsNullOrWhiteSpace(result.Message)
+            ? result.Message
+            : result.Failure switch
+            {
+                DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
+                DashboardAccessMutationFailure.NotFound => "That household is no longer there.",
+                DashboardAccessMutationFailure.Validation => "One of those libraries is no longer available. Reload and try again.",
+                DashboardAccessMutationFailure.Unauthorized => "Sign in again to continue.",
+                DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+                _ => "That couldn't be saved. Try again.",
+            };
     }
 
     private async Task RemoveAsync(HouseholdResponse household)

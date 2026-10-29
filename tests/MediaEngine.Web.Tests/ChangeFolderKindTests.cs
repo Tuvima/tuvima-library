@@ -322,6 +322,33 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
     }
 
     [Fact]
+    public void StepTwoNamesAHouseholdWhoseOwnLibraryListHidesTheTarget()
+    {
+        _previewAnswer = new(Preview(p =>
+        {
+            p.FilesToRefile = 0;
+            p.DropsDetails = false;
+            p.StartsFirstCheck = false;
+            p.OtherAppsWarning = false;
+            p.VisibilityLoss =
+            [
+                new VisibilityLossDto(Guid.Empty, "Cabin", 12, Guid.NewGuid()),
+                new VisibilityLossDto(Guid.NewGuid(), "Sam", 1),
+            ];
+        }));
+        _ = OpenDialog();
+
+        GoToImpact();
+
+        Assert.Equal(
+        [
+            "40 files will move to Audiobooks.",
+            "The Cabin household won't see these 12 files.",
+            "Sam won't see this file.",
+        ], Lines.ToArray());
+    }
+
+    [Fact]
     public void AFolderWithNoFilesSaysOnlyItsKindChangesAndLeavesOutTheMoveRefileAndDropLines()
     {
         _previewAnswer = new(Preview(p =>

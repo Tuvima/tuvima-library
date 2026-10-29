@@ -1,6 +1,6 @@
 # Spec: Simpler library access, Plex style (ticks on the person, no per-library access)
 
-> **Status:** Locked (Shy, 2026-10-29) · **Version:** 3 · **Last updated:** 2026-10-29 · **Related docs:** [Simpler access](simpler-access.md) (v4, Built) · [Library pages](library-pages.md) (v14, Built) · [Users, profiles and households](users-profiles-households.md) (v5, Built) · [Backup and restore](backup-and-restore.md) (D10, D19, D20) · [Vault sections and Move to Vault](vault-sections-and-move.md) · [Library setup](library-setup-groups.md) (D68)
+> **Status:** Built, awaiting your Local checks (Locked by Shy 2026-10-29) · **Version:** 3 · **Last updated:** 2026-10-29 · **Related docs:** [Simpler access](simpler-access.md) (v5, Built) · [Library pages](library-pages.md) (v15, Built) · [Users, profiles and households](users-profiles-households.md) (v6, Built) · [Backup and restore](backup-and-restore.md) (D10, D19, D20) · [Vault sections and Move to Vault](vault-sections-and-move.md) · [Library setup](library-setup-groups.md) (D68)
 
 > Written from Shy's bug-log items F83 and F82. Version 1 (2026-10-28) proposed dropping per-profile library access altogether. Version 2 (2026-10-29) replaces that after Shy showed how Plex does it: **who can see which library is set on the person, as ticks under each area**, with household limits above it and rating limits beside it. Section 9 lists exactly what changes; the build (LA6) writes those versions.
 

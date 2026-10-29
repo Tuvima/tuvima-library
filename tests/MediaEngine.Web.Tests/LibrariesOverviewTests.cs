@@ -48,7 +48,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
             },
             new()
             {
-                Id = AudiobooksId, Name = "Audiobooks", KindKey = "audiobooks", Area = "listen", MediaTypes = ["Audiobooks"], Access = "selected",
+                Id = AudiobooksId, Name = "Audiobooks", KindKey = "audiobooks", Area = "listen", MediaTypes = ["Audiobooks"],
                 Sources = [new() { Id = "audio-old", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library", AccessMode = "read_only" }],
             },
         ],
@@ -161,13 +161,13 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheListenTabShowsOnlyListenLibrariesAndSelectedProfilesAccessInWords()
+    public void TheListenTabShowsOnlyListenLibrariesWithTheirAccessInWords()
     {
         var cut = OpenAndSettle(query: "area=listen");
 
         Assert.Equal("true", cut.FindAll("[role=tab]")[1].GetAttribute("aria-selected"));
         var row = Row(cut, AudiobooksId);
-        Assert.Equal("Selected profiles", Text(row.QuerySelectorAll("td")[2]));
+        Assert.Equal("Standard", Text(row.QuerySelectorAll("td")[2]));
         Assert.Equal("1 folder · 12 titles", Text(row.QuerySelectorAll("td")[3]));
         Assert.Empty(cut.FindAll($"tr[data-library='{MoviesId}']"));
     }
@@ -319,7 +319,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     {
         var kinds = LibraryKindsTestData.Catalog;
         var configuration = BuildConfiguration();
-        configuration.Libraries.Add(new() { Id = "99999999-9999-4999-8999-999999999999", Name = "Private movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"], Access = "vault", Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
+        configuration.Libraries.Add(new() { Id = "99999999-9999-4999-8999-999999999999", Name = "Private movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"], IsVault = true, Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
 
         var shown = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration).Add(x => x.ShowVault, true));
         var hidden = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration));
@@ -434,7 +434,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Contains("Standard", header);
         Assert.Contains("2 folders", header);
         cut.WaitForAssertion(() => Assert.Contains("Healthy", Text(cut.Find(".libpage__header"))));
-        Assert.Equal(["Folders", "Access", "File handling", "Activity"], cut.FindAll(PageTabs).Select(Text).ToArray());
+        Assert.Equal(["Folders", "File handling", "Activity"], cut.FindAll(PageTabs).Select(Text).ToArray());
         Assert.Equal(["Scan now", "Add folder", "Add files"], cut.FindAll(".libpage__actions button").Select(Text).ToArray());
     }
 
@@ -446,7 +446,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var cut = Open(YoutubeId);
 
-        cut.WaitForAssertion(() => Assert.Equal(["Folders", "Access", "File handling", "Activity", "Lookup"], cut.FindAll(PageTabs).Select(Text).ToArray()));
+        cut.WaitForAssertion(() => Assert.Equal(["Folders", "File handling", "Activity", "Lookup"], cut.FindAll(PageTabs).Select(Text).ToArray()));
     }
 
     [Fact]
@@ -454,7 +454,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     {
         var cut = Open(MoviesId, query: "tab=activity");
 
-        cut.WaitForAssertion(() => Assert.Equal("true", cut.FindAll(PageTabs)[3].GetAttribute("aria-selected")));
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.FindAll(PageTabs)[2].GetAttribute("aria-selected")));
         Assert.DoesNotContain("Coming in the next step", cut.Markup);
         Assert.Empty(cut.FindAll(".folder-table"));
     }
@@ -465,7 +465,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var cut = Open(MoviesId, query: "tab=file-handling");
 
         cut.WaitForAssertion(() => Assert.Contains("Deleted files", cut.Markup));
-        Assert.Equal("true", cut.FindAll(PageTabs)[2].GetAttribute("aria-selected"));
+        Assert.Equal("true", cut.FindAll(PageTabs)[1].GetAttribute("aria-selected"));
         Assert.DoesNotContain("Coming in the next step", cut.Markup);
         Assert.Empty(cut.FindAll(".folder-grid"));
     }
@@ -476,7 +476,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var cut = Open(MoviesId);
         cut.WaitForElement(".folder-grid");
 
-        cut.FindAll(PageTabs)[2].Click();
+        cut.FindAll(PageTabs)[1].Click();
 
         Assert.EndsWith($"/settings/libraries/{MoviesId}?tab=file-handling", CurrentUri, StringComparison.Ordinal);
     }

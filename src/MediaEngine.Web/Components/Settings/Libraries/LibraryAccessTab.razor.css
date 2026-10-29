@@ -1,6 +1,0 @@
-.library-access { display: flex; flex-direction: column; gap: var(--tl-space-3); min-width: 0; max-width: 720px; }
-.library-access__heading { margin: 0; font-size: var(--tl-font-size-md); }
-.library-access__note { margin: 0; color: var(--tl-text-muted); }
-.library-access__profiles { display: grid; gap: var(--tl-space-2); }
-.library-access__profile { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: var(--tl-space-3); }
-.library-access__avatar { display: block; width: 40px; height: 40px; }

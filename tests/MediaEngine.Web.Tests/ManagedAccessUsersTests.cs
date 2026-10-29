@@ -68,7 +68,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         cut.Find("button[aria-label='Actions for owner@example.test']").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(
-            ["Change email", "Set temporary password", "Export", "Delete sign-in"],
+            ["Change email", "Set temporary password", "Delete sign-in"],
             cut.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim())));
         Assert.DoesNotContain("Edit permissions", cut.Markup);
         Assert.DoesNotContain("Profile access", cut.Markup);
@@ -645,7 +645,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
                 {
                     new ManagedProfileResponse(OwnerProfileId, OwnerProfileName, "#7C4DFF", null, DateTimeOffset.UtcNow, HouseholdId,
                         User: new ManagedProfileUserDto(UserId, Email)),
-                    new ManagedProfileResponse(KidProfileId, "Kid", "#7C4DFF", null, DateTimeOffset.UtcNow, HouseholdId, IsRestricted: true,
+                    new ManagedProfileResponse(KidProfileId, "Kid", "#7C4DFF", null, DateTimeOffset.UtcNow, HouseholdId, IsKids: true,
                         User: KidHasSignIn ? new ManagedProfileUserDto(Guid.NewGuid(), "kid@example.test") : null),
                 });
             }

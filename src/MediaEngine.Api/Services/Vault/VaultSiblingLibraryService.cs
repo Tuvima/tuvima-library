@@ -224,7 +224,7 @@ public sealed class VaultSiblingLibraryService(
     // Checked again under the settings write gate, so two requests at once cannot make two Vault libraries of one type.
     private static string? TakenInside(LibrariesConfiguration settings, string kindKey, string name)
     {
-        var vaultEntries = settings.Libraries.Where(entry => string.Equals(entry.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)).ToList();
+        var vaultEntries = settings.Libraries.Where(entry => entry.IsVault).ToList();
         if (vaultEntries.Any(entry => KindOf(entry, kindKey)))
         {
             return AlreadyExistsMessage;
@@ -272,7 +272,7 @@ public sealed class VaultSiblingLibraryService(
         MediaTypes = [kind.Format!],
         YoutubeLookup = false,
         RecycleBin = string.Equals(kind.Format, nameof(MediaEngine.Domain.Enums.MediaType.Videos), StringComparison.Ordinal),
-        Access = LibraryAccessLevels.Vault,
+        IsVault = true,
         AcceptedIntakeModes = [LibraryIntakeModes.IncomingFolder],
         // A Vault library's files follow the Vault's own rules: names are kept and tags are never written.
         OrganizationPolicy = new LibraryOrganizationPolicyConfig { Mode = LibraryOrganizationModes.KeepOriginalNames, WriteTags = false },
