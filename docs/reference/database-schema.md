@@ -701,7 +701,7 @@ Wikidata-sourced person records. Always enriched from Wikidata; never manually c
 | `death_date` | TEXT | ISO-8601 date. NULL if living. |
 | `nationality` | TEXT | |
 | `headshot_url` | TEXT | Cached headshot image URL |
-| `last_enriched_at` | TEXT | Timestamp. Records enriched within 30 days skip re-fetch. |
+| `last_enriched_at` | TEXT | Timestamp. Records enriched within 90 days skip re-fetch. |
 | `last_revision_id` | TEXT | Wikidata revision ID. Used for freshness checks before full property re-fetch. |
 
 **Index:** `wikidata_qid`

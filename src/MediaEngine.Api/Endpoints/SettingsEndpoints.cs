@@ -1243,6 +1243,34 @@ public static class SettingsEndpoints
         .Produces<SettingsSavedResponse>(StatusCodes.Status200OK)
         .RequireEffectiveAdministrator();
 
+        // ── PUT /settings/pipelines/flow ─────────────────────────────────
+        grp.MapPut("/pipelines/flow", (
+            MediaEngine.Contracts.Settings.PipelineFlowSaveRequest request,
+            MediaEngine.Api.Services.Settings.PipelineFlowEditor editor) =>
+        {
+            var result = editor.Save(request);
+            return result.Saved
+                ? Results.Ok(result)
+                : Results.Problem(
+                    title: "The flow was not saved",
+                    detail: result.Problems[0].Message,
+                    statusCode: StatusCodes.Status400BadRequest,
+                    extensions: new Dictionary<string, object?> { ["problems"] = result.Problems });
+        })
+        .WithName("SavePipelineFlow")
+        .WithSummary("Save the order, role and on/off of providers per media type. Applies to new ingestion only.")
+        .Produces<MediaEngine.Contracts.Settings.PipelineFlowSaveResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministrator();
+
+        // ── GET /settings/pipelines/options ──────────────────────────────
+        grp.MapGet("/pipelines/options", (MediaEngine.Api.Services.Settings.PipelineFlowEditor editor) =>
+            Results.Ok(editor.Options()))
+        .WithName("GetPipelineFlowOptions")
+        .WithSummary("Installed providers that can be added to a media type's ingestion flow.")
+        .Produces<MediaEngine.Contracts.Settings.PipelineFlowOptionsResponse>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministrator();
+
         // ── GET /settings/media-types ──────────────────────────────────────────
         grp.MapGet("/media-types", (IConfigurationLoader configLoader) =>
         {

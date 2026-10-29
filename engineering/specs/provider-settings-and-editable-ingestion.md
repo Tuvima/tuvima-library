@@ -1,6 +1,6 @@
 # Provider settings on plugin pages and an editable Ingestion Flow
 
-> **Status:** Locked (Shy, 2026-10-29) · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** Plugins and integrations screens (Locked, WP3 detail page), Plugin architecture (WP20 metadata sources from plugins), Settings flat menu (Draft, ships a read-only Ingestion Flow tab), follow-ups F85 and F89
+> **Status:** In progress (Locked by Shy, 2026-10-29; Engine packets built, Dashboard packets wait for the flat Settings menu) · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** Plugins and integrations screens (Locked, WP3 detail page), Plugin architecture (WP20 metadata sources from plugins), Settings flat menu (Draft, ships a read-only Ingestion Flow tab), follow-ups F85 and F89
 
 ## Goal
 Everything about a metadata provider (Apple, TMDB, TVDB, ComicVine, MusicBrainz and any new one) lives on that provider's own plugin page, and the Ingestion Flow tab lets an administrator decide which providers run for each media type, in what order, and in what role. A newly added provider plugin can be put to work without editing files.

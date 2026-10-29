@@ -8928,6 +8928,35 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PersonalLibraryPol
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineConfiguration
   Pipelines: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.MediaTypePipeline> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineFlowOptionDto
+  Name: System.String | nullability=not-null | accessors=get,set
+  DisplayName: System.String | nullability=not-null | accessors=get,set
+  PluginId: System.String | nullability=nullable | accessors=get,set
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  SendsTitlesOnline: System.Boolean | nullability=not-null | accessors=get,set
+  MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  UsedIn: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineFlowOptionsResponse
+  Providers: System.Collections.Generic.List<MediaEngine.Contracts.Settings.PipelineFlowOptionDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineFlowProblemDto
+  MediaType: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineFlowProviderDto
+  Name: System.String | nullability=not-null | accessors=get,set
+  Role: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineFlowRoles
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineFlowSaveRequest
+  MediaTypes: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<MediaEngine.Contracts.Settings.PipelineFlowProviderDto>> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineFlowSaveResponse
+  Saved: System.Boolean | nullability=not-null | accessors=get,set
+  Problems: System.Collections.Generic.List<MediaEngine.Contracts.Settings.PipelineFlowProblemDto> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PipelineProviderEntry
   Rank: System.Int32 | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
