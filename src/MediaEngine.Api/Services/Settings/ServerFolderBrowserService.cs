@@ -24,6 +24,14 @@ public sealed class ServerFolderBrowserService(
 
     public IReadOnlyList<ServerStorageLocationDto> GetStorageLocations()
     {
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        var locations = GetStorageLocationsCore();
+        logger.LogInformation("Server folder roots took {ElapsedMs} ms", timer.ElapsedMilliseconds);
+        return locations;
+    }
+
+    private IReadOnlyList<ServerStorageLocationDto> GetStorageLocationsCore()
+    {
         var result = new List<ServerStorageLocationDto>();
         var snapshot = configuration.LoadLibraries();
         foreach (var location in EffectiveLocations(snapshot))
@@ -59,6 +67,14 @@ public sealed class ServerFolderBrowserService(
     /// (Videos spec D17).
     /// </summary>
     public BrowseServerFoldersResultDto Browse(BrowseServerFoldersRequest request, IReadOnlyCollection<string> hiddenRoots)
+    {
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        var result = BrowseCore(request, hiddenRoots);
+        logger.LogInformation("Server folder browse took {ElapsedMs} ms", timer.ElapsedMilliseconds);
+        return result;
+    }
+
+    private BrowseServerFoldersResultDto BrowseCore(BrowseServerFoldersRequest request, IReadOnlyCollection<string> hiddenRoots)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(hiddenRoots);
@@ -285,6 +301,15 @@ public sealed class ServerFolderBrowserService(
     public ServerFolderValidationResultDto Validate(
         ValidateServerFolderRequest request, LibrariesConfiguration configurationSnapshot, IReadOnlyCollection<string> hiddenRoots, CancellationToken cancellationToken = default)
     {
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        var result = ValidateCore(request, configurationSnapshot, hiddenRoots, cancellationToken);
+        logger.LogInformation("Server folder check took {ElapsedMs} ms", timer.ElapsedMilliseconds);
+        return result;
+    }
+
+    private ServerFolderValidationResultDto ValidateCore(
+        ValidateServerFolderRequest request, LibrariesConfiguration configurationSnapshot, IReadOnlyCollection<string> hiddenRoots, CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(hiddenRoots);
         var hidden = NormalizeHiddenRoots(hiddenRoots);
@@ -343,7 +368,8 @@ public sealed class ServerFolderBrowserService(
                 !configured.AllowWrite
                 && Path.IsPathFullyQualified(configured.Path)
                 && IsWithin(Path.GetFullPath(configured.Path), resolved.Path));
-        var hasWrite = allowWrite && ProbeWrite(accessPath);
+        // Only a managed choice needs to know the folder can be written to, so the test file is written only then; reading never touches the disk.
+        var hasWrite = allowWrite && (!ServerFolderSelectionModes.RequiresWrite(request.SelectionMode) || ProbeWrite(accessPath));
         if (!allowWrite && ServerFolderSelectionModes.RequiresWrite(request.SelectionMode))
         {
             issues.Add(Issue("storage_location_read_only", "This storage location is not approved for server-side writes."));

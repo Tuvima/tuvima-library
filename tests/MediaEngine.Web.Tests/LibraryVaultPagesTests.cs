@@ -209,7 +209,7 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
 
         await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
 
-        dialogs.WaitForAssertion(() => Assert.Contains("Choose source folder", dialogs.Markup, StringComparison.Ordinal));
+        dialogs.WaitForAssertion(() => Assert.Contains("Choose your ", dialogs.Markup, StringComparison.Ordinal));
         dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder"));
         Assert.DoesNotContain("Vault", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
     }

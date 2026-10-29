@@ -272,7 +272,7 @@
         var managedVault = false;
         var parameters = new AppDialogParameters<ServerFolderPicker>
         {
-            { component => component.Title, "Choose source folder" },
+            { component => component.Title, $"Choose your {kind.Label} folder" },
             { component => component.HelpText, $"Choose the folder on the Library server that holds more of {row_name()}." },
             { component => component.ConfirmLabel, "Choose folder" },
             { component => component.SelectionMode, managed && !IsVault ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },

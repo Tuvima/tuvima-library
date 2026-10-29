@@ -13,8 +13,8 @@ namespace MediaEngine.Identity.Tests;
 
 /// <summary>
 /// The sign-in that first-run setup starts right after creating the administrator goes straight on to the next setup step: the household
-/// has one profile, so there is nobody to choose between. Every sign-in after setup is asked who is using Library as before
-/// (users, profiles and households spec D3).
+/// has one profile, so there is nobody to choose between. After setup a household with one profile and no PIN also goes straight in; the
+/// picker appears only when there is more than one profile to choose from or a PIN to enter (users, profiles and households spec D3).
 /// </summary>
 public sealed class SetupSignInHandOffTests : IDisposable
 {
@@ -64,9 +64,21 @@ public sealed class SetupSignInHandOffTests : IDisposable
     }
 
     [Fact]
-    public async Task SignInAfterSetupIsDone_StillAsksWhoIsUsingLibrary()
+    public async Task SignInAfterSetupIsDone_WithOneProfileAndNoPin_StillGoesStraightIn()
     {
         await _service.BootstrapAdministratorAsync(Email, Password, "Dad", "setup-device", "Setup", "Dashboard");
+        _setup.IsInProgress = false;
+
+        var result = await _service.AuthenticatePasswordAsync(Email, Password, "laptop", "laptop", "Dashboard");
+
+        Assert.False(result.IssuedSession!.ChooseProfile);
+        Assert.False(result.IssuedSession.Session.ProfilePending);
+    }
+
+    [Fact]
+    public async Task SignInAfterSetupIsDone_WithOneProfileThatHasAPin_AsksForThePin()
+    {
+        await _service.BootstrapAdministratorAsync(Email, Password, "Dad", "setup-device", "Setup", "Dashboard", pin: "4821");
         _setup.IsInProgress = false;
 
         var result = await _service.AuthenticatePasswordAsync(Email, Password, "laptop", "laptop", "Dashboard");

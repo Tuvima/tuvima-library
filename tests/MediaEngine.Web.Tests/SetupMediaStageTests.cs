@@ -28,6 +28,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     };
 
     private readonly List<string?> _setupSessions = [];
+    private readonly List<UpdateLibrariesRequest> _setupSaves = [];
     private bool _failLoads;
     private bool _failKinds;
     private int _deferred;
@@ -50,6 +51,13 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibraryKindsAsync), _ =>
                 Task.FromResult<IReadOnlyList<LibraryKindDto>?>(_failKinds ? null : LibraryKindsTestData.BuiltIn()));
+            stub.SetHandler(nameof(IEngineApiClient.UpdateSetupLibrariesAsync), args =>
+            {
+                var request = (UpdateLibrariesRequest)args![0]!;
+                _setupSaves.Add(request);
+                _configuration = new LibrariesConfigurationDto { StorageLocations = request.StorageLocations, Libraries = request.Libraries, FileHandling = request.FileHandling };
+                return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetSetupServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>(_configuration.StorageLocations));
             stub.SetHandler(nameof(IEngineApiClient.BrowseSetupServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = "C:\\media" }));
             stub.SetHandler(nameof(IEngineApiClient.ValidateSetupServerFolderAsync), _ => Task.FromResult<ServerFolderValidationResultDto?>(
@@ -200,6 +208,23 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
 
         Assert.Contains("Use a desktop or tablet to change folders.", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Add library");
+    }
+
+    // A setup row has no page of its own, so it carries its own Add folder: the shared pop-up, named for the library, saved through the setup session.
+    [Fact]
+    public async Task EachSetupRowHasAnAddFolderThatOpensTheSharedPopUpNamedForTheLibraryAndSavesThroughSetup()
+    {
+        AddMoviesLibrary();
+        var cut = RenderStage(hasLibraries: true);
+
+        await cut.ClickAsync(page => page.FindAll("button").Single(button => button.GetAttribute("aria-label") == "Add a folder to Movies"));
+        _dialogs.WaitForAssertion(() => Assert.Contains("Choose your Movies folder", _dialogs.Markup, StringComparison.Ordinal));
+        _dialogs.WaitForAssertion(() => Assert.Contains(_dialogs.FindAll("button"), button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
+        await _dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
+
+        _dialogs.WaitForAssertion(() => Assert.Single(_setupSaves));
+        Assert.Equal(2, _setupSaves[0].Libraries.Single(library => library.Id == MoviesId).Sources.Count);
+        cut.WaitForAssertion(() => Assert.Equal(1, _created));
     }
 
     // 6. Errors.

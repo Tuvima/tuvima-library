@@ -477,6 +477,8 @@ public sealed class PermissionsGroundworkTests
     public async Task AnOutOfHouseholdProfile_IsRefusedWhenChosenAfterSignIn_ForEveryone_AndTheSessionStaysPending()
     {
         await using var world = await World.CreateAsync();
+        // The administrator is a household of one, which goes straight in unless its profile has a PIN to enter.
+        await world.Identity.SetProfilePinAsync((await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value, "2468");
         var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-pick", "Test", "Dashboard");
         var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-pick", "Test", "Dashboard");
 
