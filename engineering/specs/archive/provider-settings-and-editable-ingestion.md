@@ -1,6 +1,6 @@
 # Provider settings on plugin pages and an editable Ingestion Flow
 
-> **Status:** In progress (Locked by Shy, 2026-10-29; Engine packets built, Dashboard packets wait for the flat Settings menu) · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** Plugins and integrations screens (Locked, WP3 detail page), Plugin architecture (WP20 metadata sources from plugins), Settings flat menu (Draft, ships a read-only Ingestion Flow tab), follow-ups F85 and F89
+> **Status:** Built, awaiting Local checks (2026-10-29) · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** Plugins and integrations screens (Locked, WP3 detail page), Plugin architecture (WP20 metadata sources from plugins), Settings flat menu (Draft, ships a read-only Ingestion Flow tab), follow-ups F85 and F89
 
 ## Goal
 Everything about a metadata provider (Apple, TMDB, TVDB, ComicVine, MusicBrainz and any new one) lives on that provider's own plugin page, and the Ingestion Flow tab lets an administrator decide which providers run for each media type, in what order, and in what role. A newly added provider plugin can be put to work without editing files.
@@ -40,7 +40,7 @@ Everything about a metadata provider (Apple, TMDB, TVDB, ComicVine, MusicBrainz 
 - **P5 Refresh every 90 days** (Mechanical): change the default in `config/hydration.json` and the matching defaults in code from 30 to 90 days for media (`stage3_refresh_days`), people (`person_refresh_days`) and series lists (`series_manifest_refresh_days`); update tests and any docs or screen text that say 30 days. Done when a new Library shows 90 and the sweep schedules items 90 days out.
 
 ## Local checks
-Add a provider via a test plugin, put it second for Music, ingest the small generated library, confirm the order is used; confirm old `/settings/providers` links land on the plugin page.
+Add a provider via a test plugin, put it second for Music, ingest the small generated library, confirm the order is used. (Old-address forwarding is dropped: Shy's standing rule is no URL forwarding.)
 
 ## How this fits the 30-day refresh
 The nightly refresh (30 days per item, Wikidata-based) is independent of the provider order. A changed flow or a new provider applies to new ingestion only; existing matches keep refreshing from their current source. Shy confirmed (2026-10-29) that items already holding a retail match are not re-checked, so this is a non-issue, and asked that the refresh interval become 90 days (P5). A later optional action could re-check one media type with the new order. P4 adds a test that the sweep never re-matches items because the flow changed, and a Local check.

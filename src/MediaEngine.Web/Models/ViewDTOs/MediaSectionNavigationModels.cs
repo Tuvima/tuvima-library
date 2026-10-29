@@ -15,7 +15,8 @@ public sealed record MediaSectionNavigationItem(
     bool AttentionDot = false,
     MediaSectionAttentionLevel Attention = MediaSectionAttentionLevel.None,
     string? AttentionLabel = null,
-    IReadOnlyList<string>? ActiveRoutes = null)
+    IReadOnlyList<string>? ActiveRoutes = null,
+    IReadOnlyList<string>? InactiveRoutes = null)
 {
     /// <summary>
     /// The row's own level or, for a parent, the most urgent level of any row beneath it, so a collapsed parent still

@@ -548,6 +548,13 @@
 
         var currentPath = NormalizePath(CurrentUri);
         var itemPath = NormalizePath(itemUri);
+        if (item.InactiveRoutes is { Count: > 0 } && item.InactiveRoutes.Any(route =>
+                string.Equals(currentPath, route, StringComparison.OrdinalIgnoreCase)
+                || currentPath.StartsWith($"{route}/", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
         return string.Equals(currentPath, itemPath, StringComparison.OrdinalIgnoreCase)
                || currentPath.StartsWith($"{itemPath}/", StringComparison.OrdinalIgnoreCase)
                || item.ActiveRoutes is { Count: > 0 } && item.ActiveRoutes.Any(route =>

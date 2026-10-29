@@ -114,6 +114,22 @@ public sealed class IngestionFlowEditorTests : AsyncBunitContext
         Assert.Equal(["beta", "alpha"], draft.RowsFor("Movies").Select(row => row.Name));
     }
 
+    [Fact]
+    public void ProviderPages_LightPlugins_AndNotLibraryAndIngestion()
+    {
+        var context = new MediaEngine.Web.Services.Navigation.SettingsMenuContext(
+            AdministrationAllowed: true, IsMobile: false, ReviewCount: 0, SecurityNeedsAttention: false);
+
+        var items = MediaEngine.Web.Services.Navigation.SettingsMenuBuilder.Build(context)
+            .SelectMany(group => group.Items)
+            .ToList();
+
+        var ingestion = items.Single(item => item.Label == "Library & Ingestion");
+        var plugins = items.Single(item => item.Label == "Plugins");
+        Assert.Contains("/settings/metadata/providers", ingestion.InactiveRoutes!);
+        Assert.Contains("/settings/metadata/providers", plugins.ActiveRoutes!);
+    }
+
     private static PipelineConfiguration SamplePipelines()
     {
         var pipelines = new PipelineConfiguration();
