@@ -257,7 +257,23 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
 
     /// <inheritdoc/>
     public LibrariesConfiguration LoadLibraries() =>
-        LoadFile<LibrariesConfiguration>(LibrariesFileName) ?? new();
+        LoadFile<LibrariesConfiguration>(LibrariesFileName) ?? FreshLibraries();
+
+    // A fresh install has no libraries.json. Without a storage location for View, every library save is refused, so start
+    // from the same one the shipped file names.
+    private static LibrariesConfiguration FreshLibraries() => new()
+    {
+        StorageLocations =
+        [
+            new()
+            {
+                Id = "media",
+                Label = "Library data",
+                Path = TuvimaDataPaths.ExpandConfigToken("{TuvimaData}/library") ?? string.Empty,
+                AllowWrite = true,
+            },
+        ],
+    };
 
     /// <inheritdoc/>
     public void SaveLibraries(LibrariesConfiguration config)

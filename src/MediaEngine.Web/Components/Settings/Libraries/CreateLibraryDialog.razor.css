@@ -20,3 +20,30 @@
     margin: 0;
     font-size: var(--tl-font-size-md);
 }
+
+/* Source folder: the chosen path with Browse beside it; the browser itself opens in its own pop-up. */
+.create-library__folder {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.create-library__folder-path {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-width: 0;
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+}
+
+.create-library__folder-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.create-library__folder-text--empty { color: var(--tl-text-secondary); }
