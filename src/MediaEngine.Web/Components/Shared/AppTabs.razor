@@ -1,15 +1,30 @@
 @namespace MediaEngine.Web.Components.Shared
 @implements IDisposable
+@inject NavigationManager Navigation
 <CascadingValue Value="this" IsFixed="true">
     <div class="app-tabs tl-tabs tl-tabs-@Position.ToString().ToLowerInvariant() @(Rounded ? "tl-tabs-rounded" : "") @(Border ? "tl-tabs-border" : "") @Class" @attributes="AdditionalAttributes">
         <div class="tl-tabs-toolbar" role="tablist" aria-label="@(Label ?? "Sections")" aria-orientation="@(Vertical ? "vertical" : "horizontal")">
             @foreach (var panel in _panels)
             {
                 var index = _panels.IndexOf(panel);
-                <button @ref="panel.HeaderElement" type="button" id="@panel.HeaderId" role="tab" aria-controls="@panel.PanelId" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" tabindex="@(index == ActivePanelIndex ? 0 : -1)" disabled="@panel.Disabled" title="@panel.ToolTip" class="tl-tab @(index == ActivePanelIndex ? "tl-tab-active" : "")" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
-                    @if (!string.IsNullOrWhiteSpace(panel.Icon)) { <AppMaterialIcon Icon="@panel.Icon" /> }
-                    @panel.Text
-                </button>
+                var tabClass = "tl-tab" + (index == ActivePanelIndex ? " tl-tab-active" : "");
+                @if (!string.IsNullOrWhiteSpace(panel.Href) && !panel.Disabled)
+                {
+                    @* Route-linked tab: a real link, so the address survives reload and Back/Forward. *@
+                    <a @ref="panel.HeaderElement" href="@panel.Href" id="@panel.HeaderId" role="tab" aria-controls="@panel.PanelId" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" aria-current="@(index == ActivePanelIndex ? "page" : null)" tabindex="@(index == ActivePanelIndex ? 0 : -1)" title="@panel.ToolTip" class="@tabClass" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
+                        @if (!string.IsNullOrWhiteSpace(panel.Icon)) { <AppMaterialIcon Icon="@panel.Icon" /> }
+                        <span>@panel.Text</span>
+                        @if (panel.Count is not null) { <span class="tl-tab__count">@panel.Count</span> }
+                    </a>
+                }
+                else
+                {
+                    <button @ref="panel.HeaderElement" type="button" id="@panel.HeaderId" role="tab" aria-controls="@panel.PanelId" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" tabindex="@(index == ActivePanelIndex ? 0 : -1)" disabled="@panel.Disabled" title="@panel.ToolTip" class="@tabClass" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
+                        @if (!string.IsNullOrWhiteSpace(panel.Icon)) { <AppMaterialIcon Icon="@panel.Icon" /> }
+                        <span>@panel.Text</span>
+                        @if (panel.Count is not null) { <span class="tl-tab__count">@panel.Count</span> }
+                    </button>
+                }
             }
         </div>
         <div class="tl-tabs-panels">@ChildContent</div>
@@ -54,6 +69,9 @@
         else if (args.Key == (Vertical ? "ArrowUp" : "ArrowLeft")) target = available[(Array.IndexOf(available,index)-1+available.Length) % available.Length];
         else return;
         await ActivateAsync(target);
+        var href = _panels[target].Href;
+        if (!string.IsNullOrWhiteSpace(href))
+            Navigation.NavigateTo(href);
         await _panels[target].HeaderElement.FocusAsync();
     }
     public void Dispose() { _disposed = true; }

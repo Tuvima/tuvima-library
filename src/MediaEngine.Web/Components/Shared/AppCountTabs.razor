@@ -8,17 +8,38 @@
         var tab = Tabs[index];
         var position = index;
         var selected = string.Equals(tab.Key, Selected, StringComparison.Ordinal);
-        <button type="button"
-                role="tab"
-                id="@TabId(tab.Key)"
-                class="tl-tab app-count-tabs__tab @(selected ? "tl-tab-active is-selected" : null)"
-                aria-selected="@(selected ? "true" : "false")"
-                tabindex="@(selected ? 0 : -1)"
-                @onclick="() => SelectAsync(tab.Key)"
-                @onkeydown="args => KeyDownAsync(args, position)">
-            <span>@tab.Label</span>
-            <span class="app-count-tabs__count">@tab.Count</span>
-        </button>
+        var tabClass = "tl-tab" + (selected ? " tl-tab-active" : "");
+        @if (!string.IsNullOrWhiteSpace(tab.Href))
+        {
+            <a href="@tab.Href"
+               role="tab"
+               id="@TabId(tab.Key)"
+               class="@tabClass"
+               aria-selected="@(selected ? "true" : "false")"
+               aria-current="@(selected ? "page" : null)"
+               tabindex="@(selected ? 0 : -1)"
+               @onclick="() => SelectAsync(tab.Key)"
+               @onkeydown="args => KeyDownAsync(args, position)">
+                @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" /> }
+                <span>@tab.Label</span>
+                <span class="tl-tab__count">@tab.Count</span>
+            </a>
+        }
+        else
+        {
+            <button type="button"
+                    role="tab"
+                    id="@TabId(tab.Key)"
+                    class="@tabClass"
+                    aria-selected="@(selected ? "true" : "false")"
+                    tabindex="@(selected ? 0 : -1)"
+                    @onclick="() => SelectAsync(tab.Key)"
+                    @onkeydown="args => KeyDownAsync(args, position)">
+                @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" /> }
+                <span>@tab.Label</span>
+                <span class="tl-tab__count">@tab.Count</span>
+            </button>
+        }
     }
 </div>
 

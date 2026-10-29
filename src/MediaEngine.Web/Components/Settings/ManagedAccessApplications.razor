@@ -19,14 +19,14 @@
     }
     else
     {
-        <AppListPageHeader Title="Integrations" Subtitle="Connect other applications securely to the Library">
-            <Actions>
-                @if (!DeviceContext.IsPhone)
-                {
+        @if (!DeviceContext.IsPhone)
+        {
+            <AppListPageHeader>
+                <Actions>
                     <span @ref="_returnFocus" tabindex="-1"><AppButton Label="New integration" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></span>
-                }
-            </Actions>
-        </AppListPageHeader>
+                </Actions>
+            </AppListPageHeader>
+        }
         @if (DeviceContext.IsPhone)
         {
             <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
@@ -68,7 +68,7 @@
             }
             else
             {
-                <div class="access-cards" role="list">
+                <div class="app-card-grid access-cards" role="list">
                     @foreach (var app in visible.Skip((_page - 1) * PageSize).Take(PageSize))
                     {
                         <div role="listitem" @key="app.Id">@IntegrationCard(app)</div>
@@ -257,7 +257,7 @@
         return items;
     }
 
-    private const int PageSize = 12;
+    private const int PageSize = 24;
     private string? _search;
     private string _statusFilter = "all";
     private string _accessFilter = "all";

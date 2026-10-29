@@ -120,7 +120,7 @@ else
         .Select(plugin => new AppSelectOption(plugin.Id, plugin.Name))
         .ToList();
 
-    private const int PageSize = 12;
+    private const int PageSize = 24;
     private static readonly AppCountTab[] NoTabs = [];
 
     private bool _uploadOpen;
@@ -266,14 +266,14 @@ else
     }
 
     private RenderFragment PluginsListPage() => @<div class="settings-plugin-page">
-        <AppListPageHeader Title="Plugins" Subtitle="Manage extensions and integrations">
-            <Actions>
-                @if (!DeviceContext.IsMobile)
-                {
+        @if (!DeviceContext.IsMobile)
+        {
+            <AppListPageHeader>
+                <Actions>
                     <AppButton Label="Upload plugin" StartIcon="@AppMaterialIcons.Outlined.UploadFile" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => _uploadOpen = true)" />
-                }
-            </Actions>
-        </AppListPageHeader>
+                </Actions>
+            </AppListPageHeader>
+        }
         <PluginUploadDialog Open="@_uploadOpen" OnClosed="@(() => { _uploadOpen = false; })" OnUploaded="@UploadedAsync" />
         <AppSummaryStrip AriaLabel="Plugin summary" Items="@SummaryItems()" />
         @if (_plugins.Count == 0)
@@ -313,7 +313,7 @@ else
             }
             else
             {
-                <div class="settings-plugin-cards" role="list">
+                <div class="app-card-grid" role="list">
                     @foreach (var plugin in visible.Skip((_page - 1) * PageSize).Take(PageSize))
                     {
                         var focused = IsFocused(plugin);
@@ -367,7 +367,7 @@ else
                               LastActivity="@StateCardHealth.ActivityTime(run)"
                               Loading="@_healthLoading.Contains(plugin.Id)"
                               ShowFacts="@_accessOpen.Contains(plugin.Id)"
-                              StatusText="@(plugin.Enabled ? "Enabled" : "Disabled")"
+
                               Footer="@PluginFooter(plugin, state.Word, canChange)">
             <Badges>
                 @if (official)
@@ -382,11 +382,11 @@ else
             <Warning>
                 @if (WaitingFor(plugin) is { Count: > 0 } waiting)
                 {
-                    <AppWarningStrip Text="@($"Waiting for {string.Join(" and ", waiting)}")" />
+                    <AppWarningStrip Text="@($"Waiting for {string.Join(" and ", waiting)}")" ShortText="@($"Waiting for {string.Join(" and ", waiting)}")" />
                 }
                 else if (MissingToolText(plugin, state.Word) is { } missing)
                 {
-                    <AppWarningStrip Text="@missing" OnClick="@(() => Navigation.NavigateTo(SettingsNav.RouteFor(SettingsSection.Tools)))" />
+                    <AppWarningStrip Text="@missing" ShortText="@MissingToolShortText(plugin)" OnClick="@(() => Navigation.NavigateTo(SettingsNav.RouteFor(SettingsSection.Tools)))" />
                 }
             </Warning>
         </AppStateCard>;
@@ -404,6 +404,15 @@ else
             .Select(ToTitle)
             .ToList();
         return $"Requires {string.Join(" or ", names)}. Install it for full functionality.";
+    }
+
+    private static string MissingToolShortText(PluginSummaryResponse plugin)
+    {
+        var names = plugin.ToolRequirements
+            .Select(requirement => string.IsNullOrWhiteSpace(requirement.ExecutableName) ? requirement.Id : requirement.ExecutableName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(ToTitle);
+        return $"Requires {string.Join(" or ", names)}";
     }
 
     private RenderFragment? PluginFooter(PluginSummaryResponse plugin, HealthWord word, bool canChange)
