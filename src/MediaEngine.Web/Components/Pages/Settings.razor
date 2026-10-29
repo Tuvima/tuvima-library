@@ -333,7 +333,10 @@ else
     {
         get
         {
-            var location = SettingsNav.FindMenuLocation(_activeSection, _activeSubsection);
+            // A metadata source's own page belongs to Plugins in the menu, the heading and the breadcrumb.
+            var location = IsProviderDetailRoute
+                ? SettingsNav.FindMenuLocation(SettingsSection.Plugins)
+                : SettingsNav.FindMenuLocation(_activeSection, _activeSubsection);
             if (location is null)
             {
                 return null;

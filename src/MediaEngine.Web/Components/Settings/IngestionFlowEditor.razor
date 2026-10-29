@@ -6,6 +6,7 @@
 @inject DeviceContextService DeviceContext
 @inject IAppDialogService DialogService
 @inject ILogger<IngestionFlowEditor> Logger
+@implements IDisposable
 
 @* The Ingestion Flow (Provider settings spec P2): one card per media type listing the providers that run for it, in order,
    with a role. Reading is for everyone who can open Settings; editing is administrators on a computer only. Nothing applies
@@ -136,7 +137,16 @@
 
     private bool CanEdit => EditorDeviceRule.CanEdit(DeviceContext);
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        DeviceContext.OnChanged += DeviceChanged;
+        await LoadAsync();
+    }
+
+    // The device is detected after the first draw; Edit appears (or disappears) when it is.
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
 
     private async Task LoadAsync()
     {
