@@ -541,7 +541,7 @@ public sealed class UserDeletionTests
         {
             File.CreateSymbolicLink(linkedFile, precious);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (OperatingSystem.IsWindows() && ex is IOException or UnauthorizedAccessException)
         {
             // Windows without the symbolic-link privilege cannot make the link this check needs.
             return;
@@ -564,7 +564,7 @@ public sealed class UserDeletionTests
         {
             Directory.CreateSymbolicLink(Path.Combine(avatars, linkedProfile.ToString("D")), elsewhere);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (OperatingSystem.IsWindows() && ex is IOException or UnauthorizedAccessException)
         {
             return;
         }
