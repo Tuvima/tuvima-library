@@ -113,7 +113,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     public void SimpleModeHasNoViewAreaNoAccessColumnNoVaultAndRowsThatOpenNothing()
     {
         AddMoviesLibrary();
-        _configuration.Libraries.Add(new() { Id = VaultId, Name = "Private movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"], Access = "vault", Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
+        _configuration.Libraries.Add(new() { Id = VaultId, Name = "Private movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"], IsVault = true, Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
         var cut = RenderStage(hasLibraries: true);
 
         Assert.Equal(["Watch", "Listen", "Read"], cut.FindAll("[role=tab]").Select(Text).ToArray());

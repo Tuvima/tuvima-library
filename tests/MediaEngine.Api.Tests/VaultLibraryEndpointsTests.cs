@@ -87,7 +87,7 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
                 new LibraryFolderConfig
                 {
                     Id = Guid.NewGuid().ToString("D"), Name = "Movies", Category = "Movies", Kind = LibraryKinds.Catalogued, KindKey = "movies",
-                    Area = "watch", MediaTypes = ["Movies"], Access = LibraryAccessLevels.Standard,
+                    Area = "watch", MediaTypes = ["Movies"], IsVault = false,
                     Sources = [new LibrarySourceConfig { Id = Guid.NewGuid().ToString("D"), Path = _ordinaryMovies, ManagementMode = "existing_library", AccessMode = "read_only" }],
                 },
             ],
@@ -278,7 +278,7 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         Assert.Equal("local_only", saved.MetadataPolicy);
         Assert.Equal(_privateMovies, Assert.Single(saved.Sources).Path);
         Assert.Equal("read_only", saved.Sources[0].AccessMode);
-        Assert.Equal(LibraryAccessLevels.Vault, saved.Access);
+        Assert.True(saved.IsVault);
         Assert.False(saved.OrganizationPolicy.WriteTags);
         Assert.Equal(LibraryOrganizationModes.KeepOriginalNames, saved.OrganizationPolicy.Mode);
         Assert.Equal(2, _configuration.LoadLibraries().Libraries.Count);
@@ -340,7 +340,7 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
         var result = (await second.Content.ReadFromJsonAsync<VaultLibraryActionResultDto>())!;
         var saved = _configuration.LoadLibraries().Libraries.Single(item => item.Id == result.LibraryId);
-        Assert.Equal(LibraryAccessLevels.Vault, saved.Access);
+        Assert.True(saved.IsVault);
         Assert.Equal(2, saved.Sources.Count);
         Assert.Single(await _vaultLibraries.GetIdsAsync());
         Assert.Equal(2, _configuration.LoadLibraries().Libraries.Count);
@@ -368,7 +368,7 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         _nsfw.Unlocked = true;
         var movies = await MakeAsync("movies", "Private Movies", _privateMovies);
         var music = await MakeAsync("music", "Private Music", _privateMusic);
-        var ordinary = _configuration.LoadLibraries().Libraries.First(item => item.Access == LibraryAccessLevels.Standard).Id;
+        var ordinary = _configuration.LoadLibraries().Libraries.First(item => !item.IsVault).Id;
 
         var on = await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{movies}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true));
 
@@ -384,7 +384,7 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         // An ordinary library, and an id that names nothing, are both "not found": the switch is never a way to touch other libraries.
         Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{ordinary}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(HttpMethod.Put, $"/settings/vault-libraries/{Guid.NewGuid():D}/online-lookup", "admin", new SetVaultOnlineLookupRequest(true))).StatusCode);
-        Assert.Equal(LibraryAccessLevels.Standard, _configuration.LoadLibraries().Libraries.Single(item => item.Id == ordinary).Access);
+        Assert.False(_configuration.LoadLibraries().Libraries.Single(item => item.Id == ordinary).IsVault);
     }
 
     [Fact]
@@ -413,7 +413,7 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         var managed = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", _managedFolder, Managed: true));
 
         Assert.Equal(HttpStatusCode.OK, managed.StatusCode);
-        var entry = _configuration.LoadLibraries().Libraries.Single(item => item.KindKey == "movies" && item.Access == LibraryAccessLevels.Vault);
+        var entry = _configuration.LoadLibraries().Libraries.Single(item => item.KindKey == "movies" && item.IsVault);
         var readOnly = entry.Sources.Single(source => source.Path == _privateMovies);
         var writable = entry.Sources.Single(source => source.Path == _managedFolder);
         Assert.False(readOnly.AllowsFileMutation);
@@ -479,10 +479,6 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         Assert.DoesNotContain(visible.Libraries, library => library.Id == madeId);
         Assert.DoesNotContain(visible.Libraries.SelectMany(library => library.Sources), source => source.Path == _privateMovies);
 
-        // The Selected-profiles catalogue, which every profile's visibility is worked out from, never lists it.
-        var selected = await new ConfigurationLibraryAccessCatalog(_configuration).GetSelectedLibraryIdsAsync();
-        Assert.DoesNotContain(Guid.Parse(madeId), selected);
-
         // And the visibility rule itself says no to everyone, administrators included: the Vault has its own doors.
         Assert.False(LibraryVisibilityRule.MaySee(isAdministrator: true, isVault: true, hasArea: true, isHidden: false));
         Assert.False(LibraryVisibilityRule.MaySee(isAdministrator: false, isVault: true, hasArea: true, isHidden: false));
@@ -498,7 +494,7 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
 
         VaultLibrarySettings.KeepVault(current, proposed, vaultIds);
 
-        Assert.Contains(proposed.Libraries, library => library.Id == madeId && library.Access == LibraryAccessLevels.Vault);
+        Assert.Contains(proposed.Libraries, library => library.Id == madeId && library.IsVault);
     }
 
     [Fact]

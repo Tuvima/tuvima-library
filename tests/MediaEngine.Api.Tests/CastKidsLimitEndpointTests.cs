@@ -118,8 +118,7 @@ public sealed class CastKidsLimitEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IAuthorizationAuditWriter, DiscardingAuditWriter>();
         builder.Services.AddSingleton<IGrantAdminUnlockService, UnusedUnlockService>();
         builder.Services.AddSingleton<IVaultLibraryRepository>(new VaultLibraryRepository(_database));
-        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryProfileGrantRepository>(new MediaEngine.Storage.LibraryProfileGrantRepository(_database));
-        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryAccessCatalog>(new FixedLibraryAccessCatalog());
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IHouseholdLibraryAccessRepository>(new MediaEngine.Storage.HouseholdLibraryAccessRepository(_database));
         builder.Services.AddSingleton<LibraryVisibilityRule>();
         builder.Services.AddSingleton<IAccountAccessDecisionService, AccountAccessDecisionService>();
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AuthorizationEvaluator>();

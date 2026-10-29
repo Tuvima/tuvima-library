@@ -69,7 +69,7 @@ public static class LibraryKindLookupPolicy
             // A Vault-protected library asks no outside provider for anything unless an administrator switched "Look up details online" on for it
             // and its content type looks details up at all (Vault sections D34). The adult kind has the Vault's own source (Stash-box) and YouTube is
             // never asked about a Vault item, so those stay local; a plain kind stays local too. The stored choice is the library's metadata policy.
-            _ when string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
+            _ when library.IsVault
                 => VaultLookup(library, mode, kinds),
             LibraryLookupMode.Plain => new EffectiveLibraryLookup(mode, LocalPolicy(library.MetadataPolicy), YoutubeLookup: false),
             LibraryLookupMode.YouTube => new EffectiveLibraryLookup(mode, LocalPolicy(library.MetadataPolicy), YoutubeLookup: true),

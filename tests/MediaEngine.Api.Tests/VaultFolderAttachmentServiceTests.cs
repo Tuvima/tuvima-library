@@ -340,7 +340,7 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
             Id = Guid.NewGuid().ToString("D"),
             Name = "Private Movies",
             KindKey = "movies",
-            Access = LibraryAccessLevels.Vault,
+            IsVault = true,
         };
         current.Libraries.Add(orphan);
         var none = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -349,10 +349,10 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
 
         // A save that sends back an entry saying vault cannot add one, and the existing one is kept as it was.
         var sent = new LibrariesConfiguration { StorageLocations = current.StorageLocations, Libraries = [.. current.Libraries.Where(library => library.Id == MoviesLibraryId)] };
-        sent.Libraries.Add(new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Sneaky", KindKey = "movies", Access = LibraryAccessLevels.Vault });
+        sent.Libraries.Add(new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Sneaky", KindKey = "movies", IsVault = true });
         VaultLibrarySettings.KeepVault(current, sent, none);
         Assert.Equal(2, sent.Libraries.Count);
-        Assert.Same(orphan, Assert.Single(sent.Libraries, library => library.Access == LibraryAccessLevels.Vault));
+        Assert.Same(orphan, Assert.Single(sent.Libraries, library => library.IsVault));
     }
 
     // ── Setup ───────────────────────────────────────────────────────────────────────────────────

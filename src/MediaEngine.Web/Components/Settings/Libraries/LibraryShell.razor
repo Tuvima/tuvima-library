@@ -15,7 +15,7 @@
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 
 @* One library's page (Library pages D7, D17, D18, D19): its content type, access, counts and status, the header actions, and the tab
-   strip (Folders, Access, File handling, Activity, plus Lookup for a kind with lookup settings). The Settings frame above carries the
+   strip (Folders, File handling, Activity, plus Lookup for a kind with lookup settings). The Settings frame above carries the
    breadcrumb Libraries > area > name and the library's name as the title. Folders embeds the existing folders panel for this one
    library; the other tabs are filled in by the next steps. The selected tab lives in the address (?tab=).
    Scan now scans this library only. Add folder adds a folder to THIS library and comes straight back to its table with the new row pointed
@@ -116,10 +116,6 @@
                                              OnMoveOutOfVault="@(CanOfferMoveOut ? EventCallback.Factory.Create<LibrarySourceDto>(this, MoveOutOfVaultAsync) : default)"
                                              Changed="ChangedAsync" />
                     }
-                    else if (tab.Slug == AccessTab)
-                    {
-                        <LibraryAccessTab Library="@Library" ReadOnly="@ReadOnly" Changed="ChangedAsync" />
-                    }
                     else if (tab.Slug == FileHandlingTab)
                     {
                         <LibraryFileHandlingTab Library="@Library"
@@ -215,7 +211,6 @@
             var tabs = new List<TabDef>
             {
                 new(FoldersTab, "Folders"),
-                new(AccessTab, "Access"),
                 new(FileHandlingTab, "File handling"),
                 new(ActivityTab, "Activity"),
             };

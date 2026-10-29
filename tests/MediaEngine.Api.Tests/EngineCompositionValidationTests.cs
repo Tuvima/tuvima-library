@@ -153,7 +153,6 @@ public sealed class EngineCompositionValidationTests
         services.AddScoped<ApplicationAdministrationService>();
         services.AddScoped<IntegrationHealthService>();
         services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
-        services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryAccessCatalog, ConfigurationLibraryAccessCatalog>();
         services.AddSingleton<LibraryVisibilityRule>();
         services.AddScoped<IAccountAccessDecisionService, AccountAccessDecisionService>();
         services.AddScoped<ISelfServiceAuthorizationService>(provider =>

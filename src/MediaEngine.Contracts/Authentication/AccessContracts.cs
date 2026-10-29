@@ -10,14 +10,17 @@ public sealed record AccountDeletionProfileDto(
 /// <summary>
 /// One library an administrator can hide from a person. <c>area</c> is <c>read</c>, <c>watch</c>, <c>listen</c> or <c>view</c>.
 /// <c>hidden_from_you</c> is true only in a household administrator's view, when the library is hidden from the administrator's own
-/// profile (they can hide it from others but never show it to anyone). A Vault library is never listed.
+/// profile (they can hide it from others but never show it to anyone). <c>hidden_for_household</c> is true only in a household
+/// administrator's view, when the library is hidden for the administrator's household: it can't be ticked for anyone in it (library access
+/// D2). A Vault library is never listed.
 /// </summary>
 public sealed record AccessLibraryOptionDto(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("display_name")] string DisplayName,
     [property: JsonPropertyName("category")] string? Category,
     [property: JsonPropertyName("area")] string Area,
-    [property: JsonPropertyName("hidden_from_you")] bool HiddenFromYou = false);
+    [property: JsonPropertyName("hidden_from_you")] bool HiddenFromYou = false,
+    [property: JsonPropertyName("hidden_for_household")] bool HiddenForHousehold = false);
 
 public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("id")] Guid Id,
@@ -35,7 +38,8 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("feature_ids")] IReadOnlyList<string>? FeatureIds = null,
     [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid>? HiddenLibraryIds = null,
     [property: JsonPropertyName("user")] ManagedProfileUserDto? User = null,
-    [property: JsonPropertyName("access_version")] long AccessVersion = 0);
+    [property: JsonPropertyName("access_version")] long AccessVersion = 0,
+    [property: JsonPropertyName("household_hidden_library_ids")] IReadOnlyList<Guid>? HouseholdHiddenLibraryIds = null);
 
 /// <summary>
 /// Adds a person to a household. A child person is a restricted profile; the PIN is optional.

@@ -124,9 +124,9 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         }
 
         var library = Clone(held) ?? NewLibrary(type, type.AllowsMultiple || plan.CreateNewLibrary ? plan.NewLibraryName : null);
-        if (plan.CreateNewLibrary && !string.IsNullOrWhiteSpace(plan.Access))
+        if (plan.CreateNewLibrary && string.Equals(plan.Access, LibraryAccessChoices.Vault, StringComparison.OrdinalIgnoreCase))
         {
-            library.Access = plan.Access;
+            library.IsVault = true;
         }
 
         ApplyKindLookup(library, type);

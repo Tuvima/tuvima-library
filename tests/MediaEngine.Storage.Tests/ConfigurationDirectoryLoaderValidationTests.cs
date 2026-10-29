@@ -385,7 +385,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         using var temp = TempConfig.Create();
         new ConfigurationDirectoryLoader(temp.Path).SaveLibraries(CreateValidCataloguedLibrary());
         var path = System.IO.Path.Combine(temp.Path, "libraries.json");
-        File.WriteAllText(path, File.ReadAllText(path).Replace("\"9.0\"", "\"8.0\"", StringComparison.Ordinal));
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\"10.0\"", "\"8.0\"", StringComparison.Ordinal));
         File.Delete(path + ".bak");
 
         var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(temp.Path).LoadLibraries());
@@ -513,7 +513,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     {
         var config = CreateValidCataloguedLibrary();
         var vault = OtherVideosLibrary(1, "Private Movies", P(Drive, "media/movies/home"));
-        vault.Access = LibraryAccessLevels.Vault;
+        vault.IsVault = true;
         config.Libraries.Add(vault);
 
         var errors = JsonConfigValidator.Validate(config, "libraries.json");
@@ -537,26 +537,39 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Theory]
-    [InlineData(LibraryAccessLevels.Standard)]
-    [InlineData(LibraryAccessLevels.Selected)]
-    [InlineData(LibraryAccessLevels.Vault)]
-    public void Validator_AcceptsEachLibraryAccessValue(string access)
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Validator_AcceptsAnOrdinaryAndAVaultLibrary(bool vault)
     {
         var config = CreateValidCataloguedLibrary();
-        config.Libraries[0].Access = access;
+        config.Libraries[0].IsVault = vault;
 
         Assert.Empty(JsonConfigValidator.Validate(config, "libraries.json"));
     }
 
     [Fact]
-    public void Validator_RefusesAnUnknownLibraryAccessValue()
+    public void Validator_RefusesALibrariesFileThatStillCarriesTheOldAccessValue()
     {
         var config = CreateValidCataloguedLibrary();
-        config.Libraries[0].Access = "everyone";
+        config.Libraries[0].UnmappedProperties = new Dictionary<string, System.Text.Json.JsonElement>
+        {
+            ["access"] = System.Text.Json.JsonDocument.Parse("\"selected\"").RootElement.Clone(),
+        };
 
         var errors = JsonConfigValidator.Validate(config, "libraries.json");
 
-        Assert.Contains(errors, error => error.Contains("libraries[0].access must be one of standard, selected, vault"));
+        Assert.NotEmpty(errors);
+    }
+
+    [Fact]
+    public void Validator_RefusesAnOlderLibrariesFileFormatWithThePlainMessage()
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.SchemaVersion = "9.0";
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("older 9.0 format") && error.Contains("not converted"));
     }
 
     [Fact]
@@ -594,12 +607,11 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
-    public void SaveLibraries_RoundTripsTheAccessFileHandlingScanAndOverrideFields()
+    public void SaveLibraries_RoundTripsTheFileHandlingScanAndOverrideFields()
     {
         using var temp = TempConfig.Create();
         var loader = new ConfigurationDirectoryLoader(temp.Path);
         var config = CreateValidCataloguedLibrary();
-        config.Libraries[0].Access = LibraryAccessLevels.Selected;
         config.Libraries[0].FileHandling.DuplicatePolicy = LibraryDuplicatePolicies.KeepBoth;
         config.Libraries[0].Sources[0].ScanEnabled = false;
         config.Libraries[0].Sources[0].FileHandlingOverride = new LibrarySourceFileHandlingOverride
@@ -611,7 +623,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         loader.SaveLibraries(config);
         var library = loader.LoadLibraries().Libraries[0];
 
-        Assert.Equal(LibraryAccessLevels.Selected, library.Access);
         Assert.Equal(LibraryDuplicatePolicies.KeepBoth, library.FileHandling.DuplicatePolicy);
         Assert.False(library.Sources[0].ScanEnabled);
         Assert.Equal(LibraryDuplicatePolicies.KeepOne, library.Sources[0].FileHandlingOverride!.DuplicatePolicy);
@@ -781,7 +792,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             Assert.DoesNotContain("\"role\"", json, StringComparison.Ordinal);
             Assert.DoesNotContain("preserve_originals", json, StringComparison.Ordinal);
             var parsed = System.Text.Json.JsonSerializer.Deserialize<LibrariesConfiguration>(json)!;
-            Assert.Equal("9.0", parsed.SchemaVersion);
+            Assert.Equal("10.0", parsed.SchemaVersion);
             Assert.Equal(LibraryDuplicatePolicies.KeepOne, parsed.FileHandling.DuplicatePolicy);
             Assert.NotEmpty(parsed.Libraries);
             Assert.All(parsed.Libraries, library => Assert.NotNull(library.PrimaryDestination));

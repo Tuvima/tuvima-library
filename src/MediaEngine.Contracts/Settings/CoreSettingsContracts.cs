@@ -164,9 +164,9 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("recycle_bin")]
     public bool RecycleBin { get; set; }
 
-    /// <summary>Who may see this library: <c>standard</c> (default), <c>selected</c> or <c>vault</c>.</summary>
-    [JsonPropertyName("access")]
-    public string Access { get; set; } = "standard";
+    /// <summary>True for a Vault-protected library (the Vault keeps its own access). Every other library is shown or hidden per household and per person.</summary>
+    [JsonPropertyName("vault")]
+    public bool IsVault { get; set; }
 
     /// <summary>This library's own file handling; anything left out follows the server-wide default.</summary>
     [JsonPropertyName("file_handling")]
@@ -314,7 +314,7 @@ public sealed class FileHandlingDto
 public sealed class UpdateLibrariesRequest
 {
     [JsonPropertyName("schema_version")]
-    public string SchemaVersion { get; init; } = "9.0";
+    public string SchemaVersion { get; init; } = "10.0";
 
     [JsonPropertyName("storage_locations")]
     public List<ServerStorageLocationDto> StorageLocations { get; init; } = [];
@@ -335,7 +335,7 @@ public sealed class UpdateLibrariesRequest
 public sealed class LibrariesConfigurationDto
 {
     [JsonPropertyName("schema_version")]
-    public string SchemaVersion { get; init; } = "9.0";
+    public string SchemaVersion { get; init; } = "10.0";
 
     [JsonPropertyName("storage_locations")]
     public List<ServerStorageLocationDto> StorageLocations { get; init; } = [];

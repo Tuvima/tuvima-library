@@ -246,28 +246,26 @@ public sealed class LibraryKindsTests
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
         var vault = Library("movies", "Movies", "Movies", LibraryAreas.Watch);
-        vault.Access = LibraryAccessLevels.Vault;
+        vault.IsVault = true;
         var configuration = Libraries(Library("movies", "Movies", "Movies", LibraryAreas.Watch), vault);
 
         Assert.Empty(LibraryKindRules.LibraryProblems(configuration, kinds));
     }
 
     [Theory]
-    [InlineData("standard", false)]
-    [InlineData("", false)]
-    [InlineData("selected", true)]
-    [InlineData("vault", true)]
-    public void AnAdultContentLibraryIsNeverOpenToEveryProfile(string access, bool accepted)
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void AnAdultContentLibraryExistsOnlyInTheVault(bool vault, bool accepted)
     {
         var library = Library("adult_content", "Videos", "Adult content", LibraryAreas.Watch);
-        library.Access = access;
+        library.IsVault = vault;
 
         var problems = LibraryKindRules.LibraryProblems(Libraries(library), LibraryKindsConfiguration.BuiltIn());
 
         Assert.Equal(accepted, problems.Count == 0);
         if (!accepted)
         {
-            Assert.Contains("must be \"selected\" or \"vault\"", Assert.Single(problems), StringComparison.Ordinal);
+            Assert.Contains(".vault must be true", Assert.Single(problems), StringComparison.Ordinal);
         }
     }
 
@@ -410,7 +408,7 @@ public sealed class LibraryKindsTests
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
         var vault = Library(kindKey, mediaType);
-        vault.Access = LibraryAccessLevels.Vault;
+        vault.IsVault = true;
         vault.MetadataPolicy = LibraryMetadataPolicies.Enriched;
         vault.YoutubeLookup = true;
 
@@ -428,7 +426,7 @@ public sealed class LibraryKindsTests
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
         var vault = Library(kindKey, mediaType);
-        vault.Access = LibraryAccessLevels.Vault;
+        vault.IsVault = true;
         vault.MetadataPolicy = LibraryMetadataPolicies.LocalOnly;
 
         Assert.True(LibraryKindLookupPolicy.BypassesExternalIdentity(vault, kinds));
@@ -444,7 +442,7 @@ public sealed class LibraryKindsTests
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
         var vault = Library(kindKey, mediaType);
-        vault.Access = LibraryAccessLevels.Vault;
+        vault.IsVault = true;
         vault.MetadataPolicy = LibraryMetadataPolicies.Enriched;
         vault.YoutubeLookup = true;
 

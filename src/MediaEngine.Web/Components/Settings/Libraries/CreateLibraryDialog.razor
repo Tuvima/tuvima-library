@@ -55,28 +55,15 @@
                 }
             </section>
 
-            @if (!Simple)
+            @if (!Simple && ShowVaultOption)
             {
             <section class="create-library__section">
                 <h3 class="create-library__heading">Access <AppInfoTip Text="@AccessTipText" Label="About access" /></h3>
-                <LibraryAccessOptions Value="@_access"
-                                      ValueChanged="ChooseAccess"
-                                      ShowVault="ShowVaultOption"
-                                      VaultEnabled="@(VaultChoice.Enabled)"
-                                      VaultDisabledReason="@VaultChoice.Reason"
-                                      Disabled="@_saving" />
-                @if (_access == LibraryAccessChoices.Selected)
-                {
-                    <AppAlert Tone="AppUiTone.Warning" Dense="true">Nobody but administrators will see this library until you tick profiles on its Access tab.</AppAlert>
-                }
-                @if (IsAdultContent && ShowVaultOption)
-                {
-                    <AppSwitchRow Label="Protect with the Vault"
-                                  Description="@(_access == LibraryAccessChoices.Vault ? "Kept in the Vault, away from everyone who can't open it." : "Stays a Watch library that only administrators see until you choose profiles on its Access tab.")"
-                                  Value="@(_access == LibraryAccessChoices.Vault)"
-                                  Disabled="@(_saving || !VaultChoice.Enabled)"
-                                  ValueChanged="SetVaultTick" />
-                }
+                <AppSwitchRow Label="Vault-protected"
+                              Description="@(VaultChoice.Enabled ? "Kept in the Vault, for the people you give Vault access." : (VaultChoice.Reason ?? "Not available here."))"
+                              Value="@(_access == LibraryAccessChoices.Vault)"
+                              Disabled="@(_saving || !VaultChoice.Enabled)"
+                              ValueChanged="SetVaultTick" />
             </section>
             }
 
@@ -184,9 +171,7 @@
     // administrator with Vault mode off included, the dialog holds no Vault word at all, so nothing here can tell them the Vault exists.
     private bool ShowVaultOption => !Simple && LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false);
 
-    private string AccessTipText => ShowVaultOption
-        ? "Standard: everyone who can use this area. Selected profiles: only the profiles you choose. Vault-protected: kept in the Vault, and it cannot be changed later."
-        : "Standard: everyone who can use this area. Selected profiles: only the profiles you choose.";
+    private string AccessTipText => "Vault-protected: kept in the Vault, and it cannot be changed later. Who sees any other library is set on each household and each person.";
 
     private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Groups.Where(group => OfferedAreas.Contains(group.Key, StringComparer.Ordinal))];
 
@@ -227,7 +212,7 @@
     {
         get
         {
-            if (Kind is { } kind && Configuration.Libraries.Any(library => string.Equals(library.Access, LibraryAccessChoices.Vault, StringComparison.OrdinalIgnoreCase)
+            if (Kind is { } kind && Configuration.Libraries.Any(library => library.IsVault
                     && string.Equals(library.KindKey, kind.Key, StringComparison.Ordinal)))
             {
                 return (false, $"You already have a Vault-protected {kind.Label} library. Add a folder to it instead.");
@@ -255,9 +240,9 @@
         string.Equals(library.Area, _area, StringComparison.OrdinalIgnoreCase)
         && string.Equals(library.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase));
 
-    private bool AccessChoosable => _access == LibraryAccessChoices.Standard
-        || (_access == LibraryAccessChoices.Selected && LibraryAccessOptions.SelectedProfilesAvailable)
-        || (_access == LibraryAccessChoices.Vault && LibraryAccessOptions.VaultAvailable && ShowVaultOption && VaultChoice.Enabled);
+    // Adult content exists only in the Vault (library access D6), so it cannot be made as a standard library.
+    private bool AccessChoosable => (_access == LibraryAccessChoices.Standard && !IsAdultContent)
+        || (_access == LibraryAccessChoices.Vault && ShowVaultOption && VaultChoice.Enabled);
 
     private bool FolderUsable => _folder is { CanSelect: true, Exists: true, HasRead: true };
 
@@ -311,15 +296,15 @@
         return Task.CompletedTask;
     }
 
-    // Adult content comes with the Vault tick on (Library pages D12). Where the person may not choose the Vault, or after they untick it, it starts as
-    // Selected profiles so it never opens to every profile by accident (D21). Moving to another type puts back what the type had set.
+    // Adult content comes with the Vault tick on (library access D6). Where the person may not choose the Vault it cannot be created at all.
+    // Moving to another type puts back what the type had set.
     private void FollowKindAccess()
     {
         if (IsAdultContent)
         {
             if (!_accessFollowsKind || _access == LibraryAccessChoices.Standard)
             {
-                _access = ShowVaultOption && VaultChoice.Enabled ? LibraryAccessChoices.Vault : LibraryAccessChoices.Selected;
+                _access = ShowVaultOption && VaultChoice.Enabled ? LibraryAccessChoices.Vault : LibraryAccessChoices.Standard;
                 _accessFollowsKind = true;
             }
 
@@ -346,7 +331,7 @@
         PrefillName();
     }
 
-    private void SetVaultTick(bool ticked) => ChooseAccess(ticked ? LibraryAccessChoices.Vault : LibraryAccessChoices.Selected);
+    private void SetVaultTick(bool ticked) => ChooseAccess(ticked ? LibraryAccessChoices.Vault : LibraryAccessChoices.Standard);
 
     // The folder is checked for the content type, so a new type checks it again (the picker is rebuilt on the folder already chosen).
     private void RestartPicker()
