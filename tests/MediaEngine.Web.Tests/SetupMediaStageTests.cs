@@ -129,6 +129,20 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.Equal(before, navigation.Uri);
     }
 
+    // Choosing Watch, Listen or Read in setup changes the table in place; leaving the wizard would abandon the first run.
+    [Fact]
+    public void ChoosingAnotherAreaInSetupStaysInTheWizard()
+    {
+        var cut = RenderStage();
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var before = navigation.Uri;
+
+        cut.FindAll("[role=tab]").Single(tab => Text(tab) == "Listen").Click();
+
+        Assert.Equal(before, navigation.Uri);
+        Assert.Equal("true", cut.FindAll("[role=tab]").Single(tab => Text(tab) == "Listen").GetAttribute("aria-selected"));
+    }
+
     [Fact]
     public void SimpleModeSaysPhotosAndTheImportFolderComeAfterSetup()
     {
