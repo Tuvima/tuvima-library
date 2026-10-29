@@ -1423,62 +1423,6 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UpdateBackupSettings
   KeepLast: System.Int32? | nullability=nullable | accessors=get,set
   EnabledDestinations: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,set
 
-MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportHouseholdDto
-  Id: System.Guid | nullability=not-null | accessors=get,init
-  Name: System.String | nullability=not-null | accessors=get,init
-  Profiles: System.Int32 | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportPreviewDto
-  OperationId: System.Guid | nullability=not-null | accessors=get,init
-  Scope: System.String | nullability=not-null | accessors=get,init
-  HouseholdName: System.String | nullability=nullable | accessors=get,init
-  Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Backups.UserImportProfileDto> | nullability=not-null | accessors=get,init
-  SignIns: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Backups.UserImportSignInDto> | nullability=not-null | accessors=get,init
-  Households: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Backups.UserImportHouseholdDto> | nullability=not-null | accessors=get,init
-  CanAddHousehold: System.Boolean | nullability=not-null | accessors=get,init
-  AddHouseholdBlockedReason: System.String | nullability=nullable | accessors=get,init
-  MaxProfilesPerHousehold: System.Int32 | nullability=not-null | accessors=get,init
-  PersonalItems: System.Int32 | nullability=not-null | accessors=get,init
-  BlockedReason: System.String | nullability=nullable | accessors=get,init
-  TwoStepToSetUp: System.Boolean | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportProfileDto
-  Name: System.String | nullability=not-null | accessors=get,init
-  Role: System.String | nullability=not-null | accessors=get,init
-  ContentLimit: System.String | nullability=nullable | accessors=get,init
-  ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
-  Id: System.Guid | nullability=not-null | accessors=get,init
-  SignInId: System.Guid? | nullability=nullable | accessors=get,init
-  Access: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportRequestDto
-  TargetHouseholdId: System.Guid? | nullability=nullable | accessors=get,init
-  NewHouseholdName: System.String | nullability=nullable | accessors=get,init
-  NewHouseholdAdministratorProfileId: System.Guid? | nullability=nullable | accessors=get,init
-  KeepAccess: System.Boolean | nullability=not-null | accessors=get,init
-  Emails: System.Collections.Generic.IReadOnlyDictionary<System.Guid, System.String> | nullability=nullable | accessors=get,init
-  WithoutSignIn: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportResultDto
-  HouseholdId: System.Guid | nullability=not-null | accessors=get,init
-  HouseholdName: System.String | nullability=not-null | accessors=get,init
-  CreatedHousehold: System.Boolean | nullability=not-null | accessors=get,init
-  Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Backups.UserImportedProfileDto> | nullability=not-null | accessors=get,init
-  WaitingItems: System.Int32 | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportSignInDto
-  Id: System.Guid | nullability=not-null | accessors=get,init
-  Email: System.String | nullability=not-null | accessors=get,init
-  ProfileId: System.Guid | nullability=not-null | accessors=get,init
-  EmailInUse: System.Boolean | nullability=not-null | accessors=get,init
-  Problem: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportedProfileDto
-  Id: System.Guid | nullability=not-null | accessors=get,init
-  Name: System.String | nullability=not-null | accessors=get,init
-  SignInEmail: System.String | nullability=nullable | accessors=get,init
-  IsHouseholdAdministrator: System.Boolean | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.UniverseEnrichmentTriggerResponse
   triggered: System.Boolean | nullability=not-null | accessors=get,init
   message: System.String | nullability=not-null | accessors=get,init

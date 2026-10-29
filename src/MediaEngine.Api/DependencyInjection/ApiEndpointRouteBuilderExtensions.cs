@@ -22,7 +22,6 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapSetupEndpoints();
         app.MapAuthenticationEndpoints();
         app.MapAccountEndpoints();
-        app.MapUserTransferEndpoints();
         app.MapApplicationEndpoints();
         app.MapApplicationWebhookEndpoints();
         app.MapClientAuthorizationEndpoints();

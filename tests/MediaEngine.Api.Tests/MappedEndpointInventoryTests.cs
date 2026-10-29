@@ -356,36 +356,6 @@ public sealed class MappedEndpointInventoryTests
     }
 
     [Fact]
-    public async Task UserTransfer_IsInPersonServerAdministratorOnly_OnEveryExportAndImportRoute()
-    {
-        await using var app = BuildEndpointOnlyApplication();
-        var inventory = EndpointInventory.From(app);
-
-        // Only the server administrator exports or imports anything (users spec D16): their own profile, anyone else's sign-in material
-        // and a whole household alike, in person at the Dashboard. No paired app, no service application, no household administrator.
-        foreach (var (pattern, name) in new[]
-        {
-            ("/access/me/export", "ExportMyData"),
-            ("/access/accounts/{accountId:guid}/export", "ExportAccount"),
-            ("/access/households/{householdId:guid}/export", "ExportHousehold"),
-            ("/access/accounts/import/inspect", "InspectUserImport"),
-            ("/access/accounts/import/{operationId:guid}", "ImportUser"),
-        })
-        {
-            var route = inventory.Require(pattern, "POST");
-            Assert.Equal(name, route.Name);
-            Assert.False(route.AllowsAnonymousEndpoint);
-            var requirement = Assert.Single(Assert.Single(route.Policies).Requirements.OfType<EffectiveAdministratorRequirement>());
-            Assert.True(requirement.HumanOnly);
-            Assert.True(requirement.SurfaceUnlock);
-            Assert.False(requirement.AllowHouseholdAdministrator);
-        }
-
-        // The route takes no account from the request: it exports the signed-in server administrator's own profile.
-        Assert.DoesNotContain("{", inventory.Require("/access/me/export", "POST").Pattern, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task LibraryItemMoves_AreAuthorisedLikeTheOtherStructuralEdits_AndTheOldRoutesAreGone()
     {
         await using var app = BuildEndpointOnlyApplication();

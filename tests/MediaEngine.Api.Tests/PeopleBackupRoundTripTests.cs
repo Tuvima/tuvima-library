@@ -107,30 +107,6 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
         RestoreArchiveValidator.Validate(path);
     }
 
-    [Fact]
-    public void AUserFileMadeWithAnEarlierDataStructure_IsRefusedWithOneSentence()
-    {
-        var (_, dbPath) = NewLibrary("userfile");
-        using var database = BackupTestKit.OpenStore(dbPath);
-        var people = new People();
-        people.Seed(database);
-        var export = new PersonalStateBackupRepository(database, BackupTestKit.Codec()).Export(BackupScope.ForAccount(people.MomUser));
-        using var stream = new MemoryStream();
-        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            BackupArchiveFormat.Write(archive, export);
-            BackupManifestWriter.WriteUser(archive.CreateEntry("manifest.json"), export.Contents, "profile", 1, false);
-        }
-
-        var current = Path.Combine(_root, "current.zip");
-        File.WriteAllBytes(current, stream.ToArray());
-        RestoreArchiveValidator.ValidateUserExport(current);
-
-        var older = Path.Combine(_root, "older.zip");
-        File.WriteAllBytes(older, WithManifestEpoch(stream.ToArray(), "guid-blob-v12-account-held-access"));
-        Assert.Equal(RestoreArchiveValidator.UserExportOlderVersionMessage, Assert.Throws<InvalidDataException>(() => RestoreArchiveValidator.ValidateUserExport(older)).Message);
-    }
-
     private static List<string> FeaturesOf(Microsoft.Data.Sqlite.SqliteConnection connection, Guid profile) =>
         connection.Query<string>("SELECT feature_id FROM profile_feature_grants WHERE profile_id = @id ORDER BY feature_id", new { id = GuidSql.ToBlob(profile) }).ToList();
 
