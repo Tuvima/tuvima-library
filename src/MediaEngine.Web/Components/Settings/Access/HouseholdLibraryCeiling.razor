@@ -5,12 +5,14 @@
    their area (Watch, Listen, Read, View); the Vault is never listed. Ticks are kept here until Save changes; Discard puts them back. A saved
    change is confirmed in the section itself (no toast). The page that hosts it does the save, so its administrator-PIN prompt applies. *@
 <div class="household-ceiling" data-household-ceiling="@Household.Id">
-    <AppButton Class="household-ceiling__toggle" ButtonStyle="AppButtonStyle.Text" Label="Libraries this household can use"
-               StartIcon="@AppMaterialIcons.Outlined.LibraryBooks"
-               EndIcon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
-               OnClick="Toggle" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_bodyId" />
-    <AppInfoTip Label="Libraries this household can use"
-                Text="Untick a library to hide it from everyone in this household. A household administrator can hide more for their people, but can't show what you hide here. New libraries are ticked. The Vault is set per person." />
+    <span class="household-ceiling__head">
+        <AppButton Class="household-ceiling__toggle" ButtonStyle="AppButtonStyle.Text" Label="Libraries this household can use"
+                   StartIcon="@AppMaterialIcons.Outlined.LibraryBooks"
+                   EndIcon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+                   OnClick="Toggle" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_bodyId" />
+        <AppInfoTip Label="Libraries this household can use"
+                    Text="Untick a library to hide it from everyone in this household. A household administrator can hide more for their people, but can't show what you hide here. New libraries are ticked. The Vault is set per person." />
+    </span>
     @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
     {
         <span class="household-ceiling__saved" role="status" data-household-ceiling-saved>
@@ -94,9 +96,8 @@
     protected override void OnParametersSet()
     {
         _groups = AccessAreas.All
-            .Select(area => new AreaGroup(area.Key, area.Label, area.Icon, area.Color, Libraries
-                .Where(library => string.Equals(library.Area, area.Key, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(library => library.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .Select(area => new AreaGroup(area.Key, area.Label, area.Icon, area.Color, AccessAreas.InOrder(Libraries
+                .Where(library => string.Equals(library.Area, area.Key, StringComparison.OrdinalIgnoreCase)), library => library.DisplayName)
                 .ToList()))
             .Where(group => group.Libraries.Count > 0)
             .ToList();

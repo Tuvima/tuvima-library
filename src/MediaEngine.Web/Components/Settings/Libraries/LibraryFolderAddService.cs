@@ -22,7 +22,7 @@ public enum AddFolderHandling
 /// of the kind, <paramref name="NewLibraryName"/> makes a new library with that name; with neither, the kind's first library is used
 /// (or a new one named for the kind when it has none yet). <paramref name="CreateNewLibrary"/> is the Create library dialog: it always makes a
 /// new library, named <paramref name="NewLibraryName"/> whatever the kind, with the given <paramref name="Access"/> (null keeps the standard one);
-/// <paramref name="SuccessMessage"/> replaces the "Folder added." toast.
+/// <paramref name="SuccessMessage"/>, when given, is shown as a toast; by default nothing pops up (the new row glows).
 /// </summary>
 public sealed record AddFolderPlan(
     string TypeKey,
@@ -154,7 +154,12 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             return new AddFolderResult(null, source, type, managed, notice, apiClient.LastError ?? "That change could not be saved. Check the folder and try again.", library.Id);
         }
 
-        toasts.Add(plan.SuccessMessage ?? "Folder added.", AppSeverity.Success);
+        // The new row glows on the page instead of a toast; a caller that still wants a message passes one.
+        if (plan.SuccessMessage is { } message)
+        {
+            toasts.Add(message, AppSeverity.Success);
+        }
+
         var result = new AddFolderResult(saved, source, type, managed, notice, null, library.Id);
 
         // "Should new media go here?" answered Yes: when another folder of the type already holds the marker, move it.

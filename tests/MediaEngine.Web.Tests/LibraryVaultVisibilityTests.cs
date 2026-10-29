@@ -90,7 +90,11 @@ public sealed class LibraryVaultVisibilityTests : AsyncBunitContext
         var settings = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true));
         var setup = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true).Add(x => x.Simple, true));
 
-        Assert.Equal(["Movies", "Private movies"], settings.FindAll(".libs__link").Select(Text).ToArray());
+        var settingsVault = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true).Add(x => x.Area, "vault"));
+
+        // Settings lists the Vault library only inside the Vault area; setup has no Vault button, library or word at all.
+        Assert.Equal(["Movies"], settings.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.Equal(["Private movies"], settingsVault.FindAll(".libs__link").Select(Text).ToArray());
         Assert.Equal(["Movies"], setup.FindAll(".libs__link").Select(Text).ToArray());
         Assert.DoesNotContain("vault", setup.Markup, StringComparison.OrdinalIgnoreCase);
     }

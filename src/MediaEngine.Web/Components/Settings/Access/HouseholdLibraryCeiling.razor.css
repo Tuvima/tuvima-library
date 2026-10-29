@@ -1,4 +1,6 @@
 .household-ceiling { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; flex-basis: 100%; margin-top: 4px; }
+.household-ceiling__head { display: inline-flex; align-items: center; gap: 4px; flex-wrap: nowrap; max-width: 100%; min-width: 0; }
+.household-ceiling__head > :first-child { min-width: 0; }
 .household-ceiling__saved { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--tl-status-success); font-size: var(--tl-font-size-sm); }
 .household-ceiling__body { flex-basis: 100%; display: grid; gap: 12px; padding: 4px 8px 8px; box-sizing: border-box; }
 .household-ceiling__empty { margin: 0; color: var(--tl-text-muted); }

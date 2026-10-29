@@ -55,11 +55,11 @@ public sealed class AreaLibraryListTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AreaNamesMatchWhateverCaseTheEngineUses()
+    public void AreaNamesMatchWhateverCaseTheEngineUses_AndLibrariesSitInNameOrder()
     {
         var watch = RenderList("watch");
 
-        Assert.Equal(["All libraries", "Movies", "Lectures"], watch.FindAll("label").Select(label => label.TextContent.Trim()));
+        Assert.Equal(["All libraries", "Lectures", "Movies"], watch.FindAll("label").Select(label => label.TextContent.Trim()));
     }
 
     [Fact]
