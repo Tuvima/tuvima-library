@@ -17,19 +17,18 @@
                  data-health="@Health.ToString().ToLowerInvariant()">
         <Badges>
             @if (Badges is not null) { @Badges }
+        </Badges>
+        <Aside>
             @if (Loading)
             {
-                <AppSkeleton Width="6rem" Height="1.5rem" Class="app-state-card__placeholder" />
+                <AppSkeleton Width="5rem" Height="1.5rem" Class="app-state-card__placeholder" />
             }
             else
             {
                 <AppStatusBadge Text="@StateCardHealth.Text(Health)" Tone="@StateCardHealth.Tone(Health)" Class="app-state-card__health" />
             }
-        </Badges>
-        <Aside>
             @if (IsOn is { } switchedOn)
             {
-                <span class="app-state-card__switch-label">@(switchedOn ? "Enabled" : "Disabled")</span>
                 <AppSwitchRow Value="@switchedOn"
                               ValueChanged="@IsOnChanged"
                               Disabled="@(!string.IsNullOrWhiteSpace(SwitchDisabledReason))"

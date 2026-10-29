@@ -1,11 +1,17 @@
 @namespace MediaEngine.Web.Components.Shared
 
-@* A one-line warning inside a card ("Requires Comskip or FFmpeg. Install it for full functionality."). Pressing it opens
-   where the problem is fixed; the icon and words say it is a warning, never colour alone. *@
-<AppButton ButtonStyle="AppButtonStyle.Text" FullWidth="true" Class="app-warning-strip" OnClick="@OnClick"
-           StartIcon="@AppMaterialIcons.Outlined.Warning" Label="@Text" />
+@* A compact amber warning badge ("Requires FFmpeg") for a card or row. The full sentence is the tooltip and the accessible
+   name; pressing it opens where the problem is fixed. The icon and words say it is a warning, never colour alone. *@
+<button type="button" class="app-warning-strip" title="@Text" aria-label="@Text" @onclick="OnClick">
+    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
+    <span class="app-warning-strip__text">@(ShortText ?? Text)</span>
+</button>
 
 @code {
+    /// <summary>The full sentence: shown as the tooltip and read out by screen readers.</summary>
     [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+
+    /// <summary>The few words shown in the badge; the full text when null.</summary>
+    [Parameter] public string? ShortText { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
 }

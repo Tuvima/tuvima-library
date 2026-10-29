@@ -485,6 +485,31 @@ body {
     color: inherit;
 }
 
+/* The one card grid: 3 columns on desktop, 2 on tablet, 1 on phone; every card in a row is the same height. */
+.app-card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 16px;
+}
+
+.app-card-grid > * {
+    display: grid;
+    min-width: 0;
+}
+
+@media (max-width: 1180px) {
+    .app-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .app-card-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .app-filter-bar {
 
     gap: 12px;

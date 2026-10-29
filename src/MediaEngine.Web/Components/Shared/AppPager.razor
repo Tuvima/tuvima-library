@@ -1,19 +1,20 @@
 @namespace MediaEngine.Web.Components.Shared
 
-@* "Showing 11 of 11 plugins", with page buttons only when there is more than one page. Pages are numbered from 1. *@
-<div class="@RootClass">
-    <span class="app-pager__summary" aria-live="polite">Showing @Shown of @Total @Noun</span>
-    @if (PageCount > 1)
-    {
+@* Paging appears only when the list is longer than one page (the shared pages use 24); a shorter list shows everything and this
+   draws nothing. "Showing 12 of 25 plugins", then Previous and Next. Pages are numbered from 1. *@
+@if (PageCount > 1)
+{
+    <div class="@RootClass">
+        <span class="app-pager__summary" aria-live="polite">Showing @Shown of @Total @Noun</span>
         <nav class="app-pager__pages" aria-label="Pages">
-            <AppButton Label="Previous" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ChevronLeft"
-                       Disabled="@(Page <= 1)" OnClick="@(() => PageChanged.InvokeAsync(Page - 1))" />
-            <span class="app-pager__current">Page @Page of @PageCount</span>
-            <AppButton Label="Next" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
-                       Disabled="@(Page >= PageCount)" OnClick="@(() => PageChanged.InvokeAsync(Page + 1))" />
+                <AppButton Label="Previous" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ChevronLeft"
+                           Disabled="@(Page <= 1)" OnClick="@(() => PageChanged.InvokeAsync(Page - 1))" />
+                <span class="app-pager__current">Page @Page of @PageCount</span>
+                <AppButton Label="Next" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
+                           Disabled="@(Page >= PageCount)" OnClick="@(() => PageChanged.InvokeAsync(Page + 1))" />
         </nav>
-    }
-</div>
+    </div>
+}
 
 @code {
     [Parameter] public int Total { get; set; }
