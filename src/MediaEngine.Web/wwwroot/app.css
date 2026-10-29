@@ -5517,6 +5517,9 @@ input[type="reset"],
 /* The kind cards and the "Which library?" choices are shared by the file-drop and Change kind dialogs, so their layout lives here too. */
 .lib-choice__kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .lib-choice__kind, .lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* Equal-width kind cards with left-aligned content: the Metadata cell has a fixed width, so cards do not resize with their provider icons. */
+.lib-choice__kind .lib-choice__kind-option { flex: 1 1 0; justify-content: flex-start; }
+.lib-choice__kind .lib-meta { min-width: 112px; justify-content: flex-end; }
 .lib-choice__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: 1.25rem; }
 .lib-choice__options { display: grid; gap: 10px; }
 .lib-choice__lead, .lib-choice__question { margin: 0; }

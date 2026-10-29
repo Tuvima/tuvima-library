@@ -4,8 +4,8 @@
 .household-ceiling__empty { margin: 0; color: var(--tl-text-muted); }
 .household-ceiling__error { margin: 0; color: var(--tl-status-error, var(--tl-text-primary)); font-size: .9rem; }
 .household-ceiling__all { padding-bottom: 8px; border-bottom: 1px solid var(--tl-border-subtle); font-weight: 600; }
-.household-ceiling__area { display: grid; gap: 2px; }
-.household-ceiling__area-title { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-family: 'Tuvima Sans', var(--tl-font-sans, system-ui, sans-serif); font-size: var(--tl-font-size-sm); color: var(--tl-text-secondary); }
+.household-ceiling__area { display: grid; gap: 2px; align-content: start; }
+.household-ceiling__area-title { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: var(--tl-font-size-sm); color: var(--tl-text-secondary); }
 .household-ceiling__item { min-height: var(--tl-tap-target-min, 44px); display: flex; align-items: center; overflow-wrap: anywhere; }
 
 @media (min-width: 600px) {
