@@ -10,7 +10,7 @@
 @inject NavigationManager Nav
 @inject ILogger<HouseholdsTab> Logger
 
-@* Settings > Manage > Users and Sign-in > Households. A server administrator adds, renames and removes households here; each one has its
+@* Settings > Manage > Users & Households > Households. A server administrator adds, renames and removes households here; each one has its
    own people, library access and Shared Library. The Engine refuses a removal while a household still holds people, sign-ins or
    shared photos, and its sentence is shown as it is. *@
 @if (!IsServerAdministrator)
@@ -24,7 +24,7 @@ else
 {
     <div class="households-tab" data-households-tab>
         <SettingsSectionPanel Title="Households"
-                              Description="Each household has its own people, library access and Shared Library. Look after its people from Profiles."
+                              Description="Each household has its own people, library access and Shared Library. Look after its people from Manage Profiles."
                               Icon="@AppMaterialIcons.Outlined.Home">
             <Actions>
                 <AppButton Label="Add household" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary"

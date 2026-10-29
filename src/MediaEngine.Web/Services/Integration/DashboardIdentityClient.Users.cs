@@ -4,7 +4,7 @@ using MediaEngine.Contracts.Authentication;
 
 namespace MediaEngine.Web.Services.Integration;
 
-// Users (sign-ins) for the server administrator's Users and Sign-in page: /access/users. A user is only a way to sign in; what a
+// Users (sign-ins) for the server administrator's Users & Households page: /access/users. A user is only a way to sign in; what a
 // person may see and do lives on their profile (users, profiles and households spec). Every refusal keeps the Engine's own
 // sentence so the page can show it as it is.
 public sealed partial class DashboardIdentityClient

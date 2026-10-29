@@ -511,7 +511,6 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Providers, "providers")]
     [InlineData(SettingsSection.Providers, "ingestion-flow")]
     [InlineData(SettingsSection.Access, "users")]
-    [InlineData(SettingsSection.Access, "applications")]
     [InlineData(SettingsSection.Access, "authentication")]
     [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.Delivery, "hardware")]

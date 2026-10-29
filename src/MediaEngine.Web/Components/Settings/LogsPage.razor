@@ -4,11 +4,12 @@
    the system did), the Engine's technical log, how long logs are kept, and the export. A page has one row of tabs, so these four
    views sit under a segmented control inside the Logs tab instead of a second row of tabs. *@
 <div class="tl-page logs-page">
-    <AppSegmentedControl Options="@Views"
-                         Value="@_view"
-                         ValueChanged="@(value => _view = value)"
-                         AriaLabel="Logs views"
-                         Class="logs-page__views" />
+    <div class="logs-page__views">
+        <AppSegmentedControl Options="@Views"
+                             Value="@_view"
+                             ValueChanged="@(value => _view = value)"
+                             AriaLabel="Logs views" />
+    </div>
 
     @switch (_view)
     {

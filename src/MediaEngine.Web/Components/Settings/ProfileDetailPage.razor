@@ -98,9 +98,9 @@
                     }
                     else
                     {
-                        @* Read-only: a sign-in is attached, changed and removed by the server administrator in Users and Sign-in. *@
+                        @* Read-only: a sign-in is attached, changed and removed by the server administrator in Users & Households. *@
                         <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="@SignInStatus"
-                                        Note="Managed by the server administrator in Users and Sign-in."
+                                        Note="Managed by the server administrator in Users & Households."
                                         Href="@(CanOpenUsers ? UsersRoute : null)" Disabled="@(!CanOpenUsers)" ShowChevron="@CanOpenUsers" />
                     }
                 </li>
@@ -363,14 +363,14 @@
 
     private ProfileEditingWorkflow Workflow => _workflow ??= new ProfileEditingWorkflow(Identity, Confirmed);
 
-    // The sign-in is the user attached to this profile; it is shown here and changed in Users and Sign-in.
+    // The sign-in is the user attached to this profile; it is shown here and changed in Users & Households.
     private string SignInStatus => _managedPerson?.User?.Email is { Length: > 0 } email
         ? email
         : IsSelf ? "Managed in Security" : "No sign-in";
 
     private const string UsersRoute = "/settings/access/users";
 
-    // Users and Sign-in is a server-administrator page.
+    // Users & Households is a server-administrator page.
     private bool CanOpenUsers => Session.HasNavigation("settings.administration");
 
     // Roles and access are looked after by administrators, and never from inside a Kids (restricted) profile.

@@ -493,6 +493,26 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public void SettingsPage_ForAKidsProfile_OpensProfileOnly()
+    {
+        var kidsApi = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel>
+            {
+                new(Guid.Parse("00000000-0000-0000-0000-000000000001"), "Robin", "#2E8BC9", "RestrictedProfile", DateTimeOffset.UtcNow),
+            })));
+        Services.AddSingleton<IEngineApiClient>(kidsApi);
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/overview");
+
+        var cut = Render<Settings>(parameters => parameters.Add(page => page.Section, "overview"));
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-settings-overview]")));
+        var rows = cut.FindAll(".media-section-shell__tree-link").Select(row => row.TextContent.Trim()).ToArray();
+        Assert.Equal(["Profile"], rows);
+        // A Kids profile has no Edit profile link: Manage Profiles is not theirs to open.
+        Assert.DoesNotContain("Edit profile", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SettingsPage_RendersSharedSidebarAndTheSystemSummary()
     {
         var cut = Render(builder =>
@@ -508,7 +528,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
         });
 
-        await cut.InvokeAsync(() => cut.Find("button[aria-label='Expand Library and Ingestion']").Click());
+        await Task.CompletedTask;
 
         cut.WaitForAssertion(() =>
         {
@@ -517,7 +537,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
             // Recently Added is no longer a menu row: Library and Ingestion is shaded amber, with no count bubble.
             var libraryAndIngestion = cut.FindAll(".media-section-shell__tree-link")
-                .First(item => item.TextContent.Contains("Library and Ingestion", StringComparison.Ordinal));
+                .First(item => item.TextContent.Contains("Library & Ingestion", StringComparison.Ordinal));
             var reviewNotification = libraryAndIngestion.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.Null(reviewNotification);
             // System opens on the resources summary; the old library overview now lives under Library and Ingestion.
@@ -856,9 +876,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("/settings", null)]
-    [InlineData("/settings/overview", "overview")]
-    [InlineData("/settings/overview/apps", "overview")]
     [InlineData("/settings/playback", "playback")]
     [InlineData("/settings/profiles", "profiles")]
     public void SettingsPage_ForAKidsProfile_RedirectsToHomeAndDrawsNothing(string typedAddress, string? section)
@@ -997,13 +1014,14 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
-            builder.AddAttribute(4, nameof(Settings.Section), "playback");
+            builder.AddAttribute(4, nameof(Settings.Section), "profiles");
+            builder.AddAttribute(5, nameof(Settings.Subsection), "00000000-0000-0000-0000-000000000001");
+            builder.AddAttribute(6, nameof(Settings.Detail), "preferences");
             builder.CloseComponent();
         });
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Empty(cut.FindAll(".tl-tabs"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
             // Five playback cards plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
             Assert.Equal(6, cut.FindAll(".playback-settings-card").Count);

@@ -193,7 +193,7 @@ public static class SettingsNav
     private static bool _productionMode;
     private static readonly AsyncLocal<bool?> _scopedProductionMode = new();
 
-    /// <summary>The Households sub-page of Users and Sign-in (server administrators only).</summary>
+    /// <summary>The Households sub-page of Users & Households (server administrators only).</summary>
     public const string HouseholdsSubsection = "households";
 
     /// <summary>The Logs sub-page of System: the Activity log (Events), technical log, retention and export (server administrators only).</summary>

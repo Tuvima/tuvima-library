@@ -38,6 +38,9 @@ public sealed partial class UiShellRenderTests
     private static string[] MenuLabels(IRenderedComponent<Settings> cut) =>
         cut.FindAll(".media-section-shell__tree-label").Select(label => label.TextContent.Trim()).ToArray();
 
+    private static string[] TabLabels(IRenderedComponent<Settings> cut) =>
+        cut.FindAll(".tl-tab").Select(tab => tab.TextContent.Trim()).ToArray();
+
     private static string[] PhoneSelectorRoutes(IRenderedComponent<Settings> cut) =>
         cut.FindAll("#settings-mobile-page option").Select(option => option.GetAttribute("value")!).ToArray();
 
@@ -50,16 +53,12 @@ public sealed partial class UiShellRenderTests
 
         cut.WaitForAssertion(() =>
         {
-            var labels = MenuLabels(cut);
-            Assert.Contains("Developer Tools", labels);
-            Assert.Contains("Enrichment Tester", labels);
-            Assert.Contains("Development data", labels);
-            Assert.DoesNotContain("Provider Tester", labels);
+            Assert.Contains("Developer Tools", MenuLabels(cut));
+            var tabs = TabLabels(cut);
+            Assert.Equal(["Provider Tester", "Enrichment Tester", "Development data"], tabs);
 
-            var routes = PhoneSelectorRoutes(cut);
-            Assert.Contains("/settings/developer", routes);
-            Assert.Contains("/settings/enrichment-tester", routes);
-            Assert.Contains("/settings/development-data", routes);
+            // The phone selector lists pages, and Developer Tools is one page.
+            Assert.Contains("/settings/developer", PhoneSelectorRoutes(cut));
         });
     }
 
@@ -76,8 +75,8 @@ public sealed partial class UiShellRenderTests
             Assert.Single(cut.FindAll("[data-temporary-tool='provider-tester']"));
             Assert.Contains(nameof(IEngineApiClient.GetDevelopmentToolsAsync), engine.Calls);
 
-            var labels = MenuLabels(cut);
-            Assert.Contains("Developer Tools", labels);
+            Assert.Contains("Developer Tools", MenuLabels(cut));
+            var labels = TabLabels(cut);
             Assert.DoesNotContain("Enrichment Tester", labels);
             Assert.DoesNotContain("Development data", labels);
 
@@ -98,7 +97,7 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() =>
         {
             Assert.Single(cut.FindAll("[data-temporary-tool='provider-tester']"));
-            var labels = MenuLabels(cut);
+            var labels = TabLabels(cut);
             Assert.DoesNotContain("Enrichment Tester", labels);
             Assert.DoesNotContain("Development data", labels);
         });
@@ -118,7 +117,7 @@ public sealed partial class UiShellRenderTests
         Assert.Empty(cut.FindAll("[data-temporary-tool='enrichment-tester']"));
         Assert.Empty(cut.FindAll("[data-temporary-page='development-tools']"));
         // The address stays where it is (no silent redirect to another page) and no menu row is greyed out in its place.
-        Assert.DoesNotContain(MenuLabels(cut), label => label is "Enrichment Tester" or "Development data");
+        Assert.DoesNotContain(TabLabels(cut), label => label is "Enrichment Tester" or "Development data");
     }
 
     [Fact]
@@ -130,7 +129,7 @@ public sealed partial class UiShellRenderTests
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-temporary-page='development-tools']")));
         Assert.DoesNotContain(NotAvailableTitle, cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Development data", MenuLabels(cut));
+        Assert.Contains("Development data", TabLabels(cut));
     }
 
     [Fact]
@@ -142,7 +141,7 @@ public sealed partial class UiShellRenderTests
 
         cut.WaitForAssertion(() =>
         {
-            var labels = MenuLabels(cut);
+            var labels = TabLabels(cut);
             Assert.Contains("Development data", labels);
             Assert.DoesNotContain("Enrichment Tester", labels);
         });
@@ -166,7 +165,7 @@ public sealed partial class UiShellRenderTests
 
         var cut = OpenSettingsAt("overview");
 
-        cut.WaitForAssertion(() => Assert.Contains("Overview", MenuLabels(cut)));
+        cut.WaitForAssertion(() => Assert.Contains("Profile", MenuLabels(cut)));
         var labels = MenuLabels(cut);
         Assert.DoesNotContain("Developer Tools", labels);
         Assert.DoesNotContain("Enrichment Tester", labels);

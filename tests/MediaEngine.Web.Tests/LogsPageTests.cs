@@ -123,7 +123,7 @@ public sealed class LogsPageTests : AsyncBunitContext
     {
         var cut = Render<LogsPage>();
 
-        var tabs = cut.FindAll(".app-segmented-control__item").Select(tab => tab.TextContent.Trim()).ToArray();
+        var tabs = cut.Find(".logs-page__views").QuerySelectorAll(".app-segmented-control__item").Select(tab => tab.TextContent.Trim()).ToArray();
         Assert.Equal(["Events", "Technical log", "Retention", "Export"], tabs);
         Assert.Contains("Events", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
         Assert.Equal("all", Assert.Single(_activityRequests).Category);
@@ -636,14 +636,14 @@ public sealed class LogsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ToolsAndRequirements_HasTheScheduledTasksCard()
+    public void ScheduledTasksTab_HasTheScheduledTasksCard_AndToolsAndRequirementsNoLongerDoes()
     {
         _onTasks = () => new ScheduledTaskListResponse { Tasks = [Scheduled("vibe_tags", "Vibe tags", "0 3 * * *")] };
 
-        var cut = Render<ToolsRequirementsTab>();
+        var cut = Render<ScheduledTasksPage>();
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=scheduled-task]")));
-        Assert.Contains("Scheduled tasks", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(Render<ToolsRequirementsTab>().FindAll("[data-testid=scheduled-task]"));
     }
 
     [Fact]

@@ -55,7 +55,7 @@ public sealed class ServerPageRegroupTests
             "LocalAiRuntimePanel.razor", "Title=\"Runtime settings\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
         new("Runtime diagnostics", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
             "LocalAiRuntimePanel.razor", "Title=\"Runtime diagnostics\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
-        new("AI features", "/settings/ai/models", "/settings/ai", SettingsSection.LocalAi, null,
+        new("AI features", "/settings/ai/models", "/settings/ai/status", SettingsSection.LocalAi, null,
             "LocalAiSettingsTab.razor", "Title=\"AI features are plugins\"", null, null),
         new("Plugin health and jobs", "/settings/plugins/jobs-health", "/settings/plugins", SettingsSection.Plugins, null,
             "PluginSettingsTab.razor", "PluginHealthJobsPanel(plugin)", null, null),
@@ -74,7 +74,7 @@ public sealed class ServerPageRegroupTests
         // The new address is a real page in the menu.
         var location = SettingsNav.FindMenuLocation(moved.NewSection, moved.NewSubsection);
         Assert.NotNull(location);
-        Assert.Equal(moved.NewLocation, location!.Node.Route);
+        Assert.Equal(moved.NewLocation, location!.Tab?.Route ?? location.Page.Route);
 
         // The panel is rendered by the page that now owns it, and not by the page it left.
         Assert.Contains(moved.NewMarker, Read(moved.NewComponent), StringComparison.Ordinal);

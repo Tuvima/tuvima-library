@@ -67,7 +67,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("Engine online", source, StringComparison.Ordinal);
         Assert.Contains("Engine state could not be loaded", source, StringComparison.Ordinal);
         Assert.Contains("ShouldDeferForRoleResolution", source, StringComparison.Ordinal);
-        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold)", source, StringComparison.Ordinal);
+        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted)", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -223,7 +223,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("Metadata & Matching", nav, StringComparison.Ordinal);
         Assert.Contains("\"metadata\"", nav, StringComparison.Ordinal);
         Assert.Contains("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
-        Assert.Contains("\"ingestion-flow\", \"Ingestion Flow\"", nav, StringComparison.Ordinal);
+        Assert.Contains("IngestionFlowSubsection, \"Ingestion Flow\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"enrichment\", \"Enrichment\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"canonical\", \"Canonical & Universes\"", nav, StringComparison.Ordinal);
     }

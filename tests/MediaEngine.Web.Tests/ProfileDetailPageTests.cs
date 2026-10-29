@@ -366,7 +366,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Assert.DoesNotContain("View activity", cut.Markup, StringComparison.Ordinal);
     }
 
-    // ---- sign-in: read-only here, managed by the server administrator in Users and Sign-in
+    // ---- sign-in: read-only here, managed by the server administrator in Users & Households
 
     [Fact]
     public void SignInRow_ForAnotherPerson_ShowsTheirEmailReadOnly_AndLinksAServerAdministratorToUsersAndSignIn()
@@ -378,7 +378,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("sam@home.test", Row(cut, "sign-in").TextContent));
         var row = Row(cut, "sign-in");
-        Assert.Contains("Managed by the server administrator in Users and Sign-in", row.TextContent);
+        Assert.Contains("Managed by the server administrator in Users & Households", row.TextContent);
         Assert.Equal("/settings/access/users", row.GetAttribute("href"));
         Assert.Empty(cut.FindAll(".sign-in-sheet"));
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Give own sign-in", StringComparison.Ordinal));
