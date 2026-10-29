@@ -537,7 +537,15 @@ public sealed class UserDeletionTests
         var precious = Path.Combine(temp.Path, "family-photo.png");
         File.WriteAllBytes(precious, [1, 2, 3]);
         var linkedFile = Path.Combine(folder, "avatar.png");
-        File.CreateSymbolicLink(linkedFile, precious);
+        try
+        {
+            File.CreateSymbolicLink(linkedFile, precious);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Windows without the symbolic-link privilege cannot make the link this check needs.
+            return;
+        }
         var logger = new CapturingLogger();
 
         ProfilePhotoDisposer.DeleteAvatar(linkedFile, avatars, profileId, logger);
@@ -552,7 +560,14 @@ public sealed class UserDeletionTests
         var target = Path.Combine(elsewhere, "avatar.png");
         File.WriteAllBytes(target, [1]);
         var linkedProfile = Guid.NewGuid();
-        Directory.CreateSymbolicLink(Path.Combine(avatars, linkedProfile.ToString("D")), elsewhere);
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(avatars, linkedProfile.ToString("D")), elsewhere);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return;
+        }
 
         ProfilePhotoDisposer.DeleteAvatar(Path.Combine(avatars, linkedProfile.ToString("D"), "avatar.png"), avatars, linkedProfile, new CapturingLogger());
 

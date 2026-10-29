@@ -149,6 +149,12 @@ public sealed class VaultMoveTests : IDisposable
     [Fact]
     public async Task SubtitlesAndNotesTravelWithTheFile_UnderTheCleanedName()
     {
+        if (OperatingSystem.IsWindows())
+        {
+            // The name under test has a colon, which Windows cannot give a file; the cleaning is the same code and runs elsewhere.
+            return;
+        }
+
         var path = _world.WriteFile(_world.NormalFolder, "Dune: Part One.mkv", 2000);
         File.WriteAllText(Path.Combine(_world.NormalFolder, "Dune: Part One.en.srt"), "1\n00:00:01,000 --> 00:00:02,000\nHello\n");
         _world.AddTitle(_world.NormalLibraryId, path, "Dune");

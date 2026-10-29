@@ -219,7 +219,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
     // The answer is JSON, so a Windows path appears in it with every backslash doubled.
     private static string HidePath(string body, string path) =>
-        body.Replace(System.Text.Json.Encodings.Web.JavaScriptEncoder.Default.Encode(path), "PATH").Replace(path, "PATH");
+        body.Replace(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(path), "PATH").Replace(path, "PATH");
 
     private sealed class LockedCaller : IRequestAuthorityResolver
     {
