@@ -18,7 +18,6 @@ public sealed class LibraryVisibilityGuardrailTests
         ["src/MediaEngine.Storage/ProfileAccessRepository.cs"] = "the repository that owns the table",
         [RuleType] = "the one visibility rule",
         ["src/MediaEngine.Storage/Backup/BackupTableClassification.cs"] = "every table is classified for backup by name",
-        ["src/MediaEngine.Storage/Backup/UserExportScope.cs"] = "every access table is named as left out of a user export",
         ["src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"] = "the development reset lists every table it empties",
         ["src/MediaEngine.Storage/Schema/schema.snapshot.sql"] = "the generated data structure",
         ["src/MediaEngine.Storage/Schema/Upgrades/0046_profile_held_access.sql"] = "the step that creates the table",
@@ -30,7 +29,6 @@ public sealed class LibraryVisibilityGuardrailTests
     {
         ["src/MediaEngine.Storage/HouseholdLibraryAccessRepository.cs"] = "the repository that owns the table",
         ["src/MediaEngine.Storage/Backup/BackupTableClassification.cs"] = "every table is classified for backup by name",
-        ["src/MediaEngine.Storage/Backup/UserExportScope.cs"] = "every access table is named as left out of a user export",
         ["src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"] = "the development reset lists every table it empties",
         ["src/MediaEngine.Storage/Schema/schema.snapshot.sql"] = "the generated data structure",
         ["src/MediaEngine.Storage/Schema/Upgrades/0066_household_library_hidden.sql"] = "the step that creates the table",
