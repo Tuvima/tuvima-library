@@ -22,6 +22,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
 @inject ILogger<Settings> Logger
+@inject MediaEngine.Web.Services.Integration.ProviderCatalogueService ProviderNames
 @implements IAsyncDisposable
 
 <PageTitle>@BrowserTitle</PageTitle>
@@ -847,6 +848,15 @@ else
             new("Settings", SettingsNav.RouteFor(SettingsSection.Overview)),
         };
 
+        // A metadata source's own page is a plugin page: Settings > Platform > Plugins > its friendly name.
+        if (IsProviderDetailRoute && SettingsNav.FindMenuLocation(SettingsSection.Plugins) is { } pluginsLocation)
+        {
+            breadcrumbs.Add(new SettingsBreadcrumb(pluginsLocation.Group.Label, SettingsNav.RouteFor(SettingsSection.Plugins)));
+            breadcrumbs.Add(new SettingsBreadcrumb(pluginsLocation.Page.Label, SettingsNav.RouteFor(SettingsSection.Plugins)));
+            breadcrumbs.Add(new SettingsBreadcrumb(ProviderFriendlyName, null));
+            return breadcrumbs;
+        }
+
         // Settings > Group > Page > Tab, straight from the menu. Every step is a link except the last, which is where you are.
         var location = CurrentLocation;
         var pageLabel = location?.Page.Label ?? GetHeroTitle();
@@ -889,9 +899,14 @@ else
         return breadcrumbs;
     }
 
+    private bool IsProviderDetailRoute => _activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail);
+
+    /// <summary>The name people know a metadata source by (Apple Books, TMDB), never its file name.</summary>
+    private string ProviderFriendlyName => ProviderNames.GetDisplayName(Detail ?? string.Empty);
+
     private string GetDetailBreadcrumbLabel() => _activeSection switch
     {
-        SettingsSection.Providers => Detail!.ToUpperInvariant(),
+        SettingsSection.Providers => ProviderFriendlyName,
         SettingsSection.Libraries => "Libraries",
         _ => FormatRouteLabel(Detail!),
     };
@@ -903,8 +918,8 @@ else
 
     private string GetHeroTitle()
     {
-        if (_activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail))
-            return "Provider Configuration";
+        if (IsProviderDetailRoute)
+            return ProviderFriendlyName;
         if (_activeSection == SettingsSection.Libraries)
             return LibrariesLevel.Title;
         return CurrentLocation?.Page.Label ?? SettingsNav.GetItem(_activeSection).Label;

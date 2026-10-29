@@ -1086,6 +1086,55 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public Task<PipelineFlowOptionsResponse?> GetPipelineFlowOptionsAsync(CancellationToken ct = default) =>
+        GetAsync<PipelineFlowOptionsResponse>(
+            "GET /settings/pipelines/options",
+            "/settings/pipelines/options",
+            ct: ct);
+
+    public async Task<PipelineFlowSaveResponse> SavePipelineFlowAsync(PipelineFlowSaveRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            var resp = await _http.PutAsJsonAsync("/settings/pipelines/flow", request, ct);
+            if (resp.IsSuccessStatusCode)
+            {
+                return new PipelineFlowSaveResponse { Saved = true };
+            }
+
+            // A refused edit carries the problems as a "problems" extension on the problem details.
+            var failed = new PipelineFlowSaveResponse { Saved = false };
+            try
+            {
+                using var document = await System.Text.Json.JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+                if (document.RootElement.TryGetProperty("problems", out var problems))
+                {
+                    failed.Problems = problems.Deserialize<List<PipelineFlowProblemDto>>() ?? [];
+                }
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                _logger.LogDebug(ex, "PUT /settings/pipelines/flow returned a body that was not problem details");
+            }
+
+            if (failed.Problems.Count == 0)
+            {
+                failed.Problems.Add(new PipelineFlowProblemDto { Message = "The flow could not be saved." });
+            }
+
+            return failed;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "PUT /settings/pipelines/flow failed");
+            return new PipelineFlowSaveResponse
+            {
+                Saved = false,
+                Problems = [new PipelineFlowProblemDto { Message = "The Engine could not be reached. Nothing was saved." }],
+            };
+        }
+    }
+
     // -- Media types (/settings/media-types) --------------------------------
 
     public async Task<MediaTypeConfigurationDto?> GetMediaTypesAsync(CancellationToken ct = default)

@@ -1,0 +1,287 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Settings
+@inject IEngineApiClient ApiClient
+@inject DeviceContextService DeviceContext
+@inject IAppDialogService DialogService
+@inject ILogger<IngestionFlowEditor> Logger
+
+@* The Ingestion Flow (Provider settings spec P2): one card per media type listing the providers that run for it, in order,
+   with a role. Reading is for everyone who can open Settings; editing is administrators on a computer only. Nothing applies
+   until Save changes, which shows Review changes first. A saved change affects new ingestion only. *@
+<div class="ingestion-flow" data-testid="ingestion-flow">
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading the Ingestion Flow" Class="tl-sp-py-8" />
+    }
+    else if (_draft is null)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="The Ingestion Flow is unavailable"
+                      Message="Start the Engine and retry. No sample flow is being shown." />
+    }
+    else
+    {
+        <div class="ingestion-flow__intro">
+            <p>Which providers identify and describe your media, for each kind of media, and in what order. A change applies to new items only; what is already in your Library keeps its match.</p>
+            @if (CanEdit && !_editing)
+            {
+                <AppButton Label="Edit" StartIcon="@AppMaterialIcons.Outlined.Edit" OnClick="BeginEdit" data-testid="flow-edit" />
+            }
+            else if (!CanEdit)
+            {
+                <AppInfoTip Text="@EditorDeviceRule.Message" />
+            }
+        </div>
+
+        @foreach (var mediaType in _draft.MediaTypes)
+        {
+            var type = mediaType;
+            var rows = _draft.RowsFor(type);
+            <AppCard Class="ingestion-flow__card">
+                <div data-testid="flow-card" data-media-type="@type">
+                <div class="ingestion-flow__card-title">
+                    <AppMaterialIcon Icon="@MetadataSettingsStateService.MediaTypeIcon(type)" />
+                    <strong>@MetadataSettingsStateService.MediaTypeLabel(type)</strong>
+                    @if (_draft.IsChanged(type))
+                    {
+                        <AppChip Text="Changed" Tone="AppUiTone.Info" />
+                    }
+                </div>
+                <ol class="ingestion-flow__rows">
+                    @for (var index = 0; index < rows.Count; index++)
+                    {
+                        var position = index;
+                        var row = rows[index];
+                        <li class="ingestion-flow__row @(row.Role == IngestionFlowDraft.Off ? "is-off" : null)" data-testid="flow-row" data-provider="@row.Name">
+                            <span class="ingestion-flow__order">@(position + 1)</span>
+                            <AppProviderLogo ImageUrl="@LogoFor(row.Name)" Icon="@AppMaterialIcons.Outlined.Hub" FallbackText="@Initials(row.DisplayName)" Size="AppControlSize.Compact" AltText="" />
+                            <span class="ingestion-flow__name">
+                                <a href="@ProviderRoute(row.Name)">@row.DisplayName</a>
+                                @if (_draft.OptionFor(row.Name) is { SendsTitlesOnline: true })
+                                {
+                                    <AppInfoTip Text="This provider sends the titles it looks up to its own website." />
+                                }
+                            </span>
+                            @StatusFor(row.Name)
+                            @if (_editing)
+                            {
+                                <span class="ingestion-flow__role">
+                                    <AppSelect Native="true"
+                                               Value="@row.Role"
+                                               ValueChanged="@(value => SetRole(type, position, value))"
+                                               AriaLabel="@($"Role of {row.DisplayName} in {type}")"
+                                               Options="@RoleOptions" />
+                                </span>
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Size="AppControlSize.Compact" AriaLabel="@($"Move {row.DisplayName} up")"
+                                               Disabled="@(position == 0)" OnClick="@(() => Move(type, position, -1))" />
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward" Size="AppControlSize.Compact" AriaLabel="@($"Move {row.DisplayName} down")"
+                                               Disabled="@(position == rows.Count - 1)" OnClick="@(() => Move(type, position, 1))" />
+                            }
+                            else
+                            {
+                                <AppChip Text="@IngestionFlowDraft.RoleLabel(row.Role)" Tone="@RoleTone(row.Role)" />
+                            }
+                        </li>
+                    }
+                </ol>
+                @if (rows.Count == 0)
+                {
+                    <p class="ingestion-flow__empty">No provider is set for this kind of media.</p>
+                }
+                @if (_draft.ProblemFor(type) is { } problem && _editing)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" data-testid="flow-problem">@problem</AppAlert>
+                }
+                @if (_editing && _draft.Addable(type) is { Count: > 0 } addable)
+                {
+                    <div class="ingestion-flow__add">
+                        <AppSelect Native="true"
+                                   Value="@string.Empty"
+                                   ValueChanged="@(value => AddProvider(type, value))"
+                                   Label="Add provider"
+                                   Options="@AddOptions(addable)" />
+                    </div>
+                }
+            </div>
+            </AppCard>
+        }
+
+        @if (_editing)
+        {
+            <footer class="ingestion-flow__bar" data-testid="flow-bar">
+                <AppButton Label="Cancel" Disabled="@_saving" OnClick="CancelEdit" />
+                <AppButton Label="@(_saving ? "Saving…" : "Save changes")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(!_draft.HasChanges || _draft.Problems.Count > 0 || _saving)" OnClick="ReviewAndSaveAsync" data-testid="flow-save" />
+            </footer>
+            @if (!string.IsNullOrWhiteSpace(_saveError))
+            {
+                <AppAlert Tone="AppUiTone.Error" data-testid="flow-save-error">@_saveError</AppAlert>
+            }
+        }
+    }
+</div>
+
+@code {
+    /// <summary>The provider inventory, used for logos and the connected tick or warning on each row.</summary>
+    [Parameter] public MetadataSettingsSnapshot? Snapshot { get; set; }
+
+    private IngestionFlowDraft? _draft;
+    private bool _loading = true;
+    private bool _editing;
+    private bool _saving;
+    private string? _saveError;
+
+    private bool CanEdit => EditorDeviceRule.CanEdit(DeviceContext);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var pipelines = await ApiClient.GetPipelinesAsync();
+            var options = await ApiClient.GetPipelineFlowOptionsAsync();
+            _draft = pipelines is null || options is null
+                ? null
+                : IngestionFlowDraft.Create(pipelines, options, MetadataSettingsStateService.MediaTypeOrder);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            Logger.LogWarning(ex, "Could not load the Ingestion Flow.");
+            _draft = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void BeginEdit()
+    {
+        if (!CanEdit) return;
+        _saveError = null;
+        _editing = true;
+    }
+
+    private void CancelEdit()
+    {
+        _draft?.Discard();
+        _saveError = null;
+        _editing = false;
+    }
+
+    private void Move(string mediaType, int index, int direction)
+    {
+        if (direction < 0) _draft!.MoveUp(mediaType, index); else _draft!.MoveDown(mediaType, index);
+    }
+
+    private void SetRole(string mediaType, int index, string? role) => _draft!.SetRole(mediaType, index, role ?? IngestionFlowDraft.Off);
+
+    private void AddProvider(string mediaType, string? name)
+    {
+        if (!string.IsNullOrWhiteSpace(name)) _draft!.Add(mediaType, name);
+    }
+
+    private async Task ReviewAndSaveAsync()
+    {
+        if (_saving || _draft is null || !CanEdit || !_draft.HasChanges || _draft.Problems.Count > 0) return;
+
+        var review = _draft.Review(MetadataSettingsStateService.MediaTypeLabel);
+        RenderFragment preview = builder =>
+        {
+            var sequence = 0;
+            builder.OpenElement(sequence++, "div");
+            builder.AddAttribute(sequence++, "data-testid", "flow-review");
+            foreach (var (mediaType, lines) in review)
+            {
+                builder.OpenElement(sequence++, "p");
+                builder.OpenElement(sequence++, "strong");
+                builder.AddContent(sequence++, mediaType);
+                builder.CloseElement();
+                builder.CloseElement();
+                builder.OpenElement(sequence++, "ul");
+                foreach (var line in lines)
+                {
+                    builder.OpenElement(sequence++, "li");
+                    builder.AddContent(sequence++, line);
+                    builder.CloseElement();
+                }
+
+                builder.CloseElement();
+            }
+
+            builder.OpenElement(sequence++, "p");
+            builder.AddContent(sequence++, "This applies to new items only. Everything already in your Library keeps its match.");
+            builder.CloseElement();
+            builder.CloseElement();
+        };
+        var answer = await AppConfirmDialog.ShowAsync(
+            DialogService,
+            "Review changes",
+            null,
+            primaryLabel: "Save changes",
+            secondaryLabel: "Keep editing",
+            preview: preview);
+        if (answer != AppConfirmResult.Primary) return;
+
+        _saving = true;
+        _saveError = null;
+        try
+        {
+            var result = await ApiClient.SavePipelineFlowAsync(_draft.ToRequest());
+            if (!result.Saved)
+            {
+                _saveError = result.Problems.FirstOrDefault()?.Message ?? "The flow could not be saved.";
+                return;
+            }
+
+            _editing = false;
+            await LoadAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private MetadataProviderInventoryItem? InventoryFor(string name) => Snapshot?.ProviderFor(name);
+
+    private string? LogoFor(string name) => InventoryFor(name)?.LogoUrl;
+
+    private RenderFragment StatusFor(string name) => builder =>
+    {
+        var item = InventoryFor(name);
+        if (item is null) return;
+        var ok = item.Enabled && !item.NeedsSetup;
+        builder.OpenComponent<AppStatusBadge>(0);
+        builder.AddAttribute(1, "Text", ok ? "Connected" : item.NeedsSetup ? "Needs setup" : "Off");
+        builder.AddAttribute(2, "Tone", ok ? AppUiTone.Success : AppUiTone.Warning);
+        builder.CloseComponent();
+    };
+
+    private static readonly IReadOnlyList<AppSelectOption> RoleOptions =
+    [
+        new(PipelineFlowRoles.Primary, "Primary"),
+        new(PipelineFlowRoles.Fallback, "Fallback"),
+        new(PipelineFlowRoles.Enrichment, "Adds details"),
+        new(IngestionFlowDraft.Off, "Off"),
+    ];
+
+    private static IReadOnlyList<AppSelectOption> AddOptions(IReadOnlyList<IngestionFlowDraft.FlowOption> options) =>
+        [new(string.Empty, "Choose a provider"), .. options.Select(option => new AppSelectOption(option.Name, option.DisplayName))];
+
+    private static AppUiTone RoleTone(string role) => role switch
+    {
+        PipelineFlowRoles.Primary => AppUiTone.Primary,
+        PipelineFlowRoles.Fallback => AppUiTone.Info,
+        _ => AppUiTone.Neutral,
+    };
+
+    private static string ProviderRoute(string key) => $"/settings/metadata/providers/{Uri.EscapeDataString(key.ToLowerInvariant())}";
+
+    private static string Initials(string name) => string.Concat(name.Split([' ', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries).Take(2).Select(word => char.ToUpperInvariant(word[0])));
+}
