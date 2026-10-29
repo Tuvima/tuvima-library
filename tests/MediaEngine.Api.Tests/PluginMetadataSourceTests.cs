@@ -1,8 +1,12 @@
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
+using MediaEngine.Providers;
+using MediaEngine.Providers.Contracts;
 using MediaEngine.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -18,6 +22,9 @@ public sealed class PluginMetadataSourceTests : IDisposable
     private readonly ConfigurationDirectoryLoader _loader;
     private readonly PluginSettingsService _settings;
     private readonly PluginCatalog _catalog;
+    private readonly LiveMetadataProviders _live;
+    private readonly ProviderStartupSnapshot _snapshot = new([]);
+    private readonly ServiceProvider _services;
 
     public PluginMetadataSourceTests()
     {
@@ -27,12 +34,20 @@ public sealed class PluginMetadataSourceTests : IDisposable
         _loader = new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
         _loader.SaveCore(new CoreConfiguration { LibraryRoot = libraryRoot });
         _settings = new PluginSettingsService(_loader);
-        var files = new PluginMetadataSourceFiles(_loader, NullLogger<PluginMetadataSourceFiles>.Instance);
+        _services = new ServiceCollection()
+            .AddLogging()
+            .AddHttpClient()
+            .AddSingleton<IProviderHealthMonitor, NullProviderHealthMonitor>()
+            .BuildServiceProvider();
+        _live = new LiveMetadataProviders(_services, _loader, NullLogger<LiveMetadataProviders>.Instance, _snapshot);
+        var files = new PluginMetadataSourceFiles(_loader, NullLogger<PluginMetadataSourceFiles>.Instance, _live);
         _catalog = new PluginCatalog([], _settings, _loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance, sourceFiles: files);
     }
 
     public void Dispose()
     {
+        _live.Dispose();
+        _services.Dispose();
         try
         {
             Directory.Delete(_root, recursive: true);
@@ -184,6 +199,35 @@ public sealed class PluginMetadataSourceTests : IDisposable
 
         Assert.True(new ProviderCapabilityCatalogue(_loader, atStartup).Overview().RestartNeeded);
         Assert.False(new ProviderCapabilityCatalogue(_loader, new ProviderStartupSnapshot([NameOf("json.source", "my_source")])).Overview().RestartNeeded);
+    }
+
+    [Fact]
+    public void ASourceFromAPlugin_JoinsTheRunningProviderListWithoutARestart_AndLeavesWhenSwitchedOff()
+    {
+        Add("json.source", Source("my_source", "api.example.com"), Network("api.example.com"));
+        Assert.Empty(_live);
+
+        Enable("json.source", true);
+
+        var joined = Assert.Single(_live);
+        Assert.Equal(NameOf("json.source", "my_source"), joined.Name);
+        Assert.False(new ProviderCapabilityCatalogue(_loader, _snapshot).Overview().RestartNeeded);
+
+        Enable("json.source", false);
+
+        Assert.Empty(_live);
+        Assert.False(new ProviderCapabilityCatalogue(_loader, _snapshot).Overview().RestartNeeded);
+    }
+
+    [Fact]
+    public void ARunningProviderList_IsSeenLiveByAnyoneHoldingIt()
+    {
+        IEnumerable<IExternalMetadataProvider> held = _live;
+        Add("json.source", Source("my_source", "api.example.com"), Network("api.example.com"));
+
+        Enable("json.source", true);
+
+        Assert.Single(held);
     }
 
     private static string NameOf(string pluginId, string source) =>

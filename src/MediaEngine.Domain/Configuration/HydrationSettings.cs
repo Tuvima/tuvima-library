@@ -313,14 +313,14 @@ public sealed class HydrationSettings
     /// and eligible for re-enrichment during a Stage 3 sweep.
     /// </summary>
     [JsonPropertyName("stage3_refresh_days")]
-    public int Stage3RefreshDays { get; set; } = 30;
+    public int Stage3RefreshDays { get; set; } = 90;
 
     /// <summary>
     /// Number of days after which a person or musical-group profile is refreshed.
     /// Kept separate from work enrichment so provider policy is data-driven.
     /// </summary>
     [JsonPropertyName("person_refresh_days")]
-    public int PersonRefreshDays { get; set; } = 30;
+    public int PersonRefreshDays { get; set; } = 90;
 
     /// <summary>
     /// Minimum age, in days, before a persisted Wikidata series manifest is
@@ -328,7 +328,7 @@ public sealed class HydrationSettings
     /// named manifest to avoid repeated full series downloads.
     /// </summary>
     [JsonPropertyName("series_manifest_refresh_days")]
-    public int SeriesManifestRefreshDays { get; set; } = 30;
+    public int SeriesManifestRefreshDays { get; set; } = 90;
 
     /// <summary>
     /// Maximum depth for recursive fictional entity discovery during Stage 3.

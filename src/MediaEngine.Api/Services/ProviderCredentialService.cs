@@ -27,7 +27,8 @@ public sealed class ProviderCredentialService
     private readonly IConfigurationLoader _configuration;
     private readonly IConfigSecretsStore _secrets;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IReadOnlyList<IProviderCredentialConsumer> _consumers;
+    private readonly IEnumerable<IExternalMetadataProvider> _metadataProviders;
+    private readonly IReadOnlyList<ITextTrackProvider> _textTrackProviders;
     private readonly IProviderConnectionCheckRepository? _connectionChecks;
     private readonly StashBoxClient? _stashBox;
     private readonly IStashBoxSettings? _stashBoxSettings;
@@ -47,10 +48,8 @@ public sealed class ProviderCredentialService
         _configuration = configuration;
         _secrets = secrets;
         _httpClientFactory = httpClientFactory;
-        _consumers = metadataProviders.Cast<object>()
-            .Concat(textTrackProviders)
-            .OfType<IProviderCredentialConsumer>()
-            .ToList();
+        _metadataProviders = metadataProviders;
+        _textTrackProviders = textTrackProviders.ToList();
         _connectionChecks = connectionChecks;
     }
 
@@ -517,7 +516,11 @@ public sealed class ProviderCredentialService
 
     private void ApplyRuntimeCredentials(string providerName, IReadOnlyDictionary<string, string?> credentials)
     {
-        foreach (var consumer in _consumers.Where(consumer =>
+        // Read each time: metadata sources from plugins join the running list while the Engine runs.
+        var consumers = _metadataProviders.Cast<object>()
+            .Concat(_textTrackProviders)
+            .OfType<IProviderCredentialConsumer>();
+        foreach (var consumer in consumers.Where(consumer =>
                      string.Equals(consumer.Name, providerName, StringComparison.OrdinalIgnoreCase)))
         {
             consumer.ApplyCredentials(credentials);

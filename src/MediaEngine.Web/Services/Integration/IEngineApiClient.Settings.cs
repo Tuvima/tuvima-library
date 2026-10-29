@@ -402,6 +402,12 @@ public partial interface IEngineApiClient
     /// <summary>PUT /settings/pipelines — save pipeline configuration.</summary>
     Task<bool> SavePipelinesAsync(PipelineConfiguration pipelines, CancellationToken ct = default);
 
+    /// <summary>GET /settings/pipelines/options — installed providers that can be added to a media type's ingestion flow.</summary>
+    Task<PipelineFlowOptionsResponse?> GetPipelineFlowOptionsAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /settings/pipelines/flow — save the order, role and on/off of providers per media type. A refused edit comes back with the plain-English problems and nothing saved.</summary>
+    Task<PipelineFlowSaveResponse> SavePipelineFlowAsync(PipelineFlowSaveRequest request, CancellationToken ct = default);
+
     // ── Media types (/settings/media-types) ────────────────────────────────
 
     /// <summary>GET /settings/media-types — load media type definitions.</summary>

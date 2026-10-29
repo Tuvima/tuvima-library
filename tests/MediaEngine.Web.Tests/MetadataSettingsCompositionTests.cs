@@ -51,8 +51,9 @@ public sealed class MetadataSettingsCompositionTests
         Assert.Contains("\"Secondary\"", state, StringComparison.Ordinal);
         Assert.Contains("\"Fallback\"", state, StringComparison.Ordinal);
         Assert.Contains("catalogue.RequiredSystemProvider ? \"Required\" : \"Optional\"", state, StringComparison.Ordinal);
-        Assert.Contains("flow.Results", page, StringComparison.Ordinal);
-        Assert.Contains("Order and roles come from the active Engine configuration", page, StringComparison.Ordinal);
+        var editor = Read("src/MediaEngine.Web/Components/Settings/IngestionFlowEditor.razor");
+        Assert.Contains("IngestionFlowEditor", page, StringComparison.Ordinal);
+        Assert.Contains("GetPipelinesAsync", editor, StringComparison.Ordinal);
     }
 
     [Fact]

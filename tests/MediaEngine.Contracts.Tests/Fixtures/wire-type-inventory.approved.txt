@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1307; api=0; web-client=54
+# scopes: contracts=1313; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10479,6 +10479,45 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Pipelines: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.MediaTypePipeline> | json=pipelines | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"pipelines":{}}
+
+[contracts] MediaEngine.Contracts.Settings.PipelineFlowOptionDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PluginId: System.String | json=plugin_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SendsTitlesOnline: System.Boolean | json=sends_titles_online | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaTypes: System.Collections.Generic.List<System.String> | json=media_types | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  UsedIn: System.Collections.Generic.List<System.String> | json=used_in | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","display_name":"sample","plugin_id":"sample","enabled":true,"sends_titles_online":true,"media_types":[],"used_in":[]}
+
+[contracts] MediaEngine.Contracts.Settings.PipelineFlowOptionsResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Providers: System.Collections.Generic.List<MediaEngine.Contracts.Settings.PipelineFlowOptionDto> | json=providers | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"providers":[]}
+
+[contracts] MediaEngine.Contracts.Settings.PipelineFlowProblemDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  MediaType: System.String | json=media_type | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"media_type":"sample","message":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.PipelineFlowProviderDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Role: System.String | json=role | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","role":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.PipelineFlowSaveRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  MediaTypes: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<MediaEngine.Contracts.Settings.PipelineFlowProviderDto>> | json=media_types | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"media_types":{}}
+
+[contracts] MediaEngine.Contracts.Settings.PipelineFlowSaveResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Saved: System.Boolean | json=saved | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Problems: System.Collections.Generic.List<MediaEngine.Contracts.Settings.PipelineFlowProblemDto> | json=problems | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"saved":true,"problems":[]}
 
 [contracts] MediaEngine.Contracts.Settings.PipelineProviderEntry
   kind=class | converter=default | number-handling=default | unmapped=default

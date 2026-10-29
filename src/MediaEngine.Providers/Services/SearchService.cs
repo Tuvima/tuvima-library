@@ -62,9 +62,8 @@ public sealed class SearchService : ISearchService
         ArgumentNullException.ThrowIfNull(retailScoring);
         ArgumentNullException.ThrowIfNull(logger);
 
-        var providerList = providers.ToList();
-
-        _providers = providerList;
+        // A live list (the Engine's running providers) is kept as it is so a source that joins later is seen.
+        _providers = providers as IReadOnlyList<IExternalMetadataProvider> ?? providers.ToList();
         _configLoader = configLoader;
         _fuzzy = fuzzy;
         _retailScoring = retailScoring;

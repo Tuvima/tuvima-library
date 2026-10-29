@@ -95,7 +95,7 @@ public sealed class DescriptionIntelligenceRunner
         _scoring = scoring;
         _canonicalArrays = canonicalArrays;
         _searchIndex = searchIndex;
-        _providers = providers.ToList();
+        _providers = providers as IReadOnlyList<IExternalMetadataProvider> ?? providers.ToList();
         _identityService = identityService;
         _harvesting = harvesting;
         _logger = logger;

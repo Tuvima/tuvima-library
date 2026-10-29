@@ -127,13 +127,13 @@ public sealed class HydrationSettingsDto
     public int Stage3MaxItemsPerSweep { get; set; } = 50;
 
     [JsonPropertyName("stage3_refresh_days")]
-    public int Stage3RefreshDays { get; set; } = 30;
+    public int Stage3RefreshDays { get; set; } = 90;
 
     [JsonPropertyName("person_refresh_days")]
-    public int PersonRefreshDays { get; set; } = 30;
+    public int PersonRefreshDays { get; set; } = 90;
 
     [JsonPropertyName("series_manifest_refresh_days")]
-    public int SeriesManifestRefreshDays { get; set; } = 30;
+    public int SeriesManifestRefreshDays { get; set; } = 90;
 
     [JsonPropertyName("stage3_max_depth")]
     public int Stage3MaxDepth { get; set; } = 2;
