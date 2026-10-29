@@ -330,6 +330,18 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ForAKidsProfile_TasteOpensTheirOwnPage_AndThereIsNoEditing()
+    {
+        _profile = _profile with { Role = "RestrictedProfile" };
+
+        var cut = RenderPage();
+
+        Assert.Equal("/my-profile/taste", cut.Find("[data-overview-taste-link]").GetAttribute("href"));
+        Assert.Empty(cut.FindAll(".overview-header__edit"));
+        Assert.Empty(cut.FindAll(".overview-header__apps"));
+    }
+
+    [Fact]
     public void EmptyTimeline_SaysWhatShowsUpThere()
     {
         _recent = new([]);

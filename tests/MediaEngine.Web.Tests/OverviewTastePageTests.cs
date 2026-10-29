@@ -403,7 +403,7 @@ public sealed class OverviewTastePageTests : AsyncBunitContext
         var overview = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Settings", "Overview", "OverviewPage.razor"));
         var settings = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
 
-        Assert.Contains("href=\"@SettingsNav.TasteRoute\"", overview, StringComparison.Ordinal);
+        Assert.Contains("SettingsNav.TasteRoute", overview, StringComparison.Ordinal);
         Assert.Contains("SettingsNav.TasteSubsection", settings, StringComparison.Ordinal);
         Assert.Contains("<OverviewTastePage />", settings, StringComparison.Ordinal);
     }

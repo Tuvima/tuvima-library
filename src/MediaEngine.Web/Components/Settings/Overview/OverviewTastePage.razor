@@ -79,23 +79,23 @@
                         <div class="taste-page__cards">
                             @if (slices.Count > 0)
                             {
-                                <section class="taste-card" aria-label="Genres" data-taste-genres-card>
-                                    <h3 class="taste-card__title">Genres</h3>
+                                <section class="taste-block" aria-label="Genres" data-taste-genres-card>
+                                    <h3 class="taste-block__title">Genres</h3>
                                     <TasteDonut Slices="@slices" />
                                 </section>
                             }
                             @if (formats.Count > 0)
                             {
-                                <section class="taste-card" aria-label="Formats" data-taste-formats-card>
-                                    <h3 class="taste-card__title">Formats</h3>
+                                <section class="taste-block" aria-label="Formats" data-taste-formats-card>
+                                    <h3 class="taste-block__title">Formats</h3>
                                     <TasteFormatMix Shares="@formats" />
                                 </section>
                             }
                         </div>
                     }
 
-                    <section class="taste-card taste-card--tastes" aria-label="Key tastes" data-taste-key-tastes>
-                        <h3 class="taste-card__title">Key tastes</h3>
+                    <section class="taste-block taste-block--tastes" aria-label="Key tastes" data-taste-key-tastes>
+                        <h3 class="taste-block__title">Key tastes</h3>
                         @foreach (var group in Groups)
                         {
                             var items = ItemsFor(person, group.Key);
@@ -175,8 +175,8 @@
 
                     @if (shifts.Bars.Count > 0)
                     {
-                        <section class="taste-card" aria-label="How your taste shifts" data-taste-shifts-card>
-                            <h3 class="taste-card__title">@(person.IsYou ? "How your taste shifts" : "How their taste shifts")</h3>
+                        <section class="taste-block" aria-label="How your taste shifts" data-taste-shifts-card>
+                            <h3 class="taste-block__title">@(person.IsYou ? "How your taste shifts" : "How their taste shifts")</h3>
                             <TasteShifts Bars="@shifts.Bars" Legend="@shifts.Legend" />
                         </section>
                     }

@@ -40,6 +40,8 @@ else
                     <h2 class="overview-header__name">@_profile.DisplayName</h2>
                     <p class="overview-header__joined">Joined @Joined</p>
                 </div>
+                @if (!IsKids)
+                {
                 <div class="overview-header__actions">
                     <AppButton Label="Edit profile"
                                StartIcon="@AppMaterialIcons.Outlined.Edit"
@@ -52,6 +54,7 @@ else
                                    Href="@AppsRoute"
                                    Class="overview-header__apps" />
                 </div>
+                }
             </div>
         </AppCard>
         </div>
@@ -84,7 +87,7 @@ else
             <div class="overview-page__side">
                 <SettingsSectionPanel Title="Your taste" Icon="@AppMaterialIcons.Outlined.Category" Class="tl-card settings-section-card settings-section-card--dense overview-page__taste">
                     <Actions>
-                        <a class="overview-page__link" href="@SettingsNav.TasteRoute" data-overview-taste-link>See your taste</a>
+                        <a class="overview-page__link" href="@TasteHref" data-overview-taste-link>See your taste</a>
                     </Actions>
                     <ChildContent>
                         <p class="overview-page__taste-summary" data-overview-taste-summary>@(TasteLine ?? "Your taste appears here once you have watched, read or listened to a few things.")</p>
@@ -141,6 +144,11 @@ else
     private string Joined => _profile is null ? string.Empty : _profile.CreatedAt.ToLocalTime().ToString("MMMM yyyy", CultureInfo.CurrentCulture);
 
     // A Kids profile has no Settings: its own activity lives on My activity.
+    // A Kids profile has no Settings: it keeps its own pages, with no editing.
+    private bool IsKids => _profile?.IsRestricted == true;
+
+    private string TasteHref => IsKids ? SettingsNav.MyTasteRoute : SettingsNav.TasteRoute;
+
     private string ActivityHref => _profile?.IsRestricted == true ? SettingsNav.MyActivityRoute : SettingsNav.ActivityRoute;
 
     // The sentence comes from the taste with the person's own removals and additions applied, so it matches the Taste page.

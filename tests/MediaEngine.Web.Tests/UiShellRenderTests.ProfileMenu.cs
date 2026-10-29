@@ -81,13 +81,12 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void ProfileMenu_ForAKidsProfile_KeepsADirectActivityLink_OnItsOwnPage()
+    public void ProfileMenu_ForAKidsProfile_OpensItsOwnProfilePage_OutsideSettings()
     {
         var cut = OpenProfileMenu(canManageProfiles: false, isKids: true);
 
         var items = MenuItems(cut);
-        Assert.Contains(items, item => item == ("/my-activity", "My activity"));
-        Assert.DoesNotContain(items, item => item.Text == "Profile");
+        Assert.Contains(items, item => item == ("/my-profile", "Profile"));
         Assert.DoesNotContain(items, item => item.Href is not null && item.Href.StartsWith("/settings", StringComparison.Ordinal));
     }
 

@@ -34,13 +34,13 @@ public sealed class KidsShellTests : AsyncBunitContext
     }
 
     [Fact]
-    public void KidsProfile_HasMyActivityOnItsOwnPage_AndNoProfileLink()
+    public void KidsProfile_HasItsOwnProfilePage_OutsideSettings()
     {
         var cut = RenderOpenMenu(kids: true, canReview: false);
 
         var items = cut.FindAll("a[role=menuitem]").Select(link => (Href: link.GetAttribute("href"), Text: link.TextContent.Trim())).ToList();
-        Assert.Contains(items, item => item.Href == "/my-activity" && item.Text == "My activity");
-        Assert.DoesNotContain(items, item => item.Text == "Profile");
+        Assert.Contains(items, item => item.Href == "/my-profile" && item.Text == "Profile");
+        Assert.DoesNotContain(items, item => item.Href is not null && item.Href.StartsWith("/settings", StringComparison.Ordinal));
     }
 
     [Fact]

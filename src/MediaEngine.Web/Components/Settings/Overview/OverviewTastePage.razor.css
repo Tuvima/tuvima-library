@@ -45,22 +45,23 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.taste-card {
+.taste-block {
     display: grid;
     min-width: 0;
     align-content: start;
     gap: var(--tl-space-3, 12px);
     margin-bottom: var(--tl-space-4, 16px);
+    padding: var(--tl-space-4, 16px);
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-xl, 12px);
     background: color-mix(in srgb, var(--tl-text-primary) 3%, transparent);
 }
 
-.taste-page__cards > .taste-card {
+.taste-page__cards > .taste-block {
     margin-bottom: 0;
 }
 
-.taste-card__title {
+.taste-block__title {
     margin: 0;
     color: var(--tl-text-primary);
     font-size: 1rem;
