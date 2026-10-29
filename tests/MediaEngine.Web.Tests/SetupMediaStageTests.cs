@@ -116,7 +116,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         _configuration.Libraries.Add(new() { Id = VaultId, Name = "Private movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"], IsVault = true, Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
         var cut = RenderStage(hasLibraries: true);
 
-        Assert.Equal(["Watch", "Listen", "Read"], cut.FindAll("[role=tab]").Select(Text).ToArray());
+        Assert.Equal(["Watch", "Listen", "Read"], cut.FindAll("[aria-label='Library areas'] button").Select(Text).ToArray());
         Assert.DoesNotContain(cut.FindAll("th"), header => Text(header) == "Access");
         Assert.Empty(cut.FindAll("a.libs__link"));
         Assert.Empty(cut.FindAll(".libs__chevron"));
@@ -137,10 +137,10 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var navigation = Services.GetRequiredService<NavigationManager>();
         var before = navigation.Uri;
 
-        cut.FindAll("[role=tab]").Single(tab => Text(tab) == "Listen").Click();
+        cut.FindAll("[aria-label='Library areas'] button").Single(tab => Text(tab) == "Listen").Click();
 
         Assert.Equal(before, navigation.Uri);
-        Assert.Equal("true", cut.FindAll("[role=tab]").Single(tab => Text(tab) == "Listen").GetAttribute("aria-selected"));
+        Assert.Equal("true", cut.FindAll("[aria-label='Library areas'] button").Single(tab => Text(tab) == "Listen").GetAttribute("aria-pressed"));
     }
 
     [Fact]
@@ -239,5 +239,27 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.DoesNotContain("AddFolderWizard", source, StringComparison.Ordinal);
         Assert.DoesNotContain("LibraryFoldersPanel", source, StringComparison.Ordinal);
         Assert.DoesNotContain("setup-have__card", source, StringComparison.Ordinal);
+    }
+
+    // A4: setup has no copy of the table, the dialog or the pop-up. It draws Settings' own, and the only things Simple changes are what a first-time install
+    // must not show (no Vault, no Access choice) and the Continue button below the table.
+    [Fact]
+    public void SetupDrawsOnlySettingsOwnTableDialogAndFolderPopUpWithNoCopyOfAny()
+    {
+        var root = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components");
+        var setupSources = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories).Select(File.ReadAllText).ToArray();
+        var stage = File.ReadAllText(Path.Combine(root, "Setup", "SetupMediaStage.razor"));
+        var overview = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibrariesOverview.razor"));
+
+        Assert.Contains("<LibrariesOverview", stage, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<CreateLibraryDialog>", overview, StringComparison.Ordinal);
+        Assert.All(setupSources, source =>
+        {
+            Assert.DoesNotContain("<CreateLibraryDialog", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("<ServerFolderPicker", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("AppDialogParameters<ServerFolderPicker>", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("<AppSegmentedControl", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("<AppTable", source, StringComparison.Ordinal);
+        });
     }
 }

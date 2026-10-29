@@ -19,10 +19,10 @@
    breadcrumb Libraries > area > name and the library's name as the title. Folders embeds the existing folders panel for this one
    library; the other tabs are filled in by the next steps. The selected tab lives in the address (?tab=).
    Scan now scans this library only. Add folder adds a folder to THIS library and comes straight back to its table with the new row pointed
-   at and one confirmation (no "go to..." question). Add files copies server files into the import destination, so it waits for one.
+   at (it glows for a moment; no toast and no "go to..." question). Add files copies server files into the import destination, so it waits for one.
    Vault-protected libraries (Library pages WP9) are reached only by someone who may see the Vault: their folders are listed as they are, Add
-   folder adds a Vault folder, Scan and Add files are not offered, and the Lookup tab holds the library's online lookup switch. For a server
-   administrator Add folder also offers "Add as a Vault folder" and the Folders menu "Move to Vault". Anyone else sees no Vault word. *@
+   folder adds a Vault folder (its pop-up also offers "Let Library manage this folder"), Scan and Add files are not offered, and the Lookup tab holds
+   the library's online lookup switch. For a server administrator the Folders menu offers "Move to Vault". Anyone else sees no Vault word. *@
 @{
     var row = Row;
 }
@@ -81,6 +81,11 @@
                 </div>
             }
         </div>
+
+        @if (_addError is not null)
+        {
+            <AppAlert Tone="AppUiTone.Warning" Dense="true">@_addError</AppAlert>
+        }
 
         <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="Library sections">
             @foreach (var tab in Tabs)
@@ -180,6 +185,8 @@
     private bool _scanning;
     private int _panelVersion;
     private string? _highlightSourceId;
+    // Why the last Add folder did not work, drawn as a warning bubble above the tabs (never a toast).
+    private string? _addError;
 
     // Add files needs somewhere to copy into: a managed folder that is this library's import destination.
     private bool HasImportDestination => Library.GetPrimaryDestination() is { ManagementMode: "managed_by_tuvima" };
@@ -255,28 +262,30 @@
 
     private string row_name() => string.IsNullOrWhiteSpace(Library.Name) ? "this library" : Library.Name;
 
-    // Add folder: the folder picker on this library's content type (it shows the file count and says why a folder is refused), then the folder
-    // is added to THIS library and the table comes back with the new row pointed at. The confirmation is the toast; nothing else is asked.
+    // Add folder: the same "Choose source folder" pop-up Add library uses (it shows the file count and says why a folder is refused). The folder is added
+    // to THIS library, the table comes back and the new row glows for a moment. Nothing else is asked and nothing pops up afterwards.
     private async Task AddFolderAsync()
     {
         var kind = Kinds.Find(Library.KindKey);
         if (kind is null) return;
         var managed = kind.DefaultHandling == "managed";
-        var parameters = new AppDialogParameters<LibraryAddFolderDialog>
+        var managedVault = false;
+        var parameters = new AppDialogParameters<ServerFolderPicker>
         {
+            { component => component.Title, "Choose source folder" },
+            { component => component.HelpText, $"Choose the folder on the Library server that holds more of {row_name()}." },
+            { component => component.ConfirmLabel, "Choose folder" },
+            { component => component.SelectionMode, managed && !IsVault ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
             { component => component.KindKey, Library.KindKey },
             { component => component.MediaType, kind.MediaTypes.FirstOrDefault() },
-            { component => component.HelpText, $"Choose a folder on the Library server that holds more of {row_name()}." },
-            { component => component.Managed, managed },
-            { component => component.OfferVault, CanOfferVault },
-            { component => component.ForceVault, IsVault },
+            { component => component.OfferManagedChoice, IsVault },
+            { component => component.OnManagedChoiceChanged, EventCallback.Factory.Create<bool>(this, value => managedVault = value) },
         };
-        var dialog = await DialogService.ShowAsync<LibraryAddFolderDialog>(string.Empty, parameters, LibraryAddFolderDialog.DialogOptions);
-        if (await dialog.Result is not { Canceled: false, Data: LibraryAddFolderDialog.Choice choice }) return;
-        var selected = choice.Folder;
-        if (choice.AsVault)
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
+        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
+        if (IsVault)
         {
-            await AddVaultFolderAsync(selected, choice.ManagedVault);
+            await AddVaultFolderAsync(selected, managedVault);
             return;
         }
 
@@ -285,43 +294,32 @@
             selected,
             managed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly,
             MarkNewMediaHere: false,
-            LibraryId: Library.Id,
-            SuccessMessage: $"Added {Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))} to {row_name()}.");
+            LibraryId: Library.Id);
         var result = await AddService.AddAsync(plan, Kinds, Configuration, FolderAddScope.Settings);
         if (!result.Saved)
         {
-            Toast.Add(result.Error ?? "The folder could not be added. Check it and try again.", AppSeverity.Error);
+            _addError = result.Error ?? "The folder could not be added. Check it and try again.";
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(result.Notice))
-        {
-            Toast.Add(result.Notice, AppSeverity.Warning);
-        }
-
-        // The new folder is scanned at once, so its titles start to fill in.
-        if (!await Api.TriggerRescanAsync(selected.Path))
-        {
-            Toast.Add("The folder was added, but its first scan could not start. Use Scan now.", AppSeverity.Warning);
-        }
-
+        _addError = null;
+        // The new folder is scanned at once, so its titles start to fill in. A scan that cannot start shows as the row's own status.
+        await Api.TriggerRescanAsync(selected.Path);
         _highlightSourceId = result.Source?.Id;
         await FolderAddedAsync();
     }
 
-    // A Vault folder joins the Vault-protected library of this content type, which the Engine makes first when there is none. An administrator is enough, with no PIN.
-    // The Engine starts watching and scanning the folder when it saves it, so nothing is asked of the Dashboard afterwards.
+    // A folder added to a Vault library. An administrator is enough, with no PIN. The Engine starts watching and scanning the folder when it saves it.
     private async Task AddVaultFolderAsync(ServerFolderValidationResultDto selected, bool managedVault)
     {
         var added = await Api.AddVaultFolderAsync(new AddVaultFolderRequest(Library.KindKey, selected.Path, managedVault));
         if (added is not { Ok: true })
         {
-            Toast.Add(Api.LastError ?? "The folder could not be added. Check it and try again.", AppSeverity.Error);
+            _addError = Api.LastError ?? "The folder could not be added. Check it and try again.";
             return;
         }
 
-        var name = Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        Toast.Add(IsVault ? $"Added {name} to {row_name()}." : "Added as a Vault folder.", AppSeverity.Success);
+        _addError = null;
         _highlightSourceId = null;
         await FolderAddedAsync();
     }

@@ -12,3 +12,9 @@
 .libs__counts { color: var(--tl-text-secondary, var(--tl-text-muted)); }
 .libs__chevron { color: var(--tl-text-muted); text-align: end; }
 @media (max-width: 600px) { .libs__filter { flex-basis: 100%; } }
+.libs__lock { color: var(--tl-text-muted); font-size: 1rem; }
+.libs__areas { align-self: flex-start; max-width: 100%; }
+/* A library that was just added: the row glows for about two seconds, then settles. */
+@keyframes libs-row-glow { from { background: color-mix(in srgb, var(--tl-accent-primary) 38%, transparent); } to { background: transparent; } }
+.libs__row--new > td { animation: libs-row-glow 2.2s ease-out 1; }
+@media (prefers-reduced-motion: reduce) { .libs__row--new > td { animation: none; background: color-mix(in srgb, var(--tl-accent-primary) 16%, transparent); } }

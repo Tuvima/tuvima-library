@@ -288,7 +288,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".libs__row");
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll("[role=tab]").Select(Text).ToArray());
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll("[aria-label='Library areas'] button").Select(Text).ToArray());
         Assert.Contains("3 folders", Text(cut.Find($".libs__row[data-library='{MoviesId}']")));
 
         var listen = Render<LibrariesTab>(parameters => parameters.AddCascadingValue(RoutedPageQuery.CascadingName, "http://localhost/settings/libraries?area=listen"));

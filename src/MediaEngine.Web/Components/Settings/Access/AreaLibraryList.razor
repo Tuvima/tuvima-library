@@ -77,7 +77,7 @@
     private bool AllTicked => AnyChangeable && _libraries.All(library => IsLimited(library) || !HiddenIds.Contains(library.Id));
 
     protected override void OnParametersSet() =>
-        _libraries = Libraries.Where(library => string.Equals(library.Area, AreaKey, StringComparison.OrdinalIgnoreCase)).ToList();
+        _libraries = AccessAreas.InOrder(Libraries.Where(library => string.Equals(library.Area, AreaKey, StringComparison.OrdinalIgnoreCase)), library => library.DisplayName).ToList();
 
     private Task TickedAsync(AccessLibraryOptionDto library, bool ticked) =>
         Locked || IsLimited(library) || (library.HiddenFromYou && HiddenIds.Contains(library.Id))

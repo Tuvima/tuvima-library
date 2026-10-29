@@ -209,8 +209,8 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
 
         await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
 
-        dialogs.WaitForAssertion(() => Assert.Contains("Add folder", dialogs.Markup, StringComparison.Ordinal));
-        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Add"));
+        dialogs.WaitForAssertion(() => Assert.Contains("Choose source folder", dialogs.Markup, StringComparison.Ordinal));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder"));
         Assert.DoesNotContain("Vault", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -227,27 +227,44 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
         Assert.DoesNotContain(cut.FindAll("[role=menuitem]"), item => Text(item).Contains("Vault", StringComparison.OrdinalIgnoreCase));
 
         await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
-        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Add"));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder"));
         Assert.DoesNotContain("Vault", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task AddFolderOffersTheVaultSwitchToAnAdministratorAndAVaultFolderGoesToTheVaultNotToThisLibrary()
+    public async Task AddFolderOnAnOrdinaryLibraryOffersNoVaultChoiceEvenToAnAdministratorAndTheFolderJoinsThatLibrary()
     {
         SignIn(administrator: true);
         var dialogs = Render<AppDialogHost>();
-        var cut = OpenPage(_configuration.Libraries[0]);
+        var cut = OpenPage(_configuration.Libraries[0], vaultVisible: true);
 
         await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
-        dialogs.WaitForAssertion(() => Assert.Contains("Add as a Vault folder", dialogs.Markup, StringComparison.Ordinal));
-        dialogs.Find("[role=switch]").Change(true);
-        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Add" && !button.HasAttribute("disabled")));
-        await dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Add" && !button.HasAttribute("disabled")));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
+        Assert.DoesNotContain("Vault", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(dialogs.FindAll("[role=switch]"));
+        await dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(_mutations));
+        Assert.Empty(_vaultFolders);
+    }
+
+    [Fact]
+    public async Task AddFolderOnAVaultLibraryAlwaysAddsToTheVaultAndOffersOnlyTheManagedFolderSwitchOffByDefault()
+    {
+        SignIn(administrator: true);
+        var dialogs = Render<AppDialogHost>();
+        var cut = OpenPage(VaultMovies(), vaultVisible: true);
+
+        await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
+        var managed = Assert.Single(dialogs.FindAll("[role=switch]"));
+        Assert.False(managed.HasAttribute("checked"));
+        await dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
 
         cut.WaitForAssertion(() => Assert.Single(_vaultFolders));
         Assert.Equal("movies", _vaultFolders[0].KindKey);
-        Assert.Equal("G:\\More\\Movies", _vaultFolders[0].FolderPath);
+        Assert.False(_vaultFolders[0].Managed);
         Assert.Empty(_mutations);
     }
 
@@ -324,24 +341,6 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(_lookupSwitches));
         cut.WaitForAssertion(() => Assert.False(cut.Find("section.vault-lookup [role=switch]").HasAttribute("checked")));
-    }
-
-    [Fact]
-    public void AddFolderDialogOnAVaultLibraryAlwaysAddsToTheVaultAndOffersOnlyTheManagedFolderSwitchOffByDefault()
-    {
-        var dialogs = Render<AppDialogHost>();
-        Services.GetRequiredService<IAppDialogService>();
-        var parameters = new AppDialogParameters<LibraryAddFolderDialog>
-        {
-            { component => component.KindKey, "movies" },
-            { component => component.ForceVault, true },
-        };
-        _ = Services.GetRequiredService<IAppDialogService>().ShowAsync<LibraryAddFolderDialog>(string.Empty, parameters, LibraryAddFolderDialog.DialogOptions);
-
-        dialogs.WaitForElement(".add-folder");
-        var switches = dialogs.FindAll("[role=switch]");
-        Assert.Single(switches);
-        Assert.False(switches[0].HasAttribute("checked"));
     }
 
     [Fact]

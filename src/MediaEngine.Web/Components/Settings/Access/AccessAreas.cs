@@ -18,6 +18,10 @@ internal static class AccessAreas
         new("view", "View", AppMaterialIcons.Outlined.Visibility, AppColor.Success, "Shared content and the active profile's Personal Space"),
     ];
 
+    /// <summary>One library order for every list of area libraries (a household's and a person's), so both pages read the same.</summary>
+    public static IEnumerable<T> InOrder<T>(IEnumerable<T> libraries, Func<T, string> name) =>
+        libraries.OrderBy(name, StringComparer.CurrentCultureIgnoreCase);
+
     public static Area? Find(string? key) =>
         All.FirstOrDefault(area => string.Equals(area.Key, key?.Trim(), StringComparison.OrdinalIgnoreCase));
 }

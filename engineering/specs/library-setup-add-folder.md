@@ -1,6 +1,6 @@
 # Spec: Library setup and add-folder flow (fewer steps, fewer info buttons, one screen for setup and Settings)
 
-> **Status:** Locked (Shy, 2026-10-29) · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** [Library pages](library-pages.md) (v14, Built; D3, D4, D5, D10) · [Simpler library access](library-access.md) (v3, Built, awaiting Local checks) · [One shared look for pages](one-shared-look.md) · [First-run setup flow](first-run-setup-flow.md) · [Library setup](library-setup-groups.md) (D13)
+> **Status:** Built, awaiting Local checks (Shy, 2026-10-29; the faster folder picker, packet 6, is parked until the Engine log arrives) · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** [Library pages](library-pages.md) (v14, Built; D3, D4, D5, D10) · [Simpler library access](library-access.md) (v3, Built, awaiting Local checks) · [One shared look for pages](one-shared-look.md) · [First-run setup flow](first-run-setup-flow.md) · [Library setup](library-setup-groups.md) (D13)
 
 > Written 2026-10-29 from Shy's local-review notes on the setup wizard's Libraries step, the Add folder dialog, the number of steps, the "go to music" prompt and the many "i" buttons. It was checked against the code on main (after PR #533). **Builds after packet 4 of One shared look**, because it reuses the shared tabs, cards and buttons.
 
