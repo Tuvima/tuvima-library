@@ -16,5 +16,5 @@ jobs:
       - name: Failing tests
         continue-on-error: true
         run: >
-          dotnet test MediaEngine.slnx --no-build --logger "console;verbosity=normal" --filter
+          dotnet test MediaEngine.slnx --no-build --logger "console;verbosity=minimal" --filter
           "FullyQualifiedName~FileWriteSchedulerTests|FullyQualifiedName~ViewItemFileWriterTests|FullyQualifiedName~VaultMoveTests|FullyQualifiedName~LibraryItemDeletionTests|FullyQualifiedName~UserDeletionTests|FullyQualifiedName~ServicePluginTests|FullyQualifiedName~AuthorizedDisplayProjectionReadServiceTests|FullyQualifiedName~VideoOrderRenamerTests|FullyQualifiedName~FolderFirstCheckRepositoryTests|FullyQualifiedName~ImportUploadRelayTests"
