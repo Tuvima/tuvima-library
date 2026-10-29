@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Library and Ingestion opens on one live page (library summary, live ingestion, recently added); Recently Added is
+/// Library & Ingestion opens on one live page (library summary, live ingestion, recently added); Recently Added is
 /// reached from its "View all" link and is not a menu row (Settings revamp D37).
 /// </summary>
 public sealed partial class UiShellRenderTests
@@ -87,10 +87,10 @@ public sealed partial class UiShellRenderTests
                 .Where(text => text.Length > 0)
                 .Distinct()
                 .ToArray();
-            Assert.Equal(["Settings", "Server", "Library and Ingestion", "Recently Added"], trail);
+            Assert.Equal(["Settings", "Server", "Library & Ingestion", "Recently Added"], trail);
             var links = cut.FindAll(".media-section-shell__tree-link");
             Assert.DoesNotContain(links, link => link.TextContent.Contains("Recently Added", StringComparison.Ordinal));
-            Assert.Single(links, link => link.TextContent.Contains("Library and Ingestion", StringComparison.Ordinal));
+            Assert.Single(links, link => link.TextContent.Contains("Library & Ingestion", StringComparison.Ordinal));
         });
     }
 
@@ -104,7 +104,7 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() =>
         {
             var row = cut.FindAll(".media-section-shell__tree-link")
-                .First(link => link.TextContent.Contains("Library and Ingestion", StringComparison.Ordinal));
+                .First(link => link.TextContent.Contains("Library & Ingestion", StringComparison.Ordinal));
             var badge = row.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.Null(badge);
         });

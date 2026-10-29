@@ -10,11 +10,6 @@ public enum SettingsSection
 {
     Overview,
     Profiles,
-    Preferences,
-    Playback,
-    Listening,
-    Reading,
-    Home,
     Security,
 
     AdminOverview,
@@ -30,6 +25,7 @@ public enum SettingsSection
     Notifications,
     Network,
     Access,
+    Integrations,
     Server,
 
     Review,
@@ -72,8 +68,7 @@ public sealed record SettingsItemDef(
     bool Placeholder = false,
     SettingsStatusKind Status = SettingsStatusKind.Planned,
     SettingsMobileAvailability MobileAvailability = SettingsMobileAvailability.Full,
-    bool SectionBreakBefore = false,
-    bool HouseholdAdminAccess = false);
+    bool SectionBreakBefore = false);
 
 public sealed record LaunchFeatureEvidence(
     bool Implemented,
@@ -92,39 +87,83 @@ public sealed record SettingsSubsectionDef(
     string Icon);
 
 /// <summary>
-/// One row of the Settings menu tree. A parent opens its own main page; its children are the pages beneath it, so no
-/// child repeats the parent. The same rows are the desktop menu and the phone page selector.
+/// One tab of a Settings page. A tab is a link to its own address, so deep links, reload and Back all work; it opens one
+/// (section, sub-page) of the Settings route table.
 /// </summary>
-/// <param name="Subsection">
-/// The sub-page this row opens, or <see langword="null"/> for the section's own main page.
-/// </param>
-public sealed record SettingsMenuNode(
+/// <param name="Subsection">The sub-page this tab opens, or <see langword="null"/> for the section's own main page.</param>
+public sealed record SettingsPageTab(
     string Label,
     string Icon,
     SettingsSection Section,
-    string? Subsection = null,
-    IReadOnlyList<SettingsMenuNode>? ChildNodes = null)
+    string? Subsection = null)
 {
-    public IReadOnlyList<SettingsMenuNode> Children => ChildNodes ?? [];
-
     public string Route => Subsection is null
         ? SettingsNav.RouteFor(Section)
         : SettingsNav.RouteFor(Section, Subsection);
 }
 
-/// <summary>A top-level group of the Settings menu (Personal, Server, Manage, Developer).</summary>
+/// <summary>
+/// One row of the flat Settings menu: a page. A page with several related areas carries one row of tabs; a page with a
+/// single purpose has none. The same rows are the desktop menu and the phone page selector.
+/// </summary>
+/// <param name="PageTabs">The page's tabs, in order, or <see langword="null"/> for a page with a single purpose.</param>
+/// <param name="AlsoSections">Sections that open under this page without being one of its tabs (off-menu pages and retired addresses).</param>
+public sealed record SettingsMenuNode(
+    string Label,
+    string Icon,
+    SettingsSection Section,
+    IReadOnlyList<SettingsPageTab>? PageTabs = null,
+    IReadOnlyList<SettingsSection>? AlsoSections = null)
+{
+    public IReadOnlyList<SettingsPageTab> Tabs => PageTabs ?? [];
+
+    public bool HasTabs => Tabs.Count > 0;
+
+    /// <summary>Where the row opens: its first tab, or the page's own address.</summary>
+    public string Route => Tabs.Count > 0 ? Tabs[0].Route : SettingsNav.RouteFor(Section);
+
+    /// <summary>Every section that opens under this page.</summary>
+    public IEnumerable<SettingsSection> Sections =>
+        Tabs.Select(tab => tab.Section).Append(Section).Concat(AlsoSections ?? []).Distinct();
+
+    /// <summary>
+    /// The tab a page of this row sits on, or <see langword="null"/> when it is not on a tab (an off-menu page, or a list the
+    /// tabs open). A sub-page the tabs do not name falls to the section's own tab.
+    /// </summary>
+    public SettingsPageTab? TabFor(SettingsSection section, string? subsection)
+    {
+        var inSection = Tabs.Where(tab => tab.Section == section).ToList();
+        if (inSection.Count == 0)
+        {
+            return null;
+        }
+
+        var requested = string.IsNullOrWhiteSpace(subsection) ? null : SettingsNav.NormalizeSlug(subsection);
+        return inSection.FirstOrDefault(tab => tab.Subsection is not null
+                   && requested is not null
+                   && string.Equals(SettingsNav.NormalizeSlug(tab.Subsection), requested, StringComparison.OrdinalIgnoreCase))
+               ?? inSection.FirstOrDefault(tab => tab.Subsection is null)
+               ?? (requested is null ? inSection[0] : null);
+    }
+}
+
+/// <summary>A top-level group of the Settings menu (Personal, Server, Platform, System, Developer).</summary>
 public sealed record SettingsMenuGroup(
     string Key,
     string Label,
     string Icon,
     IReadOnlyList<SettingsMenuNode> Nodes);
 
-/// <summary>Where a section or sub-page sits in the menu: its group and the rows from the top level down to it.</summary>
-public sealed record SettingsMenuLocation(SettingsMenuGroup Group, IReadOnlyList<SettingsMenuNode> Trail)
+/// <summary>Where a page sits in the menu: its group, its row, the tab it is on, and the name of an off-tab page beneath the row.</summary>
+/// <param name="Tab">The tab the page is on; <see langword="null"/> for a page the row has no tab for.</param>
+/// <param name="Leaf">The name of a page that sits beneath the row without being a tab (Needs Review, Apps), for the breadcrumb.</param>
+public sealed record SettingsMenuLocation(
+    SettingsMenuGroup Group,
+    SettingsMenuNode Page,
+    SettingsPageTab? Tab,
+    string? Leaf = null)
 {
-    public SettingsMenuNode Node => Trail[^1];
-
-    public SettingsMenuNode? Parent => Trail.Count > 1 ? Trail[^2] : null;
+    public SettingsMenuNode Node => Page;
 }
 
 /// <summary>
@@ -149,11 +188,20 @@ public static class SettingsNav
     private static bool _productionMode;
     private static readonly AsyncLocal<bool?> _scopedProductionMode = new();
 
-    /// <summary>The Households sub-page of Users and Sign-in (server administrators only).</summary>
+    /// <summary>The Households sub-page of Users & Households (server administrators only).</summary>
     public const string HouseholdsSubsection = "households";
 
     /// <summary>The Logs sub-page of System: the Activity log (Events), technical log, retention and export (server administrators only).</summary>
     public const string LogsSubsection = "logs";
+
+    /// <summary>The Scheduled Tasks sub-page of System: every task with its status, schedule, last and next run and recent runs (server administrators only).</summary>
+    public const string ScheduledTasksSubsection = "scheduled-tasks";
+
+    /// <summary>The Devices &amp; Sessions sub-page of Security &amp; Devices.</summary>
+    public const string DevicesSubsection = "devices";
+
+    /// <summary>The Ingestion Flow sub-page of Metadata Providers, a tab of Library &amp; Ingestion.</summary>
+    public const string IngestionFlowSubsection = "ingestion-flow";
 
     /// <summary>The Apps sub-page of Overview: store links, the server address and its QR code. It has no menu row; an icon on the Overview opens it.</summary>
     public const string AppsSubsection = "apps";
@@ -186,11 +234,6 @@ public static class SettingsNav
         {
             [SettingsSection.Overview] = Complete(),
             [SettingsSection.Profiles] = Complete(),
-            [SettingsSection.Preferences] = Complete(),
-            [SettingsSection.Playback] = Complete(),
-            [SettingsSection.Listening] = Complete(),
-            [SettingsSection.Reading] = Complete(),
-            [SettingsSection.Home] = Complete(),
             [SettingsSection.Security] = Complete(),
             [SettingsSection.AdminOverview] = Complete(),
             [SettingsSection.Libraries] = Complete(),
@@ -205,6 +248,7 @@ public static class SettingsNav
             [SettingsSection.Tools] = Complete(),
             [SettingsSection.Notifications] = Complete(),
             [SettingsSection.Access] = Complete(),
+            [SettingsSection.Integrations] = Complete(),
         };
 
     private static LaunchFeatureEvidence Complete() => new(true, true, true, true, true);
@@ -235,140 +279,142 @@ public static class SettingsNav
     [
         new("personal", "Personal", AppMaterialIcons.Outlined.Person, false, SettingsSection.Overview),
         new("server", "Server", AppMaterialIcons.Outlined.Dns, true, SettingsSection.Ingestion),
-        new("manage", "Manage", AppMaterialIcons.Outlined.ManageAccounts, true, SettingsSection.Access),
-        new("developer", "Developer", AppMaterialIcons.Outlined.DataObject, true, SettingsSection.LocalAi),
+        new("platform", "Platform", AppMaterialIcons.Outlined.Extension, true, SettingsSection.LocalAi),
+        new("system", "System", AppMaterialIcons.Outlined.DesktopWindows, true, SettingsSection.AdminOverview),
+        new("developer", "Developer", AppMaterialIcons.Outlined.DataObject, true, SettingsSection.ProviderTester),
     ];
 
     public static readonly SettingsItemDef[] AllItems =
     [
-        // Overview is the page everyone except a Kids profile lands on: your own profile, counts, recent activity and taste (D11).
-        new(SettingsSection.Overview, "personal", "overview", AppMaterialIcons.Outlined.AccountCircle, "Overview", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        // Profiles is an editing page for administrators (D29): a server administrator, or a household administrator for their own
-        // household. It is not an administrator-PIN page, so AdminOnly stays false; HouseholdAdminAccess plus IsVisible decide who sees it.
-        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Profiles", false, null, ["profile", "household"], "sqlite", Status: SettingsStatusKind.Live, HouseholdAdminAccess: true),
-        new(SettingsSection.Preferences, "personal", "preferences", AppMaterialIcons.Outlined.Tune, "Preferences", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Playback, "personal", "playback", AppMaterialIcons.Outlined.PlayCircleOutline, "Playback", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Listening, "personal", "listening", AppMaterialIcons.Outlined.Headphones, "Listening", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Reading, "personal", "reading", AppMaterialIcons.Outlined.MenuBook, "Reading", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Home, "personal", "home", AppMaterialIcons.Outlined.Home, "Home", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security", false, null, ["account"], "sqlite", Status: SettingsStatusKind.Live),
+        // Profile is the page everyone lands on, a Kids profile included (D12): your own profile, counts, recent activity and taste.
+        new(SettingsSection.Overview, "personal", "overview", AppMaterialIcons.Outlined.AccountCircle, "Profile", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        // Manage Profiles opens the household list for an administrator and your own profile for everyone else. Playback, Listening,
+        // Reading and Home are sections of a profile's Preferences tab, not pages of their own.
+        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Manage Profiles", false, null, ["profile", "household"], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security & Devices", false, null, ["account"], "sqlite", Status: SettingsStatusKind.Live),
 
-        new(SettingsSection.Ingestion, "server", "ingestion", AppMaterialIcons.Outlined.VideoLibrary, "Library and Ingestion", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Ingestion, "server", "ingestion", AppMaterialIcons.Outlined.VideoLibrary, "Library & Ingestion", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.RecentlyAdded, "server", "recently-added", AppMaterialIcons.Outlined.History, "Recently Added", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.Libraries, "server", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Providers, "server", "metadata", AppMaterialIcons.Outlined.Hub, "Metadata Providers", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Review, "server", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", [], "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.Network, "server", "network", AppMaterialIcons.Outlined.WifiTethering, "Network and Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Network, "server", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Delivery, "server", "delivery", AppMaterialIcons.Outlined.Stream, "Streaming", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Access, "server", "access", AppMaterialIcons.Outlined.AdminPanelSettings, "Users & Households", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
 
-        new(SettingsSection.Access, "manage", "access", AppMaterialIcons.Outlined.AdminPanelSettings, "Users and Sign-in", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.AdminOverview, "manage", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Tools, "manage", "tools", AppMaterialIcons.Outlined.Build, "Tools and requirements", true, null, [], "runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Notifications, "manage", "notifications", AppMaterialIcons.Outlined.Mail, "Notifications", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Server, "manage", "backup-recovery", AppMaterialIcons.Outlined.Backup, "Backup and recovery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.LocalAi, "platform", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Plugins, "platform", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, [], "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Integrations, "platform", "integrations", AppMaterialIcons.Outlined.Link, "Integrations", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
 
-        new(SettingsSection.LocalAi, "developer", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Plugins, "developer", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, [], "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        // Developer Tools (settings revamp D35) opens on the Provider Tester, so that page owns the "developer" address and its
-        // old "provider-tester" address. Enrichment Tester and Development data are its sub-pages; they are offered only when the
-        // running Engine is a development build (see DevelopmentToolsState). The Enrichment Tester is temporary: it is removed at beta.
-        new(SettingsSection.ProviderTester, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Developer Tools", true, null, ["provider-tester"], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.AdminOverview, "system", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Tools, "system", "tools", AppMaterialIcons.Outlined.Build, "Configuration", true, null, [], "runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Notifications, "system", "notifications", AppMaterialIcons.Outlined.Mail, "Notifications", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Server, "system", "backup-recovery", AppMaterialIcons.Outlined.Backup, "Backups", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+
+        // Developer Tools opens on the Provider Tester, so that page owns the "developer" address and its old "provider-tester" address.
+        // Enrichment Tester and Development data are its other tabs; they are offered only when the running Engine is a development
+        // build (see DevelopmentToolsState). The Enrichment Tester is temporary: it is removed at beta.
+        new(SettingsSection.ProviderTester, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Provider Tester", true, null, ["provider-tester"], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
         new(SettingsSection.EnrichmentTester, "developer", "enrichment-tester", AppMaterialIcons.Outlined.Science, "Enrichment Tester", true, null, ["tester"], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
         new(SettingsSection.DevHarness, "developer", "development-data", AppMaterialIcons.Outlined.Inventory2, "Development data", true, null, ["dev-harness", "harness", "ingestion-harness", "test-harness"], "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
     ];
 
     /// <summary>
-    /// The one Settings menu. Every parent opens its own main page and its children never repeat it (a sub-page of the
-    /// same section is a child only when it is a different page). Recently Added and Needs Review stay out of the menu:
-    /// Recently Added opens from a Needs Review row's "Find in recent history" and Needs Review from the administrator banner (see <see cref="OffMenuParents"/>). The
-    /// desktop tree, the phone page selector and the breadcrumb all read this.
+    /// The one Settings menu: groups of flat pages, no expanding rows. A page with several related areas carries one row of
+    /// route-linked tabs (<see cref="SettingsPageTab"/>); a page with a single purpose has none. Recently Added and Needs Review
+    /// stay out of the menu and open beneath Library &amp; Ingestion (see <see cref="OffMenuParents"/>). The desktop menu, the phone
+    /// page selector, the tab strip and the breadcrumb all read this.
     /// </summary>
     public static readonly SettingsMenuGroup[] MenuGroups =
     [
         new("personal", "Personal", AppMaterialIcons.Outlined.Person,
         [
-            Node("Overview", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview, children:
+            Page("Profile", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview,
             [
-                Node("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
-                Node("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
+                Tab("Overview", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview),
+                Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
+                Tab("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
             ]),
-            Node("Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
-            Node("Preferences", AppMaterialIcons.Outlined.Tune, SettingsSection.Preferences, children:
+            Page("Manage Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
+            Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
             [
-                Node("Playback", AppMaterialIcons.Outlined.PlayCircleOutline, SettingsSection.Playback),
-                Node("Listening", AppMaterialIcons.Outlined.Headphones, SettingsSection.Listening),
-                Node("Reading", AppMaterialIcons.Outlined.MenuBook, SettingsSection.Reading),
-                Node("Home", AppMaterialIcons.Outlined.Home, SettingsSection.Home),
-            ]),
-            Node("Security", AppMaterialIcons.Outlined.Lock, SettingsSection.Security, children:
-            [
-                Node("Devices", AppMaterialIcons.Outlined.Devices, SettingsSection.Security, "devices"),
+                Tab("Sign-in", AppMaterialIcons.Outlined.Key, SettingsSection.Security),
+                Tab("Devices & Sessions", AppMaterialIcons.Outlined.Devices, SettingsSection.Security, DevicesSubsection),
             ]),
         ]),
         new("server", "Server", AppMaterialIcons.Outlined.Dns,
         [
-            Node("Library and Ingestion", AppMaterialIcons.Outlined.VideoLibrary, SettingsSection.Ingestion, children:
+            Page("Library & Ingestion", AppMaterialIcons.Outlined.VideoLibrary, SettingsSection.Ingestion,
             [
-                Node("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries),
-                Node("Metadata Providers", AppMaterialIcons.Outlined.Hub, SettingsSection.Providers, children:
-                [
-                    Node("Ingestion Flow", AppMaterialIcons.Outlined.AccountTree, SettingsSection.Providers, "ingestion-flow"),
-                ]),
+                Tab("Overview", AppMaterialIcons.Outlined.Dashboard, SettingsSection.Ingestion),
+                Tab("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries),
+                Tab("Ingestion Flow", AppMaterialIcons.Outlined.AccountTree, SettingsSection.Providers, IngestionFlowSubsection),
+            ], also: [SettingsSection.RecentlyAdded, SettingsSection.Review]),
+            Page("Network & Remote Access", AppMaterialIcons.Outlined.WifiTethering, SettingsSection.Network,
+            [
+                Tab("Overview", AppMaterialIcons.Outlined.Dashboard, SettingsSection.Network, "overview"),
+                Tab("Local Network", AppMaterialIcons.Outlined.Lan, SettingsSection.Network, "local"),
+                Tab("Remote Access", AppMaterialIcons.Outlined.Public, SettingsSection.Network, "remote"),
+                Tab("Advanced", AppMaterialIcons.Outlined.Tune, SettingsSection.Network, "advanced"),
             ]),
-            Node("Network and Remote Access", AppMaterialIcons.Outlined.WifiTethering, SettingsSection.Network, children:
+            Page("Streaming", AppMaterialIcons.Outlined.Stream, SettingsSection.Delivery,
             [
-                Node("Local Network", AppMaterialIcons.Outlined.Lan, SettingsSection.Network, "local"),
-                Node("Remote Access", AppMaterialIcons.Outlined.Public, SettingsSection.Network, "remote"),
-                Node("Advanced", AppMaterialIcons.Outlined.Tune, SettingsSection.Network, "advanced"),
+                Tab("Limits & Quality", AppMaterialIcons.Outlined.Speed, SettingsSection.Delivery),
+                Tab("Hardware Acceleration", AppMaterialIcons.Outlined.Memory, SettingsSection.Delivery, "hardware"),
+                Tab("Optimized Copies", AppMaterialIcons.Outlined.Storage, SettingsSection.Delivery, "optimized-copies"),
+                Tab("Diagnostics", AppMaterialIcons.Outlined.MonitorHeart, SettingsSection.Delivery, "diagnostics"),
             ]),
-            Node("Streaming", AppMaterialIcons.Outlined.Stream, SettingsSection.Delivery, children:
+            Page("Users & Households", AppMaterialIcons.Outlined.AdminPanelSettings, SettingsSection.Access,
             [
-                Node("Hardware Acceleration", AppMaterialIcons.Outlined.Memory, SettingsSection.Delivery, "hardware"),
-                Node("Optimized Copies", AppMaterialIcons.Outlined.Storage, SettingsSection.Delivery, "optimized-copies"),
-                Node("Diagnostics", AppMaterialIcons.Outlined.MonitorHeart, SettingsSection.Delivery, "diagnostics"),
+                Tab("Users", AppMaterialIcons.Outlined.ManageAccounts, SettingsSection.Access, "users"),
+                Tab("Sign-in Methods", AppMaterialIcons.Outlined.Security, SettingsSection.Access, "authentication"),
+                Tab("Households", AppMaterialIcons.Outlined.Home, SettingsSection.Access, HouseholdsSubsection),
             ]),
         ]),
-        new("manage", "Manage", AppMaterialIcons.Outlined.ManageAccounts,
+        new("platform", "Platform", AppMaterialIcons.Outlined.Extension,
         [
-            Node("Users and Sign-in", AppMaterialIcons.Outlined.AdminPanelSettings, SettingsSection.Access, children:
+            Page("Local AI", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi,
             [
-                Node("Sign-in Methods", AppMaterialIcons.Outlined.Security, SettingsSection.Access, "authentication"),
-                Node("Households", AppMaterialIcons.Outlined.Home, SettingsSection.Access, HouseholdsSubsection),
+                Tab("Status", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, "status"),
+                Tab("Models & Hardware", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
+                Tab("Budget", AppMaterialIcons.Outlined.Speed, SettingsSection.LocalAi, "budget"),
+                Tab("Usage", AppMaterialIcons.Outlined.Assessment, SettingsSection.LocalAi, "usage"),
             ]),
-            Node("System", AppMaterialIcons.Outlined.DesktopWindows, SettingsSection.AdminOverview, children:
+            Page("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins),
+            Page("Integrations", AppMaterialIcons.Outlined.Link, SettingsSection.Integrations),
+        ]),
+        new("system", "System", AppMaterialIcons.Outlined.DesktopWindows,
+        [
+            Page("System", AppMaterialIcons.Outlined.DesktopWindows, SettingsSection.AdminOverview,
             [
-                Node("Tools and requirements", AppMaterialIcons.Outlined.Build, SettingsSection.Tools),
-                Node("Logs", AppMaterialIcons.Outlined.List, SettingsSection.AdminOverview, LogsSubsection),
-                Node("Notifications", AppMaterialIcons.Outlined.Mail, SettingsSection.Notifications),
-                Node("Backup and recovery", AppMaterialIcons.Outlined.Backup, SettingsSection.Server),
-            ]),
+                Tab("Overview", AppMaterialIcons.Outlined.Dashboard, SettingsSection.AdminOverview),
+                Tab("Scheduled Tasks", AppMaterialIcons.Outlined.Schedule, SettingsSection.AdminOverview, ScheduledTasksSubsection),
+                Tab("Logs", AppMaterialIcons.Outlined.List, SettingsSection.AdminOverview, LogsSubsection),
+                Tab("Backups", AppMaterialIcons.Outlined.Backup, SettingsSection.Server),
+                Tab("Configuration", AppMaterialIcons.Outlined.Build, SettingsSection.Tools),
+            ], also: [SettingsSection.Notifications]),
         ]),
         new("developer", "Developer", AppMaterialIcons.Outlined.DataObject,
         [
-            Node("Local AI", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, children:
+            Page("Developer Tools", AppMaterialIcons.Outlined.Construction, SettingsSection.ProviderTester,
             [
-                Node("Status", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, "status"),
-                Node("Model and hardware", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
-                Node("Budget", AppMaterialIcons.Outlined.Speed, SettingsSection.LocalAi, "budget"),
-                Node("Usage", AppMaterialIcons.Outlined.Assessment, SettingsSection.LocalAi, "usage"),
-            ]),
-            Node("Integrations", AppMaterialIcons.Outlined.Link, SettingsSection.Access, "applications"),
-            Node("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins),
-            Node("Developer Tools", AppMaterialIcons.Outlined.Construction, SettingsSection.ProviderTester, children:
-            [
-                Node("Enrichment Tester", AppMaterialIcons.Outlined.Science, SettingsSection.EnrichmentTester),
-                Node("Development data", AppMaterialIcons.Outlined.Inventory2, SettingsSection.DevHarness),
+                Tab("Provider Tester", AppMaterialIcons.Outlined.Biotech, SettingsSection.ProviderTester),
+                Tab("Enrichment Tester", AppMaterialIcons.Outlined.Science, SettingsSection.EnrichmentTester),
+                Tab("Development data", AppMaterialIcons.Outlined.Inventory2, SettingsSection.DevHarness),
             ]),
         ]),
     ];
 
-    private static SettingsMenuNode Node(
+    private static SettingsMenuNode Page(
         string label,
         string icon,
         SettingsSection section,
-        string? subsection = null,
-        IReadOnlyList<SettingsMenuNode>? children = null) =>
-        new(label, icon, section, subsection, children);
+        IReadOnlyList<SettingsPageTab>? tabs = null,
+        IReadOnlyList<SettingsSection>? also = null) =>
+        new(label, icon, section, tabs, also);
+
+    private static SettingsPageTab Tab(string label, string icon, SettingsSection section, string? subsection = null) =>
+        new(label, icon, section, subsection);
 
     public static readonly IReadOnlyDictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>> Subsections =
         new Dictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>>
@@ -380,17 +426,13 @@ public static class SettingsNav
                 new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
             ],
             [SettingsSection.Profiles] = [],
-            [SettingsSection.Preferences] = [],
-            [SettingsSection.Playback] = [],
-            [SettingsSection.Listening] = [],
-            [SettingsSection.Reading] = [],
-            [SettingsSection.Home] = [],
             [SettingsSection.Security] =
             [
-                new("devices", "Devices", AppMaterialIcons.Outlined.Devices),
+                new(DevicesSubsection, "Devices & Sessions", AppMaterialIcons.Outlined.Devices),
             ],
             [SettingsSection.AdminOverview] =
             [
+                new(ScheduledTasksSubsection, "Scheduled Tasks", AppMaterialIcons.Outlined.Schedule),
                 new(LogsSubsection, "Logs", AppMaterialIcons.Outlined.List),
             ],
             [SettingsSection.Libraries] = [],
@@ -400,12 +442,12 @@ public static class SettingsNav
             [SettingsSection.Providers] =
             [
                 new("providers", "Providers", AppMaterialIcons.Outlined.Dns),
-                new("ingestion-flow", "Ingestion Flow", AppMaterialIcons.Outlined.AccountTree),
+                new(IngestionFlowSubsection, "Ingestion Flow", AppMaterialIcons.Outlined.AccountTree),
             ],
             [SettingsSection.LocalAi] =
             [
                 new("status", "Status", AppMaterialIcons.Outlined.Memory),
-                new("models", "Model and hardware", AppMaterialIcons.Outlined.Storage),
+                new("models", "Models & Hardware", AppMaterialIcons.Outlined.Storage),
                 new("budget", "Budget", AppMaterialIcons.Outlined.Speed),
                 new("usage", "Usage", AppMaterialIcons.Outlined.Assessment),
             ],
@@ -426,10 +468,10 @@ public static class SettingsNav
             [SettingsSection.Access] =
             [
                 new("users", "Users", AppMaterialIcons.Outlined.ManageAccounts),
-                new("applications", "Integrations", AppMaterialIcons.Outlined.Link),
                 new("authentication", "Sign-in Methods", AppMaterialIcons.Outlined.Security),
                 new(HouseholdsSubsection, "Households", AppMaterialIcons.Outlined.Home),
             ],
+            [SettingsSection.Integrations] = [],
             [SettingsSection.Tools] = [],
             [SettingsSection.Notifications] = [],
             [SettingsSection.Server] = [],
@@ -460,11 +502,6 @@ public static class SettingsNav
     [
         SettingsSection.Overview,
         SettingsSection.Profiles,
-        SettingsSection.Preferences,
-        SettingsSection.Playback,
-        SettingsSection.Listening,
-        SettingsSection.Reading,
-        SettingsSection.Home,
         SettingsSection.Security,
         SettingsSection.AdminOverview,
         SettingsSection.Libraries,
@@ -475,6 +512,7 @@ public static class SettingsNav
         SettingsSection.Tools,
         SettingsSection.Notifications,
         SettingsSection.Access,
+        SettingsSection.Integrations,
         SettingsSection.Server,
         SettingsSection.LocalAi,
         SettingsSection.Plugins,
@@ -486,21 +524,19 @@ public static class SettingsNav
         AllGroups.Where(group => !group.AdminOnly || administrationAllowed);
 
     /// <summary>
-    /// The menu a person may see: every row they may open, in order, with groups that have no visible rows removed.
-    /// A hidden row hides its children. <paramref name="extraFilter"/> lets the caller drop rows for reasons that are
+    /// The menu a person may see: every page they may open, in order, with groups that have no visible page removed. A page keeps
+    /// only the tabs they may open, and a page left with none of its tabs is dropped. A Kids profile sees Profile and nothing else.
+    /// <paramref name="extraFilter"/> and <paramref name="extraTabFilter"/> let the caller drop pages and tabs for reasons that are
     /// not about rights (a feature switched off, a page not offered on a phone).
     /// </summary>
-    /// <param name="householdAdministrator">
-    /// A household administrator who is not a server administrator: they also see the pages marked
-    /// <see cref="SettingsItemDef.HouseholdAdminAccess"/> (Profiles today), and nothing else in Server.
-    /// </param>
     public static IReadOnlyList<SettingsMenuGroup> FilteredMenuGroups(
         bool administrationAllowed,
-        bool householdAdministrator = false,
-        Func<SettingsMenuNode, bool>? extraFilter = null)
+        Func<SettingsMenuNode, bool>? extraFilter = null,
+        Func<SettingsPageTab, bool>? extraTabFilter = null,
+        bool restricted = false)
     {
         return MenuGroups
-            .Select(group => group with { Nodes = FilterNodes(group.Nodes, administrationAllowed, householdAdministrator, extraFilter) })
+            .Select(group => group with { Nodes = FilterNodes(group.Nodes, administrationAllowed, restricted, extraFilter, extraTabFilter) })
             .Where(group => group.Nodes.Count > 0)
             .ToList();
     }
@@ -508,97 +544,76 @@ public static class SettingsNav
     private static IReadOnlyList<SettingsMenuNode> FilterNodes(
         IReadOnlyList<SettingsMenuNode> nodes,
         bool administrationAllowed,
-        bool householdAdministrator,
-        Func<SettingsMenuNode, bool>? extraFilter)
+        bool restricted,
+        Func<SettingsMenuNode, bool>? extraFilter,
+        Func<SettingsPageTab, bool>? extraTabFilter)
     {
         var kept = new List<SettingsMenuNode>();
         foreach (var node in nodes)
         {
-            if (!IsVisible(node.Section, administrationAllowed, householdAdministrator)
-                || !IsNodeVisible(node, administrationAllowed)
+            if (!IsVisible(node.Section, administrationAllowed, restricted)
                 || extraFilter is not null && !extraFilter(node))
             {
                 continue;
             }
 
-            kept.Add(node with { ChildNodes = FilterNodes(node.Children, administrationAllowed, householdAdministrator, extraFilter) });
+            var tabs = node.Tabs
+                .Where(tab => IsVisible(tab.Section, administrationAllowed, restricted)
+                              && (extraTabFilter is null || extraTabFilter(tab)))
+                .ToList();
+            if (node.Tabs.Count > 0 && tabs.Count == 0)
+            {
+                continue;
+            }
+
+            kept.Add(node with { PageTabs = node.Tabs.Count == 0 ? null : tabs });
         }
 
         return kept;
     }
 
     /// <summary>
-    /// A sub-page row can be narrower than its section: Households (under Users and Sign-in) is for server administrators only,
-    /// while the Profiles list itself also serves a household administrator.
-    /// </summary>
-    public static bool IsNodeVisible(SettingsMenuNode node, bool administrationAllowed) =>
-        !(node is { Section: SettingsSection.Access, Subsection: HouseholdsSubsection }) || administrationAllowed;
-
-    /// <summary>Every row of the menu, parents before their children.</summary>
-    public static IEnumerable<SettingsMenuNode> Flatten(IEnumerable<SettingsMenuNode> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            yield return node;
-            foreach (var child in Flatten(node.Children))
-            {
-                yield return child;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Finds where a page sits in the menu. A sub-page the menu does not list (a landing view, a profile or provider
-    /// detail) resolves to its section's main row. A page the menu leaves out but that has a parent in
-    /// <see cref="OffMenuParents"/> (Recently Added, Needs Review) resolves to that parent's trail plus itself, so its breadcrumb
-    /// reads Server, Library and Ingestion, Recently Added. Returns <see langword="null"/> for other pages the menu
-    /// leaves out.
+    /// Finds where a page sits in the menu: the row that owns its section, and the tab it is on. A sub-page the tabs do not
+    /// name (a landing view, a profile or provider detail) falls to the section's own tab. A page that opens beneath a row without
+    /// being a tab (Recently Added and Needs Review under Library &amp; Ingestion, Apps under Profile) has no tab and names itself
+    /// as the <see cref="SettingsMenuLocation.Leaf"/>, so its breadcrumb reads Server, Library &amp; Ingestion, Needs Review.
+    /// Returns <see langword="null"/> for a page the menu does not place.
     /// </summary>
     public static SettingsMenuLocation? FindMenuLocation(SettingsSection section, string? subsection = null)
     {
-        var requested = string.IsNullOrWhiteSpace(subsection) ? null : NormalizeKey(subsection);
-        SettingsMenuLocation? fallback = null;
         foreach (var group in MenuGroups)
         {
-            foreach (var trail in Trails(group.Nodes, []))
+            foreach (var node in group.Nodes)
             {
-                var node = trail[^1];
-                if (node.Section != section)
+                if (!node.Sections.Contains(section))
                 {
                     continue;
                 }
 
-                if (node.Subsection is null)
+                var requested = string.IsNullOrWhiteSpace(subsection) ? null : NormalizeSlug(subsection);
+                if (requested is not null && OffMenuSubsections.Contains((section, requested))
+                    && ResolveSubsection(section, requested) is { } offMenu)
                 {
-                    fallback ??= new SettingsMenuLocation(group, trail);
+                    return new SettingsMenuLocation(group, node, null, offMenu.Label);
                 }
-                else if (requested is not null && string.Equals(NormalizeKey(node.Subsection), requested, StringComparison.OrdinalIgnoreCase))
+
+                var tab = node.TabFor(section, subsection);
+                if (tab is not null)
                 {
-                    return new SettingsMenuLocation(group, trail);
+                    return new SettingsMenuLocation(group, node, tab);
                 }
+
+                var item = GetItem(section);
+                return new SettingsMenuLocation(group, node, null, string.Equals(item.Label, node.Label, StringComparison.Ordinal) ? null : item.Label);
             }
         }
 
-        if (fallback is not null && requested is not null
-            && OffMenuSubsections.Contains((section, requested))
-            && ResolveSubsection(section, requested) is { } offMenu)
-        {
-            return new SettingsMenuLocation(fallback.Group, [.. fallback.Trail, new SettingsMenuNode(offMenu.Label, offMenu.Icon, section, offMenu.Slug)]);
-        }
-
-        if (fallback is null && OffMenuParents.TryGetValue(section, out var parentSection)
-            && FindMenuLocation(parentSection) is { } parent)
-        {
-            var item = GetItem(section);
-            return new SettingsMenuLocation(parent.Group, [.. parent.Trail, new SettingsMenuNode(item.Label, item.Icon, section)]);
-        }
-
-        return fallback;
+        return null;
     }
 
     /// <summary>
-    /// Pages that have their own route but no row in the menu, and the menu page they open from. They keep their
-    /// place in the breadcrumb; the menu does not list them.
+    /// Pages that have their own route but no tab, and the page they open from. They keep their place in the breadcrumb; the
+    /// tab strip does not list them.
     /// </summary>
     public static readonly IReadOnlyDictionary<SettingsSection, SettingsSection> OffMenuParents =
         new Dictionary<SettingsSection, SettingsSection>
@@ -608,28 +623,14 @@ public static class SettingsNav
         };
 
     /// <summary>
-    /// Sub-pages that have their own route but no row in the menu, because an icon on their section's main page opens them.
-    /// They sit under that section's main row in the breadcrumb (Personal, Overview, Apps). Slugs are in their normalised form.
+    /// Sub-pages that have their own route but no tab, because a link on their page's main tab opens them. They sit beneath
+    /// that tab in the breadcrumb (Personal, Profile, Apps). Slugs are in their normalised form.
     /// </summary>
     public static readonly IReadOnlySet<(SettingsSection Section, string Subsection)> OffMenuSubsections =
         new HashSet<(SettingsSection, string)>
         {
             (SettingsSection.Overview, AppsSubsection),
         };
-
-    private static IEnumerable<IReadOnlyList<SettingsMenuNode>> Trails(
-        IReadOnlyList<SettingsMenuNode> nodes, IReadOnlyList<SettingsMenuNode> ancestors)
-    {
-        foreach (var node in nodes)
-        {
-            var trail = ancestors.Append(node).ToList();
-            yield return trail;
-            foreach (var child in Trails(node.Children, trail))
-            {
-                yield return child;
-            }
-        }
-    }
 
     public static IReadOnlyList<SettingsItemDef> FilteredItems(SettingsGroupDef group, bool administrationAllowed)
     {
@@ -665,6 +666,13 @@ public static class SettingsNav
             return string.IsNullOrWhiteSpace(normalized) ? string.IsNullOrWhiteSpace(detail) : IsLibraryRouteSegment(normalized);
         }
 
+        // A person's Preferences tab (Watching, Listening, Reading, Home) is how a phone changes those settings.
+        if (section == SettingsSection.Profiles && Guid.TryParse(normalized, out _)
+            && string.Equals(detail?.Trim(), "preferences", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         if (!string.IsNullOrWhiteSpace(detail))
         {
             return false;
@@ -675,7 +683,7 @@ public static class SettingsNav
             SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || Guid.TryParse(normalized, out _),
             SettingsSection.Providers => normalized is "" or "providers",
             SettingsSection.Network => normalized is "" or "overview",
-            SettingsSection.Access => normalized is "" or "users" or "applications" or "authentication" or HouseholdsSubsection,
+            SettingsSection.Access => normalized is "" or "users" or "authentication" or HouseholdsSubsection,
             // The Logs page (technical log, retention) is a desktop and tablet page; a phone keeps the System summary.
             SettingsSection.AdminOverview or SettingsSection.Delivery or SettingsSection.LocalAi or SettingsSection.Plugins =>
                 string.IsNullOrWhiteSpace(normalized),
@@ -698,7 +706,13 @@ public static class SettingsNav
 
     public static SettingsSection GetDefaultSection(string groupKey) => _groupsByKey[groupKey].DefaultSection;
 
-    public static bool IsVisible(SettingsSection section, bool administrationAllowed, bool householdAdministrator = false)
+    /// <summary>
+    /// Whether this person may open the page. Profile is everyone's own page. A Kids profile (<paramref name="restricted"/>) never
+    /// reaches Settings (the page sends it Home). Manage Profiles and Security &amp; Devices are
+    /// everyone's own to look after; the Engine still limits what a member can change to their own profile. Everything else in
+    /// Settings is for server administrators.
+    /// </summary>
+    public static bool IsVisible(SettingsSection section, bool administrationAllowed, bool restricted = false)
     {
         var item = GetItem(section);
         if ((_scopedProductionMode.Value ?? _productionMode)
@@ -707,15 +721,16 @@ public static class SettingsNav
             return false;
         }
 
-        // Overview is everyone's own page. Profiles is for administrators only: a member (and a Kids profile) never sees it. A household administrator reaches it
-        // through HouseholdAdminAccess; the Engine still limits what they can do there to their own household.
-        return administrationAllowed || section is SettingsSection.Overview or SettingsSection.Preferences or SettingsSection.Playback
-            or SettingsSection.Listening or SettingsSection.Reading or SettingsSection.Home or SettingsSection.Security
-            || householdAdministrator && item.HouseholdAdminAccess;
+        if (restricted)
+        {
+            return section == SettingsSection.Overview;
+        }
+
+        return administrationAllowed || !item.AdminOnly;
     }
 
-    public static SettingsSection FirstVisibleSection(bool administrationAllowed, bool householdAdministrator = false) =>
-        AllItems.First(item => IsVisible(item.Value, administrationAllowed, householdAdministrator)).Value;
+    public static SettingsSection FirstVisibleSection(bool administrationAllowed, bool restricted = false) =>
+        AllItems.First(item => IsVisible(item.Value, administrationAllowed, restricted)).Value;
 
     public static string RouteFor(SettingsSection section)
     {
@@ -783,12 +798,12 @@ public static class SettingsNav
         return string.IsNullOrWhiteSpace(filter) ? route : $"{route}&filter={Uri.EscapeDataString(filter)}";
     }
 
-    public static SettingsRouteResolution ResolveRoute(string? segment, bool administrationAllowed, bool householdAdministrator = false)
+    public static SettingsRouteResolution ResolveRoute(string? segment, bool administrationAllowed, bool restricted = false)
     {
         if (string.IsNullOrWhiteSpace(segment))
         {
-            // The bare /settings address opens the first page this person may see (Profiles for an administrator).
-            var landing = FirstVisibleSection(administrationAllowed, householdAdministrator);
+            // The bare /settings address opens the first page this person may see (Profile).
+            var landing = FirstVisibleSection(administrationAllowed, restricted);
             return new SettingsRouteResolution(
                 landing,
                 RouteFor(landing),
@@ -801,7 +816,7 @@ public static class SettingsNav
 
         if (_itemsBySlug.TryGetValue(normalized, out var canonicalItem))
         {
-            if (IsVisible(canonicalItem.Value, administrationAllowed, householdAdministrator))
+            if (IsVisible(canonicalItem.Value, administrationAllowed, restricted))
             {
                 return new SettingsRouteResolution(
                     canonicalItem.Value,
@@ -811,7 +826,7 @@ public static class SettingsNav
                     RequestedSectionAllowed: true);
             }
 
-            var fallback = FirstVisibleSection(administrationAllowed, householdAdministrator);
+            var fallback = FirstVisibleSection(administrationAllowed, restricted);
             return new SettingsRouteResolution(
                 fallback,
                 RouteFor(fallback),
@@ -822,7 +837,7 @@ public static class SettingsNav
 
         if (_itemsByAlias.TryGetValue(normalized, out var aliasedItem))
         {
-            if (IsVisible(aliasedItem.Value, administrationAllowed, householdAdministrator))
+            if (IsVisible(aliasedItem.Value, administrationAllowed, restricted))
             {
                 return new SettingsRouteResolution(
                     aliasedItem.Value,
@@ -832,7 +847,7 @@ public static class SettingsNav
                     RequestedSectionAllowed: true);
             }
 
-            var fallback = FirstVisibleSection(administrationAllowed, householdAdministrator);
+            var fallback = FirstVisibleSection(administrationAllowed, restricted);
             return new SettingsRouteResolution(
                 fallback,
                 RouteFor(fallback),
@@ -842,7 +857,7 @@ public static class SettingsNav
         }
 
         return new SettingsRouteResolution(
-            FirstVisibleSection(administrationAllowed, householdAdministrator),
+            FirstVisibleSection(administrationAllowed, restricted),
             "/not-found",
             IsCanonicalRoute: false,
             IsKnownRoute: false,
@@ -860,11 +875,17 @@ public static class SettingsNav
         return resolution.IsKnownRoute ? resolution.Section : null;
     }
 
+    /// <summary>A route segment reduced to lower-case letters and digits, the form every slug and alias is compared in.</summary>
+    public static string NormalizeSlug(string value) => NormalizeKey(value);
+
     private static string NormalizeKey(string value)
     {
         var chars = value.Where(char.IsLetterOrDigit).ToArray();
         return new string(chars).ToLowerInvariant();
     }
+
+    /// <summary>The address every page of a section sits under (<c>/settings/network</c>), without a tab.</summary>
+    public static string BaseRouteFor(SettingsSection section) => SectionRouteFor(section);
 
     private static string SectionRouteFor(SettingsSection section)
     {

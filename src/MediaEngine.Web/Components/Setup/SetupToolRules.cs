@@ -34,10 +34,10 @@ public static class SetupToolRules
             ? $"Downloading ({percent}%). Library finishes this in the background."
             : "Downloading. Library finishes this in the background.",
         ToolRequirementStates.InstallerReady => $"Downloaded. One more step: run its installer.",
-        ToolRequirementStates.Problem => "Found, but it did not start. You can check it later in Settings, Tools and requirements.",
+        ToolRequirementStates.Problem => "Found, but it did not start. You can check it later in Settings, System, Configuration.",
         _ => tool.Requirement == ToolRequirementLevels.Required
-            ? $"{tool.Effect} Install it from Settings, Tools and requirements."
-            : $"{tool.Effect} You can download it now or later in Settings, Tools and requirements.",
+            ? $"{tool.Effect} Install it from Settings, System, Configuration."
+            : $"{tool.Effect} You can download it now or later in Settings, System, Configuration.",
     };
 
     /// <summary>The short word on the right of a tool row.</summary>

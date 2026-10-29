@@ -496,7 +496,7 @@
     },
     {
       "id": "settings-playback",
-      "route": "/settings/playback",
+      "route": "/settings/profiles/00000000-0000-0000-0000-000000000001/preferences",
       "prepare": "none",
       "selectors": [
         {

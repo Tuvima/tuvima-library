@@ -1,0 +1,39 @@
+@namespace MediaEngine.Web.Components.Settings
+@inject NavigationManager Nav
+
+@* The tabs of one person's page in Manage Profiles: Profile, Preferences, and Access & safety. Same shared tab, one link per tab. *@
+<AppCountTabs Tabs="@Items"
+              Selected="@ActiveRoute"
+              SelectedChanged="OpenAsync"
+              AriaLabel="Profile sections"
+              Class="settings-page-tabs" />
+
+@code {
+    [Parameter, EditorRequired] public Guid ProfileId { get; set; }
+
+    /// <summary>The open tab: empty for Profile, otherwise <c>preferences</c> or <c>access</c>.</summary>
+    [Parameter] public string Active { get; set; } = string.Empty;
+
+    private string RouteFor(string tab) => tab.Length == 0
+        ? $"/settings/profiles/{ProfileId:D}"
+        : $"/settings/profiles/{ProfileId:D}/{tab}";
+
+    private string ActiveRoute => RouteFor(Active is "preferences" or "access" ? Active : string.Empty);
+
+    private IReadOnlyList<AppCountTab> Items =>
+    [
+        new(RouteFor(string.Empty), "Profile", null, RouteFor(string.Empty), AppMaterialIcons.Outlined.Person),
+        new(RouteFor("preferences"), "Preferences", null, RouteFor("preferences"), AppMaterialIcons.Outlined.Tune),
+        new(RouteFor("access"), "Access & safety", null, RouteFor("access"), AppMaterialIcons.Outlined.Shield),
+    ];
+
+    private Task OpenAsync(string route)
+    {
+        if (!string.Equals(route, ActiveRoute, StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo(route);
+        }
+
+        return Task.CompletedTask;
+    }
+}

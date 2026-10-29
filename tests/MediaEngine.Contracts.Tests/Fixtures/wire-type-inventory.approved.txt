@@ -11527,7 +11527,8 @@
   SettingsPlace: System.String | json=settings_place | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NextRunAt: System.DateTimeOffset? | json=next_run_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LastRun: MediaEngine.Contracts.System.ScheduledTaskLastRunDto | json=last_run | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","name":"sample","owner":"sample","plugin_id":"sample","schedule":"sample","is_continuous":true,"settings_place":"sample","next_run_at":"2025-01-02T03:04:05+00:00","last_run":null}
+  RecentRuns: System.Collections.Generic.List<MediaEngine.Contracts.System.ScheduledTaskLastRunDto> | json=recent_runs | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","name":"sample","owner":"sample","plugin_id":"sample","schedule":"sample","is_continuous":true,"settings_place":"sample","next_run_at":"2025-01-02T03:04:05+00:00","last_run":null,"recent_runs":[]}
 
 [contracts] MediaEngine.Contracts.System.ScheduledTaskLastRunDto
   kind=class | converter=default | number-handling=default | unmapped=default

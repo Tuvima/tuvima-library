@@ -6,7 +6,6 @@ public sealed class SettingsNavTests
 {
     [Theory]
     [InlineData("users")]
-    [InlineData("applications")]
     [InlineData("authentication")]
     public void CanonicalAccessSections_AreAvailableOnMobile(string subsection)
     {
@@ -21,7 +20,8 @@ public sealed class SettingsNavTests
         var mediaShellSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor"));
 
         Assert.Contains("<MediaSectionShell Title=\"Settings\"", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("AccordionNavigation=\"true\"", settingsSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("AccordionNavigation", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("<SettingsPageTabs", settingsSource, StringComparison.Ordinal);
         Assert.Contains("settings-mobile-navigation", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<IngestionTasksTab", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<RecentlyAddedPageContent", settingsSource, StringComparison.Ordinal);
@@ -64,7 +64,7 @@ public sealed class SettingsNavTests
         var sessionSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/ActiveProfileSessionService.cs"));
 
         Assert.Contains("await LoadAuthorityAsync()", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold)", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted)", settingsSource, StringComparison.Ordinal);
         Assert.Contains("DashboardSessionAccessor Session", settingsSource, StringComparison.Ordinal);
         Assert.Contains("ShouldDeferForRoleResolution", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("_currentRole", settingsSource, StringComparison.Ordinal);
@@ -80,7 +80,7 @@ public sealed class SettingsNavTests
         var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
 
         Assert.Contains("CanManageAdministration => Session.HasNavigation(\"settings.administration\")", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold)", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted)", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("EnsureElevationForCurrentRouteAsync", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("IAdministratorElevationNavigationService", settingsSource, StringComparison.Ordinal);
     }
@@ -99,7 +99,7 @@ public sealed class SettingsNavTests
         Assert.Equal("/settings/overview", SettingsNav.RouteFor(SettingsSection.Overview));
         Assert.Equal(SettingsSection.Overview, SettingsNav.FirstVisibleSection(administrationAllowed: false));
         Assert.Equal(SettingsSection.Overview, SettingsNav.FirstVisibleSection(administrationAllowed: true));
-        Assert.Equal(SettingsSection.Overview, SettingsNav.FirstVisibleSection(administrationAllowed: false, householdAdministrator: true));
+        Assert.Equal(SettingsSection.Overview, SettingsNav.FirstVisibleSection(administrationAllowed: false, restricted: true));
         Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).RequestedSectionAllowed);
         Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).IsCanonicalRoute);
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview));
@@ -108,30 +108,32 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void Overview_HasActivityThenTasteAsMenuChildren_AndItsAppsPageIsOffMenuUnderIt()
+    public void Profile_HasOverviewActivityAndTasteAsTabs_AndItsAppsPageIsOffMenuUnderIt()
     {
-        var overview = SettingsNav.MenuGroups[0].Nodes[0];
-        Assert.Equal("Overview", overview.Label);
-        Assert.Equal(["Activity", "Taste"], overview.Children.Select(child => child.Label));
-        var activity = overview.Children[0];
-        Assert.Equal("Activity", activity.Label);
+        var profile = SettingsNav.MenuGroups[0].Nodes[0];
+        Assert.Equal("Profile", profile.Label);
+        Assert.Equal(["Overview", "Activity", "Taste"], profile.Tabs.Select(tab => tab.Label));
+        var activity = profile.Tabs[1];
         Assert.Equal(SettingsSection.Overview, activity.Section);
         Assert.Equal(SettingsNav.ActivitySubsection, activity.Subsection);
         Assert.Equal("/settings/overview/activity", activity.Route);
-        Assert.Equal(["Overview", "Activity"], SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.ActivitySubsection)!.Trail.Select(node => node.Label));
-        // Overview still opens on its own page, and every kind of person can open Activity (it is a consumption page that works on a phone).
-        Assert.Equal("/settings/overview", overview.Route);
+        var location = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.ActivitySubsection)!;
+        Assert.Equal(["Profile", "Activity"], [location.Page.Label, location.Tab!.Label]);
+        // The page still opens on its own first tab, and every kind of person can open Activity (it works on a phone).
+        Assert.Equal("/settings/overview", profile.Route);
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview, SettingsNav.ActivitySubsection));
         Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).RequestedSectionAllowed);
 
-        // Apps opens from an icon on the Overview, so it is not a menu row but keeps its place in the breadcrumb.
-        Assert.DoesNotContain(SettingsNav.Flatten(SettingsNav.MenuGroups.SelectMany(group => group.Nodes)), node => node.Label == "Apps");
+        // Apps opens from a small link on Profile, so it is not a tab but keeps its place in the breadcrumb.
+        Assert.DoesNotContain(SettingsNav.MenuGroups.SelectMany(group => group.Nodes).SelectMany(node => node.Tabs), tab => tab.Label == "Apps");
         Assert.Equal("/settings/overview/apps", SettingsNav.RouteFor(SettingsSection.Overview, SettingsNav.AppsSubsection));
-        var location = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.AppsSubsection);
-        Assert.NotNull(location);
-        Assert.Equal("personal", location!.Group.Key);
-        Assert.Equal(["Overview", "Apps"], location.Trail.Select(node => node.Label));
-        Assert.Equal(["Overview"], SettingsNav.FindMenuLocation(SettingsSection.Overview)!.Trail.Select(node => node.Label));
+        var apps = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.AppsSubsection);
+        Assert.NotNull(apps);
+        Assert.Equal("personal", apps!.Group.Key);
+        Assert.Equal("Profile", apps.Page.Label);
+        Assert.Null(apps.Tab);
+        Assert.Equal("Apps", apps.Leaf);
+        Assert.Equal("Overview", SettingsNav.FindMenuLocation(SettingsSection.Overview)!.Tab!.Label);
     }
 
     [Fact]
@@ -164,8 +166,8 @@ public sealed class SettingsNavTests
             .Select(item => item.Label)
             .ToArray();
 
-        // Which AI features run is decided on the Plugins page, so Local AI keeps Status, Model and hardware, Budget and Usage.
-        Assert.Equal(["Status", "Model and hardware", "Budget", "Usage"], labels);
+        // Which AI features run is decided on the Plugins page, so Local AI keeps Status, Models & Hardware, Budget and Usage.
+        Assert.Equal(["Status", "Models & Hardware", "Budget", "Usage"], labels);
         Assert.Equal("status", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.LocalAi, "unknown"));
     }
@@ -183,17 +185,25 @@ public sealed class SettingsNavTests
     public void SummaryFirstSections_UseRootRoutesWithoutRequiringSubsections()
     {
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Profiles));
-        Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Playback));
-        Assert.Equal(["logs"], SettingsNav.GetSubsections(SettingsSection.AdminOverview).Select(item => item.Slug));
+        Assert.Equal(["scheduled-tasks", "logs"], SettingsNav.GetSubsections(SettingsSection.AdminOverview).Select(item => item.Slug));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Review));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Server));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Tools));
     }
 
     [Fact]
+    public void APersonsPreferencesTab_IsAvailableOnAPhone_ButTheirAccessTabIsNot()
+    {
+        var id = Guid.NewGuid().ToString("D");
+
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "preferences"));
+        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "access"));
+    }
+
+    [Fact]
     public void MobileAvailability_WithholdsComplexAdministrationButKeepsMonitoringSummaries()
     {
-        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Playback));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Profiles));
         Assert.Equal(SettingsMobileAvailability.SummaryOnly, SettingsNav.GetMobileAvailability(SettingsSection.AdminOverview));
         Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
 
@@ -205,8 +215,6 @@ public sealed class SettingsNavTests
 
     [Theory]
     [InlineData(SettingsSection.AdminOverview, "/settings/system")]
-    [InlineData(SettingsSection.Preferences, "/settings/preferences")]
-    [InlineData(SettingsSection.Playback, "/settings/playback")]
     [InlineData(SettingsSection.Libraries, "/settings/libraries")]
     [InlineData(SettingsSection.Ingestion, "/settings/ingestion")]
     [InlineData(SettingsSection.RecentlyAdded, "/settings/recently-added")]
@@ -336,70 +344,78 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void FilteredMenuGroups_Admin_RendersPersonalServerManageAndDeveloperInOrder()
+    public void FilteredMenuGroups_Admin_RendersFiveGroupsOfFlatPagesInOrder()
     {
         var groups = SettingsNav.FilteredMenuGroups(true);
 
-        Assert.Equal(["personal", "server", "manage", "developer"], groups.Select(group => group.Key));
-        Assert.Equal(["Personal", "Server", "Manage", "Developer"], groups.Select(group => group.Label));
+        Assert.Equal(["personal", "server", "platform", "system", "developer"], groups.Select(group => group.Key));
+        Assert.Equal(["Personal", "Server", "Platform", "System", "Developer"], groups.Select(group => group.Label));
 
-        Assert.Equal(["Overview", "Profiles", "Preferences", "Security"], Labels(groups, "personal"));
-        Assert.Equal(["Library and Ingestion", "Network and Remote Access", "Streaming"], Labels(groups, "server"));
-        Assert.Equal(["Users and Sign-in", "System"], Labels(groups, "manage"));
-        Assert.Equal(["Local AI", "Integrations", "Plugins", "Developer Tools"], Labels(groups, "developer"));
+        Assert.Equal(["Profile", "Manage Profiles", "Security & Devices"], Labels(groups, "personal"));
+        Assert.Equal(["Library & Ingestion", "Network & Remote Access", "Streaming", "Users & Households"], Labels(groups, "server"));
+        Assert.Equal(["Local AI", "Plugins", "Integrations"], Labels(groups, "platform"));
+        Assert.Equal(["System"], Labels(groups, "system"));
+        Assert.Equal(["Developer Tools"], Labels(groups, "developer"));
 
-        Assert.Empty(ChildLabels(groups, "Profiles"));
-        Assert.Equal(["Playback", "Listening", "Reading", "Home"], ChildLabels(groups, "Preferences"));
-        Assert.Equal(["Libraries", "Metadata Providers"], ChildLabels(groups, "Library and Ingestion"));
-        Assert.Equal(["Ingestion Flow"], ChildLabels(groups, "Metadata Providers"));
-        Assert.Equal(["Local Network", "Remote Access", "Advanced"], ChildLabels(groups, "Network and Remote Access"));
-        Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"], ChildLabels(groups, "Streaming"));
-        Assert.Equal(["Sign-in Methods", "Households"], ChildLabels(groups, "Users and Sign-in"));
-        Assert.Equal(["Tools and requirements", "Logs", "Notifications", "Backup and recovery"], ChildLabels(groups, "System"));
-        Assert.Equal(["Status", "Model and hardware", "Budget", "Usage"], ChildLabels(groups, "Local AI"));
-        Assert.Empty(ChildLabels(groups, "Plugins"));
-        Assert.Equal(["Enrichment Tester", "Development data"], ChildLabels(groups, "Developer Tools"));
-        Assert.Empty(ChildLabels(groups, "Integrations"));
+        Assert.Equal(["Overview", "Activity", "Taste"], TabLabels(groups, "Profile"));
+        Assert.Empty(TabLabels(groups, "Manage Profiles"));
+        Assert.Equal(["Sign-in", "Devices & Sessions"], TabLabels(groups, "Security & Devices"));
+        Assert.Equal(["Overview", "Libraries", "Ingestion Flow"], TabLabels(groups, "Library & Ingestion"));
+        Assert.Equal(["Overview", "Local Network", "Remote Access", "Advanced"], TabLabels(groups, "Network & Remote Access"));
+        Assert.Equal(["Limits & Quality", "Hardware Acceleration", "Optimized Copies", "Diagnostics"], TabLabels(groups, "Streaming"));
+        Assert.Equal(["Users", "Sign-in Methods", "Households"], TabLabels(groups, "Users & Households"));
+        Assert.Equal(["Status", "Models & Hardware", "Budget", "Usage"], TabLabels(groups, "Local AI"));
+        Assert.Empty(TabLabels(groups, "Plugins"));
+        Assert.Empty(TabLabels(groups, "Integrations"));
+        Assert.Equal(["Overview", "Scheduled Tasks", "Logs", "Backups", "Configuration"], TabLabels(groups, "System"));
+        Assert.Equal(["Provider Tester", "Enrichment Tester", "Development data"], TabLabels(groups, "Developer Tools"));
 
-        var allLabels = SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)).Select(node => node.Label).ToArray();
-        foreach (var gone in new[] { "Privacy & Data", "System Overview", "Live Ingestion", "Needs Review", "Administration", "Advanced Settings" })
+        var allLabels = groups.SelectMany(group => group.Nodes).Select(node => node.Label)
+            .Concat(groups.SelectMany(group => group.Nodes).SelectMany(node => node.Tabs).Select(tab => tab.Label)).ToArray();
+        foreach (var gone in new[] { "Privacy & Data", "System Overview", "Live Ingestion", "Needs Review", "Administration", "Advanced Settings", "Preferences", "Tools and requirements" })
         {
             Assert.DoesNotContain(gone, allLabels);
         }
 
-        // Households lives only under Users and Sign-in; Profiles no longer carries one.
-        var householdsRows = SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)).Where(node => node.Label == "Households").ToArray();
-        Assert.Equal("/settings/access/households", Assert.Single(householdsRows).Route);
+        // Households lives only as a tab of Users & Households.
+        Assert.Equal("/settings/access/households", Assert.Single(groups.SelectMany(group => group.Nodes).SelectMany(node => node.Tabs), tab => tab.Label == "Households").Route);
     }
 
     [Fact]
-    public void MenuTree_GivesEveryRowAnIconAndSendsEachParentToItsOwnPage()
+    public void MenuTree_GivesEveryPageAndTabAnIcon_AndNoTwoPagesOpenTheSameAddress()
     {
-        var nodes = SettingsNav.Flatten(SettingsNav.MenuGroups.SelectMany(group => group.Nodes)).ToArray();
+        var nodes = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).ToArray();
 
         Assert.All(SettingsNav.MenuGroups, group => Assert.False(string.IsNullOrWhiteSpace(group.Icon)));
         Assert.All(nodes, node => Assert.False(string.IsNullOrWhiteSpace(node.Icon), $"{node.Label} has no icon."));
-        // No two rows open the same page, so no child can repeat its parent.
+        Assert.All(nodes.SelectMany(node => node.Tabs), tab => Assert.False(string.IsNullOrWhiteSpace(tab.Icon), $"{tab.Label} has no icon."));
+        // No two pages open the same page, and a page's tabs are distinct addresses.
         Assert.Equal(nodes.Length, nodes.Select(node => node.Route).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        foreach (var parent in nodes.Where(node => node.Children.Count > 0))
+        foreach (var node in nodes.Where(node => node.HasTabs))
         {
-            Assert.DoesNotContain(parent.Children, child => string.Equals(child.Route, parent.Route, StringComparison.OrdinalIgnoreCase));
-            Assert.DoesNotContain(parent.Children, child => child.Subsection is null && child.Section == parent.Section);
+            Assert.Equal(node.Tabs.Count, node.Tabs.Select(tab => tab.Route).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            Assert.Equal(node.Tabs[0].Route, node.Route);
         }
     }
 
     [Fact]
-    public void MenuTree_EveryRowOpensARealPageOfItsSection()
+    public void MenuTree_EveryPageAndTabOpensARealPageOfItsSection()
     {
-        foreach (var node in SettingsNav.Flatten(SettingsNav.MenuGroups.SelectMany(group => group.Nodes)))
+        foreach (var node in SettingsNav.MenuGroups.SelectMany(group => group.Nodes))
         {
             var segment = node.Route.Split('/', StringSplitOptions.RemoveEmptyEntries)[1];
             var resolution = SettingsNav.ResolveRoute(segment, true);
-            Assert.Equal(node.Section, resolution.Section);
             Assert.True(resolution.IsKnownRoute, node.Label);
-            if (node.Subsection is not null)
+            Assert.Contains(resolution.Section, node.Sections);
+
+            foreach (var tab in node.Tabs)
             {
-                Assert.NotNull(SettingsNav.ResolveSubsection(node.Section, node.Subsection));
+                var tabSegment = tab.Route.Split('/', StringSplitOptions.RemoveEmptyEntries)[1];
+                Assert.Equal(tab.Section, SettingsNav.ResolveRoute(tabSegment, true).Section);
+                if (tab.Subsection is not null)
+                {
+                    Assert.NotNull(SettingsNav.ResolveSubsection(tab.Section, tab.Subsection));
+                }
             }
         }
     }
@@ -412,55 +428,51 @@ public sealed class SettingsNavTests
             var location = SettingsNav.FindMenuLocation(item.Value);
             Assert.NotNull(location);
             Assert.Equal(item.GroupKey, location!.Group.Key);
-            Assert.Equal(item.Label, location.Node.Label);
         }
 
-        // Needs Review is off the menu, so it resolves through its parent: Server, Library and Ingestion, Needs Review.
-        Assert.Equal(["Library and Ingestion", "Needs Review"], SettingsNav.FindMenuLocation(SettingsSection.Review)!.Trail.Select(node => node.Label));
+        // Needs Review is off the menu, so it opens beneath its page: Server, Library & Ingestion, Needs Review.
+        var review = SettingsNav.FindMenuLocation(SettingsSection.Review)!;
+        Assert.Equal("Library & Ingestion", review.Page.Label);
+        Assert.Null(review.Tab);
+        Assert.Equal("Needs Review", review.Leaf);
     }
 
     [Fact]
-    public void FindMenuLocation_PutsIntegrationsUnderDeveloperAndLandingViewsOnTheirParent()
+    public void FindMenuLocation_NamesThePageAndTabForEverySubPage()
     {
-        var integrations = SettingsNav.FindMenuLocation(SettingsSection.Access, "applications");
-        Assert.Equal("developer", integrations!.Group.Key);
-        Assert.Equal(["Integrations"], integrations.Trail.Select(node => node.Label));
+        var integrations = SettingsNav.FindMenuLocation(SettingsSection.Integrations)!;
+        Assert.Equal("platform", integrations.Group.Key);
+        Assert.Equal("Integrations", integrations.Page.Label);
+        Assert.Null(integrations.Tab);
 
-        var signIn = SettingsNav.FindMenuLocation(SettingsSection.Access, "authentication");
-        Assert.Equal(["Users and Sign-in", "Sign-in Methods"], signIn!.Trail.Select(node => node.Label));
-        Assert.Equal("manage", signIn.Group.Key);
+        var signIn = SettingsNav.FindMenuLocation(SettingsSection.Access, "authentication")!;
+        Assert.Equal(["Users & Households", "Sign-in Methods"], [signIn.Page.Label, signIn.Tab!.Label]);
+        Assert.Equal("server", signIn.Group.Key);
 
-        Assert.Equal(["Users and Sign-in"], SettingsNav.FindMenuLocation(SettingsSection.Access, "users")!.Trail.Select(node => node.Label));
-        Assert.Equal(["Network and Remote Access"], SettingsNav.FindMenuLocation(SettingsSection.Network, "overview")!.Trail.Select(node => node.Label));
-        Assert.Equal(
-            ["Library and Ingestion", "Metadata Providers", "Ingestion Flow"],
-            SettingsNav.FindMenuLocation(SettingsSection.Providers, "ingestion-flow")!.Trail.Select(node => node.Label));
-        Assert.Equal(
-            ["Library and Ingestion", "Metadata Providers"],
-            SettingsNav.FindMenuLocation(SettingsSection.Providers, "providers")!.Trail.Select(node => node.Label));
-        var playback = SettingsNav.FindMenuLocation(SettingsSection.Playback);
-        Assert.Equal("personal", playback!.Group.Key);
-        Assert.Equal(["Preferences", "Playback"], playback.Trail.Select(node => node.Label));
+        Assert.Equal("Users", SettingsNav.FindMenuLocation(SettingsSection.Access, "users")!.Tab!.Label);
+        Assert.Equal("Overview", SettingsNav.FindMenuLocation(SettingsSection.Network, "overview")!.Tab!.Label);
+        var flow = SettingsNav.FindMenuLocation(SettingsSection.Providers, "ingestion-flow")!;
+        Assert.Equal(["Library & Ingestion", "Ingestion Flow"], [flow.Page.Label, flow.Tab!.Label]);
+        // The providers landing view and a provider's own page sit under the Ingestion Flow tab's page.
+        Assert.Equal("Library & Ingestion", SettingsNav.FindMenuLocation(SettingsSection.Providers, "providers")!.Page.Label);
     }
 
-    [Fact]
-    public void Preferences_ResolvesToItsOwnSummaryPage()
+    [Theory]
+    [InlineData("preferences")]
+    [InlineData("playback")]
+    [InlineData("listening")]
+    [InlineData("reading")]
+    [InlineData("home")]
+    public void RetiredPreferencePages_AreNotAddresses_BecauseTheyAreTabsOfAProfile(string segment)
     {
-        var resolution = SettingsNav.ResolveRoute("preferences", false);
+        var resolution = SettingsNav.ResolveRoute(segment, false);
 
-        Assert.Equal(SettingsSection.Preferences, resolution.Section);
-        Assert.Equal("/settings/preferences", resolution.CanonicalRoute);
-        Assert.True(resolution.IsCanonicalRoute);
-        Assert.True(resolution.RequestedSectionAllowed);
-        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Preferences));
+        Assert.False(resolution.IsKnownRoute);
+        Assert.Equal("/not-found", resolution.CanonicalRoute);
     }
 
     [Theory]
     [InlineData("profiles", SettingsSection.Profiles, "/settings/profiles")]
-    [InlineData("playback", SettingsSection.Playback, "/settings/playback")]
-    [InlineData("listening", SettingsSection.Listening, "/settings/listening")]
-    [InlineData("home", SettingsSection.Home, "/settings/home")]
-    [InlineData("reading", SettingsSection.Reading, "/settings/reading")]
     [InlineData("security", SettingsSection.Security, "/settings/security")]
     [InlineData("system", SettingsSection.AdminOverview, "/settings/system")]
     [InlineData("libraries", SettingsSection.Libraries, "/settings/libraries")]
@@ -500,7 +512,6 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Providers, "providers")]
     [InlineData(SettingsSection.Providers, "ingestion-flow")]
     [InlineData(SettingsSection.Access, "users")]
-    [InlineData(SettingsSection.Access, "applications")]
     [InlineData(SettingsSection.Access, "authentication")]
     [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.Delivery, "hardware")]
@@ -542,74 +553,48 @@ public sealed class SettingsNavTests
         var groups = SettingsNav.FilteredMenuGroups(false);
 
         Assert.Equal(["personal"], groups.Select(group => group.Key));
-        // Profiles is for administrators: a member (and a Kids profile, which the shell keeps out of Settings) never sees it.
-        Assert.Equal(["Overview", "Preferences", "Security"], groups[0].Nodes.Select(node => node.Label));
-        Assert.Equal(["Playback", "Listening", "Reading", "Home"], groups[0].Nodes[1].Children.Select(node => node.Label));
+        // Manage Profiles is everyone's own to look after (a member lands on their own profile); a Kids profile sees Profile only.
+        Assert.Equal(["Profile", "Manage Profiles", "Security & Devices"], groups[0].Nodes.Select(node => node.Label));
+        Assert.Equal(["Profile"], SettingsNav.FilteredMenuGroups(false, restricted: true).Single().Nodes.Select(node => node.Label));
     }
 
     [Fact]
-    public void HouseholdAdministrator_SeesOnlyThePersonalGroup_WithProfilesButNoHouseholdsPage()
-    {
-        var groups = SettingsNav.FilteredMenuGroups(false, householdAdministrator: true);
-
-        Assert.Equal(["personal"], groups.Select(group => group.Key));
-        Assert.Equal(["Overview", "Profiles", "Preferences", "Security"], groups[0].Nodes.Select(node => node.Label));
-        Assert.Empty(ChildLabels(groups, "Profiles"));
-    }
-
-    [Fact]
-    public void ServerAdministrator_SeesHouseholdsUnderUsersAndSignIn_AndProfilesHasNone()
+    public void ServerAdministrator_SeesHouseholdsAsATabOfUsersAndHouseholds()
     {
         var groups = SettingsNav.FilteredMenuGroups(true);
 
-        Assert.Empty(ChildLabels(groups, "Profiles"));
-        Assert.Contains("Households", ChildLabels(groups, "Users and Sign-in"));
+        Assert.Contains("Households", TabLabels(groups, "Users & Households"));
         Assert.Equal("/settings/profiles", SettingsNav.RouteFor(SettingsSection.Profiles));
         Assert.Equal("/settings/access/households", SettingsNav.RouteFor(SettingsSection.Access, "households"));
         Assert.Throws<ArgumentOutOfRangeException>(() => SettingsNav.RouteFor(SettingsSection.Profiles, "households"));
     }
 
     [Fact]
-    public void ProfilesPage_IsRefusedToAMember_AndOpenToBothKindsOfAdministrator()
+    public void ManageProfiles_IsOpenToEveryoneSignedIn_AndAKidsProfileGetsProfileOnly()
     {
-        Assert.False(SettingsNav.IsVisible(SettingsSection.Profiles, administrationAllowed: false));
-        Assert.False(SettingsNav.ResolveRoute("profiles", false).RequestedSectionAllowed);
-        Assert.True(SettingsNav.ResolveRoute("profiles", false, householdAdministrator: true).RequestedSectionAllowed);
+        Assert.True(SettingsNav.IsVisible(SettingsSection.Profiles, administrationAllowed: false));
+        Assert.True(SettingsNav.ResolveRoute("profiles", false).RequestedSectionAllowed);
         Assert.True(SettingsNav.ResolveRoute("profiles", true).RequestedSectionAllowed);
+        Assert.False(SettingsNav.ResolveRoute("profiles", false, restricted: true).RequestedSectionAllowed);
+        Assert.True(SettingsNav.ResolveRoute("overview", false, restricted: true).RequestedSectionAllowed);
 
-        // The bare /settings address opens the person's own Overview, whatever their role.
+        // The bare /settings address opens the person's own Profile, whatever they are.
         Assert.Equal(SettingsSection.Overview, SettingsNav.ResolveRoute(null, false).Section);
-        Assert.Equal(SettingsSection.Overview, SettingsNav.ResolveRoute(null, false, householdAdministrator: true).Section);
+        Assert.Equal(SettingsSection.Overview, SettingsNav.ResolveRoute(null, false, restricted: true).Section);
         Assert.Equal(SettingsSection.Overview, SettingsNav.ResolveRoute(null, true).Section);
     }
 
     [Fact]
-    public void DeveloperTools_OpensOnTheProviderTester_AndHasExactlyTheTwoDevelopmentSubPages()
+    public void DeveloperTools_OpensOnTheProviderTester_AndHasThreeTabs()
     {
         var groups = SettingsNav.FilteredMenuGroups(true);
-        var developerTools = Assert.Single(
-            SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)),
-            node => node.Label == "Developer Tools");
+        var developerTools = Assert.Single(groups.SelectMany(group => group.Nodes), node => node.Label == "Developer Tools");
 
         Assert.Equal(SettingsSection.ProviderTester, developerTools.Section);
-        Assert.Null(developerTools.Subsection);
         Assert.Equal("/settings/developer", developerTools.Route);
         Assert.Equal(
-            [(SettingsSection.EnrichmentTester, "Enrichment Tester"), (SettingsSection.DevHarness, "Development data")],
-            developerTools.Children.Select(child => (child.Section, child.Label)));
-    }
-
-    [Fact]
-    public void DeveloperTools_NoChildRepeatsItsParentOrAnotherRowsName()
-    {
-        var groups = SettingsNav.FilteredMenuGroups(true);
-        var all = SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)).ToArray();
-        var developerTools = Assert.Single(all, node => node.Label == "Developer Tools");
-
-        Assert.DoesNotContain(developerTools.Children, child => child.Label is "Developer Tools" or "Provider Tester");
-        Assert.DoesNotContain(all, node => node.Label == "Provider Tester");
-        Assert.Equal(developerTools.Children.Count, developerTools.Children.Select(child => child.Label).Distinct().Count());
-        Assert.DoesNotContain(developerTools.Children, child => child.Route == developerTools.Route);
+            [(SettingsSection.ProviderTester, "Provider Tester"), (SettingsSection.EnrichmentTester, "Enrichment Tester"), (SettingsSection.DevHarness, "Development data")],
+            developerTools.Tabs.Select(tab => (tab.Section, tab.Label)));
     }
 
     [Fact]
@@ -627,17 +612,17 @@ public sealed class SettingsNavTests
 
         Assert.DoesNotContain(groups, group => group.Key == "developer");
         Assert.DoesNotContain(
-            SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)),
-            node => node.Section is SettingsSection.ProviderTester or SettingsSection.EnrichmentTester or SettingsSection.DevHarness);
+            groups.SelectMany(group => group.Nodes),
+            node => node.Sections.Any(section => section is SettingsSection.ProviderTester or SettingsSection.EnrichmentTester or SettingsSection.DevHarness));
     }
 
     private static string[] Labels(IReadOnlyList<SettingsMenuGroup> groups, string groupKey) =>
         groups.Single(group => group.Key == groupKey).Nodes.Select(node => node.Label).ToArray();
 
-    private static string[] ChildLabels(IReadOnlyList<SettingsMenuGroup> groups, string parentLabel) =>
-        SettingsNav.Flatten(groups.SelectMany(group => group.Nodes))
-            .FirstOrDefault(node => node.Label == parentLabel && node.Children.Count > 0)
-            ?.Children.Select(node => node.Label).ToArray() ?? [];
+    private static string[] TabLabels(IReadOnlyList<SettingsMenuGroup> groups, string pageLabel) =>
+        groups.SelectMany(group => group.Nodes)
+            .First(node => node.Label == pageLabel)
+            .Tabs.Select(tab => tab.Label).ToArray();
 
     [Theory]
     [InlineData("review", SettingsSection.Review, "/settings/review")]
@@ -655,8 +640,9 @@ public sealed class SettingsNavTests
 
     [Theory]
     [InlineData("server", SettingsSection.Ingestion, "/settings/ingestion")]
-    [InlineData("manage", SettingsSection.Access, "/settings/access/users")]
-    [InlineData("developer", SettingsSection.LocalAi, "/settings/ai")]
+    [InlineData("platform", SettingsSection.LocalAi, "/settings/ai")]
+    [InlineData("system", SettingsSection.AdminOverview, "/settings/system")]
+    [InlineData("developer", SettingsSection.ProviderTester, "/settings/developer")]
     [InlineData("personal", SettingsSection.Overview, "/settings/overview")]
     public void GroupDefaults_ResolveToExpectedCanonicalRoutes(string groupKey, SettingsSection expectedSection, string expectedRoute)
     {
@@ -686,10 +672,9 @@ public sealed class SettingsNavTests
     {
         var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
 
-        Assert.Contains("<ProfileDetailPage ProfileId=\"@ProfileDetailId\" NameChanged=\"OnProfileNameChanged\" />", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("<ProfileDetailPage ProfileId=\"@ProfileDetailId\" Tab=\"@ProfileTab\" NameChanged=\"OnProfileNameChanged\" />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("_activeSection == SettingsSection.Profiles && Guid.TryParse(Subsection, out _)", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("$\"/settings/profiles/{_activeSubsection}\"", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("- Profiles - Library", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("- Manage Profiles - Library", settingsSource, StringComparison.Ordinal);
         // A non-id subsection still goes through the normal lookup, which knows no subsection for Profiles and so ends at /not-found otherwise.
         Assert.Contains("<HouseholdsTab />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("SettingsNav.ResolveSubsection(_activeSection, Subsection)", settingsSource, StringComparison.Ordinal);
@@ -720,68 +705,43 @@ public sealed class SettingsNavTests
         Assert.True(resolution.IsKnownRoute);
         Assert.Equal(SettingsSection.Ingestion, resolution.Section);
         Assert.Equal("/settings/ingestion", resolution.CanonicalRoute);
-        Assert.Contains(SettingsNav.AllItems, item => item.Label == "Library and Ingestion");
+        Assert.Contains(SettingsNav.AllItems, item => item.Label == "Library & Ingestion");
         Assert.DoesNotContain(SettingsNav.AllItems, item => item.Label == "Live Ingestion");
     }
 
     [Fact]
-    public void AccountWithoutAdministration_SeesOwnSecurityButNotReviewOrServerAdministration()
+    public void AccountWithoutAdministration_SeesOwnProfileAndSecurityButNotReviewOrServerAdministration()
     {
-        var visible = SettingsNav.Flatten(SettingsNav.FilteredMenuGroups(false).SelectMany(group => group.Nodes))
-            .Select(node => node.Section)
+        var visible = SettingsNav.FilteredMenuGroups(false).SelectMany(group => group.Nodes)
+            .SelectMany(node => node.Sections)
             .ToArray();
 
-        Assert.DoesNotContain(SettingsSection.Profiles, visible);
-        Assert.Contains(SettingsSection.Playback, visible);
+        Assert.Contains(SettingsSection.Profiles, visible);
         Assert.Contains(SettingsSection.Security, visible);
         Assert.DoesNotContain(SettingsSection.Review, visible);
         Assert.DoesNotContain(SettingsSection.Server, visible);
         Assert.DoesNotContain(SettingsSection.Providers, visible);
-    }
-
-    [Fact]
-    public void HouseholdAdministrator_SeesProfilesAndThePersonalSectionsButNoServerAdministration()
-    {
-        var groups = SettingsNav.FilteredMenuGroups(false, householdAdministrator: true).Select(group => group.Key).ToArray();
-
-        Assert.Equal(["personal"], groups);
-        var household = SettingsNav.ResolveRoute("household", false, householdAdministrator: true);
-        Assert.Equal(SettingsSection.Profiles, household.Section);
-        Assert.False(household.IsCanonicalRoute);
-        Assert.True(household.RequestedSectionAllowed);
         Assert.False(SettingsNav.ResolveRoute("access", false).RequestedSectionAllowed);
         Assert.False(SettingsNav.ResolveRoute("network", false).RequestedSectionAllowed);
     }
 
     [Fact]
-    public void Member_PersonalTree_IsOverviewThenPreferencesWithItsThreePagesAndSecurityWithItsDevices()
+    public void Member_PersonalPages_AreProfileThenManageProfilesThenSecurityAndDevices()
     {
         var personal = SettingsNav.FilteredMenuGroups(false).Single(group => group.Key == "personal");
 
-        var sections = SettingsNav.Flatten(personal.Nodes).Select(node => node.Section).ToArray();
-
-        Assert.Equal(
-            [
-                SettingsSection.Overview, SettingsSection.Overview, SettingsSection.Overview,
-                SettingsSection.Preferences, SettingsSection.Playback,
-                SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Home, SettingsSection.Security,
-                SettingsSection.Security,
-            ],
-            sections);
+        Assert.Equal(["/settings/overview", "/settings/profiles", "/settings/security"], personal.Nodes.Select(node => node.Route));
+        // Playback, Listening, Reading and Home are tabs of a profile, not pages.
+        Assert.Equal([SettingsSection.Profiles], personal.Nodes[1].Sections);
     }
 
     [Fact]
-    public void HouseholdAdministrator_PersonalTree_HasProfilesAfterOverviewAndNoHouseholdsPage()
+    public void ResolveRoute_Household_MapsToManageProfiles()
     {
-        var personal = SettingsNav.FilteredMenuGroups(false, householdAdministrator: true).Single(group => group.Key == "personal");
-
-        var rows = SettingsNav.Flatten(personal.Nodes).Select(node => node.Route).ToArray();
-
-        Assert.Equal("/settings/overview", rows[0]);
-        Assert.Equal("/settings/overview/activity", rows[1]);
-        Assert.Equal("/settings/overview/taste", rows[2]);
-        Assert.Equal("/settings/profiles", rows[3]);
-        Assert.DoesNotContain("/settings/profiles/households", rows);
+        var household = SettingsNav.ResolveRoute("household", false);
+        Assert.Equal(SettingsSection.Profiles, household.Section);
+        Assert.False(household.IsCanonicalRoute);
+        Assert.True(household.RequestedSectionAllowed);
     }
 
     [Fact]
@@ -796,10 +756,10 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void ServerAdministrator_HasHouseholdsUnderUsersAndSignIn_AndThereIsNoMyHouseholdTab()
+    public void ServerAdministrator_HasHouseholdsInUsersAndHouseholds_AndThereIsNoMyHouseholdTab()
     {
-        var personalLabels = SettingsNav.Flatten(SettingsNav.FilteredMenuGroups(true).Single(group => group.Key == "personal").Nodes)
-            .Select(node => node.Label)
+        var personalLabels = SettingsNav.FilteredMenuGroups(true).Single(group => group.Key == "personal").Nodes
+            .SelectMany(node => node.Tabs.Select(tab => tab.Label).Append(node.Label))
             .ToArray();
 
         Assert.DoesNotContain("My household", personalLabels);
@@ -815,8 +775,8 @@ public sealed class SettingsNavTests
     [Fact]
     public void PlainMember_DoesNotSeeUsersAndAccess_AndDirectNavigationIsRefused()
     {
-        var visible = SettingsNav.Flatten(SettingsNav.FilteredMenuGroups(false).SelectMany(group => group.Nodes))
-            .Select(node => node.Section)
+        var visible = SettingsNav.FilteredMenuGroups(false).SelectMany(group => group.Nodes)
+            .SelectMany(node => node.Sections)
             .ToArray();
 
         Assert.DoesNotContain(SettingsSection.Access, visible);

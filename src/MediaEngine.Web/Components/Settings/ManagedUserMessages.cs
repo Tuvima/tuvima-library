@@ -2,7 +2,7 @@ using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Components.Settings;
 
-/// <summary>What Users and Sign-in says when a call to the Engine does not go through.</summary>
+/// <summary>What Users & Households says when a call to the Engine does not go through.</summary>
 internal static class ManagedUserMessages
 {
     /// <summary>
