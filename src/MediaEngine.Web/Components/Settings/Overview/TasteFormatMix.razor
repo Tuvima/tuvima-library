@@ -1,0 +1,33 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Web.Services.Formatting
+@* The format mix on the Taste page: one bar split by kind of media, in each kind's own colour, with a legend. *@
+<div class="taste-formats" data-taste-formats>
+    <div class="taste-formats__bar" role="img" aria-label="@Description">
+        @foreach (var share in Shares)
+        {
+            <span class="@("taste-formats__segment taste-formats__segment--" + share.Kind)" style="@Width(share)" title="@($"{share.Label} {Percent(share)}")"></span>
+        }
+    </div>
+    <ul class="taste-formats__legend" role="list">
+        @foreach (var share in Shares)
+        {
+            <li class="taste-formats__item" data-taste-format="@share.Label">
+                <span class="@("taste-formats__swatch taste-formats__segment--" + share.Kind)" aria-hidden="true"></span>
+                <span class="taste-formats__label">@share.Label</span>
+                <span class="taste-formats__percent">@Percent(share)</span>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<FormatShare> Shares { get; set; } = [];
+
+    private string Description => "Your formats: " + string.Join(", ", Shares.Select(share => $"{share.Label} {Percent(share)}"));
+
+    private static string Percent(FormatShare share) => $"{Math.Round(share.Percent).ToString("0", CultureInfo.CurrentCulture)}%";
+
+    private static string Width(FormatShare share) =>
+        string.Create(CultureInfo.InvariantCulture, $"flex-basis: {share.Percent:0.##}%");
+}

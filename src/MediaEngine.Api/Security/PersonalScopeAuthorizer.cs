@@ -54,8 +54,10 @@ public sealed class PersonalScopeAuthorizer(
         authority.PrincipalKind == PrincipalKind.Human &&
         (await decisions.EvaluateAdministratorAsync(authority, true, ct).ConfigureAwait(false)).IsAllowed;
 
+    // A Kids profile sees its own taste but never changes it.
     public bool CanEditTaste(RequestAuthority authority, Guid profileId) =>
         AuthorityValidity.ValidateHuman(authority) is null &&
+        !authority.ActiveProfileIsRestricted &&
         authority.ActiveProfileId is { } active && active != Guid.Empty && active == profileId;
 
     private async Task<PersonalScopeDecision> ResolveOthersAsync(

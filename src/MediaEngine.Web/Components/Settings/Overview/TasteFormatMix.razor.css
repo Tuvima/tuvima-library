@@ -1,0 +1,61 @@
+.taste-formats {
+    display: grid;
+    gap: var(--tl-space-3, 12px);
+}
+
+.taste-formats__bar {
+    display: flex;
+    height: 0.9rem;
+    overflow: hidden;
+    gap: 2px;
+    border-radius: var(--tl-radius-pill, 999px);
+}
+
+.taste-formats__segment {
+    min-width: 4px;
+    flex: 0 1 auto;
+    background: var(--tl-media-unknown);
+}
+
+.taste-formats__segment--books { background: var(--tl-media-books); }
+.taste-formats__segment--audiobooks { background: var(--tl-media-audiobooks); }
+.taste-formats__segment--movies { background: var(--tl-media-movies); }
+.taste-formats__segment--tv { background: var(--tl-media-tv); }
+.taste-formats__segment--music { background: var(--tl-media-music); }
+.taste-formats__segment--comics { background: var(--tl-media-comics); }
+
+.taste-formats__legend {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--tl-space-2, 8px);
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    list-style: none;
+}
+
+.taste-formats__item {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+}
+
+.taste-formats__swatch {
+    width: 0.75rem;
+    height: 0.75rem;
+    flex: 0 0 auto;
+    border-radius: 3px;
+}
+
+.taste-formats__label {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    color: var(--tl-text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.taste-formats__percent {
+    color: var(--tl-text-secondary);
+    font-variant-numeric: tabular-nums;
+}

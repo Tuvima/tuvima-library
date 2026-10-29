@@ -606,6 +606,83 @@ public sealed class PersonalActivityRepositoryTests : IDisposable
         Assert.Equal(new PersonalActivitySummary(0, 0, 0, 0, 0, 0, null), summary);
     }
 
+    // ----- Rolling 30 days and finished by month -----
+
+    [Fact]
+    public async Task TheRollingWindow_CountsTitlesFinishedAndDaysActive_InsideThirtyDaysOnly()
+    {
+        var alex = SeedProfile("Alex");
+        var now = new DateTimeOffset(2026, 10, 29, 20, 0, 0, TimeSpan.Zero);
+        var tremors = Guid.NewGuid();
+        // The first day of the window is 30 Sep (29 days before today); 29 Sep is outside it.
+        await AddWatchAsync(alex, Guid.NewGuid(), "Old", new DateTimeOffset(2026, 9, 29, 23, 0, 0, TimeSpan.Zero), finished: true, played: 100);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Edge", new DateTimeOffset(2026, 9, 30, 0, 30, 0, TimeSpan.Zero), finished: true, played: 200);
+        // The same title finished twice counts once; two entries on one day make one active day.
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", now.AddDays(-3), work: tremors, finished: true, played: 300);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", now.AddDays(-3).AddHours(2), work: tremors, finished: true, played: 400);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Unfinished", now.AddDays(-1), finished: false, played: 50);
+        await AddSongAsync(alex, "One", "Album", now);
+        await _repository.AddMyListAsync(alex, now.AddDays(-2),
+            new PersonalActivitySnapshot("Movies", "Saved", null, null, null, Guid.NewGuid(), null, null));
+
+        var rolling = await _repository.GetRollingAsync(alex, now, 30);
+
+        Assert.Equal(2, rolling.FinishedTitles);
+        Assert.Equal(4, rolling.DaysActive);
+        Assert.Equal(
+            [new DateOnly(2026, 9, 30), new DateOnly(2026, 10, 26), new DateOnly(2026, 10, 28), new DateOnly(2026, 10, 29)],
+            rolling.Days.Select(day => day.Date));
+        Assert.Equal(700, rolling.Days.Single(day => day.Date == new DateOnly(2026, 10, 26)).PlayedSeconds);
+        Assert.Equal(2, rolling.Days.Single(day => day.Date == new DateOnly(2026, 10, 26)).Entries);
+    }
+
+    [Fact]
+    public async Task TheRollingWindowOfSomeoneWithNoActivity_IsEmpty()
+    {
+        var rolling = await _repository.GetRollingAsync(SeedProfile("Alex"), _start, 30);
+
+        Assert.Equal(0, rolling.FinishedTitles);
+        Assert.Equal(0, rolling.DaysActive);
+        Assert.Empty(rolling.Days);
+    }
+
+    [Fact]
+    public async Task FinishedByMonth_GroupsTitlesByFirstFinishedMonthAndGenre_AndLeavesOutTheRest()
+    {
+        var alex = SeedProfile("Alex");
+        var (scifi, _) = SeedWork("Movies");
+        var (scifiToo, _) = SeedWork("Movies");
+        var (drama, _) = SeedWork("Movies");
+        SeedGenre(scifi, "sci-fi");
+        SeedGenre(scifiToo, "sci-fi");
+        SeedGenre(drama, "drama");
+        await AddWatchAsync(alex, Guid.NewGuid(), "Arrival", _start, work: scifi, finished: true);
+        // Finished again a month later: counted once, in the month it was first finished.
+        await AddWatchAsync(alex, Guid.NewGuid(), "Arrival", _start.AddDays(40), work: scifi, finished: true);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Dune", _start.AddDays(41), work: scifiToo, finished: true);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Marty", _start.AddDays(42), work: drama, finished: true);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Gone", _start.AddDays(43), finished: true, withoutWork: true);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Unfinished", _start.AddDays(44), finished: false);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Too early", _start.AddMonths(-3), finished: true);
+        await AddSongAsync(alex, "One", "Album", _start.AddDays(45));
+
+        var rows = await _repository.GetFinishedByMonthAsync(alex, new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero));
+
+        Assert.Contains(new PersonalFinishedMonthGenre("2026-09", "sci-fi", 1), rows);
+        Assert.Contains(new PersonalFinishedMonthGenre("2026-10", "sci-fi", 1), rows);
+        Assert.Contains(new PersonalFinishedMonthGenre("2026-10", "drama", 1), rows);
+        Assert.Contains(new PersonalFinishedMonthGenre("2026-10", null, 1), rows);
+        Assert.Equal(4, rows.Sum(row => row.Titles));
+    }
+
+    private void SeedGenre(Guid work, string genre)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "INSERT INTO canonical_value_arrays(entity_id, key, ordinal, value) VALUES (@work, 'genre', 0, @genre);",
+            new { work, genre });
+    }
+
     private static AuthorizationAuditEvent Audit(int removed) => new(
         "activity.history_deleted", DateTimeOffset.UtcNow, null, null, null, "everyone", "everyone",
         new Dictionary<string, string?> { ["count"] = removed.ToString() });

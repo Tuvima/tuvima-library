@@ -81,6 +81,9 @@ public sealed partial class PersonalActivityReadService(
     public const string ExportedOthers = "activity.exported_others";
     public const string HistoryDeleted = "activity.history_deleted";
 
+    /// <summary>The rolling window of the Overview: Finished, Days active and the heatmap.</summary>
+    public const int RollingDays = 30;
+
     internal const int MaxCoversPerSession = 9;
     private const int ExportPageSize = 500;
     private const string ArtworkRoute = "/api/v1/activity/artwork/";
@@ -200,7 +203,9 @@ public sealed partial class PersonalActivityReadService(
             return Failure<PersonalActivitySummaryDto>(decision);
         }
 
-        var summary = await repository.GetSummaryAsync(decision.ProfileIds.Single(), ct).ConfigureAwait(false);
+        var profileId = decision.ProfileIds.Single();
+        var summary = await repository.GetSummaryAsync(profileId, ct).ConfigureAwait(false);
+        var rolling = await repository.GetRollingAsync(profileId, clock.GetUtcNow(), RollingDays, ct).ConfigureAwait(false);
         return PersonalActivityResult<PersonalActivitySummaryDto>.Ok(new PersonalActivitySummaryDto(
             summary.WatchSeconds,
             summary.ReadSeconds,
@@ -209,7 +214,11 @@ public sealed partial class PersonalActivityReadService(
             summary.AudiobookSeconds,
             summary.FinishedCount,
             summary.InProgressCount,
-            summary.FirstActivityAt is { } first ? Iso(first) : null));
+            summary.FirstActivityAt is { } first ? Iso(first) : null,
+            rolling.FinishedTitles,
+            rolling.DaysActive,
+            [.. rolling.Days.Select(day => new PersonalActivityDayDto(
+                day.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), day.PlayedSeconds, day.Entries))]));
     }
 
     public async Task<PersonalActivityResult<PersonalActivityDeletePreviewDto>> DeletePreviewAsync(

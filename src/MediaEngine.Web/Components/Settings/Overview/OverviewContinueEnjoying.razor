@@ -1,0 +1,85 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Formatting
+@* Continue enjoying (D2): the title most recently left part way through, for each of Reading, Watching and Listening. A kind with
+   nothing in progress is not drawn. Nothing is invented: with nothing at all, one friendly line says where it will appear. *@
+@if (Cards.Count == 0)
+{
+    <p class="overview-continue__empty" data-overview-continue-empty>Nothing is part way through. Start a book, a show or an album and it waits for you here.</p>
+}
+else
+{
+    <ul class="overview-continue" role="list" aria-label="Continue enjoying" data-overview-continue>
+        @foreach (var card in Cards)
+        {
+            <li class="@("overview-continue__card overview-continue__card--" + card.Kind.ToLowerInvariant())" data-overview-continue-kind="@card.Kind">
+                <a class="overview-continue__link" href="@card.Item.Route" aria-label="@($"{card.Verb}: {card.Item.Title}")">
+                    <span class="overview-continue__art">
+                        @if (!string.IsNullOrWhiteSpace(card.Item.CoverUrl))
+                        {
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(card.Item.CoverUrl, 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(card.Item.CoverUrl, 96)" alt="" loading="lazy" decoding="async" />
+                        }
+                        else
+                        {
+                            <span class="overview-continue__placeholder" aria-hidden="true"><AppMaterialIcon Icon="@card.Icon" /></span>
+                        }
+                    </span>
+                    <span class="overview-continue__copy">
+                        <span class="overview-continue__kind"><AppMaterialIcon Icon="@card.Icon" />@card.Kind</span>
+                        <strong class="overview-continue__title">@card.Item.Title</strong>
+                        @if (!string.IsNullOrWhiteSpace(card.Item.Subtitle))
+                        {
+                            <span class="overview-continue__subtitle">@card.Item.Subtitle</span>
+                        }
+                        <span class="overview-continue__progress">
+                            <AppProgressBar Value="@card.Item.ProgressPct" Decorative="true" AccentColor="var(--tl-accent-primary, #8852FC)" />
+                            <span class="overview-continue__percent">@($"{Math.Round(card.Item.ProgressPct):0}%")</span>
+                        </span>
+                    </span>
+                </a>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private sealed record ContinueCard(string Kind, string Verb, string Icon, ProfileOverviewItemViewModel Item);
+
+    /// <summary>The titles left part way through, newest first. Only those that can be opened are drawn.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<ProfileOverviewItemViewModel> Items { get; set; } = [];
+
+    private IReadOnlyList<ContinueCard> Cards
+    {
+        get
+        {
+            var cards = new List<ContinueCard>();
+            foreach (var kind in ProfileOverviewPresentation.ContinueKinds)
+            {
+                var item = Items
+                    .Where(candidate => !string.IsNullOrWhiteSpace(candidate.Route) && ProfileOverviewPresentation.ContinueKind(candidate.MediaType) == kind)
+                    .OrderByDescending(candidate => candidate.LastAccessed)
+                    .FirstOrDefault();
+                if (item is not null)
+                {
+                    cards.Add(new ContinueCard(kind, VerbFor(kind), IconFor(kind), item));
+                }
+            }
+
+            return cards;
+        }
+    }
+
+    private static string VerbFor(string kind) => kind switch
+    {
+        "Reading" => "Continue reading",
+        "Watching" => "Continue watching",
+        _ => "Continue listening",
+    };
+
+    private static string IconFor(string kind) => kind switch
+    {
+        "Reading" => AppMaterialIcons.Outlined.MenuBook,
+        "Watching" => AppMaterialIcons.Outlined.Movie,
+        _ => AppMaterialIcons.Outlined.Headphones,
+    };
+}

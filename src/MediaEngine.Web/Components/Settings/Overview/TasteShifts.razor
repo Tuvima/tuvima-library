@@ -1,0 +1,57 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Web.Services.Formatting
+@* "How your taste shifts" on the Taste page: titles finished each month, split by the genres finished most. Bars share one scale,
+   so a busy month is taller than a quiet one. A table of the same numbers is there for screen readers. *@
+<figure class="taste-shifts" data-taste-shifts>
+    <div class="taste-shifts__chart" aria-hidden="true">
+        @foreach (var bar in Bars)
+        {
+            <div class="taste-shifts__column" data-taste-shift-month="@bar.Month" title="@Title(bar)">
+                <div class="taste-shifts__stack" style="@Height(bar)">
+                    @foreach (var segment in bar.Segments)
+                    {
+                        <span class="@("taste-shifts__segment taste-shifts__segment--" + segment.Index)" style="@Grow(segment)"></span>
+                    }
+                </div>
+                <span class="taste-shifts__month">@bar.Label</span>
+            </div>
+        }
+    </div>
+    <table class="taste-shifts__table sr-only">
+        <caption>Titles finished each month</caption>
+        <thead><tr><th scope="col">Month</th><th scope="col">Finished</th><th scope="col">Genres</th></tr></thead>
+        <tbody>
+            @foreach (var bar in Bars)
+            {
+                <tr><th scope="row">@bar.Label</th><td>@bar.Finished</td><td>@string.Join(", ", bar.Segments.Select(segment => $"{segment.Genre} {segment.Count}"))</td></tr>
+            }
+        </tbody>
+    </table>
+    <figcaption class="taste-shifts__legend">
+        @for (var index = 0; index < Legend.Count; index++)
+        {
+            <span class="taste-shifts__key" data-taste-shift-key="@Legend[index]">
+                <span class="@("taste-shifts__swatch taste-shifts__segment--" + (Legend[index] == "Other" ? ProfileOverviewPresentation.ShiftGenres : index))" aria-hidden="true"></span>@Legend[index]
+            </span>
+        }
+    </figcaption>
+</figure>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ShiftBar> Bars { get; set; } = [];
+
+    [Parameter, EditorRequired] public IReadOnlyList<string> Legend { get; set; } = [];
+
+    private int Tallest => Bars.Count == 0 ? 1 : Math.Max(1, Bars.Max(bar => bar.Finished));
+
+    // The tallest month fills the chart; the others are in proportion. Every month gets a little height so it can be seen.
+    private string Height(ShiftBar bar) =>
+        string.Create(CultureInfo.InvariantCulture, $"height: {Math.Max(8d, bar.Finished * 100d / Tallest):0.#}%");
+
+    private static string Grow(ShiftSegment segment) =>
+        string.Create(CultureInfo.InvariantCulture, $"flex-grow: {segment.Count}");
+
+    private static string Title(ShiftBar bar) =>
+        $"{bar.Label}: {bar.Finished} finished" + (bar.Segments.Count == 0 ? string.Empty : " (" + string.Join(", ", bar.Segments.Select(segment => $"{segment.Genre} {segment.Count}")) + ")");
+}

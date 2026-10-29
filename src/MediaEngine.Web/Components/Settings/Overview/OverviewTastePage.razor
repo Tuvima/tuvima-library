@@ -2,6 +2,7 @@
 @using System.Globalization
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Contracts.Taste
+@using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
 @inject DashboardIdentityClient Identity
@@ -9,8 +10,9 @@
 @inject ILogger<OverviewTastePage> Logger
 @* Personal > Overview > Taste (D34): what the Library has learned about a person's taste, in plain groups. A person removes or adds
    values on their own taste; everyone else's is read-only. Administrators get a Scope filter (Me, a household, a person or Everyone);
-   the Engine decides what each person may see, so the filter only offers choices and never grants anything. The layout is a
-   placeholder until the taste design lands. *@
+   the Engine decides what each person may see, so the filter only offers choices and never grants anything. A Kids profile sees
+   its own taste but cannot change it. Everything is worked out on this machine from finished titles; the genre donut, the "You love"
+   sentence, the format mix and the monthly shifts need no AI. *@
 <div class="taste-page" data-settings-taste>
     @if (ShowScopeFilter)
     {
@@ -52,97 +54,138 @@
     {
         @foreach (var person in _view.People)
         {
+            var learned = person.LastUpdatedAt is not null;
+            var editable = person.IsYou && !IsKids;
+            var slices = ProfileOverviewPresentation.GenreSlices(person);
+            var formats = ProfileOverviewPresentation.FormatMix(person);
+            var shifts = learned ? ProfileOverviewPresentation.Shifts(person.Shifts) : (Bars: [], Legend: []);
+            var sentence = ProfileOverviewPresentation.Sentence(person, learned);
+            var basedOn = ProfileOverviewPresentation.BasedOn(person.FinishedTitleCount);
             <SettingsSectionPanel Title="@PanelTitle(person)"
                                   Icon="@AppMaterialIcons.Outlined.Category"
                                   Class="tl-card settings-section-card settings-section-card--dense taste-page__person">
-                <div data-taste-person="@person.ProfileId" data-taste-editable="@(person.IsYou ? "true" : "false")">
-                    @if (!string.IsNullOrWhiteSpace(person.Summary))
+                <div data-taste-person="@person.ProfileId" data-taste-editable="@(editable ? "true" : "false")">
+                    @if (sentence is not null)
                     {
-                        <p class="taste-page__summary" data-taste-summary>@person.Summary</p>
+                        <p class="taste-page__sentence" data-taste-sentence>@sentence</p>
                     }
-                    @if (MediaMixLine(person) is { } mix)
+                    else
                     {
-                        <p class="taste-page__mix" data-taste-mix>@mix</p>
-                    }
-                    @if (person.LastUpdatedAt is not null && UpdatedLine(person.LastUpdatedAt) is { } updated)
-                    {
-                        <p class="taste-page__updated" data-taste-updated>@updated</p>
+                        <p class="taste-page__sentence taste-page__sentence--waiting" data-taste-waiting>@(person.IsYou ? "Your taste appears here after you finish a few titles." : "Their taste appears here after they finish a few titles.")</p>
                     }
 
-                    @foreach (var group in Groups)
+                    @if (slices.Count > 0 || formats.Count > 0)
                     {
-                        var items = ItemsFor(person, group.Key);
-                        <section class="taste-group" data-taste-group="@group.Key" aria-label="@group.Label">
-                            <h3 class="taste-group__title">@group.Label</h3>
-                            @if (items.Count == 0)
+                        <div class="taste-page__cards">
+                            @if (slices.Count > 0)
                             {
-                                <p class="taste-group__empty" data-taste-empty>@(person.IsYou ? $"Nothing here yet. Add {group.Article} below." : "Nothing here yet.")</p>
+                                <section class="taste-card" aria-label="Genres" data-taste-genres-card>
+                                    <h3 class="taste-card__title">Genres</h3>
+                                    <TasteDonut Slices="@slices" />
+                                </section>
                             }
-                            else
+                            @if (formats.Count > 0)
                             {
-                                <ul class="taste-group__chips" role="list">
-                                    @foreach (var item in items)
-                                    {
-                                        var captured = item;
-                                        <li class="taste-group__chip" data-taste-item="@item.Value" data-taste-source="@item.Source">
-                                            @if (person.IsYou)
-                                            {
-                                                <AppChip Title="@ChipTitle(item)" OnClose="@(() => RemoveAsync(group.Key, captured.Value))" Disabled="@_busy">
-                                                    <span class="taste-chip__text">@item.Value</span>
-                                                    @if (item.Source == TasteValues.SourceAdded)
-                                                    {
-                                                        <span class="taste-chip__note">Added by you</span>
-                                                    }
-                                                </AppChip>
-                                            }
-                                            else
-                                            {
-                                                <AppChip Title="@ChipTitle(item)">
-                                                    <span class="taste-chip__text">@item.Value</span>
-                                                    @if (item.Source == TasteValues.SourceAdded)
-                                                    {
-                                                        <span class="taste-chip__note">Added by them</span>
-                                                    }
-                                                </AppChip>
-                                            }
-                                        </li>
-                                    }
-                                </ul>
+                                <section class="taste-card" aria-label="Formats" data-taste-formats-card>
+                                    <h3 class="taste-card__title">Formats</h3>
+                                    <TasteFormatMix Shares="@formats" />
+                                </section>
                             }
+                        </div>
+                    }
 
-                            @if (person.IsYou)
-                            {
-                                <div class="taste-group__add" data-taste-add="@group.Key">
-                                    <AppTextField Label="@($"Add {group.Article}")"
-                                                  HideLabel="true"
-                                                  Placeholder="@($"Add {group.Article}")"
-                                                  HelpText="@group.Help"
-                                                  MaxLength="60"
-                                                  Value="@TextFor(group.Key)"
-                                                  ValueChanged="@(value => SetText(group.Key, value))"
-                                                  OnKeyDown="@(args => OnAddKeyDownAsync(group.Key, args))"
-                                                  Disabled="@_busy"
-                                                  aria-label="@($"Add {group.Article}")" />
-                                    <AppButton Label="Add"
-                                               StartIcon="@AppMaterialIcons.Outlined.Add"
-                                               Disabled="@(_busy || string.IsNullOrWhiteSpace(TextFor(group.Key)))"
-                                               OnClick="@(() => AddAsync(group.Key, TextFor(group.Key)))"
-                                               UserAttributes="@(new Dictionary<string, object> { ["data-taste-add-button"] = group.Key })" />
-                                </div>
-                                @if (SuggestionsFor(group.Key, person) is { Count: > 0 } suggestions)
+                    <section class="taste-card taste-card--tastes" aria-label="Key tastes" data-taste-key-tastes>
+                        <h3 class="taste-card__title">Key tastes</h3>
+                        @foreach (var group in Groups)
+                        {
+                            var items = ItemsFor(person, group.Key);
+                            <section class="taste-group" data-taste-group="@group.Key" aria-label="@group.Label">
+                                <h4 class="taste-group__title">@group.Label</h4>
+                                @if (items.Count == 0)
                                 {
-                                    <ul class="taste-group__suggestions" role="list" aria-label="@($"Suggested {group.Label.ToLowerInvariant()}")" data-taste-suggestions="@group.Key">
-                                        @foreach (var suggestion in suggestions)
+                                    <p class="taste-group__empty" data-taste-empty>@(editable ? $"Nothing here yet. Add {group.Article} below." : "Nothing here yet.")</p>
+                                }
+                                else
+                                {
+                                    <ul class="taste-group__chips" role="list">
+                                        @foreach (var item in items)
                                         {
-                                            var chosen = suggestion;
-                                            <li>
-                                                <AppChip Text="@suggestion" Icon="@AppMaterialIcons.Outlined.Add" OnClick="@(() => AddAsync(group.Key, chosen))" Disabled="@_busy" />
+                                            var captured = item;
+                                            <li class="taste-group__chip" data-taste-item="@item.Value" data-taste-source="@item.Source">
+                                                @if (editable)
+                                                {
+                                                    <AppChip Title="@ChipTitle(item)" OnClose="@(() => RemoveAsync(group.Key, captured.Value))" Disabled="@_busy">
+                                                        <span class="taste-chip__text">@item.Value</span>
+                                                        @if (item.Source == TasteValues.SourceAdded)
+                                                        {
+                                                            <span class="taste-chip__note">Added by you</span>
+                                                        }
+                                                    </AppChip>
+                                                }
+                                                else
+                                                {
+                                                    <AppChip Title="@ChipTitle(item)">
+                                                        <span class="taste-chip__text">@item.Value</span>
+                                                        @if (item.Source == TasteValues.SourceAdded)
+                                                        {
+                                                            <span class="taste-chip__note">@(person.IsYou ? "Added by you" : "Added by them")</span>
+                                                        }
+                                                    </AppChip>
+                                                }
                                             </li>
                                         }
                                     </ul>
                                 }
-                            }
+
+                                @if (editable)
+                                {
+                                    <div class="taste-group__add" data-taste-add="@group.Key">
+                                        <AppTextField Label="@($"Add {group.Article}")"
+                                                      HideLabel="true"
+                                                      Placeholder="@($"Add {group.Article}")"
+                                                      HelpText="@group.Help"
+                                                      MaxLength="60"
+                                                      Value="@TextFor(group.Key)"
+                                                      ValueChanged="@(value => SetText(group.Key, value))"
+                                                      OnKeyDown="@(args => OnAddKeyDownAsync(group.Key, args))"
+                                                      Disabled="@_busy"
+                                                      aria-label="@($"Add {group.Article}")" />
+                                        <AppButton Label="Add"
+                                                   StartIcon="@AppMaterialIcons.Outlined.Add"
+                                                   Disabled="@(_busy || string.IsNullOrWhiteSpace(TextFor(group.Key)))"
+                                                   OnClick="@(() => AddAsync(group.Key, TextFor(group.Key)))"
+                                                   UserAttributes="@(new Dictionary<string, object> { ["data-taste-add-button"] = group.Key })" />
+                                    </div>
+                                    @if (SuggestionsFor(group.Key, person) is { Count: > 0 } suggestions)
+                                    {
+                                        <ul class="taste-group__suggestions" role="list" aria-label="@($"Suggested {group.Label.ToLowerInvariant()}")" data-taste-suggestions="@group.Key">
+                                            @foreach (var suggestion in suggestions)
+                                            {
+                                                var chosen = suggestion;
+                                                <li>
+                                                    <AppChip Text="@suggestion" Icon="@AppMaterialIcons.Outlined.Add" OnClick="@(() => AddAsync(group.Key, chosen))" Disabled="@_busy" />
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                }
+                            </section>
+                        }
+                    </section>
+
+                    @if (shifts.Bars.Count > 0)
+                    {
+                        <section class="taste-card" aria-label="How your taste shifts" data-taste-shifts-card>
+                            <h3 class="taste-card__title">@(person.IsYou ? "How your taste shifts" : "How their taste shifts")</h3>
+                            <TasteShifts Bars="@shifts.Bars" Legend="@shifts.Legend" />
                         </section>
+                    }
+
+                    @if (basedOn is not null || (learned && UpdatedLine(person.LastUpdatedAt) is not null))
+                    {
+                        <p class="taste-page__basis" data-taste-basis>
+                            @basedOn@(basedOn is not null && learned ? " · " : string.Empty)@(learned ? UpdatedLine(person.LastUpdatedAt) : null)
+                        </p>
                     }
                 </div>
             </SettingsSectionPanel>
@@ -179,6 +222,9 @@
     // A server administrator can look at anyone. A household administrator can look at their own household and its people.
     // Anyone else sees only their own taste, so no filter is drawn.
     private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true;
+
+    // A Kids profile sees its own taste but cannot change it; the Engine refuses the change too.
+    private bool IsKids => Session.Authority?.ProfileGrants.FirstOrDefault(grant => grant.ProfileId == Session.ActiveProfileId)?.IsRestricted == true;
 
     private bool ShowScopeFilter => (IsServerAdministrator || Session.HasAction("household.manage")) && _scopeOptions.Count > 1;
 
@@ -274,17 +320,6 @@
         : item.Weight is { } weight
             ? $"Learned from what has been watched, read and listened to ({Math.Round(weight * 100).ToString("0", CultureInfo.CurrentCulture)}%)"
             : "Learned from what has been watched, read and listened to";
-
-    private static string? MediaMixLine(TastePersonDto person)
-    {
-        var parts = person.MediaMix
-            .Where(pair => pair.Value > 0 && !string.IsNullOrWhiteSpace(pair.Key))
-            .OrderByDescending(pair => pair.Value)
-            .ThenBy(pair => pair.Key, StringComparer.CurrentCultureIgnoreCase)
-            .Select(pair => $"{pair.Key} {Math.Round(pair.Value * 100).ToString("0", CultureInfo.CurrentCulture)}%")
-            .ToList();
-        return parts.Count == 0 ? null : "Mostly " + string.Join(", ", parts) + ".";
-    }
 
     private static string? UpdatedLine(string? lastUpdatedAt) =>
         DateTimeOffset.TryParse(lastUpdatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at)

@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Activity;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Profiles;
+using MediaEngine.Contracts.Taste;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
@@ -12,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>Personal &gt; Overview (D11, D13, D14, D17, D18, D19): the person's own header, counts, Recent activity strip and taste.</summary>
+/// <summary>Profile &gt; Overview (Profile Overview, Taste and Activity spec): the banner, stat strip, Continue enjoying, Recent activity timeline, taste and the last 30 days.</summary>
 public sealed class OverviewPageTests : AsyncBunitContext
 {
     private static readonly Guid OwnId = Guid.NewGuid();
@@ -24,6 +25,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
 
     private ProfileOverviewViewModel? _overview = new();
     private PersonalActivitySummaryDto? _summary = new(0, 0, 0, 0, 0, 0, 0, null);
+    private TasteViewDto? _tasteView;
     private PersonalActivityRecentDto? _recent = new([]);
     private readonly List<(Guid Id, string Name, string Color, string? NavigationConfig)> _updates = [];
 
@@ -54,6 +56,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         stub.SetHandler(nameof(IEngineApiClient.GetProfileOverviewAsync), _ => Task.FromResult(_overview));
         stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivityRecentAsync), _ => Task.FromResult(_recent));
         stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivitySummaryAsync), _ => Task.FromResult(_summary));
+        stub.SetHandler(nameof(IEngineApiClient.GetPersonalTasteAsync), _ => Task.FromResult(_tasteView));
         stub.SetHandler(nameof(IEngineApiClient.UpdateProfileAsync), args =>
         {
             var id = (Guid)args![0]!;
@@ -86,9 +89,10 @@ public sealed class OverviewPageTests : AsyncBunitContext
         IReadOnlyList<string>? covers = null,
         int? songs = null,
         int? albums = null,
-        string? workId = null) =>
+        string? workId = null,
+        int daysAgo = 0) =>
         PersonalActivityPresentationTests.Tile(kind, seconds, progress, finished, shape, title, subtitle, parent, artwork, covers, songs, albums, workId,
-            startedAt: DateTimeOffset.UtcNow.AddMinutes(-20).ToString("O"));
+            startedAt: DateTimeOffset.Now.AddDays(-daysAgo).ToString("O"));
 
     private IRenderedComponent<OverviewPage> RenderPage()
     {
@@ -130,207 +134,167 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Counts_ShowInProgressFinishedAndTheLifetimeTimeWatchedReadAndListened_FromTheActivitySummary()
+    public void TheStatStrip_ShowsInProgress_FinishedInTheLast30Days_HoursEnjoyed_AndDaysActive()
     {
-        // Totals the person's whole record holds, not a sample of their latest items.
+        // 3 h watched + 30 m read + 2.5 h listened = 6 hours enjoyed over a lifetime; the other two are the rolling window.
         _summary = new PersonalActivitySummaryDto(
             WatchSeconds: 3 * 3600, ReadSeconds: 1800, ListenSeconds: 9000, MusicSeconds: 3600, AudiobookSeconds: 5400,
-            FinishedCount: 12, InProgressCount: 3, FirstActivityAt: null);
+            FinishedCount: 412, InProgressCount: 3, FirstActivityAt: null,
+            FinishedLast30Days: 5, DaysActiveLast30: 12);
 
         var cut = RenderPage();
 
+        Assert.Equal(["in-progress", "finished", "hours", "days-active"], cut.FindAll("[data-overview-count]").Select(item => item.GetAttribute("data-overview-count")!).ToArray());
         Assert.Equal("3", CountValue(cut, "in-progress"));
-        Assert.Equal("12", CountValue(cut, "finished"));
-        Assert.Equal("3 h", CountValue(cut, "watched"));
-        Assert.Equal("30 m", CountValue(cut, "read"));
-        Assert.Equal("2.5 h", CountValue(cut, "listened"));
+        Assert.Equal("5", CountValue(cut, "finished"));
+        Assert.Equal("6", CountValue(cut, "hours"));
+        Assert.Equal("12", CountValue(cut, "days-active"));
+        Assert.Equal("Last 30 days", cut.Find("[data-overview-count='finished'] .overview-stats__note").TextContent);
+        Assert.Equal("Hours enjoyed", cut.Find("[data-overview-count='hours'] .overview-stats__label").TextContent);
     }
 
     [Fact]
-    public void Counts_DoNotComeFromTheLatestEightyItemsOfTheProfileOverview()
+    public void TheFinishedFigure_IsTheRollingWindow_NotTheLifetimeTotal()
     {
-        _overview = Overview(inProgress: 80, completed: 80, consumed: new() { ["Movies"] = 999999 });
-        _summary = new PersonalActivitySummaryDto(7200, 0, 0, 0, 0, FinishedCount: 412, InProgressCount: 9, FirstActivityAt: null);
+        _overview = Overview(inProgress: 80, completed: 80);
+        _summary = new PersonalActivitySummaryDto(7200, 0, 0, 0, 0, FinishedCount: 412, InProgressCount: 9, FirstActivityAt: null, FinishedLast30Days: 2, DaysActiveLast30: 4);
 
         var cut = RenderPage();
 
         Assert.Equal("9", CountValue(cut, "in-progress"));
-        Assert.Equal("412", CountValue(cut, "finished"));
-        Assert.Equal("2 h", CountValue(cut, "watched"));
+        Assert.Equal("2", CountValue(cut, "finished"));
+        Assert.Equal("2", CountValue(cut, "hours"));
     }
 
     [Fact]
-    public void Counts_LeaveOutAnyTimeThatHasNoTotal_NeverFakingIt()
+    public void HoursEnjoyed_ShowsOneDecimalBelowTenHours()
     {
-        _summary = new PersonalActivitySummaryDto(3600, 0, 0, 0, 0, 0, 0, null);
+        _summary = new PersonalActivitySummaryDto(12600, 0, 0, 0, 0, 0, 0, null);
 
         var cut = RenderPage();
 
-        Assert.Equal(["in-progress", "finished", "watched"], cut.FindAll("[data-overview-count]").Select(item => item.GetAttribute("data-overview-count")!).ToArray());
-        Assert.Equal("0", CountValue(cut, "in-progress"));
+        Assert.Equal("3.5", CountValue(cut, "hours"));
     }
 
     [Fact]
-    public void Counts_AreAbsentWhenTheSummaryCannotBeRead_ButThePageStillOpens()
+    public void ANewProfile_ShowsZeros_AndAnInvitation_AndNoCalendar()
+    {
+        var cut = RenderPage();
+
+        Assert.Equal("0", CountValue(cut, "in-progress"));
+        Assert.Equal("0", CountValue(cut, "finished"));
+        Assert.Equal("0", CountValue(cut, "hours"));
+        Assert.Equal("0", CountValue(cut, "days-active"));
+        Assert.Contains("fills in", cut.Find("[data-overview-invite]").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-overview-heatmap]"));
+    }
+
+    [Fact]
+    public void TheStatStrip_IsAbsentWhenTheSummaryCannotBeRead_ButThePageStillOpens()
     {
         _summary = null;
 
         var cut = RenderPage();
 
         Assert.Empty(cut.FindAll("[data-overview-count]"));
+        Assert.Empty(cut.FindAll("[data-overview-invite]"));
         Assert.NotEmpty(cut.FindAll(".overview-header__name"));
     }
 
     [Fact]
-    public void Strip_ShowsTheCaptionOfEachKind_AndPrintsNoTitles()
+    public void ContinueEnjoying_ShowsTheNewestTitlePartWayThroughForEachOfReadingWatchingAndListening()
+    {
+        _overview = new ProfileOverviewViewModel
+        {
+            ContinueItems =
+            [
+                Item("Old Show", "TV", 20, daysAgo: 5),
+                Item("Dune", "Book", 55, daysAgo: 1),
+                Item("New Show", "Movie", 30, daysAgo: 0),
+                Item("Dune (audio)", "Audiobook", 80, daysAgo: 2),
+            ],
+        };
+
+        var cut = RenderPage();
+
+        Assert.Equal(["Reading", "Watching", "Listening"], cut.FindAll("[data-overview-continue-kind]").Select(card => card.GetAttribute("data-overview-continue-kind")!).ToArray());
+        Assert.Equal("Dune", cut.Find("[data-overview-continue-kind='Reading'] .overview-continue__title").TextContent);
+        Assert.Equal("New Show", cut.Find("[data-overview-continue-kind='Watching'] .overview-continue__title").TextContent);
+        Assert.Equal("80%", cut.Find("[data-overview-continue-kind='Listening'] .overview-continue__percent").TextContent);
+        Assert.StartsWith("/watch/player/", cut.Find("[data-overview-continue-kind='Watching'] a").GetAttribute("href"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ContinueEnjoying_LeavesOutAKindWithNothingInProgress_AndSaysSoWhenThereIsNothing()
+    {
+        _overview = new ProfileOverviewViewModel { ContinueItems = [Item("Dune", "Book", 55, daysAgo: 1)] };
+        var cut = RenderPage();
+        Assert.Equal(["Reading"], cut.FindAll("[data-overview-continue-kind]").Select(card => card.GetAttribute("data-overview-continue-kind")!).ToArray());
+
+        _overview = new ProfileOverviewViewModel();
+        cut = RenderPage();
+
+        Assert.Empty(cut.FindAll("[data-overview-continue]"));
+        Assert.NotEmpty(cut.FindAll("[data-overview-continue-empty]"));
+    }
+
+    [Fact]
+    public void RecentActivity_GroupsRowsUnderTodayAndYesterday_WithTheTitleCaptionAndAMenu()
     {
         _recent = new(
         [
             Tile(PersonalActivityKindValues.Watch, 52 * 60, progress: 40, subtitle: "S2 E4 · Fear", title: "Tremors Show", workId: WorkA),
-            Tile(PersonalActivityKindValues.Read, 80 * 60, progress: 100, finished: true, shape: PersonalActivityShapeValues.Portrait, title: "Dune Book", workId: WorkA),
-            Tile(PersonalActivityKindValues.Listen, 3 * 3600 + 12 * 60, progress: 20, shape: PersonalActivityShapeValues.Square, title: "Audiobook Title", workId: WorkA),
-            Tile(PersonalActivityKindValues.MusicSession, 65 * 60, shape: PersonalActivityShapeValues.Square, title: "Music", songs: 50, albums: 12, covers: [$"/engine-activity-artwork/{Key}"]),
-            Tile(PersonalActivityKindValues.MyList, shape: PersonalActivityShapeValues.Portrait, title: "Saved Film", workId: WorkA),
+            Tile(PersonalActivityKindValues.Read, 80 * 60, progress: 100, finished: true, shape: PersonalActivityShapeValues.Portrait, title: "Dune Book", workId: WorkA, daysAgo: 1),
         ]);
 
         var cut = RenderPage();
 
-        var captions = cut.FindAll(".activity-tile__caption").Select(caption => caption.TextContent.Trim()).ToArray();
-        Assert.Equal(["Watched 52 m", "Read 1 h 20 m", "Listened 3 h 12 m", "Played 1 h 05 m", "Added to My list"], captions);
-
-        var printed = cut.Find("[data-activity-strip]").TextContent;
-        foreach (var title in new[] { "Tremors Show", "Dune Book", "Audiobook Title", "Saved Film", "S2 E4" })
-        {
-            Assert.DoesNotContain(title, printed, StringComparison.Ordinal);
-        }
+        Assert.Equal(["Today", "Yesterday"], cut.FindAll("[data-timeline-day]").Select(day => day.GetAttribute("data-timeline-day")!).ToArray());
+        var rows = cut.FindAll(".overview-timeline__row");
+        Assert.Equal("Tremors Show", rows[0].QuerySelector(".overview-timeline__title")!.TextContent);
+        Assert.Equal("Watched 52 m · S2 E4 · Fear", rows[0].QuerySelector(".overview-timeline__detail")!.TextContent);
+        Assert.Equal("40%", rows[0].QuerySelector("[data-activity-progress] span:last-child")!.TextContent);
+        Assert.NotNull(rows[1].QuerySelector("[data-activity-finished]"));
+        Assert.All(rows, row => Assert.NotNull(row.QuerySelector("button[aria-haspopup='menu']")));
+        Assert.Equal($"/details/work/{WorkA}?context=watch", rows[0].QuerySelector(".overview-timeline__title")!.GetAttribute("href"));
     }
 
     [Fact]
-    public void Strip_ShowsABarWhilePartWayThrough_ACheckWhenFinished_AndNothingForMusicOrMyList()
+    public void RecentActivity_ShowsNoBarOrCheckForMusicOrMyList_AndAtMostEightRows()
     {
         _recent = new(
         [
-            Tile(PersonalActivityKindValues.Watch, 600, progress: 40, workId: WorkA),
-            Tile(PersonalActivityKindValues.Read, 600, progress: 100, finished: true, workId: WorkA),
             Tile(PersonalActivityKindValues.MusicSession, 600, shape: PersonalActivityShapeValues.Square, songs: 3, albums: 1),
             Tile(PersonalActivityKindValues.MyList, workId: WorkA),
+            .. Enumerable.Range(0, 10).Select(i => Tile(PersonalActivityKindValues.Watch, 600, progress: 10, title: $"Show {i}", workId: WorkA)),
         ]);
 
         var cut = RenderPage();
 
-        var tiles = cut.FindAll(".activity-tile");
-        Assert.Equal(4, tiles.Count);
-        Assert.Equal("40", tiles[0].QuerySelector(".app-artwork-progress")!.GetAttribute("aria-valuenow"));
-        Assert.Null(tiles[0].QuerySelector(".app-artwork-completed"));
-        Assert.NotNull(tiles[1].QuerySelector(".app-artwork-completed"));
-        Assert.Null(tiles[1].QuerySelector(".app-artwork-progress"));
-        Assert.Null(tiles[2].QuerySelector(".app-artwork-progress, .app-artwork-completed"));
-        Assert.Null(tiles[3].QuerySelector(".app-artwork-progress, .app-artwork-completed"));
+        var rows = cut.FindAll(".overview-timeline__row");
+        Assert.Equal(8, rows.Count);
+        Assert.Null(rows[0].QuerySelector("[data-activity-progress], [data-activity-finished]"));
+        Assert.Null(rows[1].QuerySelector("[data-activity-progress], [data-activity-finished]"));
+        Assert.Equal("Added to My list", rows[1].QuerySelector(".overview-timeline__detail")!.TextContent);
     }
 
     [Fact]
-    public void Strip_GivesEveryTileTheClassOfItsShape()
-    {
-        _recent = new(
-        [
-            Tile(PersonalActivityKindValues.Watch, shape: PersonalActivityShapeValues.Landscape, workId: WorkA),
-            Tile(PersonalActivityKindValues.Read, shape: PersonalActivityShapeValues.Portrait, workId: WorkA),
-            Tile(PersonalActivityKindValues.Listen, shape: PersonalActivityShapeValues.Square, workId: WorkA),
-        ]);
-
-        var cut = RenderPage();
-
-        Assert.Equal(["landscape", "portrait", "square"], cut.FindAll(".activity-tile").Select(tile => tile.GetAttribute("data-activity-shape")!).ToArray());
-        Assert.All(cut.FindAll(".activity-tile"), tile => Assert.Contains("activity-tile--", tile.ClassName));
-    }
-
-    [Fact]
-    public void MusicSession_IsASquareCollageOfAtMostNineCovers()
+    public void MusicSession_IsASquareCollageOfAtMostNineCovers_AndSaysHowManySongs()
     {
         var covers = Enumerable.Range(0, 12).Select(i => $"/engine-activity-artwork/{new string((char)('a' + i % 6), 64)}").ToList();
-        _recent = new([Tile(PersonalActivityKindValues.MusicSession, 3600, shape: PersonalActivityShapeValues.Square, covers: covers, songs: 50, albums: 12)]);
+        _recent = new([Tile(PersonalActivityKindValues.MusicSession, 3600, shape: PersonalActivityShapeValues.Square, title: string.Empty, covers: covers, songs: 50, albums: 12)]);
 
         var cut = RenderPage();
 
         var collage = cut.Find("[data-activity-collage]");
         Assert.Equal(9, collage.QuerySelectorAll("img").Length);
-        Assert.Contains("activity-tile__collage--3", collage.ClassName);
+        Assert.Contains("overview-timeline__collage--3", collage.ClassName);
+        Assert.Equal("Music", cut.Find(".overview-timeline__title").TextContent);
+        Assert.Contains("50 songs from 12 albums", cut.Find(".overview-timeline__detail").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void MusicSession_WithFewCovers_ShowsOnlyThoseCovers()
-    {
-        _recent = new([Tile(PersonalActivityKindValues.MusicSession, 3600, shape: PersonalActivityShapeValues.Square, covers: [$"/engine-activity-artwork/{Key}", $"/engine-activity-artwork/{new string('c', 64)}"], songs: 4, albums: 2)]);
-
-        var cut = RenderPage();
-
-        Assert.Equal(2, cut.Find("[data-activity-collage]").QuerySelectorAll("img").Length);
-    }
-
-    [Fact]
-    public void HoverCard_OnAHoverCapableScreen_ShowsTheLargerImageTitleEpisodeWhenAndHowLong()
-    {
-        _recent = new([Tile(PersonalActivityKindValues.Watch, 52 * 60, progress: 40, subtitle: "S2 E4 · Fear", title: "Tremors Show", artwork: $"/engine-activity-artwork/{Key}", workId: WorkA)]);
-        var cut = RenderPage();
-        Assert.Empty(cut.FindAll("[data-activity-card]"));
-
-        cut.Find(".activity-tile").MouseEnter();
-
-        var card = cut.Find("[data-activity-card]");
-        Assert.Equal("Tremors Show", card.QuerySelector(".activity-card__title")!.TextContent);
-        Assert.Contains("S2 E4 · Fear", card.TextContent, StringComparison.Ordinal);
-        Assert.Equal(2, card.QuerySelectorAll(".activity-card__line--muted").Length);
-        Assert.Contains("Watched 52 m", card.TextContent, StringComparison.Ordinal);
-        Assert.Equal($"/engine-activity-artwork/{Key}", card.QuerySelector("img.activity-card__image")!.GetAttribute("src"));
-
-        cut.Find(".activity-tile").MouseLeave();
-        Assert.Empty(cut.FindAll("[data-activity-card]"));
-    }
-
-    [Fact]
-    public void HoverCard_AlsoOpensOnKeyboardFocus()
-    {
-        _recent = new([Tile(PersonalActivityKindValues.Read, 600, workId: WorkA, title: "Dune Book")]);
-        var cut = RenderPage();
-
-        cut.Find(".activity-tile").FocusIn();
-
-        Assert.Equal("Dune Book", cut.Find(".activity-card__title").TextContent);
-        cut.Find(".activity-tile").FocusOut();
-        Assert.Empty(cut.FindAll("[data-activity-card]"));
-    }
-
-    [Fact]
-    public void HoverCard_ForAMusicSession_SaysHowManySongsFromHowManyAlbums()
-    {
-        _recent = new([Tile(PersonalActivityKindValues.MusicSession, 3900, shape: PersonalActivityShapeValues.Square, title: string.Empty, songs: 50, albums: 12, covers: [$"/engine-activity-artwork/{Key}"])]);
-        var cut = RenderPage();
-
-        cut.Find(".activity-tile").MouseEnter();
-
-        var card = cut.Find("[data-activity-card]");
-        Assert.Equal("Music", card.QuerySelector(".activity-card__title")!.TextContent);
-        Assert.Contains("50 songs from 12 albums", card.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Played 1 h 05 m", card.TextContent, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task OnAPhone_ThereIsNoHoverCard_AndATapOpensTheItem()
-    {
-        // The phone has no hover, and each test context holds one device, so this one builds its own.
-        await using var ctx = new PhoneContext();
-        var cut = ctx.RenderWithTiles([Tile(PersonalActivityKindValues.Watch, 600, workId: WorkA, title: "Tremors Show")]);
-
-        cut.Find(".activity-tile").MouseEnter();
-        cut.Find(".activity-tile").FocusIn();
-
-        Assert.Empty(cut.FindAll("[data-activity-card]"));
-        Assert.Equal($"/details/work/{WorkA}?context=watch", cut.Find(".activity-tile__link").GetAttribute("href"));
-        Assert.Contains("overview-page--phone", cut.Find("[data-settings-overview]").ClassName);
-    }
-
-    [Fact]
-    public void ATap_OpensTheItem_ForAWatchedItem_AndTheActivityPageForAMusicSessionOrAnItemThatIsGone()
+    public void ATitleOpensTheItem_AndAMusicSessionOrAnItemThatIsGoneOpensTheActivityPage()
     {
         _recent = new(
         [
@@ -343,7 +307,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
 
         Assert.Equal(
             [$"/details/work/{WorkA}?context=watch", "/settings/overview/activity", "/settings/overview/activity"],
-            cut.FindAll(".activity-tile__link").Select(link => link.GetAttribute("href")!).ToArray());
+            cut.FindAll(".overview-timeline__title").Select(link => link.GetAttribute("href")!).ToArray());
     }
 
     [Fact]
@@ -356,18 +320,28 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EmptyStrip_SaysWhatShowsUpThere()
+    public void ForAKidsProfile_SeeAllOpensMyActivity()
+    {
+        _profile = _profile with { Role = "RestrictedProfile" };
+
+        var cut = RenderPage();
+
+        Assert.Equal("/my-activity", cut.Find("[data-overview-see-all]").GetAttribute("href"));
+    }
+
+    [Fact]
+    public void EmptyTimeline_SaysWhatShowsUpThere()
     {
         _recent = new([]);
 
         var cut = RenderPage();
 
         Assert.Equal("Nothing yet — what you watch, read and listen to shows up here.", cut.Find("[data-activity-empty]").TextContent);
-        Assert.Empty(cut.FindAll("[data-activity-strip]"));
+        Assert.Empty(cut.FindAll("[data-activity-timeline]"));
     }
 
     [Fact]
-    public void StripThatCannotBeLoaded_SaysSoInsteadOfPretendingNothingHappened()
+    public void TimelineThatCannotBeLoaded_SaysSoInsteadOfPretendingNothingHappened()
     {
         _recent = null;
 
@@ -378,17 +352,25 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void YourTaste_SummarisesTheTopGenresAndMoodsInOneLine()
+    public void YourTaste_SaysYouLoveTheTopThreeGenres_AndShowsTheTopGenresAsPills()
     {
-        _overview = Overview(taste: new TasteProfileDto
+        _tasteView = new TasteViewDto
         {
-            GenreDistribution = new Dictionary<string, double> { ["Science fiction"] = 0.9, ["Thriller"] = 0.6, ["Drama"] = 0.4, ["Comedy"] = 0.1 },
-            MoodPreferences = new Dictionary<string, double> { ["Tense"] = 0.8 },
-        });
+            People =
+            [
+                new TastePersonDto
+                {
+                    IsYou = true,
+                    LastUpdatedAt = "2026-10-01T00:00:00.0000000Z",
+                    Genres = [new("sci-fi", 0.4, TasteValues.SourceLearned), new("thriller", 0.3, TasteValues.SourceLearned), new("drama", 0.2, TasteValues.SourceLearned), new("comedy", 0.1, TasteValues.SourceLearned)],
+                },
+            ],
+        };
 
         var cut = RenderPage();
 
-        Assert.Equal("Mostly Science fiction, Thriller and Drama, in a tense mood.", cut.Find("[data-overview-taste-summary]").TextContent);
+        Assert.Equal("You love sci-fi, thriller and drama.", cut.Find("[data-overview-taste-summary]").TextContent);
+        Assert.Equal(4, cut.FindAll("[data-overview-taste-genres] li").Count);
     }
 
     [Fact]
@@ -398,6 +380,43 @@ public sealed class OverviewPageTests : AsyncBunitContext
 
         Assert.StartsWith("Your taste appears here", cut.Find("[data-overview-taste-summary]").TextContent, StringComparison.Ordinal);
         Assert.NotNull(cut.Find("[data-overview-taste-link]"));
+        Assert.Empty(cut.FindAll("[data-overview-taste-genres]"));
+    }
+
+    [Fact]
+    public void TheLast30Days_DrawsACalendarOfWholeWeeks_DarkerForBusierDays_AndSaysHowManyDaysWereActive()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        _summary = new PersonalActivitySummaryDto(7200, 0, 0, 0, 0, 5, 1, null, FinishedLast30Days: 3, DaysActiveLast30: 2,
+            Daily:
+            [
+                new PersonalActivityDayDto(today.ToString("yyyy-MM-dd"), 7200, 2),
+                new PersonalActivityDayDto(today.AddDays(-3).ToString("yyyy-MM-dd"), 600, 1),
+            ]);
+
+        var cut = RenderPage();
+
+        var cells = cut.FindAll("[data-heatmap-date]");
+        Assert.Equal(ProfileOverviewPresentationDays, cells.Count);
+        Assert.Equal("4", cut.Find($"[data-heatmap-date='{today:yyyy-MM-dd}']").GetAttribute("data-heatmap-level"));
+        Assert.Equal("1", cut.Find($"[data-heatmap-date='{today.AddDays(-3):yyyy-MM-dd}']").GetAttribute("data-heatmap-level"));
+        Assert.Equal("0", cut.Find($"[data-heatmap-date='{today.AddDays(-1):yyyy-MM-dd}']").GetAttribute("data-heatmap-level"));
+        Assert.Equal(0, cut.FindAll("[data-heatmap-date]").Count(cell => cell.ClassName!.Contains("--outside", StringComparison.Ordinal)));
+        Assert.Contains("Active on 2 of the last 30 days", cut.Find("[data-overview-month-line]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("active on 2 days", cut.Find("[data-overview-heatmap-grid]").GetAttribute("aria-label"), StringComparison.Ordinal);
+    }
+
+    private const int ProfileOverviewPresentationDays = 30;
+
+    [Fact]
+    public async Task OnAPhone_ThePageIsASingleColumn_AndTheTimelineStillOpensItems()
+    {
+        // Each test context holds one device, so the phone builds its own.
+        await using var ctx = new PhoneContext();
+        var cut = ctx.RenderWithTiles([Tile(PersonalActivityKindValues.Watch, 600, workId: WorkA, title: "Tremors Show")]);
+
+        Assert.Contains("overview-page--phone", cut.Find("[data-settings-overview]").ClassName);
+        Assert.Equal($"/details/work/{WorkA}?context=watch", cut.Find(".overview-timeline__title").GetAttribute("href"));
     }
 
     [Fact]
@@ -477,7 +496,17 @@ public sealed class OverviewPageTests : AsyncBunitContext
         cut.FindAll("button").First(button => button.TextContent.Contains("Edit profile", StringComparison.Ordinal));
 
     private static string CountValue(IRenderedComponent<OverviewPage> cut, string key) =>
-        cut.Find($"[data-overview-count='{key}'] .overview-counts__value").TextContent;
+        cut.Find($"[data-overview-count='{key}'] .overview-stats__value").TextContent;
+
+    private static ProfileOverviewItemViewModel Item(string title, string mediaType, double percent, int daysAgo) => new()
+    {
+        AssetId = Guid.NewGuid(),
+        Title = title,
+        MediaType = mediaType,
+        ProgressPct = percent,
+        LastAccessed = DateTimeOffset.UtcNow.AddDays(-daysAgo),
+        Route = mediaType is "Book" ? $"/read/{Guid.NewGuid()}" : $"/watch/player/{Guid.NewGuid()}",
+    };
 
     private static ProfileOverviewViewModel Overview(
         int inProgress = 0,

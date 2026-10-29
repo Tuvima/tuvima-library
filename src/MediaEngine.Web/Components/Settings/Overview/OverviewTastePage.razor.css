@@ -24,16 +24,64 @@
     gap: var(--tl-space-4, 16px);
 }
 
-.taste-page__summary {
-    margin: 0 0 var(--tl-space-2, 8px);
+.taste-page__sentence {
+    margin: 0 0 var(--tl-space-4, 16px);
     color: var(--tl-text-primary);
+    font-size: 1.5rem;
+    font-weight: var(--tl-font-weight-semibold);
+    line-height: 1.3;
 }
 
-.taste-page__mix,
-.taste-page__updated {
-    margin: 0 0 var(--tl-space-2, 8px);
+.taste-page__sentence--waiting {
     color: var(--tl-text-secondary);
-    font-size: 0.9rem;
+    font-size: 1rem;
+    font-weight: var(--tl-font-weight-regular);
+}
+
+.taste-page__cards {
+    display: grid;
+    margin-bottom: var(--tl-space-4, 16px);
+    gap: var(--tl-space-4, 16px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.taste-card {
+    display: grid;
+    min-width: 0;
+    align-content: start;
+    gap: var(--tl-space-3, 12px);
+    margin-bottom: var(--tl-space-4, 16px);
+    padding: var(--tl-space-4, 16px);
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-xl, 12px);
+    background: color-mix(in srgb, var(--tl-text-primary) 3%, transparent);
+}
+
+.taste-page__cards > .taste-card {
+    margin-bottom: 0;
+}
+
+.taste-card__title {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: 1rem;
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.taste-page__basis {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: 0.85rem;
+}
+
+@media (max-width: 840px) {
+    .taste-page__cards {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .taste-page__sentence {
+        font-size: 1.25rem;
+    }
 }
 
 .taste-page__message {
@@ -44,7 +92,7 @@
 .taste-group {
     display: grid;
     min-width: 0;
-    margin-top: var(--tl-space-4, 16px);
+    margin-top: var(--tl-space-2, 8px);
     gap: var(--tl-space-2, 8px);
 }
 
