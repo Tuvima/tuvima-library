@@ -559,6 +559,31 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         GiveNewProfileAccess(connection, transaction, profile.Id, householdId, accessFromProfileId, profile.CreatedAt);
     }, ct);
 
+    public Task ReorderHouseholdProfilesAsync(Guid householdId, IReadOnlyList<Guid> orderedProfileIds, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var members = connection.Query<Guid>(
+                "SELECT id FROM profiles WHERE household_id=@householdId;", new { householdId }, transaction).ToHashSet();
+            if (members.Count == 0)
+            {
+                throw new KeyNotFoundException("Household not found.");
+            }
+
+            // The whole household in one list: nobody missing, nobody twice, nobody from another household.
+            if (orderedProfileIds.Count != members.Count || orderedProfileIds.Distinct().Count() != members.Count
+                || orderedProfileIds.Any(id => !members.Contains(id)))
+            {
+                throw new ArgumentException("The new order must list every person in the household exactly once.");
+            }
+
+            for (var position = 0; position < orderedProfileIds.Count; position++)
+            {
+                connection.Execute("UPDATE profiles SET sort_position=@position WHERE id=@id;",
+                    new { position, id = orderedProfileIds[position] }, transaction);
+            }
+        }, ct);
+
     public Task UpdateManagedProfileAsync(Profile profile, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
@@ -773,8 +798,9 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     {
         profile.HouseholdId = householdId;
         connection.Execute("""
-            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,avatar_icon,content_limit,content_limit_allow_unrated,role,created_at,navigation_config,household_id)
-            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@ContentLimit,@ContentLimitAllowUnrated,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
+            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,avatar_icon,content_limit,content_limit_allow_unrated,role,created_at,navigation_config,household_id,sort_position)
+            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@ContentLimit,@ContentLimitAllowUnrated,@Role,@CreatedAt,@NavigationConfig,@HouseholdId,
+                   (SELECT COALESCE(MAX(sort_position) + 1, 0) FROM profiles WHERE household_id = @HouseholdId));
             """, new
         {
             profile.Id,

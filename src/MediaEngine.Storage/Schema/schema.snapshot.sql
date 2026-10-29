@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0065 vault_moves).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0066 profile_sort_position).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2331,7 +2331,7 @@ CREATE TABLE profiles (
                      CHECK (role IN ('Administrator', 'StandardUser', 'RestrictedProfile')),
     created_at   TEXT NOT NULL
 , navigation_config TEXT
-, household_id BLOB REFERENCES households(id), is_server_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_server_admin IN (0, 1)), is_household_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_household_admin IN (0, 1)), authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0));
+, household_id BLOB REFERENCES households(id), is_server_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_server_admin IN (0, 1)), is_household_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_household_admin IN (0, 1)), authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0), sort_position INTEGER NOT NULL DEFAULT 0 CHECK (sort_position >= 0));
 
 CREATE TABLE provider_config (
     provider_id BLOB    NOT NULL REFERENCES metadata_providers(id) ON DELETE CASCADE,

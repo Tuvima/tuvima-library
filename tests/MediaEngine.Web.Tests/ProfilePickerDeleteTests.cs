@@ -6,6 +6,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -115,6 +116,8 @@ public sealed class ProfilePickerDeleteTests : AsyncBunitContext
     {
         _managed.AddRange(people);
         Setup(householdAdministrator, serverAdministrator);
+        // A television edits in place; every other device sends the pencil to the person's page in Settings.
+        Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("television", "tv", false)).GetAwaiter().GetResult();
         Services.GetRequiredService<NavigationManager>().NavigateTo("/who?manage=1");
 
         var cut = Render<ProfilePickerPage>();

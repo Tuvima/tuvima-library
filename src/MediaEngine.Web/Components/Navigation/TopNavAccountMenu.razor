@@ -72,28 +72,7 @@
                     }
                 </header>
 
-                @if (!IsKids)
-                {
-                    <a class="top-nav-account-menu__item"
-                       href="@MyProfileHref"
-                       role="menuitem"
-                       @onclick="CloseMenu">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person"
-                                 Class="top-nav-account-menu__item-icon" />
-                        <span>My profile</span>
-                    </a>
-                }
-
-                @* A Kids profile does not reach Settings, so its My activity is its own page. *@
-                <a class="top-nav-account-menu__item"
-                   href="@(IsKids ? KidsActivityHref : MyActivityHref)"
-                   role="menuitem"
-                   @onclick="CloseMenu">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History"
-                             Class="top-nav-account-menu__item-icon" />
-                    <span>My activity</span>
-                </a>
-
+                @* The other people come first (Netflix order, in the household's order). The signed-in person is not listed, and a household of one has no list. *@
                 @if (Profiles.Count > 1)
                 {
                     <TopNavProfileSwitcher ActiveProfileId="@ActiveProfileId" Profiles="@Profiles" />
@@ -106,56 +85,31 @@
                                  Class="top-nav-account-menu__item-icon" />
                         <span>Who's watching?</span>
                     </a>
+
+                    <AppDivider Class="top-nav-account-menu__divider" />
                 }
 
-                @if (!IsKids)
-                {
-                    <MediaEngine.Web.Components.Vault.NsfwQuickCheck OnChanged="CloseMenu" />
-                }
-
-                <AppDivider Class="top-nav-account-menu__divider" />
-
-                @if (CanViewReview)
+                @if (CanManageProfiles && !IsKids)
                 {
                     <a class="top-nav-account-menu__item"
-                       href="/settings/review"
+                       href="@ManageProfilesHref"
                        role="menuitem"
                        @onclick="CloseMenu">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.RateReview"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageAccounts"
                                  Class="top-nav-account-menu__item-icon" />
-                        <span class="top-nav-account-menu__item-copy">
-                            <span>@L["TopBar_NeedsReview"]</span>
-                            <span class="top-nav-account-menu__review-count">@ReviewCountLabel</span>
-                        </span>
+                        <span>Manage profiles</span>
                     </a>
                 }
 
-                @if (!IsKids)
-                {
-                    if (CanManageProfiles)
-                    {
-                        <a class="top-nav-account-menu__item"
-                           href="@ManageProfilesHref"
-                           role="menuitem"
-                           @onclick="CloseMenu">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageAccounts"
-                                     Class="top-nav-account-menu__item-icon" />
-                            <span>Manage profiles</span>
-                        </a>
-                    }
-                }
-
-                @foreach (var entry in PluginMenu)
-                {
-                    <a class="top-nav-account-menu__item"
-                       href="@PluginPageRoute.Href(entry)"
-                       role="menuitem"
-                       @onclick="CloseMenu">
-                        <AppMaterialIcon Icon="@PluginPageRoute.Icon(entry.PageType)"
-                                 Class="top-nav-account-menu__item-icon" />
-                        <span>@entry.Label</span>
-                    </a>
-                }
+                @* A Kids profile cannot reach Settings, so it keeps a direct link to its own activity until its Profile page opens to it. *@
+                <a class="top-nav-account-menu__item"
+                   href="@(IsKids ? KidsActivityHref : MyProfileHref)"
+                   role="menuitem"
+                   @onclick="CloseMenu">
+                    <AppMaterialIcon Icon="@(IsKids ? AppMaterialIcons.Outlined.History : AppMaterialIcons.Outlined.Person)"
+                             Class="top-nav-account-menu__item-icon" />
+                    <span>@(IsKids ? "My activity" : "Profile")</span>
+                </a>
 
                 @if (!IsKids)
                 {
@@ -184,6 +138,23 @@
                     </span>
                 </a>
 
+                @if (!IsKids)
+                {
+                    <MediaEngine.Web.Components.Vault.NsfwQuickCheck OnChanged="CloseMenu" />
+                }
+
+                @foreach (var entry in PluginMenu)
+                {
+                    <a class="top-nav-account-menu__item"
+                       href="@PluginPageRoute.Href(entry)"
+                       role="menuitem"
+                       @onclick="CloseMenu">
+                        <AppMaterialIcon Icon="@PluginPageRoute.Icon(entry.PageType)"
+                                 Class="top-nav-account-menu__item-icon" />
+                        <span>@entry.Label</span>
+                    </a>
+                }
+
                 @if (ShowSignOut)
                 {
                     <AppDivider Class="top-nav-account-menu__divider" />
@@ -211,10 +182,8 @@
     /// <summary>Raised when the person chooses Not now on the Secure your account card; the owner remembers it with the account.</summary>
     [Parameter] public EventCallback OnSecureAccountNotNow { get; set; }
     public const string ManageProfilesHref = "/settings/profiles";
-    /// <summary>My profile opens the person's own Overview.</summary>
+    /// <summary>Profile opens the person's own Overview.</summary>
     public const string MyProfileHref = "/settings/overview";
-    /// <summary>My activity opens the Activity page under the Overview; a Kids profile uses <see cref="KidsActivityHref"/>.</summary>
-    public const string MyActivityHref = "/settings/overview/activity";
     public const string KidsActivityHref = "/my-activity";
     [Parameter] public string ProfileRole { get; set; } = "Profile";
     [Parameter] public string AvatarInitial { get; set; } = string.Empty;
@@ -223,10 +192,8 @@
     [Parameter] public string? AvatarImageUrl { get; set; }
     [Parameter] public Guid? ActiveProfileId { get; set; }
     [Parameter] public IReadOnlyList<ProfileViewModel> Profiles { get; set; } = [];
-    [Parameter] public int ReviewCount { get; set; }
     /// <summary>Pages plugins add to the menu, already cut to what the active profile may see.</summary>
     [Parameter] public IReadOnlyList<PluginMenuEntryDto> PluginMenu { get; set; } = [];
-    [Parameter] public bool CanViewReview { get; set; }
     [Parameter] public bool ShowSignOut { get; set; }
 
     /// <summary>True for a Kids profile: no settings or review links, and a "Kids" badge.</summary>
@@ -236,8 +203,6 @@
     private string HeaderLabel => string.IsNullOrWhiteSpace(AccountLabel) ? DisplayName : AccountLabel!;
     private string ProfileMenuAriaLabel =>
         string.IsNullOrWhiteSpace(DisplayName) ? L["TopBar_OpenProfileMenu"].Value : string.Concat(L["TopBar_OpenProfileMenu"].Value, ": ", DisplayName);
-
-    private string ReviewCountLabel => ReviewCount > 99 ? "99+" : Math.Max(0, ReviewCount).ToString();
 
     private void ToggleMenu()
     {

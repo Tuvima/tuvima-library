@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1310; api=0; web-client=54
+# scopes: contracts=1311; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1273,6 +1273,7 @@
   HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=hidden_library_ids | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   User: MediaEngine.Contracts.Authentication.ManagedProfileUserDto | json=user | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AccessVersion: System.Int64 | json=access_version | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SortPosition: System.Int32 | json=sort_position | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.ManagedProfileUserDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1373,6 +1374,10 @@
 [contracts] MediaEngine.Contracts.Authentication.RenameHouseholdRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Authentication.ReorderHouseholdProfilesRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=profile_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.ReplaceProfileAccessRequest
   kind=class | converter=default | number-handling=default | unmapped=default
