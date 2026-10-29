@@ -229,18 +229,18 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.False(await SeesTheVaultAsync(session));
 
-        // The profile becomes a Kids profile, or gets a content limit.
+        // The profile becomes a Kids profile.
         session = await UnlockedSessionAsync();
         using (var connection = _database.CreateConnection())
         {
-            connection.Execute("UPDATE profiles SET content_limit='R' WHERE id=@profile;", new { profile = VaultProfile });
+            connection.Execute("UPDATE profiles SET role='RestrictedProfile' WHERE id=@profile;", new { profile = VaultProfile });
         }
 
         Assert.False(await SeesTheVaultAsync(session));
     }
 
     [Fact]
-    public async Task Vault_AKidsOrContentLimitedProfile_CanNeverUnlock_SoItNeverSeesTheVault()
+    public async Task Vault_AKidsProfile_CanNeverUnlock_SoItNeverSeesTheVault()
     {
         var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
@@ -483,8 +483,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await CreateHumanAsync(account, features ?? EveryFeature, hiddenLibraries, administrator);
         using var connection = _database.CreateConnection();
         var now = DateTimeOffset.UtcNow.ToString("O");
-        // The profile used by these tests is an adult with no content limit, so it can hold Vault access.
-        connection.Execute("UPDATE profiles SET role='StandardUser', content_limit=NULL WHERE id=@profile;", new { profile = VaultProfile });
+        // The profile used by these tests is an adult, so it can hold Vault access.
+        connection.Execute("UPDATE profiles SET role='StandardUser' WHERE id=@profile;", new { profile = VaultProfile });
         connection.Execute(
             "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES(@library,'none',@now,@now,@now);",
             new { library = vaultLibrary.ToString("D"), now });

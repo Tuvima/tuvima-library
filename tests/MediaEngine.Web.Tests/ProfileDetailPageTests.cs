@@ -118,7 +118,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(OwnId);
 
-        cut.WaitForAssertion(() => Assert.Contains("Everything", Row(cut, "details").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("Member", Row(cut, "details").TextContent));
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("Robin", cut.Find(".profile-detail__name").TextContent));
         Assert.Equal("Kids profile", cut.Find(".profile-detail__role").TextContent);
-        Assert.Contains("Kids · PG", Row(cut, "details").TextContent);
+        Assert.Contains("Kids", Row(cut, "details").TextContent);
         Assert.Equal($"/settings/playback?profile={KidId:D}", Row(cut, "playback").GetAttribute("href"));
         Assert.Equal($"/settings/listening?profile={KidId:D}", Row(cut, "listening").GetAttribute("href"));
         Assert.Equal($"/settings/reading?profile={KidId:D}", Row(cut, "reading").GetAttribute("href"));
@@ -1218,7 +1218,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
                 Task.FromResult(new List<ProfileViewModel>
                 {
                     new(OwnId, "Test User", "#C9922E", "Profile", DateTimeOffset.UtcNow, HasPin: _ownHasPin),
-                    new(KidId, "Robin", "#2E8BC9", "RestrictedProfile", DateTimeOffset.UtcNow, ContentLimit: "PG"),
+                    new(KidId, "Robin", "#2E8BC9", "RestrictedProfile", DateTimeOffset.UtcNow),
                     new(SamId, "Sam", "#2EC98B", "Profile", DateTimeOffset.UtcNow, HasPin: _samHasPin),
                 }));
             stub.SetHandler(nameof(IEngineApiClient.GetPlaybackSettingsAsync), args =>
@@ -1241,7 +1241,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private static ManagedProfileResponse Person(Guid id, string name, bool restricted, bool householdAdmin = false, bool serverAdmin = false,
         string? signInEmail = null, Guid? userId = null, Guid? household = null, IReadOnlyList<string>? features = null, IReadOnlyList<Guid>? hidden = null) =>
         new(id, name, "#C9922E", null, DateTimeOffset.UtcNow.AddMinutes(id == OwnId ? -3 : 0), household ?? HouseholdId, restricted,
-            ContentLimit: restricted ? "PG" : null, IsServerAdmin: serverAdmin, IsHouseholdAdmin: householdAdmin,
+            IsServerAdmin: serverAdmin, IsHouseholdAdmin: householdAdmin,
             FeatureIds: features ?? [], HiddenLibraryIds: hidden ?? [],
             User: signInEmail is null ? null : new ManagedProfileUserDto(userId ?? (id == OwnId ? OwnAccountId : SamAccountId), signInEmail));
 

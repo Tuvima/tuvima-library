@@ -639,8 +639,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AddHou
   IsChild: System.Boolean | nullability=not-null | accessors=get,init
   Pin: System.String | nullability=nullable | accessors=get,init
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
-  ContentLimit: System.String | nullability=nullable | accessors=get,init
-  ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AdministratorElevationResponse
   Elevated: System.Boolean | nullability=not-null | accessors=get,init
@@ -1015,6 +1013,14 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.GrantA
   ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   ProtectionVersion: System.Int64 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.HouseholdKidSettingsResponse
+  HouseholdId: System.Guid | nullability=not-null | accessors=get,init
+  WatchLevel: System.String | nullability=not-null | accessors=get,init
+  ReadLevel: System.String | nullability=not-null | accessors=get,init
+  ListenLevel: System.String | nullability=not-null | accessors=get,init
+  ShowUnrated: System.Boolean | nullability=not-null | accessors=get,init
+  LevelChoices: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.HouseholdLibraryAccessResponse
   HouseholdId: System.Guid | nullability=not-null | accessors=get,init
   HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
@@ -1081,10 +1087,8 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Manage
   AvatarPath: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
-  IsRestricted: System.Boolean | nullability=not-null | accessors=get,init
+  IsKids: System.Boolean | nullability=not-null | accessors=get,init
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
-  ContentLimit: System.String | nullability=nullable | accessors=get,init
-  ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
   IsServerAdmin: System.Boolean | nullability=not-null | accessors=get,init
   IsHouseholdAdmin: System.Boolean | nullability=not-null | accessors=get,init
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
@@ -1305,12 +1309,17 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Update
   IsAdministrator: System.Boolean | nullability=not-null | accessors=get,init
   ApprovalHash: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.UpdateHouseholdKidSettingsRequest
+  WatchLevel: System.String | nullability=not-null | accessors=get,init
+  ReadLevel: System.String | nullability=not-null | accessors=get,init
+  ListenLevel: System.String | nullability=not-null | accessors=get,init
+  ShowUnrated: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.UpdateManagedProfileRequest
   DisplayName: System.String | nullability=not-null | accessors=get,init
   AvatarColor: System.String | nullability=nullable | accessors=get,init
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
-  ContentLimit: System.String | nullability=nullable | accessors=get,init
-  ContentLimitAllowUnrated: System.Boolean? | nullability=nullable | accessors=get,init
+  IsKids: System.Boolean? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.UserDeletionPreviewResponse
   UserId: System.Guid | nullability=not-null | accessors=get,init
@@ -7623,8 +7632,7 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileResponseDto
   NavigationConfig: System.String | nullability=nullable | accessors=get,init
   AvatarImageUrl: System.String | nullability=nullable | accessors=get,init
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
-  ContentLimit: System.String | nullability=nullable | accessors=get,init
-  ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
+  IsKids: System.Boolean | nullability=not-null | accessors=get,init
   HasPin: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileSpoilerPreferenceDto
@@ -8669,7 +8677,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrarySourceDto
   ManagementMode: System.String | nullability=not-null | accessors=get,set
   SourceType: System.String | nullability=not-null | accessors=get,set
   IncludeSubdirectories: System.Boolean | nullability=not-null | accessors=get,set
-  OkForLimitedProfiles: System.Boolean | nullability=not-null | accessors=get,set
   AccessMode: System.String | nullability=not-null | accessors=get,set
   ConversionState: System.String | nullability=not-null | accessors=get,set
   ConversionOperationId: System.String | nullability=nullable | accessors=get,set

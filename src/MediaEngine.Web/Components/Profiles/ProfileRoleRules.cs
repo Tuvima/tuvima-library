@@ -37,7 +37,7 @@ public static class ProfileRoleRules
             return new(true, on, false, ServerAdministratorOnlyReason);
         }
 
-        if (!on && person.IsRestricted)
+        if (!on && person.IsKids)
         {
             return new(true, on, false, KidsReason);
         }
@@ -69,7 +69,7 @@ public static class ProfileRoleRules
         }
 
         var on = person.IsServerAdmin;
-        if (!on && person.IsRestricted)
+        if (!on && person.IsKids)
         {
             return new(true, on, false, KidsServerReason);
         }

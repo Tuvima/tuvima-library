@@ -100,9 +100,8 @@ public sealed class AccountAccessMutationService(
                 Id = Guid.NewGuid(),
                 DisplayName = NormalizeDisplayName(requested.DisplayName),
                 AvatarColor = NormalizeAvatarColor(requested.AvatarColor),
-                // A new profile is an ordinary member; Kids only when asked, with the Kids content limit.
+                // A new profile is an ordinary member; Kids only when asked, and then it follows the household's Kid settings.
                 Role = requested.IsKids ? ProfileRole.RestrictedProfile : ProfileRole.StandardUser,
-                ContentLimit = requested.IsKids ? ProfileContentLimits.KidsDefault : null,
                 CreatedAt = now,
             };
             profileId = newProfile.Id;
@@ -555,11 +554,6 @@ public sealed class AccountAccessMutationService(
             DisplayName = name,
             AvatarColor = color,
             AvatarIcon = ProfileAvatarIcons.Normalize(command.AvatarIcon),
-            // Left out, a Kids profile starts on PG; an explicit blank means Everything.
-            ContentLimit = command.ContentLimit is null
-                ? (command.IsChild ? ProfileContentLimits.KidsDefault : null)
-                : ProfileContentLimits.Normalize(command.ContentLimit),
-            ContentLimitAllowUnrated = command.ContentLimitAllowUnrated,
             Role = command.IsChild ? ProfileRole.RestrictedProfile : ProfileRole.StandardUser,
             CreatedAt = now,
         };
@@ -658,22 +652,22 @@ public sealed class AccountAccessMutationService(
             profile.AvatarIcon = ProfileAvatarIcons.Normalize(command.AvatarIcon);
         }
 
-        var limitBefore = (profile.ContentLimit, profile.ContentLimitAllowUnrated);
-        if (command.ContentLimit is not null)
+        var kidsBefore = profile.IsKidsProfile;
+        if (command.IsKids is { } wantsKids && wantsKids != kidsBefore)
         {
-            // Omitted keeps the current limit; an empty string means Everything.
-            profile.ContentLimit = ProfileContentLimits.Normalize(command.ContentLimit);
-        }
+            // A Kid's profile never looks after a household or the Library, and the seeded administrator role is never changed here.
+            if (wantsKids && (profile.IsServerAdministrator || profile.IsHouseholdAdministrator || profile.Role == ProfileRole.Administrator))
+            {
+                throw new InvalidOperationException("An administrator can't be a Kids profile.");
+            }
 
-        if (command.ContentLimitAllowUnrated is { } allowUnrated)
-        {
-            profile.ContentLimitAllowUnrated = allowUnrated;
+            profile.Role = wantsKids ? ProfileRole.RestrictedProfile : ProfileRole.StandardUser;
         }
 
         await accounts.UpdateManagedProfileAsync(profile, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "profile.updated", "profile", profile.Id.ToString("D"),
             actor.AccountId ?? Guid.Empty, profile.Id, ct).ConfigureAwait(false);
-        if (limitBefore != (profile.ContentLimit, profile.ContentLimitAllowUnrated))
+        if (kidsBefore != profile.IsKidsProfile)
         {
             await ChangedAsync(actor, "profile.content_limit_changed", "profile", profile.Id.ToString("D"),
                 actor.AccountId ?? Guid.Empty, profile.Id, ct).ConfigureAwait(false);

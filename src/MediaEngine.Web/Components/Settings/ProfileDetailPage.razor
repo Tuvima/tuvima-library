@@ -476,8 +476,7 @@
                 return string.Empty;
             }
 
-            var limit = string.IsNullOrWhiteSpace(_person.ContentLimit) ? "Everything" : _person.ContentLimit;
-            var status = _person.IsRestricted ? $"Kids · {limit}" : limit;
+            var status = _person.IsRestricted ? "Kids" : "Member";
             return _person.HasPin ? $"{status} · PIN set" : status;
         }
     }
@@ -595,9 +594,8 @@
         // The sheet works with the picker's profile shape, so use the full profile when we have it and fill the rest in.
         return _profiles.FirstOrDefault(profile => profile.Id == person.Id)
             ?? new ProfileViewModel(person.Id, person.DisplayName, person.AvatarColor,
-                person.IsRestricted ? "RestrictedProfile" : "Profile", person.CreatedAt,
-                AvatarIcon: person.AvatarIcon, ContentLimit: person.ContentLimit,
-                ContentLimitAllowUnrated: person.ContentLimitAllowUnrated);
+                person.IsKids ? "RestrictedProfile" : "Profile", person.CreatedAt,
+                AvatarIcon: person.AvatarIcon);
     }
 
     private async Task LoadSettingsAsync()

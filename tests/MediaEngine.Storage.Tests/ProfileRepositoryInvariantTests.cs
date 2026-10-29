@@ -42,38 +42,68 @@ public sealed class ProfileRepositoryInvariantTests : IDisposable
     }
 
     [Fact]
-    public async Task ContentLimit_IsReadBackAndNotTouchedByTheExperienceUpdate()
+    public async Task ContentLimit_IsTheHouseholdsKidSettingsForAKidsProfile_ReadLive_AndNoneForAnAdult()
     {
         var limits = new ProfileContentLimitRepository(_database);
         Assert.True((await limits.GetAsync(Profile.SeedProfileId)).IsUnrestricted);
 
+        var household = Guid.NewGuid();
+        var kid = Guid.NewGuid();
+        var adult = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
         {
             Dapper.SqlMapper.Execute(connection,
-                "UPDATE profiles SET content_limit='PG-13', content_limit_allow_unrated=1 WHERE id=@id",
-                new { id = Profile.SeedProfileId });
+                """
+                INSERT INTO households(id,name,created_at,is_default,kid_watch_level,kid_read_level,kid_listen_level,kid_show_unrated)
+                VALUES(@household,'Home','2026-10-29T00:00:00.0000000+00:00',0,'PG-13','G','R',0);
+                INSERT INTO profiles(id,display_name,avatar_color,role,created_at,household_id)
+                VALUES(@kid,'Kid','#7C4DFF','RestrictedProfile','2026-10-29T00:00:00.0000000+00:00',@household),
+                      (@adult,'Adult','#7C4DFF','StandardUser','2026-10-29T00:00:00.0000000+00:00',@household);
+                """,
+                new { household, kid, adult });
         }
 
-        var owner = Assert.IsType<Profile>(await _repository.GetByIdAsync(Profile.SeedProfileId));
-        Assert.Equal("PG-13", owner.ContentLimit);
-        Assert.True(owner.ContentLimitAllowUnrated);
+        Assert.Equal(
+            new MediaEngine.Domain.Contracts.ProfileContentLimit(
+                true, new MediaEngine.Domain.Contracts.HouseholdKidSettings("PG-13", "G", "R", false)),
+            await limits.GetAsync(kid));
+        Assert.True((await limits.GetAsync(adult)).IsUnrestricted);
 
-        // The experience update never rewrites the limit, so saving a theme can't lift it.
-        owner.ContentLimit = null;
-        owner.DisplayName = "Renamed";
-        Assert.True(await _repository.UpdateAsync(owner));
+        // The Kid's profile holds no copy: changing the household changes what it reads on the very next call.
+        using (var connection = _database.CreateConnection())
+        {
+            Dapper.SqlMapper.Execute(connection,
+                "UPDATE households SET kid_watch_level='G', kid_show_unrated=1 WHERE id=@household", new { household });
+        }
 
-        var stored = await limits.GetAsync(Profile.SeedProfileId);
-        Assert.Equal(new MediaEngine.Domain.Contracts.ProfileContentLimit("PG-13", true), stored);
+        var live = await limits.GetAsync(kid);
+        Assert.Equal("G", live.Settings.WatchLevel);
+        Assert.True(live.Settings.ShowUnrated);
         Assert.Equal(MediaEngine.Domain.Contracts.ProfileContentLimit.Strictest, await limits.GetAsync(Guid.NewGuid()));
     }
 
     [Fact]
-    public void ContentLimit_RejectsValuesOutsideTheFiveChoices()
+    public async Task HouseholdKidSettings_StartOnPgWithUnratedShown_AreReplacedAsAWhole_AndRejectLevelsOffTheLadder()
     {
-        using var connection = _database.CreateConnection();
-        Assert.Throws<SqliteException>(() => Dapper.SqlMapper.Execute(connection,
-            "UPDATE profiles SET content_limit='NC-17' WHERE id=@id", new { id = Profile.SeedProfileId }));
+        var household = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            Dapper.SqlMapper.Execute(connection,
+                "INSERT INTO households(id,name,created_at,is_default) VALUES(@household,'Home','2026-10-29T00:00:00.0000000+00:00',0);",
+                new { household });
+        }
+
+        var settings = new HouseholdKidSettingsRepository(_database);
+        Assert.Equal(MediaEngine.Domain.Contracts.HouseholdKidSettings.Default, await settings.GetAsync(household));
+        Assert.Null(await settings.GetAsync(Guid.NewGuid()));
+
+        Assert.True(await settings.ReplaceAsync(household, new MediaEngine.Domain.Contracts.HouseholdKidSettings("G", "R", "PG-13", false)));
+        Assert.Equal(new MediaEngine.Domain.Contracts.HouseholdKidSettings("G", "R", "PG-13", false), await settings.GetAsync(household));
+        Assert.False(await settings.ReplaceAsync(Guid.NewGuid(), MediaEngine.Domain.Contracts.HouseholdKidSettings.Default));
+
+        using var check = _database.CreateConnection();
+        Assert.Throws<SqliteException>(() => Dapper.SqlMapper.Execute(check,
+            "UPDATE households SET kid_watch_level='NC-17' WHERE id=@household", new { household }));
     }
 
     [Fact]

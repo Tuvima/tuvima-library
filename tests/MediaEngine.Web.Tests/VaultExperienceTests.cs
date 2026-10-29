@@ -160,8 +160,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
     private async Task LoadAsync(bool kids = false) => await State.RefreshAsync(Me, kids);
 
-    private static ProfileViewModel Person(Guid id, bool kids = false, string? limit = null, bool hasPin = false) =>
-        new(id, "Sam", "#C9922E", kids ? "RestrictedProfile" : "Profile", DateTimeOffset.UtcNow, HasPin: hasPin, ContentLimit: limit);
+    private static ProfileViewModel Person(Guid id, bool kids = false, bool hasPin = false) =>
+        new(id, "Sam", "#C9922E", kids ? "RestrictedProfile" : "Profile", DateTimeOffset.UtcNow, HasPin: hasPin);
 
     // -- Off and Kids profiles: not drawn, not even present -------------------------------------------------------------
 
@@ -200,8 +200,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         menu.Find(".top-nav-account-menu__trigger").Click();
         AssertNothingDrawn(menu.Markup);
 
-        // A Kids or limited profile's own page, and an administrator looking at one, offer nothing either.
-        foreach (var person in new[] { Person(Me, kids: true), Person(Me, limit: "PG") })
+        // A Kids profile's own page, and an administrator looking at one, offer nothing either.
+        foreach (var person in new[] { Person(Me, kids: true) })
         {
             foreach (var administrator in new[] { false, true })
             {

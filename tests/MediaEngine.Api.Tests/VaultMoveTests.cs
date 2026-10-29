@@ -371,7 +371,7 @@ internal sealed class VaultMoveWorld : IDisposable
         using (var connection = Database.CreateConnection())
         {
             connection.Execute(
-                "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,'Administrator','#7C4DFF','Administrator',NULL,@now);",
+                "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,'Administrator','#7C4DFF','Administrator',@now);",
                 new { id = Admin, now = DateTimeOffset.UtcNow.ToString("O") });
         }
 

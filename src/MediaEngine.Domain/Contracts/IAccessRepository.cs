@@ -146,8 +146,7 @@ public sealed record UpdateManagedProfileCommand(
     string DisplayName,
     string? AvatarColor,
     string? AvatarIcon = null,
-    string? ContentLimit = null,
-    bool? ContentLimitAllowUnrated = null);
+    bool? IsKids = null);
 
 /// <summary>A new person in a household: a child person gets the restricted role; a PIN is optional.</summary>
 public sealed record AddHouseholdPersonCommand(
@@ -156,9 +155,7 @@ public sealed record AddHouseholdPersonCommand(
     string? AvatarColor,
     bool IsChild,
     string? Pin,
-    string? AvatarIcon = null,
-    string? ContentLimit = null,
-    bool ContentLimitAllowUnrated = false);
+    string? AvatarIcon = null);
 
 /// <summary>How a new user first signs in: an invitation (link and QR code) to choose their own password, or a starting password.</summary>
 public enum NewUserSignInMethod
@@ -170,7 +167,7 @@ public enum NewUserSignInMethod
 /// <summary>
 /// A new profile made together with its user. The profile goes into <paramref name="HouseholdId"/> or into a new household called
 /// <paramref name="NewHouseholdName"/> (exactly one of the two); a new household's first profile looks after it. A Kids profile
-/// (<paramref name="IsKids"/>) has the Kids content limit and cannot look after a household.
+/// (<paramref name="IsKids"/>) follows the household's Kid settings and cannot look after a household.
 /// </summary>
 public sealed record NewUserProfileCommand(
     string DisplayName,

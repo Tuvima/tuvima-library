@@ -21,8 +21,7 @@ internal static class ProfileContractMapper
             ? null
             : $"/profiles/{profile.Id:D}/avatar",
         AvatarIcon = profile.AvatarIcon,
-        ContentLimit = profile.ContentLimit,
-        ContentLimitAllowUnrated = profile.ContentLimitAllowUnrated,
+        IsKids = profile.IsKidsProfile,
     };
 
     internal static ProfileResponseDto ToResponse(Profile profile, bool hasPin)
@@ -38,8 +37,7 @@ internal static class ProfileContractMapper
             NavigationConfig = dto.NavigationConfig,
             AvatarImageUrl = dto.AvatarImageUrl,
             AvatarIcon = dto.AvatarIcon,
-            ContentLimit = dto.ContentLimit,
-            ContentLimitAllowUnrated = dto.ContentLimitAllowUnrated,
+            IsKids = dto.IsKids,
             HasPin = hasPin,
         };
     }

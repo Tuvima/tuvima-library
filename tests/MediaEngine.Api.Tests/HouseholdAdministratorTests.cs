@@ -776,6 +776,80 @@ public sealed class HouseholdAdministratorTests
         }
     }
 
+    [Fact]
+    public async Task TheHouseholdKidSettings_StartOnPgWithUnratedShown_AndAreChangedByTheirOwnAdministratorOrAServerAdministratorOnly()
+    {
+        await using var world = await World.CreateAsync();
+        var service = world.KidSettings();
+
+        var start = await service.GetAsync(world.AdminOfA, world.A.Household.Id);
+        Assert.Equal(HouseholdKidSettings.Default, start);
+
+        await service.ReplaceAsync(world.AdminOfA, world.A.Household.Id, new HouseholdKidSettings("G", "pg-13", "R", false));
+        Assert.Equal(new HouseholdKidSettings("G", "PG-13", "R", false), await service.GetAsync(world.ServerAdmin, world.A.Household.Id));
+
+        // Another household keeps its own settings, and an administrator never reaches another household's.
+        Assert.Equal(HouseholdKidSettings.Default, await service.GetAsync(world.ServerAdmin, world.B.Household.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetAsync(world.AdminOfA, world.B.Household.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.ReplaceAsync(world.AdminOfA, world.B.Household.Id, HouseholdKidSettings.Strictest));
+
+        // A member never reads or changes the levels, and nothing changed through a refused call.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetAsync(world.MemberOfA, world.A.Household.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.ReplaceAsync(world.MemberOfA, world.A.Household.Id, HouseholdKidSettings.Strictest));
+        Assert.Equal(new HouseholdKidSettings("G", "PG-13", "R", false), await service.GetAsync(world.ServerAdmin, world.A.Household.Id));
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.GetAsync(world.ServerAdmin, Guid.NewGuid()));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            service.ReplaceAsync(world.ServerAdmin, Guid.NewGuid(), HouseholdKidSettings.Default));
+    }
+
+    [Theory]
+    [InlineData("NC-17", "PG", "PG")]
+    [InlineData("PG", "", "PG")]
+    [InlineData("PG", "PG", "everything")]
+    [InlineData("PG", null, "PG")]
+    public async Task AHouseholdKidLevel_MustBeOneOfGPgPg13OrR_ForEveryArea(string? watch, string? read, string? listen)
+    {
+        await using var world = await World.CreateAsync();
+        var service = world.KidSettings();
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.ReplaceAsync(world.ServerAdmin, world.A.Household.Id, new HouseholdKidSettings(watch!, read!, listen!, true)));
+
+        Assert.Equal(HouseholdKidSettings.Default, await service.GetAsync(world.ServerAdmin, world.A.Household.Id));
+    }
+
+    [Fact]
+    public async Task ChangingTheHouseholdKidSettings_UpdatesEveryKidsProfileOfThatHouseholdAtOnce_AndNoOtherHousehold()
+    {
+        await using var world = await World.CreateAsync();
+        var service = world.KidSettings();
+        var first = await world.Mutations.AddHouseholdPersonAsync(world.AdminOfA,
+            new AddHouseholdPersonCommand(world.A.Household.Id, "Kid one", null, IsChild: true, Pin: null));
+        var second = await world.Mutations.AddHouseholdPersonAsync(world.AdminOfA,
+            new AddHouseholdPersonCommand(world.A.Household.Id, "Kid two", null, IsChild: true, Pin: null));
+        var elsewhere = await world.Mutations.AddHouseholdPersonAsync(world.AdminOfB,
+            new AddHouseholdPersonCommand(world.B.Household.Id, "Kid three", null, IsChild: true, Pin: null));
+        var limits = new ProfileContentLimitRepository(world.Database);
+
+        foreach (var kid in new[] { first, second, elsewhere })
+        {
+            Assert.Equal(new ProfileContentLimit(true, HouseholdKidSettings.Default), await limits.GetAsync(kid.Id));
+        }
+
+        await service.ReplaceAsync(world.AdminOfA, world.A.Household.Id, new HouseholdKidSettings("R", "G", "PG-13", false));
+
+        var changed = new ProfileContentLimit(true, new HouseholdKidSettings("R", "G", "PG-13", false));
+        Assert.Equal(changed, await limits.GetAsync(first.Id));
+        Assert.Equal(changed, await limits.GetAsync(second.Id));
+        Assert.Equal(new ProfileContentLimit(true, HouseholdKidSettings.Default), await limits.GetAsync(elsewhere.Id));
+
+        // A member of the household who is not a Kid's profile has no limit whatever the levels say.
+        Assert.True((await limits.GetAsync(world.A.Person.Id)).IsUnrestricted);
+    }
+
     private sealed class World : IAsyncDisposable
     {
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-household-admin-{Guid.NewGuid():N}.db");
@@ -799,6 +873,9 @@ public sealed class HouseholdAdministratorTests
         public RealAdministratorDecisions Decisions { get; } = new();
         public NoProfilePhotos Photos { get; } = new();
         public DatabaseConnection Database => _database;
+
+        public HouseholdKidSettingsService KidSettings() => new(
+            new HouseholdKidSettingsRepository(_database), Decisions, new AllowEvaluator(), new NoOpAudit(), TimeProvider.System);
 
         public HouseholdLibraryAccessService HouseholdLibraries() => new(
             Households, new HouseholdLibraryAccessRepository(_database), new FixedVaultLibraries(), _configuration,

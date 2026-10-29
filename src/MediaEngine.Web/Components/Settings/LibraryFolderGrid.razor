@@ -70,18 +70,6 @@
                             {
                                 <span class="folder-grid__status" data-paused="true">Scanning is paused</span>
                             }
-                            @if (OnSetSuitableForLimited.HasDelegate && !ReadOnly && !IsMerged(source))
-                            {
-                                @* Simpler access D7: unrated items from this folder reach profiles with a rating limit. Saved straight away by the host. *@
-                                <div class="folder-grid__limited" title="@LibraryFolderTable.SuitableForLimitedHint">
-                                    <AppSwitchRow Label="Suitable for limited profiles"
-                                                  Size="AppSize.Small"
-                                                  AriaLabel="@($"Suitable for limited profiles: {name}")"
-                                                  Value="@source.OkForLimitedProfiles"
-                                                  Disabled="@(ReadOnly || Busy)"
-                                                  ValueChanged="@((bool value) => OnSetSuitableForLimited.InvokeAsync(new LibraryFolderTable.SuitableForLimitedChange(source, value)))" />
-                                </div>
-                            }
                             @if (OnKeepGoing.HasDelegate && source.FirstCheck is { } firstCheck)
                             {
                                 if (firstCheck.State == "paused")
@@ -206,7 +194,6 @@
     /// <summary>Move out of the Vault (Vault sections D38): offered only when the host sets it, which it does for an unlocked administrator on a Vault library.</summary>
     [Parameter] public EventCallback<LibrarySourceDto> OnMoveOutOfVault { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnKeepGoing { get; set; }
-    [Parameter] public EventCallback<LibraryFolderTable.SuitableForLimitedChange> OnSetSuitableForLimited { get; set; }
 
     /// <summary>One turn of a folder's Scan switch.</summary>
     public sealed record ScanChange(LibrarySourceDto Source, bool Value);

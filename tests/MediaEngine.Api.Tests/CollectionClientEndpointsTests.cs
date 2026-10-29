@@ -68,6 +68,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _database.RunStartupChecks();
+        KidsLimitTestSupport.SetLimit(_database, null); // the seeded profile starts as an ordinary member, not a Kid's profile
         ReadyWorks.TreatEveryWorkAsReady(_database);
         CreateAccount();
         SeedLibrary();
@@ -1111,10 +1112,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
 
     private void SetContentLimit(string? limit)
     {
-        using var connection = _database.CreateConnection();
-        connection.Execute(
-            "UPDATE profiles SET content_limit=@limit, content_limit_allow_unrated=0 WHERE id=@id",
-            new { limit, id = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+        KidsLimitTestSupport.SetLimit(_database, limit);
     }
 
     // Requests ---------------------------------------------------------------------------------------------------

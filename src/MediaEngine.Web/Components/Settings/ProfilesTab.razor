@@ -251,9 +251,8 @@ else
     {
         var known = _profiles.FirstOrDefault(profile => profile.Id == person.Id);
         return known ?? new ProfileViewModel(person.Id, person.DisplayName, person.AvatarColor,
-            person.IsRestricted ? "RestrictedProfile" : "Profile", person.CreatedAt,
-            AvatarIcon: person.AvatarIcon, ContentLimit: person.ContentLimit,
-            ContentLimitAllowUnrated: person.ContentLimitAllowUnrated);
+            person.IsKids ? "RestrictedProfile" : "Profile", person.CreatedAt,
+            AvatarIcon: person.AvatarIcon);
     }
 
     // Each person has their own page; the sheet here is only for adding someone.

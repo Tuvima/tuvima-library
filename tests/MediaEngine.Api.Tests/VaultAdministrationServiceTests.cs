@@ -39,7 +39,6 @@ public sealed class VaultAdministrationServiceTests : IDisposable
     private readonly Guid _admin = Guid.NewGuid();
     private readonly Guid _adult = Guid.NewGuid();
     private readonly Guid _kid = Guid.NewGuid();
-    private readonly Guid _limited = Guid.NewGuid();
 
     public VaultAdministrationServiceTests()
     {
@@ -56,10 +55,9 @@ public sealed class VaultAdministrationServiceTests : IDisposable
             new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(), _clock, new FixedPolicy(),
             nsfwAccess: _nsfw);
         _service = new VaultAdministrationService(_libraries, _nsfw, profiles, identities, _identity, _clock, _log);
-        InsertProfile(_admin, "Administrator", null);
-        InsertProfile(_adult, "StandardUser", null);
-        InsertProfile(_kid, "RestrictedProfile", null);
-        InsertProfile(_limited, "StandardUser", "PG");
+        InsertProfile(_admin, "Administrator");
+        InsertProfile(_adult, "StandardUser");
+        InsertProfile(_kid, "RestrictedProfile");
     }
 
     // ── The administrator's own PIN ─────────────────────────────────────────────────────────────
@@ -269,23 +267,18 @@ public sealed class VaultAdministrationServiceTests : IDisposable
         await _identity.SetProfilePinAsync(_admin, AdminPin);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SetAccessAsync(_admin, _kid, mode, null, AdminPin, default));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SetAccessAsync(_admin, _limited, mode, null, AdminPin, default));
 
         Assert.False((await _nsfw.GetAsync(_kid)).CanUnlock);
-        Assert.False((await _nsfw.GetAsync(_limited)).CanUnlock);
     }
 
     [Fact]
     public async Task AKidsProfile_CanNeverUnlock_WhateverItTypes()
     {
         var kidSession = InsertSession(_kid);
-        var limitedSession = InsertSession(_limited);
 
         await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(kidSession, _kid, null, default));
         await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(kidSession, _kid, AdultPin, default));
-        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(limitedSession, _limited, null, default));
         Assert.Null(await _service.GetStateAsync(kidSession, _kid, default));
-        Assert.Null(await _service.GetStateAsync(limitedSession, _limited, default));
         await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.SetOwnIdleAsync(kidSession, _kid, 30, default));
     }
 
@@ -621,12 +614,12 @@ public sealed class VaultAdministrationServiceTests : IDisposable
         await OpenAsync(profile, NsfwAccessMode.Pin);
     }
 
-    private void InsertProfile(Guid id, string role, string? contentLimit)
+    private void InsertProfile(Guid id, string role)
     {
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,@name,'#7C4DFF',@role,@contentLimit,@createdAt);",
-            new { id, name = role, role, contentLimit, createdAt = _clock.GetUtcNow().ToString("O") });
+            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,@name,'#7C4DFF',@role,@createdAt);",
+            new { id, name = role, role, createdAt = _clock.GetUtcNow().ToString("O") });
     }
 
     private Guid InsertSession(Guid profileId)

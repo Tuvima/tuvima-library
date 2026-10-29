@@ -545,6 +545,7 @@ public static class AccountEndpoints
           .ProducesProblem(StatusCodes.Status400BadRequest);
 
         access.MapHouseholdLibraryAccess();
+        access.MapHouseholdKidSettings();
 
         var profiles = access.MapGroup("/profiles");
         profiles.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver,
@@ -637,8 +638,7 @@ public static class AccountEndpoints
 
             var profile = await mutations.AddHouseholdPersonAsync(await resolver.ResolveAsync(http, ct),
                 new AddHouseholdPersonCommand(householdId, request.DisplayName, request.AvatarColor,
-                    request.IsChild, request.Pin, request.AvatarIcon, request.ContentLimit,
-                    request.ContentLimitAllowUnrated), ct);
+                    request.IsChild, request.Pin, request.AvatarIcon), ct);
             return Results.Created($"/access/profiles/{profile.Id:D}", MapProfile(profile));
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("AddHouseholdPerson").Produces<ManagedProfileResponse>(StatusCodes.Status201Created);
@@ -696,7 +696,7 @@ public static class AccountEndpoints
 
             var profile = await mutations.UpdateProfileAsync(await resolver.ResolveAsync(http, ct),
                 profileId, new UpdateManagedProfileCommand(request.DisplayName, request.AvatarColor, request.AvatarIcon,
-                    request.ContentLimit, request.ContentLimitAllowUnrated), ct);
+                    request.IsKids), ct);
             return Results.Ok(MapProfile(profile));
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<ManagedProfileResponse>();
@@ -865,7 +865,7 @@ public static class AccountEndpoints
         new(profile.Id, profile.DisplayName, profile.AvatarColor, profile.AvatarImagePath,
             profile.CreatedAt, profile.HouseholdId,
             profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
-            profile.AvatarIcon, profile.ContentLimit, profile.ContentLimitAllowUnrated,
+            profile.AvatarIcon,
             profile.IsServerAdministrator, profile.IsHouseholdAdministrator,
             AccessVersion: profile.AuthorizationVersion);
 

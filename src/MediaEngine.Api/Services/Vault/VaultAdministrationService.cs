@@ -114,9 +114,9 @@ public sealed class VaultAdministrationService(
 
         if (mode != NsfwAccessMode.Off)
         {
-            if (!NsfwAccessRules.IsEligible(target.Role, target.ContentLimit))
+            if (!NsfwAccessRules.IsEligible(target.Role))
             {
-                throw new InvalidOperationException("A Kids or content-limited profile can never use Vault mode.");
+                throw new InvalidOperationException("A Kids profile can never use Vault mode.");
             }
 
             await RequireAdminPinAsync(adminProfileId, adminPin, ct).ConfigureAwait(false);

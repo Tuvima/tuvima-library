@@ -95,7 +95,7 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         using (var connection = _database.CreateConnection())
         {
             connection.Execute(
-                "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,'Administrator','#7C4DFF','Administrator',NULL,@now);",
+                "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,'Administrator','#7C4DFF','Administrator',@now);",
                 new { id = _adminProfile, now = DateTimeOffset.UtcNow.ToString("O") });
         }
 

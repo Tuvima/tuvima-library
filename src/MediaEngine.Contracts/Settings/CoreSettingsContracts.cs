@@ -214,10 +214,6 @@ public sealed class LibrarySourceDto
     [JsonPropertyName("include_subdirectories")]
     public bool IncludeSubdirectories { get; set; } = true;
 
-    /// <summary>Unrated items from this folder are shown to profiles with a rating limit. Rated items still follow each profile's limit.</summary>
-    [JsonPropertyName("ok_for_limited_profiles")]
-    public bool OkForLimitedProfiles { get; set; }
-
     [JsonPropertyName("access_mode")]
     public string AccessMode { get; set; } = "read_only";
 

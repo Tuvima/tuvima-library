@@ -16,7 +16,7 @@ public enum ViewerAccessStage
     /// <summary>The Shared Library: the profile's areas, libraries hidden for its household, and libraries hidden from it.</summary>
     SharedLibrary = 2,
 
-    /// <summary>The profile's content limit, with the "Suitable for limited profiles" folder rule for unrated items.</summary>
+    /// <summary>A Kid's profile's content limit: the household's level for the item's area, and the household's "Show unrated items" switch.</summary>
     ContentLimit = 3,
 
     /// <summary>The profile's View documents switch: documents stay on the Documents page and out of every shared list.</summary>
@@ -38,7 +38,7 @@ public static class ViewerAccessStages
             $"{nameof(VaultVisibility)} / {nameof(VaultAccessResolver)}"),
         new(ViewerAccessStage.SharedLibrary, "Areas, libraries hidden for the household and libraries hidden for the profile decide which libraries the profile sees.",
             nameof(LibraryVisibilityRule)),
-        new(ViewerAccessStage.ContentLimit, "A rated item follows the limit; an unrated one follows allow-unrated or a marked folder.",
+        new(ViewerAccessStage.ContentLimit, "A Kid's profile follows the household's level for the item's area; an unrated item follows the household's Show unrated items switch.",
             nameof(ContentLimitFilter)),
         new(ViewerAccessStage.DocumentsOff, "Documents are private to the Documents page and need the profile's Documents switch.",
             "View routes (profile documents_enabled); documents never enter the shared catalogue"),

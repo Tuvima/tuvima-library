@@ -8,7 +8,8 @@ public sealed class LibrariesConfiguration
 {
     /// <summary>
     /// The only supported file version. 10.0 removed the library-level access value (Standard / Selected profiles): who sees a library is
-    /// now set on the person and the household, and a Vault library carries a plain <c>vault</c> marker instead. 9.0 added a library-level
+    /// now set on the person and the household, and a Vault library carries a plain <c>vault</c> marker instead; it also removed the per-folder
+    /// "Suitable for limited profiles" switch (what Kid's profiles see is one household setting). 9.0 added a library-level
     /// file handling block, and a per-folder scan switch and file handling override. 8.0 moved "Suitable for limited profiles" from the library to each folder and removed
     /// the unused sharing fields (7.0 had replaced the per-folder role, intake and write-back fields with two folder states,
     /// one destination per library, and global duplicate handling). Older files are refused.
@@ -275,13 +276,6 @@ public sealed class LibrarySourceConfig
 
     [JsonPropertyName("include_subdirectories")]
     public bool IncludeSubdirectories { get; set; } = true;
-
-    /// <summary>
-    /// Unrated items from this folder are shown to profiles with a rating limit, whatever those profiles' "allow unrated" says.
-    /// Rated items still follow each profile's limit. Off by default; never offered for a Vault folder.
-    /// </summary>
-    [JsonPropertyName("ok_for_limited_profiles")]
-    public bool OkForLimitedProfiles { get; set; }
 
     /// <summary>Derived from <see cref="ManagementMode"/> whenever the file is saved: managed is writable, as-is is read-only.</summary>
     [JsonPropertyName("access_mode")]

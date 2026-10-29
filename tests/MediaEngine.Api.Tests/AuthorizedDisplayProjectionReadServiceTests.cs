@@ -95,6 +95,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _database.RunStartupChecks();
+        KidsLimitTestSupport.SetLimit(_database, null); // the seeded profile starts as an ordinary member, not a Kid's profile
         ReadyWorks.TreatEveryWorkAsReady(_database);
         _accounts = new AccountRepository(_database);
         _applications = new ApplicationRepository(_database);
@@ -378,10 +379,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
 
     private void SetContentLimit(string? limit, bool allowUnrated = false)
     {
-        using var connection = _database.CreateConnection();
-        connection.Execute(
-            "UPDATE profiles SET content_limit=@limit, content_limit_allow_unrated=@allowUnrated WHERE id=@id",
-            new { limit, allowUnrated, id = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+        KidsLimitTestSupport.SetLimit(_database, limit, allowUnrated);
     }
 
     [Theory]
@@ -1651,9 +1649,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
 
     private AuthorizedDisplayProjectionReadService CreateService(
         DefaultHttpContext context,
-        IRawDisplayProjectionReadService raw,
-        IConfigurationLoader? configuration = null,
-        bool registerSuitableFolders = true)
+        IRawDisplayProjectionReadService raw)
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var unlocks = new GrantAdminUnlockService(
@@ -1674,13 +1670,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new ProfileAccessRepository(_database),
             SelectedAwareRule(),
             evaluator,
-            _database,
-            configuration,
-            clock: null,
-            suitableFolders: registerSuitableFolders ? new SuitableFolderAssetRepository(_database) : null);
+            _database);
     }
 
-    private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context, IConfigurationLoader? configuration = null)
+    private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context)
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var decisions = new AccountAccessDecisionService(
@@ -1699,8 +1692,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 _applications,
                 new PermissionRegistry(),
                 new AuthorizationAuditWriter(_accounts),
-                accessor),
-            configuration);
+                accessor));
     }
 
     private Task CreateHumanAsync(

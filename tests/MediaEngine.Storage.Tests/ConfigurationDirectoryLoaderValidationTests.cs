@@ -395,17 +395,17 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
-    public void LoadLibraries_AcceptsSuitableForLimitedProfilesOnAFolder_AndRoundTripsIt()
+    public void LoadLibraries_RejectsSuitableForLimitedProfilesOnAFolder_BecauseWhatKidsSeeIsOneHouseholdSetting()
     {
         using var temp = TempConfig.Create();
-        var loader = new ConfigurationDirectoryLoader(temp.Path);
-        var config = CreateValidCataloguedLibrary();
-        config.Libraries[0].Sources[0].OkForLimitedProfiles = true;
+        new ConfigurationDirectoryLoader(temp.Path).SaveLibraries(CreateValidCataloguedLibrary());
+        var path = System.IO.Path.Combine(temp.Path, "libraries.json");
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\"id\": \"", "\"ok_for_limited_profiles\": true, \"id\": \"", StringComparison.Ordinal));
+        File.Delete(path + ".bak");
 
-        loader.SaveLibraries(config);
+        var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(temp.Path).LoadLibraries());
 
-        Assert.True(loader.LoadLibraries().Libraries[0].Sources[0].OkForLimitedProfiles);
-        Assert.Contains("\"ok_for_limited_profiles\": true", File.ReadAllText(System.IO.Path.Combine(temp.Path, "libraries.json")));
+        Assert.Contains("ok_for_limited_profiles is not supported", ex.Message);
     }
 
     [Fact]

@@ -29,10 +29,8 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("avatar_path")] string? AvatarPath,
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
     [property: JsonPropertyName("household_id")] Guid? HouseholdId = null,
-    [property: JsonPropertyName("is_restricted")] bool IsRestricted = false,
+    [property: JsonPropertyName("is_kids")] bool IsKids = false,
     [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
-    [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
-    [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false,
     [property: JsonPropertyName("is_server_admin")] bool IsServerAdmin = false,
     [property: JsonPropertyName("is_household_admin")] bool IsHouseholdAdmin = false,
     [property: JsonPropertyName("feature_ids")] IReadOnlyList<string>? FeatureIds = null,
@@ -42,29 +40,25 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("household_hidden_library_ids")] IReadOnlyList<Guid>? HouseholdHiddenLibraryIds = null);
 
 /// <summary>
-/// Adds a person to a household. A child person is a restricted profile; the PIN is optional.
-/// <c>content_limit</c> is Everything (<c>""</c>), <c>G</c>, <c>PG</c>, <c>PG-13</c> or <c>R</c>; left out, a child person starts on
-/// <c>PG</c> and anyone else on Everything.
+/// Adds a person to a household. A child person is a Kid's profile; the PIN is optional. What a Kid's profile may see is the household's
+/// Kid settings (<c>/access/households/{id}/kid-settings</c>), never a value on the person.
 /// </summary>
 public sealed record AddHouseholdPersonRequest(
     [property: JsonPropertyName("display_name")] string DisplayName,
     [property: JsonPropertyName("avatar_color")] string? AvatarColor,
     [property: JsonPropertyName("is_child")] bool IsChild,
     [property: JsonPropertyName("pin")] string? Pin,
-    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
-    [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
-    [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false);
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null);
 
 /// <summary>
-/// Changes a person's name and look. <c>content_limit</c> left out keeps the current limit; <c>""</c> sets Everything; otherwise
-/// <c>G</c>, <c>PG</c>, <c>PG-13</c> or <c>R</c>. <c>content_limit_allow_unrated</c> left out keeps the current choice.
+/// Changes a person's name and look. <c>is_kids</c> left out keeps the current choice; <c>true</c> makes this a Kid's profile (refused for an
+/// administrator), <c>false</c> an ordinary member. A Kid's profile can never have Vault access.
 /// </summary>
 public sealed record UpdateManagedProfileRequest(
     [property: JsonPropertyName("display_name")] string DisplayName,
     [property: JsonPropertyName("avatar_color")] string? AvatarColor,
     [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
-    [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
-    [property: JsonPropertyName("content_limit_allow_unrated")] bool? ContentLimitAllowUnrated = null);
+    [property: JsonPropertyName("is_kids")] bool? IsKids = null);
 
 public sealed record AccountProfileGrantDto(
     [property: JsonPropertyName("account_id")] Guid AccountId,

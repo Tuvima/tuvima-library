@@ -95,62 +95,22 @@ public sealed class ProfileEditorSheetTests
         Assert.Null(result.PhotoBytes);
     }
 
+    // Library access D9, D10: the sheet has no rating dropdown and no "Allow unrated"; what a Kid's profile sees is the household's setting.
     [Fact]
-    public void ContentLimit_OffersFiveChoices_AndDefaultsToEverythingForAnAdult()
+    public void TheSheet_HasNoPerProfileRatingChoices_AndReportsOnlyTheKidsSwitch()
     {
         using var ctx = new BunitContext();
         ProfileEditorResult? result = null;
         var cut = Render(ctx, saved: r => result = r);
 
-        var choices = cut.FindAll("[aria-label='Content limit'] button");
-        Assert.Equal(["Everything", "G", "PG", "PG-13", "R"], choices.Select(choice => choice.TextContent.Trim()));
-        Assert.Equal("true", choices[0].GetAttribute("aria-pressed"));
+        Assert.Empty(cut.FindAll("[aria-label='Content limit']"));
         Assert.Empty(cut.FindAll("input[aria-label='Show items with no rating']"));
 
         cut.Find("input.profile-editor__name").Input("Sam");
-        cut.Find("button.who-button--primary").Click();
-
-        Assert.Equal(string.Empty, result!.ContentLimit);
-        Assert.False(result.ContentLimitAllowUnrated);
-    }
-
-    [Fact]
-    public void ContentLimit_NewKidsProfilesStartOnPg_UntilAParentChoosesOtherwise()
-    {
-        using var ctx = new BunitContext();
-        ProfileEditorResult? result = null;
-        var cut = Render(ctx, saved: r => result = r);
-
-        cut.Find("input.profile-editor__name").Input("Sam");
         cut.Find("input[aria-label='Kids profile']").Change(true);
-        Assert.Equal("true", cut.FindAll("[aria-label='Content limit'] button")[2].GetAttribute("aria-pressed"));
-
-        // PG-13 for an eight-year-old is the parent's call; switching Kids off afterwards does not undo it.
-        cut.FindAll("[aria-label='Content limit'] button")[3].Click();
-        cut.Find("input[aria-label='Show items with no rating']").Change(true);
-        cut.Find("input[aria-label='Kids profile']").Change(false);
         cut.Find("button.who-button--primary").Click();
 
-        Assert.Equal("PG-13", result!.ContentLimit);
-        Assert.True(result.ContentLimitAllowUnrated);
-    }
-
-    [Fact]
-    public void ContentLimit_EditingShowsTheSavedLimit_AndEverythingClearsIt()
-    {
-        using var ctx = new BunitContext();
-        ProfileEditorResult? result = null;
-        var existing = Existing(kids: true) with { ContentLimit = "R", ContentLimitAllowUnrated = true };
-        var cut = Render(ctx, existing, saved: r => result = r);
-
-        Assert.Equal("true", cut.FindAll("[aria-label='Content limit'] button")[4].GetAttribute("aria-pressed"));
-        Assert.True(cut.Find("input[aria-label='Show items with no rating']").HasAttribute("checked"));
-
-        cut.FindAll("[aria-label='Content limit'] button")[0].Click();
-        cut.Find("button.who-button--primary").Click();
-
-        Assert.Equal(string.Empty, result!.ContentLimit);
-        Assert.False(result.ContentLimitAllowUnrated);
+        Assert.True(result!.IsChild);
     }
 
     [Fact]
@@ -170,26 +130,6 @@ public sealed class ProfileEditorSheetTests
         cut.Find("input.profile-editor__name").Input("Sam");
         cut.Find("button.who-button--primary").Click();
         Assert.Equal("#EC4899", result!.Color);
-    }
-
-    [Fact]
-    public void ContentLimit_ShowsTheUnratedSwitchOnlyWhenALimitIsSet_AndReportsTheChoice()
-    {
-        using var ctx = new BunitContext();
-        ProfileEditorResult? result = null;
-        var cut = Render(ctx, saved: r => result = r);
-
-        Assert.Empty(cut.FindAll("input[aria-label='Show items with no rating']"));
-        cut.FindAll("[aria-label='Content limit'] button").First(button => button.TextContent.Trim() == "PG-13").Click();
-        cut.Find("input[aria-label='Show items with no rating']").Change(true);
-        cut.Find("input.profile-editor__name").Input("Sam");
-        cut.Find("button.who-button--primary").Click();
-
-        Assert.Equal("PG-13", result!.ContentLimit);
-        Assert.True(result.ContentLimitAllowUnrated);
-
-        cut.FindAll("[aria-label='Content limit'] button").First(button => button.TextContent.Trim() == "Everything").Click();
-        Assert.Empty(cut.FindAll("input[aria-label='Show items with no rating']"));
     }
 
     [Fact]

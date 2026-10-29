@@ -645,7 +645,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
                 {
                     new ManagedProfileResponse(OwnerProfileId, OwnerProfileName, "#7C4DFF", null, DateTimeOffset.UtcNow, HouseholdId,
                         User: new ManagedProfileUserDto(UserId, Email)),
-                    new ManagedProfileResponse(KidProfileId, "Kid", "#7C4DFF", null, DateTimeOffset.UtcNow, HouseholdId, IsRestricted: true,
+                    new ManagedProfileResponse(KidProfileId, "Kid", "#7C4DFF", null, DateTimeOffset.UtcNow, HouseholdId, IsKids: true,
                         User: KidHasSignIn ? new ManagedProfileUserDto(Guid.NewGuid(), "kid@example.test") : null),
                 });
             }

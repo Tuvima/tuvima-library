@@ -65,6 +65,7 @@ public sealed class CastKidsLimitEndpointTests : IAsyncLifetime
         _database = new DatabaseConnection(Path.Combine(_root, "library.db"));
         _database.InitializeSchema();
         _database.RunStartupChecks();
+        KidsLimitTestSupport.SetLimit(_database, null); // the seeded profile starts as an ordinary member, not a Kid's profile
         var configuration = new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
         configuration.SaveCore(new CoreConfiguration { LibraryRoot = _root });
         configuration.SaveTranscoding(new TranscodingSettings { VariantCachePath = "variants" });
@@ -236,10 +237,7 @@ public sealed class CastKidsLimitEndpointTests : IAsyncLifetime
 
     private void SetContentLimit(string? limit)
     {
-        using var connection = _database.CreateConnection();
-        connection.Execute(
-            "UPDATE profiles SET content_limit=@limit, content_limit_allow_unrated=0 WHERE id=@id",
-            new { limit, id = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+        KidsLimitTestSupport.SetLimit(_database, limit);
     }
 
     /// <summary>A direct-stream MP4 with stored inspection facts, so an allowed cast session is "ready".</summary>
