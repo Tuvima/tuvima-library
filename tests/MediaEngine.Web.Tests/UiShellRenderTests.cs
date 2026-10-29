@@ -1013,10 +1013,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
-            builder.OpenComponent<Settings>(3);
-            builder.AddAttribute(4, nameof(Settings.Section), "profiles");
-            builder.AddAttribute(5, nameof(Settings.Subsection), "00000000-0000-0000-0000-000000000001");
-            builder.AddAttribute(6, nameof(Settings.Detail), "preferences");
+            // The playback preferences are the Watching section of the profile's Preferences tab.
+            builder.OpenComponent<MediaEngine.Web.Components.Settings.PlaybackSettingsPage>(3);
+            builder.AddAttribute(4, nameof(MediaEngine.Web.Components.Settings.PlaybackSettingsPage.ProfileId), (Guid?)Guid.Parse("00000000-0000-0000-0000-000000000001"));
+            builder.AddAttribute(5, nameof(MediaEngine.Web.Components.Settings.PlaybackSettingsPage.Embedded), true);
             builder.CloseComponent();
         });
 

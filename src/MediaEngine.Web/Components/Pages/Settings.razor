@@ -180,13 +180,6 @@ else
                                     <SystemSummaryPage />
                                 }
                                 break;
-                            case SettingsSection.Preferences:
-                            case SettingsSection.Playback:
-                            case SettingsSection.Listening:
-                            case SettingsSection.Reading:
-                            case SettingsSection.Home:
-                                @* Their old addresses forward to a profile's Preferences tab (see ResolveSectionAndNormalize); nothing is drawn meanwhile. *@
-                                break;
                             case SettingsSection.Libraries:
                                 <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
                                 break;
@@ -286,7 +279,6 @@ else
     public string? ActivityScope => Query.String("scope");
     public string? RecentSearch => Query.String("q");
     /// <summary>The profile an old Playback, Listening or Reading link names (<c>?profile={id}</c>); yours when it names none.</summary>
-    public Guid? PreferenceProfileId => Query.Guid("profile");
 
     private SettingsSection _activeSection = SettingsSection.Profiles;
     private string _activeSubsection = string.Empty;
@@ -377,15 +369,6 @@ else
     /// <summary>The tab of a person's page: empty for Profile, otherwise <c>preferences</c> or <c>access</c>.</summary>
     private string ProfileTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
 
-    // The old Preferences pages and the part of the Preferences tab each one became.
-    private static readonly IReadOnlyDictionary<string, string> PreferenceAddresses = new Dictionary<string, string>
-    {
-        ["preferences"] = string.Empty,
-        ["playback"] = string.Empty,
-        ["listening"] = "#listening",
-        ["reading"] = "#reading",
-        ["home"] = "#home",
-    };
     private string BrowserTitle => IsProfileDetailRoute
         ? $"{_profileBreadcrumbName ?? "Profile"} - Manage Profiles - Library"
         : _activeSection == SettingsSection.Libraries
@@ -667,29 +650,6 @@ else
             return;
         }
 
-        // The old Preferences, Playback, Listening, Reading and Home pages are now sections of a profile's Preferences tab; their
-        // addresses forward there (your own profile, or the one an old link named).
-        if (!_legacyRedirectIssued && !_restricted && Section is not null && PreferenceAddresses.TryGetValue(SettingsNav.NormalizeSlug(Section), out var preferenceAnchor))
-        {
-            _legacyRedirectIssued = true;
-            var target = PreferenceProfileId is { } named && named != Guid.Empty ? named : _activeProfile?.Id;
-            if (target is { } profileId)
-            {
-                Nav.NavigateTo($"/settings/profiles/{profileId:D}/preferences{preferenceAnchor}", replace: true);
-                return;
-            }
-        }
-
-        // Credentials and webhooks have a page of their own now (Platform > Integrations).
-        if (!_legacyRedirectIssued && !_restricted && CanManageAdministration
-            && string.Equals(Section, "access", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(Subsection, "applications", StringComparison.OrdinalIgnoreCase))
-        {
-            _legacyRedirectIssued = true;
-            Nav.NavigateTo(SettingsNav.RouteFor(SettingsSection.Integrations), replace: true);
-            return;
-        }
-
         var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted);
         _activeSection = resolution.Section;
 
@@ -962,8 +922,6 @@ else
         SettingsSection.Profiles => IsProfileDetailRoute
             ? "Details, preferences, and access and safety for this profile."
             : "Add and look after the people in your household. Switch profile from the profile menu.",
-        SettingsSection.Preferences or SettingsSection.Playback or SettingsSection.Listening or SettingsSection.Reading or SettingsSection.Home =>
-            "How you watch, listen and read.",
         SettingsSection.Security => _activeSubsection == SettingsNav.DevicesSubsection
             ? "The phones, TVs and browsers signed in to Library, and who they belong to."
             : "Password, email and extra protection.",

@@ -6,6 +6,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
@@ -60,6 +61,14 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor, NoPlaybackPreferences>();
+    }
+
+    private sealed class NoPlaybackPreferences : IUserPlaybackPreferencesAccessor
+    {
+        public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(null);
+        public void UpdateCache(UserPlaybackSettingsDto settings) { }
+        public void Invalidate() { }
     }
 
     [Fact]
@@ -361,7 +370,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(OwnId);
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='devices']")));
         Assert.Empty(cut.FindAll("[data-nav-row='activity']"));
         Assert.DoesNotContain("View activity", cut.Markup, StringComparison.Ordinal);
     }
@@ -963,7 +972,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId, "access");
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='access']")));
         Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
     }
 
@@ -975,7 +984,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId, "access");
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='access']")));
         Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
     }
 
@@ -1086,7 +1095,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId, "access");
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='access']")));
         Assert.Empty(cut.FindAll("[data-profile-section='pin-protection']"));
         Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
     }
@@ -1116,7 +1125,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(OwnId, "access");
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-detail__name")));
         Assert.Empty(cut.FindAll("[data-profile-section='pin-protection']"));
         Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
     }
@@ -1138,7 +1147,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(OwnId, "access");
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-detail__name")));
         foreach (var token in NsfwTokens)
         {
             Assert.DoesNotContain(token, cut.Markup, StringComparison.OrdinalIgnoreCase);
@@ -1152,7 +1161,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _managed.AddRange([Person(OwnId, "Test User", false), Person(KidId, "Robin", true), Person(SamId, "Sam", false)]);
 
         var kid = RenderFor(KidId, "access");
-        kid.WaitForAssertion(() => Assert.NotEmpty(kid.FindAll("[data-nav-row='details']")));
+        kid.WaitForAssertion(() => Assert.NotEmpty(kid.FindAll(".profile-detail__name")));
         foreach (var token in NsfwTokens)
         {
             Assert.DoesNotContain(token, kid.Markup, StringComparison.OrdinalIgnoreCase);

@@ -185,7 +185,6 @@ public sealed class SettingsNavTests
     public void SummaryFirstSections_UseRootRoutesWithoutRequiringSubsections()
     {
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Profiles));
-        Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Playback));
         Assert.Equal(["scheduled-tasks", "logs"], SettingsNav.GetSubsections(SettingsSection.AdminOverview).Select(item => item.Slug));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Review));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Server));
@@ -195,7 +194,7 @@ public sealed class SettingsNavTests
     [Fact]
     public void MobileAvailability_WithholdsComplexAdministrationButKeepsMonitoringSummaries()
     {
-        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Playback));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Profiles));
         Assert.Equal(SettingsMobileAvailability.SummaryOnly, SettingsNav.GetMobileAvailability(SettingsSection.AdminOverview));
         Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
 
@@ -207,8 +206,6 @@ public sealed class SettingsNavTests
 
     [Theory]
     [InlineData(SettingsSection.AdminOverview, "/settings/system")]
-    [InlineData(SettingsSection.Preferences, "/settings/preferences")]
-    [InlineData(SettingsSection.Playback, "/settings/playback")]
     [InlineData(SettingsSection.Libraries, "/settings/libraries")]
     [InlineData(SettingsSection.Ingestion, "/settings/ingestion")]
     [InlineData(SettingsSection.RecentlyAdded, "/settings/recently-added")]
@@ -449,29 +446,24 @@ public sealed class SettingsNavTests
         Assert.Equal(["Library & Ingestion", "Ingestion Flow"], [flow.Page.Label, flow.Tab!.Label]);
         // The providers landing view and a provider's own page sit under the Ingestion Flow tab's page.
         Assert.Equal("Library & Ingestion", SettingsNav.FindMenuLocation(SettingsSection.Providers, "providers")!.Page.Label);
-        var playback = SettingsNav.FindMenuLocation(SettingsSection.Playback)!;
-        Assert.Equal("personal", playback.Group.Key);
-        Assert.Equal("Manage Profiles", playback.Page.Label);
     }
 
-    [Fact]
-    public void Preferences_ResolvesToItsOwnSummaryPage()
+    [Theory]
+    [InlineData("preferences")]
+    [InlineData("playback")]
+    [InlineData("listening")]
+    [InlineData("reading")]
+    [InlineData("home")]
+    public void RetiredPreferencePages_AreNotAddresses_BecauseTheyAreTabsOfAProfile(string segment)
     {
-        var resolution = SettingsNav.ResolveRoute("preferences", false);
+        var resolution = SettingsNav.ResolveRoute(segment, false);
 
-        Assert.Equal(SettingsSection.Preferences, resolution.Section);
-        Assert.Equal("/settings/preferences", resolution.CanonicalRoute);
-        Assert.True(resolution.IsCanonicalRoute);
-        Assert.True(resolution.RequestedSectionAllowed);
-        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Preferences));
+        Assert.False(resolution.IsKnownRoute);
+        Assert.Equal("/not-found", resolution.CanonicalRoute);
     }
 
     [Theory]
     [InlineData("profiles", SettingsSection.Profiles, "/settings/profiles")]
-    [InlineData("playback", SettingsSection.Playback, "/settings/playback")]
-    [InlineData("listening", SettingsSection.Listening, "/settings/listening")]
-    [InlineData("home", SettingsSection.Home, "/settings/home")]
-    [InlineData("reading", SettingsSection.Reading, "/settings/reading")]
     [InlineData("security", SettingsSection.Security, "/settings/security")]
     [InlineData("system", SettingsSection.AdminOverview, "/settings/system")]
     [InlineData("libraries", SettingsSection.Libraries, "/settings/libraries")]
@@ -716,7 +708,6 @@ public sealed class SettingsNavTests
             .ToArray();
 
         Assert.Contains(SettingsSection.Profiles, visible);
-        Assert.Contains(SettingsSection.Playback, visible);
         Assert.Contains(SettingsSection.Security, visible);
         Assert.DoesNotContain(SettingsSection.Review, visible);
         Assert.DoesNotContain(SettingsSection.Server, visible);
@@ -731,10 +722,8 @@ public sealed class SettingsNavTests
         var personal = SettingsNav.FilteredMenuGroups(false).Single(group => group.Key == "personal");
 
         Assert.Equal(["/settings/overview", "/settings/profiles", "/settings/security"], personal.Nodes.Select(node => node.Route));
-        // The pages that used to be Preferences' own pages now open inside Manage Profiles.
-        Assert.Equal(
-            [SettingsSection.Profiles, SettingsSection.Preferences, SettingsSection.Playback, SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Home],
-            personal.Nodes[1].Sections);
+        // Playback, Listening, Reading and Home are tabs of a profile, not pages.
+        Assert.Equal([SettingsSection.Profiles], personal.Nodes[1].Sections);
     }
 
     [Fact]

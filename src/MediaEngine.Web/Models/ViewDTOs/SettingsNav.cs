@@ -10,11 +10,6 @@ public enum SettingsSection
 {
     Overview,
     Profiles,
-    Preferences,
-    Playback,
-    Listening,
-    Reading,
-    Home,
     Security,
 
     AdminOverview,
@@ -234,11 +229,6 @@ public static class SettingsNav
         {
             [SettingsSection.Overview] = Complete(),
             [SettingsSection.Profiles] = Complete(),
-            [SettingsSection.Preferences] = Complete(),
-            [SettingsSection.Playback] = Complete(),
-            [SettingsSection.Listening] = Complete(),
-            [SettingsSection.Reading] = Complete(),
-            [SettingsSection.Home] = Complete(),
             [SettingsSection.Security] = Complete(),
             [SettingsSection.AdminOverview] = Complete(),
             [SettingsSection.Libraries] = Complete(),
@@ -293,15 +283,9 @@ public static class SettingsNav
     [
         // Profile is the page everyone lands on, a Kids profile included (D12): your own profile, counts, recent activity and taste.
         new(SettingsSection.Overview, "personal", "overview", AppMaterialIcons.Outlined.AccountCircle, "Profile", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        // Manage Profiles opens the household list for an administrator and your own profile for everyone else. Preferences, Playback,
-        // Listening, Reading and Home are no longer pages of their own: each is a section of a profile's Preferences tab, and their old
-        // addresses forward there.
+        // Manage Profiles opens the household list for an administrator and your own profile for everyone else. Playback, Listening,
+        // Reading and Home are sections of a profile's Preferences tab, not pages of their own.
         new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Manage Profiles", false, null, ["profile", "household"], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Preferences, "personal", "preferences", AppMaterialIcons.Outlined.Tune, "Preferences", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Playback, "personal", "playback", AppMaterialIcons.Outlined.PlayCircleOutline, "Playback", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Listening, "personal", "listening", AppMaterialIcons.Outlined.Headphones, "Listening", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Reading, "personal", "reading", AppMaterialIcons.Outlined.MenuBook, "Reading", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Home, "personal", "home", AppMaterialIcons.Outlined.Home, "Home", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security & Devices", false, null, ["account"], "sqlite", Status: SettingsStatusKind.Live),
 
         new(SettingsSection.Ingestion, "server", "ingestion", AppMaterialIcons.Outlined.VideoLibrary, "Library & Ingestion", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
@@ -346,10 +330,7 @@ public static class SettingsNav
                 Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
                 Tab("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
             ]),
-            Page("Manage Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles, also:
-            [
-                SettingsSection.Preferences, SettingsSection.Playback, SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Home,
-            ]),
+            Page("Manage Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
             Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
             [
                 Tab("Sign-in", AppMaterialIcons.Outlined.Key, SettingsSection.Security),
@@ -440,11 +421,6 @@ public static class SettingsNav
                 new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
             ],
             [SettingsSection.Profiles] = [],
-            [SettingsSection.Preferences] = [],
-            [SettingsSection.Playback] = [],
-            [SettingsSection.Listening] = [],
-            [SettingsSection.Reading] = [],
-            [SettingsSection.Home] = [],
             [SettingsSection.Security] =
             [
                 new(DevicesSubsection, "Devices & Sessions", AppMaterialIcons.Outlined.Devices),
@@ -521,11 +497,6 @@ public static class SettingsNav
     [
         SettingsSection.Overview,
         SettingsSection.Profiles,
-        SettingsSection.Preferences,
-        SettingsSection.Playback,
-        SettingsSection.Listening,
-        SettingsSection.Reading,
-        SettingsSection.Home,
         SettingsSection.Security,
         SettingsSection.AdminOverview,
         SettingsSection.Libraries,

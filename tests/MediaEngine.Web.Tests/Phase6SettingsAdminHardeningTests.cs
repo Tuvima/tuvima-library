@@ -53,7 +53,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains(".library-summary__composition ::deep .library-summary__segment", styles, StringComparison.Ordinal);
         Assert.DoesNotContain("legend", summary, StringComparison.Ordinal);
         Assert.Contains("var(--tl-font-size-secondary)", styles, StringComparison.Ordinal);
-        Assert.Contains("font-size: clamp(1.875rem, 2vw, 2rem)", settingsStyles, StringComparison.Ordinal);
+        Assert.Contains("font-size: clamp(2rem, 2.4vw, 2.25rem)", settingsStyles, StringComparison.Ordinal);
         Assert.Contains("font-weight: 600", settingsStyles, StringComparison.Ordinal);
         Assert.Contains("AppControlSize.Large => \"1.75rem\"", iconTile, StringComparison.Ordinal);
     }

@@ -69,8 +69,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.Contains("/settings/recently-added", ingestion.ActiveRoutes!);
 
         var profiles = Flatten(groups).Single(row => row.Label == "Manage Profiles");
-        Assert.Contains("/settings/preferences", profiles.ActiveRoutes!);
-        Assert.Contains("/settings/playback", profiles.ActiveRoutes!);
+        Assert.Contains("/settings/profiles", profiles.ActiveRoutes!);
     }
 
     [Fact]
@@ -174,7 +173,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.DoesNotContain("Developer Tools", labels);
         Assert.DoesNotContain("Enrichment Tester", labels);
         Assert.DoesNotContain("Development data", labels);
-                Assert.DoesNotContain("Recently Added", labels);
+        Assert.DoesNotContain("Recently Added", labels);
         Assert.Contains("Library & Ingestion", labels);
         Assert.Contains("Streaming", labels);
     }
@@ -189,7 +188,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         var labels = Flatten(groups).Select(row => row.Label).ToArray();
         Assert.DoesNotContain("Local AI", labels);
-                Assert.Contains("Plugins", labels);
+        Assert.Contains("Plugins", labels);
         Assert.Contains("Developer Tools", labels);
     }
 
@@ -260,7 +259,6 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     [InlineData("/settings/libraries", "/settings/ingestion")]
     [InlineData("/settings/metadata/ingestion-flow", "/settings/ingestion")]
     [InlineData("/settings/security/devices", "/settings/security")]
-    [InlineData("/settings/playback", "/settings/profiles")]
     [InlineData("/settings/tools", "/settings/system")]
     public void Shell_APageRowStaysLit_WhenOneOfItsTabsOrPagesBeneathItIsOpen(string openRoute, string rowRoute)
     {
