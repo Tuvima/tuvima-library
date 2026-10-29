@@ -1,0 +1,32 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Formatting
+@* The Overview's stat strip (D3): four friendly numbers. The "last 30 days" figures are a rolling window ending today, so they
+   keep moving. A figure the Engine could not supply is simply not drawn. *@
+<ul class="overview-stats" role="list" aria-label="Your numbers" data-overview-stats>
+    @foreach (var stat in Stats)
+    {
+        <li class="@("overview-stats__item overview-stats__item--" + stat.Key)" data-overview-count="@stat.Key">
+            <span class="overview-stats__icon" aria-hidden="true"><AppMaterialIcon Icon="@IconFor(stat.Key)" /></span>
+            <span class="overview-stats__copy">
+                <strong class="overview-stats__value">@stat.Value</strong>
+                <span class="overview-stats__label">@stat.Label</span>
+                @if (stat.Note is not null)
+                {
+                    <span class="overview-stats__note">@stat.Note</span>
+                }
+            </span>
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<OverviewStat> Stats { get; set; } = [];
+
+    private static string IconFor(string key) => key switch
+    {
+        "in-progress" => AppMaterialIcons.Outlined.PlayCircleOutline,
+        "finished" => AppMaterialIcons.Outlined.CheckCircleOutline,
+        "hours" => AppMaterialIcons.Outlined.Schedule,
+        _ => AppMaterialIcons.Outlined.CalendarMonth,
+    };
+}

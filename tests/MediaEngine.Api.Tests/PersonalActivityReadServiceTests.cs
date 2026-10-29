@@ -513,6 +513,26 @@ public sealed class PersonalActivityReadServiceTests
     }
 
     [Fact]
+    public async Task TheSummary_CarriesTheRollingThirtyDays_FromTodayBackwards()
+    {
+        await using var world = PersonalActivityWorld.Create();
+        var today = world.Clock.GetUtcNow();
+        await world.AddAsync(world.MemberA, PersonalActivityKinds.Watch, "Recent", today.AddDays(-2), played: 600, finished: true, percent: 100);
+        await world.AddAsync(world.MemberA, PersonalActivityKinds.Read, "Hyperion", today.AddDays(-2).AddHours(1), mediaType: "Books", played: 900);
+        await world.AddAsync(world.MemberA, PersonalActivityKinds.Watch, "Old", today.AddDays(-45), finished: true, percent: 100);
+        await world.AddAsync(world.AdminA, PersonalActivityKinds.Watch, "Not mine", today, finished: true, percent: 100);
+
+        var summary = (await world.Service.SummaryAsync(world.MemberOfA, default)).Value!;
+
+        Assert.Equal(1, summary.FinishedLast30Days);
+        Assert.Equal(1, summary.DaysActiveLast30);
+        var day = Assert.Single(summary.Daily!);
+        Assert.Equal(today.AddDays(-2).ToString("yyyy-MM-dd"), day.Date);
+        Assert.Equal(1500, day.PlayedSeconds);
+        Assert.Equal(2, day.Entries);
+    }
+
+    [Fact]
     public async Task TheSummaryOfSomeoneWithNoActivity_IsZeroWithNoFirstDate()
     {
         await using var world = PersonalActivityWorld.Create();

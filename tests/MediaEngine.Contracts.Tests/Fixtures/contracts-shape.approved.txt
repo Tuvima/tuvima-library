@@ -28,6 +28,11 @@ MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.ActivityStatsRespo
   TotalEntries: System.Int64 | nullability=not-null | accessors=get,set
   RetentionDays: System.Int32 | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.PersonalActivityDayDto
+  Date: System.String | nullability=not-null | accessors=get,init
+  PlayedSeconds: System.Int64 | nullability=not-null | accessors=get,init
+  Entries: System.Int32 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.PersonalActivityDeletePreviewDto
   Count: System.Int32 | nullability=not-null | accessors=get,init
 
@@ -108,6 +113,9 @@ MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.PersonalActivitySu
   FinishedCount: System.Int32 | nullability=not-null | accessors=get,init
   InProgressCount: System.Int32 | nullability=not-null | accessors=get,init
   FirstActivityAt: System.String | nullability=nullable | accessors=get,init
+  FinishedLast30Days: System.Int32 | nullability=not-null | accessors=get,init
+  DaysActiveLast30: System.Int32 | nullability=not-null | accessors=get,init
+  Daily: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Activity.PersonalActivityDayDto> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.PersonalActivityYearCountDto
   Year: System.Int32 | nullability=not-null | accessors=get,init
@@ -9818,6 +9826,11 @@ MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TasteItemDto
   Weight: System.Double? | nullability=nullable | accessors=get,init
   Source: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TasteMonthDto
+  Month: System.String | nullability=not-null | accessors=get,set
+  Finished: System.Int32 | nullability=not-null | accessors=get,set
+  Genres: System.Collections.Generic.Dictionary<System.String, System.Int32> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TastePersonDto
   ProfileId: System.String | nullability=not-null | accessors=get,set
   Person: System.String | nullability=nullable | accessors=get,set
@@ -9828,6 +9841,8 @@ MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TastePersonDto
   MediaMix: System.Collections.Generic.Dictionary<System.String, System.Double> | nullability=not-null | accessors=get,set
   Summary: System.String | nullability=nullable | accessors=get,set
   LastUpdatedAt: System.String | nullability=nullable | accessors=get,set
+  FinishedTitleCount: System.Int32 | nullability=not-null | accessors=get,set
+  Shifts: System.Collections.Generic.List<MediaEngine.Contracts.Taste.TasteMonthDto> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TasteSuggestionsDto
   Genres: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
