@@ -15,9 +15,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// After a sign-in no profile is in use yet (users, profiles and households spec D3): the picker shows the sign-in's household with the
-/// sign-in's own profile pre-selected (Dad's email selects Dad, Mom's selects Mom), and nothing opens until someone is clicked.
-/// There is no "always open as" setting any more.
+/// After a sign-in no profile is in use yet (users, profiles and households spec D3): the picker shows the sign-in's household as open
+/// round pictures, and nothing opens until someone is clicked (there is no "Continue as" button). The sign-in's own profile only gets
+/// keyboard focus. There is no "always open as" setting any more.
 /// </summary>
 public sealed class ProfilePickerPreselectionTests : AsyncBunitContext
 {
@@ -46,22 +46,22 @@ public sealed class ProfilePickerPreselectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ForDad_DadsProfileIsPreSelected_AndNothingOpensUntilSomeoneIsClicked()
+    public void ForDad_EveryoneIsShown_ThereIsNoContinueAs_AndNothingOpensUntilSomeoneIsClicked()
     {
         var cut = OpenPickerSignedInAs(DadId, Profile(DadId, "Dad"), Profile(MomId, "Mom"), Profile(KimId, "Kim", kids: true));
 
-        Assert.Equal(["Dad"], PreSelectedNames(cut));
-        Assert.Contains("Continue as Dad", cut.Find(".who-button--primary").TextContent);
+        Assert.Equal(["Dad", "Mom", "Kim, Kids profile"], CardNames(cut));
+        Assert.DoesNotContain("Continue as", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".who-button--primary"));
         Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Post && request.Path == "/auth/session/switch-profile");
     }
 
     [Fact]
-    public void ForMom_MomsProfileIsPreSelected_NotDads()
+    public void ForMom_NothingOpensEither_AndThePeopleKeepTheEnginesOrder()
     {
         var cut = OpenPickerSignedInAs(MomId, Profile(DadId, "Dad"), Profile(MomId, "Mom"), Profile(KimId, "Kim", kids: true));
 
-        Assert.Equal(["Mom"], PreSelectedNames(cut));
-        Assert.Contains("Continue as Mom", cut.Find(".who-button--primary").TextContent);
+        Assert.Equal(["Dad", "Mom", "Kim, Kids profile"], CardNames(cut));
         Assert.DoesNotContain(_requests, request => request.Path == "/auth/session/switch-profile");
     }
 
@@ -76,11 +76,11 @@ public sealed class ProfilePickerPreselectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ThePreSelectedProfileWithAPin_AsksForItsPin_InsteadOfOpening()
+    public void AProfileWithAPin_AsksForItsPin_InsteadOfOpening()
     {
         var cut = OpenPickerSignedInAs(DadId, Profile(DadId, "Dad", hasPin: true), Profile(MomId, "Mom"));
 
-        cut.Find(".who-button--primary").Click();
+        cut.FindAll(".who-card").Single(card => card.GetAttribute("aria-label")!.StartsWith("Dad", StringComparison.Ordinal)).Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Enter Dad's PIN", cut.Find(".app-dialog-shell__title").TextContent));
         Assert.DoesNotContain(_requests, request => request.Path == "/auth/session/switch-profile");
@@ -97,15 +97,14 @@ public sealed class ProfilePickerPreselectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ForAHouseholdOfOneWithoutAPin_TheProfileIsPreSelectedButNothingOpensUntilTheyClick()
+    public void ForAHouseholdOfOneWithoutAPin_NothingOpensUntilTheyClickTheirPicture()
     {
         var cut = OpenPickerSignedInAs(DadId, Profile(DadId, "Dad"));
 
-        Assert.Equal(["Dad"], PreSelectedNames(cut));
-        Assert.Contains("Continue as Dad", cut.Find(".who-button--primary").TextContent);
+        Assert.Equal(["Dad"], CardNames(cut));
         Assert.DoesNotContain(_requests, request => request.Path == "/auth/session/switch-profile");
 
-        cut.Find(".who-button--primary").Click();
+        cut.Find(".who-card").Click();
 
         cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Method == HttpMethod.Post && request.Path == "/auth/session/switch-profile"));
     }
@@ -120,8 +119,8 @@ public sealed class ProfilePickerPreselectionTests : AsyncBunitContext
         return cut;
     }
 
-    private static string[] PreSelectedNames(IRenderedComponent<ProfilePickerPage> cut) =>
-        cut.FindAll(".who-card.is-preselected").Select(card => card.GetAttribute("aria-label")!).ToArray();
+    private static string[] CardNames(IRenderedComponent<ProfilePickerPage> cut) =>
+        cut.FindAll(".who-card:not(.who-card--add)").Select(card => card.GetAttribute("aria-label")!).ToArray();
 
     private static ProfileViewModel Profile(Guid id, string name, bool kids = false, bool hasPin = false) =>
         new(id, name, "#C9922E", kids ? "RestrictedProfile" : "StandardUser", DateTimeOffset.UtcNow, HasPin: hasPin);

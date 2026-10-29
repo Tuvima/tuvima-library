@@ -41,9 +41,10 @@ public sealed class ProfileRepository : IProfileRepository
                    household_id AS HouseholdId,
                    is_server_admin AS IsServerAdministrator,
                    is_household_admin AS IsHouseholdAdministrator,
-                   authorization_version AS AuthorizationVersion
+                   authorization_version AS AuthorizationVersion,
+                   sort_position AS SortPosition
             FROM   profiles
-            ORDER  BY created_at ASC;
+            ORDER  BY sort_position ASC, created_at ASC, id ASC;
             """).AsList();
 
         return Task.FromResult<IReadOnlyList<Profile>>(rows.ConvertAll(MapRow));
@@ -69,7 +70,8 @@ public sealed class ProfileRepository : IProfileRepository
                    household_id AS HouseholdId,
                    is_server_admin AS IsServerAdministrator,
                    is_household_admin AS IsHouseholdAdministrator,
-                   authorization_version AS AuthorizationVersion
+                   authorization_version AS AuthorizationVersion,
+                   sort_position AS SortPosition
             FROM   profiles
             WHERE  id = @id
             LIMIT  1;
@@ -123,6 +125,7 @@ public sealed class ProfileRepository : IProfileRepository
         public bool IsServerAdministrator { get; set; }
         public bool IsHouseholdAdministrator { get; set; }
         public long AuthorizationVersion { get; set; }
+        public int SortPosition { get; set; }
     }
 
     private static Profile MapRow(ProfileRow r) => new()
@@ -141,5 +144,6 @@ public sealed class ProfileRepository : IProfileRepository
         IsServerAdministrator = r.IsServerAdministrator,
         IsHouseholdAdministrator = r.IsHouseholdAdministrator,
         AuthorizationVersion = r.AuthorizationVersion,
+        SortPosition = r.SortPosition,
     };
 }

@@ -1093,6 +1093,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Manage
   HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
   User: MediaEngine.Contracts.Authentication.ManagedProfileUserDto | nullability=nullable | accessors=get,init
   AccessVersion: System.Int64 | nullability=not-null | accessors=get,init
+  SortPosition: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ManagedProfileUserDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -1173,6 +1174,9 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Recove
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.RenameHouseholdRequest
   Name: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ReorderHouseholdProfilesRequest
+  ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ReplaceProfileAccessRequest
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
