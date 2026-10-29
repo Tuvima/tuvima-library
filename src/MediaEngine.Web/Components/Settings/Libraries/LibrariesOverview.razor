@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Services.Ui
 @inject NavigationManager Navigation
 @inject IAppDialogService DialogService
+@inject LibraryFolderAddService AddService
 
 @* The Libraries overview (Library pages D2, D17, D19; library setup D0b): icon buttons for the areas (Watch, Listen, Read, View, and the Vault for
    someone who may open it), then one table of that area's libraries, one row per library. The whole row opens the library; the name is the real link
@@ -15,6 +16,11 @@
     @if (ReadOnly)
     {
         <p class="libs__note">Use a desktop or tablet to change folders.</p>
+    }
+
+    @if (_addError is not null)
+    {
+        <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@_addError</AppAlert>
     }
 
     <AppSegmentedControl Options="AreaOptions"
@@ -89,6 +95,10 @@
                         {
                             <th data-card-role="hidden"><span class="sr-only">Open</span></th>
                         }
+                        else if (CanAddFolder)
+                        {
+                            <th data-card-role="hidden"><span class="sr-only">Add folder</span></th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
@@ -122,6 +132,16 @@
                             @if (!Simple)
                             {
                                 <td data-card-role="hidden" class="libs__chevron"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></td>
+                            }
+                            else if (CanAddFolder)
+                            {
+                                <td data-card-role="hidden" class="libs__add-folder">
+                                    <AppButton Label="Add folder"
+                                               StartIcon="@AppMaterialIcons.Outlined.Add"
+                                               ButtonStyle="AppButtonStyle.Text"
+                                               aria-label="@($"Add a folder to {row.Name}")"
+                                               OnClick="@(() => AddFolderAsync(row))" />
+                                </td>
                             }
                         </tr>
                     }
@@ -169,6 +189,7 @@
     private string? _setupArea;
 
     private string? _newLibraryId;
+    private string? _addError;
 
     // Watch, Listen, Read, View, then the Vault for someone who may open it (library access D6); the Vault never exists for anyone else.
     // Setup leaves View and the Vault out: View's folders are added from its own pages in Settings, and nobody has Vault access yet.
@@ -256,6 +277,39 @@
             { component => component.OnCreated, (Func<string, Task>)(id => { _newLibraryId = id; return FolderAdded.InvokeAsync(); }) },
         };
         await DialogService.ShowAsync<CreateLibraryDialog>(string.Empty, parameters, CreateLibraryDialog.DialogOptions);
+    }
+
+    // Setup rows do not open a page, so each one adds its own folders here: the same pop-up and the same save as a library's page, through the setup session.
+    private bool CanAddFolder => Simple && !ReadOnly;
+
+    private async Task AddFolderAsync(LibraryListRow row)
+    {
+        if (row.Library is not { } library) return;
+        var managed = row.Type.DefaultHandling == "managed";
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { component => component.Title, $"Choose your {row.Type.Label} folder" },
+            { component => component.HelpText, $"Choose the folder on the Library server that holds more of {row.Name}." },
+            { component => component.ConfirmLabel, "Choose folder" },
+            { component => component.SelectionMode, managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
+            { component => component.KindKey, library.KindKey },
+            { component => component.MediaType, row.Type.MediaTypes.FirstOrDefault() },
+            { component => component.SetupSession, SetupSession },
+        };
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
+        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
+
+        var plan = new AddFolderPlan(library.KindKey, selected, managed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly, MarkNewMediaHere: false, LibraryId: library.Id);
+        var result = await AddService.AddAsync(plan, Kinds, Configuration, new FolderAddScope(true, SetupSession));
+        if (!result.Saved)
+        {
+            _addError = result.Error ?? "The folder could not be added. Check it and try again.";
+            return;
+        }
+
+        _addError = null;
+        _newLibraryId = row.Key;
+        await FolderAdded.InvokeAsync();
     }
 
     private string CountsFor(LibraryListRow row) => LibraryRollup.CountsText(row.Folders, row.Titles);

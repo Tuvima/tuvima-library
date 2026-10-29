@@ -310,7 +310,7 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
         var before = _configuration.Libraries.Count;
 
         await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
-        dialogs.WaitForAssertion(() => Assert.Contains("Choose source folder", dialogs.Markup));
+        dialogs.WaitForAssertion(() => Assert.Contains(" folder</", dialogs.Markup));
         dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
         await dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
 

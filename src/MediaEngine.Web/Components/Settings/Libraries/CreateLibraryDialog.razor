@@ -356,7 +356,7 @@
     {
         var parameters = new AppDialogParameters<ServerFolderPicker>
         {
-            { component => component.Title, "Choose source folder" },
+            { component => component.Title, $"Choose your {(Kind is { } chosen ? LabelOf(chosen) : "library")} folder" },
             { component => component.HelpText, $"Choose the folder on the Library server that holds your {Plural}." },
             { component => component.MediaType, Kind?.MediaTypes.FirstOrDefault() },
             { component => component.ConfirmLabel, "Choose folder" },
