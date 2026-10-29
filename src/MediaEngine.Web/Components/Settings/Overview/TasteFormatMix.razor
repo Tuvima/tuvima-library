@@ -3,12 +3,12 @@
 @using MediaEngine.Web.Services.Formatting
 @* The format mix on the Taste page: one bar split by kind of media, in each kind's own colour, with a legend. *@
 <div class="taste-formats" data-taste-formats>
-    <div class="taste-formats__bar" role="img" aria-label="@Description">
+    <svg class="taste-formats__bar" viewBox="0 0 100 1" preserveAspectRatio="none" role="img" aria-label="@Description">
         @foreach (var share in Shares)
         {
-            <span class="@("taste-formats__segment taste-formats__segment--" + share.Kind)" style="@Width(share)" title="@($"{share.Label} {Percent(share)}")"></span>
+            <rect class="@("taste-formats__segment taste-formats__segment--" + share.Kind)" x="@Start(share)" y="0" width="@Span(share)" height="1"><title>@($"{share.Label} {Percent(share)}")</title></rect>
         }
-    </div>
+    </svg>
     <ul class="taste-formats__legend" role="list">
         @foreach (var share in Shares)
         {
@@ -28,6 +28,12 @@
 
     private static string Percent(FormatShare share) => $"{Math.Round(share.Percent).ToString("0", CultureInfo.CurrentCulture)}%";
 
-    private static string Width(FormatShare share) =>
-        string.Create(CultureInfo.InvariantCulture, $"flex-basis: {share.Percent:0.##}%");
+    // Each segment is drawn in a 0 to 100 scale; a hairline gap is left between neighbours.
+    private double Total => Math.Max(1d, Shares.Sum(share => share.Percent));
+
+    private string Start(FormatShare share) =>
+        (Shares.TakeWhile(other => !ReferenceEquals(other, share)).Sum(other => other.Percent) * 100d / Total).ToString("0.###", CultureInfo.InvariantCulture);
+
+    private string Span(FormatShare share) =>
+        Math.Max(0.5d, share.Percent * 100d / Total - 0.6d).ToString("0.###", CultureInfo.InvariantCulture);
 }

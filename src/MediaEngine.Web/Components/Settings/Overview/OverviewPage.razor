@@ -30,7 +30,8 @@ else if (_profile is null)
 else
 {
     <div class="@RootClass" data-settings-overview>
-        <AppCard Class="overview-page__profile">
+        <div class="overview-page__profile">
+        <AppCard>
             <div class="overview-header">
                 <span class="overview-header__avatar">
                     <ProfileAvatar DisplayName="@_profile.DisplayName" ImageUrl="@_profile.AvatarImageUrl" Color="@_profile.AvatarColor" Icon="@_profile.AvatarIcon" />
@@ -53,6 +54,7 @@ else
                 </div>
             </div>
         </AppCard>
+        </div>
 
         @if (_summary is not null)
         {

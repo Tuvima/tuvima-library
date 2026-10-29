@@ -51,7 +51,6 @@
     align-content: start;
     gap: var(--tl-space-3, 12px);
     margin-bottom: var(--tl-space-4, 16px);
-    padding: var(--tl-space-4, 16px);
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-xl, 12px);
     background: color-mix(in srgb, var(--tl-text-primary) 3%, transparent);

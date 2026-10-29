@@ -24,24 +24,25 @@
 }
 
 .taste-shifts__stack {
-    display: flex;
-    min-height: 0;
-    flex-direction: column-reverse;
-    gap: 2px;
-}
-
-.taste-shifts__segment {
     display: block;
-    min-height: 3px;
-    flex: 1 1 0;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
     border-radius: 3px;
-    background: var(--tl-status-idle);
 }
 
-.taste-shifts__segment--0 { background: var(--tl-accent-primary); }
-.taste-shifts__segment--1 { background: var(--tl-accent-secondary); }
-.taste-shifts__segment--2 { background: var(--tl-accent-collection); }
-.taste-shifts__segment--3 { background: var(--tl-status-idle); }
+.taste-shifts__segment { fill: var(--tl-status-idle); }
+
+rect.taste-shifts__segment--0 { fill: var(--tl-accent-primary); }
+rect.taste-shifts__segment--1 { fill: var(--tl-accent-secondary); }
+rect.taste-shifts__segment--2 { fill: var(--tl-accent-collection); }
+rect.taste-shifts__segment--3 { fill: var(--tl-status-idle); }
+
+.taste-shifts__swatch.taste-shifts__segment--0 { background: var(--tl-accent-primary); }
+.taste-shifts__swatch.taste-shifts__segment--1 { background: var(--tl-accent-secondary); }
+.taste-shifts__swatch.taste-shifts__segment--2 { background: var(--tl-accent-collection); }
+.taste-shifts__swatch.taste-shifts__segment--3 { background: var(--tl-status-idle); }
+.taste-shifts__swatch { background: var(--tl-status-idle); }
 
 .taste-shifts__month {
     color: var(--tl-text-muted);

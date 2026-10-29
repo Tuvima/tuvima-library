@@ -8,12 +8,12 @@
         @foreach (var bar in Bars)
         {
             <div class="taste-shifts__column" data-taste-shift-month="@bar.Month" title="@Title(bar)">
-                <div class="taste-shifts__stack" style="@Height(bar)">
-                    @foreach (var segment in bar.Segments)
+                <svg class="taste-shifts__stack" height="@Height(bar)" viewBox="0 0 1 100" preserveAspectRatio="none">
+                    @foreach (var segment in Rects(bar))
                     {
-                        <span class="@("taste-shifts__segment taste-shifts__segment--" + segment.Index)" style="@Grow(segment)"></span>
+                        <rect class="@("taste-shifts__segment taste-shifts__segment--" + segment.Index)" x="0" width="1" y="@segment.Y" height="@segment.H" />
                     }
-                </div>
+                </svg>
                 <span class="taste-shifts__month">@bar.Label</span>
             </div>
         }
@@ -47,10 +47,22 @@
 
     // The tallest month fills the chart; the others are in proportion. Every month gets a little height so it can be seen.
     private string Height(ShiftBar bar) =>
-        string.Create(CultureInfo.InvariantCulture, $"height: {Math.Max(8d, bar.Finished * 100d / Tallest):0.#}%");
+        string.Create(CultureInfo.InvariantCulture, $"{Math.Max(8d, bar.Finished * 100d / Tallest):0.#}%");
 
-    private static string Grow(ShiftSegment segment) =>
-        string.Create(CultureInfo.InvariantCulture, $"flex-grow: {segment.Count}");
+    // The month's own bar is drawn in a 0 to 100 scale, the first genre at the bottom, with a small gap between genres.
+    private static IEnumerable<(int Index, string Y, string H)> Rects(ShiftBar bar)
+    {
+        var total = Math.Max(1, bar.Segments.Sum(segment => segment.Count));
+        var used = 0d;
+        foreach (var segment in bar.Segments)
+        {
+            var share = segment.Count * 100d / total;
+            used += share;
+            yield return (segment.Index,
+                (100d - used).ToString("0.###", CultureInfo.InvariantCulture),
+                Math.Max(1d, share - 1.5d).ToString("0.###", CultureInfo.InvariantCulture));
+        }
+    }
 
     private static string Title(ShiftBar bar) =>
         $"{bar.Label}: {bar.Finished} finished" + (bar.Segments.Count == 0 ? string.Empty : " (" + string.Join(", ", bar.Segments.Select(segment => $"{segment.Genre} {segment.Count}")) + ")");

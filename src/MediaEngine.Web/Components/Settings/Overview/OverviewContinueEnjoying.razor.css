@@ -88,11 +88,6 @@
     font-weight: var(--tl-font-weight-semibold);
 }
 
-.overview-continue__kind ::deep svg {
-    width: 1rem;
-    height: 1rem;
-}
-
 .overview-continue__title {
     overflow: hidden;
     color: var(--tl-text-primary);

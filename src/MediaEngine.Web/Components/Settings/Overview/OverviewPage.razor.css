@@ -17,12 +17,18 @@
     gap: var(--tl-space-4, 16px);
 }
 
-/* The banner: a soft wash of the accent behind the person (D1). */
-.overview-page ::deep .overview-page__profile {
-    border-color: var(--tl-accent-primary-border);
-    background:
-        radial-gradient(120% 160% at 0% 0%, var(--tl-accent-primary-soft) 0%, transparent 60%),
-        var(--tl-bg-surface-raised, #151E2F);
+/* The banner: a soft wash of the accent behind the person (D1), laid over the card so it never needs the card's own styles. */
+.overview-page__profile {
+    position: relative;
+}
+
+.overview-page__profile::after {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--tl-radius-xl, 12px);
+    background: radial-gradient(120% 160% at 0% 0%, var(--tl-accent-primary-soft) 0%, transparent 60%);
+    content: "";
+    pointer-events: none;
 }
 
 .overview-header__avatar {

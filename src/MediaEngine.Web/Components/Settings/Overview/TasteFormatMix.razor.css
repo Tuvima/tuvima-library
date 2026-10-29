@@ -4,32 +4,38 @@
 }
 
 .taste-formats__bar {
-    display: flex;
+    display: block;
+    width: 100%;
     height: 0.9rem;
     overflow: hidden;
-    gap: 2px;
     border-radius: var(--tl-radius-pill, 999px);
 }
 
 .taste-formats__segment {
-    min-width: 4px;
-    flex: 0 1 auto;
-    background: var(--tl-media-unknown);
+    fill: var(--tl-media-unknown);
 }
 
-.taste-formats__segment--books { background: var(--tl-media-books); }
-.taste-formats__segment--audiobooks { background: var(--tl-media-audiobooks); }
-.taste-formats__segment--movies { background: var(--tl-media-movies); }
-.taste-formats__segment--tv { background: var(--tl-media-tv); }
-.taste-formats__segment--music { background: var(--tl-media-music); }
-.taste-formats__segment--comics { background: var(--tl-media-comics); }
+.taste-formats__swatch.taste-formats__segment--books { background: var(--tl-media-books); }
+.taste-formats__swatch.taste-formats__segment--audiobooks { background: var(--tl-media-audiobooks); }
+.taste-formats__swatch.taste-formats__segment--movies { background: var(--tl-media-movies); }
+.taste-formats__swatch.taste-formats__segment--tv { background: var(--tl-media-tv); }
+.taste-formats__swatch.taste-formats__segment--music { background: var(--tl-media-music); }
+.taste-formats__swatch.taste-formats__segment--comics { background: var(--tl-media-comics); }
+.taste-formats__swatch { background: var(--tl-media-unknown); }
+
+rect.taste-formats__segment--books { fill: var(--tl-media-books); }
+rect.taste-formats__segment--audiobooks { fill: var(--tl-media-audiobooks); }
+rect.taste-formats__segment--movies { fill: var(--tl-media-movies); }
+rect.taste-formats__segment--tv { fill: var(--tl-media-tv); }
+rect.taste-formats__segment--music { fill: var(--tl-media-music); }
+rect.taste-formats__segment--comics { fill: var(--tl-media-comics); }
 
 .taste-formats__legend {
     display: grid;
     margin: 0;
     padding: 0;
     gap: var(--tl-space-2, 8px);
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    grid-template-columns: 1fr;
     list-style: none;
 }
 
@@ -47,12 +53,10 @@
 }
 
 .taste-formats__label {
+    overflow-wrap: anywhere;
     min-width: 0;
     flex: 1 1 auto;
-    overflow: hidden;
     color: var(--tl-text-primary);
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .taste-formats__percent {
