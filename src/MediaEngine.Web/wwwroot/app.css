@@ -4,6 +4,16 @@
    This file owns global / body-level rules and CSS custom properties.
    -------------------------------------------------------------------------- */
 
+/* -- Self-hosted Tuvima Sans variable font (a Montserrat derivative, SIL OFL 1.1; licence in fonts/TuvimaSans-OFL.txt).
+   Used for the navigation and brand text only, never body text. ----- */
+@font-face {
+    font-family: "Tuvima Sans";
+    src: url("fonts/TuvimaSans-Variable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* -- Self-hosted Montserrat variable font ------------------------------ */
 @font-face {
     font-family: "Montserrat";

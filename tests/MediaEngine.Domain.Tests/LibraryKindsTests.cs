@@ -406,7 +406,7 @@ public sealed class LibraryKindsTests
     [InlineData("tv", "TV")]
     [InlineData("music", "Music")]
     [InlineData("books", "Books")]
-    public void AVaultLibraryWithOnlineLookupSwitchedOn_AsksNoOutsideProvider_AndKeepsTheStoredChoice(string kindKey, string mediaType)
+    public void AVaultLibraryWithOnlineLookupSwitchedOn_MayAskRetailProvidersAndWikidata_ButNeverAVideoSite(string kindKey, string mediaType)
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
         var vault = Library(kindKey, mediaType);
@@ -416,16 +416,43 @@ public sealed class LibraryKindsTests
 
         var effective = LibraryKindLookupPolicy.For(vault, kinds);
 
-        // Nothing is asked of a retail provider, Wikidata or a video site, whatever the switch says.
+        Assert.False(effective.BypassesExternalIdentity);
+        Assert.Equal(LibraryMetadataPolicies.Enriched, effective.MetadataPolicy);
+        Assert.False(effective.YoutubeLookup);
+    }
+
+    [Theory]
+    [InlineData("movies", "Movies")]
+    [InlineData("music", "Music")]
+    public void AVaultLibraryWithOnlineLookupSwitchedOff_AsksNoOutsideProvider(string kindKey, string mediaType)
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var vault = Library(kindKey, mediaType);
+        vault.Access = LibraryAccessLevels.Vault;
+        vault.MetadataPolicy = LibraryMetadataPolicies.LocalOnly;
+
+        Assert.True(LibraryKindLookupPolicy.BypassesExternalIdentity(vault, kinds));
+    }
+
+    [Theory]
+    [InlineData("adult_content", "Videos")]
+    [InlineData("youtube", "Videos")]
+    [InlineData("other_videos", "Videos")]
+    [InlineData("", "Videos")]
+    [InlineData("recorded_tv", "Videos")]
+    public void AVaultLibraryOfAnyOtherKind_AsksNoOutsideProvider_WhateverItsStoredChoiceSays(string kindKey, string mediaType)
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var vault = Library(kindKey, mediaType);
+        vault.Access = LibraryAccessLevels.Vault;
+        vault.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        vault.YoutubeLookup = true;
+
+        var effective = LibraryKindLookupPolicy.For(vault, kinds);
+
         Assert.True(effective.BypassesExternalIdentity);
         Assert.Equal(LibraryMetadataPolicies.LocalOnly, effective.MetadataPolicy);
         Assert.False(effective.YoutubeLookup);
-        Assert.True(LibraryKindLookupPolicy.BypassesExternalIdentity(vault, kinds));
-
-        // The stored switch is not rewritten, so it takes effect once the Vault's lookup gates exist.
-        var libraries = new LibrariesConfiguration { Libraries = [vault] };
-        LibraryKindLookupPolicy.Normalise(libraries, kinds);
-        Assert.Equal(LibraryMetadataPolicies.Enriched, vault.MetadataPolicy);
     }
 
     [Fact]

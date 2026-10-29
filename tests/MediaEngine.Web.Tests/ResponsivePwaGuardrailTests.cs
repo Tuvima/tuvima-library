@@ -64,7 +64,7 @@ public sealed class ResponsivePwaGuardrailTests
         Assert.Contains("layout-shell__brand-icon-shell--compact", markup, StringComparison.Ordinal);
         var shellCompact = layout[layout.IndexOf(".layout-shell__brand-icon-shell--compact {\n    display: none;", StringComparison.Ordinal)..];
         shellCompact = shellCompact[shellCompact.IndexOf("@media (max-width: 840px)", StringComparison.Ordinal)..];
-        Assert.Contains(".layout-shell__brand-lockup-shell {\n        display: none;", shellCompact, StringComparison.Ordinal);
+        Assert.Contains(".layout-shell__brand-lockup {\n        display: none;", shellCompact, StringComparison.Ordinal);
         Assert.Contains("justify-content: safe center;", shellCompact, StringComparison.Ordinal);
         Assert.Contains("overflow-x: auto;", shellCompact, StringComparison.Ordinal);
 

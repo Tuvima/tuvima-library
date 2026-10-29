@@ -81,6 +81,19 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
+    public void LoadLibraries_OnAFreshInstall_GivesViewAWritableStorageLocation()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+
+        var libraries = loader.LoadLibraries();
+
+        var storage = Assert.Single(libraries.StorageLocations, location => location.Id == libraries.ViewStorage.StorageLocationId);
+        Assert.True(storage.AllowWrite);
+        Assert.Empty(JsonConfigValidator.Validate(libraries, "libraries.json", []));
+    }
+
+    [Fact]
     public void ValidCoreJson_LoadsSuccessfully()
     {
         using var temp = TempConfig.Create();

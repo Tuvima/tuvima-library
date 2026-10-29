@@ -122,6 +122,7 @@ public static class UserExportScope
         ["backup_restores"] = "The Library's own restore history.",
         ["waiting_personal_state"] = "Items still waiting on the old Library are not moved; a file could otherwise name any table to write into.",
         ["vault_libraries"] = "Server settings: which libraries are Vault libraries belongs to the Library.",
+        ["vault_section_grants"] = "Administrator settings: which Vault sections a profile may open is the household's decision, not the person's.",
     };
 
     /// <summary>

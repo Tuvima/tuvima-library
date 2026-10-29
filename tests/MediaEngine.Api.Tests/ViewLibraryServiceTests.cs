@@ -32,7 +32,21 @@ public sealed class ViewLibraryServiceTests
         Assert.NotEqual(Guid.Empty, item.PersonalSpaceId);
         var location = Assert.IsType<LocalAssetContentLocation>(fixture.Repository.ResolveContent(item.Id));
         var relative = Path.GetRelativePath(fixture.PersonalRoot, location.FilePath);
-        Assert.Matches(@"managed-view[\\/]Profiles[\\/][^\\/]+[\\/]Timeline[\\/]\d{4}[\\/]\d{2} - [A-Z][a-z]{2}[\\/][A-Z][a-z]{2} \d{2} - \d{2}\.\d{2}\.\d{2}IMG\.jpg", relative);
+        Assert.Matches(@"managed-view[\\/]Profiles[\\/][^\\/]+[\\/]Timeline[\\/]\d{4}[\\/]\d{4}-\d{2}-\d{2}[\\/]phone-photo\.jpg", relative);
+    }
+
+    [Fact]
+    public async Task Upload_IsRefusedCleanly_WhenTheDriveHasNoRoom()
+    {
+        using var fixture = new ViewFixture();
+        fixture.Service.FreeBytesAtDestination = _ => 10;
+        await using var content = new MemoryStream([1, 2, 3, 4]);
+
+        var refused = await Assert.ThrowsAsync<MediaEngine.Api.Services.LocalAssets.Intake.IntakeRefusedException>(() =>
+            fixture.Service.UploadAsync(fixture.OwnerProfileId, "phone-photo.jpg", content));
+
+        Assert.Equal(507, refused.StatusCode);
+        Assert.StartsWith("Not enough space", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -112,11 +126,11 @@ public sealed class ViewLibraryServiceTests
     }
 
     [Fact]
-    public async Task Scan_GroupsAdjacentImgVidNamesAsLivePhotoPair()
+    public async Task Scan_GroupsAPictureAndAMotionClipThatShareOneNameAsALivePhoto()
     {
         using var fixture = new ViewFixture();
-        fixture.WritePersonal("Sep 11 - 01.31.35IMG.jpg", [0xFF, 0xD8, 0xFF, 0xD9]);
-        fixture.WritePersonal("Sep 11 - 01.31.34VID.mov", [1, 2, 3]);
+        fixture.WritePersonal("IMG_20220911_013135.jpg", [0xFF, 0xD8, 0xFF, 0xD9]);
+        fixture.WritePersonal("IMG_20220911_013135.mov", [1, 2, 3]);
 
         var result = Assert.IsType<MediaEngine.Contracts.LocalAssets.LocalAssetScanResultDto>(
             await fixture.Service.ScanAsync(fixture.PersonalLibraryId));

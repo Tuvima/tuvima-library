@@ -679,7 +679,7 @@ public sealed class ViewItemFileWriterTests : IDisposable
     public async Task AStrandedCopy_IsRecordedOnDisk_AndAfterARestartTheSweepStillKeepsItWhenItIsOverAnHourOld()
     {
         var (neighbourId, path, copy) = await _h.StrandACopyAsync("stranded.jpg");
-        Assert.Contains(Path.GetFullPath(copy), File.ReadAllText(_h.StrandedRecordPath));
+        Assert.Contains(System.Text.Json.JsonSerializer.Serialize(Path.GetFullPath(copy)).Trim('"'), File.ReadAllText(_h.StrandedRecordPath));
 
         var restarted = _h.NewWriter();
         var result = Assert.Single(await _h.RunWithAsync(restarted, neighbourId));
@@ -714,7 +714,7 @@ public sealed class ViewItemFileWriterTests : IDisposable
     public async Task ARecordedCopyWhoseFileIsGone_DropsOutOfTheRecord_WhenTheWriterStarts()
     {
         var (_, _, copy) = await _h.StrandACopyAsync("gone.jpg");
-        Assert.Contains(Path.GetFullPath(copy), File.ReadAllText(_h.StrandedRecordPath));
+        Assert.Contains(System.Text.Json.JsonSerializer.Serialize(Path.GetFullPath(copy)).Trim('"'), File.ReadAllText(_h.StrandedRecordPath));
         File.Delete(copy);
 
         _ = _h.NewWriter();
@@ -917,6 +917,7 @@ public sealed class ViewItemFileWriterTests : IDisposable
             var file = Path.Combine(folder, name);
             File.WriteAllBytes(file, [1, 2, 3]);
             File.SetLastWriteTimeUtc(file, time);
+            File.SetCreationTimeUtc(file, time);
             return file;
         }
 

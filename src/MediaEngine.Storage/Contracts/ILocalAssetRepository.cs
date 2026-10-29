@@ -18,6 +18,13 @@ public interface ILocalAssetRepository
     /// <summary>The items that exist among <paramref name="itemIds"/>, in the order given (unknown ids are left out). The read-only lookup is one query for the whole list.</summary>
     IReadOnlyList<LocalAssetDto> FindMany(IReadOnlyList<Guid> itemIds, CancellationToken ct = default);
 
+    /// <summary>
+    /// The item in one space (or the Shared Library) whose primary file has exactly this content, or null when there is none. Used to skip an
+    /// exact copy at the door and to refuse one moved into the Shared Library (Photo and video filing spec D5). A private space is only ever
+    /// asked about itself, so no answer can reveal what another person holds.
+    /// </summary>
+    LocalAssetPresence? FindPrimaryContent(string scopeKind, Guid libraryId, Guid? personalSpaceId, string contentHash, CancellationToken ct = default);
+
     /// <summary>True when the item is a document (PDF, Office or text file) rather than a photo, video or audio.</summary>
     bool IsDocument(Guid itemId, CancellationToken ct = default);
 
@@ -280,6 +287,9 @@ public static class LocalAssetScopeKinds
     /// </summary>
     public const string Vault = "vault";
 }
+
+/// <summary>An item that already holds a file's exact contents, and whether it is in Trash.</summary>
+public sealed record LocalAssetPresence(Guid ItemId, bool InTrash);
 
 public sealed record LocalAssetFileRegistration(
     string FilePath,

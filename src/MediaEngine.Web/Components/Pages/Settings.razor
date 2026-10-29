@@ -207,7 +207,7 @@ else
                                 <RecentlyAddedPageContent InitialSearch="@RecentSearch" />
                                 break;
                             case SettingsSection.Review:
-                                <NeedsReviewPageContent InitialSearch="@RecentSearch" />
+                                <NeedsReviewPageContent InitialSearch="@RecentSearch" Library="@Query.String("library")" />
                                 break;
                             case SettingsSection.DevHarness:
                                 @RenderInternalTool(

@@ -49,6 +49,7 @@ public sealed class VaultRouteInventoryTests
     // /metadata/ or /profile-state/ that takes an item id has to be listed here with its own reason (security review L14).
     private static readonly (string Pattern, string Reason)[] AllowedRoutes =
     [
+        ("/settings/vault-moves/{id:guid}", "The id is a move job, not an item; the route is unlocked-administrator only (404 otherwise) and returns counts with no title, path or item id"),
         ("/api/v1/profile-state/reactions/{entityKind}/{entityId:guid}", "Reactions are checked against the authorized projection of the signed-in profile"),
         ("/api/v1/profile-state/reactions/{entityKind}/{entityId:guid}/{reaction}", "Reactions are checked against the authorized projection of the signed-in profile"),
         ("/api/v1/profile-state/saved/{entityKind}/{entityId:guid}", "Saves are checked against the authorized projection of the signed-in profile"),

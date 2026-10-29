@@ -179,6 +179,7 @@
 
     private string _search = string.Empty;
     private string _status = string.Empty;
+    private string? _setupArea;
 
     // Watch, Listen, Read, View: the Vault is not an area here (Library pages D2).
     // Setup leaves View out: its folders are added from View's own pages in Settings.
@@ -188,7 +189,9 @@
     {
         get
         {
-            var index = Areas.ToList().FindIndex(group => string.Equals(group.Key, Area?.Trim(), StringComparison.OrdinalIgnoreCase));
+            // Setup keeps the choice here: the address belongs to the wizard, and leaving it would abandon the first run.
+            var wanted = Simple ? _setupArea ?? Area : Area;
+            var index = Areas.ToList().FindIndex(group => string.Equals(group.Key, wanted?.Trim(), StringComparison.OrdinalIgnoreCase));
             return Math.Max(index, 0);
         }
     }
@@ -222,6 +225,12 @@
     {
         if (index < 0 || index >= Areas.Count || index == ActiveIndex)
         {
+            return;
+        }
+
+        if (Simple)
+        {
+            _setupArea = Areas[index].Key;
             return;
         }
 

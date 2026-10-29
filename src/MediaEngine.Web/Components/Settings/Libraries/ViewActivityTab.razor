@@ -1,0 +1,111 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@inject IEngineApiClient Api
+
+@* A View kind's Activity tab (Photo and video filing spec D8): what was added, which exact copies were skipped, and which files were refused,
+   newest first. The Engine writes the sentences, as counts and reasons only (never a file name), so a private library's contents are not
+   named here. *@
+<section class="view-activity" aria-label="Activity">
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading activity" />
+    }
+    else if (_failed)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="Activity could not be loaded"
+                      Message="Check that the Library server is running, then try again.">
+            <Actions>
+                <AppButton Label="Try again" OnClick="LoadAsync" />
+            </Actions>
+        </AppPageState>
+    }
+    else if (_entries.Count == 0)
+    {
+        <AppPageState Kind="AppPageStateKind.Empty"
+                      Icon="@AppMaterialIcons.Outlined.History"
+                      Title="Nothing has happened here yet"
+                      Message="Photos and videos that are added, skipped or refused will show up here." />
+    }
+    else
+    {
+        <AppList T="ViewActivityEntryDto" Class="view-activity__list" aria-label="Activity, newest first" data-testid="view-activity-rows">
+            @foreach (var entry in _entries)
+            {
+                <AppListItem T="ViewActivityEntryDto" Class="view-activity__item">
+                    <div class="view-activity__row" data-kind="@entry.Kind" data-testid="view-activity-row">
+                        <time class="view-activity__time" datetime="@entry.OccurredAt.ToString("O")" title="@FullTime(entry.OccurredAt)">@ShortTime(entry.OccurredAt)</time>
+                        <span class="view-activity__icon view-activity__icon--@ToneOf(entry.Kind)" aria-hidden="true"><AppMaterialIcon Icon="@IconOf(entry.Kind)" /></span>
+                        <span class="view-activity__text">@entry.Text</span>
+                    </div>
+                </AppListItem>
+            }
+        </AppList>
+    }
+</section>
+
+@code {
+    private const int Take = 100;
+
+    /// <summary>The View kind: photos or personal_videos.</summary>
+    [Parameter, EditorRequired] public string Kind { get; set; } = string.Empty;
+
+    private IReadOnlyList<ViewActivityEntryDto> _entries = [];
+    private string? _loadedFor;
+    private bool _loading = true;
+    private bool _failed;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == Kind)
+        {
+            return;
+        }
+
+        _loadedFor = Kind;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _failed = false;
+        var result = await Api.GetViewKindActivityAsync(Kind, Take);
+        if (result is null)
+        {
+            _failed = true;
+        }
+        else
+        {
+            _entries = result.Entries;
+        }
+
+        _loading = false;
+    }
+
+    private static string IconOf(string kind) => kind switch
+    {
+        "added" => AppMaterialIcons.Outlined.AddCircleOutline,
+        "skipped" => AppMaterialIcons.Outlined.FolderCopy,
+        "refused" => AppMaterialIcons.Outlined.ErrorOutline,
+        _ => AppMaterialIcons.Outlined.Info,
+    };
+
+    // Colour carries the kind too, never alone: every kind has its own icon shape.
+    private static string ToneOf(string kind) => kind switch
+    {
+        "added" => "success",
+        "refused" => "danger",
+        "skipped" => "info",
+        _ => "warning",
+    };
+
+    private static string ShortTime(DateTimeOffset occurredAt)
+    {
+        var local = occurredAt.ToLocalTime();
+        return local.Date == DateTimeOffset.Now.Date ? local.ToString("h:mm tt") : local.ToString("MMM d, h:mm tt");
+    }
+
+    private static string FullTime(DateTimeOffset occurredAt) => occurredAt.ToLocalTime().ToString("dddd, MMMM d, yyyy h:mm:ss tt");
+}

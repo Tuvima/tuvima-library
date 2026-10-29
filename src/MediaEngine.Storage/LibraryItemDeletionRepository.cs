@@ -37,7 +37,8 @@ public sealed class LibraryItemDeletionRepository(
 
     public Task<IReadOnlyList<LibraryItemDeletionWork>> GetWorksAsync(
         IReadOnlyList<Guid> workIds,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool vaultItems = false)
     {
         ArgumentNullException.ThrowIfNull(workIds);
         ct.ThrowIfCancellationRequested();
@@ -45,6 +46,11 @@ public sealed class LibraryItemDeletionRepository(
         {
             return Task.FromResult<IReadOnlyList<LibraryItemDeletionWork>>([]);
         }
+
+        // Only an administrator's Move out asks for Vault titles; every other caller never sees one.
+        var visibility = vaultItems
+            ? $"NOT ({VaultSql.NotVaultEntity("w.id")})"
+            : VaultSql.NotVaultEntity("w.id");
 
         using var connection = db.CreateConnection();
         var ids = ToBlobs(workIds);
@@ -96,7 +102,7 @@ public sealed class LibraryItemDeletionRepository(
                    ) AS Title
             FROM works w
             WHERE w.id IN @ids
-              AND {VaultSql.NotVaultEntity("w.id")};
+              AND {visibility};
             """,
             new { ids },
             cancellationToken: ct)).ToList();
@@ -112,7 +118,7 @@ public sealed class LibraryItemDeletionRepository(
             LEFT JOIN editions e ON e.work_id = w.id
             LEFT JOIN media_assets ma ON ma.edition_id = e.id
             WHERE w.id IN @ids
-              AND {VaultSql.NotVaultEntity("w.id")}
+              AND {visibility}
             ORDER BY w.id, ma.file_path_root;
             """,
             new { ids },

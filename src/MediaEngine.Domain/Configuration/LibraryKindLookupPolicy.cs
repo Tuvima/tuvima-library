@@ -32,6 +32,9 @@ public static class LibraryKindLookupPolicy
     /// <summary>The key of the YouTube kind.</summary>
     public const string YouTubeKindKey = "youtube";
 
+    /// <summary>The key of the adult content kind, whose Vault library looks up through the Vault's own source only.</summary>
+    public const string AdultContentKindKey = "adult_content";
+
     /// <summary>How the kind named by <paramref name="kindKey"/> decides lookup. A missing list falls back to the kinds that ship, so a plain kind is never read as a lookup kind by accident.</summary>
     public static LibraryLookupMode ModeOf(string? kindKey, IReadOnlyList<LibraryKindDefinition>? kinds)
     {
@@ -63,15 +66,29 @@ public static class LibraryKindLookupPolicy
         var mode = ModeOf(library.KindKey, kinds);
         return mode switch
         {
-            // A Vault-protected library asks no outside provider for anything until the Vault's own lookup gates exist (Vault sections WP1): whatever its
-            // stored "Look up details online" choice says, the effective policy stays local only, so no identity job, retail search, Wikidata bridge or
-            // video-site lookup runs. The stored choice is kept as it is, so it takes effect when the gates arrive.
+            // A Vault-protected library asks no outside provider for anything unless an administrator switched "Look up details online" on for it
+            // and its content type looks details up at all (Vault sections D34). The adult kind has the Vault's own source (Stash-box) and YouTube is
+            // never asked about a Vault item, so those stay local; a plain kind stays local too. The stored choice is the library's metadata policy.
             _ when string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
-                => new EffectiveLibraryLookup(mode, LibraryMetadataPolicies.LocalOnly, YoutubeLookup: false),
+                => VaultLookup(library, mode, kinds),
             LibraryLookupMode.Plain => new EffectiveLibraryLookup(mode, LocalPolicy(library.MetadataPolicy), YoutubeLookup: false),
             LibraryLookupMode.YouTube => new EffectiveLibraryLookup(mode, LocalPolicy(library.MetadataPolicy), YoutubeLookup: true),
             _ => new EffectiveLibraryLookup(mode, library.MetadataPolicy, library.YoutubeLookup),
         };
+    }
+
+    // A Vault library looks details up online only when its own switch is on and its content type is one that looks details up (not the adult kind,
+    // not YouTube, not a plain kind). Fails closed: a library with no known content type looks nothing up.
+    private static EffectiveLibraryLookup VaultLookup(LibraryFolderConfig library, LibraryLookupMode mode, IReadOnlyList<LibraryKindDefinition>? kinds)
+    {
+        var offers = mode == LibraryLookupMode.FromFields
+            && !string.IsNullOrWhiteSpace(library.KindKey)
+            && !string.Equals(library.KindKey, AdultContentKindKey, StringComparison.Ordinal)
+            && (kinds ?? LibraryKindsConfiguration.BuiltIn()).Any(kind => string.Equals(kind.Key, library.KindKey, StringComparison.Ordinal));
+        return new EffectiveLibraryLookup(
+            mode,
+            offers && !LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy) ? library.MetadataPolicy : LibraryMetadataPolicies.LocalOnly,
+            YoutubeLookup: false);
     }
 
     /// <summary>

@@ -31,7 +31,7 @@ jobs:
     name: Build, format and publish checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -133,7 +133,7 @@ jobs:
               tests/MediaEngine.Intelligence.Tests tests/MediaEngine.Performance.Tests
               tests/MediaEngine.Processors.Tests tests/MediaEngine.Providers.Tests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history so origin/main exists for ReleasedStepsOnMain_AreUnchangedInThisChange.
           fetch-depth: 0
@@ -160,6 +160,20 @@ jobs:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
           restore-keys: nuget-${{ runner.os }}-
+
+      # The public docs live in their own repository. The Storage lane reads a few pages from it (PublicDocsDriftTests)
+      # so they cannot quietly drift from the app; the nightly run catches pages edited there after this change merged.
+      - name: Check out the public docs
+        if: steps.scope.outputs.code == 'true' && matrix.name == 'Storage'
+        uses: actions/checkout@v7
+        with:
+          repository: Tuvima/tuvima-docs
+          path: .tmp/tuvima-docs
+          fetch-depth: 1
+
+      - name: Point the drift checks at the docs
+        if: steps.scope.outputs.code == 'true' && matrix.name == 'Storage'
+        run: echo "TUVIMA_DOCS_DIR=$GITHUB_WORKSPACE/.tmp/tuvima-docs" >> "$GITHUB_ENV"
 
       # Projects in one lane run at the same time; each prints its own result and any failure fails the lane.
       - name: Run tests
@@ -219,7 +233,7 @@ jobs:
           echo "build=${{ needs.build.result }} test=${{ needs.test.result }}"
           if [ "${{ needs.build.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then exit 1; fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: github.event_name != 'pull_request'
 
       - name: Download test results

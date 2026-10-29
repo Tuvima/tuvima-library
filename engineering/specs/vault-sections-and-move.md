@@ -1,6 +1,6 @@
 # Spec: Vault sections and Move to Vault
 
-> **Status:** Locked · **Version:** 5 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Videos](videos.md) (D17, D18, D21, D25, D27, D28, D33, D45, D52, D54, D55, D56) · [Simpler library setup](library-setup-groups.md) · [Delete a show, season, album or Series](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
+> **Status:** Built, awaiting your Local checks · **Version:** 5 · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Videos](videos.md) (D17, D18, D21, D25, D27, D28, D33, D45, D52, D54, D55, D56) · [Simpler library setup](library-setup-groups.md) · [Delete a show, season, album or Series](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
 
 > Split out of the library setup spec on 2026-10-21. Version 4 (2026-10-22) folds in the independent security review against the Vault as merged (PR #374 and follow-ups #414, #415) and Shy's answers to its five decisions (D34 to D38). Locked by Shy on 2026-10-22, which approves the changes it makes to Videos D21, D27, D28, D54 and to CLAUDE.md "Never" rule 7. Because it is a security, storage and access change, the build gets the extra security review before any merge.
 

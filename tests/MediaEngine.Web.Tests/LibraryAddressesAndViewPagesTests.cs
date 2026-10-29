@@ -546,7 +546,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
         var page = Open("view", "photos");
 
         page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
-        Assert.Equal(["Folders", "Access", "File handling"], page.FindAll("[role=tab]").Select(Text).ToArray());
+        Assert.Equal(["Folders", "Access", "File handling", "Activity"], page.FindAll("[role=tab]").Select(Text).ToArray());
         Assert.Equal("Photos", Text(page.Find(".libpage__type")));
         Assert.Equal("Per profile", Text(page.Find(".libpage__access")));
         Assert.DoesNotContain("Include subfolders", page.Markup, StringComparison.Ordinal);

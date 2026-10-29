@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0062 fictional_entity_override_label_optional).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0065 vault_moves).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2876,6 +2876,41 @@ CREATE TABLE vault_matches (
     matched_at  TEXT NOT NULL
 );
 
+CREATE TABLE vault_move_items (
+    id             BLOB NOT NULL PRIMARY KEY,
+    move_id        BLOB NOT NULL REFERENCES vault_moves(id) ON DELETE CASCADE,
+    position       INTEGER NOT NULL,
+    work_id        BLOB,
+    asset_id       BLOB,
+    new_asset_id   BLOB,
+    source_path    TEXT NOT NULL,
+    final_name     TEXT NOT NULL,
+    size_bytes     INTEGER NOT NULL DEFAULT 0,
+    content_hash   TEXT,
+    files_json     TEXT,
+    snapshot_json  TEXT,
+    original_left  INTEGER NOT NULL DEFAULT 0 CHECK (original_left IN (0, 1)),
+    state          TEXT NOT NULL CHECK (state IN ('planned', 'copied', 'retired', 'published', 'done', 'skipped', 'failed')),
+    reason         TEXT,
+    updated_at     TEXT NOT NULL
+);
+
+CREATE TABLE vault_moves (
+    id                         BLOB NOT NULL PRIMARY KEY,
+    direction                  TEXT NOT NULL CHECK (direction IN ('in', 'out')),
+    kind_key                   TEXT NOT NULL,
+    source_library_id          TEXT NOT NULL COLLATE NOCASE,
+    destination_library_id     TEXT NOT NULL COLLATE NOCASE,
+    source_folder              TEXT NOT NULL,
+    destination_folder         TEXT NOT NULL,
+    remove_read_only_originals INTEGER NOT NULL DEFAULT 0 CHECK (remove_read_only_originals IN (0, 1)),
+    state                      TEXT NOT NULL CHECK (state IN ('queued', 'running', 'done', 'attention', 'failed')),
+    message                    TEXT,
+    created_by_profile_id      BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at                 TEXT NOT NULL,
+    updated_at                 TEXT NOT NULL
+);
+
 CREATE TABLE vault_performers (
     id         BLOB NOT NULL PRIMARY KEY,
     library_id TEXT NOT NULL REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
@@ -2885,6 +2920,14 @@ CREATE TABLE vault_performers (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     UNIQUE (library_id, name)
+);
+
+CREATE TABLE vault_section_grants (
+    library_id            TEXT NOT NULL COLLATE NOCASE REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
+    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at            TEXT NOT NULL,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    PRIMARY KEY (library_id, profile_id)
 );
 
 CREATE TABLE vault_studios (
@@ -2922,6 +2965,20 @@ CREATE TABLE view_devices (
     UNIQUE (personal_space_id, client_device_id)
 );
 
+CREATE TABLE view_duplicate_groups (
+    id                  BLOB NOT NULL PRIMARY KEY,
+    scope_kind          TEXT NOT NULL CHECK (scope_kind IN ('personal', 'shared')),
+    library_id          BLOB NOT NULL,             -- the space's or the Shared Library's library id
+    content_hash        TEXT NOT NULL COLLATE NOCASE,
+    copy_count          INTEGER NOT NULL CHECK (copy_count >= 2),
+    state               TEXT NOT NULL CHECK (state IN ('open', 'dismissed')),
+    first_found_at      TEXT NOT NULL,
+    last_seen_at        TEXT NOT NULL,
+    dismissed_at        TEXT,
+    dismissed_by        BLOB,
+    UNIQUE (library_id, content_hash)
+);
+
 CREATE TABLE view_galleries (
     id                  BLOB NOT NULL PRIMARY KEY,
     owner_profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -2953,6 +3010,28 @@ CREATE TABLE view_gallery_shares (
     permission          TEXT NOT NULL DEFAULT 'view' CHECK (permission IN ('view', 'contribute')),
     shared_at           TEXT NOT NULL,
     PRIMARY KEY (gallery_id, profile_id)
+);
+
+CREATE TABLE view_intake_files (
+    id                  BLOB NOT NULL PRIMARY KEY,
+    content_kind        TEXT NOT NULL CHECK (content_kind IN ('photos', 'personal_videos')),
+    scope_kind          TEXT NOT NULL CHECK (scope_kind IN ('personal', 'shared')),
+    owner_profile_id    BLOB REFERENCES profiles(id) ON DELETE SET NULL, -- whose space the file is filed into; null for the Shared Library
+    added_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL, -- who put it there (the uploader), when known
+    original_name       TEXT NOT NULL,
+    current_path        TEXT NOT NULL,             -- where the file is now: in the Import area or the Rejected area
+    target_path         TEXT,                      -- while state = 'filing': where it is being moved to
+    filed_path          TEXT,                      -- once filed: where it ended up
+    group_key           TEXT,                      -- files filed together (RAW + JPEG + sidecar, Live Photo + video) share a key
+    group_role          TEXT,                      -- the file's role in its group (primary, raw, jpeg, sidecar, live_photo_video)
+    byte_size           INTEGER NOT NULL DEFAULT 0 CHECK (byte_size >= 0),
+    content_hash        TEXT,
+    state               TEXT NOT NULL CHECK (state IN ('waiting', 'filing', 'filed', 'duplicate', 'rejected', 'stray')),
+    reason_code         TEXT,                      -- why a file was refused (damaged, empty, unsupported_type, ...)
+    reason_text         TEXT,                      -- the same reason in plain words
+    created_at          TEXT NOT NULL,             -- ISO 8601 UTC
+    updated_at          TEXT NOT NULL,
+    expires_at          TEXT                       -- a refused file is removed automatically after this time
 );
 
 CREATE TABLE view_personal_spaces (
@@ -3075,6 +3154,35 @@ CREATE TABLE view_sources (
 CREATE TABLE view_storage_labels (
     personal_space_id BLOB NOT NULL PRIMARY KEY,
     label TEXT NOT NULL UNIQUE COLLATE NOCASE
+);
+
+CREATE TABLE view_tidy_jobs (
+    id                  BLOB NOT NULL PRIMARY KEY,
+    source_id           BLOB NOT NULL REFERENCES view_sources(id) ON DELETE CASCADE,
+    trigger_kind        TEXT NOT NULL CHECK (trigger_kind IN ('now', 'scheduled')),
+    state               TEXT NOT NULL CHECK (state IN ('running', 'completed', 'failed')),
+    total_files         INTEGER NOT NULL DEFAULT 0 CHECK (total_files >= 0),
+    moved_files         INTEGER NOT NULL DEFAULT 0 CHECK (moved_files >= 0),
+    failed_files        INTEGER NOT NULL DEFAULT 0 CHECK (failed_files >= 0),
+    message             TEXT,                      -- the plain sentence shown when the job finished or stopped
+    started_by          BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at          TEXT NOT NULL,
+    finished_at         TEXT
+);
+
+CREATE TABLE view_tidy_moves (
+    job_id              BLOB NOT NULL REFERENCES view_tidy_jobs(id) ON DELETE CASCADE,
+    source_file_id      BLOB NOT NULL,             -- the file location row being renamed
+    from_path           TEXT NOT NULL,
+    to_path             TEXT NOT NULL,
+    state               TEXT NOT NULL CHECK (state IN ('planned', 'moved', 'failed')),
+    reason              TEXT,
+    PRIMARY KEY (job_id, source_file_id)
+);
+
+CREATE TABLE view_tidy_schedules (
+    source_id           BLOB NOT NULL PRIMARY KEY REFERENCES view_sources(id) ON DELETE CASCADE,
+    created_at          TEXT NOT NULL
 );
 
 CREATE TABLE waiting_personal_state (
@@ -3870,8 +3978,16 @@ CREATE INDEX ix_vault_image_items_library ON vault_image_items(library_id, item_
 
 CREATE INDEX ix_vault_image_tags_tag      ON vault_image_tags(tag_id, item_id);
 
+CREATE INDEX ix_vault_move_items_move ON vault_move_items(move_id, state);
+
+CREATE INDEX ix_vault_moves_state ON vault_moves(state);
+
+CREATE INDEX ix_vault_section_grants_profile ON vault_section_grants(profile_id);
+
 CREATE INDEX ix_view_devices_space_backup
     ON view_devices(personal_space_id, last_backup_at DESC, id);
+
+CREATE INDEX ix_view_duplicate_groups_state ON view_duplicate_groups(scope_kind, state);
 
 CREATE INDEX ix_view_galleries_owner_order
     ON view_galleries(owner_profile_id, sort_order, updated_at DESC, id);
@@ -3888,11 +4004,15 @@ CREATE INDEX ix_view_gallery_items_item
 CREATE INDEX ix_view_gallery_shares_profile
     ON view_gallery_shares(profile_id, shared_at DESC, gallery_id);
 
+CREATE INDEX ix_view_intake_files_state ON view_intake_files(state, content_kind);
+
 CREATE INDEX ix_view_personal_spaces_library
     ON view_personal_spaces(library_id, owner_profile_id);
 
 CREATE INDEX ix_view_sources_space_activity
     ON view_sources(personal_space_id, last_activity_at DESC, id);
+
+CREATE INDEX ix_view_tidy_jobs_source ON view_tidy_jobs(source_id, state);
 
 CREATE UNIQUE INDEX ux_accounts_normalized_email
     ON accounts(normalized_email);
@@ -3946,6 +4066,9 @@ CREATE UNIQUE INDEX ux_review_queue_pending_entity_trigger
 CREATE UNIQUE INDEX ux_service_credentials_active_purpose
     ON service_credentials(purpose)
     WHERE revoked_at IS NULL;
+
+CREATE UNIQUE INDEX ux_view_intake_files_open_path ON view_intake_files(current_path COLLATE NOCASE)
+    WHERE state IN ('waiting', 'filing', 'rejected', 'stray');
 
 CREATE UNIQUE INDEX ux_view_sources_personal_key ON view_sources(personal_space_id, source_key)
     WHERE scope_kind = 'personal' AND source_key IS NOT NULL;
@@ -4118,6 +4241,13 @@ BEGIN
     DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.id;
 END;
 
+CREATE TRIGGER trg_profiles_vault_sections_withdrawn
+AFTER UPDATE OF role, content_limit ON profiles
+WHEN NEW.role = 'RestrictedProfile' OR NEW.content_limit IS NOT NULL
+BEGIN
+    DELETE FROM vault_section_grants WHERE profile_id = NEW.id;
+END;
+
 CREATE TRIGGER trg_vault_activity_vault_only
 BEFORE INSERT ON vault_activity
 WHEN NOT EXISTS (
@@ -4210,6 +4340,11 @@ BEFORE INSERT ON vault_matches
 WHEN NOT EXISTS (
     SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
 BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have a Vault match.'); END;
+
+CREATE TRIGGER trg_vault_section_grants_eligible
+BEFORE INSERT ON vault_section_grants
+WHEN EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
+BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot open a Vault section.'); END;
 
 CREATE TRIGGER trg_view_galleries_cover_no_vault_image_insert
 BEFORE INSERT ON view_galleries

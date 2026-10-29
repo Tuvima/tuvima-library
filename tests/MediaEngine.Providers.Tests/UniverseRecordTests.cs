@@ -110,6 +110,53 @@ public sealed class UniverseRecordTests : IDisposable
     }
 
     [Fact]
+    public async Task AVaultWork_HasNoNarrativeRoot_EvenWhenItsMetadataNamesAUniverse()
+    {
+        AddBook("Leviathan Wakes", "Books");
+        await AssignAsync("Leviathan Wakes");
+        var workId = _works["Leviathan Wakes"].WorkId;
+        Assert.NotNull(await _narrativeRoots.ResolveAsync(workId));
+
+        var vaultResolver = new NarrativeRootResolver(
+            new CanonicalValueRepository(_db),
+            new CanonicalValueArrayRepository(_db),
+            _roots,
+            _collections,
+            new QidLabelRepository(_db),
+            new SystemActivityRepository(_db),
+            NullLogger<NarrativeRootResolver>.Instance,
+            _parents,
+            new EverythingIsVault());
+
+        Assert.Null(await vaultResolver.ResolveAsync(workId));
+    }
+
+    private sealed class EverythingIsVault : MediaEngine.Domain.Contracts.IVaultLibraryRepository
+    {
+        public Task<bool> IsInVaultAsync(Guid id, CancellationToken ct = default) => Task.FromResult(true);
+
+        public Task<IReadOnlyList<MediaEngine.Domain.Contracts.VaultLibrary>> GetAllAsync(CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlySet<string>> GetIdsAsync(CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<MediaEngine.Domain.Contracts.VaultLibrary?> GetAsync(string libraryId, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<bool> AnyAsync(CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<bool> HoldsOrdinaryFilesAsync(string folderPath, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<bool> MayPersonBeVaultOnlyAsync(Guid personId, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task AddAsync(MediaEngine.Domain.Contracts.VaultLibrary library, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<bool> UpdateLookupAsync(string libraryId, string lookupSource, string? lookupServerId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<bool> RemoveAsync(string libraryId, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<bool> RemoveAsync(string libraryId, IReadOnlyCollection<string> sourcePaths, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
+    [Fact]
     public async Task BooksNamingAFictionalUniverse_BringTheirAdaptationIntoIt_EvenWhenTheAdaptationCameFirst()
     {
         const string ExpanseUniverse = "Q900";

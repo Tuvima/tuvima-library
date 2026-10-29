@@ -58,7 +58,7 @@ public sealed class VaultSiblingLibraryService(
 
     /// <summary>Makes the Vault library of a content type with its first folder. Refused when the type already has one.</summary>
     public async Task<VaultSiblingOutcome> CreateAsync(
-        Guid adminProfileId, string? kindKey, string? name, string? folderPath, CancellationToken ct)
+        Guid adminProfileId, string? kindKey, string? name, string? folderPath, CancellationToken ct, bool managed = false)
     {
         if (ResolveKind(kindKey) is not { } kind)
         {
@@ -99,7 +99,7 @@ public sealed class VaultSiblingLibraryService(
         {
             outcome = await attachment.AttachAsAdministratorAsync(
                 entryId, folderPath, NewEntry(entryId, trimmed, kind.Kind),
-                settings => TakenInside(settings, kind.Kind.Key, trimmed), ct).ConfigureAwait(false);
+                settings => TakenInside(settings, kind.Kind.Key, trimmed), managed, ct).ConfigureAwait(false);
         }
         catch
         {
@@ -120,7 +120,7 @@ public sealed class VaultSiblingLibraryService(
     /// Adds a folder as a Vault folder of a content type: to the type's Vault library, or, when it has none yet, to a new one named for the
     /// type. This is what "Add as a Vault folder" on Add folder does.
     /// </summary>
-    public async Task<VaultSiblingOutcome> AddFolderAsync(Guid adminProfileId, string? kindKey, string? folderPath, CancellationToken ct)
+    public async Task<VaultSiblingOutcome> AddFolderAsync(Guid adminProfileId, string? kindKey, string? folderPath, CancellationToken ct, bool managed = false)
     {
         if (ResolveKind(kindKey) is not { } kind)
         {
@@ -131,10 +131,10 @@ public sealed class VaultSiblingLibraryService(
         var held = VaultEntries(configuration.LoadLibraries(), vaultIds).FirstOrDefault(entry => KindOf(entry, kind.Kind.Key));
         if (held is null)
         {
-            return await CreateAsync(adminProfileId, kind.Kind.Key, DefaultName(kind.Kind.Label), folderPath, ct).ConfigureAwait(false);
+            return await CreateAsync(adminProfileId, kind.Kind.Key, DefaultName(kind.Kind.Label), folderPath, ct, managed).ConfigureAwait(false);
         }
 
-        var outcome = await attachment.AttachAsAdministratorAsync(held.Id, folderPath, null, null, ct).ConfigureAwait(false);
+        var outcome = await attachment.AttachAsAdministratorAsync(held.Id, folderPath, null, null, managed, ct).ConfigureAwait(false);
         return outcome.Status == VaultFolderAttachmentStatus.Attached
             ? new VaultSiblingOutcome(VaultSiblingStatus.Ok, Library: FindEntry(held.Id))
             : Refused(outcome);

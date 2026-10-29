@@ -98,7 +98,7 @@ public sealed partial class IngestionEngine
 
                     // Skip files inside the .data directory - staging, images, and database
                     // live here and must not be re-ingested automatically.
-                    if (IsIgnoredScanFile(filePath))
+                    if (ShouldIgnoreScanFile(filePath))
                     {
                         continue;
                     }
@@ -260,6 +260,13 @@ public sealed partial class IngestionEngine
         }
     }
 
+    /// <summary>
+    /// <see cref="IsIgnoredScanFile"/>, and also anything in the import folder's Photos or Personal videos section: those belong to the
+    /// personal photo and video filer and never enter the catalogue pipeline.
+    /// </summary>
+    private bool ShouldIgnoreScanFile(string filePath) =>
+        IsIgnoredScanFile(filePath) || _importFolders?.IsViewSectionPath(filePath) == true;
+
     internal static bool IsIgnoredScanFile(string filePath)
     {
         if (filePath.Contains(Path.DirectorySeparatorChar + ".data" + Path.DirectorySeparatorChar,
@@ -380,7 +387,7 @@ public sealed partial class IngestionEngine
                             break;
                         }
 
-                        if (IsIgnoredScanFile(filePath))
+                        if (ShouldIgnoreScanFile(filePath))
                         {
                             ignored++;
                             continue;
@@ -546,7 +553,7 @@ public sealed partial class IngestionEngine
     private bool BufferFswEvent(FileEvent evt)
     {
         var extension = Path.GetExtension(evt.Path);
-        if (string.IsNullOrWhiteSpace(extension) || IsIgnoredScanFile(evt.Path))
+        if (string.IsNullOrWhiteSpace(extension) || ShouldIgnoreScanFile(evt.Path))
         {
             return false;
         }
@@ -720,7 +727,7 @@ public sealed partial class IngestionEngine
         {
             var normalizedPath = Path.GetFullPath(evt.Path);
             var extension = Path.GetExtension(normalizedPath);
-            if (string.IsNullOrWhiteSpace(extension) || IsIgnoredScanFile(normalizedPath))
+            if (string.IsNullOrWhiteSpace(extension) || ShouldIgnoreScanFile(normalizedPath))
             {
                 ReleaseActivePath(evt.Path);
                 continue;

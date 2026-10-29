@@ -8,7 +8,7 @@ public sealed class TypographySystemGuardTests
         var tokens = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
 
         Assert.Contains("--font-ui: \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system,", tokens, StringComparison.Ordinal);
-        Assert.Contains("--font-brand: \"Montserrat\", sans-serif;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--font-brand: \"Tuvima Sans\", \"Montserrat\", sans-serif;", tokens, StringComparison.Ordinal);
         Assert.Contains("--media-identity-font-family: var(--font-ui);", tokens, StringComparison.Ordinal);
     }
 

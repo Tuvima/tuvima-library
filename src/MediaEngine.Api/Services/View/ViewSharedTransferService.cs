@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Dapper;
 using MediaEngine.Api.Services.LocalAssets;
+using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -11,15 +12,47 @@ using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.View;
 
+/// <summary>An exact copy of the photo is already in the Shared Library, so it is not added a second time (Photo and video filing spec D5).</summary>
+public sealed class SharedAlreadyPresentException() : InvalidOperationException(ViewSharedTransferService.AlreadyInSharedMessage);
+
 public sealed class ViewSharedTransferService(
     IDatabaseConnection database,
     ILocalAssetRepository assets,
     ViewStorageService storage,
     IFileWriteQueue? fileWrites = null,
-    ILogger<ViewSharedTransferService>? logger = null)
+    ILogger<ViewSharedTransferService>? logger = null,
+    IConfigurationLoader? configuration = null)
 {
+    /// <summary>What a person is told when the Shared Library already holds an exact copy.</summary>
+    public const string AlreadyInSharedMessage = "Already in the Shared Library.";
+
     private static readonly SemaphoreSlim TransferGate = new(1, 1);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// True when the Shared Library of this person's household already holds a file with exactly these contents and it is not in Trash.
+    /// A household with no Shared Library yet holds nothing.
+    /// </summary>
+    public bool IsInSharedLibrary(Guid profileId, string contentHash, CancellationToken ct = default) =>
+        FindInSharedLibrary(profileId, contentHash, ct) is { InTrash: false };
+
+    /// <summary>The Shared Library item of this person's household with exactly these contents, or null.</summary>
+    public LocalAssetPresence? FindInSharedLibrary(Guid profileId, string contentHash, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(contentHash))
+        {
+            return null;
+        }
+
+        using var connection = database.CreateConnection();
+        var libraryId = connection.QuerySingleOrDefault<Guid?>(new CommandDefinition("""
+            SELECT sl.library_id
+              FROM profiles p
+              JOIN view_shared_library sl ON sl.household_id = p.household_id
+             WHERE p.id = @profileId;
+            """, new { profileId }, cancellationToken: ct));
+        return libraryId is { } shared ? assets.FindPrimaryContent("shared", shared, null, contentHash, ct) : null;
+    }
 
     /// <param name="copyOnly">
     /// True when the person sending the item is not its owner (a household member sharing someone else's photo):
@@ -52,7 +85,7 @@ public sealed class ViewSharedTransferService(
 
     public async Task<ViewSharedTransferResultDto> ExecuteAsync(Guid itemId, Guid actorProfileId,
         string destinationKind, string? folderName, Guid? contributionItemId = null,
-        CancellationToken ct = default, bool copyOnly = false)
+        CancellationToken ct = default, bool copyOnly = false, bool skipDuplicateCheck = false)
     {
         await TransferGate.WaitAsync(ct);
         try
@@ -61,6 +94,21 @@ public sealed class ViewSharedTransferService(
             if (existing?.State == "completed" && IsSharedLibraryAsset(itemId, ct))
             {
                 return ToResult(itemId, existing);
+            }
+
+            // An exact copy already in the Shared Library is refused before anything is copied (the household can see the Shared
+            // Library, so saying so reveals nothing private). A transfer that already started is finished, never refused.
+            if (!skipDuplicateCheck && existing is null && !IsSharedLibraryAsset(itemId, ct))
+            {
+                var candidate = assets.Find(itemId, ct);
+                var candidateFiles = GetFiles(itemId, ct);
+                var primary = candidateFiles.FirstOrDefault(file => string.Equals(file.Role, "primary", StringComparison.OrdinalIgnoreCase))
+                    ?? candidateFiles.FirstOrDefault();
+                if (candidate is not null && primary is not null
+                    && IsInSharedLibrary(candidate.OwnerProfileId ?? actorProfileId, primary.ContentHash, ct))
+                {
+                    throw new SharedAlreadyPresentException();
+                }
             }
 
             var preview = Preview(itemId, destinationKind, folderName, ct, copyOnly);
@@ -444,9 +492,8 @@ public sealed class ViewSharedTransferService(
         var result = new List<DestinationManifestFile>(files.Count);
         foreach (var file in files)
         {
-            var name = preview.DestinationKind == "timeline"
-                ? TimelineFileName(item, file)
-                : Path.GetFileName(file.FilePath);
+            // Files keep their own names in the Shared Library; a clash gets a short number.
+            var name = Path.GetFileName(file.FilePath);
             var destination = UniqueDestination(preview.DestinationRoot, name, reserved);
             reserved.Add(destination);
             result.Add(new DestinationManifestFile(file.FileId, file.FilePath, destination,
@@ -513,29 +560,10 @@ public sealed class ViewSharedTransferService(
             return Path.Combine(sharedRoot, "Folders", SanitizeFolderName(folderName));
         }
 
-        var date = (item.CapturedAt ?? item.CreatedAt).ToLocalTime();
-        return Path.Combine(sharedRoot, "Timeline", date.Year.ToString("0000", CultureInfo.InvariantCulture),
-            date.ToString("MM - MMM", CultureInfo.InvariantCulture));
-    }
-
-    private static string TimelineFileName(LocalAssetDto item, TransferFile file)
-    {
-        var date = (item.CapturedAt ?? item.CreatedAt).ToLocalTime();
-        var suffix = item.MediaKind switch
-        {
-            "image" => "IMG",
-            "video" => "VID",
-            "document" => "DOC",
-            "audio" => "AUD",
-            _ => "FILE",
-        };
-        if (!string.Equals(file.Role, "primary", StringComparison.OrdinalIgnoreCase))
-        {
-            suffix += $"-{file.Role.ToUpperInvariant()}";
-        }
-
-        return date.ToString("MMM dd - HH.mm.ss", CultureInfo.InvariantCulture)
-            + suffix + Path.GetExtension(file.FilePath).ToLowerInvariant();
+        // The Shared timeline is laid out like a person's own library: by the day it was taken (Photo and video filing spec D2).
+        var date = item.CapturedAt ?? item.CreatedAt;
+        return Path.Combine(sharedRoot, "Timeline",
+            ViewFilingLayout.FolderFor(configuration?.LoadPhotoFiling().LayoutPattern, date));
     }
 
     private static string NormalizeDestinationKind(string value) => value.Trim().ToLowerInvariant() switch

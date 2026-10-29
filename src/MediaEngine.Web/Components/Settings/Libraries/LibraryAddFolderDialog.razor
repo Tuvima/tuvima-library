@@ -25,6 +25,13 @@
                               Value="@_asVault"
                               ValueChanged="SetVault" />
             }
+            @if (VaultChosen)
+            {
+                <AppSwitchRow Label="Let Library manage this folder"
+                              Description="Needed to move items into the Vault. Library may add and remove files in a managed folder. Left off, the folder is read-only and your files are never changed."
+                              Value="@_managedVault"
+                              ValueChanged="SetManagedVault" />
+            }
         </div>
     </ChildContent>
     <FooterContent>
@@ -37,7 +44,7 @@
 
 @code {
     /// <summary>What the dialog hands back: the folder that was checked and whether it is to be a Vault folder.</summary>
-    public sealed record Choice(ServerFolderValidationResultDto Folder, bool AsVault);
+    public sealed record Choice(ServerFolderValidationResultDto Folder, bool AsVault, bool ManagedVault = false);
 
     /// <summary>The centred dialog Add folder opens with.</summary>
     public static AppDialogOptions DialogOptions { get; } = new()
@@ -65,11 +72,15 @@
     private ServerFolderValidationResultDto? _folder;
     private string? _pickerStart;
     private bool _asVault;
+    private bool _managedVault;
 
     private bool VaultChosen => ForceVault || (OfferVault && _asVault);
 
-    // A Vault folder is added as it is, so it is checked as a read-only folder whatever the content type's default.
-    private string PickerMode => Managed && !VaultChosen ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary;
+    // A Vault folder is added as it is, so it is checked as a read-only folder whatever the content type's default, unless the administrator
+    // chose a Managed Vault folder (the only kind Move to Vault may write to), which is checked for write access.
+    private string PickerMode => VaultChosen
+        ? (_managedVault ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary)
+        : Managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary;
 
     private string PickerKey => $"{KindKey}|{PickerMode}";
 
@@ -92,11 +103,19 @@
         _folder = null;
     }
 
+    private void SetManagedVault(bool value)
+    {
+        if (_managedVault == value) return;
+        _managedVault = value;
+        _pickerStart = _folder?.Path;
+        _folder = null;
+    }
+
     private void Confirm()
     {
         if (_folder is { } folder && FolderUsable)
         {
-            Dialog.Close(AppDialogResult.Ok(new Choice(folder, VaultChosen)));
+            Dialog.Close(AppDialogResult.Ok(new Choice(folder, VaultChosen, VaultChosen && _managedVault)));
         }
     }
 }
