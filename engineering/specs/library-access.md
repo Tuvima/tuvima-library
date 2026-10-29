@@ -1,8 +1,10 @@
 # Spec: Simpler library access, Plex style (ticks on the person, no per-library access)
 
-> **Status:** Locked (Shy, 2026-10-29) · **Version:** 2 · **Last updated:** 2026-10-29 · **Related docs:** [Simpler access](simpler-access.md) (v4, Built) · [Library pages](library-pages.md) (v14, Built) · [Users, profiles and households](users-profiles-households.md) (v5, Built) · [Backup and restore](backup-and-restore.md) (D10, D19, D20) · [Vault sections and Move to Vault](vault-sections-and-move.md) · [Library setup](library-setup-groups.md) (D68)
+> **Status:** Locked (Shy, 2026-10-29) · **Version:** 3 · **Last updated:** 2026-10-29 · **Related docs:** [Simpler access](simpler-access.md) (v4, Built) · [Library pages](library-pages.md) (v14, Built) · [Users, profiles and households](users-profiles-households.md) (v5, Built) · [Backup and restore](backup-and-restore.md) (D10, D19, D20) · [Vault sections and Move to Vault](vault-sections-and-move.md) · [Library setup](library-setup-groups.md) (D68)
 
-> Written from Shy's bug-log items F83 and F82. Version 1 (2026-10-28) proposed dropping per-profile library access altogether. Version 2 (2026-10-29) replaces that after Shy showed how Plex does it: **who can see which library is set on the person, as ticks under each area**, with household limits above it and rating limits beside it. Locked by Shy on 2026-10-29. The build (LA6) writes the new versions of the specs named in section 9; this commit changes none of them.
+> Written from Shy's bug-log items F83 and F82. Version 1 (2026-10-28) proposed dropping per-profile library access altogether. Version 2 (2026-10-29) replaces that after Shy showed how Plex does it: **who can see which library is set on the person, as ticks under each area**, with household limits above it and rating limits beside it. Section 9 lists exactly what changes; the build (LA6) writes those versions.
+
+> Version 3 (2026-10-29) records Shy's decision that **the Vault becomes a fifth top-level area** beside Watch, Listen, Read and View (see the library setup spec, add-folder flow). It replaces v2's Adult content rule (D6) and the "Keep this library in the Vault" creation tick. Everything else in v2 stays. Locked by Shy on 2026-10-29.
 
 ## Plain-English product walkthrough
 
@@ -10,7 +12,7 @@
 1. **Area** (Watch, Listen, Read, View): switched on or off per profile. Under an area that is on, the libraries in it are listed with a tick each. Ticked means the person sees it; unticking takes it away. Example: Sam has Watch, ticked Movies and TV Shows, unticked Home Videos and Other Videos.
 2. **Household ceiling.** The server administrator decides which libraries a household can use at all (all ticked by default). A household administrator then ticks libraries for the household's profiles, but only from what the household already has.
 3. **Kid's profile and levels** steer what shows on the home page and in lists: a level per area (Watch, Read, Listen) set once on the household. It is a guide for children, not a lock; parents supervise, and a profile PIN stops switching to an adult profile.
-The **Vault** stays separate, with its own per-section access and PIN, for anything private.
+The **Vault** is a fifth area, **Vault**, beside Watch, Listen, Read and View. It has its own per-profile access, per-section access and PIN. A profile without Vault access never sees the Vault button, its libraries, counts or search results, so nothing inside it is ticked per person.
 
 **What changes from today.**
 1. **One place for library ticks: the person's page.** Not on the library. The library page loses its **Access tab** and the **Create library** dialog loses the "Standard / Selected profiles" choice (library-centric "Selected profiles" goes). Two places for one setting is what made it hard to manage.
@@ -19,10 +21,10 @@ The **Vault** stays separate, with its own per-section access and PIN, for anyth
 4. **Households page gets the ceiling list** (server administrator only).
 5. **The folder "Suitable for limited profiles" tick and the profile "Allow unrated" switch are replaced** (Shy, answers 2 and 3) by one household switch, "Show unrated items", in the Kid settings.
 6. **Kid's profile switch.** One switch on the person's page; what a Kid can see is one household setting, a level each for Watch, Read and Listen (D9), plus one "Show unrated items" switch (D10).
-7. **Adult content keeps its Vault tick, on by default;** unticked, it is an ordinary Watch library with no extra restriction (Shy, answer 3). It still counts as adult-rated for rating limits. The "administrators only until profiles are chosen" starting state goes.
+7. **The Vault is its own area, and Adult content exists only there** (Shy, 2026-10-29). Add library in the Vault offers any content type (Movies, TV Shows, Music, Books, Adult content, Other); the normal Add library never offers Adult content or any Vault option. No "Keep in the Vault" tick, no "administrators only until chosen" state.
 8. **All export and import of people is removed** (Shy, answer 5, F82). Backup stays.
 
-**What stays the same:** area switches, hidden-library storage per profile, household inheritance, rating limits and Kids profiles, the Vault and its sections, View's own spaces and per-profile View switches, administrators seeing everything.
+**What stays the same:** area switches, hidden-library storage per profile, household inheritance, rating limits and Kids profiles, the Vault's own access, sections and PIN, View's own spaces and per-profile View switches, administrators seeing everything.
 
 ## 1. Goal
 
@@ -35,7 +37,7 @@ Make access easy to read and hard to get wrong, the way Plex households already 
 - Rebuild the person's library list as grouped ticks with All libraries and one Save bar.
 - Add the household ceiling (data, Engine rule, Households page).
 - Replace the folder "Suitable for limited profiles" setting and the per-profile "Allow unrated" with one household "Show unrated items" switch, and simplify the content-limit filter.
-- Adult content as in D6.
+- Vault as a fifth area and Adult content only there (D6).
 - Remove all export and import of people (F82).
 - Mark affected Local checks in the batch as superseded.
 
@@ -50,8 +52,8 @@ Make access easy to read and hard to get wrong, the way Plex households already 
 - **D2. A household has a ceiling** (Shy, 2026-10-29): "if a household is added, the only thing they can restrict their household from is what they already have." The server administrator sets which libraries a household may use; a household administrator can untick more for its profiles but never tick what the household lacks. Replaces Simpler access D4 and Users D19's "primary profile's hidden libraries" inheritance with an explicit household list. Reason: Privacy and Reliability.
 - **D3. Nothing is hidden by default** (Simpler access D2 stays): a new library appears for every household and profile that has its area; a new profile gets what its household has. The library-side "Selected profiles" and its "new profiles start hidden" rule (D16) are removed.
 - **D4. Children: Kid's profile levels and one "Show unrated items" switch only** (Shy, 2026-10-28, revised 2026-10-29). No per-library, per-folder or per-title choices. The levels steer home page and defaults; parents supervise; a PIN guards an adult profile.
-- **D5. Anything private goes in the Vault** (Shy, 2026-10-28), which keeps its own access.
-- **D6. Adult content keeps its Vault tick, on by default** (Shy, 2026-10-28). Unticked, an ordinary Watch library with no extra restriction; still adult-rated.
+- **D5. Anything private goes in the Vault** (Shy, 2026-10-28), which keeps its own access. The Vault is a top-level area (D6), never listed in person ticks or household ceilings.
+- **D6. The Vault is a fifth top-level area, and Adult content exists only there** (Shy, 2026-10-29; replaces v2's D6 and reverses the earlier choice that Adult content could be an ordinary Watch library, and the earlier choice that the Vault is only an option on a library). Add library inside the Vault offers Movies, TV Shows, Music, Books, Adult content and Other; each content type still has at most one Vault library (Library pages D1). The normal Add library screens say nothing about the Vault. Who may open the Vault is set per profile as today (Vault sections D28, D39; the PIN unlock stays as a second step). A Kid's profile can never be given Vault access (Shy, 2026-10-29; the build checks it matches today's rule). Adult content always counts as adult-rated. Existing Vault libraries and Move to Vault are unchanged. Trade-off accepted: Adult content can no longer sit in the ordinary Watch list. Reason: Privacy and Ease of use.
 - **D7. All export and import of people is removed; Backup is the only way to move data** (Shy, 2026-10-28, F82: "nobody is going to move between libraries"). Covers "Export this household", "Export my data", per-person Export and "Import a user". A full backup restore still rebuilds every household.
 - **D9. A profile is either a Kid's profile or not, and what a Kid's profile can see is one editable household setting** (Shy, 2026-10-29: a Kid's profile is just a preset of ratings; the definition of a Kid is the changeable part). On the person's page: a single switch, **Kid's profile**, off by default; off sees everything in its libraries. Kid settings live on the household (Settings > Profiles, administrators only): **a maximum level for each area, Watch, Read and Listen** (Shy, 2026-10-29, answer 2B: books and music can carry language you care about less than a film), each a plain choice from the existing G / PG / PG-13 / R ladder (`ProfileContentLimits`) described by what it shows. Defaults: PG for all three, unrated shown. Changing it updates every Kid profile at once. View's own switches are unaffected. Replaces the per-profile rating dropdown and the Kids tick; anything the Kids flag does beyond the limit is checked before building and tied to the switch. Reason: Ease of use.
 - **D10. Unrated items: Kids either see them or don't, one household setting** (Shy, 2026-10-29, replaces the proposed Kid-friendly label). In the Kid settings, one switch **Show unrated items**, **on by default** (Shy, 2026-10-29). It applies to every area and every item with no native rating (home videos, most books and music). Rated items always follow the level. There is no label, no per-library, per-folder or per-title choice. Replaces Simpler access D7 and the per-profile "Allow unrated". Reason: Ease of use and Maintenance.
@@ -65,10 +67,10 @@ Make access easy to read and hard to get wrong, the way Plex households already 
 | Who may change access | Only administrators. A Kid's profile, and any ordinary member, can never change their own or anyone else's access, levels or Kid settings; they see only what they have. The server administrator can change anyone and the household ceilings. A household administrator can change profiles in their own household, only within the household's ceiling and never above what their own profile holds (as Users, profiles and households D19 and section 10 already say). Switching to an administrator's profile needs that profile's PIN if one is set. Not changed by this spec. |
 | Library limited by the household | Shown greyed with "Not available to {household}"; cannot be ticked. |
 | Household administrator | Same page for their household's profiles; only the household's libraries appear. |
-| Server administrator, Households page | Per household, "Libraries this household can use", all ticked by default; Save changes / Discard. Vault libraries never listed. |
+| Server administrator, Households page | Per household, "Libraries this household can use", all ticked by default; Save changes / Discard. The Vault is never listed (its access is per profile, D6). |
 | Library page | Tabs: Folders, File handling, Activity (Lookup where it applies). No Access tab. No "who can see this" line (Shy, answer 1). |
-| Libraries overview | Columns: Name, Content type, Folders and titles, Status. No "who can see it". Vault libraries keep the lock. |
-| Create library | Area, name, content type, first folder, and for administrators a "Keep this library in the Vault" tick (on for Adult content, otherwise off; fixed once created). No Access choice; none in first-run setup. |
+| Libraries overview | Columns: Name, Content type, Folders and titles, Status. No "who can see it". Vault libraries show only inside the Vault area. |
+| Create library | Area (Watch, Listen, Read, View), name, content type, first folder. No Access choice, no Vault option; none of this in first-run setup. Add library inside the Vault area (administrators with Vault access) offers every content type, Adult content included. |
 | Folder row | No "Suitable for limited profiles" switch. |
 | Person's page | A "Kid's profile" switch. No rating dropdown, no Allow unrated. |
 | Settings > Profiles, household | "What Kids can see": a level each for Watch, Read and Listen, and one "Show unrated items" switch. |
@@ -84,7 +86,7 @@ Make access easy to read and hard to get wrong, the way Plex households already 
 - **Added:** a profile "is Kid's profile" flag (the Kids flag today, to be confirmed); household "Kid levels" (one per area) and "show unrated items" (default false).
 - **Added:** `household_library_hidden` (household id, library id, created at, created by); Vault ids refused; backup-classified as configuration.
 - **Rule:** a library is visible to a profile when it is not hidden for its household and not hidden for the profile (administrators see everything).
-- **Libraries file:** new format version; the library keeps a Vault flag only.
+- **Libraries file:** new format version; the library keeps its area, which may be Vault.
 - **Wire:** access contracts and the household contracts gain the household list; library, folder and user-transfer contracts lose the removed fields and actions; fixtures refreshed.
 - **Data step:** next free number, to be confirmed.
 
@@ -103,7 +105,7 @@ Security review on LA1, LA2 and LA4 before merge.
 - **Done when:** a Kid's profile at PG sees every unrated item with the switch on (the default) and none with it off; a rated R film stays hidden either way; Watch, Read and Listen follow their own levels; non-Kid profiles are unaffected; counts match lists; unticked Adult content is visible to a non-Kid profile.
 
 ### LA3 — Dashboard: person-side ticks, no library-side access
-- **What it does:** Removes `LibraryAccessTab`, `LibraryAccessOptions`, the Access column and the Access choice in `CreateLibraryDialog` (adds the Vault tick), and setup copy; adds the Kid's profile switch and, on Settings > Profiles, the household's Kid levels (D9), in place of the rating dropdown and Kids tick, and rebuilds the Libraries list on `ProfileDetailPage` and `ManagedAccessUserPermissions` as grouped ticks with All libraries and one Save bar, household-limited state shown greyed; View keeps its own switches.
+- **What it does:** Removes `LibraryAccessTab`, `LibraryAccessOptions`, the Access column and the Access choice in `CreateLibraryDialog` (no Vault tick; the Vault is its own area in Add library), and setup copy; adds the Kid's profile switch and, on Settings > Profiles, the household's Kid levels (D9), in place of the rating dropdown and Kids tick, and rebuilds the Libraries list on `ProfileDetailPage` and `ManagedAccessUserPermissions` as grouped ticks with All libraries and one Save bar, household-limited state shown greyed; View keeps its own switches.
 - **Depends on:** LA1 · **Size:** Standard
 - **Done when:** the profile type choice sets the same stored limit the dropdown did, and a new Kid's profile uses the household's Kid levels, starting on PG for each area with unrated items shown; library pages show no Access tab; Create library has no Access choice; a person's page shows area switches with libraries beneath, saves once, and greys household-limited libraries; bUnit tests updated; visual checks at desktop and phone.
 
@@ -131,7 +133,7 @@ Waves: LA1 with LA5; then LA2, LA3 and LA4; then LA6.
 - **L3.** Add a library and a profile: both visible straight away, nothing to tick.
 - **L4.** A Kid's profile (PG) sees unrated videos, books and music by default and no rated R film; turn off "Show unrated items" and the unrated ones disappear.
 - **L4b.** Turn on Kid's profile for a test profile: lists narrow to the Kid level across movies, TV, books and music. Change the household's Kid level: every Kid profile follows at once. Turn off "Show unrated items": Kids lose unrated items everywhere; a rated R film stays hidden either way. Set Listen to G and Watch to PG-13: music narrows more than movies.
-- **L5.** Add Adult content: Vault tick on by default; unticked, it appears in Watch for adults with no administrators-only state and a limited profile does not see it.
+- **L5.** As an administrator with Vault access, the Vault button appears beside Watch, Listen, Read and View; add Adult content there. A profile without Vault access sees no Vault button, libraries, counts or search results; Adult content is not offered in the normal Add library.
 - **L6.** No Export or Import for people anywhere; a full backup restore brings back every household.
 
 ## 8. Risks and open questions
@@ -154,7 +156,7 @@ Waves: LA1 with LA5; then LA2, LA3 and LA4; then LA6.
 
 **Library pages (v14 → v15).**
 - Walkthrough items 2 and 3, D9 (three Access choices), the Access tab, the overview "Access" column and WP6: removed.
-- D10 and D11: Vault-protected is a creation tick, fixed once set.
+- D10 and D11: the Vault is a fifth area, not a creation tick on a library; libraries are created in it, never converted. D12 and D21: Adult content exists only in the Vault. D1: one normal and one Vault library per content type stays.
 - D21: the "unticking starts as Selected profiles (administrators only)" default goes.
 - D13 first-run "Standard access only" line goes.
 
@@ -164,7 +166,7 @@ Waves: LA1 with LA5; then LA2, LA3 and LA4; then LA6.
 
 **Backup and restore (Built):** D10 (export is the same as backup), D19, D20 and WP6 removed.
 
-**Others, notes only:** Library setup D68 points here; Vault sections D26a and D42 lose their Selected-profiles wording; Videos D55 unaffected.
+**Others, notes only:** Library setup D68 points here; Vault sections D26a and D42 are rewritten for the fifth area (D42: Adult content only in the Vault) and lose their Selected-profiles wording; the library setup add-folder spec depends on this v3; Videos D55 unaffected.
 
 ## Plain English summary
 
