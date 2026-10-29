@@ -6,7 +6,9 @@ using MediaEngine.Contracts.Taste;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -60,6 +62,8 @@ public sealed class OverviewTastePageTests : AsyncBunitContext
     private Func<string?, TasteViewDto?> _answer = _ => null;
     private bool _writesSucceed = true;
 
+    private ProfileViewModel _activeProfile = null!;
+
     public OverviewTastePageTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
@@ -68,9 +72,17 @@ public sealed class OverviewTastePageTests : AsyncBunitContext
         Services.AddNativeUiServices();
         Services.AddSingleton<IHttpClientFactory>(new TasteClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        Services.AddScoped<UniverseStateContainer>();
+        Services.AddScoped<ActiveProfileSessionService>();
+        Services.AddScoped<UIOrchestratorService>();
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, true, true)).GetAwaiter().GetResult();
+        Services.AddScoped(_ => device);
         Services.AddSingleton(_session);
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
+            stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel> { _activeProfile }));
             stub.SetHandler(nameof(IEngineApiClient.GetPersonalTasteAsync), args =>
             {
                 _reads.Add((string?)args![0]);
@@ -592,6 +604,8 @@ public sealed class OverviewTastePageTests : AsyncBunitContext
             _ => new DashboardAuthorityResponse(_handler.OwnerAccount, _handler.OwnerProfile, true, true, 1, 1, false, false, null, 1, [], [], []),
         };
         _handler.Who = who;
+        _activeProfile = new ProfileViewModel(_handler.OwnerProfile, "Test User", "#C9922E", who == Who.Kids ? "RestrictedProfile" : "Profile",
+            new DateTimeOffset(2026, 3, 15, 12, 0, 0, TimeSpan.Zero));
         _session.Set("session", _handler.OwnerAccount, _handler.OwnerProfile, Guid.NewGuid(), authority);
     }
 

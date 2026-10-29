@@ -7,6 +7,7 @@
 @inject IEngineApiClient Api
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
+@inject UIOrchestratorService Orchestrator
 @inject ILogger<OverviewTastePage> Logger
 @* Personal > Overview > Taste (D34): what the Library has learned about a person's taste, in plain groups. A person removes or adds
    values on their own taste; everyone else's is read-only. Administrators get a Scope filter (Me, a household, a person or Everyone);
@@ -224,7 +225,11 @@
     private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true;
 
     // A Kids profile sees its own taste but cannot change it; the Engine refuses the change too.
-    private bool IsKids => Session.Authority?.ProfileGrants.FirstOrDefault(grant => grant.ProfileId == Session.ActiveProfileId)?.IsRestricted == true;
+    // The sign-in's grants say so, and so does the active profile itself; either one makes the page read-only (the Engine refuses the edit too).
+    private bool _activeProfileIsKids;
+
+    private bool IsKids => _activeProfileIsKids
+        || Session.Authority?.ProfileGrants.FirstOrDefault(grant => grant.ProfileId == Session.ActiveProfileId)?.IsRestricted == true;
 
     private bool ShowScopeFilter => (IsServerAdministrator || Session.HasAction("household.manage")) && _scopeOptions.Count > 1;
 
@@ -232,6 +237,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _activeProfileIsKids = (await Orchestrator.GetActiveProfileAsync())?.IsRestricted == true;
         await LoadScopeChoicesAsync();
         await LoadAsync();
     }
