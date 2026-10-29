@@ -93,8 +93,35 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
         var buttons = cut.FindAll("[role=tab]");
         Assert.Equal("false", buttons[0].GetAttribute("aria-selected"));
         Assert.Equal("true", buttons[1].GetAttribute("aria-selected"));
-        Assert.Equal("4", buttons[1].QuerySelector(".app-count-tabs__count")!.TextContent);
+        Assert.Equal("4", buttons[1].QuerySelector(".tl-tab__count")!.TextContent);
         Assert.Equal("-1", buttons[0].GetAttribute("tabindex"));
+    }
+
+    [Fact]
+    public void CountTabs_UseTheSameTabClassAsAppTabs()
+    {
+        var counts = Render<AppCountTabs>(p => p.Add(c => c.Tabs, new[] { new AppCountTab("all", "All", 3) }).Add(c => c.Selected, "all"));
+        var tabs = Render<AppTabs>(p => p.AddChildContent<AppTabPanel>(panel => panel.Add(x => x.Text, "All")));
+
+        Assert.NotNull(counts.Find("[role=tablist].tl-tabs-toolbar"));
+        Assert.NotNull(tabs.Find("[role=tablist].tl-tabs-toolbar"));
+        Assert.Contains("tl-tab-active", counts.Find("[role=tab]").ClassList);
+        Assert.Contains("tl-tab", tabs.Find("[role=tab]").ClassList);
+    }
+
+    [Fact]
+    public void Tabs_WithAnAddress_RenderAsLinks()
+    {
+        var cut = Render<AppTabs>(p => p
+            .Add(c => c.ActivePanelIndex, 1)
+            .AddChildContent<AppTabPanel>(panel => panel.Add(x => x.Text, "Plugins").Add(x => x.Href, "/settings/plugins"))
+            .AddChildContent<AppTabPanel>(panel => panel.Add(x => x.Text, "Integrations").Add(x => x.Href, "/settings/integrations")));
+
+        var links = cut.FindAll("a[role=tab]");
+        Assert.Equal(2, links.Count);
+        Assert.Equal("/settings/integrations", links[1].GetAttribute("href"));
+        Assert.Equal("page", links[1].GetAttribute("aria-current"));
+        Assert.Null(links[0].GetAttribute("aria-current"));
     }
 
     [Fact]
