@@ -1,0 +1,187 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@* "Libraries this household can use" for one household on Settings > Users and Sign-in > Households (library access D2, server administrator
+   only). Every library is ticked unless it is in the household's hidden list, so a new library is ticked straight away. Libraries sit under
+   their area (Watch, Listen, Read, View); the Vault is never listed. Ticks are kept here until Save changes; Discard puts them back. A saved
+   change is confirmed in the section itself (no toast). The page that hosts it does the save, so its administrator-PIN prompt applies. *@
+<div class="household-ceiling" data-household-ceiling="@Household.Id">
+    <AppButton Class="household-ceiling__toggle" ButtonStyle="AppButtonStyle.Text" Label="Libraries this household can use"
+               StartIcon="@AppMaterialIcons.Outlined.LibraryBooks"
+               EndIcon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+               OnClick="Toggle" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_bodyId" />
+    <AppInfoTip Label="Libraries this household can use"
+                Text="Untick a library to hide it from everyone in this household. A household administrator can hide more for their people, but can't show what you hide here. New libraries are ticked. The Vault is set per person." />
+    @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
+    {
+        <span class="household-ceiling__saved" role="status" data-household-ceiling-saved>
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" Color="AppColor.Success" />@_confirmation
+        </span>
+    }
+    @if (_open)
+    {
+        <div id="@_bodyId" class="household-ceiling__body">
+            @if (LibrariesUnavailable)
+            {
+                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">The libraries couldn't be loaded. Reload the page to try again.</AppAlert>
+            }
+            else if (_groups.Count == 0)
+            {
+                <p class="household-ceiling__empty">There are no libraries yet.</p>
+            }
+            else
+            {
+                <div class="household-ceiling__all" data-ceiling-all>
+                    <AppCheckbox Value="@AllTicked" ValueChanged="SetAll" Disabled="@Disabled" Label="All libraries" />
+                </div>
+                @foreach (var group in _groups)
+                {
+                    <div class="household-ceiling__area household-ceiling__area--@group.Key" role="group" aria-label="@($"{group.Label} libraries")" data-ceiling-area="@group.Key">
+                        <h4 class="household-ceiling__area-title">
+                            <AppMaterialIcon Icon="@group.Icon" Size="AppSize.Small" Color="@group.Color" />@group.Label
+                        </h4>
+                        @foreach (var library in group.Libraries)
+                        {
+                            <div class="household-ceiling__item" data-library-id="@library.Id" @key="library.Id">
+                                <AppCheckbox Value="@(!_draft.Contains(library.Id))"
+                                             ValueChanged="@((bool ticked) => SetTick(library.Id, ticked))"
+                                             Disabled="@Disabled" Label="@library.DisplayName" />
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <p class="household-ceiling__error" role="alert" data-household-ceiling-error>@_error</p>
+            }
+        </div>
+    }
+    <AppSaveBar HasChanges="@HasChanges" Saving="@_saving" OnSave="SaveAsync" OnDiscard="Discard"
+                Message="@($"Unsaved library changes for {Household.Name}")" />
+</div>
+
+@code {
+    private static readonly (string Key, string Label, string Icon, AppColor Color)[] Areas =
+    [
+        ("watch", "Watch", AppMaterialIcons.Outlined.Tv, AppColor.Primary),
+        ("listen", "Listen", AppMaterialIcons.Outlined.Headphones, AppColor.Info),
+        ("read", "Read", AppMaterialIcons.Outlined.MenuBook, AppColor.Warning),
+        ("view", "View", AppMaterialIcons.Outlined.Visibility, AppColor.Success),
+    ];
+
+    private readonly string _bodyId = "household-ceiling-" + Guid.NewGuid().ToString("N");
+    private HashSet<Guid> _saved = [];
+    private HashSet<Guid> _draft = [];
+    private List<AreaGroup> _groups = [];
+    private bool _open;
+    private bool _saving;
+    private string? _error;
+    private string? _confirmation;
+    private Guid _loadedFor;
+
+    [Parameter, EditorRequired] public HouseholdResponse Household { get; set; } = default!;
+
+    /// <summary>Every library the Engine's picker listed; the Vault is never in it.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
+
+    /// <summary>True when the libraries could not be read, so nothing can be ticked.</summary>
+    [Parameter] public bool LibrariesUnavailable { get; set; }
+
+    /// <summary>
+    /// Saves the household's hidden libraries and answers null when it went through, or the sentence to show. The host also refreshes the
+    /// household afterwards, so <see cref="Household"/> carries the saved list again.
+    /// </summary>
+    [Parameter, EditorRequired] public Func<Guid, IReadOnlyList<Guid>, Task<string?>>? OnSave { get; set; }
+
+    private bool Disabled => _saving || LibrariesUnavailable;
+
+    private bool HasChanges => !_saved.SetEquals(_draft);
+
+    private bool AllTicked => _groups.All(group => group.Libraries.All(library => !_draft.Contains(library.Id)));
+
+    protected override void OnParametersSet()
+    {
+        _groups = Areas
+            .Select(area => new AreaGroup(area.Key, area.Label, area.Icon, area.Color, Libraries
+                .Where(library => string.Equals(library.Area, area.Key, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(library => library.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ToList()))
+            .Where(group => group.Libraries.Count > 0)
+            .ToList();
+
+        // The saved list is read again only for another household or after a save, so ticks in progress are not thrown away by a redraw.
+        var incoming = (Household.HiddenLibraryIds ?? []).ToHashSet();
+        if (_loadedFor != Household.Id || (!HasChanges && !_saved.SetEquals(incoming)))
+        {
+            _loadedFor = Household.Id;
+            _saved = incoming;
+            _draft = [.. incoming];
+        }
+    }
+
+    private void Toggle() => _open = !_open;
+
+    private void SetTick(Guid libraryId, bool ticked)
+    {
+        _confirmation = null;
+        _error = null;
+        if (ticked)
+        {
+            _draft.Remove(libraryId);
+        }
+        else
+        {
+            _draft.Add(libraryId);
+        }
+    }
+
+    private void SetAll(bool ticked)
+    {
+        _confirmation = null;
+        _error = null;
+        foreach (var library in _groups.SelectMany(group => group.Libraries))
+        {
+            if (ticked)
+            {
+                _draft.Remove(library.Id);
+            }
+            else
+            {
+                _draft.Add(library.Id);
+            }
+        }
+    }
+
+    private void Discard()
+    {
+        _draft = [.. _saved];
+        _error = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_saving || OnSave is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            var hidden = _draft.Order().ToList();
+            _error = await OnSave(Household.Id, hidden);
+            if (_error is null)
+            {
+                _saved = [.. hidden];
+                _confirmation = hidden.Count == 0 ? "All libraries available" : $"Saved · {hidden.Count} hidden";
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private sealed record AreaGroup(string Key, string Label, string Icon, AppColor Color, List<AccessLibraryOptionDto> Libraries);
+}

@@ -31,6 +31,7 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     private readonly DatabaseConnection _database;
     private readonly AccountRepository _accounts;
     private readonly ProfileAccessRepository _profileAccess;
+    private readonly HouseholdLibraryAccessRepository _householdLibraries;
     private readonly VisibilityAfterMoveReadService _service;
     private readonly Guid _edition = Guid.NewGuid();
 
@@ -42,6 +43,7 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
         _database.RunStartupChecks();
         _accounts = new AccountRepository(_database);
         _profileAccess = new ProfileAccessRepository(_database);
+        _householdLibraries = new HouseholdLibraryAccessRepository(_database);
         var vaultLibraries = new VaultLibraryRepository(_database);
         var libraries = new LibrariesOnlyLoader(
             Library(Movies, "Movies", LibraryAreas.Watch),
@@ -51,7 +53,8 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
             Library(Music, "Music", LibraryAreas.Listen));
         _service = new VisibilityAfterMoveReadService(
             _accounts, new ProfileRepository(_database), _profileAccess, new MediaAssetLibraryCountRepository(_database),
-            vaultLibraries, libraries, TestLibraryVisibility.Rule(_profileAccess, vaultLibraries));
+            vaultLibraries, libraries, new LibraryVisibilityRule(_profileAccess, _householdLibraries, vaultLibraries),
+            new HouseholdRepository(_database));
         var work = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute("INSERT INTO works(id,media_type,work_kind) VALUES(@work,'Movies','child');", new { work });
@@ -134,6 +137,38 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
         var loss = Assert.Single(result.People!);
         Assert.Equal((pat.Id, "Pat", 7), (loss.ProfileId, loss.DisplayName, loss.FileCount));
         Assert.NotEqual(mia.Id, loss.ProfileId);
+    }
+
+    [Fact]
+    public async Task WhenTheHouseholdHidesTheTarget_TheHouseholdIsNamedOnce_AndItsPeopleAreNotListed()
+    {
+        var pat = await CreateProfileAsync("primary@example.test", "Pat", [AccountFeatureId.Watch], hidden: []);
+        var mia = await AddPersonAsync(pat, "Mia", [AccountFeatureId.Watch], hidden: []);
+        var household = (await new HouseholdRepository(_database).GetForAccountAsync(FindUser(pat.Id)))!;
+        await _householdLibraries.ReplaceHiddenLibrariesAsync(household.Id, new HashSet<Guid> { Lectures }, Now, null);
+
+        var result = await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: AddAssets(Movies, 7)));
+
+        var loss = Assert.Single(result.People!);
+        Assert.Equal((household.Id, Guid.Empty, 7), (loss.HouseholdId, loss.ProfileId, loss.FileCount));
+        Assert.Equal(household.Name, loss.DisplayName);
+        Assert.DoesNotContain(result.People!, entry => entry.ProfileId == mia.Id || entry.ProfileId == pat.Id);
+    }
+
+    [Fact]
+    public async Task WhenAnotherHouseholdHidesTheTarget_ThisHouseholdsPersonIsStillNamedAsAPerson()
+    {
+        var pat = await CreateProfileAsync("primary@example.test", "Pat", [AccountFeatureId.Watch], hidden: [Lectures]);
+        var sam = await CreateProfileAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: []);
+        var samHousehold = (await new HouseholdRepository(_database).GetForAccountAsync(FindUser(sam.Id)))!;
+        await _householdLibraries.ReplaceHiddenLibrariesAsync(samHousehold.Id, new HashSet<Guid> { Lectures }, Now, null);
+
+        var result = await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: AddAssets(Movies, 3)));
+
+        Assert.Equal(2, result.People!.Count);
+        var person = Assert.Single(result.People!, entry => entry.HouseholdId is null);
+        Assert.Equal(pat.Id, person.ProfileId);
+        Assert.Equal(samHousehold.Id, Assert.Single(result.People!, entry => entry.HouseholdId is not null).HouseholdId);
     }
 
     [Fact]

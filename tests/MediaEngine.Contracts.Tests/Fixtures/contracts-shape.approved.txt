@@ -1362,6 +1362,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Visibi
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   DisplayName: System.String | nullability=not-null | accessors=get,init
   FileCount: System.Int32 | nullability=not-null | accessors=get,init
+  HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationDto
   Id: System.String | nullability=not-null | accessors=get,set

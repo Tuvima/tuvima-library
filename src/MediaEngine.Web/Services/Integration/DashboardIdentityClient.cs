@@ -471,6 +471,16 @@ public sealed partial class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult> DeleteManagedHouseholdResultAsync(Guid householdId, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Delete, $"/access/households/{householdId:D}", ct, includeMessage: true);
 
+    /// <summary>The libraries hidden for one household (library access D2), or null when the Engine could not be read.</summary>
+    public Task<HouseholdLibraryAccessResponse?> GetHouseholdLibraryAccessAsync(Guid householdId, CancellationToken ct = default) =>
+        GetAsync<HouseholdLibraryAccessResponse>($"/access/households/{householdId:D}/libraries", ct);
+
+    /// <summary>Replaces the libraries hidden for a household (server administrator only). A refusal keeps the Engine's sentence in <c>Message</c>.</summary>
+    public Task<DashboardAccessMutationResult<HouseholdLibraryAccessResponse>> ReplaceHouseholdLibraryAccessResultAsync(
+        Guid householdId, IReadOnlyList<Guid> hiddenLibraryIds, CancellationToken ct = default) =>
+        SendMutationAsync<ReplaceHouseholdLibrariesRequest, HouseholdLibraryAccessResponse>(
+            HttpMethod.Put, $"/access/households/{householdId:D}/libraries", new ReplaceHouseholdLibrariesRequest(hiddenLibraryIds), ct, includeMessage: true, readAnyEngineSentence: true);
+
     /// <summary>The libraries an administrator can hide from a person, or null when the Engine could not be read (never an empty list for a failure: an empty list means there are no libraries).</summary>
     public Task<List<AccessLibraryOptionDto>?> GetAccessLibrariesAsync(CancellationToken ct = default) =>
         GetAsync<List<AccessLibraryOptionDto>>("/access/libraries", ct);

@@ -52,6 +52,10 @@ public sealed class LibraryVisibilityRule(
         return (await householdLibraries.GetHiddenLibrariesForProfileAsync(profileId, ct).ConfigureAwait(false)).Contains(libraryId);
     }
 
+    /// <summary>Whether the household of the profile hides the library (its own list, not the profile's), so a screen can name the household.</summary>
+    public async ValueTask<bool> IsHiddenByHouseholdAsync(Guid profileId, Guid libraryId, CancellationToken ct = default) =>
+        (await householdLibraries.GetHiddenLibrariesForProfileAsync(profileId, ct).ConfigureAwait(false)).Contains(libraryId);
+
     /// <summary>The rule for one library, reading the Vault list, the profile's hidden libraries and its household's.</summary>
     public async ValueTask<bool> MaySeeAsync(
         Guid profileId,
