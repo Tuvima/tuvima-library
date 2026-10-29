@@ -61,14 +61,6 @@
 </div>
 
 @code {
-    private static readonly (string Key, string Label, string Icon, AppColor Color)[] Areas =
-    [
-        ("watch", "Watch", AppMaterialIcons.Outlined.Tv, AppColor.Primary),
-        ("listen", "Listen", AppMaterialIcons.Outlined.Headphones, AppColor.Info),
-        ("read", "Read", AppMaterialIcons.Outlined.MenuBook, AppColor.Warning),
-        ("view", "View", AppMaterialIcons.Outlined.Visibility, AppColor.Success),
-    ];
-
     private readonly string _bodyId = "household-ceiling-" + Guid.NewGuid().ToString("N");
     private HashSet<Guid> _saved = [];
     private HashSet<Guid> _draft = [];
@@ -101,7 +93,7 @@
 
     protected override void OnParametersSet()
     {
-        _groups = Areas
+        _groups = AccessAreas.All
             .Select(area => new AreaGroup(area.Key, area.Label, area.Icon, area.Color, Libraries
                 .Where(library => string.Equals(library.Area, area.Key, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(library => library.DisplayName, StringComparer.CurrentCultureIgnoreCase)

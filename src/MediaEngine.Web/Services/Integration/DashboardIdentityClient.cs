@@ -481,6 +481,16 @@ public sealed partial class DashboardIdentityClient(
         SendMutationAsync<ReplaceHouseholdLibrariesRequest, HouseholdLibraryAccessResponse>(
             HttpMethod.Put, $"/access/households/{householdId:D}/libraries", new ReplaceHouseholdLibrariesRequest(hiddenLibraryIds), ct, includeMessage: true, readAnyEngineSentence: true);
 
+    /// <summary>What a household's Kid's profiles may see (library access D9, D10), or null when the Engine could not be read.</summary>
+    public Task<HouseholdKidSettingsResponse?> GetHouseholdKidSettingsAsync(Guid householdId, CancellationToken ct = default) =>
+        GetAsync<HouseholdKidSettingsResponse>($"/access/households/{householdId:D}/kid-settings", ct);
+
+    /// <summary>Replaces a household's Kid settings (server administrator or that household's administrator). A refusal keeps the Engine's sentence in <c>Message</c>.</summary>
+    public Task<DashboardAccessMutationResult<HouseholdKidSettingsResponse>> ReplaceHouseholdKidSettingsResultAsync(
+        Guid householdId, UpdateHouseholdKidSettingsRequest request, CancellationToken ct = default) =>
+        SendMutationAsync<UpdateHouseholdKidSettingsRequest, HouseholdKidSettingsResponse>(
+            HttpMethod.Put, $"/access/households/{householdId:D}/kid-settings", request, ct, includeMessage: true, readAnyEngineSentence: true);
+
     /// <summary>The libraries an administrator can hide from a person, or null when the Engine could not be read (never an empty list for a failure: an empty list means there are no libraries).</summary>
     public Task<List<AccessLibraryOptionDto>?> GetAccessLibrariesAsync(CancellationToken ct = default) =>
         GetAsync<List<AccessLibraryOptionDto>>("/access/libraries", ct);
@@ -497,7 +507,7 @@ public sealed partial class DashboardIdentityClient(
             HttpMethod.Post, "/access/visibility-after-move", request, ct, includeMessage: true, readAnyEngineSentence: true);
 
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> UpdateManagedProfileResultAsync(Guid profileId, UpdateManagedProfileRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<UpdateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Put, $"/access/profiles/{profileId:D}", request, ct);
+        SendMutationAsync<UpdateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Put, $"/access/profiles/{profileId:D}", request, ct, includeMessage: true, readAnyEngineSentence: true);
 
     /// <summary>Removes a person. Their habits always go; <paramref name="keepPhotos"/> moves their personal photos to the Shared Library (true) or deletes them (false).</summary>
     public async Task<DashboardAccessMutationResult> DeleteManagedProfileResultAsync(Guid profileId, bool keepPhotos = true, CancellationToken ct = default)

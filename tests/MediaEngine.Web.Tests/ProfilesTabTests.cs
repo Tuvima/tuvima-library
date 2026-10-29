@@ -30,6 +30,8 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     private readonly List<RequestRecord> _requests = [];
     private DashboardAuthorityResponse? _authority;
     private string? _addPersonDetail;
+    private HouseholdKidSettingsResponse _kidSettings = new(HouseholdId, "PG", "PG", "PG", true, ["G", "PG", "PG-13", "R"]);
+    private string? _kidSettingsRefusal;
     private ConfirmedActionRunnerTests.SpyConfirmer _confirmer = new(confirmed: false);
 
     public ProfilesTabTests()
@@ -284,6 +286,131 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("A household holds up to 8 people.", cut.Find(".who-page__error").TextContent));
     }
 
+    // ---- What Kids can see (library access D9, D10): a level each for Watch, Read and Listen, and one Show unrated items switch
+
+    private IRenderedComponent<ProfilesTab> OpenKidSettings(Guid householdId)
+    {
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{householdId}']")));
+        cut.Find($"[data-kid-settings='{householdId}'] .kid-settings__toggle").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{householdId}'] [data-kid-level]")));
+        return cut;
+    }
+
+    private static AngleSharp.Dom.IElement Level(IRenderedComponent<ProfilesTab> cut, string area) =>
+        cut.Find($"[data-kid-settings] [data-kid-level='{area}'] select");
+
+    private static AngleSharp.Dom.IElement ShowUnrated(IRenderedComponent<ProfilesTab> cut) =>
+        cut.Find("[data-kid-settings] [data-kid-unrated] input[role='switch']");
+
+    private IEnumerable<RequestRecord> KidSettingsSaves() =>
+        _requests.Where(request => request.Method == HttpMethod.Put && request.Path.EndsWith("/kid-settings", StringComparison.Ordinal));
+
+    [Fact]
+    public void KidSettings_ShowALevelForWatchReadAndListen_AndOneShowUnratedSwitch_WithTheHouseholdsValues()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+        _kidSettings = _kidSettings with { ReadLevel = "R", ShowUnrated = false };
+
+        var cut = OpenKidSettings(HouseholdId);
+
+        Assert.Equal(["watch", "read", "listen"], cut.FindAll("[data-kid-level]").Select(row => row.GetAttribute("data-kid-level")!).ToArray());
+        Assert.Equal("PG", Level(cut, "watch").GetAttribute("value"));
+        Assert.Equal("R", Level(cut, "read").GetAttribute("value"));
+        Assert.Equal("PG", Level(cut, "listen").GetAttribute("value"));
+        // Each choice says what it shows.
+        Assert.Equal(["G: only items for all ages", "PG: some parental guidance", "PG-13: teens and up", "R: almost everything"],
+            Level(cut, "watch").QuerySelectorAll("option").Select(option => option.TextContent.Trim()).ToArray());
+        Assert.False(ShowUnrated(cut).HasAttribute("checked"));
+        Assert.Equal("Show unrated items", ShowUnrated(cut).GetAttribute("aria-label"));
+        // Nothing to save until something changes.
+        Assert.Empty(cut.FindAll(".app-save-bar"));
+        Assert.Empty(KidSettingsSaves());
+    }
+
+    [Fact]
+    public void KidSettings_ChangingLevelsAndTheSwitch_SavesAllTogetherOnSaveChanges()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+        var cut = OpenKidSettings(HouseholdId);
+
+        Level(cut, "watch").Change("PG-13");
+        Level(cut, "listen").Change("G");
+        ShowUnrated(cut).Change(false);
+        Assert.Empty(KidSettingsSaves());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-save-bar")));
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Save changes").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(KidSettingsSaves()));
+        var put = Assert.Single(KidSettingsSaves());
+        Assert.Equal($"/access/households/{HouseholdId:D}/kid-settings", put.Path);
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal("PG-13", body.RootElement.GetProperty("watch_level").GetString());
+        Assert.Equal("PG", body.RootElement.GetProperty("read_level").GetString());
+        Assert.Equal("G", body.RootElement.GetProperty("listen_level").GetString());
+        Assert.False(body.RootElement.GetProperty("show_unrated").GetBoolean());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-kid-settings-saved]")));
+        Assert.Empty(cut.FindAll(".app-save-bar"));
+    }
+
+    [Fact]
+    public void KidSettings_Discard_PutsTheChoicesBack_AndSendsNothing()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+        var cut = OpenKidSettings(HouseholdId);
+
+        Level(cut, "read").Change("R");
+        ShowUnrated(cut).Change(false);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-save-bar")));
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Discard").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-save-bar")));
+        Assert.Equal("PG", Level(cut, "read").GetAttribute("value"));
+        Assert.True(ShowUnrated(cut).HasAttribute("checked"));
+        Assert.Empty(KidSettingsSaves());
+    }
+
+    [Fact]
+    public void KidSettings_WhenTheEngineRefuses_ShowItsSentence_AndKeepTheChanges()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+        _kidSettingsRefusal = "Choose a Watch level: G, PG, PG-13 or R.";
+        var cut = OpenKidSettings(HouseholdId);
+
+        Level(cut, "watch").Change("R");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-save-bar")));
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Save changes").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Choose a Watch level", cut.Find("[data-kid-settings-error]").TextContent));
+        Assert.NotEmpty(cut.FindAll(".app-save-bar"));
+    }
+
+    [Fact]
+    public void KidSettings_SitUnderEachHousehold_AndAreReadOnlyOnAPhone()
+    {
+        UsePhone();
+        Setup(serverAdministrator: true, householdAdministrator: false);
+        _households.AddRange([
+            new HouseholdResponse(OtherHouseholdId, "Cabin", 1, 1, DateTimeOffset.UtcNow),
+            new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow),
+        ]);
+        _managed.AddRange([Person(AlexId, "Alex", false, OtherHouseholdId), Person(OwnId, "Test User", false)]);
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-kid-settings]").Count));
+        cut.Find($"[data-kid-settings='{HouseholdId}'] .kid-settings__toggle").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select")));
+
+        Assert.All(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select, [data-kid-settings='{HouseholdId}'] input"), control => Assert.True(control.HasAttribute("disabled")));
+    }
+
     [Fact]
     public void PickerManageButton_GoesToSettingsForAdministrators_AndStaysInPlaceOnTelevision()
     {
@@ -365,6 +492,18 @@ public sealed class ProfilesTabTests : AsyncBunitContext
             if (request.Method == HttpMethod.Get && path == "/access/households")
             {
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._households) };
+            }
+
+            if (path.EndsWith("/kid-settings", StringComparison.Ordinal))
+            {
+                if (request.Method == HttpMethod.Get)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._kidSettings) };
+                }
+
+                return owner._kidSettingsRefusal is { } kidRefusal
+                    ? new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = JsonContent.Create(new { detail = kidRefusal }) }
+                    : new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._kidSettings) };
             }
 
             if (request.Method == HttpMethod.Post && path == "/auth/session/validate" && owner._authority is { } authority)

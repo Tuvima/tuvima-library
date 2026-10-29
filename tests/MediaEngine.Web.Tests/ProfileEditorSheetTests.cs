@@ -82,7 +82,7 @@ public sealed class ProfileEditorSheetTests
         cut.Find("button[aria-label='Pink']").Click();
         OpenTab(cut, "Icon");
         cut.Find("button[aria-label='fox']").Click();
-        cut.Find("input[aria-label='Kids profile']").Change(true);
+        cut.Find("input[aria-label=\"Kid's profile\"]").Change(true);
         cut.Find("button.who-button--primary").Click();
 
         Assert.NotNull(result);
@@ -107,7 +107,7 @@ public sealed class ProfileEditorSheetTests
         Assert.Empty(cut.FindAll("input[aria-label='Show items with no rating']"));
 
         cut.Find("input.profile-editor__name").Input("Sam");
-        cut.Find("input[aria-label='Kids profile']").Change(true);
+        cut.Find("input[aria-label=\"Kid's profile\"]").Change(true);
         cut.Find("button.who-button--primary").Click();
 
         Assert.True(result!.IsChild);
@@ -177,7 +177,8 @@ public sealed class ProfileEditorSheetTests
         Assert.Equal("true", cut.Find("button[aria-label='Blue']").GetAttribute("aria-checked"));
         PickTab(cut, "Icon");
         Assert.Equal("true", cut.Find("button[aria-label='owl']").GetAttribute("aria-checked"));
-        Assert.True(cut.Find("input[aria-label='Kids profile']").HasAttribute("disabled"));
+        // The Kid's profile switch lives on the person's own page, so editing an existing profile offers none.
+        Assert.Empty(cut.FindAll("input[aria-label=\"Kid's profile\"]"));
     }
 
     [Fact]
@@ -361,7 +362,7 @@ public sealed class ProfileEditorSheetTests
         Assert.Equal("Edit profile", cut.Find("#profile-editor-title").TextContent);
         Assert.NotEmpty(cut.FindAll(".profile-editor__name"));
         Assert.Empty(cut.FindAll(".profile-editor__settings"));
-        Assert.DoesNotContain("Kids profile", cut.Markup);
+        Assert.DoesNotContain("Kid's profile", cut.Markup);
         Assert.DoesNotContain("What can", cut.Markup);
         Assert.DoesNotContain("PIN", cut.Markup);
         Assert.Empty(cut.FindAll(".profile-editor__delete"));

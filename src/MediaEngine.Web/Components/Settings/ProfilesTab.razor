@@ -112,6 +112,10 @@ else
                                 </li>
                             }
                         </ul>
+                        @if (group.Id != Guid.Empty)
+                        {
+                            <HouseholdKidSettings HouseholdId="@group.Id" HouseholdName="@group.Title" ReadOnly="@DeviceContext.IsPhone" OnSave="SaveKidSettingsAsync" />
+                        }
                             </ChildContent>
                         </SettingsSectionPanel>
                     </div>
@@ -294,6 +298,37 @@ else
             _editorOpen = false;
             _editorError = null;
         }
+    }
+
+    // Saves one household's Kid settings (library access D9, D10). Answers null when it went through, or the sentence to show beside the choices.
+    // A missing administrator PIN opens the unlock prompt; the person saves again once it is granted, so the choices are never lost.
+    private async Task<string?> SaveKidSettingsAsync(Guid householdId, UpdateHouseholdKidSettingsRequest request)
+    {
+        var result = await Confirmed.RunAsync(() => Identity.ReplaceHouseholdKidSettingsResultAsync(householdId, request));
+        if (result.Succeeded)
+        {
+            return null;
+        }
+
+        if (result.Failure == DashboardAccessMutationFailure.Forbidden)
+        {
+            _needsUnlock = true;
+            _unlockError = null;
+            _afterUnlock = null;
+            return "Confirm it's you, then save again.";
+        }
+
+        return !string.IsNullOrWhiteSpace(result.Message)
+            ? result.Message
+            : result.Failure switch
+            {
+                DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
+                DashboardAccessMutationFailure.NotFound => "That household is no longer there.",
+                DashboardAccessMutationFailure.Validation => "One of those levels isn't available. Reload and try again.",
+                DashboardAccessMutationFailure.Unauthorized => "Sign in again to continue.",
+                DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+                _ => "That couldn't be saved. Try again.",
+            };
     }
 
     private Task SaveEditorAsync(ProfileEditorResult result)

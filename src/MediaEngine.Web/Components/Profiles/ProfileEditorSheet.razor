@@ -47,13 +47,17 @@
             @if (!SelfEdit)
             {
             <div class="profile-editor__settings">
-                <label class="profile-editor__setting">
-                    <span class="profile-editor__setting-text">
-                        <strong>Kids profile</strong>
-                        <small>@(KidsLocked ? "This can't be changed after a profile is made." : "A calmer, simpler Library without settings.")</small>
-                    </span>
-                    <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_isChild" Disabled="@(Saving || KidsLocked)" AriaLabel="Kids profile" OnChange="OnKidsChanged" />
-                </label>
+                @if (IsAdd)
+                {
+                    @* Only while adding: on an existing person the Kid's profile switch lives on their own page (library access D9). *@
+                    <label class="profile-editor__setting">
+                        <span class="profile-editor__setting-text">
+                            <strong>Kid's profile</strong>
+                            <small>A calmer, simpler Library that follows the household's Kid settings.</small>
+                        </span>
+                        <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_isChild" Disabled="@Saving" AriaLabel="Kid's profile" OnChange="OnKidsChanged" />
+                    </label>
+                }
 
                 <div class="profile-editor__setting">
                     <span class="profile-editor__setting-text">
@@ -164,7 +168,7 @@
 
     /// <summary>
     /// A person editing themselves (their Overview): only the name and the picture (a colour or a photo) are offered, because
-    /// those are what the Engine lets a person save for themselves. The Kids switch, what they may watch, the PIN, the icons and
+    /// those are what the Engine lets a person save for themselves. The Kid's profile switch, what they may watch, the PIN, the icons and
     /// Delete stay with the administrators, who change them from the person's page in Profiles.
     /// </summary>
     [Parameter] public bool SelfEdit { get; set; }
@@ -199,9 +203,6 @@
     [Parameter] public EventCallback OnClose { get; set; }
 
     private bool IsAdd => Profile is null;
-
-    // The Engine can't switch an existing profile between adult and Kids, so the switch is only live while adding.
-    private bool KidsLocked => !IsAdd;
 
     private bool HasPin => Profile?.HasPin == true;
 

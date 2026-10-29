@@ -16,7 +16,7 @@ using AppDialogHost = MediaEngine.Web.Components.Shared.AppDialogHost;
 
 namespace MediaEngine.Web.Tests;
 
-// The Add library dialog (Libraries spec WP3): one screen, name and content type rules, the three access choices, the first folder
+// The Add library dialog (Libraries spec WP3): one screen, name and content type rules, the first folder
 // checked as it is chosen, and what Create does.
 public sealed class CreateLibraryDialogTests : AsyncBunitContext
 {
@@ -140,7 +140,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
-    private async Task OpenAsync(string? area = null, string? kind = null, bool simple = false, string? setupSession = null, LibraryKindCatalog? kinds = null, bool chooseFolder = true)
+    private async Task OpenAsync(string? area = null, string? kind = null, bool simple = false, string? setupSession = null, LibraryKindCatalog? kinds = null, bool chooseFolder = true, string? access = null)
     {
         var parameters = new AppDialogParameters<CreateLibraryDialog>
         {
@@ -148,6 +148,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
             { component => component.Kinds, kinds ?? LibraryKindsTestData.Catalog },
             { component => component.StartAreaKey, area },
             { component => component.StartKindKey, kind },
+            { component => component.StartAccessKey, access },
             { component => component.Simple, simple },
             { component => component.SetupSession, setupSession },
             { component => component.OnCreated, (Func<string, Task>)(id => { _created = id; return Task.CompletedTask; }) },
@@ -303,25 +304,38 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AccessOffersOnlyAVaultSwitchAndOnlyForAdministrators()
+    public async Task TheOrdinaryAddLibraryAsksNoAccessQuestionAndSaysNothingAboutTheVault_EvenForAnAdministrator()
     {
         await SignInAsAdministratorAsync();
         await OpenAsync(kind: "tv");
 
-        var tick = _dialogs.Find("[role=switch]");
-        Assert.False(tick.HasAttribute("disabled"));
-        Assert.False(tick.HasAttribute("checked") || tick.GetAttribute("aria-checked") == "true");
-        Assert.Contains("Vault-protected", _dialogs.Markup, StringComparison.Ordinal);
+        Assert.Empty(_dialogs.FindAll("[role=switch]"));
+        Assert.DoesNotContain("Access", _dialogs.FindAll(".create-library__heading").Select(Text));
+        Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Selected profiles", _dialogs.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Adult content", _dialogs.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task ChoosingVaultProtectedNamesTheLibraryPrivateAndAsksTheEngineToMakeItInTheVault()
+    public async Task AnOrdinaryLibraryIsSavedAsAStandardLibraryNotAVaultOne()
     {
         await SignInAsAdministratorAsync();
         await OpenAsync(kind: "tv");
 
-        _dialogs.Find("[role=switch]").Change(true);
+        _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
+        CreateButton.Click();
+
+        _dialogs.WaitForAssertion(() => Assert.NotEmpty(_mutations));
+        Assert.Empty(_vaultCreates);
+    }
+
+    [Fact]
+    public async Task OpenedForTheVault_NamesTheLibraryPrivateAndAsksTheEngineToMakeItInTheVault_WithoutAnyVaultSwitch()
+    {
+        await SignInAsAdministratorAsync();
+        await OpenAsync(kind: "tv", access: "vault");
+
+        Assert.Empty(_dialogs.FindAll("[role=switch]"));
         Assert.Equal("Private TV Shows", _dialogs.Find("input").GetAttribute("value"));
         _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
         CreateButton.Click();
@@ -335,55 +349,22 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheVaultChoiceIsDisabledWithAPlainReasonWhenTheContentTypeAlreadyHasAVaultLibrary()
+    public async Task OpenedForTheVault_AContentTypeThatAlreadyHasAVaultLibraryIsDisabledWithAPlainReason()
     {
         await SignInAsAdministratorAsync();
         _configuration.Libraries.Add(new() { Id = Guid.NewGuid().ToString("D"), Name = "Private TV Shows", KindKey = "tv", Area = "watch", Kind = "catalogued", IsVault = true, MediaTypes = ["TV"] });
-        await OpenAsync(kind: "tv");
+        await OpenAsync(access: "vault", chooseFolder: false);
 
-        Assert.True(_dialogs.Find("[role=switch]").HasAttribute("disabled"));
+        Assert.True(KindRow("TV Shows").HasAttribute("disabled"));
         Assert.Contains("You already have a Vault-protected TV Shows library.", _dialogs.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task AnAdministratorWhoseVaultModeIsOffSeesNoVaultChoiceNoAdultContentAndNoVaultWord()
-    {
-        await SignInAsAdministratorAsync(vaultMode: false);
-        await OpenAsync(kind: "tv");
-
-        Assert.Empty(_dialogs.FindAll("[role=switch]"));
-        Assert.DoesNotContain("Adult content", _dialogs.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task AccessShowsNoVaultChoiceForAnyoneWhoIsNotAnAdministrator()
-    {
-        await OpenAsync(kind: "tv");
-
-        Assert.Empty(_dialogs.FindAll("[role=switch]"));
-        Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task SimpleModeAsksNoAccessQuestionAndMentionsNoVaultEvenForAnAdministrator()
+    public async Task OpenedForTheVault_OffersAdultContent_AndMakesTheVaultLibrary()
     {
         await SignInAsAdministratorAsync();
-        await OpenAsync(kind: "tv", simple: true);
+        await OpenAsync(kind: CreateLibraryDialog.AdultContentKindKey, access: "vault");
 
-        Assert.Empty(_dialogs.FindAll("[aria-label='Access']"));
-        Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task AdultContentComesWithTheVaultTickOnForAnAdministratorAndMakesTheVaultLibrary()
-    {
-        await SignInAsAdministratorAsync();
-        await OpenAsync(kind: CreateLibraryDialog.AdultContentKindKey);
-
-        var tick = _dialogs.Find("[role=switch]");
-        Assert.False(tick.HasAttribute("disabled"));
-        Assert.True(tick.HasAttribute("checked") || tick.GetAttribute("aria-checked") == "true");
         Assert.Equal("Private Adult content", _dialogs.Find("input").GetAttribute("value"));
         _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
         CreateButton.Click();
@@ -394,24 +375,41 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task UntickingTheVaultOnAdultContentLeavesNothingToCreateBecauseAdultContentExistsOnlyInTheVault()
+    public async Task AdultContentExistsOnlyInTheVault_SoTheOrdinaryAddLibraryDoesNotOfferIt()
     {
         await SignInAsAdministratorAsync();
-        await OpenAsync(kind: CreateLibraryDialog.AdultContentKindKey);
+        await OpenAsync(area: "watch", chooseFolder: false);
 
-        _dialogs.Find("[role=switch]").Change(false);
-
-        _dialogs.WaitForAssertion(() => Assert.True(CreateButton.HasAttribute("disabled")));
-        Assert.Empty(_vaultCreates);
-        Assert.Empty(_mutations);
+        Assert.DoesNotContain("Adult content", _dialogs.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task AdultContentAndEveryVaultWordAreMissingForSomeoneWhoIsNotAnAdministrator()
+    public async Task AnAdministratorWhoseVaultModeIsOff_IsNeverPutInTheVault_EvenWhenAskedTo()
     {
-        await OpenAsync(area: "watch");
+        await SignInAsAdministratorAsync(vaultMode: false);
+        await OpenAsync(kind: "tv", access: "vault");
 
         Assert.DoesNotContain("Adult content", _dialogs.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("TV Shows", _dialogs.Find("input").GetAttribute("value"));
+    }
+
+    [Fact]
+    public async Task SomeoneWhoIsNotAnAdministratorSeesNoVaultWordAndNoAdultContent()
+    {
+        await OpenAsync(area: "watch", access: "vault", chooseFolder: false);
+
+        Assert.DoesNotContain("Adult content", _dialogs.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SimpleModeAsksNoAccessQuestionAndMentionsNoVaultEvenForAnAdministrator()
+    {
+        await SignInAsAdministratorAsync();
+        await OpenAsync(kind: "tv", simple: true, access: "vault");
+
+        Assert.Empty(_dialogs.FindAll("[aria-label='Access']"));
         Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
