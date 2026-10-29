@@ -125,7 +125,7 @@ public sealed class ServerFolderBrowserVaultTests : IDisposable
                     KindKey = "movies",
                     Area = LibraryAreas.Watch,
                     MediaTypes = ["Movies"],
-                    Access = LibraryAccessLevels.Vault,
+                    IsVault = true,
                     Sources = [new LibrarySourceConfig { Id = Guid.NewGuid().ToString("D"), Path = vaultRoot }],
                 },
             ],

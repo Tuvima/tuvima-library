@@ -70,7 +70,7 @@ public sealed class LibraryKindLookupValidationTests
     public void AVaultLibraryOfAKindThatLooksThingsUpMayStayLocalOnlyBesideTheOrdinaryLibraryOfThatKind()
     {
         var vault = Plain("movies", "Movies", LibraryAreas.Watch, "Private Movies");
-        vault.Access = LibraryAccessLevels.Vault;
+        vault.IsVault = true;
 
         var errors = Errors(ShippedWith(vault));
 

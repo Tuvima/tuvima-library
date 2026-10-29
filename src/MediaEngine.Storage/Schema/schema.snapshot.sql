@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0066 profile_sort_position).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0068 household_kid_settings).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1126,11 +1126,19 @@ CREATE TABLE folder_organise_log (
   PRIMARY KEY (operation_id, old_path)
 );
 
+CREATE TABLE household_library_hidden (
+    household_id          BLOB NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+    library_id            BLOB NOT NULL,
+    created_at            TEXT NOT NULL,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    PRIMARY KEY (household_id, library_id)
+);
+
 CREATE TABLE households (
     id         BLOB NOT NULL PRIMARY KEY,
     name       TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)));
+    is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)), kid_watch_level TEXT NOT NULL DEFAULT 'PG' CHECK (kid_watch_level IN ('G', 'PG', 'PG-13', 'R')), kid_read_level TEXT NOT NULL DEFAULT 'PG' CHECK (kid_read_level IN ('G', 'PG', 'PG-13', 'R')), kid_listen_level TEXT NOT NULL DEFAULT 'PG' CHECK (kid_listen_level IN ('G', 'PG', 'PG-13', 'R')), kid_show_unrated INTEGER NOT NULL DEFAULT 1 CHECK (kid_show_unrated IN (0, 1)));
 
 CREATE TABLE identity_audit_events (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1217,14 +1225,6 @@ CREATE TABLE ingestion_log (
     error_detail      TEXT,
     created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-);
-
-CREATE TABLE library_profile_grants (
-    library_id            BLOB NOT NULL,
-    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    created_at            TEXT NOT NULL,
-    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
-    PRIMARY KEY (library_id, profile_id)
 );
 
 CREATE TABLE local_file_sources (
@@ -2325,8 +2325,6 @@ CREATE TABLE profiles (
     avatar_color TEXT NOT NULL DEFAULT '#7C4DFF',
     avatar_image_path TEXT,
     avatar_icon  TEXT,
-    content_limit TEXT CHECK (content_limit IS NULL OR content_limit IN ('G', 'PG', 'PG-13', 'R')),
-    content_limit_allow_unrated INTEGER NOT NULL DEFAULT 0 CHECK (content_limit_allow_unrated IN (0, 1)),
     role         TEXT NOT NULL DEFAULT 'RestrictedProfile'
                      CHECK (role IN ('Administrator', 'StandardUser', 'RestrictedProfile')),
     created_at   TEXT NOT NULL
@@ -3861,8 +3859,6 @@ CREATE INDEX ix_folder_first_checks_held ON folder_first_checks (state, library_
 
 CREATE INDEX ix_folder_first_checks_library ON folder_first_checks (library_id);
 
-CREATE INDEX ix_library_profile_grants_profile ON library_profile_grants(profile_id);
-
 CREATE INDEX ix_local_file_sources_device
     ON local_file_sources(device_id, indexed_at DESC, id);
 
@@ -4203,14 +4199,14 @@ BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = OLD.profile_id AND met
 CREATE TRIGGER trg_profile_nsfw_settings_eligible_insert
 BEFORE INSERT ON profile_nsfw_settings
 WHEN NEW.access_mode <> 'off'
- AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
-BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot have Vault access.'); END;
+ AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND role = 'RestrictedProfile')
+BEGIN SELECT RAISE(ABORT, 'A Kids profile cannot have Vault access.'); END;
 
 CREATE TRIGGER trg_profile_nsfw_settings_eligible_update
 BEFORE UPDATE OF access_mode ON profile_nsfw_settings
 WHEN NEW.access_mode <> 'off'
- AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
-BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot have Vault access.'); END;
+ AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND role = 'RestrictedProfile')
+BEGIN SELECT RAISE(ABORT, 'A Kids profile cannot have Vault access.'); END;
 
 CREATE TRIGGER trg_profile_nsfw_settings_mode_changed
 AFTER UPDATE OF access_mode ON profile_nsfw_settings
@@ -4234,16 +4230,16 @@ AFTER DELETE ON profile_nsfw_settings
 BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = OLD.profile_id; END;
 
 CREATE TRIGGER trg_profiles_nsfw_access_withdrawn
-AFTER UPDATE OF role, content_limit ON profiles
-WHEN NEW.role = 'RestrictedProfile' OR NEW.content_limit IS NOT NULL
+AFTER UPDATE OF role ON profiles
+WHEN NEW.role = 'RestrictedProfile'
 BEGIN
     UPDATE profile_nsfw_settings SET access_mode = 'off' WHERE profile_id = NEW.id AND access_mode <> 'off';
     DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.id;
 END;
 
 CREATE TRIGGER trg_profiles_vault_sections_withdrawn
-AFTER UPDATE OF role, content_limit ON profiles
-WHEN NEW.role = 'RestrictedProfile' OR NEW.content_limit IS NOT NULL
+AFTER UPDATE OF role ON profiles
+WHEN NEW.role = 'RestrictedProfile'
 BEGIN
     DELETE FROM vault_section_grants WHERE profile_id = NEW.id;
 END;
@@ -4343,8 +4339,8 @@ BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have a Vault match.'); END;
 
 CREATE TRIGGER trg_vault_section_grants_eligible
 BEFORE INSERT ON vault_section_grants
-WHEN EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
-BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot open a Vault section.'); END;
+WHEN EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND role = 'RestrictedProfile')
+BEGIN SELECT RAISE(ABORT, 'A Kids profile cannot open a Vault section.'); END;
 
 CREATE TRIGGER trg_view_galleries_cover_no_vault_image_insert
 BEFORE INSERT ON view_galleries

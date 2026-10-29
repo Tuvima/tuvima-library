@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>The "Libraries" list under one area on a person's page: a tick per library, all ticked unless hidden from the person.</summary>
+/// <summary>The libraries under one area that is on, on a person's page: an All libraries tick and a tick per library, all ticked unless hidden.</summary>
 public sealed class AreaLibraryListTests : AsyncBunitContext
 {
     private static readonly Guid Books = Guid.NewGuid();
@@ -23,6 +23,7 @@ public sealed class AreaLibraryListTests : AsyncBunitContext
     ];
 
     private readonly List<(Guid Id, bool Hidden)> _ticks = [];
+    private readonly List<(string Area, bool Ticked)> _alls = [];
 
     public AreaLibraryListTests()
     {
@@ -31,12 +32,12 @@ public sealed class AreaLibraryListTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EverythingIsTickedByDefault_AndAnAreaWithOneLibraryShowsNoList()
+    public void EverythingIsTickedByDefault_WithAnAllLibrariesTickAtTheTop_AndAnAreaWithOneLibraryShowsNoList()
     {
         var read = RenderList("read");
         var listen = RenderList("listen");
 
-        Assert.Equal(["Books", "Comics"], read.FindAll("label").Select(label => label.TextContent.Trim()));
+        Assert.Equal(["All libraries", "Books", "Comics"], read.FindAll("label").Select(label => label.TextContent.Trim()));
         Assert.All(read.FindAll("input"), input => Assert.True(input.HasAttribute("checked")));
         // Listen has no library at all: nothing is drawn.
         Assert.Empty(listen.Markup.Trim());
@@ -58,20 +59,65 @@ public sealed class AreaLibraryListTests : AsyncBunitContext
     {
         var watch = RenderList("watch");
 
-        Assert.Equal(["Movies", "Lectures"], watch.FindAll("label").Select(label => label.TextContent.Trim()));
+        Assert.Equal(["All libraries", "Movies", "Lectures"], watch.FindAll("label").Select(label => label.TextContent.Trim()));
     }
 
     [Fact]
-    public void AHiddenLibraryShowsUnticked_AndUntickingOrReTickingReportsTheChange()
+    public void AHiddenLibraryShowsUnticked_AndUntickingOrReTickingReportsTheChange_WithoutSavingAnything()
     {
         var cut = RenderList("read", hidden: [Comics]);
         Assert.True(Tick(cut, Books).HasAttribute("checked"));
         Assert.False(Tick(cut, Comics).HasAttribute("checked"));
+        // One library is hidden, so All libraries is not ticked.
+        Assert.False(AllTick(cut).HasAttribute("checked"));
 
         Tick(cut, Books).Change(false);
         Tick(cut, Comics).Change(true);
 
         Assert.Equal([(Books, true), (Comics, false)], _ticks);
+    }
+
+    [Fact]
+    public void AllLibraries_ReportsTheWholeArea()
+    {
+        var cut = RenderList("read", hidden: [Comics]);
+
+        AllTick(cut).Change(true);
+
+        Assert.Equal([("read", true)], _alls);
+    }
+
+    [Fact]
+    public void ALibraryTheHouseholdDoesNotHave_IsGreyedWithItsReason_AndCannotBeTicked()
+    {
+        var cut = RenderList("read", limited: [Comics], householdName: "Smith household");
+
+        var row = cut.Find($"[data-library-id='{Comics}']");
+        Assert.Contains("Not available to Smith household", row.TextContent);
+        Assert.Contains("area-library-list__item--limited", row.ClassName);
+        Assert.True(Tick(cut, Comics).HasAttribute("disabled"));
+        Assert.False(Tick(cut, Comics).HasAttribute("checked"));
+
+        Tick(cut, Comics).Change(true);
+        Assert.Empty(_ticks);
+        Assert.False(Tick(cut, Books).HasAttribute("disabled"));
+        // The ones it can change are all ticked, so All libraries is ticked too.
+        Assert.True(AllTick(cut).HasAttribute("checked"));
+    }
+
+    [Fact]
+    public void ALibraryMarkedHiddenForTheHousehold_ByTheEngine_IsGreyedToo()
+    {
+        var picker = Picker.Select(library => library.Id == Comics ? library with { HiddenForHousehold = true } : library).ToList();
+
+        var cut = Render<AreaLibraryList>(parameters => parameters
+            .Add(list => list.Area, "read")
+            .Add(list => list.Libraries, picker)
+            .Add(list => list.HiddenIds, new HashSet<Guid>())
+            .Add(list => list.HouseholdName, "Lee household"));
+
+        Assert.Contains("Not available to Lee household", cut.Find($"[data-library-id='{Comics}']").TextContent);
+        Assert.True(Tick(cut, Comics).HasAttribute("disabled"));
     }
 
     [Fact]
@@ -104,14 +150,16 @@ public sealed class AreaLibraryListTests : AsyncBunitContext
     }
 
     [Fact]
-    public void OnAPhone_TheTicksAreShownButDisabled()
+    public void WhileLocked_TheTicksAreShownButDisabled()
     {
-        var cut = RenderList("read", hidden: [Comics], readOnly: true);
+        var cut = RenderList("read", hidden: [Comics], locked: true);
 
         Assert.All(cut.FindAll("input"), input => Assert.True(input.HasAttribute("disabled")));
         Assert.False(Tick(cut, Comics).HasAttribute("checked"));
         Tick(cut, Books).Change(false);
+        AllTick(cut).Change(false);
         Assert.Empty(_ticks);
+        Assert.Empty(_alls);
     }
 
     [Fact]
@@ -129,35 +177,24 @@ public sealed class AreaLibraryListTests : AsyncBunitContext
         }
     }
 
-    [Fact]
-    public void ATickThePageDidNotTake_IsDrawnAgainFromTheSavedState()
-    {
-        var cut = RenderList("read", accept: false);
-
-        Tick(cut, Books).Change(false);
-
-        Assert.Equal([(Books, true)], _ticks);
-        // The page said no, so the box is back to what is saved: ticked.
-        cut.WaitForAssertion(() => Assert.True(Tick(cut, Books).HasAttribute("checked")));
-    }
-
     private static AngleSharp.Dom.IElement Tick(IRenderedComponent<AreaLibraryList> cut, Guid id) =>
         cut.Find($"[data-library-id='{id}'] input");
 
+    private static AngleSharp.Dom.IElement AllTick(IRenderedComponent<AreaLibraryList> cut) =>
+        cut.Find("[data-area-all] input");
+
     private IRenderedComponent<AreaLibraryList> RenderList(string area, Guid[]? hidden = null, Guid[]? hiddenFromYou = null,
-        bool readOnly = false, bool accept = true)
+        Guid[]? limited = null, string householdName = "", bool locked = false)
     {
         var picker = Picker.Select(library => hiddenFromYou?.Contains(library.Id) == true ? library with { HiddenFromYou = true } : library).ToList();
         return Render<AreaLibraryList>(parameters => parameters
             .Add(list => list.Area, area)
             .Add(list => list.Libraries, picker)
             .Add(list => list.HiddenIds, (hidden ?? []).ToHashSet())
-            .Add(list => list.PersonName, "Sam")
-            .Add(list => list.ReadOnly, readOnly)
-            .Add(list => list.OnHiddenChanged, (Func<Guid, bool, Task<bool>>)((id, isHidden) =>
-            {
-                _ticks.Add((id, isHidden));
-                return Task.FromResult(accept);
-            })));
+            .Add(list => list.LimitedIds, (limited ?? []).ToHashSet())
+            .Add(list => list.HouseholdName, householdName)
+            .Add(list => list.Locked, locked)
+            .Add(list => list.OnTick, EventCallback.Factory.Create<(Guid LibraryId, bool Hidden)>(this, tick => _ticks.Add((tick.LibraryId, tick.Hidden))))
+            .Add(list => list.OnAll, EventCallback.Factory.Create<(string Area, bool Ticked)>(this, all => _alls.Add((all.Area, all.Ticked)))));
     }
 }

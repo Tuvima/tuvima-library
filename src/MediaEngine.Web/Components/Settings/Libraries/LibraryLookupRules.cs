@@ -63,7 +63,7 @@ public static class LibraryLookupRules
 
     /// <summary>True when the library is Vault-protected.</summary>
     public static bool IsVaultLibrary(LibraryFolderDto library) =>
-        string.Equals(library.Access?.Trim(), LibraryListing.Vault, StringComparison.OrdinalIgnoreCase);
+        library.IsVault;
 
     /// <summary>True when the Vault library's online lookup is switched on (its metadata policy is not local-only).</summary>
     public static bool VaultLookupIsOn(LibraryFolderDto library) =>

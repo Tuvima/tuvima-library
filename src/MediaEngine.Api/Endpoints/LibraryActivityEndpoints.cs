@@ -35,13 +35,13 @@ internal static class LibraryActivityEndpoints
             var library = configuration.LoadLibraries().Libraries
                 .FirstOrDefault(candidate => string.Equals(candidate.Id, text, StringComparison.OrdinalIgnoreCase));
             if (library is null
-                || string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
+                || library.IsVault
                 || (await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false)).Contains(text))
             {
                 return ApiErrors.NotFound("Not found.");
             }
 
-            // The same rule every other library read asks: hidden from this profile (or a Selected library it was not chosen for) is not found.
+            // The same rule every other library read asks: hidden for this profile or its household is not found.
             var authority = await authorities.ResolveAsync(http, ct).ConfigureAwait(false);
             if (authority.ActiveProfileId is { } profileId
                 && !await visibility.MaySeeAsync(profileId, authority.IsEffectiveAdministrator, libraryId, true, ct).ConfigureAwait(false))

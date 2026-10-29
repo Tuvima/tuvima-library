@@ -8,7 +8,6 @@
 @inject ConfirmedActionRunner Confirmed
 @inject IAppDialogService Dialogs
 @inject DeviceContextService DeviceContext
-@inject IJSRuntime JS
 @implements IDisposable
 
 <SettingsSectionPanel Title="Users and Sign-in" Description="The sign-ins people use to get into the Library. Each one opens a profile; what a person may see and do is set on their profile, under Profiles." Icon="@AppMaterialIcons.Outlined.Group">
@@ -33,7 +32,6 @@
         <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
             @if (!DeviceContext.IsPhone)
             {
-                <AppButton Label="Import a user" StartIcon="@AppMaterialIcons.Outlined.UploadFile" OnClick="OpenImport" data-testid="access-import-user" />
                 <AppButton Label="Add a sign-in" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="OpenInvite" data-testid="access-add-sign-in" />
             }
         </div>
@@ -111,11 +109,7 @@
             {
                 <AppAlert Severity="AppSeverity.Error" data-testid="access-error">@_error</AppAlert>
             }
-            @if (_mode == UserDrawerMode.Import)
-            {
-                <ManagedAccessUserImport Imported="ImportedAsync" Cancelled="CancelImport" />
-            }
-            else if (_mode == UserDrawerMode.Invite)
+            @if (_mode == UserDrawerMode.Invite)
             {
                 <ManagedAccessUserInvite Created="CreatedAsync" Cancelled="Close" />
             }
@@ -201,8 +195,6 @@
         };
         if (user.HasTwoStep)
             items.Add(new() { Label = "Turn off two-step codes", Icon = AppMaterialIcons.Outlined.Lock, OnClick = EventCallback.Factory.Create(this, () => ResetTwoStep(user)) });
-        if (!string.IsNullOrWhiteSpace(user.Email))
-            items.Add(new() { Label = "Export", Icon = AppMaterialIcons.Outlined.Download, OnClick = EventCallback.Factory.Create(this, () => ExportUser(user)) });
         items.Add(new() { Label = "Delete sign-in", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(user)) });
         return items;
     }
@@ -240,7 +232,6 @@
         UserDrawerMode.Email when _editing is not null => $"Change email · {UserLabel(_editing)}",
         UserDrawerMode.TemporaryPassword when _editing is not null => $"Temporary password · {UserLabel(_editing)}",
         UserDrawerMode.Delete when _editing is not null => $"Delete sign-in · {UserLabel(_editing)}",
-        UserDrawerMode.Import => "Import a user",
         _ => "Users and Sign-in",
     };
 
@@ -286,25 +277,6 @@
         _open = true;
     }
 
-    private void OpenImport()
-    {
-        if (!CanAct) return;
-        ResetDrawer(UserDrawerMode.Import);
-        _exportError = string.Empty;
-        _open = true;
-    }
-
-    private void CancelImport() => Close();
-
-    // The file is on this Library now: reload the list and say where the new person's access is looked after.
-    private async Task ImportedAsync(UserImportResultDto added)
-    {
-        await ReloadAll();
-        Close();
-        var names = string.Join(", ", added.Profiles.Select(profile => profile.Name));
-        _notice = $"{names} {(added.Profiles.Count == 1 ? "was" : "were")} added to {added.HouseholdName}. Choose what they can see on their profile, under Profiles.";
-    }
-
     // The user is made: show the hand-over (the invitation, or the temporary password once) and reload the list.
     private async Task CreatedAsync(ManagedAccessUserInvite.UserCreatedEventArgs created)
     {
@@ -316,42 +288,6 @@
         _mode = UserDrawerMode.Created;
         _notice = $"{UserLabel(created.Result.User)} can now sign in to {created.Result.User.ProfileName ?? "their profile"}.";
         await ReloadAll(generation);
-    }
-
-    // Anyone with the file can sign in as that person, so the Engine asks the administrator to confirm it is them first.
-    private async Task ExportUser(UserSummaryResponse user)
-    {
-        if (!TryBeginMutation(out var generation))
-            return;
-        try
-        {
-            _notice = _exportError = string.Empty;
-            var result = await Confirmed.RunAsync(() => Identity.ExportAccountResultAsync(user.Id));
-            if (!IsCurrentMutation(generation))
-                return;
-            if (result.Succeeded && result.Value is { } file)
-            {
-                await JS.SaveZipAsync(file);
-                _notice = $"A file for {UserLabel(user)} was downloaded. Anyone with it can sign in as them, so keep it somewhere safe.";
-            }
-            else
-            {
-                _exportError = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
-                    ? "Nothing was downloaded. Confirm it's you to continue."
-                    : !string.IsNullOrWhiteSpace(result.Message) ? result.Message
-                    : result.Failure == DashboardAccessMutationFailure.Transient ? "The Engine is unavailable. Try again."
-                    : "The file couldn't be made. Try again.";
-            }
-        }
-        catch (JSException)
-        {
-            // The browser refused the download (for example a blocked download): say so instead of losing the page.
-            _exportError = "The file couldn't be saved. Try again.";
-        }
-        finally
-        {
-            EndMutation(generation);
-        }
     }
 
     private void GeneratePassword() => _temporaryPassword = TemporaryPasswordGenerator.Generate();
@@ -602,6 +538,5 @@
         Email,
         TemporaryPassword,
         Delete,
-        Import,
     }
 }

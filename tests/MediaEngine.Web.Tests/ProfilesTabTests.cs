@@ -30,9 +30,9 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     private readonly List<RequestRecord> _requests = [];
     private DashboardAuthorityResponse? _authority;
     private string? _addPersonDetail;
+    private HouseholdKidSettingsResponse _kidSettings = new(HouseholdId, "PG", "PG", "PG", true, ["G", "PG", "PG-13", "R"]);
+    private string? _kidSettingsRefusal;
     private ConfirmedActionRunnerTests.SpyConfirmer _confirmer = new(confirmed: false);
-    private int _staleExports;
-    private (HttpStatusCode Status, string? Detail)? _exportFailure;
 
     public ProfilesTabTests()
     {
@@ -360,176 +360,129 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("A household holds up to 8 people.", cut.Find(".who-page__error").TextContent));
     }
 
-    // ----- Export this household -----
+    // ---- What Kids can see (library access D9, D10): a level each for Watch, Read and Listen, and one Show unrated items switch
 
-    private const string ExportHelp = "Download a file with this household's profiles, their sign-ins, progress, bookmarks and favourites. Anyone with this file can sign in as these people. Keep it somewhere safe.";
+    private IRenderedComponent<ProfilesTab> OpenKidSettings(Guid householdId)
+    {
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{householdId}']")));
+        cut.Find($"[data-kid-settings='{householdId}'] .kid-settings__toggle").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{householdId}'] [data-kid-level]")));
+        return cut;
+    }
+
+    private static AngleSharp.Dom.IElement Level(IRenderedComponent<ProfilesTab> cut, string area) =>
+        cut.Find($"[data-kid-settings] [data-kid-level='{area}'] select");
+
+    private static AngleSharp.Dom.IElement ShowUnrated(IRenderedComponent<ProfilesTab> cut) =>
+        cut.Find("[data-kid-settings] [data-kid-unrated] input[role='switch']");
+
+    private IEnumerable<RequestRecord> KidSettingsSaves() =>
+        _requests.Where(request => request.Method == HttpMethod.Put && request.Path.EndsWith("/kid-settings", StringComparison.Ordinal));
 
     [Fact]
-    public void HouseholdAdministrator_IsNeverOfferedExport_OnlyTheServerAdministratorExports()
+    public void KidSettings_ShowALevelForWatchReadAndListen_AndOneShowUnratedSwitch_WithTheHouseholdsValues()
     {
         Setup(serverAdministrator: false, householdAdministrator: true);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+        _kidSettings = _kidSettings with { ReadLevel = "R", ShowUnrated = false };
 
-        var cut = Render<ProfilesTab>();
+        var cut = OpenKidSettings(HouseholdId);
 
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Export this household", StringComparison.Ordinal));
-        Assert.Empty(cut.FindAll("[data-testid^='export-household-']"));
-        Assert.DoesNotContain("Anyone with this file can sign in", cut.Markup, StringComparison.Ordinal);
+        Assert.Equal(["watch", "read", "listen"], cut.FindAll("[data-kid-level]").Select(row => row.GetAttribute("data-kid-level")!).ToArray());
+        Assert.Equal("PG", Level(cut, "watch").GetAttribute("value"));
+        Assert.Equal("R", Level(cut, "read").GetAttribute("value"));
+        Assert.Equal("PG", Level(cut, "listen").GetAttribute("value"));
+        // Each choice says what it shows.
+        Assert.Equal(["G: only items for all ages", "PG: some parental guidance", "PG-13: teens and up", "R: almost everything"],
+            Level(cut, "watch").QuerySelectorAll("option").Select(option => option.TextContent.Trim()).ToArray());
+        Assert.False(ShowUnrated(cut).HasAttribute("checked"));
+        Assert.Equal("Show unrated items", ShowUnrated(cut).GetAttribute("aria-label"));
+        // Nothing to save until something changes.
+        Assert.Empty(cut.FindAll(".app-save-bar"));
+        Assert.Empty(KidSettingsSaves());
     }
 
     [Fact]
-    public void ServerAdministrator_GetsOneExportButtonForAHousehold_WithTheHelpText()
+    public void KidSettings_ChangingLevelsAndTheSwitch_SavesAllTogetherOnSaveChanges()
     {
-        Setup(serverAdministrator: true, householdAdministrator: false);
+        Setup(serverAdministrator: false, householdAdministrator: true);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+        var cut = OpenKidSettings(HouseholdId);
 
-        var cut = Render<ProfilesTab>();
+        Level(cut, "watch").Change("PG-13");
+        Level(cut, "listen").Change("G");
+        ShowUnrated(cut).Change(false);
+        Assert.Empty(KidSettingsSaves());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-save-bar")));
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Save changes").Click();
 
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
-        var button = Assert.Single(cut.FindAll("button"), candidate => candidate.TextContent.Trim() == "Export this household");
-        Assert.Equal($"export-household-{HouseholdId}", button.GetAttribute("data-testid"));
-        Assert.Contains(ExportHelp, cut.Find($"[data-household-group='{HouseholdId}']").TextContent, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.Single(KidSettingsSaves()));
+        var put = Assert.Single(KidSettingsSaves());
+        Assert.Equal($"/access/households/{HouseholdId:D}/kid-settings", put.Path);
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal("PG-13", body.RootElement.GetProperty("watch_level").GetString());
+        Assert.Equal("PG", body.RootElement.GetProperty("read_level").GetString());
+        Assert.Equal("G", body.RootElement.GetProperty("listen_level").GetString());
+        Assert.False(body.RootElement.GetProperty("show_unrated").GetBoolean());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-kid-settings-saved]")));
+        Assert.Empty(cut.FindAll(".app-save-bar"));
     }
 
     [Fact]
-    public void ServerAdministrator_GetsOneExportButtonPerHousehold()
+    public void KidSettings_Discard_PutsTheChoicesBack_AndSendsNothing()
     {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+        var cut = OpenKidSettings(HouseholdId);
+
+        Level(cut, "read").Change("R");
+        ShowUnrated(cut).Change(false);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-save-bar")));
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Discard").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-save-bar")));
+        Assert.Equal("PG", Level(cut, "read").GetAttribute("value"));
+        Assert.True(ShowUnrated(cut).HasAttribute("checked"));
+        Assert.Empty(KidSettingsSaves());
+    }
+
+    [Fact]
+    public void KidSettings_WhenTheEngineRefuses_ShowItsSentence_AndKeepTheChanges()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+        _kidSettingsRefusal = "Choose a Watch level: G, PG, PG-13 or R.";
+        var cut = OpenKidSettings(HouseholdId);
+
+        Level(cut, "watch").Change("R");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-save-bar")));
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Save changes").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Choose a Watch level", cut.Find("[data-kid-settings-error]").TextContent));
+        Assert.NotEmpty(cut.FindAll(".app-save-bar"));
+    }
+
+    [Fact]
+    public void KidSettings_SitUnderEachHousehold_AndAreReadOnlyOnAPhone()
+    {
+        UsePhone();
         Setup(serverAdministrator: true, householdAdministrator: false);
         _households.AddRange([
             new HouseholdResponse(OtherHouseholdId, "Cabin", 1, 1, DateTimeOffset.UtcNow),
             new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow),
         ]);
-        _managed.AddRange([Person(AlexId, "Alex", false, OtherHouseholdId), Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
-
+        _managed.AddRange([Person(AlexId, "Alex", false, OtherHouseholdId), Person(OwnId, "Test User", false)]);
         var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-kid-settings]").Count));
+        cut.Find($"[data-kid-settings='{HouseholdId}'] .kid-settings__toggle").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select")));
 
-        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
-        Assert.Equal(2, cut.FindAll("button").Count(button => button.TextContent.Trim() == "Export this household"));
-        Assert.Single(cut.Find($"[data-household-group='{HouseholdId}']").QuerySelectorAll("[data-testid^='export-household-']"));
-        Assert.Single(cut.Find($"[data-household-group='{OtherHouseholdId}']").QuerySelectorAll("[data-testid^='export-household-']"));
-    }
-
-    [Fact]
-    public void OnAPhone_ThereIsNoExportThisHouseholdButton()
-    {
-        UsePhone();
-        Setup(serverAdministrator: true, householdAdministrator: false);
-        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
-        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
-
-        var cut = Render<ProfilesTab>();
-
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Export this household", StringComparison.Ordinal));
-        Assert.DoesNotContain("Anyone with this file can sign in", cut.Markup, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ExportThisHousehold_HandsTheEnginesFileNameToTheBrowser()
-    {
-        Setup(serverAdministrator: true, householdAdministrator: false);
-        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
-        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
-
-        var cut = Render<ProfilesTab>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-testid='export-household-{HouseholdId}']")));
-        cut.Find($"[data-testid='export-household-{HouseholdId}']").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("was downloaded", cut.Find($"[data-testid='export-household-result-{HouseholdId}']").TextContent, StringComparison.Ordinal));
-        var download = Assert.Single(JSInterop.Invocations, call => call.Identifier == "tuvimaDownloads.fromStream");
-        Assert.Equal("tuvima-household-20261022-101500.zip", download.Arguments[0]);
-        Assert.Equal("application/zip", download.Arguments[2]);
-        Assert.Single(_requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/households/{HouseholdId:D}/export");
-        Assert.Equal(0, _confirmer.Asked);
-    }
-
-    [Fact]
-    public void ExportThisHousehold_WhenTheSignInIsStale_AsksToConfirmItsYou_ThenRetriesOnce()
-    {
-        _confirmer = new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: true);
-        _staleExports = 1;
-        Setup(serverAdministrator: true, householdAdministrator: false);
-        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
-        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
-
-        var cut = Render<ProfilesTab>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-testid='export-household-{HouseholdId}']")));
-        cut.Find($"[data-testid='export-household-{HouseholdId}']").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("was downloaded", cut.Markup, StringComparison.Ordinal));
-        Assert.Equal(1, _confirmer.Asked);
-        Assert.Equal(2, _requests.Count(request => request.Method == HttpMethod.Post && request.Path.EndsWith("/export", StringComparison.Ordinal)));
-        Assert.Single(JSInterop.Invocations, call => call.Identifier == "tuvimaDownloads.fromStream");
-    }
-
-    [Fact]
-    public void ExportThisHousehold_WhenTheyDoNotConfirmItsThem_DownloadsNothingAndSaysSo()
-    {
-        _staleExports = 5;
-        Setup(serverAdministrator: true, householdAdministrator: false);
-        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
-        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
-
-        var cut = Render<ProfilesTab>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-testid='export-household-{HouseholdId}']")));
-        cut.Find($"[data-testid='export-household-{HouseholdId}']").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal("Nothing was downloaded. Confirm it's you to continue.",
-            cut.Find($"[data-testid='export-household-result-{HouseholdId}']").TextContent.Trim()));
-        Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "tuvimaDownloads.fromStream");
-    }
-
-    [Fact]
-    public void ExportThisHousehold_WhenTheEngineRefuses_ShowsItsSentenceAndDownloadsNothing()
-    {
-        _exportFailure = (HttpStatusCode.Conflict, "Another change is in progress. Try again in a moment.");
-        Setup(serverAdministrator: true, householdAdministrator: false);
-        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
-        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
-
-        var cut = Render<ProfilesTab>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-testid='export-household-{HouseholdId}']")));
-        cut.Find($"[data-testid='export-household-{HouseholdId}']").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal("Another change is in progress. Try again in a moment.",
-            cut.Find($"[data-testid='export-household-result-{HouseholdId}']").TextContent.Trim()));
-        Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "tuvimaDownloads.fromStream");
-    }
-
-    [Fact]
-    public void ExportThisHousehold_AfterAServerError_NeverShowsTheErrorsText_OnlyThePlainSentence()
-    {
-        _exportFailure = (HttpStatusCode.InternalServerError, "System.IO.IOException at C:\\data\\export.zip");
-        Setup(serverAdministrator: true, householdAdministrator: false);
-        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
-        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
-
-        var cut = Render<ProfilesTab>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-testid='export-household-{HouseholdId}']")));
-        cut.Find($"[data-testid='export-household-{HouseholdId}']").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal("The file couldn't be made. Try again.",
-            cut.Find($"[data-testid='export-household-result-{HouseholdId}']").TextContent.Trim()));
-        Assert.DoesNotContain("IOException", cut.Markup, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ExportThisHousehold_WhenTheBrowserRefusesTheDownload_SaysSo()
-    {
-        JSInterop.SetupVoid("tuvimaDownloads.fromStream", _ => true).SetException(new JSException("Download blocked"));
-        Setup(serverAdministrator: true, householdAdministrator: false);
-        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
-        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
-
-        var cut = Render<ProfilesTab>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-testid='export-household-{HouseholdId}']")));
-        cut.Find($"[data-testid='export-household-{HouseholdId}']").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal("The file couldn't be saved. Try again.",
-            cut.Find($"[data-testid='export-household-result-{HouseholdId}']").TextContent.Trim()));
+        Assert.All(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select, [data-kid-settings='{HouseholdId}'] input"), control => Assert.True(control.HasAttribute("disabled")));
     }
 
     [Fact]
@@ -616,29 +569,16 @@ public sealed class ProfilesTabTests : AsyncBunitContext
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._households) };
             }
 
-            if (request.Method == HttpMethod.Post && path.StartsWith("/access/households/", StringComparison.Ordinal) && path.EndsWith("/export", StringComparison.Ordinal))
+            if (path.EndsWith("/kid-settings", StringComparison.Ordinal))
             {
-                if (owner._staleExports > 0)
+                if (request.Method == HttpMethod.Get)
                 {
-                    owner._staleExports--;
-                    return new HttpResponseMessage(HttpStatusCode.Forbidden)
-                    {
-                        Content = JsonContent.Create(new { code = "confirm_its_you", detail = "Confirm it's you first." }),
-                    };
+                    return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._kidSettings) };
                 }
 
-                if (owner._exportFailure is { } failure)
-                {
-                    return new HttpResponseMessage(failure.Status)
-                    {
-                        Content = failure.Detail is null ? null : JsonContent.Create(new { detail = failure.Detail }),
-                    };
-                }
-
-                var file = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([80, 75, 3, 4]) };
-                file.Content.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
-                file.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment") { FileName = "tuvima-household-20261022-101500.zip" };
-                return file;
+                return owner._kidSettingsRefusal is { } kidRefusal
+                    ? new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = JsonContent.Create(new { detail = kidRefusal }) }
+                    : new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._kidSettings) };
             }
 
             if (request.Method == HttpMethod.Post && path == "/auth/session/validate" && owner._authority is { } authority)

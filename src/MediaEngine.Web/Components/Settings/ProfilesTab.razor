@@ -12,7 +12,6 @@
 @inject NavigationManager Nav
 @inject ILogger<ProfilesTab> Logger
 @inject DeviceContextService DeviceContext
-@inject IJSRuntime JS
 @implements IDisposable
 
 @* Settings > Personal > Profiles: the editing page for administrators. A household administrator sees the people in their own
@@ -62,20 +61,8 @@ else
                 @foreach (var group in Groups)
                 {
                     <div class="profiles-tab__group" @key="group.Id" data-household-group="@group.Id">
-                        <SettingsSectionPanel Title="@group.Title" Description="@(CanExport(group) ? ExportHelp : null)">
-                            <Actions>
-                                @if (CanExport(group))
-                                {
-                                    <AppButton Label="Export this household" Loading="@(_exportingHouseholdId == group.Id)" Disabled="@(_exportingHouseholdId is not null)"
-                                               OnClick="@(() => ExportHouseholdAsync(group.Id))" data-testid="@($"export-household-{group.Id}")" />
-                                }
-                            </Actions>
+                        <SettingsSectionPanel Title="@group.Title">
                             <ChildContent>
-                            @if (_exportResultHouseholdId == group.Id && !string.IsNullOrWhiteSpace(_exportResult))
-                            {
-                                <AppAlert Severity="@(_exportFailed ? AppSeverity.Warning : AppSeverity.Info)" Variant="AppVariant.Outlined" Dense="true"
-                                          data-testid="@($"export-household-result-{group.Id}")">@_exportResult</AppAlert>
-                            }
                         <ul class="profiles-tab__list" role="list">
                             @foreach (var person in group.People)
                             {
@@ -135,6 +122,10 @@ else
                                 </li>
                             }
                         </ul>
+                        @if (group.Id != Guid.Empty)
+                        {
+                            <HouseholdKidSettings HouseholdId="@group.Id" HouseholdName="@group.Title" ReadOnly="@DeviceContext.IsPhone" OnSave="SaveKidSettingsAsync" />
+                        }
                             </ChildContent>
                         </SettingsSectionPanel>
                     </div>
@@ -171,13 +162,6 @@ else
     private string? _unlockError;
     private Func<Task>? _afterUnlock;
     private readonly CancellationTokenSource _lifetime = new();
-    private Guid? _exportingHouseholdId;
-    private Guid? _exportResultHouseholdId;
-    private bool _exportFailed;
-    private string _exportResult = string.Empty;
-
-    private const string ExportHelp = "Download a file with this household's profiles, their sign-ins, progress, bookmarks and favourites. Anyone with this file can sign in as these people. Keep it somewhere safe.";
-
     private Guid? _draggingId;
     private bool _reordering;
 
@@ -198,9 +182,6 @@ else
     private ManagedProfileResponse? Managed(Guid profileId) => _managed.FirstOrDefault(person => person.Id == profileId);
 
     private string SignInText(Guid profileId) => Managed(profileId)?.User?.Email is { Length: > 0 } email ? email : "No sign-in";
-
-    // A phone only reads the list, so the export is a computer or tablet action (checked again in the handler).
-    private bool CanExport(Household group) => IsServerAdministrator && !DeviceContext.IsPhone && group.Id != Guid.Empty;
 
     private static string AddLabel(Household group) => $"Add profile to {group.Title}";
 
@@ -297,9 +278,8 @@ else
     {
         var known = _profiles.FirstOrDefault(profile => profile.Id == person.Id);
         return known ?? new ProfileViewModel(person.Id, person.DisplayName, person.AvatarColor,
-            person.IsRestricted ? "RestrictedProfile" : "Profile", person.CreatedAt,
-            AvatarIcon: person.AvatarIcon, ContentLimit: person.ContentLimit,
-            ContentLimitAllowUnrated: person.ContentLimitAllowUnrated);
+            person.IsKids ? "RestrictedProfile" : "Profile", person.CreatedAt,
+            AvatarIcon: person.AvatarIcon);
     }
 
     // The order is shared by the whole household, so only an administrator changes it, never on a phone, and only when there is
@@ -396,50 +376,6 @@ else
         Nav.NavigateTo($"{SettingsNav.RouteFor(SettingsSection.Access, SettingsNav.HouseholdsSubsection)}?add=1");
     }
 
-    // Hands the household file to the browser. A failure is told in one plain sentence, the Engine's own when it gives one.
-    private async Task ExportHouseholdAsync(Guid householdId)
-    {
-        if (_exportingHouseholdId is not null || !IsServerAdministrator || DeviceContext.IsPhone || householdId == Guid.Empty)
-        {
-            return;
-        }
-
-        _exportingHouseholdId = householdId;
-        _exportResultHouseholdId = householdId;
-        _exportFailed = false;
-        _exportResult = string.Empty;
-        try
-        {
-            var result = await Confirmed.RunAsync(() => Identity.ExportHouseholdResultAsync(householdId, _lifetime.Token), _lifetime.Token);
-            if (result.Value is { } file)
-            {
-                await JS.SaveZipAsync(file);
-                _exportResult = "The household's file was downloaded. Keep it somewhere safe.";
-            }
-            else
-            {
-                _exportFailed = true;
-                _exportResult = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou ? "Nothing was downloaded. Confirm it's you to continue."
-                    : !string.IsNullOrWhiteSpace(result.Message) ? result.Message
-                    : result.Failure == DashboardAccessMutationFailure.Transient ? "The Engine is unavailable. Try again."
-                    : "The file couldn't be made. Try again.";
-            }
-        }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
-        {
-            // The page was left while the file was being made; nothing is shown.
-        }
-        catch (JSException)
-        {
-            _exportFailed = true;
-            _exportResult = "The file couldn't be saved. Try again.";
-        }
-        finally
-        {
-            _exportingHouseholdId = null;
-        }
-    }
-
     public void Dispose()
     {
         _lifetime.Cancel();
@@ -465,6 +401,37 @@ else
             _editorOpen = false;
             _editorError = null;
         }
+    }
+
+    // Saves one household's Kid settings (library access D9, D10). Answers null when it went through, or the sentence to show beside the choices.
+    // A missing administrator PIN opens the unlock prompt; the person saves again once it is granted, so the choices are never lost.
+    private async Task<string?> SaveKidSettingsAsync(Guid householdId, UpdateHouseholdKidSettingsRequest request)
+    {
+        var result = await Confirmed.RunAsync(() => Identity.ReplaceHouseholdKidSettingsResultAsync(householdId, request));
+        if (result.Succeeded)
+        {
+            return null;
+        }
+
+        if (result.Failure == DashboardAccessMutationFailure.Forbidden)
+        {
+            _needsUnlock = true;
+            _unlockError = null;
+            _afterUnlock = null;
+            return "Confirm it's you, then save again.";
+        }
+
+        return !string.IsNullOrWhiteSpace(result.Message)
+            ? result.Message
+            : result.Failure switch
+            {
+                DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
+                DashboardAccessMutationFailure.NotFound => "That household is no longer there.",
+                DashboardAccessMutationFailure.Validation => "One of those levels isn't available. Reload and try again.",
+                DashboardAccessMutationFailure.Unauthorized => "Sign in again to continue.",
+                DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+                _ => "That couldn't be saved. Try again.",
+            };
     }
 
     private Task SaveEditorAsync(ProfileEditorResult result)

@@ -30,8 +30,8 @@ public sealed class VaultAccessStorageTests : IDisposable
         _nsfw = new NsfwAccessRepository(_database);
         _names = new VaultNameRepository(_database);
         _artwork = new VaultArtworkRepository(_database);
-        InsertProfile(_adult, "StandardUser", null);
-        InsertProfile(_admin, "Administrator", null);
+        InsertProfile(_adult, "StandardUser");
+        InsertProfile(_admin, "Administrator");
     }
 
     // ── The list of Vault libraries ─────────────────────────────────────────────────────────────
@@ -317,15 +317,11 @@ public sealed class VaultAccessStorageTests : IDisposable
         Assert.True(access.CanUnlock);
     }
 
-    [Theory]
-    [InlineData("RestrictedProfile", null)]
-    [InlineData("StandardUser", "PG")]
-    [InlineData("Administrator", "R")]
-    [InlineData("RestrictedProfile", "G")]
-    public async Task AKidsOrContentLimitedProfile_CanNeverBeOpenedUp_EvenByAStatementThatSkipsTheEngineRules(string role, string? limit)
+    [Fact]
+    public async Task AKidsProfile_CanNeverBeOpenedUp_EvenByAStatementThatSkipsTheEngineRules()
     {
         var profile = Guid.NewGuid();
-        InsertProfile(profile, role, limit);
+        InsertProfile(profile, "RestrictedProfile");
 
         await Assert.ThrowsAnyAsync<Exception>(() => _nsfw.SetAsync(profile, NsfwAccessMode.Pin, null, _admin, _now));
         await Assert.ThrowsAnyAsync<Exception>(() => _nsfw.SetAsync(profile, NsfwAccessMode.Allowed, null, _admin, _now));
@@ -358,32 +354,6 @@ public sealed class VaultAccessStorageTests : IDisposable
         insert.Execute(
             "INSERT INTO nsfw_session_unlocks(session_id,profile_id,method,unlocked_at,last_activity_at) VALUES(@session,@profile,'allowed',@now,@now);",
             new { session, profile = _adult, now = _now.ToString("O") });
-        Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _now));
-    }
-
-    [Fact]
-    public async Task ABecomingKidsOrContentLimitedProfileLosesAccessAndEveryUnlockAtOnce()
-    {
-        await _nsfw.SetAsync(_adult, NsfwAccessMode.Allowed, null, _admin, _now);
-        var session = InsertSession(_adult);
-        await _nsfw.UnlockAsync(session, _adult, NsfwUnlockMethod.Allowed, 15, _now);
-        Assert.True(await _nsfw.IsUnlockedAsync(session, _adult, _now));
-
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("UPDATE profiles SET content_limit='PG-13' WHERE id=@id;", new { id = _adult });
-        }
-
-        Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _now));
-        Assert.Equal(NsfwAccessMode.Off, (await _nsfw.GetAsync(_adult)).ConfiguredMode);
-
-        // Clearing the limit again does not bring access back; an administrator has to grant it again.
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("UPDATE profiles SET content_limit=NULL WHERE id=@id;", new { id = _adult });
-        }
-
-        Assert.False((await _nsfw.GetAsync(_adult)).CanUnlock);
         Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _now));
     }
 
@@ -478,7 +448,7 @@ public sealed class VaultAccessStorageTests : IDisposable
     public async Task SwitchingProfile_LocksTheSession_AndSwitchingBackDoesNotBringTheUnlockBack()
     {
         var other = Guid.NewGuid();
-        InsertProfile(other, "StandardUser", null);
+        InsertProfile(other, "StandardUser");
         await _nsfw.SetAsync(_adult, NsfwAccessMode.Allowed, null, _admin, _now);
         await _nsfw.SetAsync(other, NsfwAccessMode.Allowed, null, _admin, _now);
         var session = InsertSession(_adult);
@@ -496,7 +466,7 @@ public sealed class VaultAccessStorageTests : IDisposable
     public async Task AnUnlockOnASessionTheOtherProfileOwns_IsNeverValid()
     {
         var other = Guid.NewGuid();
-        InsertProfile(other, "StandardUser", null);
+        InsertProfile(other, "StandardUser");
         await _nsfw.SetAsync(other, NsfwAccessMode.Allowed, null, _admin, _now);
         var session = InsertSession(_adult);
 
@@ -804,12 +774,12 @@ public sealed class VaultAccessStorageTests : IDisposable
             new { id = Guid.NewGuid(), profileId, now = _now.ToString("O") });
     }
 
-    private void InsertProfile(Guid id, string role, string? contentLimit)
+    private void InsertProfile(Guid id, string role)
     {
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,@name,'#7C4DFF',@role,@contentLimit,@createdAt);",
-            new { id, name = role, role, contentLimit, createdAt = _now.ToString("O") });
+            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,@name,'#7C4DFF',@role,@createdAt);",
+            new { id, name = role, role, createdAt = _now.ToString("O") });
     }
 
     private Guid InsertSession(Guid profileId)

@@ -11,7 +11,7 @@ A **profile** is the person: their progress, lists and settings, and also their 
 - **Maintenance:** one place holds access, so the sign-in and the profile can never disagree.
 
 ## Trade-offs accepted
-Pre-release reset (new storage epoch); no conversion of earlier Libraries, backups or user files. Native clients keep working through the same pairing and token flows, which now follow the profile's access.
+Pre-release reset (new storage epoch); no conversion of earlier Libraries, backups or user files (user files were later removed by [library access v3](../../specs/library-access.md)). Native clients keep working through the same pairing and token flows, which now follow the profile's access.
 
 ## Revisit if
 People need one sign-in that reaches several households, or self-registration under a profile (a later spec).

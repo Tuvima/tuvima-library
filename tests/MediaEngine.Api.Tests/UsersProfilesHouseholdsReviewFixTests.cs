@@ -451,6 +451,7 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
             builder.Services.AddSingleton<IProfileRepository>(world.Profiles);
             builder.Services.AddSingleton<IAccountRepository>(world.Accounts);
             builder.Services.AddSingleton<IProfileAccessRepository>(world.Access);
+            builder.Services.AddSingleton<IHouseholdLibraryAccessRepository>(new TestLibraryVisibility.NoHouseholdLibraries());
 
             var app = builder.Build();
             app.MapAccountEndpoints();

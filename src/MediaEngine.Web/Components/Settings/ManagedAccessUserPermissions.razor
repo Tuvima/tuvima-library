@@ -1,70 +1,217 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
 
-<section class="access-user-permissions">
-    <AppText Typo="AppTypo.subtitle1">Media access</AppText>
-    @foreach (var feature in Features.Where(feature => !(ViewStartsOff && feature.Id == "view")))
-    {
-        var held = OfferedFeatureIds is null || OfferedFeatureIds.Contains(feature.Id);
-        <AppSwitchRow Value="@FeatureIds.Contains(feature.Id)" ValueChanged="@((bool value) => FeatureChanged.InvokeAsync((feature.Id, value)))" Label="@feature.Label" Description="@feature.Description" Disabled="@(!held)" />
-        @if (FeatureIds.Contains(feature.Id) && !LibrariesUnavailable)
+@* A person's access on their own page (library access D1, Plex-style): each area (Watch, Listen, Read, View; never the Vault) is a switch, and under
+   an area that is on its libraries have a tick each with an All libraries tick at the top. An area with one library shows no list. A library the
+   person's household does not have is greyed ("Not available to {household}") and cannot be ticked (D2). Everything is kept here as a draft and
+   saved in one go by Save changes (Discard puts it back); the household's own hidden libraries are always sent back with the person's, because the
+   Engine refuses a save that leaves one out. Only administrators reach this section; the page decides. A saved change is confirmed here, no toast. *@
+<section class="access-user-permissions" data-access-section="@Person.Id">
+    <div class="access-user-permissions__head">
+        <AppText Typo="AppTypo.subtitle1">Media access</AppText>
+        <AppInfoTip Label="Media access"
+                    Text="Switch an area off to hide all of it from this person, or untick single libraries. New libraries are visible to everyone." />
+        @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
         {
-            <AreaLibraryList Area="@feature.Id" Libraries="Libraries" HiddenIds="HiddenIds" PersonName="@PersonName"
-                             ReadOnly="ReadOnly" Busy="LibrariesBusy" OnHiddenChanged="OnHiddenChanged" />
+            <span class="access-user-permissions__saved" role="status" data-access-saved>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" Color="AppColor.Success" />@_confirmation
+            </span>
         }
+    </div>
+
+    @foreach (var area in AccessAreas.All)
+    {
+        <div class="access-user-permissions__area" data-access-area="@area.Key">
+            <AppSwitchRow Icon="@area.Icon" Value="@_features.Contains(area.Key)"
+                          ValueChanged="@((bool value) => SetArea(area.Key, value))"
+                          Label="@area.Label" Description="@area.Description"
+                          Disabled="@(_saving || !Offered(area.Key))" />
+            @if (_features.Contains(area.Key) && !LibrariesUnavailable)
+            {
+                <AreaLibraryList Area="@area.Key" Libraries="Libraries" HiddenIds="_hidden" LimitedIds="_limited" HouseholdName="@HouseholdName"
+                                 Locked="_saving" OnTick="SetTick" OnAll="SetAll" />
+            }
+        </div>
     }
-    @if (OfferedFeatureIds is not null && Features.Any(feature => !OfferedFeatureIds.Contains(feature.Id)))
+
+    @if (OfferedFeatureIds is not null && AccessAreas.All.Any(area => !Offered(area.Key)))
     {
         <small data-testid="access-set-by-server-administrator">Set by the server administrator</small>
     }
-    @if (ViewStartsOff)
+    @if (_limited.Count > 0)
     {
-        <small>View starts off for people outside your household. Switch it on from their row once you know them.</small>
+        <small data-household-limited>Limited by @(string.IsNullOrWhiteSpace(HouseholdName) ? "this household" : HouseholdName)</small>
     }
-    @if (LibrariesUnavailable && FeatureIds.Count > 0)
+    @if (LibrariesUnavailable && _features.Count > 0)
     {
         @* The area switches above still work; no library is changed while the list can't be read. *@
         <AppErrorState Compact="true" Title="Libraries not loaded" Message="The libraries could not be loaded, so which ones are hidden can't be changed right now. Libraries already hidden stay hidden; a new person starts with every library visible. Try again." Retry="RetryLibraries" />
     }
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p class="access-user-permissions__error" role="alert" data-access-error>@_error</p>
+    }
+    <AppSaveBar HasChanges="@HasChanges" Saving="@_saving" OnSave="SaveAsync" OnDiscard="Discard"
+                Message="@($"Unsaved access changes for {Person.DisplayName}")" />
 </section>
 
 @code {
-    internal static readonly IReadOnlyList<FeatureOption> Features =
-    [
-        new("read", "Read", "Books and comics"),
-        new("watch", "Watch", "Movies and TV shows"),
-        new("listen", "Listen", "Music and audiobooks"),
-        new("view", "View", "Shared content and the active profile's Personal Space"),
-    ];
+    private readonly HashSet<string> _features = [];
+    private readonly HashSet<Guid> _hidden = [];
+    private HashSet<string> _savedFeatures = [];
+    private HashSet<Guid> _savedHidden = [];
+    private HashSet<Guid> _limited = [];
+    private Guid _seededFor;
+    private long _seededVersion;
+    // After a save that was refused, the page reads the person again; the draft then starts over from what is saved now.
+    private bool _reseedOnMove;
+    private bool _saving;
+    private string? _error;
+    private string? _confirmation;
 
-    /// <summary>A person outside the household starts with View off, so the switch is not offered here.</summary>
-    [Parameter] public bool ViewStartsOff { get; set; }
-    /// <summary>When set, only these lanes are offered (a household administrator hands out only what their own profile holds); null offers all.</summary>
-    [Parameter] public IReadOnlySet<string>? OfferedFeatureIds { get; set; }
-    [Parameter, EditorRequired] public IReadOnlySet<string> FeatureIds { get; set; } = new HashSet<string>();
+    /// <summary>The person: their saved areas and hidden libraries, the household's hidden libraries and the version the draft is taken from.</summary>
+    [Parameter, EditorRequired] public ManagedProfileResponse Person { get; set; } = default!;
+
+    /// <summary>Every library the Engine's picker listed; the Vault is never in it.</summary>
     [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
-
-    /// <summary>The libraries hidden from the person right now; each area's list ticks everything else.</summary>
-    [Parameter, EditorRequired] public IReadOnlySet<Guid> HiddenIds { get; set; } = new HashSet<Guid>();
 
     /// <summary>True when the Engine's library list could not be read. The libraries are then left exactly as they are.</summary>
     [Parameter] public bool LibrariesUnavailable { get; set; }
-    [Parameter] public EventCallback<(string Id, bool Value)> FeatureChanged { get; set; }
 
-    /// <summary>One tick on an area's Libraries list: the library and whether it is now hidden; answers true when it took effect.</summary>
-    [Parameter] public Func<Guid, bool, Task<bool>>? OnHiddenChanged { get; set; }
+    /// <summary>When set, only these areas are offered (a household administrator hands out only what their own profile holds); null offers all.</summary>
+    [Parameter] public IReadOnlySet<string>? OfferedFeatureIds { get; set; }
+
+    /// <summary>The person's household, for "Not available to {household}".</summary>
+    [Parameter] public string HouseholdName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Saves the request and answers null when it went through, or the sentence to show. The host also reads the person again afterwards, so
+    /// <see cref="Person"/> carries the saved state (and its new version) again.
+    /// </summary>
+    [Parameter, EditorRequired] public Func<ReplaceProfileAccessRequest, Task<string?>>? OnSave { get; set; }
 
     /// <summary>Asks the page to read the Engine's library list again.</summary>
     [Parameter] public EventCallback RetryLibraries { get; set; }
 
-    /// <summary>Who the ticks belong to ("Hidden from Sam").</summary>
-    [Parameter] public string PersonName { get; set; } = string.Empty;
+    private bool HasChanges => !_savedFeatures.SetEquals(_features) || !_savedHidden.SetEquals(_hidden);
 
-    /// <summary>True on a phone: ticks are shown but disabled.</summary>
-    [Parameter] public bool ReadOnly { get; set; }
+    private bool Offered(string areaKey) => OfferedFeatureIds is null || OfferedFeatureIds.Contains(areaKey);
 
-    /// <summary>True while a save is running.</summary>
-    [Parameter] public bool LibrariesBusy { get; set; }
+    protected override void OnParametersSet()
+    {
+        _limited = (Person.HouseholdHiddenLibraryIds ?? [])
+            .Concat(Libraries.Where(library => library.HiddenForHousehold).Select(library => library.Id))
+            .ToHashSet();
 
-    internal sealed record FeatureOption(string Id, string Label, string Description);
+        var another = Person.Id != _seededFor;
+        if (another || (Person.AccessVersion != _seededVersion && (!HasChanges || _reseedOnMove)))
+        {
+            Seed();
+        }
+    }
+
+    private void Seed()
+    {
+        _features.Clear();
+        _features.UnionWith(Person.FeatureIds ?? []);
+        _hidden.Clear();
+        _hidden.UnionWith(Person.HiddenLibraryIds ?? []);
+        _savedFeatures = [.. _features];
+        _savedHidden = [.. _hidden];
+        _seededFor = Person.Id;
+        _seededVersion = Person.AccessVersion;
+        _reseedOnMove = false;
+    }
+
+    private void SetArea(string areaKey, bool on)
+    {
+        _confirmation = null;
+        _error = null;
+        if (on)
+        {
+            _features.Add(areaKey);
+        }
+        else
+        {
+            _features.Remove(areaKey);
+        }
+    }
+
+    private void SetTick((Guid LibraryId, bool Hidden) tick)
+    {
+        _confirmation = null;
+        _error = null;
+        if (tick.Hidden)
+        {
+            _hidden.Add(tick.LibraryId);
+        }
+        else
+        {
+            _hidden.Remove(tick.LibraryId);
+        }
+    }
+
+    private void SetAll((string Area, bool Ticked) all)
+    {
+        _confirmation = null;
+        _error = null;
+        foreach (var library in Libraries.Where(library => string.Equals(library.Area, all.Area, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (library.HiddenForHousehold || _limited.Contains(library.Id) || (library.HiddenFromYou && _hidden.Contains(library.Id)))
+            {
+                continue;
+            }
+
+            if (all.Ticked)
+            {
+                _hidden.Remove(library.Id);
+            }
+            else
+            {
+                _hidden.Add(library.Id);
+            }
+        }
+    }
+
+    private void Discard()
+    {
+        _features.Clear();
+        _features.UnionWith(_savedFeatures);
+        _hidden.Clear();
+        _hidden.UnionWith(_savedHidden);
+        _error = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_saving || OnSave is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            // Only the areas this administrator may hand out are sent; the Engine keeps the rest as they are. The household's hidden libraries
+            // go back with the person's own.
+            var features = _features.Where(Offered).Order().ToArray();
+            var hidden = _hidden.Union(_limited).Order().ToArray();
+            _error = await OnSave(new ReplaceProfileAccessRequest(features, hidden, _seededVersion));
+            if (_error is null)
+            {
+                _savedFeatures = [.. _features];
+                _savedHidden = [.. _hidden];
+                _confirmation = "Saved";
+            }
+            else
+            {
+                _reseedOnMove = true;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
 }

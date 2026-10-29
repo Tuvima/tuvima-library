@@ -19,7 +19,7 @@ public sealed class NsfwAccessRepository(IDatabaseConnection database) : INsfwAc
         using var connection = database.CreateConnection();
         var row = connection.QueryFirstOrDefault<AccessRow>(
             """
-            SELECT p.role AS Role, p.content_limit AS ContentLimit, s.access_mode AS AccessMode, s.idle_lock_minutes AS IdleLockMinutes,
+            SELECT p.role AS Role, s.access_mode AS AccessMode, s.idle_lock_minutes AS IdleLockMinutes,
                    EXISTS(SELECT 1 FROM profile_credentials c WHERE c.profile_id = p.id AND c.credential_kind = 'ProfilePin') AS HasPin
             FROM profiles p
             LEFT JOIN profile_nsfw_settings s ON s.profile_id = p.id
@@ -36,7 +36,7 @@ public sealed class NsfwAccessRepository(IDatabaseConnection database) : INsfwAc
         return Task.FromResult(new ProfileNsfwAccess(
             profileId,
             configured,
-            NsfwAccessRules.Effective(configured, role, row.ContentLimit),
+            NsfwAccessRules.Effective(configured, role),
             row.IdleLockMinutes,
             row.HasPin));
     }
@@ -48,12 +48,12 @@ public sealed class NsfwAccessRepository(IDatabaseConnection database) : INsfwAc
         {
             token.ThrowIfCancellationRequested();
             var profile = connection.QueryFirstOrDefault<AccessRow>(
-                "SELECT role AS Role, content_limit AS ContentLimit FROM profiles WHERE id = @profileId;",
+                "SELECT role AS Role FROM profiles WHERE id = @profileId;",
                 new { profileId }, transaction)
                 ?? throw new KeyNotFoundException("Profile not found.");
-            if (mode != NsfwAccessMode.Off && !NsfwAccessRules.IsEligible(Enum.Parse<ProfileRole>(profile.Role), profile.ContentLimit))
+            if (mode != NsfwAccessMode.Off && !NsfwAccessRules.IsEligible(Enum.Parse<ProfileRole>(profile.Role)))
             {
-                throw new InvalidOperationException("A Kids or content-limited profile cannot have Vault access.");
+                throw new InvalidOperationException("A Kids profile cannot have Vault access.");
             }
 
             // One PIN: asking for it to open Vault mode only makes sense when the profile has one.
@@ -102,7 +102,6 @@ public sealed class NsfwAccessRepository(IDatabaseConnection database) : INsfwAc
                   AND u.profile_id = @profileId
                   AND (u.expires_at IS NULL OR u.expires_at > @now)
                   AND p.role <> 'RestrictedProfile'
-                  AND p.content_limit IS NULL
                   AND (s.access_mode = 'allowed'
                        OR (s.access_mode = 'pin' AND u.method = 'pin'
                            AND EXISTS(SELECT 1 FROM profile_credentials c WHERE c.profile_id = u.profile_id AND c.credential_kind = 'ProfilePin'))));
@@ -125,7 +124,6 @@ public sealed class NsfwAccessRepository(IDatabaseConnection database) : INsfwAc
                 JOIN auth_sessions a ON a.id = @sessionId AND a.active_profile_id = p.id AND a.revoked_at IS NULL
                 WHERE p.id = @profileId
                   AND p.role <> 'RestrictedProfile'
-                  AND p.content_limit IS NULL
                   AND (s.access_mode = 'allowed'
                        OR (s.access_mode = 'pin' AND @method = 'pin'
                            AND EXISTS(SELECT 1 FROM profile_credentials c WHERE c.profile_id = p.id AND c.credential_kind = 'ProfilePin')))
@@ -185,7 +183,6 @@ public sealed class NsfwAccessRepository(IDatabaseConnection database) : INsfwAc
     private sealed class AccessRow
     {
         public string Role { get; set; } = string.Empty;
-        public string? ContentLimit { get; set; }
         public string? AccessMode { get; set; }
         public int? IdleLockMinutes { get; set; }
         public bool HasPin { get; set; }

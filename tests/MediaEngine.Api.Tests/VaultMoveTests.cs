@@ -339,13 +339,13 @@ internal sealed class VaultMoveWorld : IDisposable
                 new LibraryFolderConfig
                 {
                     Id = NormalLibraryId, Name = "Movies", Category = "Movies", Kind = LibraryKinds.Catalogued, KindKey = "movies", Area = "watch",
-                    MediaTypes = ["Movies"], Access = LibraryAccessLevels.Standard,
+                    MediaTypes = ["Movies"], IsVault = false,
                     Sources = [new LibrarySourceConfig { Id = NormalSourceId.ToString("D"), Path = NormalFolder, ManagementMode = normalManagement, AccessMode = normalAccess }],
                 },
                 new LibraryFolderConfig
                 {
                     Id = VaultLibraryId, Name = "Private Movies", Category = "Movies", Kind = LibraryKinds.Catalogued, KindKey = "movies", Area = "watch",
-                    MediaTypes = ["Movies"], Access = LibraryAccessLevels.Vault,
+                    MediaTypes = ["Movies"], IsVault = true,
                     Sources = [new LibrarySourceConfig { Id = VaultSourceId.ToString("D"), Path = VaultFolder, ManagementMode = vaultManagement, AccessMode = vaultAccess }],
                 },
             ],
@@ -371,7 +371,7 @@ internal sealed class VaultMoveWorld : IDisposable
         using (var connection = Database.CreateConnection())
         {
             connection.Execute(
-                "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,'Administrator','#7C4DFF','Administrator',NULL,@now);",
+                "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,'Administrator','#7C4DFF','Administrator',@now);",
                 new { id = Admin, now = DateTimeOffset.UtcNow.ToString("O") });
         }
 

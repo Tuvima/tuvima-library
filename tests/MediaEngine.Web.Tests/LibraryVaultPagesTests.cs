@@ -64,7 +64,7 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
         Area = "watch",
         Kind = "catalogued",
         MediaTypes = ["Movies"],
-        Access = "vault",
+        IsVault = true,
         MetadataPolicy = policy,
         Sources = [new() { Id = "vault-movies-1", Path = "E:\\Private\\Movies", ManagementMode = "existing_library", AccessMode = "read_only" }],
     };
@@ -84,7 +84,6 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetFolderJobsAsync), _ => Task.FromResult<IReadOnlyList<FolderJobStatusDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetExcludedFilesAsync), _ => Task.FromResult<IReadOnlyList<ExcludedFileDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryFolderTitlesAsync), _ => Task.FromResult<LibraryFolderTitlesDto?>(new() { Counts = [] }));
-            stub.SetHandler(nameof(IEngineApiClient.GetLibraryAccessAsync), _ => Task.FromResult<LibraryAccessGrantsDto?>(null));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryActivityAsync), args =>
             {
                 _activityReads.Add((string)args![0]!);

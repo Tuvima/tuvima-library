@@ -103,8 +103,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             .AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database))
             .AddSingleton<IConfigurationLoader>(loader)
             .AddSingleton<IVaultLibraryRepository>(new VaultLibraryRepository(_database))
-            .AddSingleton<ILibraryAccessCatalog>(new FixedLibraryAccessCatalog())
-            .AddSingleton<ILibraryProfileGrantRepository>(new LibraryProfileGrantRepository(_database))
+            .AddSingleton<IHouseholdLibraryAccessRepository>(new HouseholdLibraryAccessRepository(_database))
             .BuildServiceProvider();
         var http = VaultContext(shape.Account, NewVaultSession(shape.Account));
         http.RequestServices = services;

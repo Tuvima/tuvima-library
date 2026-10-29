@@ -28,8 +28,13 @@ public sealed class AccountAccessMutationService(
     AuthenticationPolicyMutationGate mutationGate,
     IVaultLibraryRepository vaultLibraries,
     ILogger<AccountAccessMutationService>? logger = null,
-    IHouseholdRepository? households = null) : IAccountAccessMutationService
+    IHouseholdRepository? households = null,
+    IHouseholdLibraryAccessRepository? householdLibraries = null) : IAccountAccessMutationService
 {
+    /// <summary>What an administrator is told when a save would show a person a library that is hidden for their household.</summary>
+    public const string HouseholdHiddenLibraryMessage =
+        "That library isn't available to this person's household, so it can't be shown to them. Ask the server administrator to change what the household can use.";
+
     /// <summary>What a person is told when a change would leave nobody able to sign in as a server administrator.</summary>
     public const string LastAdministratorMessage =
         "This is the last administrator who can sign in. Make someone else an administrator first.";
@@ -95,9 +100,8 @@ public sealed class AccountAccessMutationService(
                 Id = Guid.NewGuid(),
                 DisplayName = NormalizeDisplayName(requested.DisplayName),
                 AvatarColor = NormalizeAvatarColor(requested.AvatarColor),
-                // A new profile is an ordinary member; Kids only when asked, with the Kids content limit.
+                // A new profile is an ordinary member; Kids only when asked, and then it follows the household's Kid settings.
                 Role = requested.IsKids ? ProfileRole.RestrictedProfile : ProfileRole.StandardUser,
-                ContentLimit = requested.IsKids ? ProfileContentLimits.KidsDefault : null,
                 CreatedAt = now,
             };
             profileId = newProfile.Id;
@@ -550,11 +554,6 @@ public sealed class AccountAccessMutationService(
             DisplayName = name,
             AvatarColor = color,
             AvatarIcon = ProfileAvatarIcons.Normalize(command.AvatarIcon),
-            // Left out, a Kids profile starts on PG; an explicit blank means Everything.
-            ContentLimit = command.ContentLimit is null
-                ? (command.IsChild ? ProfileContentLimits.KidsDefault : null)
-                : ProfileContentLimits.Normalize(command.ContentLimit),
-            ContentLimitAllowUnrated = command.ContentLimitAllowUnrated,
             Role = command.IsChild ? ProfileRole.RestrictedProfile : ProfileRole.StandardUser,
             CreatedAt = now,
         };
@@ -668,22 +667,22 @@ public sealed class AccountAccessMutationService(
             profile.AvatarIcon = ProfileAvatarIcons.Normalize(command.AvatarIcon);
         }
 
-        var limitBefore = (profile.ContentLimit, profile.ContentLimitAllowUnrated);
-        if (command.ContentLimit is not null)
+        var kidsBefore = profile.IsKidsProfile;
+        if (command.IsKids is { } wantsKids && wantsKids != kidsBefore)
         {
-            // Omitted keeps the current limit; an empty string means Everything.
-            profile.ContentLimit = ProfileContentLimits.Normalize(command.ContentLimit);
-        }
+            // A Kid's profile never looks after a household or the Library, and the seeded administrator role is never changed here.
+            if (wantsKids && (profile.IsServerAdministrator || profile.IsHouseholdAdministrator || profile.Role == ProfileRole.Administrator))
+            {
+                throw new InvalidOperationException("An administrator can't be a Kids profile.");
+            }
 
-        if (command.ContentLimitAllowUnrated is { } allowUnrated)
-        {
-            profile.ContentLimitAllowUnrated = allowUnrated;
+            profile.Role = wantsKids ? ProfileRole.RestrictedProfile : ProfileRole.StandardUser;
         }
 
         await accounts.UpdateManagedProfileAsync(profile, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "profile.updated", "profile", profile.Id.ToString("D"),
             actor.AccountId ?? Guid.Empty, profile.Id, ct).ConfigureAwait(false);
-        if (limitBefore != (profile.ContentLimit, profile.ContentLimitAllowUnrated))
+        if (kidsBefore != profile.IsKidsProfile)
         {
             await ChangedAsync(actor, "profile.content_limit_changed", "profile", profile.Id.ToString("D"),
                 actor.AccountId ?? Guid.Empty, profile.Id, ct).ConfigureAwait(false);
@@ -794,6 +793,7 @@ public sealed class AccountAccessMutationService(
         }
 
         hiddenLibraries = await ValidateLibrariesAsync(hiddenLibraries, profileId, ct).ConfigureAwait(false);
+        hiddenLibraries = await ApplyHouseholdCeilingAsync(profile, hiddenLibraries, ct).ConfigureAwait(false);
         if (householdOnly)
         {
             // A household administrator never changes a server administrator's access, and hands out nothing beyond their own.
@@ -1166,6 +1166,34 @@ public sealed class AccountAccessMutationService(
     }
 
     /// <summary>
+    /// The household ceiling (library access D2). A library hidden for the person's household is hidden for every profile in it, so no
+    /// administrator, server or household, can show it to one person: a save that leaves a household-hidden library out of the person's
+    /// hidden list is refused (409) rather than quietly ignored. Those libraries are then dropped from the person's own rows, because the
+    /// household already hides them; if the household shows one again, the person sees it again. Returns the person's own hidden libraries
+    /// to store.
+    /// </summary>
+    private async Task<IReadOnlySet<Guid>> ApplyHouseholdCeilingAsync(Profile profile, IReadOnlySet<Guid> requestedHidden, CancellationToken ct)
+    {
+        if (householdLibraries is null || profile.HouseholdId is not { } householdId)
+        {
+            return requestedHidden;
+        }
+
+        var householdHidden = await householdLibraries.GetHiddenLibrariesAsync(householdId, ct).ConfigureAwait(false);
+        if (householdHidden.Count == 0)
+        {
+            return requestedHidden;
+        }
+
+        if (householdHidden.Any(id => !requestedHidden.Contains(id)))
+        {
+            throw new InvalidOperationException(HouseholdHiddenLibraryMessage);
+        }
+
+        return requestedHidden.Where(id => !householdHidden.Contains(id)).ToHashSet();
+    }
+
+    /// <summary>
     /// A household administrator changes only what they hold. A feature may be added or removed only if the acting profile holds it
     /// (a feature they do not hold is kept exactly as it is, and the request cannot add one). A household administrator may hide more
     /// libraries from the household's profiles but never shows a library that is hidden from their own profile (simpler access D4 for
@@ -1310,7 +1338,7 @@ public sealed class AccountAccessMutationService(
         var vaultIds = await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false);
         var known = configuration.LoadLibraries().Libraries
             .Where(library => library.Kind == LibraryKinds.Catalogued
-                && !string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
+                && !library.IsVault
                 && !vaultIds.Contains(library.Id))
             .Select(library => Guid.TryParse(library.Id, out var id) ? id : Guid.Empty)
             .Where(id => id != Guid.Empty)

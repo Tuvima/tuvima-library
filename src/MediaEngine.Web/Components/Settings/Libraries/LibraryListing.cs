@@ -80,16 +80,10 @@ public static class LibraryListing
         return kinds.Find(library.KindKey) is { } kind && kinds.ForArea(kind.Area) is { } byKind ? byKind.Key : null;
     }
 
-    public static string AccessOf(LibraryFolderDto library) => library.Access?.Trim().ToLowerInvariant() switch
-    {
-        Selected => Selected,
-        Vault => Vault,
-        _ => Standard,
-    };
+    public static string AccessOf(LibraryFolderDto library) => library.IsVault ? Vault : Standard;
 
     public static string AccessText(string? access) => access switch
     {
-        Selected => "Selected profiles",
         Vault => "Vault-protected",
         Standard => "Standard",
         _ => "Per profile",

@@ -74,7 +74,10 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
         Assert.Equal(["read"], FeaturesOf(check, people.Kid1));
         Assert.Equal(["watch"], FeaturesOf(check, people.Pat));
         Assert.Equal(1, check.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_library_hidden WHERE profile_id = @id", new { id = GuidSql.ToBlob(people.Mom) }));
-        Assert.Equal("PG", check.ExecuteScalar<string>("SELECT content_limit FROM profiles WHERE id = @id", new { id = GuidSql.ToBlob(people.Kid1) }));
+        // The household's Kid settings come back with the household; a Kid's profile has no limit of its own.
+        var kidSettings = check.QuerySingle<(string Watch, string Read, string Listen, long Unrated)>(
+            "SELECT kid_watch_level, kid_read_level, kid_listen_level, kid_show_unrated FROM households WHERE id = @id", new { id = GuidSql.ToBlob(people.Household1) });
+        Assert.Equal(("PG-13", "G", "R", 0L), kidSettings);
         Assert.Equal(1, check.ExecuteScalar<int>("SELECT is_default FROM households WHERE id = @id", new { id = GuidSql.ToBlob(people.Household1) }));
         Assert.Equal(0, check.ExecuteScalar<int>("SELECT is_default FROM households WHERE id = @id", new { id = GuidSql.ToBlob(people.Household2) }));
         Assert.Equal(1, check.ExecuteScalar<int>("SELECT is_enabled FROM profile_admin_protections WHERE profile_id = @id", new { id = GuidSql.ToBlob(people.Shy) }));
@@ -105,30 +108,6 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
 
         // The current one is accepted.
         RestoreArchiveValidator.Validate(path);
-    }
-
-    [Fact]
-    public void AUserFileMadeWithAnEarlierDataStructure_IsRefusedWithOneSentence()
-    {
-        var (_, dbPath) = NewLibrary("userfile");
-        using var database = BackupTestKit.OpenStore(dbPath);
-        var people = new People();
-        people.Seed(database);
-        var export = new PersonalStateBackupRepository(database, BackupTestKit.Codec()).Export(BackupScope.ForAccount(people.MomUser));
-        using var stream = new MemoryStream();
-        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            BackupArchiveFormat.Write(archive, export);
-            BackupManifestWriter.WriteUser(archive.CreateEntry("manifest.json"), export.Contents, "profile", 1, false);
-        }
-
-        var current = Path.Combine(_root, "current.zip");
-        File.WriteAllBytes(current, stream.ToArray());
-        RestoreArchiveValidator.ValidateUserExport(current);
-
-        var older = Path.Combine(_root, "older.zip");
-        File.WriteAllBytes(older, WithManifestEpoch(stream.ToArray(), "guid-blob-v12-account-held-access"));
-        Assert.Equal(RestoreArchiveValidator.UserExportOlderVersionMessage, Assert.Throws<InvalidDataException>(() => RestoreArchiveValidator.ValidateUserExport(older)).Message);
     }
 
     private static List<string> FeaturesOf(Microsoft.Data.Sqlite.SqliteConnection connection, Guid profile) =>
@@ -229,10 +208,13 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
                 c.Execute("INSERT INTO households(id,name,created_at,is_default) VALUES(@id,@name,@now,@isDefault)", new { id = GuidSql.ToBlob(id), name, now = Stamp, isDefault });
             }
 
+            c.Execute(
+                "UPDATE households SET kid_watch_level='PG-13', kid_read_level='G', kid_listen_level='R', kid_show_unrated=0 WHERE id=@id",
+                new { id = GuidSql.ToBlob(Household1) });
             AddProfile(c, Shy, "Shy", Household1, "StandardUser", server: 1, householdAdmin: 1);
             AddProfile(c, Mom, "Mom", Household1, "StandardUser", householdAdmin: 1);
-            AddProfile(c, Kid1, "Kid 1", Household1, "RestrictedProfile", limit: "PG");
-            AddProfile(c, Kid2, "Kid 2", Household1, "RestrictedProfile", limit: "PG");
+            AddProfile(c, Kid1, "Kid 1", Household1, "RestrictedProfile");
+            AddProfile(c, Kid2, "Kid 2", Household1, "RestrictedProfile");
             AddProfile(c, Pat, "Pat", Household2, "StandardUser", householdAdmin: 1);
             AddUser(c, ShyUser, Shy, "shy@tuvima.com");
             AddUser(c, MomUser, Mom, "mom@home.com");
@@ -251,13 +233,13 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
         }
 
         private static void AddProfile(
-            Microsoft.Data.Sqlite.SqliteConnection c, Guid id, string name, Guid household, string role, int server = 0, int householdAdmin = 0, string? limit = null) =>
+            Microsoft.Data.Sqlite.SqliteConnection c, Guid id, string name, Guid household, string role, int server = 0, int householdAdmin = 0) =>
             c.Execute(
                 """
-                INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at,household_id,is_server_admin,is_household_admin)
-                VALUES(@id,@name,'#7C4DFF',@role,@limit,@now,@household,@server,@householdAdmin)
+                INSERT INTO profiles(id,display_name,avatar_color,role,created_at,household_id,is_server_admin,is_household_admin)
+                VALUES(@id,@name,'#7C4DFF',@role,@now,@household,@server,@householdAdmin)
                 """,
-                new { id = GuidSql.ToBlob(id), name, role, limit, now = Stamp, household = GuidSql.ToBlob(household), server, householdAdmin });
+                new { id = GuidSql.ToBlob(id), name, role, now = Stamp, household = GuidSql.ToBlob(household), server, householdAdmin });
 
         private static void AddUser(Microsoft.Data.Sqlite.SqliteConnection c, Guid id, Guid profile, string email)
         {

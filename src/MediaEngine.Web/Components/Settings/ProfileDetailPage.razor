@@ -201,23 +201,37 @@
         {
             <div class="profile-detail__group" data-profile-section="access">
             <SettingsSectionPanel Title="Access">
-                @if (!string.IsNullOrWhiteSpace(_accessMessage))
+                @if (_managedPerson is { IsServerAdmin: true })
                 {
-                    <p class="who-page__error" role="alert">@_accessMessage</p>
-                }
-                <ul class="profile-detail__list" role="list">
-                    <li class="profile-detail__item">
-                        @if (_managedPerson is { IsServerAdmin: true })
-                        {
-                            <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes"
+                    <ul class="profile-detail__list" role="list">
+                        <li class="profile-detail__item">
+                            <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Media access"
                                             Status="Everything" Note="A server administrator can open everything." Disabled="true" ShowChevron="false" />
-                        }
-                        else
-                        {
-                            <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes" Status="@AccessStatus" OnClick="OpenAccess" />
-                        }
-                    </li>
-                </ul>
+                        </li>
+                    </ul>
+                }
+                else
+                {
+                    <div class="profile-detail__kid" data-kid-switch>
+                        <AppSwitchRow Label="Kid's profile"
+                                      Value="@(_managedPerson?.IsKids == true)"
+                                      ValueChanged="SetKidAsync"
+                                      Disabled="@(_kidBusy || KidLocked)" />
+                        <AppInfoTip Label="Kid's profile"
+                                    Text="@(KidLocked ? "An administrator can't be a Kid's profile." : "A Kid's profile sees only what the household's Kid settings allow, and can't change any access. Set them in Settings > Profiles.")" />
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_kidError))
+                    {
+                        <p class="who-page__error" role="alert" data-kid-error>@_kidError</p>
+                    }
+                    @if (_managedPerson is not null)
+                    {
+                        <ManagedAccessUserPermissions Person="@_managedPerson" Libraries="@_accessLibraries"
+                                                      LibrariesUnavailable="@_accessLibrariesUnavailable"
+                                                      OfferedFeatureIds="@OfferedFeatureIds" HouseholdName="@_householdName"
+                                                      OnSave="SaveAccessAsync" RetryLibraries="RetryLibrariesAsync" />
+                    }
+                }
             </SettingsSectionPanel>
             </div>
         }
@@ -287,21 +301,6 @@
                     OnDelete="DeleteAsync"
                     OnClose="CloseEditor" />
 
-<ProfileAccessSheet Open="@_accessOpen"
-                    PersonName="@(_person?.DisplayName ?? string.Empty)"
-                    Loading="@_accessLoading"
-                    Saving="@_accessSaving"
-                    Error="@_accessError"
-                    Libraries="@_accessLibraries"
-                    LibrariesUnavailable="@_accessLibrariesUnavailable"
-                    ReadOnly="@DeviceContext.IsPhone"
-                    OnHiddenChanged="HiddenChangedAsync"
-                    OnRetryLibraries="RetryLibrariesAsync"
-                    OfferedFeatureIds="@OfferedFeatureIds"
-                    Person="@_managedPerson"
-                    OnSave="SaveAccessAsync"
-                    OnClose="CloseAccess" />
-
 <AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
 
 @code {
@@ -324,13 +323,10 @@
     private ManagedProfileResponse? _managedPerson;
     private List<AccessLibraryOptionDto> _accessLibraries = [];
     private bool _accessLibrariesUnavailable;
-    private bool _accessOpen;
-    private bool _accessLoading;
-    // The profile's access_version the open sheet's lanes were taken from; the Engine refuses a save made against an older one.
-    private long _accessLoadedVersion;
     private bool _accessSaving;
-    private string? _accessError;
-    private string? _accessMessage;
+    private string _householdName = string.Empty;
+    private bool _kidBusy;
+    private string? _kidError;
     private RoleSwitchState _householdRole = RoleSwitchState.Hidden;
     private RoleSwitchState _serverRole = RoleSwitchState.Hidden;
     private bool _roleBusy;
@@ -398,38 +394,10 @@
     // A household administrator hands out only what their own profile holds; a server administrator hands out everything.
     private IReadOnlySet<string>? OfferedFeatureIds => IsServerAdministrator
         ? null
-        : ManagedAccessUserPermissions.Features.Select(feature => feature.Id).Where(Session.HasNavigation).ToHashSet();
+        : AccessAreas.All.Select(area => area.Key).Where(Session.HasNavigation).ToHashSet();
 
-    private string? AccessStatus
-    {
-        get
-        {
-            if (_managedPerson is not { } person)
-            {
-                return null;
-            }
-
-            var lanes = ManagedAccessUserPermissions.Features
-                .Where(feature => person.FeatureIds?.Contains(feature.Id) == true)
-                .ToList();
-            var laneText = lanes.Count == 0 ? "No lanes" : string.Join(", ", lanes.Select(feature => feature.Label));
-            var hiddenIds = person.HiddenLibraryIds ?? [];
-            if (hiddenIds.Count == 0)
-            {
-                return $"{laneText} · all libraries";
-            }
-
-            var perLane = _accessLibrariesUnavailable
-                ? []
-                : lanes
-                    .Select(feature => (feature.Label, Count: _accessLibraries.Count(library =>
-                        string.Equals(library.Area, feature.Id, StringComparison.OrdinalIgnoreCase) && hiddenIds.Contains(library.Id))))
-                    .Where(entry => entry.Count > 0)
-                    .Select(entry => $"{entry.Label}: {entry.Count} hidden")
-                    .ToList();
-            return perLane.Count > 0 ? $"{laneText} · {string.Join(", ", perLane)}" : $"{laneText} · {hiddenIds.Count} hidden";
-        }
-    }
+    // A Kid's profile is for people, not administrators: the Engine refuses it for one.
+    private bool KidLocked => _managedPerson is { IsServerAdmin: true } or { IsHouseholdAdmin: true };
 
     private bool IsAdministrator => Session.HasAction("household.manage") || Session.HasNavigation("settings.administration");
 
@@ -499,8 +467,7 @@
                 return string.Empty;
             }
 
-            var limit = string.IsNullOrWhiteSpace(_person.ContentLimit) ? "Everything" : _person.ContentLimit;
-            var status = _person.IsRestricted ? $"Kids · {limit}" : limit;
+            var status = _person.IsRestricted ? "Kids" : "Member";
             return _person.HasPin ? $"{status} · PIN set" : status;
         }
     }
@@ -562,8 +529,9 @@
                 await LoadProtectionAsync();
                 if (ShowAccess && !_managedPerson!.IsServerAdmin)
                 {
-                    // The summary line names what is hidden per lane.
+                    // The access section lists the libraries and names the household that limits them.
                     await LoadLibrariesAsync();
+                    await LoadHouseholdNameAsync();
                 }
             }
         }
@@ -594,9 +562,8 @@
         // The sheet works with the picker's profile shape, so use the full profile when we have it and fill the rest in.
         return _profiles.FirstOrDefault(profile => profile.Id == person.Id)
             ?? new ProfileViewModel(person.Id, person.DisplayName, person.AvatarColor,
-                person.IsRestricted ? "RestrictedProfile" : "Profile", person.CreatedAt,
-                AvatarIcon: person.AvatarIcon, ContentLimit: person.ContentLimit,
-                ContentLimitAllowUnrated: person.ContentLimitAllowUnrated);
+                person.IsKids ? "RestrictedProfile" : "Profile", person.CreatedAt,
+                AvatarIcon: person.AvatarIcon);
     }
 
     private async Task LoadSettingsAsync()
@@ -662,40 +629,32 @@
         }
     }
 
-    private async Task OpenAccess()
-    {
-        if (!ShowAccess)
-        {
-            return;
-        }
-
-        _accessError = null;
-        _accessMessage = null;
-        _accessLoading = true;
-        _accessOpen = true;
-        try
-        {
-            // The list shows every Library; the ones hidden from this administrator's own profile can't be shown again by them.
-            await LoadLibrariesAsync();
-            _accessLoadedVersion = _managedPerson?.AccessVersion ?? 0;
-        }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-        {
-            Logger.LogWarning(exception, "Could not load the Libraries to choose from.");
-            _accessError = "The Engine is unavailable. Try again.";
-        }
-        finally
-        {
-            _accessLoading = false;
-        }
-    }
-
     // Reads the Engine's library picker. A failed read is "unavailable", never "empty": the libraries are then left as they are.
     private async Task LoadLibrariesAsync()
     {
         var loaded = await Identity.GetAccessLibrariesAsync();
         _accessLibrariesUnavailable = loaded is null;
         _accessLibraries = loaded ?? [];
+    }
+
+    // The household's name, for "Not available to {household}". A missing name only changes the wording.
+    private async Task LoadHouseholdNameAsync()
+    {
+        _householdName = string.Empty;
+        if (_managedPerson?.HouseholdId is not { } householdId)
+        {
+            return;
+        }
+
+        try
+        {
+            var households = await Identity.GetManagedHouseholdsAsync();
+            _householdName = households.FirstOrDefault(household => household.Id == householdId)?.Name ?? string.Empty;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the household's name.");
+        }
     }
 
     private async Task RetryLibrariesAsync()
@@ -711,121 +670,77 @@
         }
     }
 
-    // One tick on a lane's Libraries list. It saves straight away: the lanes as they are saved now, and the hidden libraries with this
-    // one added or removed. The lanes still waiting for Save are not sent. Answers true when the Engine took it.
-    private async Task<bool> HiddenChangedAsync(Guid libraryId, bool hidden)
+    // Save changes on the access section: the areas and hidden libraries go in one request, against the version the section was drawn from.
+    // Answers null when the Engine took it, or the sentence to show. A change made elsewhere since (409) saves nothing: the person is read
+    // again so the section starts over from what is saved now.
+    private async Task<string?> SaveAccessAsync(ReplaceProfileAccessRequest request)
     {
-        if (_accessSaving || !ShowAccess || DeviceContext.IsPhone || _accessLibrariesUnavailable || _managedPerson is not { } person)
+        if (_accessSaving || !ShowAccess)
         {
-            return false;
-        }
-
-        var nextHidden = (person.HiddenLibraryIds ?? []).ToHashSet();
-        if (hidden)
-        {
-            nextHidden.Add(libraryId);
-        }
-        else
-        {
-            nextHidden.Remove(libraryId);
+            return "Access is changed on a computer or tablet.";
         }
 
         _accessSaving = true;
-        _accessError = null;
-        // Draw the busy state now, so the ticks read as disabled while this save is in flight.
-        StateHasChanged();
         try
         {
-            var lanes = (person.FeatureIds ?? []).Order().ToArray();
-            var loadedVersion = person.AccessVersion;
-            var result = await Confirmed.RunAsync(() => Identity.ReplaceProfileAccessResultAsync(
-                ProfileId, new ReplaceProfileAccessRequest(lanes, nextHidden.Order().ToArray(), loadedVersion)));
+            var result = await Confirmed.RunAsync(() => Identity.ReplaceProfileAccessResultAsync(ProfileId, request));
             if (!result.Succeeded)
             {
-                await HandleAccessRefusalAsync(result);
-                return false;
+                if (result.Failure == DashboardAccessMutationFailure.Conflict)
+                {
+                    await ReloadManagedAsync();
+                    return string.IsNullOrWhiteSpace(result.Message)
+                        ? "Something changed since you looked. Check the list and try again."
+                        : result.Message;
+                }
+
+                return AccessFailureMessage(result.Failure, result.Message);
             }
 
             await ReloadManagedAsync();
-            // A save raises the profile's version by exactly one, so the lanes still waiting in the sheet stay current only when nothing
-            // else changed either; otherwise the next Save is refused and the person starts again from what is now saved.
-            if (_accessLoadedVersion == loadedVersion && _managedPerson?.AccessVersion == loadedVersion + 1)
-            {
-                _accessLoadedVersion = loadedVersion + 1;
-            }
-
-            Toasts.Add(hidden ? $"Hidden from {PersonName}" : $"Shown to {PersonName}", AppSeverity.Success);
-            return true;
+            return null;
         }
         finally
         {
             _accessSaving = false;
-            // The tick was reported by the list, not by this page, so nothing else would draw the new saved state.
+            // The section reported the save, not this page, so nothing else would draw the person's new saved state.
             StateHasChanged();
         }
     }
 
-    private void CloseAccess()
+    // The Kid's profile switch saves straight away (one change, like the role switches): the person's name and look are sent back as they are.
+    private async Task SetKidAsync(bool on)
     {
-        if (!_accessSaving)
-        {
-            _accessOpen = false;
-            _accessError = null;
-        }
-    }
-
-    private async Task SaveAccessAsync(ReplaceProfileAccessRequest request)
-    {
-        if (_accessSaving || !ShowAccess)
+        if (_kidBusy || !ShowAccess || _managedPerson is not { } person)
         {
             return;
         }
 
-        _accessSaving = true;
-        _accessError = null;
+        _kidBusy = true;
+        _kidError = null;
         try
         {
-            var versioned = request with { ExpectedAccessVersion = _accessLoadedVersion };
-            var result = await Confirmed.RunAsync(() => Identity.ReplaceProfileAccessResultAsync(ProfileId, versioned));
+            var result = await Confirmed.RunAsync(() => Identity.UpdateManagedProfileResultAsync(ProfileId,
+                new UpdateManagedProfileRequest(person.DisplayName, person.AvatarColor, IsKids: on)));
             if (!result.Succeeded)
             {
-                await HandleAccessRefusalAsync(result);
+                _kidError = AccessFailureMessage(result.Failure, result.Message);
                 return;
             }
 
             await ReloadManagedAsync();
-            _accessOpen = false;
-            Toasts.Add($"Access for {PersonName} was saved.", AppSeverity.Success);
+            await RefreshPeopleAsync();
+            _profiles = await Orchestrator.GetProfilesAsync();
+            _person = FindPerson() ?? _person;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not refresh the profile after changing the Kid's profile switch.");
+            _kidError = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
         }
         finally
         {
-            _accessSaving = false;
-        }
-    }
-
-    // A refused access save. When the profile's access changed since this page loaded (409), the Engine saved nothing: read the
-    // profile's access again, say so, and let the sheet start over from what is now saved (the person can tick again).
-    private async Task HandleAccessRefusalAsync(DashboardAccessMutationResult result)
-    {
-        if (result.Failure != DashboardAccessMutationFailure.Conflict)
-        {
-            _accessError = AccessFailureMessage(result.Failure, result.Message);
-            return;
-        }
-
-        _accessLoading = true;
-        StateHasChanged();
-        try
-        {
-            await ReloadManagedAsync();
-            _accessLoadedVersion = _managedPerson?.AccessVersion ?? 0;
-            _accessError = string.IsNullOrWhiteSpace(result.Message)
-                ? "Something changed since you looked. Check the list and try again."
-                : result.Message;
-        }
-        finally
-        {
-            _accessLoading = false;
+            _kidBusy = false;
         }
     }
 

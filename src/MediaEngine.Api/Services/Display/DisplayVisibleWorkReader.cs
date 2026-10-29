@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Services.Display;
 
 /// <summary>
 /// What a profile's visibility rules need to know about one visible (work, library) pair: which work, which library,
-/// which kind of media, what content rating it carries and which file stands for it (a marked folder is found by that file).
+/// which kind of media, what content rating it carries and which file stands for it.
 /// </summary>
 public sealed class DisplayVisibleWorkRow
 {

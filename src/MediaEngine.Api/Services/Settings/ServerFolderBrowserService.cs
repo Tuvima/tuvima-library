@@ -760,10 +760,10 @@ public sealed class ServerFolderBrowserService(
             ? NeutralLibraryLabel
             : $"the library \"{name}\"";
 
-    // A Vault library is told apart by what it is (its access), never by its name: a Vault sibling library has a name the person chose ("Private Movies").
+    // A Vault library is told apart by what it is (its vault marker), never by its name: a Vault sibling library has a name the person chose ("Private Movies").
     // The legacy Vault entry is also recognised by its fixed name.
     private static bool IsVaultEntry(LibraryFolderConfig library) =>
-        string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)
+        library.IsVault
         || string.Equals(library.Name?.Trim(), MediaEngine.Api.Services.Vault.VaultFolderAttachmentService.LibraryName, StringComparison.OrdinalIgnoreCase);
 
     // The one answer for any folder that is, holds or sits inside a Vault folder: it names no library and says nothing about why.

@@ -31,8 +31,8 @@ public sealed class AccountVaultLibraryGrantTests
             File.WriteAllText(Path.Combine(configPath, "libraries.json"), System.Text.Json.JsonSerializer.Serialize(new LibrariesConfiguration
             {
                 StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Media", Path = Path.GetTempPath(), AllowWrite = true }],
-                Libraries = [Library(ordinary, "Movies", LibraryAccessLevels.Standard), Library(vaultByList, "Private TV", LibraryAccessLevels.Standard, "tv", "TV"),
-                    Library(vaultByAccess, "Private Music", LibraryAccessLevels.Vault)],
+                Libraries = [Library(ordinary, "Movies", false), Library(vaultByList, "Private TV", false, "tv", "TV"),
+                    Library(vaultByAccess, "Private Music", true)],
             }));
             var accounts = new AccountRepository(database);
             var identities = new IdentityRepository(database);
@@ -71,7 +71,7 @@ public sealed class AccountVaultLibraryGrantTests
         }
     }
 
-    private static LibraryFolderConfig Library(Guid id, string name, string access, string kindKey = "movies", string mediaType = "Movies") => new()
+    private static LibraryFolderConfig Library(Guid id, string name, bool vault, string kindKey = "movies", string mediaType = "Movies") => new()
     {
         Id = id.ToString("D"),
         Name = name,
@@ -80,6 +80,6 @@ public sealed class AccountVaultLibraryGrantTests
         KindKey = kindKey,
         Area = "watch",
         MediaTypes = [mediaType],
-        Access = access,
+        IsVault = vault,
     };
 }

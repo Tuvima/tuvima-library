@@ -22,7 +22,7 @@ public static partial class BackupTableClassification
         Config("account_notice_dismissals", "Notices an account has dismissed, so they do not return."),
         Config("profile_feature_grants", "Which features a profile may use."),
         Config("profile_library_hidden", "Which libraries an administrator hid from a profile."),
-        Config("library_profile_grants", "Which profiles can see a Selected-profiles library."),
+        Config("household_library_hidden", "Which libraries an administrator hid for a whole household (the household ceiling)."),
         Config("profile_admin_protections", "Optional extra lock (lock settings) on a profile's administrator rights."),
         Config("households", "Households that group profiles (and, through them, users)."),
         Config("profiles", "People using the Library, with their display, content limit and navigation settings.", excluded: ["avatar_image_path"]),

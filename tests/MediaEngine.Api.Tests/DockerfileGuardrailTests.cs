@@ -135,7 +135,7 @@ public sealed class DockerfileGuardrailTests
         Assert.DoesNotContain("TUVIMA_WATCH_FOLDER", entrypoint);
         Assert.Contains("\"library_root\": \"/library\"", core);
         Assert.Contains("\"data_root\": \"/artwork-cache\"", core);
-        Assert.Contains("\"schema_version\": \"9.0\"", libraries);
+        Assert.Contains("\"schema_version\": \"10.0\"", libraries);
         Assert.DoesNotContain("\"path\": \"/watch\"", libraries);
         Assert.Contains("\"path\": \"/library/Books\"", libraries);
         Assert.Contains("\"view_storage\"", libraries);
