@@ -35,7 +35,8 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("feature_ids")] IReadOnlyList<string>? FeatureIds = null,
     [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid>? HiddenLibraryIds = null,
     [property: JsonPropertyName("user")] ManagedProfileUserDto? User = null,
-    [property: JsonPropertyName("access_version")] long AccessVersion = 0);
+    [property: JsonPropertyName("access_version")] long AccessVersion = 0,
+    [property: JsonPropertyName("sort_position")] int SortPosition = 0);
 
 /// <summary>
 /// Adds a person to a household. A child person is a restricted profile; the PIN is optional.

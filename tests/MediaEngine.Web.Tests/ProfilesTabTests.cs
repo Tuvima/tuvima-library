@@ -459,13 +459,14 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PickerManageButton_GoesToSettingsForAdministrators_AndStaysInPlaceOnTelevision()
+    public void PickerManageButton_ShowsPencilsInPlace_AndEachPencilGoesToThatPersonsPage_ExceptOnTelevision()
     {
         var picker = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ProfilePickerPage.razor"));
         var menu = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));
 
         Assert.Contains("OnClick=\"StartManagingAsync\"", picker, StringComparison.Ordinal);
-        Assert.Contains("Navigation.NavigateTo(\"/settings/profiles\");", picker, StringComparison.Ordinal);
+        Assert.Contains("Navigation.NavigateTo(ProfilePageHref(profile));", picker, StringComparison.Ordinal);
+        Assert.Contains("/settings/profiles/{profile.Id:D}", picker, StringComparison.Ordinal);
         Assert.Contains("_managing = true;", picker, StringComparison.Ordinal);
         Assert.Contains("\"television\"", picker, StringComparison.Ordinal);
         Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", menu, StringComparison.Ordinal);
