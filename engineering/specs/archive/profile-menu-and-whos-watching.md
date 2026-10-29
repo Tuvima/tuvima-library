@@ -1,6 +1,6 @@
 # Spec: Profile menu and Who's watching
 
-Status: Locked · Version: 2 · Last updated: 2026-10-29 (locked by Shy) · Related: follow-ups F87, F88, F3, F86; specs settings-and-top-navigation, users-profiles-households; Settings flat-menu thread (F90)
+Status: Built · Version: 2 · Last updated: 2026-10-29 (locked by Shy) · Related: follow-ups F87, F88, F3, F86; specs settings-and-top-navigation, users-profiles-households; Settings flat-menu thread (F90)
 
 ## Goal
 Two small, familiar surfaces for switching people: the top-bar profile menu lists the *other* profiles first (Netflix order), and the Who's watching screen becomes open round pictures with the name underneath, tap to pick, with an edit mode.
@@ -34,3 +34,10 @@ The menu item and page are named "Profile" (Shy, 2026-10-29); the Settings threa
 
 ## Plain English summary
 Switching profiles will work like Netflix: the menu shows the other people first, and the Who's watching screen is a clean row of round pictures you tap. Admins can reorder them and use a Manage mode with pencils to reach each person's page.
+
+## Built notes (2026-10-29)
+- Built in one pass: stored order (upgrade step 0066, `profiles.sort_position`; new people go last), Engine action `PUT /access/households/{id}/people/order` (same authority as adding a person, audited, `sort_position` on the managed profile list), menu reorder, Who's watching restyle, pencil to the person's page.
+- Kept the signed-in person's header at the top of the menu, with a divider before the list of other people.
+- A Kids profile's menu shows a direct My activity link instead of Profile, because Settings is still closed to Kids; opening the Profile page to Kids belongs to the flat Settings build.
+- On a television the pencil still opens the in-place editor sheet (there is no Settings page worth using there); every other device goes to /settings/profiles/{profileId}.
+- Left for the flat Settings build: the drag handle in the Manage profiles list (the Dashboard client call `ReorderHouseholdPeopleResultAsync` is ready), renaming the page and label "Overview" to "Profile".

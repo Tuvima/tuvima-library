@@ -633,6 +633,17 @@ public static class AccountEndpoints
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("AddHouseholdPerson").Produces<ManagedProfileResponse>(StatusCodes.Status201Created);
 
+        // The order people are listed in, shared by the whole household. Same authority as adding a person.
+        access.MapPut("/households/{householdId:guid}/people/order", async (Guid householdId,
+            ReorderHouseholdProfilesRequest request, HttpContext http, IRequestAuthorityResolver resolver,
+            IAccountAccessMutationService mutations, CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            await mutations.ReorderHouseholdProfilesAsync(await resolver.ResolveAsync(http, ct), householdId,
+                request.ProfileIds ?? [], ct);
+            return Results.NoContent();
+        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("ReorderHouseholdPeople").Produces(StatusCodes.Status204NoContent);
+
         // What a profile may use. A household administrator hands out only what their own profile holds, only inside their household.
         profiles.MapPut("/{profileId:guid}/access", async (Guid profileId, ReplaceProfileAccessRequest request,
             HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
@@ -857,7 +868,8 @@ public static class AccountEndpoints
             profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
             profile.AvatarIcon, profile.ContentLimit, profile.ContentLimitAllowUnrated,
             profile.IsServerAdministrator, profile.IsHouseholdAdministrator,
-            AccessVersion: profile.AuthorizationVersion);
+            AccessVersion: profile.AuthorizationVersion,
+            SortPosition: profile.SortPosition);
 
     /// <summary>A profile with its roles, what it may use and the user it opens, for the lists that manage profiles.</summary>
     private static async Task<ManagedProfileResponse> MapProfileDetailAsync(
