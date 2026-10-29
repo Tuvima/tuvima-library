@@ -1,49 +1,71 @@
 @namespace MediaEngine.Web.Components.Settings
 
 @* System > Logs (settings revamp D38, ingestion WP12): the Events log (what was added, what needs review, what failed and what
-   the system did), the Engine's technical log, how long logs are kept, and the export, as in-page sections. *@
+   the system did), the Engine's technical log, how long logs are kept, and the export. A page has one row of tabs, so these four
+   views sit under a segmented control inside the Logs tab instead of a second row of tabs. *@
 <div class="tl-page logs-page">
-    <AppTabs @bind-ActivePanelIndex="_tab" Label="Logs sections">
-        <AppTabPanel Text="Events">
-            <ActivityLogPanel Filter="@Filter" />
-        </AppTabPanel>
-        <AppTabPanel Text="Technical log">
+    <div class="logs-page__views">
+        <AppSegmentedControl Options="@Views"
+                             Value="@_view"
+                             ValueChanged="@(value => _view = value)"
+                             AriaLabel="Logs views" />
+    </div>
+
+    @switch (_view)
+    {
+        case TechnicalView:
             <TechnicalLogPanel />
-        </AppTabPanel>
-        <AppTabPanel Text="Retention">
+            break;
+        case RetentionView:
             <LogRetentionPanel />
-        </AppTabPanel>
-        <AppTabPanel Text="Export">
+            break;
+        case ExportView:
             <LogExportPanel />
-        </AppTabPanel>
-    </AppTabs>
+            break;
+        default:
+            <ActivityLogPanel Filter="@Filter" />
+            break;
+    }
 </div>
 
 @code {
-    /// <summary>Which section opens first: <c>events</c> (the default), <c>technical</c>, <c>retention</c> or <c>export</c>.</summary>
+    private const string EventsView = "events";
+    private const string TechnicalView = "technical";
+    private const string RetentionView = "retention";
+    private const string ExportView = "export";
+
+    private static readonly IReadOnlyList<AppSelectOption> Views =
+    [
+        new(EventsView, "Events"),
+        new(TechnicalView, "Technical log"),
+        new(RetentionView, "Retention"),
+        new(ExportView, "Export"),
+    ];
+
+    /// <summary>Which view opens first: <c>events</c> (the default), <c>technical</c>, <c>retention</c> or <c>export</c>.</summary>
     [Parameter] public string? Tab { get; set; }
 
-    /// <summary>Which filter the Events section opens on: <c>added</c>, <c>review</c>, <c>failed</c>, <c>system</c> or <c>all</c> (the default).</summary>
+    /// <summary>Which filter the Events view opens on: <c>added</c>, <c>review</c>, <c>failed</c>, <c>system</c> or <c>all</c> (the default).</summary>
     [Parameter] public string? Filter { get; set; }
 
-    private int _tab;
+    private string _view = EventsView;
     private string? _openedWith;
 
     protected override void OnParametersSet()
     {
-        // Only a changed address moves the tab; a parent re-render must not undo the one the person picked.
+        // Only a changed address moves the view; a parent re-render must not undo the one the person picked.
         if (_openedWith == Tab)
         {
             return;
         }
 
         _openedWith = Tab;
-        _tab = Tab?.ToLowerInvariant() switch
+        _view = Tab?.ToLowerInvariant() switch
         {
-            "technical" => 1,
-            "retention" => 2,
-            "export" => 3,
-            _ => 0,
+            TechnicalView => TechnicalView,
+            RetentionView => RetentionView,
+            ExportView => ExportView,
+            _ => EventsView,
         };
     }
 }

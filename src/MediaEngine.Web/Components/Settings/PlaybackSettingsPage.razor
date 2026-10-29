@@ -42,7 +42,7 @@ else if (_settings is not null)
             <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined" Dense="true">@_saveError</AppAlert>
         }
 
-        @if (IsOtherProfile && _target is not null)
+        @if (IsOtherProfile && !Embedded && _target is not null)
         {
             <div class="playback-profile-heading">
                 <span class="playback-profile-heading__avatar">
@@ -171,6 +171,9 @@ else if (_settings is not null)
 @code {
     /// <summary>Another household profile to edit (administrators only). Null or the active profile edits your own.</summary>
     [Parameter] public Guid? ProfileId { get; set; }
+
+    /// <summary>Drawn as a section of a profile's Preferences tab, which already names the person, so the page leaves out its own heading.</summary>
+    [Parameter] public bool Embedded { get; set; }
 
     /// <summary>Raised with the other profile's name once it is known, so the page can show it in the breadcrumb.</summary>
     [Parameter] public EventCallback<string?> TargetNameChanged { get; set; }

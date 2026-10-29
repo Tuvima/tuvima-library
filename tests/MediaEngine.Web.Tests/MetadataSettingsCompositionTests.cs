@@ -14,7 +14,7 @@ public sealed class MetadataSettingsCompositionTests
         Assert.Contains("ProviderDetailPage()", page, StringComparison.Ordinal);
         Assert.Contains("IngestionFlowPage()", page, StringComparison.Ordinal);
         Assert.Contains("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
-        Assert.Contains("\"ingestion-flow\", \"Ingestion Flow\"", nav, StringComparison.Ordinal);
+        Assert.Contains("IngestionFlowSubsection, \"Ingestion Flow\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"enrichment\", \"Enrichment\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"canonical\", \"Canonical & Universes\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("EnrichmentOverview", page, StringComparison.Ordinal);

@@ -1,0 +1,195 @@
+@namespace MediaEngine.Web.Components.Settings
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject UIOrchestratorService Orchestrator
+@inject ILogger<LocalAiModelFilesPanel> Logger
+
+@* Settings > Platform > Local AI > Models & Hardware: the model files for the optional local AI features, the one place they are
+   listed. Tools & requirements (System > Configuration) links here instead of repeating the list. *@
+@if (!string.IsNullOrWhiteSpace(_message))
+{
+    <AppAlert Tone="@_messageTone" Class="tl-sp-mb-3" data-testid="models-message">@_message</AppAlert>
+}
+
+@if (Models.Count > 0)
+{
+    <AppCard Title="Model files" Description="Model files for the optional local AI features. They are downloaded only when you ask." Class="tl-sp-mb-3">
+        <div class="tools-requirements__list" data-testid="models-list">
+            @foreach (var model in Models)
+            {
+                <ToolRequirementRow Tool="@model"
+                                    Busy="@ModelBusy(model)"
+                                    OnDownloadAgain="DownloadModelAsync">
+                    <Actions>
+                        @if (model.State == ToolRequirementStates.Downloading)
+                        {
+                            <AppButton Label="Cancel" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="@(_busyId is not null)" OnClick="@(() => RunModelActionAsync(model, ModelAction.Cancel))" />
+                        }
+                        @if (CanLoad(model))
+                        {
+                            <AppButton Label="Load" Size="AppControlSize.Compact" Tone="AppUiTone.Success" Disabled="@(_busyId is not null)" OnClick="@(() => RunModelActionAsync(model, ModelAction.Load))" />
+                        }
+                        @if (CanUnload(model))
+                        {
+                            <AppButton Label="Unload" Size="AppControlSize.Compact" Disabled="@(_busyId is not null)" OnClick="@(() => RunModelActionAsync(model, ModelAction.Unload))" />
+                        }
+                    </Actions>
+                </ToolRequirementRow>
+            }
+        </div>
+    </AppCard>
+}
+
+@code {
+    /// <summary>How often the list is read again while a download is running.</summary>
+    [Parameter] public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(2);
+
+    private enum ModelAction { Cancel, Load, Unload }
+
+    private ToolRequirementsDto? _tools;
+    private Dictionary<string, AiModelStatusDto> _modelStatuses = new(StringComparer.OrdinalIgnoreCase);
+    private string? _busyId;
+    private string? _message;
+    private AppUiTone _messageTone = AppUiTone.Info;
+    private CancellationTokenSource? _poll;
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _disposed;
+
+    // Work that resumes after the page has gone must not touch the disposed source; it gets an already-cancelled token.
+    private CancellationToken Lifetime => _disposed ? new CancellationToken(canceled: true) : _lifetime.Token;
+
+    private IReadOnlyList<ToolRequirementDto> Models =>
+        _tools?.Tools.Where(tool => tool.Kind == "ai_model").ToList() ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        EnsurePolling();
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _tools = await ApiClient.GetToolRequirementsAsync(Lifetime);
+        var statuses = await Orchestrator.GetAiModelStatusesAsync(Lifetime);
+        _modelStatuses = statuses.ToDictionary(status => status.Role, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string RoleOf(ToolRequirementDto model) => model.Id[ToolRequirementIds.AiModelPrefix.Length..];
+
+    private AiModelStatusDto? StatusOf(ToolRequirementDto model) =>
+        _modelStatuses.TryGetValue(RoleOf(model), out var status) ? status : null;
+
+    // A model this machine cannot run is not offered a download that would only fail.
+    private bool ModelBusy(ToolRequirementDto model) => _busyId is not null || StatusOf(model) is { CanOperate: false };
+
+    private bool CanLoad(ToolRequirementDto model) =>
+        StatusOf(model) is { CanOperate: true, Loaded: false } status
+        && status.State.Equals("Ready", StringComparison.OrdinalIgnoreCase);
+
+    private bool CanUnload(ToolRequirementDto model) =>
+        StatusOf(model) is { } status
+        && (status.Loaded || status.Active || status.State.Equals("Loaded", StringComparison.OrdinalIgnoreCase));
+
+    private async Task DownloadModelAsync(ToolRequirementDto model)
+    {
+        _busyId = model.Id;
+        var result = await Orchestrator.StartAiModelDownloadAsync(RoleOf(model), Lifetime);
+        _busyId = null;
+        await AfterModelActionAsync(result, $"The download of {model.Name} could not start.", $"Downloading {model.Name}.");
+    }
+
+    private async Task RunModelActionAsync(ToolRequirementDto model, ModelAction action)
+    {
+        _busyId = model.Id;
+        var role = RoleOf(model);
+        var result = action switch
+        {
+            ModelAction.Cancel => await Orchestrator.CancelAiModelDownloadAsync(role, Lifetime),
+            ModelAction.Load => await Orchestrator.LoadAiModelAsync(role, Lifetime),
+            _ => await Orchestrator.UnloadAiModelAsync(role, Lifetime),
+        };
+        _busyId = null;
+        await AfterModelActionAsync(result, $"{action} did not work for {model.Name}.", $"{action} requested for {model.Name}.");
+    }
+
+    private async Task AfterModelActionAsync(AiOperationResultDto result, string failure, string success)
+    {
+        if (result.Succeeded)
+        {
+            Say(success, AppUiTone.Success);
+        }
+        else
+        {
+            Logger.LogInformation("A model action was refused: {Problem}", result.Problem?.ToUserMessage());
+            Say(failure, AppUiTone.Error);
+        }
+
+        await RefreshAsync();
+        EnsurePolling();
+    }
+
+    private bool AnyDownloading => _tools?.Tools.Any(tool => tool.State == ToolRequirementStates.Downloading) == true;
+
+    private void EnsurePolling()
+    {
+        if (_poll is not null || !AnyDownloading || _disposed)
+        {
+            return;
+        }
+
+        _poll = CancellationTokenSource.CreateLinkedTokenSource(Lifetime);
+        _ = PollWhileDownloadingAsync(_poll);
+    }
+
+    private async Task PollWhileDownloadingAsync(CancellationTokenSource source)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(PollInterval);
+            while (await timer.WaitForNextTickAsync(source.Token))
+            {
+                await RefreshAsync();
+                await InvokeAsync(StateHasChanged);
+                if (!AnyDownloading)
+                {
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page closed while a download was running; there is nothing left to refresh.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Refreshing model download progress stopped.");
+        }
+        finally
+        {
+            if (ReferenceEquals(_poll, source))
+            {
+                _poll = null;
+            }
+
+            source.Dispose();
+        }
+    }
+
+    private void Say(string message, AppUiTone tone)
+    {
+        _message = message;
+        _messageTone = tone;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

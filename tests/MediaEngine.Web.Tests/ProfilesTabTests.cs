@@ -50,15 +50,88 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Member_IsToldTheyCannotOpenProfiles_AndNothingIsRequested()
+    public void Member_IsTakenToTheirOwnProfile_AndNoListOfPeopleIsRequested()
     {
         Setup(serverAdministrator: false, householdAdministrator: false);
 
         var cut = Render<ProfilesTab>();
 
-        Assert.Contains("Not available", cut.Markup);
+        cut.WaitForAssertion(() => Assert.EndsWith($"/settings/profiles/{OwnId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
         Assert.Empty(cut.FindAll(".profiles-tab__list"));
         Assert.DoesNotContain(_requests, request => request.Path.StartsWith("/access/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void People_AreListedInTheHouseholdsSavedOrder_WithADragHandleOnEachRow()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 3, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([
+            Person(OwnId, "Test User", false, householdAdmin: true) with { SortPosition = 2 },
+            Person(KidId, "Robin", true) with { SortPosition = 0 },
+            Person(SamId, "Sam", false) with { SortPosition = 1 }]);
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
+        Assert.Equal(["Robin", "Sam", "Test User"], cut.FindAll(".profiles-tab__row-name").Select(name => name.TextContent.Trim()).Where(name => name != "Add profile"));
+        Assert.Equal(3, cut.FindAll(".profiles-tab__drag").Count);
+    }
+
+    [Fact]
+    public void DroppingAPersonOnAnother_SavesTheNewOrderForTheWholeHousehold()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 3, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([
+            Person(OwnId, "Test User", false, householdAdmin: true) with { SortPosition = 0 },
+            Person(KidId, "Robin", true) with { SortPosition = 1 },
+            Person(SamId, "Sam", false) with { SortPosition = 2 }]);
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
+
+        cut.Find($"[data-testid='reorder-{SamId}']").DragStart();
+        cut.Find($"[data-profile-id='{OwnId}']").Drop();
+
+        cut.WaitForAssertion(() =>
+        {
+            var request = Assert.Single(_requests, request => request.Path.EndsWith("/people/order", StringComparison.Ordinal));
+            Assert.Equal(HttpMethod.Put, request.Method);
+            Assert.Contains(SamId.ToString("D"), request.Body, StringComparison.Ordinal);
+            Assert.True(request.Body.IndexOf(SamId.ToString("D"), StringComparison.Ordinal) < request.Body.IndexOf(OwnId.ToString("D"), StringComparison.Ordinal));
+        });
+    }
+
+    [Fact]
+    public void ArrowDownOnTheHandle_MovesThePersonOneStepDownAndSavesIt()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([
+            Person(OwnId, "Test User", false, householdAdmin: true) with { SortPosition = 0 },
+            Person(SamId, "Sam", false) with { SortPosition = 1 }]);
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
+
+        cut.Find($"[data-testid='reorder-{OwnId}']").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "ArrowDown" });
+
+        cut.WaitForAssertion(() =>
+        {
+            var request = Assert.Single(_requests, request => request.Path.EndsWith("/people/order", StringComparison.Ordinal));
+            Assert.True(request.Body.IndexOf(SamId.ToString("D"), StringComparison.Ordinal) < request.Body.IndexOf(OwnId.ToString("D"), StringComparison.Ordinal));
+        });
+    }
+
+    [Fact]
+    public void ADragHandle_IsNotOfferedOnAPhone_OrForAHouseholdOfOne()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
+
+        var alone = Render<ProfilesTab>();
+        alone.WaitForAssertion(() => Assert.Single(alone.FindAll(".profiles-tab__line")));
+        Assert.Empty(alone.FindAll(".profiles-tab__drag"));
     }
 
     [Fact]
@@ -239,8 +312,9 @@ public sealed class ProfilesTabTests : AsyncBunitContext
 
         // Read-only: no control on the row changes a sign-in.
         var line = cut.Find($"[data-profile-id='{SamId}']");
-        Assert.Single(line.QuerySelectorAll("button"));
-        Assert.Equal("Edit", line.QuerySelector("button")!.TextContent.Trim());
+        var buttons = line.QuerySelectorAll("button").Where(button => !button.ClassList.Contains("profiles-tab__drag")).ToList();
+        Assert.Single(buttons);
+        Assert.Equal("Edit", buttons[0].TextContent.Trim());
     }
 
     [Fact]

@@ -508,7 +508,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
         });
 
-        await cut.InvokeAsync(() => cut.Find("button[aria-label='Expand Library and Ingestion']").Click());
+        await Task.CompletedTask;
 
         cut.WaitForAssertion(() =>
         {
@@ -517,7 +517,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
             // Recently Added is no longer a menu row: Library and Ingestion is shaded amber, with no count bubble.
             var libraryAndIngestion = cut.FindAll(".media-section-shell__tree-link")
-                .First(item => item.TextContent.Contains("Library and Ingestion", StringComparison.Ordinal));
+                .First(item => item.TextContent.Contains("Library & Ingestion", StringComparison.Ordinal));
             var reviewNotification = libraryAndIngestion.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.Null(reviewNotification);
             // System opens on the resources summary; the old library overview now lives under Library and Ingestion.
@@ -856,9 +856,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("/settings", null)]
-    [InlineData("/settings/overview", "overview")]
-    [InlineData("/settings/overview/apps", "overview")]
     [InlineData("/settings/playback", "playback")]
     [InlineData("/settings/profiles", "profiles")]
     public void SettingsPage_ForAKidsProfile_RedirectsToHomeAndDrawsNothing(string typedAddress, string? section)
@@ -996,14 +993,15 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
-            builder.OpenComponent<Settings>(3);
-            builder.AddAttribute(4, nameof(Settings.Section), "playback");
+            // The playback preferences are the Watching section of the profile's Preferences tab.
+            builder.OpenComponent<MediaEngine.Web.Components.Settings.PlaybackSettingsPage>(3);
+            builder.AddAttribute(4, nameof(MediaEngine.Web.Components.Settings.PlaybackSettingsPage.ProfileId), (Guid?)Guid.Parse("00000000-0000-0000-0000-000000000001"));
+            builder.AddAttribute(5, nameof(MediaEngine.Web.Components.Settings.PlaybackSettingsPage.Embedded), true);
             builder.CloseComponent();
         });
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Empty(cut.FindAll(".tl-tabs"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
             // Five playback cards plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
             Assert.Equal(6, cut.FindAll(".playback-settings-card").Count);

@@ -3,8 +3,9 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 
-@* Every recurring Engine task with when it last ran and when it runs next (settings revamp D22 and D42).
-   Reads the Engine's durable run records, so last run survives a restart. *@
+@* Every recurring Engine task with its state, when it last ran and when it runs next, a link to the setting that controls it, and
+   its few most recent runs (settings revamp D22 and D42, flat Settings menu D17). Reads the Engine's durable run records, so the
+   history survives a restart. *@
 <AppCard Title="Scheduled tasks"
          Description="Work the Library does on its own, and when it last ran and runs next. Old logs are cleaned up quietly as part of this."
          Class="scheduled-tasks">
@@ -29,10 +30,26 @@
         <ul class="scheduled-tasks__list" aria-label="Scheduled tasks" data-testid="scheduled-tasks">
             @foreach (var task in _tasks.Tasks)
             {
-                <li class="scheduled-tasks__item" data-testid="scheduled-task" data-task-id="@task.Key">
+                var status = ScheduledTaskText.Status(task);
+                var link = ScheduledTaskText.SettingsLink(task);
+                <li class="scheduled-tasks__item" data-testid="scheduled-task" data-task-id="@task.Key" data-task-status="@status.ToString().ToLowerInvariant()">
                     <div class="scheduled-tasks__main">
                         <strong class="scheduled-tasks__name">@task.Name</strong>
-                        <span class="scheduled-tasks__what">@task.Owner. @task.SettingsPlace</span>
+                        <span class="scheduled-tasks__status scheduled-tasks__status--@status.ToString().ToLowerInvariant()" data-testid="task-status">
+                            <AppMaterialIcon Icon="@StatusIcon(status)" Size="AppSize.Small" aria-hidden="true" />
+                            @ScheduledTaskText.StatusLabel(status)
+                        </span>
+                        <span class="scheduled-tasks__what">
+                            @task.Owner.
+                            @if (link is { } setting)
+                            {
+                                <a class="scheduled-tasks__setting" href="@setting.Href" data-testid="task-setting-link">Change it in @setting.Label</a>
+                            }
+                            else
+                            {
+                                <span data-testid="task-setting-text">@task.SettingsPlace</span>
+                            }
+                        </span>
                     </div>
                     <dl class="scheduled-tasks__facts">
                         <div>
@@ -48,6 +65,18 @@
                             <dd data-testid="task-next-run">@ScheduledTaskText.NextRun(task, _now)</dd>
                         </div>
                     </dl>
+                    @if (task.RecentRuns.Count > 1)
+                    {
+                        <details class="scheduled-tasks__history" data-testid="task-history">
+                            <summary>Recent runs</summary>
+                            <ol class="scheduled-tasks__runs">
+                                @foreach (var run in task.RecentRuns)
+                                {
+                                    <li class="@(IsAttention(run) ? "scheduled-tasks__failed" : null)">@ScheduledTaskText.Run(run, _now)</li>
+                                }
+                            </ol>
+                        </details>
+                    }
                 </li>
             }
         </ul>
@@ -68,4 +97,15 @@
         _now = DateTimeOffset.Now;
         _loading = false;
     }
+
+    private static string StatusIcon(ScheduledTaskText.TaskStatus status) => status switch
+    {
+        ScheduledTaskText.TaskStatus.Running => AppMaterialIcons.Outlined.Sync,
+        ScheduledTaskText.TaskStatus.NeedsAttention => AppMaterialIcons.Outlined.WarningAmber,
+        _ => AppMaterialIcons.Outlined.Schedule,
+    };
+
+    private static bool IsAttention(ScheduledTaskLastRunDto run) =>
+        string.Equals(run.Outcome, "failed", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(run.Outcome, "interrupted", StringComparison.OrdinalIgnoreCase);
 }

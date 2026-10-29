@@ -312,7 +312,12 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         Assert.Equal("Missing", cut.Find("[data-tool-id=ffmpeg] .app-chip").TextContent.Trim());
         Assert.Equal("Optional", cut.Find("[data-tool-id=tesseract] .app-chip").TextContent.Trim());
         Assert.Equal("Ready", cut.Find("[data-tool-id=image_engine] .app-chip").TextContent.Trim());
-        Assert.Contains("Local AI text model", cut.Find("[data-testid=models-list]").TextContent, StringComparison.Ordinal);
+        // The model files are listed once, on Local AI > Models & Hardware; Tools and requirements only links there.
+        Assert.Empty(cut.FindAll("[data-testid=models-list]"));
+        Assert.Equal("/settings/ai/models", cut.Find("[data-testid=models-link]").GetAttribute("href"));
+
+        var models = Render<LocalAiModelFilesPanel>();
+        Assert.Contains("Local AI text model", models.Find("[data-testid=models-list]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -340,7 +345,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
             Tool("ai_model:text_quality", "Local AI quality model", kind: "ai_model", requirement: ToolRequirementLevels.Optional,
                 state: ToolRequirementStates.Problem, canDownloadAgain: true));
 
-        var cut = Render<ToolsRequirementsTab>();
+        var cut = Render<LocalAiModelFilesPanel>();
 
         Assert.Contains(cut.FindAll("[data-tool-id='ai_model:text_fast'] button"), button => button.TextContent.Trim() == "Download");
         var again = cut.FindAll("[data-tool-id='ai_model:text_quality'] button").Single(button => button.TextContent.Trim() == "Download again");
@@ -356,14 +361,14 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
             Tool("ai_model:text_fast", "Local AI text model", kind: "ai_model", requirement: ToolRequirementLevels.Optional,
                 state: ToolRequirementStates.Downloading, percent: 40));
 
-        var downloading = Render<ToolsRequirementsTab>(parameters => parameters.Add(p => p.PollInterval, TimeSpan.FromHours(1)));
+        var downloading = Render<LocalAiModelFilesPanel>(parameters => parameters.Add(p => p.PollInterval, TimeSpan.FromHours(1)));
 
         Assert.Contains("Downloading 40%", downloading.Markup, StringComparison.Ordinal);
         Assert.Contains(downloading.FindAll("button"), button => button.TextContent.Trim() == "Cancel");
 
         _onGet = _ => Tools(
             Tool("ai_model:text_fast", "Local AI text model", kind: "ai_model", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready));
-        var ready = Render<ToolsRequirementsTab>();
+        var ready = Render<LocalAiModelFilesPanel>();
         // The stub reports text_fast as Ready and not loaded, so it can be loaded (the old Local AI page's Load button).
         Assert.Contains(ready.FindAll("button"), button => button.TextContent.Trim() == "Load");
     }
@@ -432,7 +437,8 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         var settings = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
 
         Assert.Contains("case SettingsSection.Tools:", settings, StringComparison.Ordinal);
-        Assert.Contains("<ToolsRequirementsTab />", settings, StringComparison.Ordinal);
+        Assert.Contains("<ConfigurationPage />", settings, StringComparison.Ordinal);
+        Assert.Contains("<ToolsRequirementsTab />", File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Settings", "ConfigurationPage.razor")), StringComparison.Ordinal);
     }
 
     // ── Local AI keeps only AI settings ──────────────────────────────────────
@@ -455,13 +461,15 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ToolsPage_AlsoHoldsThePlaybackToolsStatus_ButNotTheLocalAiRuntime()
+    public void ToolsPage_DoesNotRepeatThePlaybackToolsStatus_OrHoldTheLocalAiRuntime()
     {
         _onGet = _ => Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready));
 
         var cut = Render<ToolsRequirementsTab>();
 
-        cut.WaitForAssertion(() => Assert.Contains("Playback tools and services", cut.Markup, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Contains("FFmpeg", cut.Markup, StringComparison.Ordinal));
+        // The playback tools status is shown once, under Streaming > Diagnostics.
+        Assert.DoesNotContain("Playback tools and services", cut.Markup, StringComparison.Ordinal);
         // The runtime (resource profile, limits, diagnostics) is Local AI > Runtime until Developer tools rebuilds Local AI.
         Assert.Empty(cut.FindAll("[data-testid=local-ai-runtime]"));
         Assert.DoesNotContain("Runtime settings", cut.Markup, StringComparison.Ordinal);

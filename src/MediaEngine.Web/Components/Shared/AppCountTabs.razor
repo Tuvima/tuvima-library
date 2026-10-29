@@ -22,7 +22,7 @@
                @onkeydown="args => KeyDownAsync(args, position)">
                 @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" /> }
                 <span>@tab.Label</span>
-                <span class="tl-tab__count">@tab.Count</span>
+                @if (tab.Count is not null) { <span class="tl-tab__count">@tab.Count</span> }
             </a>
         }
         else
@@ -37,7 +37,7 @@
                     @onkeydown="args => KeyDownAsync(args, position)">
                 @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" /> }
                 <span>@tab.Label</span>
-                <span class="tl-tab__count">@tab.Count</span>
+                @if (tab.Count is not null) { <span class="tl-tab__count">@tab.Count</span> }
             </button>
         }
     }

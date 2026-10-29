@@ -256,7 +256,8 @@ public sealed class BookReaderGuardrailTests
     public void ReadingSettingsPage_FollowsTheSettingsPageRules()
     {
         var page = Read($"{Web}/Components/Settings/ReadingSettingsPage.razor");
-        var settings = Read($"{Web}/Components/Pages/Settings.razor");
+        // Reading is a section of the Preferences tab on a person's own page in Manage Profiles.
+        var settings = Read($"{Web}/Components/Settings/ProfileDetailPage.razor");
 
         Assert.DoesNotContain("style=\"", page);
         Assert.DoesNotContain("<input", page);

@@ -545,7 +545,7 @@
         try { started = (await ApiClient.InstallToolAsync(tool.Id)).Success; }
         catch (Exception) { started = false; }
         if (started) Snackbar.Add($"Downloading {tool.Name}. Library finishes this in the background.", AppSeverity.Info);
-        else Snackbar.Add($"The download of {tool.Name} could not start. You can try again from Settings, Tools and requirements.", AppSeverity.Warning);
+        else Snackbar.Add($"The download of {tool.Name} could not start. You can try again from Settings, System, Configuration.", AppSeverity.Warning);
         _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
     }
     private async Task RunToolInstallerAsync(ToolRequirementDto tool)
@@ -554,7 +554,7 @@
         try { started = (await ApiClient.RunToolInstallerAsync(tool.Id)).Success; }
         catch (Exception) { started = false; }
         if (started) Snackbar.Add($"The {tool.Name} installer is running. Finish it, then check again.", AppSeverity.Info);
-        else Snackbar.Add($"The {tool.Name} installer could not start from here. After setup, open Settings, Tools and requirements and choose Run installer.", AppSeverity.Warning);
+        else Snackbar.Add($"The {tool.Name} installer could not start from here. After setup, open Settings, System, Configuration and choose Run installer.", AppSeverity.Warning);
         _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
     }
     private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }

@@ -30,7 +30,58 @@
 
 .scheduled-tasks__what {
     color: var(--tl-text-muted);
-    font-size: 14px;
+    font-size: var(--tl-font-size-sm);
+}
+
+.scheduled-tasks__setting {
+    color: var(--tl-accent-primary);
+    text-decoration: none;
+}
+
+.scheduled-tasks__setting:hover,
+.scheduled-tasks__setting:focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* One plain word per task, with an icon in the state's colour: Running, Waiting, or Needs attention. */
+.scheduled-tasks__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.scheduled-tasks__status--running {
+    color: var(--tl-status-info);
+}
+
+.scheduled-tasks__status--waiting {
+    color: var(--tl-status-success);
+}
+
+.scheduled-tasks__status--needsattention {
+    color: var(--tl-status-warning);
+}
+
+.scheduled-tasks__history {
+    grid-column: 1 / -1;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.scheduled-tasks__history summary {
+    width: fit-content;
+    cursor: pointer;
+    color: var(--tl-text-muted);
+}
+
+.scheduled-tasks__runs {
+    display: grid;
+    gap: 4px;
+    margin: var(--tl-space-2) 0 0;
+    padding-left: var(--tl-space-5);
 }
 
 .scheduled-tasks__facts {

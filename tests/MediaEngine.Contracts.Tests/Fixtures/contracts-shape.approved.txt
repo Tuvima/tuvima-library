@@ -9793,6 +9793,7 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduledTaskDto
   SettingsPlace: System.String | nullability=not-null | accessors=get,set
   NextRunAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   LastRun: MediaEngine.Contracts.System.ScheduledTaskLastRunDto | nullability=nullable | accessors=get,set
+  RecentRuns: System.Collections.Generic.List<MediaEngine.Contracts.System.ScheduledTaskLastRunDto> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduledTaskLastRunDto
   StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set

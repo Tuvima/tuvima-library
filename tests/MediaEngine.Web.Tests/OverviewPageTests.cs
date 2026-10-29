@@ -102,21 +102,21 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Header_ShowsTheAvatarNameAndWhenTheyJoined_WithEditProfileAndTheAppsIcon()
+    public void Header_ShowsTheAvatarNameAndWhenTheyJoined_WithEditProfileAndTheAppsLink()
     {
         var cut = RenderPage();
 
         Assert.Equal("Test User", cut.Find(".overview-header__name").TextContent);
         Assert.Equal("Joined March 2026", cut.Find(".overview-header__joined").TextContent);
         Assert.NotEmpty(cut.FindAll(".overview-header__avatar svg, .overview-header__avatar img"));
-        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Contains("Edit profile", StringComparison.Ordinal));
+        Assert.Contains(cut.FindAll("a, button"), link => link.TextContent.Contains("Edit profile", StringComparison.Ordinal));
 
-        var apps = cut.Find("[aria-label='Apps']");
+        // Apps is a small centred link at the bottom of the page, not an icon in the header.
+        var apps = cut.Find("[data-overview-apps-link]");
         Assert.Equal("a", apps.TagName.ToLowerInvariant());
         Assert.Equal("/settings/overview/apps", apps.GetAttribute("href"));
-        // A phone, not the Devices icon: Apps is where to get the app for a phone or TV.
-        Assert.Contains("M17 1.01L7 1c", apps.InnerHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("M4 6h18V4H4", apps.InnerHtml, StringComparison.Ordinal);
+        Assert.Equal("Get the Library app for your phone or TV", apps.TextContent);
+        Assert.Empty(cut.FindAll("[aria-label='Apps']"));
     }
 
     [Fact]
@@ -502,6 +502,16 @@ public sealed class OverviewPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("couldn't be saved", cut.Find(".who-page__error").TextContent, StringComparison.Ordinal));
         Assert.NotEmpty(cut.FindAll("#profile-editor-title"));
+    }
+
+    [Fact]
+    public void EditProfile_IsNotOfferedOnAKidsProfile()
+    {
+        _profile = _profile with { Role = "RestrictedProfile" };
+
+        var cut = RenderPage();
+
+        Assert.DoesNotContain(cut.FindAll("a, button"), element => element.TextContent.Contains("Edit profile", StringComparison.Ordinal));
     }
 
     private static AngleSharp.Dom.IElement EditProfileButton(IRenderedComponent<OverviewPage> cut) =>

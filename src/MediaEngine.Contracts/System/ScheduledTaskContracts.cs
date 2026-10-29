@@ -45,6 +45,10 @@ public sealed class ScheduledTaskDto
     /// <summary>The most recent run, or null when the task has never run.</summary>
     [JsonPropertyName("last_run")]
     public ScheduledTaskLastRunDto? LastRun { get; set; }
+
+    /// <summary>The few most recent runs, newest first (the last run included), for the history under the task. Empty when it has never run.</summary>
+    [JsonPropertyName("recent_runs")]
+    public List<ScheduledTaskLastRunDto> RecentRuns { get; set; } = [];
 }
 
 public sealed class ScheduledTaskLastRunDto
