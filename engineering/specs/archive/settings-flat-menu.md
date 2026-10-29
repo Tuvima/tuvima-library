@@ -1,6 +1,6 @@
 # Spec: Settings as a flat menu with page tabs
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** [Product overview](../product/overview.md) · [Settings and top navigation fixes](settings-and-top-navigation.md) · [Users, profiles and households](users-profiles-households.md) · [Plugins and Integrations screens](plugins-and-integrations-screens.md) · [Library pages](library-pages.md) · [Presentation rules](../../docs/product/presentation-rules.md)
+> **Status:** Built (awaiting Local checks) · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** [Product overview](../../product/overview.md) · [Settings and top navigation fixes](../settings-and-top-navigation.md) · [Users, profiles and households](../users-profiles-households.md) · [Plugins and Integrations screens](../plugins-and-integrations-screens.md) · [Library pages](../library-pages.md) · [Presentation rules](../../../docs/product/presentation-rules.md)
 
 Covers bug-log item F90 and leans on F84, F85, F86, F87, F88, F89 and F76 (see section 8 for how). Locked by Shy on 2026-10-29. Shy's own brief is the source; every product choice below is traced to it or flagged as a question.
 
@@ -60,7 +60,7 @@ Make Settings fast to scan and hard to get lost in: one level of menu, tabs insi
 - **D15.** (Shy, 2026-10-29) Ingestion Flow tab ships with today's content; editing the provider order is a separate spec ("Plan provider settings and editable ingestion").
 - **D16.** (Shy, 2026-10-29) The Metadata Providers page leaves the menu but stays reachable from each provider plugin's Configure button until that separate spec moves its settings onto the plugin pages.
 - **D17.** (Shy, 2026-10-29) Scheduled Tasks shows recent run history, using a small new Engine read of the stored task runs.
-- **D18.** (Shy, 2026-10-29) Old addresses forward to the new place through the alias list.
+- **D18.** (Shy, 2026-10-29) Old addresses forward to the new place through the alias list. **Dropped (Shy, 2026-10-29): no address forwarding.** Retired addresses are simply not found; nothing forwards.
 - **D19.** (Shy, 2026-10-29) The Apps page (get the phone/TV app, address, QR code) is not a tab: a small, unobtrusive link at the bottom of the Profile page opens it, keeping its current address.
 - **D10.** Mobile availability stays per page as today (Full, SummaryOnly, DesktopOnly); this spec adds no new phone capability. Tab rows scroll sideways on narrow screens.
 

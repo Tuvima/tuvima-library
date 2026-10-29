@@ -1,11 +1,20 @@
 using System.Globalization;
 using MediaEngine.Contracts.System;
+using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Components.Settings;
 
 /// <summary>The words the Scheduled tasks list uses for a task's schedule, when it last ran and when it runs next.</summary>
 public static class ScheduledTaskText
 {
+    /// <summary>The three words a task's state is given in: it is going now, it is waiting for its next time, or its last run needs a look.</summary>
+    public enum TaskStatus
+    {
+        Waiting,
+        Running,
+        NeedsAttention,
+    }
+
     public const string NeverRun = "Has not run yet";
     public const string RunsInBackground = "Runs quietly in the background";
     public const string NextUnknown = "Not scheduled yet";
@@ -35,6 +44,60 @@ public static class ScheduledTaskText
             return task.IsContinuous ? RunsInBackground : NeverRun;
         }
 
+        return Run(run, now);
+    }
+
+    /// <summary>
+    /// The plain-English state of a task: Needs attention when its last run failed or was cut short, Running while a run is going
+    /// (or for work that runs all the time), otherwise Waiting for its next time.
+    /// </summary>
+    public static TaskStatus Status(ScheduledTaskDto task)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (LastRunNeedsAttention(task))
+        {
+            return TaskStatus.NeedsAttention;
+        }
+
+        return task.IsContinuous || string.Equals(task.LastRun?.Outcome, "running", StringComparison.OrdinalIgnoreCase)
+            ? TaskStatus.Running
+            : TaskStatus.Waiting;
+    }
+
+    /// <summary>"Running", "Waiting" or "Needs attention".</summary>
+    public static string StatusLabel(TaskStatus status) => status switch
+    {
+        TaskStatus.Running => "Running",
+        TaskStatus.NeedsAttention => "Needs attention",
+        _ => "Waiting",
+    };
+
+    /// <summary>
+    /// Where the setting that controls a task lives, as a link: its name and its address. Null when the task has no setting of its
+    /// own (it runs on its own schedule), so the list shows the Engine's plain words instead of a link that goes nowhere.
+    /// </summary>
+    public static (string Label, string Href)? SettingsLink(ScheduledTaskDto task)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (!string.IsNullOrWhiteSpace(task.PluginId))
+        {
+            return ("Plugins", $"{SettingsNav.RouteFor(SettingsSection.Plugins)}?plugin={Uri.EscapeDataString(task.PluginId)}");
+        }
+
+        return task.Key switch
+        {
+            "scheduled_backup" => ("Backups", SettingsNav.RouteFor(SettingsSection.Server)),
+            "adaptive_streaming_cleanup" => ("Streaming", SettingsNav.RouteFor(SettingsSection.Delivery, "optimized-copies")),
+            "retag_sweep" => ("Libraries", SettingsNav.RouteFor(SettingsSection.Libraries)),
+            "plugin_segment_detection" => ("Plugins", SettingsNav.RouteFor(SettingsSection.Plugins)),
+            _ => null,
+        };
+    }
+
+    /// <summary>One line for one run in a task's history: "Done today at 3:00 AM", "Failed yesterday at 3:00 AM: the data store was busy".</summary>
+    public static string Run(ScheduledTaskLastRunDto run, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(run);
         var when = Moment(run.FinishedAt ?? run.StartedAt, now);
         var message = string.IsNullOrWhiteSpace(run.Message) ? null : run.Message.Trim().TrimEnd('.');
         return run.Outcome.ToLowerInvariant() switch

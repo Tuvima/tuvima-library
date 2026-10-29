@@ -386,7 +386,6 @@ public sealed class StateCardPagesTests : AsyncBunitContext
 
     private SettingsMenuContext MenuContext() => new(
         AdministrationAllowed: true,
-        HouseholdAdministrator: false,
         IsMobile: false,
         ReviewCount: 0,
         SecurityNeedsAttention: false,

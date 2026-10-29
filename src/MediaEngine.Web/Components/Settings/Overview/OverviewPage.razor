@@ -48,11 +48,6 @@ else
                                Class="overview-header__edit"
                                FullWidth="@DeviceContext.IsPhone"
                                OnClick="OpenEditor" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Smartphone"
-                                   AriaLabel="Apps"
-                                   Tooltip="Apps"
-                                   Href="@AppsRoute"
-                                   Class="overview-header__apps" />
                 </div>
                 }
             </div>
@@ -114,6 +109,10 @@ else
                 }
             </div>
         </div>
+
+        <p class="overview-page__apps">
+            <a class="overview-page__apps-link" href="@AppsRoute" data-overview-apps-link>Get the Library app for your phone or TV</a>
+        </p>
     </div>
 
     <ProfileEditorSheet Open="@_editorOpen"
