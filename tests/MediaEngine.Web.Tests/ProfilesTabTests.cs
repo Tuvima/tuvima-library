@@ -50,13 +50,13 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Member_IsToldTheyCannotOpenProfiles_AndNothingIsRequested()
+    public void Member_IsTakenToTheirOwnProfile_AndNoListOfPeopleIsRequested()
     {
         Setup(serverAdministrator: false, householdAdministrator: false);
 
         var cut = Render<ProfilesTab>();
 
-        Assert.Contains("Not available", cut.Markup);
+        cut.WaitForAssertion(() => Assert.EndsWith($"/settings/profiles/{OwnId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
         Assert.Empty(cut.FindAll(".profiles-tab__list"));
         Assert.DoesNotContain(_requests, request => request.Path.StartsWith("/access/", StringComparison.Ordinal));
     }

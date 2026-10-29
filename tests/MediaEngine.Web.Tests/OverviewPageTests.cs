@@ -98,21 +98,21 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Header_ShowsTheAvatarNameAndWhenTheyJoined_WithEditProfileAndTheAppsIcon()
+    public void Header_ShowsTheAvatarNameAndWhenTheyJoined_WithEditProfileAndTheAppsLink()
     {
         var cut = RenderPage();
 
         Assert.Equal("Test User", cut.Find(".overview-header__name").TextContent);
         Assert.Equal("Joined March 2026", cut.Find(".overview-header__joined").TextContent);
         Assert.NotEmpty(cut.FindAll(".overview-header__avatar svg, .overview-header__avatar img"));
-        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Contains("Edit profile", StringComparison.Ordinal));
+        Assert.Contains(cut.FindAll("a"), link => link.TextContent.Contains("Edit profile", StringComparison.Ordinal));
 
-        var apps = cut.Find("[aria-label='Apps']");
+        // Apps is a small centred link at the bottom of the page, not an icon in the header.
+        var apps = cut.Find("[data-overview-apps-link]");
         Assert.Equal("a", apps.TagName.ToLowerInvariant());
         Assert.Equal("/settings/overview/apps", apps.GetAttribute("href"));
-        // A phone, not the Devices icon: Apps is where to get the app for a phone or TV.
-        Assert.Contains("M17 1.01L7 1c", apps.InnerHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("M4 6h18V4H4", apps.InnerHtml, StringComparison.Ordinal);
+        Assert.Equal("Get the Library app for your phone or TV", apps.TextContent);
+        Assert.Empty(cut.FindAll("[aria-label='Apps']"));
     }
 
     [Fact]
@@ -409,72 +409,26 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EditProfile_OpensTheSelfEditor_WithOnlyTheNameAndPicture()
+    public void EditProfile_OpensThisPersonsPageInManageProfiles()
     {
         var cut = RenderPage();
 
-        EditProfileButton(cut).Click();
+        var edit = cut.FindAll("a").First(link => link.TextContent.Contains("Edit profile", StringComparison.Ordinal));
 
-        Assert.Equal("Edit profile", cut.Find("#profile-editor-title").TextContent);
-        Assert.Equal("Test User", cut.Find(".profile-editor__name").GetAttribute("value"));
-        Assert.Empty(cut.FindAll(".profile-editor__settings"));
-        Assert.Empty(cut.FindAll(".profile-editor__delete"));
-    }
-
-    [Fact]
-    public void SavingEditProfile_SendsTheNewNameAndColour_KeepingTheNavigationPreferences_AndShowsTheNewName()
-    {
-        var cut = RenderPage();
-        EditProfileButton(cut).Click();
-
-        cut.Find(".profile-editor__name").Input("Shy");
-        cut.FindAll(".profile-editor__actions button").First(button => button.TextContent.Trim() == "Save").Click();
-
-        cut.WaitForAssertion(() =>
-        {
-            var update = Assert.Single(_updates);
-            Assert.Equal(OwnId, update.Id);
-            Assert.Equal("Shy", update.Name);
-            Assert.Equal("{\"playlist_order\":[\"a\"]}", update.NavigationConfig);
-            Assert.Equal("Shy", cut.Find(".overview-header__name").TextContent);
-            Assert.Empty(cut.FindAll("#profile-editor-title"));
-        });
-    }
-
-    [Fact]
-    public void CancellingEditProfile_ChangesNothing()
-    {
-        var cut = RenderPage();
-        EditProfileButton(cut).Click();
-
-        cut.FindAll(".profile-editor__actions button").First(button => button.TextContent.Trim() == "Cancel").Click();
-
-        Assert.Empty(_updates);
+        Assert.Equal($"/settings/profiles/{OwnId:D}", edit.GetAttribute("href"));
+        // The old pop-up editor is gone from this page.
         Assert.Empty(cut.FindAll("#profile-editor-title"));
     }
 
     [Fact]
-    public void SaveThatTheEngineRefuses_KeepsTheEditorOpenWithAMessage()
+    public void EditProfile_IsNotOfferedOnAKidsProfile()
     {
-        var failing = EngineApiClientStub.Create(stub =>
-        {
-            stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel> { _profile }));
-            stub.SetHandler(nameof(IEngineApiClient.GetProfileOverviewAsync), _ => Task.FromResult(_overview));
-            stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivityRecentAsync), _ => Task.FromResult(_recent));
-            stub.SetHandler(nameof(IEngineApiClient.UpdateProfileAsync), _ => Task.FromResult(false));
-        });
-        Services.AddSingleton(failing);
+        _profile = _profile with { Role = "RestrictedProfile" };
+
         var cut = RenderPage();
-        EditProfileButton(cut).Click();
 
-        cut.FindAll(".profile-editor__actions button").First(button => button.TextContent.Trim() == "Save").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("couldn't be saved", cut.Find(".who-page__error").TextContent, StringComparison.Ordinal));
-        Assert.NotEmpty(cut.FindAll("#profile-editor-title"));
+        Assert.DoesNotContain(cut.FindAll("a, button"), element => element.TextContent.Contains("Edit profile", StringComparison.Ordinal));
     }
-
-    private static AngleSharp.Dom.IElement EditProfileButton(IRenderedComponent<OverviewPage> cut) =>
-        cut.FindAll("button").First(button => button.TextContent.Contains("Edit profile", StringComparison.Ordinal));
 
     private static string CountValue(IRenderedComponent<OverviewPage> cut, string key) =>
         cut.Find($"[data-overview-count='{key}'] .overview-counts__value").TextContent;

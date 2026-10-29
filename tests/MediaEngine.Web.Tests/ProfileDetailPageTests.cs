@@ -71,32 +71,41 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("Test User", cut.Find(".profile-detail__name").TextContent));
         Assert.Equal("Profile", cut.Find(".profile-detail__role").TextContent);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
-        // A member's own page has no Profile details row: the editor saves through administrator-only Engine actions.
-        Assert.Equal("sign-in,devices,playback,listening,reading,subtitles",
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='devices']")));
+        // A member's own Profile tab has no Profile details row: the editor saves through administrator-only Engine actions.
+        Assert.Equal("sign-in,devices",
             string.Join(",", cut.FindAll("[data-nav-row]").Select(row => row.GetAttribute("data-nav-row"))));
+        Assert.Equal("/settings/security", Row(cut, "sign-in").GetAttribute("href"));
         Assert.Equal("/settings/security/devices", Row(cut, "devices").GetAttribute("href"));
-        Assert.Equal("/settings/playback", Row(cut, "playback").GetAttribute("href"));
-        Assert.Equal("/settings/listening", Row(cut, "listening").GetAttribute("href"));
-        Assert.Equal("/settings/reading", Row(cut, "reading").GetAttribute("href"));
-        Assert.Equal("/settings/playback#subtitles", Row(cut, "subtitles").GetAttribute("href"));
         Assert.DoesNotContain("?profile=", cut.Markup);
         Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
         Assert.Contains("You", cut.FindAll(".profile-detail__badge").Select(badge => badge.TextContent));
     }
 
     [Fact]
-    public void Rows_ShowAOneLineStatusFromTheirSavedSettings()
+    public void PreferencesTab_HoldsWatchingListeningReadingAndHome_OnYourOwnProfile()
     {
         Setup(actions: [], navigation: []);
 
-        var cut = RenderFor(OwnId);
+        var cut = RenderFor(OwnId, "preferences");
 
-        cut.WaitForAssertion(() => Assert.Contains("Autoplay on", Row(cut, "playback").TextContent));
-        Assert.Contains("Autoplay on · Skip 10 s / 30 s", Row(cut, "playback").TextContent);
-        Assert.Contains("Skip 15 s / 15 s · Sleep 30 min", Row(cut, "listening").TextContent);
-        Assert.Contains("Paginated", Row(cut, "reading").TextContent);
-        Assert.Contains("English · Medium", Row(cut, "subtitles").TextContent);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section#playback")));
+        Assert.Equal(["Watching", "Listening", "Reading", "Home"], cut.FindAll(".profile-detail__section-heading").Select(heading => heading.TextContent));
+        Assert.Equal("preferences", cut.Find("[data-profile-section='detail']").GetAttribute("data-profile-tab"));
+        // Preferences are the only content of this tab: no sign-in, roles or access rows.
+        Assert.Empty(cut.FindAll("[data-nav-row]"));
+    }
+
+    [Fact]
+    public void PreferencesTab_OnSomeoneElsesProfile_HasNoHomeSection()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId, "preferences");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section#playback")));
+        Assert.Equal(["Watching", "Listening", "Reading"], cut.FindAll(".profile-detail__section-heading").Select(heading => heading.TextContent));
     }
 
     [Fact]
@@ -106,7 +115,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(OwnId);
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='devices']")));
         Assert.Empty(cut.FindAll("[data-nav-row='details']"));
     }
 
@@ -157,12 +166,11 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("Robin", cut.Find(".profile-detail__name").TextContent));
         Assert.Equal("Kids profile", cut.Find(".profile-detail__role").TextContent);
         Assert.Contains("Kids · PG", Row(cut, "details").TextContent);
-        Assert.Equal($"/settings/playback?profile={KidId:D}", Row(cut, "playback").GetAttribute("href"));
-        Assert.Equal($"/settings/listening?profile={KidId:D}", Row(cut, "listening").GetAttribute("href"));
-        Assert.Equal($"/settings/reading?profile={KidId:D}", Row(cut, "reading").GetAttribute("href"));
-        Assert.Equal($"/settings/playback?profile={KidId:D}#subtitles", Row(cut, "subtitles").GetAttribute("href"));
-        Assert.Single(cut.FindAll("[data-nav-row='delete']"));
         Assert.DoesNotContain(cut.FindAll(".profile-detail__badge"), badge => badge.TextContent == "You");
+
+        // Delete profile is on the Access & safety tab.
+        var access = RenderFor(KidId, "access");
+        access.WaitForAssertion(() => Assert.Single(access.FindAll("[data-nav-row='delete']")));
     }
 
     [Fact]
@@ -171,7 +179,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
 
-        var cut = RenderFor(OwnId);
+        var cut = RenderFor(OwnId, "access");
 
         cut.WaitForAssertion(() => Assert.Equal("Household administrator", cut.Find(".profile-detail__role").TextContent));
         Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
@@ -210,11 +218,11 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _settingsAvailable = false;
         _lastError = "Response status code does not indicate success: 403 (Forbidden).";
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "preferences");
 
         cut.WaitForAssertion(() => Assert.Contains("You can't change this person's settings.", cut.Markup));
         Assert.Equal("Sam", cut.Find(".profile-detail__name").TextContent);
-        Assert.Empty(cut.FindAll("[data-nav-row='playback']"));
+        Assert.Empty(cut.FindAll("section#playback"));
     }
 
     [Fact]
@@ -240,7 +248,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
 
@@ -256,7 +264,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
         _profileDeleteStatus = HttpStatusCode.Conflict;
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
@@ -277,7 +285,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _profileDeleteStatus = HttpStatusCode.Conflict;
         _profileDeleteDetail = "This is the last administrator who can sign in. Make someone else an administrator first.";
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
@@ -532,9 +540,12 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     {
         Setup(actions: [], navigation: []);
         var member = RenderFor(OwnId);
-        member.WaitForAssertion(() => Assert.NotEmpty(member.FindAll("[data-nav-row='playback']")));
+        member.WaitForAssertion(() => Assert.NotEmpty(member.FindAll("[data-nav-row='devices']")));
         Assert.Empty(member.FindAll("[data-profile-section='roles']"));
-        Assert.Empty(member.FindAll("[data-profile-section='access']"));
+
+        var access = RenderFor(OwnId, "access");
+        access.WaitForAssertion(() => Assert.Equal("access", access.Find("[data-profile-section='detail']").GetAttribute("data-profile-tab")));
+        Assert.Empty(access.FindAll("[data-profile-section='access']"));
     }
 
     // ---- access (Read, Watch, Listen, View and hidden libraries) on the profile
@@ -558,7 +569,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
             Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read"])]);
         TwoReadLibraries();
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.Contains("Read · all libraries", Row(cut, "access").TextContent));
         await cut.ClickAsync(page => Row(page, "access"));
 
@@ -724,7 +735,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _accessSaveDetail = "You can only hand out the access your own profile has.";
         TwoReadLibraries();
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
         await cut.ClickAsync(page => Row(page, "access"));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet input[role='switch']")));
@@ -801,7 +812,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false, signInEmail: "sam@home.test")]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
         await cut.ClickAsync(page => Row(page, "access"));
 
@@ -823,11 +834,14 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId);
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='devices']")));
         Assert.Empty(cut.FindAll("[data-profile-section='roles']"));
-        Assert.Empty(cut.FindAll("[data-profile-section='access']"));
-        Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
         Assert.Contains("Manage on a computer or tablet.", cut.Find("p[role='note']").TextContent);
+
+        var access = RenderFor(SamId, "access");
+        access.WaitForAssertion(() => Assert.Contains("Manage on a computer or tablet.", access.Find("p[role='note']").TextContent));
+        Assert.Empty(access.FindAll("[data-profile-section='access']"));
+        Assert.Empty(access.FindAll("[data-nav-row='delete']"));
     }
 
     [Fact]
@@ -841,9 +855,11 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var cut = RenderFor(SamId);
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='roles']")));
-        Assert.NotEmpty(cut.FindAll("[data-profile-section='access']"));
-        Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']"));
         Assert.DoesNotContain("Manage on a computer or tablet", cut.Markup);
+
+        var access = RenderFor(SamId, "access");
+        access.WaitForAssertion(() => Assert.NotEmpty(access.FindAll("[data-profile-section='access']")));
+        Assert.NotEmpty(access.FindAll("[data-nav-row='delete']"));
     }
 
     [Fact]
@@ -866,7 +882,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Mom", false, serverAdmin: true, signInEmail: "mom@home.test")]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
 
         cut.WaitForAssertion(() => Assert.Contains("Everything", Row(cut, "access").TextContent));
         Assert.Equal("true", Row(cut, "access").GetAttribute("aria-disabled"));
@@ -880,7 +896,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false, signInEmail: "sam@home.test")]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
 
@@ -900,7 +916,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
 
@@ -914,7 +930,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false, signInEmail: "sam@home.test")]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
@@ -929,7 +945,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false, signInEmail: "sam@home.test")]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
@@ -945,7 +961,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
         _managed.AddRange([Person(OwnId, "Test User", false, serverAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false, householdAdmin: true, signInEmail: "sam@home.test")]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
         Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
@@ -957,7 +973,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Mom", false, serverAdmin: true, householdAdmin: true, signInEmail: "mom@home.test")]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
         Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
@@ -971,7 +987,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
             Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"),
             Person(SamId, "Sam", false, householdAdmin: true, signInEmail: "sam@home.test")]);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
     }
@@ -986,7 +1002,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
         _protections[OwnId] = Protection(protectionEnabled: false);
 
-        var cut = RenderFor(OwnId);
+        var cut = RenderFor(OwnId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='pin-protection']")));
 
         Assert.Empty(cut.FindAll("[data-profile-section='pin-protection'] input[type='password']"));
@@ -1013,7 +1029,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
         _protections[OwnId] = Protection(protectionEnabled: false);
 
-        var cut = RenderFor(OwnId);
+        var cut = RenderFor(OwnId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='pin-protection']")));
         Assert.Contains("Needs a PIN on this profile", cut.Markup, StringComparison.Ordinal);
 
@@ -1031,7 +1047,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
         _protections[OwnId] = Protection(protectionEnabled: true);
 
-        var cut = RenderFor(OwnId);
+        var cut = RenderFor(OwnId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("select[aria-label='How long the PIN unlocks administrator settings for Test User']")));
         cut.Find("select[aria-label='How long the PIN unlocks administrator settings for Test User']").Change("FixedDuration:60");
 
@@ -1050,7 +1066,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
         _protections[OwnId] = Protection(protectionEnabled: true);
 
-        var cut = RenderFor(OwnId);
+        var cut = RenderFor(OwnId, "access");
         cut.WaitForAssertion(() => Assert.True(AdminSwitch(cut, "Ask for a PIN to open administrator settings").HasAttribute("checked")));
         cut.InvokeAsync(() => AdminSwitch(cut, "Ask for a PIN to open administrator settings").Change(false));
 
@@ -1068,7 +1084,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
             Person(SamId, "Sam", false, householdAdmin: true, signInEmail: "sam@home.test")]);
         _protections[SamId] = Protection(protectionEnabled: false);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
         Assert.Empty(cut.FindAll("[data-profile-section='pin-protection']"));
@@ -1085,7 +1101,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
             Person(SamId, "Mom", false, householdAdmin: true, signInEmail: "mom@home.test")]);
         _protections[SamId] = Protection(protectionEnabled: false);
 
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='pin-protection']")));
         cut.InvokeAsync(() => AdminSwitch(cut, "Ask for a PIN to open administrator settings").Change(true));
 
@@ -1098,7 +1114,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: [], navigation: []);
         _protections[OwnId] = Protection(protectionEnabled: false);
 
-        var cut = RenderFor(OwnId);
+        var cut = RenderFor(OwnId, "access");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
         Assert.Empty(cut.FindAll("[data-profile-section='pin-protection']"));
@@ -1120,7 +1136,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         // The Engine's status route answers "not found" (the stub's default), so there is no switch, no check, no PIN row and no word.
         Setup(actions: [], navigation: []);
 
-        var cut = RenderFor(OwnId);
+        var cut = RenderFor(OwnId, "access");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
         foreach (var token in NsfwTokens)
@@ -1135,14 +1151,14 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false), Person(KidId, "Robin", true), Person(SamId, "Sam", false)]);
 
-        var kid = RenderFor(KidId);
+        var kid = RenderFor(KidId, "access");
         kid.WaitForAssertion(() => Assert.NotEmpty(kid.FindAll("[data-nav-row='details']")));
         foreach (var token in NsfwTokens)
         {
             Assert.DoesNotContain(token, kid.Markup, StringComparison.OrdinalIgnoreCase);
         }
 
-        var adult = RenderFor(SamId);
+        var adult = RenderFor(SamId, "access");
         adult.WaitForAssertion(() => Assert.NotEmpty(adult.FindAll("[data-profile-section='nsfw-access']")));
         Assert.DoesNotContain("Robin", adult.Markup);
     }
@@ -1178,12 +1194,14 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         };
     }
 
-    private IRenderedComponent<ProfileDetailPage> RenderFor(Guid profileId) =>
-        Render<ProfileDetailPage>(parameters => parameters.Add(page => page.ProfileId, profileId));
+    private IRenderedComponent<ProfileDetailPage> RenderFor(Guid profileId, string tab = "") =>
+        Render<ProfileDetailPage>(parameters => parameters
+            .Add(page => page.ProfileId, profileId)
+            .Add(page => page.Tab, tab));
 
     private async Task<IRenderedComponent<ProfileDetailPage>> OpenAccessSheetAsync(bool waitForLists = true)
     {
-        var cut = RenderFor(SamId);
+        var cut = RenderFor(SamId, "access");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
         await cut.ClickAsync(page => Row(page, "access"));
         if (waitForLists)
