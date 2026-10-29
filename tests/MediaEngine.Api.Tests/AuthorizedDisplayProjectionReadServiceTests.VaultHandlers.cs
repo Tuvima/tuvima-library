@@ -202,7 +202,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
             Assert.Equal(StatusCodes.Status400BadRequest, missing.Status);
             Assert.Equal(missing.Status, vault.Status);
-            Assert.Equal(missing.Body.Replace(gone, "PATH"), vault.Body.Replace(vaultFolder, "PATH"));
+            Assert.Equal(HidePath(missing.Body, gone), HidePath(vault.Body, vaultFolder));
             Assert.Equal(0, missing.EngineScans + vault.EngineScans);
 
             // With no folder given, the first folder that is not the Vault's is the one scanned.
@@ -216,6 +216,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             Directory.Delete(ordinaryFolder, true);
         }
     }
+
+    // The answer is JSON, so a Windows path appears in it with every backslash doubled.
+    private static string HidePath(string body, string path) =>
+        body.Replace(System.Text.Json.Encodings.Web.JavaScriptEncoder.Default.Encode(path), "PATH").Replace(path, "PATH");
 
     private sealed class LockedCaller : IRequestAuthorityResolver
     {
@@ -240,7 +244,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
             Assert.Equal(StatusCodes.Status400BadRequest, holdsVault.Status);
             Assert.Equal(missing.Status, holdsVault.Status);
-            Assert.Equal(missing.Body.Replace(gone, "PATH"), holdsVault.Body.Replace(parent, "PATH"));
+            Assert.Equal(HidePath(missing.Body, gone), HidePath(holdsVault.Body, parent));
             Assert.Equal(0, holdsVault.EngineScans);
         }
         finally

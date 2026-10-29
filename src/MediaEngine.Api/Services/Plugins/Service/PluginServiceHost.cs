@@ -341,7 +341,10 @@ internal sealed class PluginServiceHost : BackgroundService
         try
         {
             process.Refresh();
-            return process.WorkingSet64 > (long)maxMb * 1024 * 1024;
+            // Windows hands out memory a program asks for without counting it as in use until it is touched, so the working set
+            // would miss a program that reserved a large block; what it has committed is what it has taken.
+            var used = OperatingSystem.IsWindows() ? Math.Max(process.WorkingSet64, process.PrivateMemorySize64) : process.WorkingSet64;
+            return used > (long)maxMb * 1024 * 1024;
         }
         catch (InvalidOperationException)
         {

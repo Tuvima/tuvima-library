@@ -61,7 +61,7 @@ public sealed class FileWriteSchedulerTests : IDisposable
         using var connection = _database.CreateConnection();
         connection.Execute("""
             INSERT INTO media_assets(id,edition_id,content_hash,file_path_root) VALUES(@asset,@edition,@hash,@path);
-            """, new { asset, edition = _edition, hash = Guid.NewGuid().ToString("N"), path = path ?? $"C:/music/{asset:N}.flac" });
+            """, new { asset, edition = _edition, hash = Guid.NewGuid().ToString("N"), path = path ?? Path.Combine(Path.GetTempPath(), $"{asset:N}.flac") });
         return asset;
     }
 

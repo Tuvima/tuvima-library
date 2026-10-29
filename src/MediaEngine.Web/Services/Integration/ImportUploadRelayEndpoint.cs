@@ -37,6 +37,7 @@ public static class ImportUploadRelayEndpoint
 
     private const string RefusalCodeAntiforgery = "antiforgery_failed";
     private const string RefusalCodeEngineUnreachable = "engine_unreachable";
+    private const string RefusalCodeBodyTooLarge = "body_too_large";
 
     public static IEndpointConventionBuilder MapImportUploadRelay(this IEndpointRouteBuilder endpoints)
     {
@@ -141,6 +142,12 @@ public static class ImportUploadRelayEndpoint
             // The browser went away; nothing is left to answer. The Engine does not record a piece that did not arrive in full.
             return;
         }
+        catch (Exception ex) when (TooLargeBody(ex))
+        {
+            // The browser sent more than this call allows. That is the browser's mistake, not an unreachable Engine, on every system.
+            await WriteRefusalAsync(response, StatusCodes.Status413PayloadTooLarge, RefusalCodeBodyTooLarge, "That upload call was bigger than it may be.", context.RequestAborted).ConfigureAwait(false);
+            return;
+        }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
         {
             loggers.CreateLogger(nameof(ImportUploadRelayEndpoint))
@@ -168,6 +175,19 @@ public static class ImportUploadRelayEndpoint
 
             await engineResponse.Content.CopyToAsync(response.Body, context.RequestAborted).ConfigureAwait(false);
         }
+    }
+
+    private static bool TooLargeBody(Exception ex)
+    {
+        for (var inner = ex; inner is not null; inner = inner.InnerException)
+        {
+            if (inner is BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void SetBodyLimit(HttpContext context, long bytes)
