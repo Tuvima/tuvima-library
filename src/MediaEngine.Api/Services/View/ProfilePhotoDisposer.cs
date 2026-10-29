@@ -59,7 +59,8 @@ public sealed class ProfilePhotoDisposer(
                 await media.AddTagAsync(profile.Id, label, now, ct).ConfigureAwait(false);
                 foreach (var item in items)
                 {
-                    await transfers.ExecuteAsync(item, actorProfileId, "folder", label, null, ct).ConfigureAwait(false);
+                    // Removing a person must never lose a photo, so an exact copy already in Shared is moved too; the duplicates cleanup tidies it later.
+                    await transfers.ExecuteAsync(item, actorProfileId, "folder", label, null, ct, skipDuplicateCheck: true).ConfigureAwait(false);
                 }
             }
         }

@@ -256,6 +256,63 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
+    public async Task Vault_AnUnlockedProfileWithNoSectionGiven_SeesNoVaultTitle_WhileAnAdministratorOpensEverySection()
+    {
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var session = NewVaultSession(shape.Account);
+        await UnlockVaultAsync(session);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("DELETE FROM vault_section_grants WHERE profile_id=@profile;", new { profile = VaultProfile });
+        }
+
+        var withoutSection = CreateService(VaultContext(shape.Account, session), RealReaders());
+        Assert.DoesNotContain(shape.Secret.AssetId, (await withoutSection.LoadAuthorizedAssetsAsync(default)).Select(row => row.AssetId));
+        Assert.Contains(shape.Normal.WorkId, (await withoutSection.LoadWorksAsync(default)).Select(row => row.WorkId));
+
+        // Given the section, the same unlocked session can open its files (shared lists never mix Vault items in, whatever the access).
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO vault_section_grants(library_id, profile_id, created_at) VALUES(@library,@profile,@now);",
+                new { library = shape.VaultLibrary.ToString("D"), profile = VaultProfile, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var withSection = CreateService(VaultContext(shape.Account, session), RealReaders());
+        Assert.Contains(shape.Secret.AssetId, (await withSection.LoadAuthorizedAssetsAsync(default)).Select(row => row.AssetId));
+    }
+
+    [Fact]
+    public async Task Vault_TheResolver_HidesASectionThePersonWasNotGiven_ButNeverFromAnAdministrator()
+    {
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var session = NewVaultSession(shape.Account);
+        await UnlockVaultAsync(session);
+        var other = Guid.NewGuid().ToString("D");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES(@library,'none',@now,@now,@now);",
+                new { library = other, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var resolver = new VaultAccessResolver(
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), TimeProvider.System, new VaultSectionGrantRepository(_database));
+        RequestAuthority Authority(bool administrator) =>
+            new(PrincipalKind.Human, true, shape.Account, VaultProfile, Guid.NewGuid(), session, Guid.NewGuid(),
+                AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true, ActiveProfileIsServerAdministrator: administrator);
+
+        var person = await resolver.ResolveAsync(Authority(administrator: false));
+        Assert.True(person.Unlocked);
+        Assert.False(person.HidesLibrary(shape.VaultLibrary.ToString("D")));
+        Assert.True(person.HidesLibrary(other));
+
+        var administrator = await resolver.ResolveAsync(Authority(administrator: true));
+        Assert.False(administrator.HidesLibrary(shape.VaultLibrary.ToString("D")));
+        Assert.False(administrator.HidesLibrary(other));
+    }
+
+    [Fact]
     public async Task Vault_TheResolver_NeverUnlocksAnythingButAPersonOnTheirOwnDashboardSession()
     {
         var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
@@ -431,6 +488,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         connection.Execute(
             "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES(@library,'none',@now,@now,@now);",
             new { library = vaultLibrary.ToString("D"), now });
+        // The profile has been given this Vault section (nothing is granted by default; Vault sections D28, D39). Tests of the other case remove it.
+        connection.Execute(
+            "INSERT INTO vault_section_grants(library_id, profile_id, created_at) VALUES(@library,@profile,@now);",
+            new { library = vaultLibrary.ToString("D"), profile = VaultProfile, now });
         return new VaultShape(account, normalLibrary, vaultLibrary, normal, secret);
     }
 

@@ -1,22 +1,31 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Contracts.Vault
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Vault
+@implements IDisposable
 @inject IEngineApiClient Api
+@inject IAppDialogService Dialogs
 
-@* Move to Vault, from the "..." menu of a folder on the Folders tab (Library pages D11; Vault sections D31, D33). It is a doorway: before anything is
-   touched it checks where the items would go. With no Vault-protected library of this content type it says so plainly and an administrator gets
-   "Add a Vault library", which opens Add library with the area, content type and Vault-protected already chosen; when that library is made, the
-   preview opens again. With a Vault library that has no folder Library manages, it says that Move to Vault needs one. The move itself (the
-   durable job, the hash check, progress kept) is the Vault update's work; this dialog never moves a file, and it holds no Vault word for anyone
-   who is not an administrator because only an administrator is ever offered the menu entry. *@
-<AppDialogShell Title="Move to Vault" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+@* Move to Vault and Move out, from the "..." menu of a folder on the Folders tab (Library pages D11; Vault sections D31, D33, D38). Before anything is
+   touched it checks where the items would go and shows counts only, never a title. With no Vault-protected library of this content type it says so
+   plainly and an administrator gets "Add a Vault library". When the move can go ahead, an administrator confirms with their own profile PIN and the
+   Engine runs it as a durable job (copy, check, retire the old record, publish). A Read-only folder keeps its originals unless the administrator
+   separately chooses to remove them. This dialog holds no Vault word for anyone who is not an administrator because only an administrator is ever
+   offered the menu entry. *@
+<AppDialogShell Title="@Heading" Size="Medium" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="move-to-vault" data-testid="move-to-vault">
             @if (_loading)
             {
                 <AppPageState Kind="AppPageStateKind.Loading" Title="Checking where it would go" />
             }
-            else if (_destination is null)
+            else if (_job is not null)
+            {
+                <p class="move-to-vault__lead" data-testid="move-to-vault-progress">@ProgressLead</p>
+                <p class="move-to-vault__note">@ProgressNote</p>
+            }
+            else if (!_isOut && _destination is null)
             {
                 <AppPageState Kind="AppPageStateKind.Error"
                               Icon="@AppMaterialIcons.Outlined.CloudOff"
@@ -27,29 +36,64 @@
                     </Actions>
                 </AppPageState>
             }
-            else if (_destination.State == VaultMoveDestinationStates.None)
+            else if (!_isOut && _destination!.State == VaultMoveDestinationStates.None)
             {
                 <p class="move-to-vault__lead" data-testid="move-to-vault-none">There is no Vault-protected @PluralLabel library yet.</p>
                 <p class="move-to-vault__note">Nothing has been moved. Add one, and the move continues from here.</p>
             }
-            else if (_destination.State == VaultMoveDestinationStates.NeedsManagedFolder)
+            else if (!_isOut && _destination!.State == VaultMoveDestinationStates.NeedsManagedFolder)
             {
                 <p class="move-to-vault__lead" data-testid="move-to-vault-managed">Move to Vault needs a folder that Library manages, and @(_destination.LibraryName ?? "the Vault library") has none yet.</p>
                 <p class="move-to-vault__note">Nothing has been moved.</p>
             }
+            else if (_preview is null)
+            {
+                <AppPageState Kind="AppPageStateKind.Error"
+                              Icon="@AppMaterialIcons.Outlined.CloudOff"
+                              Title="Library couldn't check"
+                              Message="@(_error ?? "Check that the Library server is running, then try again.")">
+                    <Actions>
+                        <AppButton Label="Try again" OnClick="LoadAsync" />
+                    </Actions>
+                </AppPageState>
+            }
+            else if (_preview.State != VaultMovePreviewStates.Ready)
+            {
+                <p class="move-to-vault__lead" data-testid="move-to-vault-blocked">@(string.IsNullOrWhiteSpace(_preview.Message) ? "This folder can't be moved right now." : _preview.Message)</p>
+                <p class="move-to-vault__note">Nothing has been moved.</p>
+            }
             else
             {
-                <p class="move-to-vault__lead" data-testid="move-to-vault-ready">@(_destination.LibraryName ?? "The Vault library") can take items from @FolderName.</p>
-                <p class="move-to-vault__note">Moving items into the Vault arrives with the next Vault update. Nothing has been moved.</p>
+                <p class="move-to-vault__lead" data-testid="move-to-vault-ready">@ReadyLead</p>
+                @if (_preview.Skipped > 0)
+                {
+                    <p class="move-to-vault__note" data-testid="move-to-vault-skipped">@SkippedNote</p>
+                }
+                @if (_preview.OriginalsStay)
+                {
+                    <p class="move-to-vault__note" data-testid="move-to-vault-originals">@FolderName is Read-only, so Library makes the copies and leaves your originals where they are.</p>
+                    <AppSwitchRow Label="Also remove the originals from this folder"
+                                  Description="Each original is deleted only after its copy is checked. This cannot be undone. Left off, your files are never changed."
+                                  Value="@_removeOriginals"
+                                  ValueChanged="@(value => _removeOriginals = value)" />
+                }
+                @if (_error is not null)
+                {
+                    <p class="move-to-vault__note" role="alert">@_error</p>
+                }
             }
         </div>
     </ChildContent>
     <FooterContent>
         <AppActionBar Align="AppHorizontalAlignment.End">
-            <AppButton Label="@(_destination is { State: VaultMoveDestinationStates.None } ? "Cancel" : "Close")" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-            @if (_destination is { State: VaultMoveDestinationStates.None })
+            <AppButton Label="@(CloseLabel)" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+            @if (_job is null && !_isOut && _destination is { State: VaultMoveDestinationStates.None })
             {
                 <AppButton Label="Add a Vault library" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(AddVaultLibrary)))" />
+            }
+            @if (_job is null && _preview is { State: VaultMovePreviewStates.Ready })
+            {
+                <AppButton Label="@(_isOut ? "Move out" : "Move to Vault")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="_starting" OnClick="StartAsync" />
             }
         </AppActionBar>
     </FooterContent>
@@ -80,15 +124,176 @@
     /// <summary>The folder the move starts from, by the name the table shows.</summary>
     [Parameter] public string FolderName { get; set; } = "this folder";
 
+    /// <summary>The folder's id, so the Engine can work out what would move.</summary>
+    [Parameter] public string SourceId { get; set; } = string.Empty;
+
+    /// <summary><see cref="VaultMoveDirections.In"/> (Move to Vault) or <see cref="VaultMoveDirections.Out"/> (Move out of the Vault).</summary>
+    [Parameter] public string Direction { get; set; } = VaultMoveDirections.In;
+
     private VaultMoveDestinationDto? _destination;
+    private VaultMovePreviewDto? _preview;
+    private VaultMoveJobDto? _job;
+    private string? _error;
     private bool _loading = true;
+    private bool _starting;
+    private bool _removeOriginals;
+    private CancellationTokenSource? _poll;
+
+    private bool _isOut => Direction == VaultMoveDirections.Out;
+
+    private string Heading => _isOut ? "Move out of the Vault" : "Move to Vault";
+
+    private string CloseLabel => _destination is { State: VaultMoveDestinationStates.None } && _job is null ? "Cancel" : "Close";
+
+    private string ReadyLead
+    {
+        get
+        {
+            var noun = _preview!.Items == 1 ? "item" : "items";
+            return _isOut
+                ? $"{_preview.Items} {noun} ({Size(_preview.Bytes)}) will move from {_preview.SourceName} to {_preview.DestinationName}."
+                : $"{_preview.Items} {noun} ({Size(_preview.Bytes)}) will move from {FolderName} into {_preview.DestinationName}.";
+        }
+    }
+
+    private string SkippedNote =>
+        $"{_preview!.Skipped} {(_preview.Skipped == 1 ? "file" : "files")} will stay where {(_preview.Skipped == 1 ? "it is" : "they are")}, because {(_preview.Skipped == 1 ? "it isn't" : "they aren't")} set up as a single title Library can move.";
+
+    private string ProgressLead => _job!.State switch
+    {
+        "done" => "The move is finished.",
+        "attention" => "The move finished, and some items need a look.",
+        "failed" => "The move stopped.",
+        _ => $"Moving {_job.Moved} of {_job.Total}…",
+    };
+
+    private string ProgressNote
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (_job!.Waiting > 0) parts.Add($"{_job.Waiting} waiting");
+            if (_job.Skipped > 0) parts.Add($"{_job.Skipped} skipped");
+            if (_job.Failed > 0) parts.Add($"{_job.Failed} could not be moved");
+            if (_job.OriginalLeft > 0) parts.Add($"{_job.OriginalLeft} originals left in place");
+            var counts = parts.Count == 0 ? string.Empty : string.Join(", ", parts) + ". ";
+            return counts + "It keeps going if you close this window; your progress and watch history move with each item.";
+        }
+    }
+
+    private static string Size(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var value = (double)bytes;
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+
+        return unit == 0 ? $"{bytes} B" : $"{value:0.#} {units[unit]}";
+    }
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task LoadAsync()
     {
         _loading = true;
-        _destination = await Api.GetVaultMoveDestinationAsync(KindKey);
+        _error = null;
+        _preview = null;
+        if (!_isOut)
+        {
+            _destination = await Api.GetVaultMoveDestinationAsync(KindKey);
+        }
+
+        if (_isOut || _destination is { State: VaultMoveDestinationStates.Ready })
+        {
+            var call = await Api.PreviewVaultMoveAsync(new VaultMovePreviewRequest { Direction = Direction, SourceId = SourceId });
+            _preview = call.Outcome == VaultOutcome.Ok ? call.Value : null;
+            _error = VaultMessages.For(call);
+        }
+
         _loading = false;
     }
+
+    private async Task StartAsync()
+    {
+        if (_preview is null || _starting) return;
+        _starting = true;
+        _error = null;
+        VaultMoveJobDto? started = null;
+        var confirmed = await VaultPinPrompt.AskAsync(Dialogs, "Enter your PIN to continue",
+            _isOut
+                ? "This is your own profile PIN, asked for again before items leave the Vault."
+                : "This is your own profile PIN, asked for again before items move into the Vault.",
+            "Move", "Your profile PIN",
+            async pin =>
+            {
+                var call = await Api.StartVaultMoveAsync(new StartVaultMoveRequest
+                {
+                    Direction = Direction,
+                    SourceId = SourceId,
+                    Fingerprint = _preview.Fingerprint,
+                    AdminPin = pin,
+                    RemoveReadOnlyOriginals = _preview.OriginalsStay && _removeOriginals,
+                });
+                var message = VaultMessages.For(call);
+                if (message is null && call.Value is { Started: true } result)
+                {
+                    started = result.Job;
+                }
+                else if (message is null)
+                {
+                    // The folder changed since it was checked, or the move was refused: show the new check and let the person decide again.
+                    _preview = call.Value?.Preview ?? _preview;
+                    message = call.Value?.Preview?.Message ?? "The folder changed. Check the new numbers and try again.";
+                    _error = message;
+                    return null;
+                }
+
+                return message;
+            });
+        _starting = false;
+        if (confirmed && started is not null)
+        {
+            _job = started;
+            _ = PollAsync();
+        }
+        else if (confirmed)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task PollAsync()
+    {
+        _poll = new CancellationTokenSource();
+        var token = _poll.Token;
+        try
+        {
+            while (!token.IsCancellationRequested && _job is { State: "queued" or "running" })
+            {
+                await Task.Delay(TimeSpan.FromSeconds(3), token);
+                var call = await Api.GetVaultMovesAsync(token);
+                if (call.Outcome == VaultOutcome.Ok && call.Value!.FirstOrDefault(j => j.Id == _job.Id) is { } latest)
+                {
+                    _job = latest;
+                    await InvokeAsync(StateHasChanged);
+                }
+                else if (call.Outcome == VaultOutcome.Ok)
+                {
+                    // A finished job drops off the open list; the move is complete.
+                    _job = new VaultMoveJobDto { Id = _job.Id, Direction = _job.Direction, State = "done", Total = _job.Total, Moved = _job.Total };
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The window was closed; the move carries on in the Engine.
+        }
+    }
+
+    public void Dispose() => _poll?.Cancel();
 }

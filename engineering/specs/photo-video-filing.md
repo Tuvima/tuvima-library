@@ -1,6 +1,6 @@
 # Spec: Photo and video filing (the Engine side of Photos and Personal videos)
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-28 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [Library and folder pages](library-pages.md) (D24, D25, D26) · [Simpler library setup](library-setup-groups.md) (D44, D47, D53) · [Batched write-back](batched-writeback.md) · [Safer deleting in View](safer-deleting-in-view.md) · [Vault sections and move](vault-sections-and-move.md) · [Backup and restore](backup-and-restore.md)
+> **Status:** Built, awaiting your Local checks · **Version:** 2 · **Last updated:** 2026-10-28 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [Library and folder pages](library-pages.md) (D24, D25, D26) · [Simpler library setup](library-setup-groups.md) (D44, D47, D53) · [Batched write-back](batched-writeback.md) · [Safer deleting in View](safer-deleting-in-view.md) · [Vault sections and move](vault-sections-and-move.md) · [Backup and restore](backup-and-restore.md)
 
 > Written 2026-10-28 after Shy chose 1A ("plan photo and video filing") from the follow-ups of the Library and folder pages build. v2 folds in Shy's answers and notes of 2026-10-28 17:33Z (1A, 5A kept; duplicates across the Shared Library; cleanup jobs; staging and rejects held outside the library folder; Tidy this folder). Open questions are in section 8.
 

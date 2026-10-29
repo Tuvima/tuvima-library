@@ -8,6 +8,7 @@ using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.Vault;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -123,10 +124,14 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new HeaderAuthorityResolver(_adminProfile, _adminSession));
         builder.Services.AddSingleton(new VaultAccessResolver(_vaultLibraries, _nsfw, clock));
         builder.Services.AddSingleton(siblings);
+        builder.Services.AddSingleton(new VaultMoveService(
+            _configuration, _vaultLibraries, new VaultMoveRepository(_database), new MediaEngine.Storage.Services.MediaTypeExtensionCatalog(), administration,
+            new VaultMoveSignal(), clock, NullLogger<VaultMoveService>.Instance));
         _app = builder.Build();
         _app.UseAuthentication();
         _app.UseAuthorization();
         _app.MapGroup("/settings").MapVaultLibraries();
+        _app.MapGroup("/settings").MapVaultMoves();
         await _app.StartAsync();
         var address = new Uri(_app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
         _client = new HttpClient { BaseAddress = address };
@@ -209,6 +214,52 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
 
         Assert.Empty(await _vaultLibraries.GetIdsAsync());
         Assert.Single(_configuration.LoadLibraries().Libraries);
+    }
+
+    [Theory]
+    [InlineData("user")]
+    [InlineData("kids")]
+    [InlineData("app")]
+    public async Task EveryMoveRoute_AnswersNotFoundForAnyoneWhoIsNotAnAdministrator_WithNothingThatNamesTheVault(string who)
+    {
+        var calls = new[]
+        {
+            await SendAsync(HttpMethod.Post, "/settings/vault-moves/preview", who, new VaultMovePreviewRequest { Direction = "in", SourceId = Guid.NewGuid().ToString("D") }),
+            await SendAsync(HttpMethod.Post, "/settings/vault-moves", who, new StartVaultMoveRequest { Direction = "in", SourceId = Guid.NewGuid().ToString("D") }),
+            await SendAsync(HttpMethod.Get, "/settings/vault-moves", who),
+            await SendAsync(HttpMethod.Get, $"/settings/vault-moves/{Guid.NewGuid():D}", who),
+            await SendAsync(HttpMethod.Post, "/settings/vault-moves", who, "not a request"),
+        };
+
+        foreach (var response in calls)
+        {
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.DoesNotContain("vault", body, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public async Task AMoveCannotBeStartedWithoutTheAdministratorsOwnPin_AndNothingIsSaved()
+    {
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-moves", "admin",
+            new StartVaultMoveRequest { Direction = "in", SourceId = Guid.NewGuid().ToString("D"), AdminPin = "0000" });
+
+        Assert.Equal(HttpStatusCode.PreconditionRequired, response.StatusCode);
+        var list = await SendAsync(HttpMethod.Get, "/settings/vault-moves", "admin");
+        Assert.Equal("[]", (await list.Content.ReadAsStringAsync()).Trim());
+    }
+
+    [Fact]
+    public async Task APreviewOfAnUnknownFolder_IsRefusedInPlainWords_ForTheUnlockedAdministrator()
+    {
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-moves/preview", "admin",
+            new VaultMovePreviewRequest { Direction = "in", SourceId = Guid.NewGuid().ToString("D") });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var preview = (await response.Content.ReadFromJsonAsync<VaultMovePreviewDto>())!;
+        Assert.Equal(VaultMovePreviewStates.Refused, preview.State);
+        Assert.Equal(0, preview.Items);
     }
 
     [Fact]
@@ -352,6 +403,69 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
         Assert.Equal(0, needs.ManagedFolders);
         Assert.DoesNotContain(_root, raw, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination", "admin")).StatusCode);
+    }
+
+    [Fact]
+    public async Task AManagedVaultFolder_IsWritableAndManaged_AndMakesTheMoveDestinationReady_WhileAReadOnlyOneDoesNot()
+    {
+        await MakeAsync("movies", "Private Movies", _privateMovies);
+
+        var managed = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", _managedFolder, Managed: true));
+
+        Assert.Equal(HttpStatusCode.OK, managed.StatusCode);
+        var entry = _configuration.LoadLibraries().Libraries.Single(item => item.KindKey == "movies" && item.Access == LibraryAccessLevels.Vault);
+        var readOnly = entry.Sources.Single(source => source.Path == _privateMovies);
+        var writable = entry.Sources.Single(source => source.Path == _managedFolder);
+        Assert.False(readOnly.AllowsFileMutation);
+        Assert.True(writable.AllowsFileMutation);
+        var destination = (await (await SendAsync(HttpMethod.Get, "/settings/vault-libraries/destination?kind_key=movies", "admin")).Content.ReadFromJsonAsync<VaultMoveDestinationDto>())!;
+        Assert.Equal(VaultMoveDestinationStates.Ready, destination.State);
+        Assert.Equal(1, destination.ManagedFolders);
+    }
+
+    [Fact]
+    public async Task AVaultFolderHoldingALink_IsRefused_BecauseTheLinkCouldReachANormalLibrary()
+    {
+        await MakeAsync("movies", "Private Movies", _privateMovies);
+        var withLink = Path.Combine(_root, "WithLink");
+        Directory.CreateDirectory(withLink);
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(withLink, "shortcut"), _ordinaryMovies);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            return;
+        }
+
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", withLink));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(VaultFolderAttachmentService.FolderHoldsLinksMessage, await DetailOf(response));
+        Assert.DoesNotContain(_configuration.LoadLibraries().Libraries.SelectMany(item => item.Sources), source => source.Path == withLink);
+    }
+
+    [Fact]
+    public async Task AVaultFolderHoldingIndexedPhotos_IsRefused_LikeOneHoldingOrdinaryFiles()
+    {
+        await MakeAsync("movies", "Private Movies", _privateMovies);
+        var photos = Path.Combine(_root, "Photos");
+        Directory.CreateDirectory(photos);
+        var fileId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO local_files(id,content_hash,byte_size,mime_type,extension,created_at) VALUES(@id,'abc123',1,'image/jpeg','jpg',@now);",
+                new { id = fileId, now = DateTimeOffset.UtcNow.ToString("O") });
+            connection.Execute(
+                "INSERT INTO local_file_sources(id,file_id,library_id,file_path,modified_at,indexed_at) VALUES(@id,@file,@library,@path,@now,@now);",
+                new { id = Guid.NewGuid(), file = fileId, library = Guid.NewGuid(), path = Path.Combine(photos, "a.jpg"), now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var response = await SendAsync(HttpMethod.Post, "/settings/vault-libraries/folders", "admin", new AddVaultFolderRequest("movies", photos));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(VaultFolderAttachmentService.FolderHoldsOrdinaryFilesMessage, await DetailOf(response));
     }
 
     [Fact]

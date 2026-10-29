@@ -11,7 +11,8 @@ public interface ILibraryItemDeletionRepository
     /// </summary>
     Task<IReadOnlyList<LibraryItemDeletionWork>> GetWorksAsync(
         IReadOnlyList<Guid> workIds,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        bool vaultItems = false);
 
     /// <summary>
     /// Hand-picked collections that hold any requested title, how many personal profiles have state on the titles, and

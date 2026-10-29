@@ -115,7 +115,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
 
     private ContentLimitPolicy ContentLimits => _contentLimits ??= new(
         new ProfileContentLimitRepository(database),
-        new VaultAccessResolver(new VaultLibraryRepository(database), new NsfwAccessRepository(database), clock ?? TimeProvider.System),
+        new VaultAccessResolver(new VaultLibraryRepository(database), new NsfwAccessRepository(database), clock ?? TimeProvider.System, new VaultSectionGrantRepository(database)),
         configuration);
 
     // An Unmatched file lives only under the Unmatched filter (Library setup spec D64): every shared list below leaves out a work whose
@@ -525,8 +525,9 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     {
         if (scope.Content.IsVaultLibrary(libraryId))
         {
-            // Vault access is the device session's Vault mode, never the ordinary library rule; the Watch feature still applies.
-            return scope.Content.Vault.Unlocked && scope.Features.Contains(AccountFeatureId.Watch);
+            // Vault access is the device session's Vault mode and the sections the person was given, never the ordinary library rule; the
+            // feature of the item's own kind still applies.
+            return !scope.Content.Vault.HidesLibrary(libraryId) && scope.Features.Contains(FeatureFor(mediaType));
         }
 
         if (!scope.Features.Contains(FeatureFor(mediaType)))

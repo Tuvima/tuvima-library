@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugin.CommercialSkip;
 using MediaEngine.Plugin.FandomLore;
@@ -68,7 +69,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginCircuitBreaker>();
         services.AddSingleton<PluginActivityService>();
         services.AddSingleton<PluginLibraryLimitService>();
-        services.AddSingleton<IVaultSectionOnlineLookup, VaultSectionOnlineLookupOff>();
+        services.AddSingleton<IVaultSectionOnlineLookup, VaultSectionOnlineLookup>();
         services.AddSingleton<IPluginAccessGate, PluginAccessGate>();
         services.AddSingleton<PluginRemovalService>();
         services.AddSingleton<PluginCheckNowService>();

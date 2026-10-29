@@ -36,7 +36,7 @@ jobs:
     name: API v1 conformance
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.2xx"
@@ -55,7 +55,7 @@ jobs:
     name: TV web client (Tizen and webOS shell)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -67,7 +67,7 @@ jobs:
     name: Android TV, mobile, and Auto
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -82,7 +82,7 @@ jobs:
           # Android 37 packages use a minor-versioned name; list them so a rename is visible in the log.
           sdkmanager --list 2>/dev/null | grep -E "platforms;android-3[6-9]|build-tools;3[6-9]" || true
           sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
         with:
           gradle-version: "9.3.1"
       - name: Build Android applications
@@ -93,7 +93,7 @@ jobs:
     name: iOS and CarPlay
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project

@@ -82,8 +82,9 @@ public sealed class ServerFolderPickerUiTests
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
 
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(shell, @"component\.MediaType, kind\.MediaTypes\.FirstOrDefault\(\)"));
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(create, @"<ServerFolderPicker\b"));
-        Assert.Contains("Inline=\"true\"", create, StringComparison.Ordinal);
+        // Add library opens the picker as its own "Choose source folder" pop-up, never embedded in the form.
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(create, @"ShowAsync<ServerFolderPicker>"));
+        Assert.DoesNotContain("Inline=\"true\"", create, StringComparison.Ordinal);
         Assert.DoesNotContain("component.MediaType", panel, StringComparison.Ordinal);
         foreach (var untyped in new[]
                  {

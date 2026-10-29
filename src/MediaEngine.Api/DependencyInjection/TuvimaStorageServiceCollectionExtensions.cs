@@ -3,6 +3,7 @@ using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Filing;
+using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services.View;
@@ -35,6 +36,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ITransactionJournal, TransactionJournal>();
         services.AddSingleton<IMediaAssetRepository, MediaAssetRepository>();
         services.AddSingleton<ILocalAssetRepository, LocalAssetRepository>();
+        services.AddSingleton<IViewIntakeRepository, ViewIntakeRepository>();
         services.AddSingleton<IViewTrashRepository, ViewTrashRepository>();
         services.AddSingleton<IViewTrashPurgeRepository, ViewTrashPurgeRepository>();
         services.AddSingleton<IViewCatalogueRepository, ViewCatalogueRepository>();
@@ -54,6 +56,13 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<PersonalMediaActivityRecorder>();
         services.AddHostedService(sp => sp.GetRequiredService<PersonalMediaActivityRecorder>());
         services.AddSingleton<ViewLibraryService>();
+        services.AddSingleton<ViewIntakeAreas>();
+        services.AddSingleton<ViewIntakeActivity>();
+        services.AddSingleton<ViewIntakeFiler>();
+        services.AddSingleton<ViewIntakeAdminService>();
+        services.AddSingleton<ViewDuplicatesService>();
+        services.AddSingleton<IViewTidyRepository, ViewTidyRepository>();
+        services.AddSingleton<ViewTidyService>();
         services.AddSingleton<ViewThumbnailService>();
         services.AddSingleton<IViewPathIndexer>(sp => sp.GetRequiredService<ViewLibraryService>());
         services.AddScoped<IViewRequestProfileContext, HttpViewRequestProfileContext>();
@@ -122,6 +131,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         // and the Vault's own name and artwork records. VaultAccessResolver is what every catalogue check asks first.
         services.AddSingleton<IVaultLibraryRepository, VaultLibraryRepository>();
         services.AddSingleton<INsfwAccessRepository, NsfwAccessRepository>();
+        services.AddSingleton<IVaultSectionGrantRepository, VaultSectionGrantRepository>();
+        services.AddSingleton<IVaultMoveRepository, VaultMoveRepository>();
+        services.AddSingleton<IMovedItemStateCarry, MovedItemStateCarry>();
         services.AddSingleton<IVaultNameRepository, VaultNameRepository>();
         services.AddSingleton<IVaultArtworkRepository, VaultArtworkRepository>();
         // How each Vault video was matched, where its fields came from, its fingerprints and the quiet Vault activity list (WP12).
@@ -161,6 +173,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultOperationGate>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultFolderAttachmentService>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultSiblingLibraryService>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultMoveSignal>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultMoveService>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultMoveRunner>();
         services.AddTuvimaSecurity();
         services.AddSingleton<SetupSessionService>();
         services.AddSingleton<SetupPreflightService>();

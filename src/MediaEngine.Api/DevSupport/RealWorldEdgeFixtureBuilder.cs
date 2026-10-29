@@ -75,12 +75,12 @@ public static class RealWorldEdgeFixtureBuilder
 
         var viewDirectory = Path.Combine(root, "personal_photos", "2022", "September");
         Directory.CreateDirectory(viewDirectory);
-        var photoPath = Path.Combine(viewDirectory, "Sep 11 - 01.31.35IMG.jpg");
+        var photoPath = Path.Combine(viewDirectory, "IMG_20220911_013135.jpg");
         await File.WriteAllBytesAsync(photoPath, [0xFF, 0xD8, 0xFF, 0xD9], ct);
         files.Add(Entry(root, photoPath, "view", "still half of a Live Photo-style pair"));
-        var motionPath = Path.Combine(viewDirectory, "Sep 11 - 01.31.34VID.mov");
+        var motionPath = Path.Combine(viewDirectory, "IMG_20220911_013135.mov");
         await File.WriteAllBytesAsync(motionPath, Mp4Builder.Create("Live Photo Motion"), ct);
-        files.Add(Entry(root, motionPath, "view", "motion half paired by adjacent capture time and IMG/VID naming"));
+        files.Add(Entry(root, motionPath, "view", "motion half paired by sharing the picture's name"));
 
         var manifestPath = Path.Combine(root, "MANIFEST.json");
         var manifest = new

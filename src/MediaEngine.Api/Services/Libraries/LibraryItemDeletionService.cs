@@ -132,7 +132,8 @@ public sealed partial class LibraryItemDeletionService(
     /// <summary>Builds the full plan. The delete action calls this again just before acting and compares fingerprints.</summary>
     public async Task<LibraryItemDeletionResult<LibraryItemDeletionPlan>> BuildPlanAsync(
         IReadOnlyList<Guid>? workIds,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool vaultItems = false)
     {
         var requested = (workIds ?? []).Distinct().ToList();
         if (requested.Count == 0 || requested.Contains(Guid.Empty))
@@ -148,7 +149,7 @@ public sealed partial class LibraryItemDeletionService(
                 []);
         }
 
-        var found = await repository.GetWorksAsync(requested, ct).ConfigureAwait(false);
+        var found = await repository.GetWorksAsync(requested, ct, vaultItems).ConfigureAwait(false);
         var foundIds = found.Select(work => work.WorkId).ToHashSet();
         var unknown = requested.Where(id => !foundIds.Contains(id)).ToList();
         if (unknown.Count > 0)

@@ -58,7 +58,7 @@ public sealed class VideoOrderRenamerTests : IDisposable
 
     private Guid AddAsset(string relative)
     {
-        var path = Path.Combine(_root, relative);
+        var path = Path.Combine(_root, Path.Combine(relative.Split('/')));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "x");
         var work = Guid.NewGuid();

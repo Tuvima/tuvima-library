@@ -102,7 +102,12 @@ public sealed class VaultLibraryRepository(IDatabaseConnection database) : IVaul
                 SELECT 1 FROM media_assets a
                 WHERE (REPLACE(a.file_path_root, '\', '/') = @exact COLLATE NOCASE
                        OR REPLACE(a.file_path_root, '\', '/') LIKE @under ESCAPE '\')
-                  AND NOT EXISTS (SELECT 1 FROM vault_libraries v WHERE v.library_id = a.library_id COLLATE NOCASE));
+                  AND NOT EXISTS (SELECT 1 FROM vault_libraries v WHERE v.library_id = a.library_id COLLATE NOCASE))
+               -- Photos, personal videos and documents live in the View index and are never Vault files either.
+               OR EXISTS(
+                SELECT 1 FROM local_file_sources s
+                WHERE REPLACE(s.file_path, '\', '/') LIKE @under ESCAPE '\'
+                  AND NOT EXISTS (SELECT 1 FROM vault_image_libraries vi WHERE vi.library_id = s.library_id));
             """,
             new { exact = folder, under = EscapeLike(folder) + "/%" });
         return Task.FromResult(found == 1);

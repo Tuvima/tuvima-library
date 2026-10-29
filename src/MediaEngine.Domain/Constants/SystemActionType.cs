@@ -308,4 +308,13 @@ public static class SystemActionType
 
     /// <summary>A person emptied their View Trash: how many items, how much space, how many skipped. Counts only; never a file name or title.</summary>
     public const string PersonalTrashEmptied = "PersonalTrashEmptied";
+
+    /// <summary>Exact copies of photos or personal videos that were already in the library and so were not filed twice. Counts only.</summary>
+    public const string PersonalMediaSkipped = "PersonalMediaSkipped";
+
+    /// <summary>Photos or personal videos that could not be filed (damaged, empty, unsupported), held in the Rejected area. Counts and reasons only.</summary>
+    public const string PersonalMediaRefused = "PersonalMediaRefused";
+
+    /// <summary>Files found in the Rejected area that Library did not put there. Counts only; nothing is moved or deleted.</summary>
+    public const string PersonalMediaStray = "PersonalMediaStray";
 }

@@ -164,6 +164,53 @@ public static class VaultEndpoints
         }).WithName("SetProfileNsfwAccess").Produces<NsfwStatusDto>().ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireEffectiveAdministratorInPerson();
 
+        // The Vault sections a profile may open once its Vault mode is on (Vault sections D28, D39). The list names the sections, so it is for an
+        // administrator whose own Vault mode is on; anyone else gets the answer an unknown address gets.
+        admin.MapGet("/profiles/{profileId:guid}/vault-sections", async (
+            Guid profileId, HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access,
+            [FromServices] VaultSiblingLibraryService siblings, [FromServices] IVaultSectionGrantRepository grants, [FromServices] IProfileRepository profiles, CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            if (!authority.IsEffectiveAdministrator || !await access.IsUnlockedAsync(authority, ct))
+            {
+                return ApiErrors.NotFound("Not found.");
+            }
+
+            return await SectionsOfAsync(profileId, siblings, grants, profiles, ct);
+        }).WithName("GetProfileVaultSections").Produces<ProfileVaultSectionsDto>().RequireEffectiveAdministratorInPerson();
+
+        admin.MapPut("/profiles/{profileId:guid}/vault-sections", async (
+            Guid profileId, SetProfileVaultSectionsRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access,
+            [FromServices] VaultSiblingLibraryService siblings, [FromServices] IVaultSectionGrantRepository grants, [FromServices] IProfileRepository profiles,
+            TimeProvider clock, CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            if (!authority.IsEffectiveAdministrator || authority.ActiveProfileId is not { } adminProfileId || !await access.IsUnlockedAsync(authority, ct))
+            {
+                return ApiErrors.NotFound("Not found.");
+            }
+
+            try
+            {
+                await grants.ReplaceGrantedAsync(profileId, request.LibraryIds ?? [], clock.GetUtcNow(), adminProfileId, ct);
+            }
+            catch (KeyNotFoundException)
+            {
+                return ApiErrors.NotFound("Profile not found.");
+            }
+            catch (ArgumentException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ApiErrors.Conflict(ex.Message);
+            }
+
+            return await SectionsOfAsync(profileId, siblings, grants, profiles, ct);
+        }).WithName("SetProfileVaultSections").Produces<ProfileVaultSectionsDto>().ProducesProblem(StatusCodes.Status400BadRequest)
+          .RequireEffectiveAdministratorInPerson();
+
         var libraries = app.MapGroup("/api/v1/vault/libraries").WithTags("Vault");
 
         // The library settings live inside the Vault area (Videos spec D45): a caller whose Vault mode is off gets "not found" before a
@@ -311,7 +358,7 @@ public static class VaultEndpoints
             // Private and uncacheable whether or not the image is found, so a cached answer never outlives the Vault mode session.
             CatalogueResourceAuthorizationService.ApplyVaultCacheControl(http.Response);
             var authority = await resolver.ResolveAsync(http, ct);
-            if (!await access.IsUnlockedAsync(authority, ct)
+            if (!await access.MayOpenAnySectionAsync(authority, ct)
                 || await artwork.GetAsync(artworkId, ct) is not { } record
                 || !File.Exists(record.FilePath))
             {
@@ -354,6 +401,27 @@ public static class VaultEndpoints
             && sessionId != Guid.Empty && profileId != Guid.Empty
             ? new OwnSession(sessionId, profileId)
             : null;
+    }
+
+    private static async Task<IResult> SectionsOfAsync(
+        Guid profileId, VaultSiblingLibraryService siblings, IVaultSectionGrantRepository grants, IProfileRepository profiles, CancellationToken ct)
+    {
+        if (await profiles.GetByIdAsync(profileId, ct) is not { } person)
+        {
+            return ApiErrors.NotFound("Profile not found.");
+        }
+
+        var granted = await grants.GetGrantedAsync(profileId, ct);
+        var sections = (await siblings.ListAsync(ct))
+            .Select(library => new VaultSectionDto
+            {
+                LibraryId = library.Id,
+                Name = library.Name,
+                KindKey = library.KindKey ?? string.Empty,
+                Granted = granted.Contains(library.Id),
+            })
+            .ToList();
+        return Results.Ok(new ProfileVaultSectionsDto { OpensAll = person.Role == MediaEngine.Domain.Enums.ProfileRole.Administrator, Sections = sections });
     }
 
     private static async Task<Guid?> AdministratorProfileAsync(HttpContext http, IRequestAuthorityResolver resolver, CancellationToken ct)

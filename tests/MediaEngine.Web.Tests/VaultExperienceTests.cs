@@ -1096,6 +1096,34 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AnAdministrator_TicksTheVaultSectionsAnAdultMayOpen_AndNothingIsTickedByDefault()
+    {
+        UseEngine();
+        _mode = null;
+        var saved = new List<IReadOnlyList<string>>();
+        _stub.SetHandler(nameof(IEngineApiClient.GetProfileVaultSectionsAsync), _ => Task.FromResult(VaultCall<ProfileVaultSectionsDto>.Ok(
+            new ProfileVaultSectionsDto { OpensAll = false, Sections = [new VaultSectionDto { LibraryId = "vault-1", Name = "Private films", Granted = false }] })));
+        _stub.SetHandler(nameof(IEngineApiClient.SetProfileVaultSectionsAsync), args =>
+        {
+            var ids = (IReadOnlyList<string>)args![1]!;
+            saved.Add(ids);
+            return Task.FromResult(VaultCall<ProfileVaultSectionsDto>.Ok(
+                new ProfileVaultSectionsDto { OpensAll = false, Sections = [new VaultSectionDto { LibraryId = "vault-1", Name = "Private films", Granted = ids.Contains("vault-1") }] }));
+        });
+        var cut = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Other, hasPin: true)).Add(p => p.IsSelf, false).Add(p => p.IsAdministrator, true).Add(p => p.AdministratorHasPin, true));
+        cut.WaitForAssertion(() => Assert.Contains("data-profile-section=\"nsfw-access\"", cut.Markup));
+        await cut.InvokeAsync(() => Switch(cut, "Vault mode for Sam").Change(true));
+
+        cut.WaitForAssertion(() => Assert.Contains("Private films", cut.Markup));
+        Assert.False(Switch(cut, "Private films").HasAttribute("checked"));
+
+        await cut.InvokeAsync(() => Switch(cut, "Private films").Change(true));
+
+        cut.WaitForAssertion(() => Assert.Equal([["vault-1"]], saved));
+    }
+
+    [Fact]
     public async Task ForAProfileWithNoPin_VaultModeStartsWithoutThePinQuestion_AndAskingForItIsRefusedInPlainWords()
     {
         UseEngine();
