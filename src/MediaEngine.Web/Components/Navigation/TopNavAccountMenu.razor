@@ -101,14 +101,14 @@
                     </a>
                 }
 
-                @* A Kids profile cannot reach Settings, so it keeps a direct link to its own activity until its Profile page opens to it. *@
+                @* A Kids profile cannot reach Settings, so its Profile link opens its own pages outside Settings. *@
                 <a class="top-nav-account-menu__item"
-                   href="@(IsKids ? KidsActivityHref : MyProfileHref)"
+                   href="@(IsKids ? KidsProfileHref : MyProfileHref)"
                    role="menuitem"
                    @onclick="CloseMenu">
-                    <AppMaterialIcon Icon="@(IsKids ? AppMaterialIcons.Outlined.History : AppMaterialIcons.Outlined.Person)"
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person"
                              Class="top-nav-account-menu__item-icon" />
-                    <span>@(IsKids ? "My activity" : "Profile")</span>
+                    <span>Profile</span>
                 </a>
 
                 @if (!IsKids)
@@ -184,7 +184,7 @@
     public const string ManageProfilesHref = "/settings/profiles";
     /// <summary>Profile opens the person's own Overview.</summary>
     public const string MyProfileHref = "/settings/overview";
-    public const string KidsActivityHref = "/my-activity";
+    public const string KidsProfileHref = "/my-profile";
     [Parameter] public string ProfileRole { get; set; } = "Profile";
     [Parameter] public string AvatarInitial { get; set; } = string.Empty;
     [Parameter] public string AvatarColor { get; set; } = "var(--tl-accent-primary)";

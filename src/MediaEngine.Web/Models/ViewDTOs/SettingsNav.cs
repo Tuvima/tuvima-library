@@ -221,6 +221,11 @@ public static class SettingsNav
     /// <summary>The Activity page outside Settings, for a Kids profile (which has no Settings) and for quick access. It shows the signed-in person's own activity only.</summary>
     public const string MyActivityRoute = "/my-activity";
 
+    /// <summary>A Kids profile's own Overview, outside Settings (Kids have no Settings), and its Taste page; both show only that person's own.</summary>
+    public const string MyProfileRoute = "/my-profile";
+
+    public const string MyTasteRoute = "/my-profile/taste";
+
     /// <summary>The Taste sub-page of Overview (built with the Taste page).</summary>
     public const string TasteRoute = "/settings/overview/taste";
 
@@ -661,6 +666,13 @@ public static class SettingsNav
             return string.IsNullOrWhiteSpace(normalized) ? string.IsNullOrWhiteSpace(detail) : IsLibraryRouteSegment(normalized);
         }
 
+        // A person's Preferences tab (Watching, Listening, Reading, Home) is how a phone changes those settings.
+        if (section == SettingsSection.Profiles && Guid.TryParse(normalized, out _)
+            && string.Equals(detail?.Trim(), "preferences", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         if (!string.IsNullOrWhiteSpace(detail))
         {
             return false;
@@ -695,8 +707,8 @@ public static class SettingsNav
     public static SettingsSection GetDefaultSection(string groupKey) => _groupsByKey[groupKey].DefaultSection;
 
     /// <summary>
-    /// Whether this person may open the page. Profile is everyone's own page, a Kids profile's included. A Kids profile
-    /// (<paramref name="restricted"/>) may open Profile and nothing else. Manage Profiles, Preferences and Security &amp; Devices are
+    /// Whether this person may open the page. Profile is everyone's own page. A Kids profile (<paramref name="restricted"/>) never
+    /// reaches Settings (the page sends it Home). Manage Profiles and Security &amp; Devices are
     /// everyone's own to look after; the Engine still limits what a member can change to their own profile. Everything else in
     /// Settings is for server administrators.
     /// </summary>

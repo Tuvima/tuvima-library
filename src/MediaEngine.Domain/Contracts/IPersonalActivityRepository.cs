@@ -84,4 +84,10 @@ public interface IPersonalActivityRepository
 
     /// <summary>The lifetime totals of one person's activity.</summary>
     Task<PersonalActivitySummary> GetSummaryAsync(Guid profileId, CancellationToken ct = default);
+
+    /// <summary>Titles finished and days active in the last <paramref name="days"/> days ending on the date of <paramref name="now"/> (UTC), with each active day.</summary>
+    Task<PersonalActivityRolling> GetRollingAsync(Guid profileId, DateTimeOffset now, int days, CancellationToken ct = default);
+
+    /// <summary>Titles by the month they were first finished and their genre, from <paramref name="since"/> on. A summarised read, never one row per entry.</summary>
+    Task<IReadOnlyList<PersonalFinishedMonthGenre>> GetFinishedByMonthAsync(Guid profileId, DateTimeOffset since, CancellationToken ct = default);
 }

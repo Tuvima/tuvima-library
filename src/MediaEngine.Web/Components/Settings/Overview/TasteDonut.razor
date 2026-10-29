@@ -1,0 +1,54 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Web.Services.Formatting
+@* The genre donut on the Taste page: the biggest genres by weight and the rest as Other, with a legend. The ring is drawn
+   in the same colours as the legend, and says its contents in words for screen readers. *@
+<div class="taste-donut" data-taste-donut>
+    <svg class="taste-donut__ring" viewBox="0 0 100 100" role="img" aria-label="@Description">
+        <title>@Description</title>
+        <g transform="rotate(-90 50 50)">
+            <circle cx="50" cy="50" r="38" fill="none" class="taste-donut__track" stroke-width="16" />
+            @foreach (var segment in Segments)
+            {
+                <circle cx="50" cy="50" r="38" fill="none" class="@("taste-donut__slice taste-donut__slice--" + segment.Slice.Index)"
+                        stroke-width="16" pathLength="100"
+                        stroke-dasharray="@segment.Dash" stroke-dashoffset="@segment.Offset" />
+            }
+        </g>
+    </svg>
+    <ul class="taste-donut__legend" role="list">
+        @foreach (var slice in Slices)
+        {
+            <li class="taste-donut__item" data-taste-slice="@slice.Label">
+                <span class="@("taste-donut__swatch taste-donut__swatch--" + slice.Index)" aria-hidden="true"></span>
+                <span class="taste-donut__label">@slice.Label</span>
+                <span class="taste-donut__percent">@Percent(slice)</span>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<TasteSlice> Slices { get; set; } = [];
+
+    private string Description => "Your genres: " + string.Join(", ", Slices.Select(slice => $"{slice.Label} {Percent(slice)}"));
+
+    private static string Percent(TasteSlice slice) => $"{Math.Round(slice.Percent).ToString("0", CultureInfo.CurrentCulture)}%";
+
+    // Each slice is a dash on a ring that is 100 long: where it starts is the sum of the slices before it, minus a hair for a gap.
+    private IEnumerable<(TasteSlice Slice, string Dash, string Offset)> Segments
+    {
+        get
+        {
+            var offset = 0d;
+            foreach (var slice in Slices)
+            {
+                var length = Math.Max(slice.Percent - (Slices.Count > 1 ? 0.8 : 0), 0.1);
+                yield return (slice,
+                    string.Create(CultureInfo.InvariantCulture, $"{length:0.###} {100 - length:0.###}"),
+                    string.Create(CultureInfo.InvariantCulture, $"{-offset:0.###}"));
+                offset += slice.Percent;
+            }
+        }
+    }
+}

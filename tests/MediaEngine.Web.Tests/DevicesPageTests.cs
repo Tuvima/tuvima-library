@@ -95,10 +95,10 @@ public sealed class DevicesNavTests
         var root = RepositoryRoot();
         var settings = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
 
-        // A Kids profile has Profile and nothing else: the page is refused by address and the menu lists nothing else.
+        // A Kids profile never reaches Settings: every Settings address goes Home, and the menu lists nothing else.
         Assert.Contains("_restricted = _activeProfile?.IsRestricted == true;", settings, StringComparison.Ordinal);
         var resolve = settings[settings.IndexOf("private void ResolveSectionAndNormalize()", StringComparison.Ordinal)..];
-        Assert.Contains("if (_restricted && !string.IsNullOrWhiteSpace(Section) && !resolution.RequestedSectionAllowed)", resolve, StringComparison.Ordinal);
+        Assert.Contains("if (_restricted)", resolve, StringComparison.Ordinal);
         Assert.False(SettingsNav.IsVisible(SettingsSection.Security, administrationAllowed: false, restricted: true));
         Assert.False(SettingsNav.ResolveRoute("security", administrationAllowed: false, restricted: true).RequestedSectionAllowed);
     }

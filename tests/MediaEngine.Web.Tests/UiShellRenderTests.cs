@@ -332,7 +332,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("ReviewSelected", accountSource);
         Assert.DoesNotContain("NotificationsNone", accountSource);
         Assert.Contains("top-nav-account-menu__trigger-copy", accountSource);
-        Assert.Contains("href=\"@(IsKids ? KidsActivityHref : MyProfileHref)\"", accountSource);
+        Assert.Contains("href=\"@(IsKids ? KidsProfileHref : MyProfileHref)\"", accountSource);
         Assert.Contains("MyProfileHref = \"/settings/overview\"", accountSource);
         Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", accountSource);
         // Switching people now happens on the full-screen "Who's using Tuvima?" page.
@@ -490,26 +490,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("await StartSignalRAsync(ct);", source);
         Assert.Contains("HubConnectionState.Disconnected", source);
         Assert.Contains("A later call can retry", source);
-    }
-
-    [Fact]
-    public void SettingsPage_ForAKidsProfile_OpensProfileOnly()
-    {
-        var kidsApi = EngineApiClientStub.Create(stub =>
-            stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel>
-            {
-                new(Guid.Parse("00000000-0000-0000-0000-000000000001"), "Robin", "#2E8BC9", "RestrictedProfile", DateTimeOffset.UtcNow),
-            })));
-        Services.AddSingleton<IEngineApiClient>(kidsApi);
-        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/overview");
-
-        var cut = Render<Settings>(parameters => parameters.Add(page => page.Section, "overview"));
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-settings-overview]")));
-        var rows = cut.FindAll(".media-section-shell__tree-link").Select(row => row.TextContent.Trim()).ToArray();
-        Assert.Equal(["Profile"], rows);
-        // A Kids profile has no Edit profile link: Manage Profiles is not theirs to open.
-        Assert.DoesNotContain("Edit profile", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

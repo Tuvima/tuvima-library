@@ -192,6 +192,15 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
+    public void APersonsPreferencesTab_IsAvailableOnAPhone_ButTheirAccessTabIsNot()
+    {
+        var id = Guid.NewGuid().ToString("D");
+
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "preferences"));
+        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "access"));
+    }
+
+    [Fact]
     public void MobileAvailability_WithholdsComplexAdministrationButKeepsMonitoringSummaries()
     {
         Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Profiles));

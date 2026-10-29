@@ -608,7 +608,7 @@ else
         finally
         {
             _profileRoleLoaded = true;
-            // A Kids profile reaches Profile only; a typed address or old link to any other page must not open it either.
+            // A Kids profile never reaches Settings; a typed address must not open it.
             _restricted = _activeProfile?.IsRestricted == true;
         }
     }
@@ -653,9 +653,9 @@ else
         var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted);
         _activeSection = resolution.Section;
 
-        if (_restricted && !string.IsNullOrWhiteSpace(Section) && !resolution.RequestedSectionAllowed)
+        if (_restricted)
         {
-            // A Kids profile has Profile only. Anything else in Settings goes Home.
+            // A Kids profile never reaches Settings (its own pages are My profile and My activity). Any Settings address goes Home.
             _leavingSettings = true;
             Nav.NavigateTo("/", replace: true);
             return;

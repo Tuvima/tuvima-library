@@ -6062,8 +6062,51 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     z-index: 1;
 }
 
+/* A Kids profile's Profile pages sit outside Settings, so the section-card headings they reuse get their layout here. */
+.my-profile-page .settings-section-card__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: var(--tl-space-4, 16px);
+}
+
+.my-profile-page .settings-section-card__heading {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.my-profile-page .settings-section-header__title {
+    margin: 0;
+}
+
+.my-profile-page .settings-section-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.my-profile-page .settings-section-card__title,
+.my-profile-page .settings-section-card__header .tl-typography {
+    color: var(--tl-text-primary);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.my-profile-page .settings-section-card__header .tl-icon-root {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    color: var(--tl-text-secondary);
+    font-size: 24px;
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
+
+
 
 /* Hero: sized to its content, with room under the floating top bar, instead of one full screen of backdrop. */
 html[data-form-factor="phone"] .tl-detail-page {
@@ -6601,3 +6644,4 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
+

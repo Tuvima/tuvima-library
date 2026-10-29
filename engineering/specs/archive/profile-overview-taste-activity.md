@@ -1,6 +1,6 @@
 # Spec: Profile Overview, Taste and Activity redesign
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** [Product overview](../product/overview.md) · [Users, profiles and households](users-profiles-households.md) · [Settings flat menu](archive/settings-flat-menu.md) · [Presentation rules](../../docs/product/presentation-rules.md)
+> **Status:** Built · **Version:** 1 · **Last updated:** 2026-10-29 · **Related docs:** [Product overview](../../product/overview.md) · [Users, profiles and households](../users-profiles-households.md) · [Settings flat menu](../settings-flat-menu.md) · [Presentation rules](../../../docs/product/presentation-rules.md)
 
 ## 1. Goal
 
