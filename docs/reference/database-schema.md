@@ -997,14 +997,14 @@ A household is the group of people (profiles) who live together and the sign-ins
 | `name` | TEXT | Display name, for example `Alex's household` |
 | `created_at` | TEXT | Timestamp |
 | `is_default` | INTEGER | 1 for the server administrator's original household. At most one household has it (unique partial index `ux_households_default`); setup marks the first administrator's household. It is never deleted. Added by step `0046_profile_held_access`. |
-| `kid_watch_level` | TEXT | The highest rating a Kid's profile in this household may see in Watch: `G`, `PG`, `PG-13` or `R` (CHECK-constrained). Defaults to `PG`. Added by step `0067_household_kid_settings` (library access D9). |
+| `kid_watch_level` | TEXT | The highest rating a Kid's profile in this household may see in Watch: `G`, `PG`, `PG-13` or `R` (CHECK-constrained). Defaults to `PG`. Added by step `0068_household_kid_settings` (library access D9). |
 | `kid_read_level` | TEXT | The same for Read. Defaults to `PG`. |
 | `kid_listen_level` | TEXT | The same for Listen. Defaults to `PG`. |
 | `kid_show_unrated` | INTEGER | 1 (the default) shows items with no recognised rating to the household's Kid's profiles in every area; 0 hides them. Rated items always follow the level. |
 
 **Creation.** The baseline step creates `household_id` on `profiles`. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
 
-**Kid's profiles.** A Kid's profile is a profile with the `RestrictedProfile` role (`is_kids` on the wire). Its limits are these four household columns, so changing them updates every Kid's profile in the household at once; a profile has no rating limit of its own. Step `0067_household_kid_settings` dropped `profiles.content_limit` and `profiles.content_limit_allow_unrated` with no conversion, and rewrote the Vault eligibility triggers to key on the role (a Kid's profile can never have Vault access).
+**Kid's profiles.** A Kid's profile is a profile with the `RestrictedProfile` role (`is_kids` on the wire). Its limits are these four household columns, so changing them updates every Kid's profile in the household at once; a profile has no rating limit of its own. Step `0068_household_kid_settings` dropped `profiles.content_limit` and `profiles.content_limit_allow_unrated` with no conversion, and rewrote the Vault eligibility triggers to key on the role (a Kid's profile can never have Vault access).
 
 ### profiles
 
@@ -1103,7 +1103,7 @@ The libraries an administrator hid from a profile (simpler access D2, D11; the p
 
 ### household_library_hidden
 
-The household ceiling (library access D2, LA1): the libraries the server administrator has hidden for a whole household. One row per hidden library: `household_id` (references `households`, deleting the household removes its rows), `library_id` (a 16-byte id, no foreign key; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A library is visible to a profile when it is **not hidden for the profile's household** and **not hidden for the profile** (`profile_library_hidden`); administrators see everything. Nothing is hidden by default, so a new library, household or profile needs no row. A Vault library is never listed (its access is per profile) and the repository refuses one. A household administrator can hide more for the household's profiles but cannot show what the household lacks (the Engine answers `409`). The rows are configuration and are part of a backup. Created by upgrade step `0066_household_library_hidden`, which also dropped `library_profile_grants` (the old "Selected profiles" table) with no conversion.
+The household ceiling (library access D2, LA1): the libraries the server administrator has hidden for a whole household. One row per hidden library: `household_id` (references `households`, deleting the household removes its rows), `library_id` (a 16-byte id, no foreign key; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A library is visible to a profile when it is **not hidden for the profile's household** and **not hidden for the profile** (`profile_library_hidden`); administrators see everything. Nothing is hidden by default, so a new library, household or profile needs no row. A Vault library is never listed (its access is per profile) and the repository refuses one. A household administrator can hide more for the household's profiles but cannot show what the household lacks (the Engine answers `409`). The rows are configuration and are part of a backup. Created by upgrade step `0067_household_library_hidden`, which also dropped `library_profile_grants` (the old "Selected profiles" table) with no conversion.
 
 ### profile_admin_protections
 

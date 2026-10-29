@@ -73,7 +73,7 @@
                     {
                         <AppNativeButton @ref="_preselectedCard"
                                          Type="button"
-                                         Class="who-card is-preselected"
+                                         Class="who-card"
                                          Disabled="@_busy"
                                          AriaLabel="@CardLabel(profile)"
                                          OnClick="@(() => PickAsync(profile))">@cardBody</AppNativeButton>
@@ -88,7 +88,7 @@
                     }
                 </li>
             }
-            @if (ShowAddTile)
+            @if (_managing && ShowAddTile)
             {
                 <li>
                     <AppNativeButton Type="button" Class="who-card who-card--add" Disabled="@_busy" AriaLabel="Add profile" OnClick="OpenAdd">
@@ -107,31 +107,27 @@
             <p class="who-page__error" role="alert">@_error</p>
         }
 
+        @* Netflix style: Manage profiles puts pencils on the pictures, Done puts them away. Nothing opens without a click. *@
         @if (_managing)
         {
             <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@_busy" OnClick="DoneManaging">Done</AppNativeButton>
         }
         else
         {
-        @if (PreselectedProfile is { } preselected)
-        {
-            <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@_busy" OnClick="@(() => ChooseAsync(preselected))">Continue as @preselected.DisplayName</AppNativeButton>
-        }
+            @if (CanManage)
+            {
+                <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="StartManagingAsync">Manage profiles</AppNativeButton>
+            }
 
-        <form method="post" action="/auth/logout" class="who-signout">
-            <AntiforgeryToken />
-            <AppNativeButton Type="submit" Class="who-link">Sign out</AppNativeButton>
-        </form>
+            <form method="post" action="/auth/logout" class="who-signout">
+                <AntiforgeryToken />
+                <AppNativeButton Type="submit" Class="who-link">Sign out</AppNativeButton>
+            </form>
 
-        @if (CanManage)
-        {
-            <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="StartManagingAsync">Manage profiles</AppNativeButton>
-        }
-
-        @if (ShowPinReminder)
-        {
-            <p class="who-note" role="note">Set PINs on adult profiles so children can't switch into them.</p>
-        }
+            @if (ShowPinReminder)
+            {
+                <p class="who-note" role="note">Set PINs on adult profiles so children can't switch into them.</p>
+            }
         }
     }
 
@@ -218,6 +214,7 @@
     private string? _error;
     private int _shake;
     private bool _managing;
+    private bool _isTelevision;
     private bool _editorOpen;
     private bool _editorSaving;
     private string? _editorError;
@@ -273,7 +270,8 @@
             _isAdministrator = Session.Authority?.EffectiveAdministrator == true;
             _profiles = await Orchestrator.GetProfilesAsync();
             _active = await Orchestrator.GetActiveProfileAsync();
-            // Nothing opens without a click (D3), even for a household of one: the only profile is shown pre-selected with "Continue as".
+            // Nothing opens without a click (D3), even for a household of one: the previous profile only gets keyboard focus.
+            _isTelevision = DeviceContext.IsTelevision;
             _focusPreselected = !WantsManage;
             if (WantsManage && CanManage)
             {
@@ -322,7 +320,8 @@
         }
     }
 
-    // In Manage profiles mode a tap opens the editor; otherwise it opens the profile.
+    // In Manage profiles mode a tap opens that person's page in Settings (as Netflix does); a television has no Settings page worth
+    // using, so it keeps the in-place editor. Otherwise a tap opens the profile.
     private Task PickAsync(ProfileViewModel profile)
     {
         if (!_managing)
@@ -330,9 +329,20 @@
             return ChooseAsync(profile);
         }
 
-        OpenEditor(profile);
+        if (_isTelevision)
+        {
+            OpenEditor(profile);
+        }
+        else
+        {
+            Navigation.NavigateTo(ProfilePageHref(profile));
+        }
+
         return Task.CompletedTask;
     }
+
+    /// <summary>A person's own settings page (the pencil in Manage profiles mode).</summary>
+    public static string ProfilePageHref(ProfileViewModel profile) => $"/settings/profiles/{profile.Id:D}";
 
     private Task ChooseAsync(ProfileViewModel profile)
     {
@@ -422,18 +432,16 @@
         return profile.HasPin ? $"{profile.DisplayName}{kids}, needs a PIN" : $"{profile.DisplayName}{kids}";
     }
 
-    // Managing people lives in Settings; a television has no Settings page worth using, so it keeps managing in place here.
     private async Task StartManagingAsync()
     {
         _error = null;
-        if (await IsTelevisionAsync())
+        _isTelevision = await IsTelevisionAsync();
+        if (_isTelevision)
         {
             await LoadManagedPeopleAsync();
-            _managing = true;
-            return;
         }
 
-        Navigation.NavigateTo("/settings/profiles");
+        _managing = true;
     }
 
     private async Task<bool> IsTelevisionAsync()

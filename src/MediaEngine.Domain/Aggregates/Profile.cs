@@ -81,6 +81,12 @@ public sealed class Profile
     public bool IsHouseholdAdministrator { get; set; }
 
     /// <summary>
+    /// Where this person sits in the household's order (Who's watching and the profile menu list people by it, lowest first).
+    /// Set by the Engine: a new person gets the next position; only the household's reorder action moves people.
+    /// </summary>
+    public int SortPosition { get; set; }
+
+    /// <summary>
     /// Raised on every change to what this profile may do, so open screens and sessions re-check. Always above zero.
     /// </summary>
     public long AuthorizationVersion { get; set; } = 1;

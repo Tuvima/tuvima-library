@@ -323,17 +323,16 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("TopBar_MyList", source);
         Assert.DoesNotContain("NotificationsNone", source);
         Assert.DoesNotContain("ToggleProfileMenu", source);
-        Assert.Contains("@if (CanViewReview)", accountSource);
-        Assert.Contains("TopBar_NeedsReview", accountSource);
+        Assert.DoesNotContain("TopBar_NeedsReview", accountSource);
+        Assert.DoesNotContain("href=\"/settings/review\"", accountSource);
         Assert.Contains("ShowSignOut", accountSource);
-        Assert.Contains("href=\"/settings/review\"", accountSource);
         Assert.Contains("href=\"/settings\"", accountSource);
         Assert.DoesNotContain("<MudMenu", accountSource);
         Assert.DoesNotContain("SettingsSelected", accountSource);
         Assert.DoesNotContain("ReviewSelected", accountSource);
         Assert.DoesNotContain("NotificationsNone", accountSource);
         Assert.Contains("top-nav-account-menu__trigger-copy", accountSource);
-        Assert.Contains("href=\"@MyProfileHref\"", accountSource);
+        Assert.Contains("href=\"@(IsKids ? KidsProfileHref : MyProfileHref)\"", accountSource);
         Assert.Contains("MyProfileHref = \"/settings/overview\"", accountSource);
         Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", accountSource);
         // Switching people now happens on the full-screen "Who's using Tuvima?" page.

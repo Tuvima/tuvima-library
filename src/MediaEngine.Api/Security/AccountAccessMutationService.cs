@@ -584,6 +584,21 @@ public sealed class AccountAccessMutationService(
         return profile;
     }
 
+    public async Task ReorderHouseholdProfilesAsync(
+        RequestAuthority actor,
+        Guid householdId,
+        IReadOnlyList<Guid> orderedProfileIds,
+        CancellationToken ct = default)
+    {
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
+        await RequireHouseholdWriteAsync(actor, householdId, ct).ConfigureAwait(false);
+        await accounts.ReorderHouseholdProfilesAsync(householdId, orderedProfileIds, ct).ConfigureAwait(false);
+        // The order changes no one's access, so no sign-in is re-checked; the change is only written to the audit trail.
+        await audit.WriteAsync(new AuthorizationAuditEvent(
+            "household.people_reordered", clock.GetUtcNow(), actor.AccountId, actor.ActiveProfileId, actor.ApplicationId,
+            "household", householdId.ToString("D"), new Dictionary<string, string?> { ["changed"] = "true" }), ct).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// The profile a new person (one without a user) takes their starting access from: the profile of the person
     /// adding them. An application or service caller has none, so the household's first household-administrator profile is used;

@@ -1,8 +1,8 @@
 /* The Activity page: the list beside a slim date rail, the same shape as the View timeline (D33). */
 .activity-page {
     /* The columns of a row, shared by the header line and every row: time, picture, title, what, how long, how far, outcome, device (and person), actions. */
-    --activity-columns: 5.5rem 3.25rem minmax(11rem, 2.4fr) 6.5rem 5.5rem 4rem 5.5rem minmax(5rem, 1fr) 9.5rem;
-    --activity-columns-person: 5.5rem 3.25rem minmax(11rem, 2.4fr) 6.5rem 5.5rem 4rem 5.5rem minmax(5rem, 1fr) minmax(5rem, 0.8fr) 9.5rem;
+    --activity-columns: 5.5rem 3.25rem minmax(11rem, 2.4fr) 6.5rem 5.5rem 4rem 5.5rem minmax(5rem, 1fr) 11.5rem;
+    --activity-columns-person: 5.5rem 3.25rem minmax(11rem, 2.4fr) 6.5rem 5.5rem 4rem 5.5rem minmax(5rem, 1fr) minmax(5rem, 0.8fr) 11.5rem;
     display: grid;
     min-width: 0;
     align-items: start;
@@ -171,11 +171,23 @@
 }
 
 .activity-section__heading {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
     margin: 0;
     padding: 0 var(--tl-space-2, 8px);
     color: var(--tl-text-primary);
     font-size: 1rem;
     font-weight: var(--tl-font-weight-semibold);
+}
+
+.activity-section__heading::before {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--tl-accent-primary);
+    content: "";
 }
 
 .activity-section__rows {

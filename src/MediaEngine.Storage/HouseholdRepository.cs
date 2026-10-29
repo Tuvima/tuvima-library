@@ -43,9 +43,9 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
                    role AS Role, created_at AS CreatedAt,
                    navigation_config AS NavigationConfig, household_id AS HouseholdId,
                    is_server_admin AS IsServerAdministrator, is_household_admin AS IsHouseholdAdministrator,
-                   authorization_version AS AuthorizationVersion
+                   authorization_version AS AuthorizationVersion, sort_position AS SortPosition
             FROM profiles WHERE household_id = @householdId
-            ORDER BY created_at, id;
+            ORDER BY sort_position, created_at, id;
             """, new { householdId }).Select(row => new Profile
         {
             Id = row.Id,
@@ -60,6 +60,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             IsServerAdministrator = row.IsServerAdministrator,
             IsHouseholdAdministrator = row.IsHouseholdAdministrator,
             AuthorizationVersion = row.AuthorizationVersion,
+            SortPosition = row.SortPosition,
         }).ToList();
         return Task.FromResult<IReadOnlyList<Profile>>(rows);
     }
@@ -301,6 +302,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public bool IsServerAdministrator { get; set; }
         public bool IsHouseholdAdministrator { get; set; }
         public long AuthorizationVersion { get; set; }
+        public int SortPosition { get; set; }
     }
 
     private sealed class AccountRow

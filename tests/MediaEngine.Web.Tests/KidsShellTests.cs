@@ -15,7 +15,6 @@ public sealed class KidsShellTests : AsyncBunitContext
         var cut = Render<TopNavAccountMenu>(parameters => parameters
             .Add(p => p.DisplayName, "Maya")
             .Add(p => p.IsKids, kids)
-            .Add(p => p.CanViewReview, canReview)
             .Add(p => p.ShowSignOut, true));
         cut.Find(".top-nav-account-menu__trigger").Click();
         return cut;
@@ -35,13 +34,13 @@ public sealed class KidsShellTests : AsyncBunitContext
     }
 
     [Fact]
-    public void KidsProfile_HasMyActivityOnItsOwnPage_AndNoMyProfile()
+    public void KidsProfile_HasItsOwnProfilePage_OutsideSettings()
     {
         var cut = RenderOpenMenu(kids: true, canReview: false);
 
         var items = cut.FindAll("a[role=menuitem]").Select(link => (Href: link.GetAttribute("href"), Text: link.TextContent.Trim())).ToList();
-        Assert.Contains(items, item => item.Href == "/my-activity" && item.Text == "My activity");
-        Assert.DoesNotContain(items, item => item.Text == "My profile");
+        Assert.Contains(items, item => item.Href == "/my-profile" && item.Text == "Profile");
+        Assert.DoesNotContain(items, item => item.Href is not null && item.Href.StartsWith("/settings", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -56,13 +55,13 @@ public sealed class KidsShellTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AdultProfile_HasMyProfileAndMyActivity_InsteadOfProfileSettings()
+    public void AdultProfile_HasProfile_InsteadOfMyProfileMyActivityAndProfileSettings()
     {
         var cut = RenderOpenMenu(kids: false, canReview: false);
 
         var items = cut.FindAll("a[role=menuitem]").Select(link => (Href: link.GetAttribute("href"), Text: link.TextContent.Trim())).ToList();
-        Assert.Contains(items, item => item.Href == "/settings/overview" && item.Text == "My profile");
-        Assert.Contains(items, item => item.Href == "/settings/overview/activity" && item.Text == "My activity");
+        Assert.Contains(items, item => item.Href == "/settings/overview" && item.Text == "Profile");
+        Assert.DoesNotContain(items, item => item.Text == "My activity");
         Assert.DoesNotContain(items, item => item.Text == "Profile settings");
         Assert.DoesNotContain(items, item => item.Text == "Manage profiles");
     }
@@ -74,7 +73,6 @@ public sealed class KidsShellTests : AsyncBunitContext
         var layout = File.ReadAllText(Path.Combine(repo, "src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
 
         Assert.Contains("_isKids = profile.IsRestricted;", layout);
-        Assert.Contains("CanViewReview=\"@(CanViewReview && !_isKids)\"", layout);
         // The top bar's links, and so the phone menu and chips, come from the one catalogue; Kids keep Watch, Listen and Read.
         Assert.Contains("ShellNavigation.TopBarLinks(_isKids)", layout);
         Assert.Equal(["/watch", "/listen", "/read"], ShellNavigation.TopBarLinks(isKids: true).Select(link => link.Path).ToArray());

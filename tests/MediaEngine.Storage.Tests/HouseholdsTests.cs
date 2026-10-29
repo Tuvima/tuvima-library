@@ -74,6 +74,49 @@ public sealed class HouseholdsTests : IDisposable
     }
 
     [Fact]
+    public async Task PeopleAreListedInTheOrderTheyWereSavedIn_AndANewPersonGoesLast()
+    {
+        using var fixture = NewFixture();
+        var admin = await CreateAdministratorAsync(fixture);
+        var household = (await fixture.Households.GetForAccountAsync(admin.Id))!;
+        var sam = NewProfile("Sam");
+        var kim = NewProfile("Kim");
+        await fixture.Accounts.CreateHouseholdPersonAsync(sam, household.Id);
+        await fixture.Accounts.CreateHouseholdPersonAsync(kim, household.Id);
+
+        Assert.Equal([Profile.SeedProfileId, sam.Id, kim.Id], await ListedAsync(fixture, household.Id));
+
+        await fixture.Accounts.ReorderHouseholdProfilesAsync(household.Id, [kim.Id, Profile.SeedProfileId, sam.Id]);
+        Assert.Equal([kim.Id, Profile.SeedProfileId, sam.Id], await ListedAsync(fixture, household.Id));
+        Assert.Equal([kim.Id, Profile.SeedProfileId, sam.Id], (await fixture.Profiles.GetAllAsync()).Select(profile => profile.Id).ToArray());
+
+        var robin = NewProfile("Robin");
+        await fixture.Accounts.CreateHouseholdPersonAsync(robin, household.Id);
+        Assert.Equal([kim.Id, Profile.SeedProfileId, sam.Id, robin.Id], await ListedAsync(fixture, household.Id));
+    }
+
+    [Fact]
+    public async Task ASavedOrderThatMissesSomeoneRepeatsSomeoneOrNamesAStrangerChangesNothing()
+    {
+        using var fixture = NewFixture();
+        var admin = await CreateAdministratorAsync(fixture);
+        var household = (await fixture.Households.GetForAccountAsync(admin.Id))!;
+        var sam = NewProfile("Sam");
+        await fixture.Accounts.CreateHouseholdPersonAsync(sam, household.Id);
+        var before = await ListedAsync(fixture, household.Id);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Accounts.ReorderHouseholdProfilesAsync(household.Id, [sam.Id]));
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Accounts.ReorderHouseholdProfilesAsync(household.Id, [sam.Id, sam.Id]));
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Accounts.ReorderHouseholdProfilesAsync(household.Id, [sam.Id, Guid.NewGuid()]));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Accounts.ReorderHouseholdProfilesAsync(Guid.NewGuid(), [sam.Id]));
+
+        Assert.Equal(before, await ListedAsync(fixture, household.Id));
+    }
+
+    private static async Task<Guid[]> ListedAsync(Fixture fixture, Guid householdId) =>
+        [.. (await fixture.Households.ListProfilesAsync(householdId)).Select(profile => profile.Id)];
+
+    [Fact]
     public async Task ANewUserWithANewPersonCannotBringTheNinthPersonIntoAFullHouseholdEither()
     {
         using var fixture = NewFixture();

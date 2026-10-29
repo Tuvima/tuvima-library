@@ -55,6 +55,27 @@ public sealed class TastePersonDto
     /// <summary>UTC. When the Library last worked this person's taste out; null when it has not yet.</summary>
     [JsonPropertyName("last_updated_at")]
     public string? LastUpdatedAt { get; set; }
+
+    /// <summary>How many different titles this person has finished (songs and My list adds are not titles).</summary>
+    [JsonPropertyName("finished_title_count")]
+    public int FinishedTitleCount { get; set; }
+
+    /// <summary>Titles finished in each of the last 12 months, oldest first, for "How your taste shifts". Months without a finished title are left out.</summary>
+    [JsonPropertyName("shifts")]
+    public List<TasteMonthDto> Shifts { get; set; } = [];
+}
+
+/// <summary>Titles first finished in one month (<c>yyyy-MM</c>, UTC) and how they split by genre; titles without a known genre are counted in <c>finished</c> only.</summary>
+public sealed class TasteMonthDto
+{
+    [JsonPropertyName("month")]
+    public string Month { get; set; } = string.Empty;
+
+    [JsonPropertyName("finished")]
+    public int Finished { get; set; }
+
+    [JsonPropertyName("genres")]
+    public Dictionary<string, int> Genres { get; set; } = [];
 }
 
 /// <summary>Known values offered while typing in an Add control.</summary>

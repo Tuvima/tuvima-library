@@ -53,7 +53,8 @@ public sealed class ProfilePickerTests
         Assert.Contains(">Kids<", page, StringComparison.Ordinal);
         Assert.DoesNotContain("Always open as", page, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("DeviceProfilePreference", page, StringComparison.Ordinal);
-        Assert.Contains("is-preselected", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("Continue as", page, StringComparison.Ordinal);
+        Assert.Contains("_preselectedCard", page, StringComparison.Ordinal);
         Assert.Contains("Orchestrator.SetActiveProfileAsync(profile.Id, pin)", page, StringComparison.Ordinal);
         Assert.Contains("Set PINs on adult profiles so children can't switch into them.", page, StringComparison.Ordinal);
     }

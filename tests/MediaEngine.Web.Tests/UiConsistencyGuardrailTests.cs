@@ -161,6 +161,38 @@ public sealed partial class UiConsistencyGuardrailTests
         }
     }
 
+    [Fact]
+    public void Tabs_HaveOneDefinitionAndNoPageRestylesThem()
+    {
+        // One flat tab, defined once in app.css (spec one-shared-look). Browse's pill switcher is the one named exception.
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "src/MediaEngine.Web/wwwroot/app.css",
+            "src/MediaEngine.Web/wwwroot/native-structure.css",
+            "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css",
+            "src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css",
+        };
+        var web = Path.Combine(RepoRoot, "src", "MediaEngine.Web");
+        var offenders = Directory.EnumerateFiles(web, "*.css", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+                        && !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+            .Select(path => Relative(path).Replace('\\', '/'))
+            .Where(path => !allowed.Contains(path))
+            .Where(path => TabSelector().IsMatch(Read(path)))
+            .ToArray();
+        Assert.True(offenders.Length == 0,
+            $"Pages must use the shared tab as it is. These stylesheets restyle .tl-tab: {string.Join(", ", offenders)}");
+
+        var appCss = Read("src/MediaEngine.Web/wwwroot/app.css");
+        Assert.Single(Regex.Matches(appCss, @"^\.tl-tab \{", RegexOptions.Multiline));
+        var tabRule = CssRule(appCss, "\n.tl-tab {");
+        Assert.DoesNotContain("!important", tabRule, StringComparison.Ordinal);
+        Assert.DoesNotContain("min-width: 160px", Read("src/MediaEngine.Web/wwwroot/native-structure.css"), StringComparison.Ordinal);
+    }
+
+    [GeneratedRegex(@"\.tl-tabs?(-toolbar|-active)?\b(?!__)")]
+    private static partial Regex TabSelector();
+
     private static IEnumerable<string> RazorFiles() =>
         Directory.EnumerateFiles(
             Path.Combine(RepoRoot, "src", "MediaEngine.Web"),

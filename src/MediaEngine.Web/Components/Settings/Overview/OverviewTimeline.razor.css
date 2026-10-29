@@ -1,0 +1,198 @@
+.overview-timeline {
+    display: grid;
+    gap: var(--tl-space-4, 16px);
+}
+
+.overview-timeline__message {
+    margin: 0;
+    color: var(--tl-text-secondary);
+}
+
+.overview-timeline__day {
+    position: relative;
+    display: grid;
+    gap: var(--tl-space-2, 8px);
+    padding-left: var(--tl-space-5, 20px);
+}
+
+/* The timeline line and the dot at each day heading. */
+.overview-timeline__day::before {
+    position: absolute;
+    top: 0.45rem;
+    bottom: calc(var(--tl-space-4, 16px) * -1);
+    left: 4px;
+    width: 2px;
+    background: var(--tl-border-default);
+    content: "";
+}
+
+.overview-timeline__day:last-child::before {
+    bottom: 0;
+}
+
+.overview-timeline__heading {
+    position: relative;
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: 1rem;
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.overview-timeline__heading::before {
+    position: absolute;
+    top: 50%;
+    left: calc(var(--tl-space-5, 20px) * -1);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--tl-accent-primary);
+    box-shadow: 0 0 0 3px var(--tl-bg-surface-raised, #151E2F);
+    content: "";
+    transform: translateY(-50%);
+}
+
+.overview-timeline__rows {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.overview-timeline__row {
+    display: grid;
+    min-width: 0;
+    align-items: center;
+    column-gap: var(--tl-space-3, 12px);
+    grid-template-columns: 4.5rem 3.5rem minmax(0, 1fr) minmax(7rem, 10rem) auto;
+    padding: var(--tl-space-2, 8px) 0;
+}
+
+.overview-timeline__row + .overview-timeline__row {
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.overview-timeline__time {
+    color: var(--tl-text-muted);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.overview-timeline__art {
+    display: block;
+    width: 3.5rem;
+    height: 3.5rem;
+    overflow: hidden;
+    border-radius: var(--tl-radius-md, 8px);
+    background: color-mix(in srgb, var(--tl-text-primary) 8%, transparent);
+}
+
+.overview-timeline__image,
+.overview-timeline__collage {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.overview-timeline__image {
+    object-fit: cover;
+}
+
+.overview-timeline__collage {
+    display: grid;
+    gap: 1px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+}
+
+.overview-timeline__collage--1 { grid-template-columns: minmax(0, 1fr); }
+.overview-timeline__collage--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.overview-timeline__collage img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.overview-timeline__placeholder {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    color: var(--tl-text-muted);
+}
+
+.overview-timeline__text {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.overview-timeline__title {
+    overflow: hidden;
+    color: var(--tl-text-primary);
+    font-weight: var(--tl-font-weight-semibold);
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.overview-timeline__title:hover {
+    text-decoration: underline;
+}
+
+.overview-timeline__title:focus-visible {
+    border-radius: var(--tl-radius-sm, 6px);
+    outline: 3px solid var(--tl-focus-ring, #A78BFA);
+    outline-offset: 2px;
+}
+
+.overview-timeline__detail {
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: 0.85rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.overview-timeline__status {
+    min-width: 0;
+}
+
+.overview-timeline__done {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--tl-status-success, #22C55E);
+    font-size: 0.85rem;
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.overview-timeline__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+    color: var(--tl-text-muted);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.overview-timeline__bar > :first-child {
+    flex: 1 1 auto;
+}
+
+@media (max-width: 600px) {
+    .overview-timeline__row {
+        grid-template-areas:
+            "art text menu"
+            "art status status";
+        grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+        row-gap: 2px;
+    }
+
+    .overview-timeline__time { display: none; }
+    .overview-timeline__art { grid-area: art; align-self: start; }
+    .overview-timeline__text { grid-area: text; }
+    .overview-timeline__status { grid-area: status; }
+    .overview-timeline__menu { grid-area: menu; }
+}

@@ -21,7 +21,7 @@ public sealed class LibraryVisibilityGuardrailTests
         ["src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"] = "the development reset lists every table it empties",
         ["src/MediaEngine.Storage/Schema/schema.snapshot.sql"] = "the generated data structure",
         ["src/MediaEngine.Storage/Schema/Upgrades/0046_profile_held_access.sql"] = "the step that creates the table",
-        ["src/MediaEngine.Storage/Schema/Upgrades/0066_household_library_hidden.sql"] = "the step that creates the household table, which says what it adds to",
+        ["src/MediaEngine.Storage/Schema/Upgrades/0067_household_library_hidden.sql"] = "the step that creates the household table, which says what it adds to",
     };
 
     // The only files that may name the household table: the repository that owns it and the places that list every table by name.
@@ -31,7 +31,7 @@ public sealed class LibraryVisibilityGuardrailTests
         ["src/MediaEngine.Storage/Backup/BackupTableClassification.cs"] = "every table is classified for backup by name",
         ["src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"] = "the development reset lists every table it empties",
         ["src/MediaEngine.Storage/Schema/schema.snapshot.sql"] = "the generated data structure",
-        ["src/MediaEngine.Storage/Schema/Upgrades/0066_household_library_hidden.sql"] = "the step that creates the table",
+        ["src/MediaEngine.Storage/Schema/Upgrades/0067_household_library_hidden.sql"] = "the step that creates the table",
     };
 
     // The earlier per-library grants, the per-account hidden table and the library-side "Selected profiles" choice are gone; only the steps
@@ -42,7 +42,7 @@ public sealed class LibraryVisibilityGuardrailTests
         "src/MediaEngine.Storage/Schema/Upgrades/0045_simpler_access_hidden_libraries.sql",
         "src/MediaEngine.Storage/Schema/Upgrades/0048_drop_account_held_access.sql",
         "src/MediaEngine.Storage/Schema/Upgrades/0057_library_profile_grants.sql",
-        "src/MediaEngine.Storage/Schema/Upgrades/0066_household_library_hidden.sql",
+        "src/MediaEngine.Storage/Schema/Upgrades/0067_household_library_hidden.sql",
     };
 
     private static readonly string[] OldNames =

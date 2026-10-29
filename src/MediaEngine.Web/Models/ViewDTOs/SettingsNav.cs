@@ -173,6 +173,11 @@ public static class SettingsNav
     /// <summary>The Activity page outside Settings, for a Kids profile (which has no Settings) and for quick access. It shows the signed-in person's own activity only.</summary>
     public const string MyActivityRoute = "/my-activity";
 
+    /// <summary>A Kids profile's own Overview, outside Settings (Kids have no Settings), and its Taste page; both show only that person's own.</summary>
+    public const string MyProfileRoute = "/my-profile";
+
+    public const string MyTasteRoute = "/my-profile/taste";
+
     /// <summary>The Taste sub-page of Overview (built with the Taste page).</summary>
     public const string TasteRoute = "/settings/overview/taste";
 

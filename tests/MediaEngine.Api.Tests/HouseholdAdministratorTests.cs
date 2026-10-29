@@ -322,6 +322,21 @@ public sealed class HouseholdAdministratorTests
     }
 
     [Fact]
+    public async Task APersonCanBeReordered_ByTheirOwnHouseholdAdministrator_ButNotByAMemberOrAnotherHouseholdsAdministrator()
+    {
+        await using var world = await World.CreateAsync();
+        var people = (await world.Households.ListProfilesAsync(world.A.Id)).Select(person => person.Id).ToList();
+        var reversed = Enumerable.Reverse(people).ToList();
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReorderHouseholdProfilesAsync(world.MemberOfA, world.A.Id, reversed));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReorderHouseholdProfilesAsync(world.AdminOfB, world.A.Id, reversed));
+        Assert.Equal(people, (await world.Households.ListProfilesAsync(world.A.Id)).Select(person => person.Id).ToList());
+
+        await world.Mutations.ReorderHouseholdProfilesAsync(world.AdminOfA, world.A.Id, reversed);
+        Assert.Equal(reversed, (await world.Households.ListProfilesAsync(world.A.Id)).Select(person => person.Id).ToList());
+    }
+
+    [Fact]
     public async Task EveryWayOfMakingASignIn_PointsItAtItsOwnPerson()
     {
         await using var world = await World.CreateAsync();

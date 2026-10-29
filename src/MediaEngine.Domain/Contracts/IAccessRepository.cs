@@ -75,6 +75,11 @@ public interface IAccountAccessMutationRepository
         Guid householdId,
         CancellationToken ct = default,
         Guid? accessFromProfileId = null);
+    /// <summary>
+    /// Saves the order people are listed in (Who's watching and the profile menu): positions 0, 1, 2... in the given order. The list must
+    /// hold every person of the household exactly once, or nothing changes and an <see cref="ArgumentException"/> is thrown.
+    /// </summary>
+    Task ReorderHouseholdProfilesAsync(Guid householdId, IReadOnlyList<Guid> orderedProfileIds, CancellationToken ct = default);
     Task UpdateManagedProfileAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         CancellationToken ct = default);
@@ -272,6 +277,12 @@ public interface IAccountAccessMutationService
     /// <summary>Adds a person to a household. The household's main sign-ins can open them; the person has no sign-in of their own yet.</summary>
     Task<MediaEngine.Domain.Aggregates.Profile> AddHouseholdPersonAsync(
         RequestAuthority actor, AddHouseholdPersonCommand command, CancellationToken ct = default);
+    /// <summary>
+    /// Saves the order people are listed in for a household (one order, shared by everyone in it). Same authority as adding a person:
+    /// an unlocked administrator, a household administrator of that household, or a trusted application. The list must hold every
+    /// person of the household exactly once.
+    /// </summary>
+    Task ReorderHouseholdProfilesAsync(RequestAuthority actor, Guid householdId, IReadOnlyList<Guid> orderedProfileIds, CancellationToken ct = default);
     /// <summary>
     /// Switches "Ask for my PIN on admin pages" on or off for a profile that holds an administrator role (its own PIN is the one asked
     /// for). A person changes it on their own profile; a server administrator on any; a household administrator never on another

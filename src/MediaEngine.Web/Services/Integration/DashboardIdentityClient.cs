@@ -554,6 +554,10 @@ public sealed partial class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> AddHouseholdPersonResultAsync(Guid householdId, AddHouseholdPersonRequest request, CancellationToken ct = default) =>
         SendMutationAsync<AddHouseholdPersonRequest, ManagedProfileResponse>(HttpMethod.Post, $"/access/households/{householdId:D}/people", request, ct, includeMessage: true);
 
+    /// <summary>Saves the order people are listed in (Who's watching and the profile menu), first to last: every person of the household once.</summary>
+    public Task<DashboardAccessMutationResult> ReorderHouseholdPeopleResultAsync(Guid householdId, IReadOnlyList<Guid> profileIds, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Put, $"/access/households/{householdId:D}/people/order", new ReorderHouseholdProfilesRequest(profileIds), ct);
+
     /// <summary>Sets a person's profile PIN. A server administrator can set anyone's; a household administrator only their own household's.</summary>
     public Task<DashboardAccessMutationResult> SetProfilePinResultAsync(Guid profileId, string pin, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Put, $"/auth/profiles/{profileId:D}/pin", new SetProfilePinRequest { Pin = pin }, ct);

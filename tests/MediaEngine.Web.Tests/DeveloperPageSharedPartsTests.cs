@@ -32,6 +32,31 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
     }
 
     [Fact]
+    public void PageHeader_WithoutATitle_ShowsOnlyTheButton()
+    {
+        var cut = Render<AppListPageHeader>(p => p.Add(c => c.Actions, b => b.AddMarkupContent(0, "<button id=\"main\">Upload plugin</button>")));
+
+        Assert.Empty(cut.FindAll(".app-list-page-header__copy"));
+        Assert.Empty(cut.FindAll(".app-list-page-header__title"));
+        Assert.Contains("app-list-page-header--actions-only", cut.Find("header").ClassList);
+        Assert.Equal("Upload plugin", cut.Find("#main").TextContent);
+    }
+
+    [Fact]
+    public void ListCard_PutsKindWarningAndBadgesInOneRowAndKeepsTheNameOnOneLine()
+    {
+        var cut = Render<AppListCard>(p => p
+            .Add(c => c.Title, "Commercial Skip")
+            .Add(c => c.Kind, "Media processing")
+            .Add(c => c.Warning, b => b.AddMarkupContent(0, "<button class=\"app-warning-strip\">Requires Comskip</button>")));
+
+        var row = cut.Find(".app-list-card__badges");
+        Assert.NotNull(row.QuerySelector(".app-list-card__kind"));
+        Assert.NotNull(row.QuerySelector(".app-list-card__warning .app-warning-strip"));
+        Assert.Equal("Commercial Skip", cut.Find(".app-list-card__title").GetAttribute("title"));
+    }
+
+    [Fact]
     public void PageHeader_WithoutSubtitleOrActions_LeavesThemOut()
     {
         var cut = Render<AppListPageHeader>(p => p.Add(c => c.Title, "Integrations"));
@@ -93,8 +118,35 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
         var buttons = cut.FindAll("[role=tab]");
         Assert.Equal("false", buttons[0].GetAttribute("aria-selected"));
         Assert.Equal("true", buttons[1].GetAttribute("aria-selected"));
-        Assert.Equal("4", buttons[1].QuerySelector(".app-count-tabs__count")!.TextContent);
+        Assert.Equal("4", buttons[1].QuerySelector(".tl-tab__count")!.TextContent);
         Assert.Equal("-1", buttons[0].GetAttribute("tabindex"));
+    }
+
+    [Fact]
+    public void CountTabs_UseTheSameTabClassAsAppTabs()
+    {
+        var counts = Render<AppCountTabs>(p => p.Add(c => c.Tabs, new[] { new AppCountTab("all", "All", 3) }).Add(c => c.Selected, "all"));
+        var tabs = Render<AppTabs>(p => p.AddChildContent<AppTabPanel>(panel => panel.Add(x => x.Text, "All")));
+
+        Assert.NotNull(counts.Find("[role=tablist].tl-tabs-toolbar"));
+        Assert.NotNull(tabs.Find("[role=tablist].tl-tabs-toolbar"));
+        Assert.Contains("tl-tab-active", counts.Find("[role=tab]").ClassList);
+        Assert.Contains("tl-tab", tabs.Find("[role=tab]").ClassList);
+    }
+
+    [Fact]
+    public void Tabs_WithAnAddress_RenderAsLinks()
+    {
+        var cut = Render<AppTabs>(p => p
+            .Add(c => c.ActivePanelIndex, 1)
+            .AddChildContent<AppTabPanel>(panel => panel.Add(x => x.Text, "Plugins").Add(x => x.Href, "/settings/plugins"))
+            .AddChildContent<AppTabPanel>(panel => panel.Add(x => x.Text, "Integrations").Add(x => x.Href, "/settings/integrations")));
+
+        var links = cut.FindAll("a[role=tab]");
+        Assert.Equal(2, links.Count);
+        Assert.Equal("/settings/integrations", links[1].GetAttribute("href"));
+        Assert.Equal("page", links[1].GetAttribute("aria-current"));
+        Assert.Null(links[0].GetAttribute("aria-current"));
     }
 
     [Fact]
@@ -156,11 +208,11 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Pager_UnderOnePage_ShowsTheCountAndNoPageButtons()
+    public void Pager_UnderOnePage_DrawsNothing()
     {
-        var cut = Render<AppPager>(p => p.Add(c => c.Total, 11).Add(c => c.PageSize, 12).Add(c => c.Noun, "plugins"));
+        var cut = Render<AppPager>(p => p.Add(c => c.Total, 24).Add(c => c.PageSize, 24).Add(c => c.Noun, "plugins"));
 
-        Assert.Contains("Showing 11 of 11 plugins", cut.Markup);
+        Assert.Empty(cut.FindAll(".app-pager"));
         Assert.Empty(cut.FindAll(".app-pager__pages"));
     }
 

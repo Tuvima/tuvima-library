@@ -444,6 +444,68 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
             totals.FirstActivityAt is null ? null : Parse(totals.FirstActivityAt)));
     }
 
+    public Task<PersonalActivityRolling> GetRollingAsync(Guid profileId, DateTimeOffset now, int days, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var utc = now.ToUniversalTime();
+        var firstDay = DateOnly.FromDateTime(utc.UtcDateTime).AddDays(-(Math.Max(days, 1) - 1));
+        var since = Iso(new DateTimeOffset(firstDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero));
+        using var connection = database.CreateConnection();
+
+        // Songs count as activity on a day; adding to My list does not.
+        var rows = connection.Query<DayRow>($"""
+            SELECT substr(started_at, 1, 10) AS Day, COALESCE(SUM(played_seconds), 0) AS PlayedSeconds, COUNT(*) AS Entries
+            FROM personal_activity
+            WHERE profile_id = @profileId AND kind IN ('watch', 'read', 'listen') AND started_at >= @since
+              AND {VaultSql.NotVaultAsset("asset_id")}
+            GROUP BY substr(started_at, 1, 10)
+            ORDER BY Day;
+            """, new { profileId, since }).ToList();
+
+        // A title is finished once however many attempts finished in the window; songs are not titles.
+        var finished = connection.ExecuteScalar<int>($"""
+            SELECT COUNT(DISTINCT COALESCE(HEX(work_id), 'T' || LOWER(title)))
+            FROM personal_activity
+            WHERE profile_id = @profileId AND finished = 1 AND kind IN ('watch', 'read', 'listen') AND media_type <> 'Music'
+              AND started_at >= @since AND {VaultSql.NotVaultAsset("asset_id")};
+            """, new { profileId, since });
+
+        var daily = rows
+            .Select(row => new PersonalActivityDay(DateOnly.ParseExact(row.Day, "yyyy-MM-dd", CultureInfo.InvariantCulture), row.PlayedSeconds, row.Entries))
+            .ToList();
+        return Task.FromResult(new PersonalActivityRolling(finished, daily.Count, daily));
+    }
+
+    public Task<IReadOnlyList<PersonalFinishedMonthGenre>> GetFinishedByMonthAsync(Guid profileId, DateTimeOffset since, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+
+        // One row per title: the month it was first finished in the window. The genre is the first genre of the work (or its
+        // parent show or series) while the work still exists; an entry whose work was deleted has none.
+        var rows = connection.Query<MonthGenreRow>($"""
+            SELECT substr(t.finished_at, 1, 7) AS Month,
+                   (SELECT v.value FROM canonical_value_arrays v
+                    WHERE v.entity_id = COALESCE(gpw.id, pw.id, w.id) AND v.key = 'genre'
+                    ORDER BY v.ordinal LIMIT 1) AS Genre,
+                   COUNT(*) AS Titles
+            FROM (
+                SELECT MIN(started_at) AS finished_at, MAX(work_id) AS work_id
+                FROM personal_activity
+                WHERE profile_id = @profileId AND finished = 1 AND kind IN ('watch', 'read', 'listen') AND media_type <> 'Music'
+                  AND started_at >= @since AND {VaultSql.NotVaultAsset("asset_id")}
+                GROUP BY COALESCE(HEX(work_id), 'T' || LOWER(title))
+            ) t
+            LEFT JOIN works w ON w.id = t.work_id
+            LEFT JOIN works pw ON pw.id = w.parent_work_id
+            LEFT JOIN works gpw ON gpw.id = pw.parent_work_id
+            GROUP BY Month, Genre
+            ORDER BY Month, Titles DESC;
+            """, new { profileId, since = Iso(since) });
+        return Task.FromResult<IReadOnlyList<PersonalFinishedMonthGenre>>(
+            [.. rows.Select(row => new PersonalFinishedMonthGenre(row.Month, row.Genre, row.Titles))]);
+    }
+
     /// <summary>
     /// The picture key to store on a new entry: the given key when that picture still exists, checked in the writing
     /// transaction, otherwise none. A delete of history that ran in between can remove a picture no entry used yet;
@@ -646,6 +708,20 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
         public long MusicSeconds { get; set; }
         public long AudiobookSeconds { get; set; }
         public string? FirstActivityAt { get; set; }
+    }
+
+    private sealed class DayRow
+    {
+        public string Day { get; set; } = string.Empty;
+        public long PlayedSeconds { get; set; }
+        public int Entries { get; set; }
+    }
+
+    private sealed class MonthGenreRow
+    {
+        public string Month { get; set; } = string.Empty;
+        public string? Genre { get; set; }
+        public int Titles { get; set; }
     }
 
     private sealed class TitleCounts

@@ -51,6 +51,12 @@ public sealed record UpdateHouseholdKidSettingsRequest(
 public sealed record CreateHouseholdRequest(
     [property: JsonPropertyName("name")] string Name);
 
+/// <summary>
+/// The order people are listed in (Who's watching and the profile menu): every person of the household exactly once, first to last.
+/// </summary>
+public sealed record ReorderHouseholdProfilesRequest(
+    [property: JsonPropertyName("profile_ids")] IReadOnlyList<Guid> ProfileIds);
+
 /// <summary>Renames a household (server administrator only).</summary>
 public sealed record RenameHouseholdRequest(
     [property: JsonPropertyName("name")] string Name);

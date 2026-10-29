@@ -21,6 +21,7 @@
 
 .access-phone-note { margin: 0 0 1rem; color: var(--app-text-muted); font-size: .9rem; }
 
-.access-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.access-cards { margin-bottom: 1rem; }
 .access-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: 0; color: var(--app-text-muted); font-size: .82rem; }
 .access-card__failure { display: flex; align-items: center; gap: .35rem; margin: 0; color: var(--app-error, #ef4444); font-size: .82rem; }
+.access-page { display: grid; min-width: 0; gap: 18px; }

@@ -11,8 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Needs Review is for server administrators only (registry-retirement D12): the account menu in the real layout
-/// shows the entry for them and for nobody else.
+/// Needs Review is for server administrators only (registry-retirement D12), and it no longer sits in the account menu (profile menu
+/// spec): the menu in the real layout lists it for nobody, and the administrator reaches it from Settings.
 /// </summary>
 public sealed partial class UiShellRenderTests
 {
@@ -50,13 +50,13 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void AccountMenu_ShowsNeedsReviewToAServerAdministrator()
+    public void AccountMenu_NoLongerListsNeedsReview_EvenForAServerAdministrator()
     {
         var cut = RenderOpenAccountMenu(
             ShellAuthority(true, ["settings.administration"], ["access.manage"]), AdultProfile("Shy"));
 
-        // Administrator access is confirmed with the Engine after the menu opens, so the entry can arrive a render later.
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(NeedsReviewLink)));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("a[href='/settings']")));
+        Assert.Empty(cut.FindAll(NeedsReviewLink));
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 # Spec: One shared look for pages (tabs, cards, filter bar, pills)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-29 (locked by Shy) · **Related docs:** [Plugins and Integrations screens](plugins-and-integrations-screens.md) · [Library pages](library-pages.md) · [Settings and top navigation](settings-and-top-navigation.md) · [Design system](../design/design-system.md) · Bug log F76, F84, F90
+> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-10-29 (locked by Shy; built the same day) · **Related docs:** [Plugins and Integrations screens](plugins-and-integrations-screens.md) · [Library pages](library-pages.md) · [Settings and top navigation](settings-and-top-navigation.md) · [Design system](../design/design-system.md) · Bug log F76, F84, F90
 
 ## 1. Goal
 Plugins, Integrations, the Libraries area and every Settings page that has tabs look and behave like one family. Today they do not: the tabs are boxed and heavy, cards differ in height, text wraps, stray content sits under the cards, and the word "Plugins" appears twice. Fix it once, in the shared parts, so every page that uses them changes together (Uniformity, Maintenance).

@@ -152,7 +152,7 @@ public sealed class PersonalActivityEndpointTests : IAsyncLifetime
         Assert.Equal(StatusCodes.Status200OK, summary.Status);
         using var json = JsonDocument.Parse(summary.Body);
         Assert.Equal(
-            ["watch_seconds", "read_seconds", "listen_seconds", "music_seconds", "audiobook_seconds", "finished_count", "in_progress_count", "first_activity_at"],
+            ["watch_seconds", "read_seconds", "listen_seconds", "music_seconds", "audiobook_seconds", "finished_count", "in_progress_count", "first_activity_at", "finished_last_30_days", "days_active_last_30", "daily"],
             json.RootElement.EnumerateObject().Select(property => property.Name));
         Assert.Equal(600, json.RootElement.GetProperty("watch_seconds").GetInt64());
         Assert.Equal(1, json.RootElement.GetProperty("finished_count").GetInt32());

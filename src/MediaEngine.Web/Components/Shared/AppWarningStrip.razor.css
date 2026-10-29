@@ -1,1 +1,4 @@
-.app-warning-strip { justify-content: flex-start; border: 1px solid var(--tl-accent-secondary-border); background: var(--tl-accent-secondary-soft); text-align: left; }
+.app-warning-strip { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; padding: 2px 8px; color: var(--tl-status-warning, var(--tl-text-primary)); font: inherit; font-size: var(--tl-font-size-sm); font-weight: 600; border: 1px solid var(--tl-status-warning-border); border-radius: var(--tl-radius-pill); background: var(--tl-status-warning-soft); cursor: pointer; }
+.app-warning-strip svg { flex: 0 0 auto; width: 14px; height: 14px; fill: currentColor; }
+.app-warning-strip__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-warning-strip:hover { filter: brightness(1.12); }
