@@ -61,7 +61,7 @@
     <aside class="media-section-shell__rail" aria-label="@($"{Title} navigation")">
         @foreach (var group in NavigationGroups)
         {
-            <section class="media-section-shell__rail-group" aria-labelledby="@GroupId(group)">
+            <section class="media-section-shell__rail-group @(IsFlatTree ? "is-flat" : null)" aria-labelledby="@GroupId(group)">
                 <div class="media-section-shell__rail-heading"
                      @ondragover:preventDefault="@(group.CreateOptions?.ManualDropTarget is not null)"
                      @ondrop:preventDefault="@(group.CreateOptions?.ManualDropTarget is not null)"
@@ -101,7 +101,7 @@
                 }
                 @if (FixedColumnTree)
                 {
-                    <div class="media-section-shell__tree">
+                    <div class="media-section-shell__tree @(IsFlatTree ? "media-section-shell__tree--flat" : null)">
                         @foreach (var item in group.Items)
                         {
                             @RenderTreeNode(item, 0)
@@ -508,6 +508,9 @@
         _scrollContentTop = true;
     }
 
+    /// <summary>A tree whose rows have no children (Settings): drawn flat, with no chevron column and one step larger text.</summary>
+    private bool IsFlatTree => FixedColumnTree && NavigationGroups.All(group => group.Items.All(item => !HasChildren(item)));
+
     private Uri CurrentUri => new(_address!.Absolute);
 
     private bool IsActive(MediaSectionNavigationItem item)
@@ -545,7 +548,10 @@
         var currentPath = NormalizePath(CurrentUri);
         var itemPath = NormalizePath(itemUri);
         return string.Equals(currentPath, itemPath, StringComparison.OrdinalIgnoreCase)
-               || currentPath.StartsWith($"{itemPath}/", StringComparison.OrdinalIgnoreCase);
+               || currentPath.StartsWith($"{itemPath}/", StringComparison.OrdinalIgnoreCase)
+               || item.ActiveRoutes is { Count: > 0 } && item.ActiveRoutes.Any(route =>
+                   string.Equals(currentPath, route, StringComparison.OrdinalIgnoreCase)
+                   || currentPath.StartsWith($"{route}/", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string NormalizePathAndQuery(Uri uri) => $"{NormalizePath(uri)}{uri.Query}";

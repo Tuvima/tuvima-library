@@ -20,10 +20,8 @@
    from the profile menu in the top bar, never here. *@
 @if (!IsAdministrator)
 {
-    <AppPageState Kind="AppPageStateKind.Unavailable"
-                  Icon="@AppMaterialIcons.Outlined.Lock"
-                  Title="Not available"
-                  Message="Profiles are looked after by an administrator. You can change your own details from your Overview." />
+    @* Not an administrator: Manage Profiles opens your own profile, which is the only one you can look after. *@
+    <AppPageState Kind="AppPageStateKind.Loading" Title="Opening your profile" Class="tl-sp-py-8" />
 }
 else
 {
@@ -201,6 +199,16 @@ else
         if (!IsAdministrator)
         {
             _loadingPeople = false;
+            try
+            {
+                _active = await Orchestrator.GetActiveProfileAsync();
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+            {
+                Logger.LogWarning(exception, "Could not find the active profile to open.");
+            }
+
+            Nav.NavigateTo(_active is null ? SettingsNav.RouteFor(SettingsSection.Overview) : $"/settings/profiles/{_active.Id:D}", replace: true);
             return;
         }
 

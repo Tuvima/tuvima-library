@@ -11,38 +11,39 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>Where Taste sits in the Settings menu, under Personal &gt; Overview.</summary>
+/// <summary>Where Taste sits in the Settings menu, as a tab of Personal &gt; Profile.</summary>
 public sealed class TasteNavTests
 {
     [Fact]
-    public void Taste_IsTheChildOfOverview_AtTheOverviewTasteAddress_ForEveryKindOfPerson()
+    public void Taste_IsATabOfProfile_AtTheOverviewTasteAddress_ForEveryKindOfPerson()
     {
         var personal = SettingsNav.MenuGroups.Single(group => group.Key == "personal");
-        var overview = personal.Nodes.Single(node => node.Section == SettingsSection.Overview && node.Subsection is null);
+        var profile = personal.Nodes.Single(node => node.Section == SettingsSection.Overview);
 
-        var taste = overview.Children.Single(child => child.Label == "Taste");
+        var taste = profile.Tabs.Single(tab => tab.Label == "Taste");
         Assert.Equal(SettingsSection.Overview, taste.Section);
         Assert.Equal(SettingsNav.TasteSubsection, taste.Subsection);
         Assert.Equal("/settings/overview/taste", taste.Route);
         Assert.Equal(SettingsNav.TasteRoute, SettingsNav.RouteFor(SettingsSection.Overview, SettingsNav.TasteSubsection));
-        Assert.Equal("/settings/overview", overview.Route);
+        Assert.Equal("/settings/overview", profile.Route);
         Assert.NotNull(SettingsNav.ResolveSubsection(SettingsSection.Overview, SettingsNav.TasteSubsection));
 
-        foreach (var (server, household) in new[] { (false, false), (false, true), (true, false), (true, true) })
+        foreach (var (server, restricted) in new[] { (false, false), (false, true), (true, false), (true, true) })
         {
-            var visible = SettingsNav.Flatten(SettingsNav.FilteredMenuGroups(server, household).Single(group => group.Key == "personal").Nodes);
-            Assert.Contains(visible, node => node.Label == "Taste" && node.Route == SettingsNav.TasteRoute);
-            Assert.True(SettingsNav.ResolveRoute("overview", server, household).RequestedSectionAllowed);
+            var visible = SettingsNav.FilteredMenuGroups(server, restricted: restricted).Single(group => group.Key == "personal").Nodes
+                .Single(node => node.Section == SettingsSection.Overview).Tabs;
+            Assert.Contains(visible, tab => tab.Label == "Taste" && tab.Route == SettingsNav.TasteRoute);
+            Assert.True(SettingsNav.ResolveRoute("overview", server, restricted).RequestedSectionAllowed);
         }
     }
 
     [Fact]
-    public void Taste_SitsUnderOverviewInTheBreadcrumb()
+    public void Taste_SitsUnderProfileInTheBreadcrumb()
     {
         var location = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.TasteSubsection);
 
         Assert.NotNull(location);
-        Assert.Equal(["Overview", "Taste"], location.Trail.Select(node => node.Label));
+        Assert.Equal(["Profile", "Taste"], [location.Page.Label, location.Tab!.Label]);
     }
 }
 

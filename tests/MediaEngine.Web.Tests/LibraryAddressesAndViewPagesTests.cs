@@ -61,7 +61,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
     public void SettingsMenu_LibrariesRow_StaysLitOnTheGroupAndTypePagesBelowIt()
     {
         var rows = Flatten(MediaEngine.Web.Services.Navigation.SettingsMenuBuilder.Build(
-            new MediaEngine.Web.Services.Navigation.SettingsMenuContext(true, false, IsMobile: false, 0, false))).ToList();
+            new MediaEngine.Web.Services.Navigation.SettingsMenuContext(true, IsMobile: false, 0, false))).ToList();
 
         Assert.False(rows.Single(row => row.Route == "/settings/libraries").Exact);
         Assert.All(rows.Where(row => row.Route != "/settings/libraries"), row => Assert.True(row.Exact));

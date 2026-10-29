@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The Settings menu as one fixed-column tree (spec D2, D3, D40, D45): what the builder produces for each kind of
+/// The Settings menu as one flat list of pages (flat-menu spec D3, D40, D45): what the builder produces for each kind of
 /// person, how the shell draws the rows, and that the phone page selector lists the same pages.
 /// </summary>
 public sealed class SettingsMenuTreeTests : AsyncBunitContext
@@ -23,72 +23,80 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ServerAdministrator_GetsFourGroupsInOrder_AndEveryRowHasAnIcon()
+    public void ServerAdministrator_GetsFiveGroupsInOrder_AndEveryRowHasAnIcon()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true));
 
-        Assert.Equal(["Personal", "Server", "Manage", "Developer"], groups.Select(group => group.Label));
+        Assert.Equal(["Personal", "Server", "Platform", "System", "Developer"], groups.Select(group => group.Label));
         var rows = Flatten(groups).ToArray();
         Assert.All(rows, row => Assert.False(string.IsNullOrWhiteSpace(row.Icon), row.Label));
     }
 
     [Fact]
-    public void ParentRows_OpenTheirOwnMainPage_AndNoChildRepeatsThem()
+    public void EveryRow_IsAPageWithNoChildren_AndOpensItsFirstTab()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true));
 
-        var ingestion = Flatten(groups).Single(row => row.Label == "Library and Ingestion");
-        Assert.Equal("/settings/ingestion", ingestion.Route);
-        Assert.DoesNotContain(ingestion.Children!, child => child.Route == ingestion.Route);
+        Assert.All(Flatten(groups), row => Assert.True(row.Children is null || row.Children.Count == 0, row.Label));
+        Assert.Equal(
+            ["Profile", "Manage Profiles", "Security & Devices"],
+            groups[0].Items.Select(row => row.Label));
+        Assert.Equal(
+            ["Library & Ingestion", "Network & Remote Access", "Streaming", "Users & Households"],
+            groups.Single(group => group.Label == "Server").Items.Select(row => row.Label));
+        Assert.Equal(["Local AI", "Plugins", "Integrations"], groups.Single(group => group.Label == "Platform").Items.Select(row => row.Label));
+        Assert.Equal(["System"], groups.Single(group => group.Label == "System").Items.Select(row => row.Label));
+        Assert.Equal(["Developer Tools"], groups.Single(group => group.Label == "Developer").Items.Select(row => row.Label));
 
-        var users = Flatten(groups).Single(row => row.Label == "Users and Sign-in");
-        Assert.Equal("/settings/access/users", users.Route);
-        Assert.Equal(["Sign-in Methods", "Households"], users.Children!.Select(child => child.Label));
-
-        Assert.Equal("/settings/preferences", Flatten(groups).Single(row => row.Label == "Preferences").Route);
-        Assert.Equal("/settings/ai", Flatten(groups).Single(row => row.Label == "Local AI").Route);
-        Assert.DoesNotContain(Flatten(groups), row => row.Label is "Users" or "Features" or "Providers");
-
-        // The only Overview is the person's own, first in Personal; the retired System Overview is gone.
-        var overview = Assert.Single(Flatten(groups), row => row.Label == "Overview");
-        Assert.Equal("/settings/overview", overview.Route);
-        // Activity and Taste are the Overview's children; Apps opens from the Overview itself.
-        Assert.Equal(["Activity", "Taste"], (overview.Children ?? []).Select(child => child.Label));
-        var activity = overview.Children![0];
-        Assert.Equal("Activity", activity.Label);
-        Assert.Equal("/settings/overview/activity", activity.Route);
-        Assert.DoesNotContain(overview.Children!, child => child.Route == overview.Route);
-        Assert.Equal("Overview", groups[0].Items[0].Label);
+        Assert.Equal("/settings/overview", Flatten(groups).Single(row => row.Label == "Profile").Route);
+        Assert.Equal("/settings/profiles", Flatten(groups).Single(row => row.Label == "Manage Profiles").Route);
+        Assert.Equal("/settings/ingestion", Flatten(groups).Single(row => row.Label == "Library & Ingestion").Route);
+        Assert.Equal("/settings/ai/status", Flatten(groups).Single(row => row.Label == "Local AI").Route);
+        Assert.Equal("/settings/integrations", Flatten(groups).Single(row => row.Label == "Integrations").Route);
+        Assert.DoesNotContain(Flatten(groups), row => row.Label is "Preferences" or "Playback" or "Users" or "Features" or "Providers" or "Tools and requirements");
     }
 
     [Fact]
-    public void MemberAndHouseholdAdministrator_GetOnlyPersonal()
+    public void APageStaysLitOnAllItsTabs_AndOnThePagesBeneathThem()
+    {
+        var groups = SettingsMenuBuilder.Build(Context(administrator: true));
+
+        var ingestion = Flatten(groups).Single(row => row.Label == "Library & Ingestion");
+        Assert.False(ingestion.Exact);
+        Assert.Contains("/settings/ingestion", ingestion.ActiveRoutes!);
+        Assert.Contains("/settings/libraries", ingestion.ActiveRoutes!);
+        Assert.Contains("/settings/metadata", ingestion.ActiveRoutes!);
+        Assert.Contains("/settings/recently-added", ingestion.ActiveRoutes!);
+
+        var profiles = Flatten(groups).Single(row => row.Label == "Manage Profiles");
+        Assert.Contains("/settings/preferences", profiles.ActiveRoutes!);
+        Assert.Contains("/settings/playback", profiles.ActiveRoutes!);
+    }
+
+    [Fact]
+    public void Member_GetsOnlyPersonal_AndKidsGetsOnlyProfile()
     {
         var member = SettingsMenuBuilder.Build(Context(administrator: false));
         Assert.Equal(["Personal"], member.Select(group => group.Label));
+        Assert.Equal(["Profile", "Manage Profiles", "Security & Devices"], member[0].Items.Select(row => row.Label));
 
-        var household = SettingsMenuBuilder.Build(Context(administrator: false) with { HouseholdAdministrator = true });
-        Assert.Equal(["Personal"], household.Select(group => group.Label));
+        var kids = SettingsMenuBuilder.Build(Context(administrator: false) with { RestrictedProfile = true });
+        Assert.Equal(["Personal"], kids.Select(group => group.Label));
+        Assert.Equal(["Profile"], kids[0].Items.Select(row => row.Label));
     }
 
     [Fact]
-    public void Profiles_IsInTheMenuOnlyForAdministrators_AndHouseholdsOnlyForTheServerAdministrator()
+    public void UsersAndHouseholds_IsInTheMenuOnlyForTheServerAdministrator()
     {
         var member = Flatten(SettingsMenuBuilder.Build(Context(administrator: false))).Select(row => row.Label).ToArray();
-        Assert.DoesNotContain("Profiles", member);
-        Assert.DoesNotContain("Households", member);
-
-        var household = Flatten(SettingsMenuBuilder.Build(Context(administrator: false) with { HouseholdAdministrator = true })).Select(row => row.Label).ToArray();
-        Assert.Contains("Profiles", household);
-        Assert.DoesNotContain("Households", household);
+        Assert.DoesNotContain("Users & Households", member);
+        Assert.DoesNotContain("Integrations", member);
 
         var server = Flatten(SettingsMenuBuilder.Build(Context(administrator: true))).ToArray();
-        var profiles = server.Single(row => row.Label == "Profiles");
-        Assert.Equal("/settings/profiles", profiles.Route);
-        Assert.Empty(profiles.Children ?? []);
-        var users = server.Single(row => row.Label == "Users and Sign-in");
-        var households = Assert.Single(users.Children!, child => child.Label == "Households");
-        Assert.Equal("/settings/access/households", households.Route);
+        var users = server.Single(row => row.Label == "Users & Households");
+        Assert.Equal("/settings/access/users", users.Route);
+        Assert.Contains("/settings/access", users.ActiveRoutes!);
+        Assert.Equal("/settings/profiles", server.Single(row => row.Label == "Manage Profiles").Route);
     }
 
     [Fact]
@@ -96,25 +104,25 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 3 });
 
-        var ingestion = Flatten(groups).Single(row => row.Label == "Library and Ingestion");
+        var ingestion = Flatten(groups).Single(row => row.Label == "Library & Ingestion");
         Assert.Equal(MediaSectionAttentionLevel.Waiting, ingestion.Attention);
         Assert.Null(ingestion.Meta);
         Assert.False(ingestion.MetaIsNotification);
         Assert.DoesNotContain(Flatten(groups), row => row.Label == "Recently Added");
-        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Tools and requirements").EffectiveAttention);
+        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "System").EffectiveAttention);
     }
 
     [Fact]
-    public void LocalAiBlocked_WithAnAiFeatureOn_MakesItsRowRedWithBroken_AndItsGroupInheritsIt_ButToolsStayUnshaded()
+    public void LocalAiBlocked_WithAnAiFeatureOn_MakesItsRowRedWithBroken_ButOtherPagesStayUnshaded()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { LocalAiBlocked = true });
 
         var localAi = Flatten(groups).Single(row => row.Label == "Local AI");
         Assert.Equal(MediaSectionAttentionLevel.Blocked, localAi.Attention);
         Assert.Equal("Broken", localAi.AttentionLabel);
-        Assert.Equal(MediaSectionAttentionLevel.Blocked, groups.Single(group => group.Label == "Developer").Items.Max(row => row.EffectiveAttention));
-        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Tools and requirements").EffectiveAttention);
-        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Library and Ingestion").EffectiveAttention);
+        Assert.Equal(MediaSectionAttentionLevel.Blocked, groups.Single(group => group.Label == "Platform").Items.Max(row => row.EffectiveAttention));
+        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "System").EffectiveAttention);
+        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Library & Ingestion").EffectiveAttention);
     }
 
     [Fact]
@@ -136,8 +144,8 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.DoesNotContain("Local AI", labels);
         Assert.DoesNotContain("Plugins", labels);
         Assert.DoesNotContain("Integrations", labels);
-        Assert.DoesNotContain(groups, group => group.Label == "Developer");
-        Assert.DoesNotContain(SettingsMenuBuilder.BuildPhoneSelector(groups), group => group.Label == "Developer");
+        Assert.DoesNotContain(groups, group => group.Label is "Platform" or "Developer");
+        Assert.DoesNotContain(SettingsMenuBuilder.BuildPhoneSelector(groups), group => group.Label is "Platform" or "Developer");
     }
 
     [Fact]
@@ -166,14 +174,13 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.DoesNotContain("Developer Tools", labels);
         Assert.DoesNotContain("Enrichment Tester", labels);
         Assert.DoesNotContain("Development data", labels);
-        Assert.DoesNotContain("Local Network", labels);
-        Assert.DoesNotContain("Recently Added", labels);
-        Assert.Contains("Library and Ingestion", labels);
-        Assert.Contains("Playback", labels);
+                Assert.DoesNotContain("Recently Added", labels);
+        Assert.Contains("Library & Ingestion", labels);
+        Assert.Contains("Streaming", labels);
     }
 
     [Fact]
-    public void FeatureSwitchedOff_HidesTheRowAndItsChildren()
+    public void FeatureSwitchedOff_HidesTheRow()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with
         {
@@ -182,13 +189,12 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         var labels = Flatten(groups).Select(row => row.Label).ToArray();
         Assert.DoesNotContain("Local AI", labels);
-        Assert.DoesNotContain("Runtime", labels);
-        Assert.Contains("Plugins", labels);
+                Assert.Contains("Plugins", labels);
         Assert.Contains("Developer Tools", labels);
     }
 
     [Fact]
-    public void PhoneSelector_ListsTheSameTreeIndentedByDepth()
+    public void PhoneSelector_ListsTheSamePagesAsTheDesktopMenu_OneLineEach()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true));
         var selector = SettingsMenuBuilder.BuildPhoneSelector(groups);
@@ -197,33 +203,26 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.Equal(
             Flatten(groups).Select(row => row.Route),
             selector.SelectMany(group => group.Options).Select(option => option.Route));
-
-        var server = selector.Single(group => group.Label == "Server");
-        Assert.Equal(0, server.Options.Single(option => option.Label == "Library and Ingestion").Depth);
-        Assert.Equal(1, server.Options.Single(option => option.Label == "Metadata Providers").Depth);
-        Assert.Equal(2, server.Options.Single(option => option.Label == "Ingestion Flow").Depth);
+        Assert.Equal(
+            Flatten(groups).Select(row => row.Label),
+            selector.SelectMany(group => group.Options).Select(option => option.Label));
     }
 
     [Fact]
-    public void Shell_DrawsEveryRowWithChevronIconLabelAndBadgeSlots_LeavesIncluded()
+    public void Shell_DrawsEveryRowWithIconLabelAndBadgeSlots_AndNoChevron()
     {
         var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/profiles");
 
+        Assert.Contains("media-section-shell__tree--flat", cut.Find(".media-section-shell__tree").ClassList);
         var rows = cut.FindAll(".media-section-shell__tree-row");
         Assert.NotEmpty(rows);
         foreach (var row in rows)
         {
-            Assert.NotNull(row.QuerySelector(".media-section-shell__tree-chevron-slot"));
             Assert.NotNull(row.QuerySelector(".media-section-shell__tree-icon .tl-icon-root, .media-section-shell__tree-icon svg"));
             Assert.NotNull(row.QuerySelector(".media-section-shell__tree-label"));
             Assert.NotNull(row.QuerySelector(".media-section-shell__tree-badge"));
+            Assert.Null(row.QuerySelector(".media-section-shell__tree-chevron-slot button"));
         }
-
-        var integrations = rows.Single(row => row.QuerySelector(".media-section-shell__tree-label")!.TextContent == "Integrations");
-        // A page with no children keeps the slot but leaves it blank.
-        Assert.Null(integrations.QuerySelector(".media-section-shell__tree-chevron-slot button"));
-        var preferences = rows.Single(row => row.QuerySelector(".media-section-shell__tree-label")!.TextContent == "Preferences");
-        Assert.NotNull(preferences.QuerySelector(".media-section-shell__tree-chevron-slot button"));
     }
 
     [Fact]
@@ -241,54 +240,35 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Shell_ParentClickOpensItsOwnPage_AndExpandsItsChildren()
+    public void Shell_ClickingARowOpensItsPage_AndTheRowIsHighlighted()
     {
         var navigation = Services.GetRequiredService<NavigationManager>();
         var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/profiles");
 
-        Assert.Empty(cut.FindAll("a[href='/settings/playback']"));
-        cut.Find("a[href='/settings/preferences']").Click();
+        cut.Find("a[href='/settings/security']").Click();
 
-        Assert.EndsWith("/settings/preferences", navigation.Uri, StringComparison.Ordinal);
+        Assert.EndsWith("/settings/security", navigation.Uri, StringComparison.Ordinal);
         cut.WaitForAssertion(() =>
         {
-            Assert.NotEmpty(cut.FindAll("a[href='/settings/playback']"));
-            var preferencesRow = cut.Find("a[href='/settings/preferences']").ParentElement!;
-            Assert.Equal("true", preferencesRow.QuerySelector(".media-section-shell__tree-chevron-slot button[aria-controls$='children']")!.GetAttribute("aria-expanded"));
+            var row = cut.Find("a[href='/settings/security']");
+            Assert.Equal("page", row.GetAttribute("aria-current"));
+            Assert.Contains("is-active", row.ParentElement!.ClassList);
         });
     }
 
-    [Fact]
-    public void Shell_ChildrenIndentOneFixedStep_AndActivePageAndItsParentAreHighlighted()
+    [Theory]
+    [InlineData("/settings/libraries", "/settings/ingestion")]
+    [InlineData("/settings/metadata/ingestion-flow", "/settings/ingestion")]
+    [InlineData("/settings/security/devices", "/settings/security")]
+    [InlineData("/settings/playback", "/settings/profiles")]
+    [InlineData("/settings/tools", "/settings/system")]
+    public void Shell_APageRowStaysLit_WhenOneOfItsTabsOrPagesBeneathItIsOpen(string openRoute, string rowRoute)
     {
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/metadata/ingestion-flow");
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), openRoute);
 
-        var flow = cut.Find("a[href='/settings/metadata/ingestion-flow']");
-        Assert.Equal("page", flow.GetAttribute("aria-current"));
-        var flowRow = flow.ParentElement!;
-        Assert.Equal("2", flowRow.GetAttribute("data-tree-depth"));
-        Assert.Contains("is-active", flowRow.ClassList);
-
-        // The whole path down to the active page is open and the ancestors read as the active branch.
-        Assert.Contains("is-branch-active", cut.Find("a[href='/settings/ingestion']").ParentElement!.ClassList);
-        Assert.Contains("is-branch-active", cut.Find("a[href='/settings/metadata/providers']").ParentElement!.ClassList);
-        Assert.Equal("1", cut.Find("a[href='/settings/libraries']").ParentElement!.GetAttribute("data-tree-depth"));
-        Assert.Equal("0", cut.Find("a[href='/settings/ingestion']").ParentElement!.GetAttribute("data-tree-depth"));
-    }
-
-    [Fact]
-    public void Shell_AccordionKeepsTheOpenPathAndFoldsTheOtherBranches()
-    {
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/metadata/ingestion-flow");
-
-        Assert.NotEmpty(cut.FindAll("a[href='/settings/libraries']"));
-        cut.Find("a[href='/settings/ai']").Click();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.NotEmpty(cut.FindAll("a[href='/settings/ai/models']"));
-            Assert.Empty(cut.FindAll("a[href='/settings/libraries']"));
-        });
+        var row = cut.Find($"a[href='{rowRoute}']");
+        Assert.Contains("is-active", row.ParentElement!.ClassList);
+        Assert.Single(cut.FindAll(".media-section-shell__tree-row.is-active"));
     }
 
     [Fact]
@@ -371,7 +351,6 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         return Render<MediaSectionShell>(parameters => parameters
             .Add(component => component.Title, "Settings")
             .Add(component => component.NavigationGroups, groups)
-            .Add(component => component.AccordionNavigation, true)
             .Add(component => component.FixedColumnTree, true)
             .Add(component => component.ShowMobileNavigation, false)
             .AddChildContent("<section>Settings content</section>"));
@@ -381,9 +360,9 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     public void ToolsRow_ShowsRedWithTheReasonWhenARequiredToolIsMissing_AndStaysPlainOtherwise()
     {
         var red = Flatten(SettingsMenuBuilder.Build(Context(administrator: true) with { ToolsMissingReason = "FFmpeg missing" }))
-            .Single(item => item.Route == "/settings/tools");
+            .Single(item => item.Label == "System");
         var plain = Flatten(SettingsMenuBuilder.Build(Context(administrator: true)))
-            .Single(item => item.Route == "/settings/tools");
+            .Single(item => item.Label == "System");
 
         Assert.Equal(MediaSectionAttentionLevel.Blocked, red.EffectiveAttention);
         Assert.Equal("FFmpeg missing", red.AttentionLabel);
@@ -391,7 +370,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     private static SettingsMenuContext Context(bool administrator) =>
-        new(administrator, HouseholdAdministrator: false, IsMobile: false, ReviewCount: 0, SecurityNeedsAttention: false);
+        new(administrator, IsMobile: false, ReviewCount: 0, SecurityNeedsAttention: false);
 
     private static IEnumerable<MediaSectionNavigationItem> Flatten(IEnumerable<MediaSectionNavigationGroup> groups) =>
         groups.SelectMany(group => Flatten(group.Items));

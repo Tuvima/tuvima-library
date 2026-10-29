@@ -86,12 +86,12 @@ public sealed class LogsPageTests : AsyncBunitContext
     // ── Menu ─────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void System_ListsLogsBetweenToolsAndBackup_WithItsOwnAddress()
+    public void System_ListsLogsAsATabBetweenScheduledTasksAndBackups_WithItsOwnAddress()
     {
         var system = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).Single(node => node.Label == "System");
 
-        Assert.Equal(["Tools and requirements", "Logs", "Notifications", "Backup and recovery"], system.Children.Select(child => child.Label));
-        var logs = system.Children.Single(child => child.Label == "Logs");
+        Assert.Equal(["Overview", "Scheduled Tasks", "Logs", "Backups", "Configuration"], system.Tabs.Select(tab => tab.Label));
+        var logs = system.Tabs.Single(tab => tab.Label == "Logs");
         Assert.Equal(SettingsSection.AdminOverview, logs.Section);
         Assert.Equal("logs", logs.Subsection);
         Assert.Equal("/settings/system/logs", SettingsNav.RouteFor(SettingsSection.AdminOverview, "logs"));
@@ -103,8 +103,8 @@ public sealed class LogsPageTests : AsyncBunitContext
         Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.AdminOverview, "logs"));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.AdminOverview));
         Assert.DoesNotContain(
-            SettingsNav.FilteredMenuGroups(administrationAllowed: false).SelectMany(group => SettingsNav.Flatten(group.Nodes)),
-            node => node.Label == "Logs");
+            SettingsNav.FilteredMenuGroups(administrationAllowed: false).SelectMany(group => group.Nodes).SelectMany(node => node.Tabs),
+            tab => tab.Label == "Logs");
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public sealed class LogsPageTests : AsyncBunitContext
         var location = SettingsNav.FindMenuLocation(SettingsSection.AdminOverview, "logs");
 
         Assert.NotNull(location);
-        Assert.Equal(["System", "Logs"], location.Trail.Select(node => node.Label));
+        Assert.Equal(["System", "Logs"], [location.Page.Label, location.Tab!.Label]);
     }
 
     // ── Logs page ────────────────────────────────────────────────────────────
@@ -123,9 +123,9 @@ public sealed class LogsPageTests : AsyncBunitContext
     {
         var cut = Render<LogsPage>();
 
-        var tabs = cut.FindAll("[role=tab]").Select(tab => tab.TextContent.Trim()).ToArray();
+        var tabs = cut.FindAll(".app-segmented-control__item").Select(tab => tab.TextContent.Trim()).ToArray();
         Assert.Equal(["Events", "Technical log", "Retention", "Export"], tabs);
-        Assert.Contains("Events", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Events", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
         Assert.Equal("all", Assert.Single(_activityRequests).Category);
         Assert.Empty(_logRequests);
     }
@@ -135,7 +135,7 @@ public sealed class LogsPageTests : AsyncBunitContext
     {
         var cut = Render<LogsPage>(parameters => parameters.Add(p => p.Tab, "technical"));
 
-        Assert.Contains("Technical log", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Technical log", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
         Assert.NotEmpty(_logRequests);
     }
 
@@ -146,7 +146,7 @@ public sealed class LogsPageTests : AsyncBunitContext
             .Add(p => p.Tab, "events")
             .Add(p => p.Filter, "added"));
 
-        Assert.Contains("Events", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Events", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
         Assert.Equal("added", Assert.Single(_activityRequests).Category);
     }
 
@@ -155,7 +155,7 @@ public sealed class LogsPageTests : AsyncBunitContext
     {
         var cut = Render<LogsPage>(parameters => parameters.Add(p => p.Tab, "retention"));
 
-        Assert.Contains("Retention", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Retention", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
         cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-testid=retention-note]")));
     }
 
@@ -164,7 +164,7 @@ public sealed class LogsPageTests : AsyncBunitContext
     {
         var cut = Render<LogsPage>();
 
-        cut.FindAll("[role=tab]").Single(tab => tab.TextContent.Contains("Retention", StringComparison.Ordinal)).Click();
+        cut.FindAll(".app-segmented-control__item").Single(tab => tab.TextContent.Contains("Retention", StringComparison.Ordinal)).Click();
 
         cut.WaitForAssertion(() => Assert.Equal("90", cut.Find("[data-testid=retention-activity-days]").GetAttribute("value")));
     }
@@ -391,7 +391,7 @@ public sealed class LogsPageTests : AsyncBunitContext
     {
         var cut = Render<LogsPage>(parameters => parameters.Add(p => p.Tab, "export"));
 
-        Assert.Contains("Export", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Export", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
         cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-testid=export-preview]")));
     }
 

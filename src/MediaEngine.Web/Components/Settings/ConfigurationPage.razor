@@ -1,0 +1,14 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* System > Configuration: two headed groups on one page, in the order people reach for them. *@
+<div class="configuration-page" data-testid="configuration-page">
+    <section class="configuration-page__group" aria-labelledby="configuration-tools-heading">
+        <h2 id="configuration-tools-heading" class="configuration-page__heading">Tools and requirements</h2>
+        <ToolsRequirementsTab />
+    </section>
+
+    <section class="configuration-page__group" aria-labelledby="configuration-notifications-heading">
+        <h2 id="configuration-notifications-heading" class="configuration-page__heading">Notifications</h2>
+        <NotificationsPanel />
+    </section>
+</div>

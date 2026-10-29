@@ -36,18 +36,17 @@ else
                     <h2 class="overview-header__name">@_profile.DisplayName</h2>
                     <p class="overview-header__joined">Joined @Joined</p>
                 </div>
-                <div class="overview-header__actions">
-                    <AppButton Label="Edit profile"
-                               StartIcon="@AppMaterialIcons.Outlined.Edit"
-                               Class="overview-header__edit"
-                               FullWidth="@DeviceContext.IsPhone"
-                               OnClick="OpenEditor" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Smartphone"
-                                   AriaLabel="Apps"
-                                   Tooltip="Apps"
-                                   Href="@AppsRoute"
-                                   Class="overview-header__apps" />
-                </div>
+                @if (!_profile.IsRestricted)
+                {
+                    @* A Kids profile reaches Profile only, so it has no page in Manage Profiles to open. *@
+                    <div class="overview-header__actions">
+                        <AppButton Label="Edit profile"
+                                   StartIcon="@AppMaterialIcons.Outlined.Edit"
+                                   Class="overview-header__edit"
+                                   FullWidth="@DeviceContext.IsPhone"
+                                   Href="@EditProfileRoute" />
+                    </div>
+                }
             </div>
 
             <ul class="overview-counts" role="list" aria-label="Your counts">
@@ -78,15 +77,11 @@ else
                 <p class="overview-page__taste-summary" data-overview-taste-summary>@(TasteLine ?? "Your taste appears here once you have watched, read or listened to a few things.")</p>
             </ChildContent>
         </SettingsSectionPanel>
-    </div>
 
-    <ProfileEditorSheet Open="@_editorOpen"
-                        Profile="@_profile"
-                        SelfEdit="true"
-                        Saving="@_saving"
-                        Error="@_editorError"
-                        OnSave="SaveProfileAsync"
-                        OnClose="CloseEditor" />
+        <p class="overview-page__apps">
+            <a class="overview-page__apps-link" href="@AppsRoute" data-overview-apps-link>Get the Library app for your phone or TV</a>
+        </p>
+    </div>
 }
 
 @code {
@@ -95,11 +90,11 @@ else
     private PersonalActivitySummaryDto? _summary;
     private IReadOnlyList<PersonalActivityRecentTileDto>? _recent;
     private bool _loading = true;
-    private bool _editorOpen;
-    private bool _saving;
-    private string? _editorError;
 
     private const string AppsRoute = "/settings/overview/apps";
+
+    // Your own page in Manage Profiles: details, preferences, and access and safety.
+    private string EditProfileRoute => $"/settings/profiles/{_profile?.Id:D}";
 
     private sealed record OverviewCount(string Key, string Value, string Label);
 
@@ -173,61 +168,6 @@ else
         finally
         {
             _loading = false;
-        }
-    }
-
-    private void OpenEditor()
-    {
-        _editorError = null;
-        _editorOpen = true;
-    }
-
-    private void CloseEditor() => _editorOpen = false;
-
-    // A person changes their own name and picture through the self-service routes. The existing navigation preferences are sent back
-    // unchanged, because the Engine stores whatever it is given.
-    private async Task SaveProfileAsync(ProfileEditorResult result)
-    {
-        if (_profile is not { } profile || _saving)
-        {
-            return;
-        }
-
-        _saving = true;
-        _editorError = null;
-        try
-        {
-            if (!await Orchestrator.UpdateProfileAsync(profile.Id, result.DisplayName, result.Color, profile.NavigationConfig))
-            {
-                _editorError = "That couldn't be saved. Try again.";
-                return;
-            }
-
-            ProfileViewModel? photo = null;
-            var photoFailed = false;
-            if (result.PhotoBytes is { } bytes)
-            {
-                await using var stream = new MemoryStream(bytes);
-                photo = await Orchestrator.UploadProfileAvatarAsync(profile.Id, stream, result.PhotoFileName ?? "photo.jpg");
-                photoFailed = photo is null;
-            }
-            else if (result.RemovePhoto)
-            {
-                photoFailed = await Orchestrator.RemoveProfileAvatarAsync(profile.Id) is null;
-            }
-
-            _profile = await Orchestrator.GetActiveProfileAsync() ?? profile;
-            if (photoFailed)
-            {
-                _editorError = "Your changes were saved, but the photo couldn't be changed. Try again.";
-                return;
-            }
-
-            _editorOpen = false;
-        }
-        finally
-        {
-            _saving = false;
         }
     }
 }

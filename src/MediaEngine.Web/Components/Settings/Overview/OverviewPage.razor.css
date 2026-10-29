@@ -124,3 +124,21 @@
 .overview-page--phone .overview-header__actions {
     width: 100%;
 }
+
+.overview-page__apps {
+    margin: var(--tl-space-4, 16px) 0 0;
+    text-align: center;
+}
+
+.overview-page__apps-link {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    text-decoration: none;
+}
+
+.overview-page__apps-link:hover,
+.overview-page__apps-link:focus-visible {
+    color: var(--tl-text-primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}

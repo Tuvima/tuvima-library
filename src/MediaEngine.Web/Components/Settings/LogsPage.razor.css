@@ -1,0 +1,11 @@
+.logs-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4, 16px);
+}
+
+.logs-page ::deep .logs-page__views {
+    align-self: flex-start;
+    max-width: 100%;
+    overflow-x: auto;
+}

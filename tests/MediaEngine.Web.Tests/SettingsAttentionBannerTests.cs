@@ -761,7 +761,6 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
 
     private static SettingsMenuContext MenuContext(SettingsAttentionState attention) => new(
         AdministrationAllowed: true,
-        HouseholdAdministrator: false,
         IsMobile: false,
         ReviewCount: attention.ReviewCount,
         SecurityNeedsAttention: false,
