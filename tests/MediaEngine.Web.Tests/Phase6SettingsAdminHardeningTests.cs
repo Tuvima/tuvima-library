@@ -236,7 +236,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/UsersAccessSettingsTab.razor");
         var users = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor");
 
-        Assert.Contains("<ManagedAccessApplications />", source, StringComparison.Ordinal);
+        Assert.Contains("<ManagedAccessApplications IntegrationId=\"@IntegrationId\" DetailTab=\"@DetailTab\" NameChanged=\"NameChanged\" />", source, StringComparison.Ordinal);
         Assert.Contains("Authentication", source, StringComparison.Ordinal);
         Assert.Contains("<ManagedAccessUsers />", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Scope=", source, StringComparison.Ordinal);

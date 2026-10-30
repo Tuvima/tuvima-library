@@ -117,6 +117,7 @@ else
     private string _statusFilter = "all";
     private string _mediaFilter = "all";
     private string _sort = "name";
+    private string _layout = AppLayoutSwitch.Cards;
     private bool _officialOnly;
     private string _categoryTab = "all";
     private int _page = 1;
@@ -279,6 +280,7 @@ else
                                ValueChanged="@(value => Narrow(() => _sort = value ?? "name"))" />
                     <AppSwitchRow Label="Official Tuvima" ImageIcon="images/tuvima-icon.svg" Value="@_officialOnly"
                                   ValueChanged="@(value => Narrow(() => _officialOnly = value))" />
+                    <AppLayoutSwitch StorageKey="tuvima.plugins.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Plugins layout" />
                 </AppSearchFilterRow>
             }
             <AppCountTabs Tabs="@CategoryTabs()" Selected="@_categoryTab" AriaLabel="Plugin categories"
@@ -300,17 +302,24 @@ else
             }
             else
             {
-                <div class="app-card-grid" role="list">
-                    @foreach (var plugin in visible.Skip((_page - 1) * PageSize).Take(PageSize))
-                    {
-                        var focused = IsFocused(plugin);
-                        <div role="listitem"
-                             @key="plugin.Id"
-                             id="@CardElementId(plugin.Id)"
-                             class="@(focused ? "settings-plugin-card-focus" : null)"
-                             data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
-                    }
-                </div>
+                @if (_layout == AppLayoutSwitch.List && !DeviceContext.IsMobile)
+                {
+                    @PluginRows(visible.Skip((_page - 1) * PageSize).Take(PageSize).ToList())
+                }
+                else
+                {
+                    <div class="app-card-grid" role="list">
+                        @foreach (var plugin in visible.Skip((_page - 1) * PageSize).Take(PageSize))
+                        {
+                            var focused = IsFocused(plugin);
+                            <div role="listitem"
+                                 @key="plugin.Id"
+                                 id="@CardElementId(plugin.Id)"
+                                 class="@(focused ? "settings-plugin-card-focus" : null)"
+                                 data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
+                        }
+                    </div>
+                }
                 <AppPager Total="@visible.Count" PageSize="@PageSize" Page="@_page" Noun="plugins" PageChanged="@(page => _page = page)" />
             }
         }
@@ -453,6 +462,52 @@ else
             @PluginRemovalSection(plugin)
         </div>;
     }
+
+    // The List view (Plugins and Integrations screens v3 D27): one 56 px row per plugin with the same status pill, switch and menu.
+    private RenderFragment PluginRows(IReadOnlyList<PluginSummaryResponse> plugins) => @<AppTable Class="settings-plugin-rows" data-testid="plugin-rows">
+        <thead>
+            <tr><th scope="col">Plugin</th><th scope="col">Status</th><th scope="col">Category</th><th scope="col">Works on</th><th scope="col"><span class="settings-plugin-rows__sr">Switch</span></th><th scope="col"><span class="settings-plugin-rows__sr">Actions</span></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var plugin in plugins)
+            {
+                _health.TryGetValue(plugin.Id, out var health);
+                var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
+                var pill = StatusPill(plugin, state);
+                var official = string.Equals(plugin.TrustLevel, "official", StringComparison.OrdinalIgnoreCase);
+                var focused = IsFocused(plugin);
+                <tr @key="plugin.Id" id="@CardElementId(plugin.Id)" data-plugin-row="@plugin.Id" class="@(focused ? "settings-plugin-card-focus" : null)" data-focused="@(focused ? "true" : null)">
+                    <td>
+                        <div class="settings-plugin-rows__name">
+                            <span class="settings-plugin-rows__logo">
+                                @if (ProviderLogo(plugin, 32) is { } logo) { @logo } else { <AppMaterialIcon Icon="@PluginIcon(plugin)" /> }
+                            </span>
+                            <span class="settings-plugin-rows__copy">
+                                <a href="@DetailHref(plugin.Id, "overview")">@plugin.Name</a>
+                                @if (official) { <img class="app-official-pill__icon" src="images/tuvima-icon.svg" alt="Official Tuvima" title="Made by Tuvima" width="16" height="16" /> }
+                                <small>@plugin.Description</small>
+                            </span>
+                        </div>
+                    </td>
+                    <td>@if (pill.Text is not null) { <AppStatusBadge Text="@pill.Text" Tone="@(pill.Tone ?? AppUiTone.Neutral)" Title="@pill.Title" /> }</td>
+                    <td>@CategoryLabel(plugin)</td>
+                    <td><div class="settings-plugin-rows__media">@MediaPills(plugin)</div></td>
+                    <td>
+                        @if (SwitchState(plugin, true) is { } on)
+                        {
+                            <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))" Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
+                        }
+                    </td>
+                    <td>
+                        <div class="settings-plugin-rows__actions">
+                            <AppButton Label="Configure" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(plugin.Id))" />
+                            <AppRowMenu AriaLabel="@($"More actions for {plugin.Name}")" Items="@PluginMenuItems(plugin)" />
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </AppTable>;
 
     private IReadOnlyList<AppSummaryItem> SummaryItems()
     {

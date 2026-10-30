@@ -75,3 +75,13 @@
     font-size: 18px;
 }
 .settings-plugin-breadcrumb { display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem; }
+
+.settings-plugin-rows__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.settings-plugin-rows tr { height: 56px; }
+.settings-plugin-rows__name { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.settings-plugin-rows__logo { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; }
+.settings-plugin-rows__copy { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: center; column-gap: 6px; min-width: 0; }
+.settings-plugin-rows__copy a { color: var(--tl-text-primary); font-weight: 600; text-decoration: none; }
+.settings-plugin-rows__copy small { grid-column: 1 / -1; color: var(--tl-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 44ch; }
+.settings-plugin-rows__media, .settings-plugin-rows__actions { display: flex; align-items: center; gap: 6px; }
+.settings-plugin-rows__actions { justify-content: flex-end; }

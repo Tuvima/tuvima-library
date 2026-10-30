@@ -136,6 +136,24 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheListView_ShowsOneRowPerPlugin_WithTheSamePillSwitchAndConfigure_WhenTheDeviceRemembersIt()
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", "tuvima.plugins.layout").SetResult("list");
+        _plugins = [Plugin("a", "Alpha", enabled: true), Plugin("b", "Beta", enabled: false)];
+
+        var cut = Render<PluginSettingsTab>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var rows = cut.FindAll("[data-testid=plugin-rows] tbody tr");
+            Assert.Equal(2, rows.Count);
+            Assert.Contains("Alpha", rows[0].TextContent);
+            Assert.Contains(rows[0].QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
+        });
+        Assert.Empty(cut.FindAll("[data-state-card=plugin]"));
+    }
+
+    [Fact]
     public void ThePluginsOwnPage_SaysSoWhenThePluginIsNotInstalled()
     {
         _plugins = [Plugin("a", "Alpha", enabled: true)];

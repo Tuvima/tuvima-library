@@ -230,7 +230,7 @@ else
                                 }
                                 break;
                             case SettingsSection.Integrations:
-                                <UsersAccessSettingsTab Subsection="applications" />
+                                <UsersAccessSettingsTab Subsection="applications" IntegrationId="@IntegrationDetailId" DetailTab="@IntegrationDetailTab" NameChanged="OnIntegrationNameChanged" />
                                 break;
                             case SettingsSection.Server:
                                 <BackupRecoveryPanel />
@@ -264,6 +264,21 @@ else
             StateHasChanged();
         }
     }
+
+    private string? _integrationBreadcrumbName;
+    private void OnIntegrationNameChanged(string name)
+    {
+        if (_integrationBreadcrumbName != name)
+        {
+            _integrationBreadcrumbName = name;
+            StateHasChanged();
+        }
+    }
+
+    // An integration's own page (Plugins and Integrations screens v3 D24): /settings/integrations/{id}/{tab}.
+    private bool IsIntegrationDetailRoute => _activeSection == SettingsSection.Integrations && !string.IsNullOrWhiteSpace(_activeSubsection);
+    private string? IntegrationDetailId => IsIntegrationDetailRoute ? _activeSubsection : null;
+    private string IntegrationDetailTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
 
     // A plugin's own page (Plugins and Integrations screens v3 D17): /settings/plugins/{id}/{tab}. Providers use the same page.
     private bool IsPluginDetailRoute => _activeSection == SettingsSection.Plugins && !string.IsNullOrWhiteSpace(_activeSubsection);
@@ -517,6 +532,11 @@ else
             _pluginBreadcrumbName = null;
         }
 
+        if (!IsIntegrationDetailRoute)
+        {
+            _integrationBreadcrumbName = null;
+        }
+
         _scrollToTopPending = true;
 
         // The title and breadcrumb of a Libraries page name its group and kind, which come from the Engine's list of library kinds.
@@ -703,7 +723,7 @@ else
         {
             _activeSubsection = Subsection!.Trim();
         }
-        else if (_activeSection == SettingsSection.Plugins && !string.IsNullOrWhiteSpace(Subsection))
+        else if (_activeSection is SettingsSection.Plugins or SettingsSection.Integrations && !string.IsNullOrWhiteSpace(Subsection))
         {
             _activeSubsection = Subsection!.Trim();
         }
@@ -738,6 +758,8 @@ else
             ? $"/settings/libraries/{_activeSubsection}{(string.IsNullOrWhiteSpace(Detail) ? string.Empty : "/" + Detail.Trim().ToLowerInvariant())}"
             : IsProfileDetailRoute
             ? $"/settings/profiles/{_activeSubsection}{(ProfileTab.Length == 0 ? string.Empty : "/" + ProfileTab)}"
+            : IsIntegrationDetailRoute
+            ? $"/settings/integrations/{Uri.EscapeDataString(_activeSubsection)}{(IntegrationDetailTab.Length == 0 ? string.Empty : "/" + IntegrationDetailTab)}"
             : IsPluginDetailRoute
             ? $"/settings/plugins/{Uri.EscapeDataString(_activeSubsection)}{(PluginDetailTab.Length == 0 ? string.Empty : "/" + PluginDetailTab)}"
             : string.IsNullOrWhiteSpace(Subsection)
@@ -794,6 +816,7 @@ else
         // A person's page has two more tabs beside Profile: Preferences and Access & safety.
         if (section == SettingsSection.Profiles) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "preferences" or "access";
         if (section == SettingsSection.Libraries) return SettingsNav.IsLibraryRouteSegment(subsection) && IsProviderRouteKey(detail);
+        if (section == SettingsSection.Integrations) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "access" or "keys" or "deliveries" or "activity";
         if (section == SettingsSection.Plugins) return !string.IsNullOrWhiteSpace(subsection) && detail.Trim().ToLowerInvariant() is "settings" or "access" or "activity";
         return false;
     }
@@ -898,6 +921,10 @@ else
         else if (IsPluginDetailRoute)
         {
             steps.Add(new SettingsBreadcrumb(_pluginBreadcrumbName ?? "Plugin", null));
+        }
+        else if (IsIntegrationDetailRoute)
+        {
+            steps.Add(new SettingsBreadcrumb(_integrationBreadcrumbName ?? "Integration", null));
         }
         else if (IsProfileDetailRoute)
         {
