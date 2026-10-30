@@ -26,6 +26,13 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
         @if (editable.Count > 0)
         {
+            @if (canEdit && editable.Any(row => row.CanRevert))
+            {
+                <div class="tl-editor-details__toolbar">
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               OnClick="@(() => ResetAll(fields, session, editable))">Reset all to provider values</AppButton>
+                </div>
+            }
             <section class="tl-editor-details__group" aria-label="Details you can change">
                 @foreach (var field in editable)
                 {
@@ -71,7 +78,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         var shown = staged ? stagedValue ?? string.Empty : Baseline(field);
         var overridden = staged ? !isReset : field.CanRevert;
         var isTags = IsTags(field);
-        <div class="tl-editor-field" data-field-key="@field.Key">
+        <div class="@(IsWide(field) ? "tl-editor-field tl-editor-field--wide" : "tl-editor-field")" data-field-key="@field.Key">
             <div class="tl-editor-field__label">
                 <span>@field.Label</span>
                 @if (overridden)
@@ -159,6 +166,25 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         "number" or "rating" => AppInputType.Number,
         _ => AppInputType.Text,
     };
+
+    // Title, description and chip lists take the whole row; short single-line facts share it two to a row (spec D3).
+    private static bool IsWide(MediaEditorDetailsFieldPresentation field) =>
+        field.IsChips
+        || string.Equals(field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(field.Key, "title", StringComparison.OrdinalIgnoreCase);
+
+    private void ResetAll(ItemFieldEditSession fields, EditSessionState session, IReadOnlyList<MediaEditorDetailsFieldPresentation> editable)
+    {
+        if (!session.IsActive || Mode is not { CanEdit: true })
+        {
+            return;
+        }
+
+        foreach (var field in editable.Where(row => row.CanRevert))
+        {
+            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty);
+        }
+    }
 
     private static string Count(string value) => $"{value.Length:N0} character{(value.Length == 1 ? string.Empty : "s")}";
 

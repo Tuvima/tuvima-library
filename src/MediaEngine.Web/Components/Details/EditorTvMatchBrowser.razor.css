@@ -1,0 +1,97 @@
+.tl-tvm {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--tl-space-4);
+    align-items: start;
+}
+
+.tl-tvm[data-scope="show"] {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.tl-tvm__column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.tl-tvm__heading {
+    margin: 0;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+    color: var(--tl-text-muted);
+}
+
+.tl-tvm__search {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tl-space-2);
+}
+
+.tl-tvm__search > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.tl-tvm__list {
+    display: flex;
+    flex-direction: column;
+}
+
+.tl-tvm__row {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-2);
+    border-bottom: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-sm, 4px);
+}
+
+.tl-tvm__row.is-active {
+    background: var(--tl-bg-subtle, transparent);
+    box-shadow: inset 3px 0 0 var(--tl-accent-primary, #8852FC);
+}
+
+.tl-tvm__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.tl-tvm__title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+    font-weight: var(--tl-font-weight-semibold);
+    overflow-wrap: anywhere;
+}
+
+.tl-tvm__meta,
+.tl-tvm__hint {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-tvm__slot {
+    flex: 0 0 auto;
+    min-width: 3.5rem;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Narrower than about 1180: the Show column sits on top, Season and Episode share the row below (spec section 4). */
+@media (max-width: 1180px) {
+    .tl-tvm[data-scope="episode"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tl-tvm[data-scope="episode"] .tl-tvm__column--shows {
+        grid-column: 1 / -1;
+    }
+}
