@@ -47,7 +47,7 @@
             <div class="tl-editing-banner__end">
                 @if (CanDelete)
                 {
-                    <OverflowActionMenu Actions="DeleteActions"
+                    <OverflowActionMenu Actions="MenuDeleteActions"
                                         ButtonClass="tl-editing-banner__more"
                                         OnActionSelected="OnActionSelected" />
                 }
@@ -77,7 +77,7 @@
 @code {
     private sealed record BannerSection(EditingSection Kind, string Label, string Icon);
 
-    private static readonly DetailAction[] DeleteActions = [DetailMenuGrouping.DeleteFromLibraryAction];
+    private static readonly DetailAction[] SingleTitleDeleteActions = [DetailMenuGrouping.DeleteFromLibraryAction];
 
     private EditingModeContext? _subscribed;
 
@@ -89,6 +89,11 @@
     /// "..." is not drawn at all.
     /// </summary>
     [Parameter] public bool CanDelete { get; set; }
+
+    /// <summary>The Delete entries for a show, season, album or Series page; null for a single title.</summary>
+    [Parameter] public IReadOnlyList<DetailAction>? GroupDeleteActions { get; set; }
+
+    private IReadOnlyList<DetailAction> MenuDeleteActions => GroupDeleteActions is { Count: > 0 } ? GroupDeleteActions : SingleTitleDeleteActions;
 
     /// <summary>False for an editor that brings its own sections (the Universe editor): no Artwork, Match and Identity or History buttons.</summary>
     [Parameter] public bool ShowSections { get; set; } = true;

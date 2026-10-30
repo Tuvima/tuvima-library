@@ -7,10 +7,14 @@
 @inject NavigationManager Navigation
 @inject DeviceContextService DeviceContext
 @inject LibraryFolderAddService AddService
+@inject IAppDialogService Dialogs
+@inject IAppToastService Toasts
+@inject DashboardSessionAccessor Session
 
 @* A library's Unidentified files tab (Libraries redesign D3, D6): the files the Engine could not identify, each with the reason in plain words and when it
    was last tried. Identify opens the file's own page, where Edit > Match sorts it out in the universal editor (no editor lives in Settings); Try again looks it
-   up now; Keep as it is stops further tries. Bulk Try again and Keep all as they are sit at the top. Phones can look but not change. *@
+   up now; Keep as it is stops further tries; Remove from library takes the file out through the same Delete from library dialog as any title (with the Recycle bin on for the
+   library's type, the file goes there). Bulk Try again and Keep all as they are sit at the top. Phones can look but not change. *@
 <section class="lib-unid" aria-label="Unidentified files" data-testid="library-unidentified">
     @if (_loading)
     {
@@ -86,6 +90,11 @@
                                     <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" aria-label="@($"Try {item.FileName} again")" OnClick="@(() => RetryAsync(item))" />
                                 }
                                 <AppButton Label="Keep as it is" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" aria-label="@($"Keep {item.FileName} as it is")" OnClick="@(() => KeepAsync(item))" />
+                                @if (item.WorkId is { } removableId && CanRemove)
+                                {
+                                    <AppButton Label="Remove from library" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_busy" aria-label="@($"Remove {item.FileName} from the library")"
+                                               OnClick="@(() => RemoveAsync(item, removableId))" />
+                                }
                                 @if (SourceOf(item) is { } source)
                                 {
                                     <AppButton Label="Change what this folder is" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" aria-label="@($"Change what the folder of {item.FileName} is")"
@@ -128,6 +137,9 @@
     private string? _error;
 
     private bool CanChange => !ReadOnly;
+
+    // Deleting is for an administrator on a desktop; the Engine checks again on every call.
+    private bool CanRemove => LibraryItemDeletionFlow.CanDelete(DeviceContext, Session);
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -189,6 +201,23 @@
         var follow = await AddService.ChangeKindAsync(FolderAddScope.Settings, Kinds, Configuration, Library, source);
         _busy = false;
         if (follow.Started) await Changed.InvokeAsync();
+    }
+
+    private async Task RemoveAsync(UnmatchedItemDto item, Guid workId)
+    {
+        if (LibraryItemDeletionFlow.TryRefuse(DeviceContext, Session, Toasts))
+        {
+            return;
+        }
+
+        _busy = true;
+        var outcome = await LibraryItemDeletionFlow.RunAsync(Dialogs, Toasts, [workId], item.FileName);
+        _busy = false;
+        if (outcome != LibraryItemDeletionFlowOutcome.Canceled)
+        {
+            await LoadAsync();
+            await Changed.InvokeAsync();
+        }
     }
 
     private Task RetryAsync(UnmatchedItemDto item) => ActAsync(() => Api.RetryUnmatchedItemAsync(item.AssetId), "That file could not be tried again. Try again in a moment.");

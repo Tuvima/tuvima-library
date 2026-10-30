@@ -31,6 +31,17 @@ public sealed class MaintenanceSettings
     [JsonPropertyName("plugin_people_action_retention_days")]
     public int PluginPeopleActionRetentionDays { get; set; } = 365;
 
+    /// <summary>
+    /// Deleting a group (a show, a Series, or any group of more than this many titles) that removes files for good asks the person
+    /// to type the group's name first (spec Delete a show, season, album or Series, D4).
+    /// </summary>
+    [JsonPropertyName("delete_type_to_confirm_titles")]
+    public int DeleteTypeToConfirmTitles { get; set; } = 25;
+
+    /// <summary>A delete that frees more than this many gigabytes also asks for the typed name (same rule).</summary>
+    [JsonPropertyName("delete_type_to_confirm_gigabytes")]
+    public int DeleteTypeToConfirmGigabytes { get; set; } = 50;
+
     /// <summary>Number of days to keep the Engine's technical log files.</summary>
     [JsonPropertyName("log_retention_days")]
     public int LogRetentionDays { get; set; } = 90;

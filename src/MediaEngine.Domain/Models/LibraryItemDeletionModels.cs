@@ -39,3 +39,27 @@ public sealed record LibraryItemDeletionDataResult(
     IReadOnlyList<RemovedCollection> CollectionsDeleted,
     IReadOnlyList<string> TuvimaOwnedFiles,
     IReadOnlyCollection<string> StillReferencedFiles);
+
+/// <summary>One part of a group (a season of a show, a sub-series of a Series) and how much of it the library owns.</summary>
+public sealed record LibraryItemDeletionSubGroup(Guid SubGroupId, string Title, int OwnedCount, int TotalCount);
+
+/// <summary>
+/// A show, season, album or Series resolved to the titles the library owns inside it (spec Delete a show, season, album or Series, D5, D6).
+/// </summary>
+/// <param name="Kind">One of <c>show</c>, <c>season</c>, <c>album</c> or <c>series</c>.</param>
+/// <param name="OwnedWorkIds">Every owned title (never a group, never a catalog-only row) under the group, in a stable order.</param>
+/// <param name="NotOwnedCount">Titles the group lists that the library does not own; they are never deleted or counted.</param>
+/// <param name="SubGroups">The parts of the group that hold at least one owned title (the seasons of a show).</param>
+/// <param name="ParentTitle">For a season, its show; null otherwise.</param>
+/// <param name="ParentOwnedCount">For a season, how many owned titles its show holds in all, so the Engine can tell it is the last season.</param>
+public sealed record LibraryItemDeletionGroup(
+    Guid GroupId,
+    string Kind,
+    string Title,
+    string MediaType,
+    IReadOnlyList<Guid> OwnedWorkIds,
+    int NotOwnedCount,
+    IReadOnlyList<LibraryItemDeletionSubGroup> SubGroups,
+    string? ParentTitle,
+    int ParentOwnedCount,
+    Guid? ParentGroupId = null);

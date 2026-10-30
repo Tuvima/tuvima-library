@@ -616,17 +616,39 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>> GetLibraryItemDeletionPreviewAsync(
+    public Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>> GetLibraryItemDeletionPreviewAsync(
         IReadOnlyList<Guid> workIds, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(workIds);
-        const string endpoint = "POST /library/items/deletion-preview";
+        return PostDeletionPreviewAsync(
+            "/library/items/deletion-preview",
+            new MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest { WorkIds = workIds },
+            ct);
+    }
+
+    public Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>> GetLibraryGroupDeletionPreviewAsync(
+        LibraryGroupTarget target, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        return PostDeletionPreviewAsync(
+            "/library/items/group-deletion-preview",
+            new MediaEngine.Contracts.Items.LibraryGroupDeletionPreviewRequest
+            {
+                GroupId = target.GroupId,
+                GroupKind = target.Kind,
+                GroupTitle = target.Title,
+                WorkIds = target.WorkIds,
+            },
+            ct);
+    }
+
+    private async Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>> PostDeletionPreviewAsync(
+        string route, object body, CancellationToken ct)
+    {
+        var endpoint = $"POST {route}";
         try
         {
-            using var response = await _http.PostAsJsonAsync(
-                "/library/items/deletion-preview",
-                new MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest { WorkIds = workIds },
-                ct);
+            using var response = await _http.PostAsJsonAsync(route, body, ct);
             if (response.IsSuccessStatusCode)
             {
                 var preview = await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>(
@@ -670,18 +692,42 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryItemsAsync(
+    public Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryItemsAsync(
         IReadOnlyList<Guid> workIds, string fingerprint, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(workIds);
         ArgumentNullException.ThrowIfNull(fingerprint);
-        const string endpoint = "POST /library/items/delete";
+        return PostDeletionAsync(
+            "/library/items/delete",
+            new MediaEngine.Contracts.Items.LibraryItemDeletionRequest { WorkIds = workIds, Fingerprint = fingerprint },
+            ct);
+    }
+
+    public Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryGroupAsync(
+        LibraryGroupTarget target, string fingerprint, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(fingerprint);
+        return PostDeletionAsync(
+            "/library/items/group-delete",
+            new MediaEngine.Contracts.Items.LibraryGroupDeletionRequest
+            {
+                GroupId = target.GroupId,
+                GroupKind = target.Kind,
+                GroupTitle = target.Title,
+                WorkIds = target.WorkIds,
+                Fingerprint = fingerprint,
+            },
+            ct);
+    }
+
+    private async Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> PostDeletionAsync(
+        string route, object body, CancellationToken ct)
+    {
+        var endpoint = $"POST {route}";
         try
         {
-            using var response = await _http.PostAsJsonAsync(
-                "/library/items/delete",
-                new MediaEngine.Contracts.Items.LibraryItemDeletionRequest { WorkIds = workIds, Fingerprint = fingerprint },
-                ct);
+            using var response = await _http.PostAsJsonAsync(route, body, ct);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>(cancellationToken: ct);

@@ -64,3 +64,25 @@
 .delete-library__footer-line {
     color: var(--tl-text-muted);
 }
+
+.delete-library__group h3 {
+    font-size: var(--tl-font-size-lg);
+}
+
+.delete-library__emphasis {
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.delete-library__partial {
+    color: var(--tl-text-muted);
+}
+
+.delete-library__titles {
+    display: grid;
+    gap: var(--tl-space-1);
+    margin: 0;
+    padding-left: 1.2rem;
+    max-height: 9.5rem;
+    overflow-y: auto;
+    line-height: 1.45;
+}

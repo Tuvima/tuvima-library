@@ -43,6 +43,9 @@ public static class DetailActionKeys
     /// <summary>Added by the Dashboard itself to Editing Mode's More list, never sent by the Engine; <c>DetailPage</c> opens the delete confirmation.</summary>
     public const string DeleteFromLibrary = "delete-from-library";
 
+    /// <summary>Added by the Dashboard itself to a show page's "..." menu while a season is selected ("Delete Season 2…"); never sent by the Engine.</summary>
+    public const string DeleteSeason = "delete-season";
+
     /// <summary>Every key <c>DetailPage</c> handles itself (in handler order); see the class summary.</summary>
     public static IReadOnlyList<string> Handled { get; } =
     [
@@ -70,6 +73,7 @@ public static class DetailActionKeys
         Identify,
         ChangeThumbnail,
         DeleteFromLibrary,
+        DeleteSeason,
         UnmatchedRetry,
         UnmatchedKeep,
         UnmatchedLookUpAgain,

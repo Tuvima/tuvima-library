@@ -44,7 +44,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Home page redesign (hero, pick-up row, Recently Added, hover, details opening)](specs/archive/home-page-redesign.md) | Built (v1, archived 2026-10-28; awaiting Local checks L1-L9) |
 | [Spec: TV artwork, cast and matching](specs/tv-artwork-cast-and-matching.md) | In progress (v1; WP1, WP4, WP5 built; WP2, WP3, WP6 parked until Local check L1 is run) |
 | [Spec: Vault sections and Move to Vault](specs/vault-sections-and-move.md) | Built, awaiting your Local checks (v6, 2026-10-29: a PIN is strongly suggested, never required (D44); v5; folder-level moves, see batch.md) |
-| [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/delete-groups.md) | Locked (v7, 2026-10-21) |
+| [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/delete-groups.md) | In progress (v7; Wave 1 built, Wave 2 Recycle bin pending) |
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
 | [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | Built, awaiting your Local checks (v33, 2026-10-27, partly superseded by Library pages; every packet merged, WP7b-3 and WP10 last) |
 | [Spec: Library and folder management pages (one Libraries experience)](specs/library-pages.md) | Built, awaiting your Local checks (v15, 2026-10-29, revised by Library access v3 (no Access tab); v14, 2026-10-27; replaces the front-door cards, three-step Add folder wizard and Vault card of the library setup spec; docs written; follow-ups listed at the end of the spec) |

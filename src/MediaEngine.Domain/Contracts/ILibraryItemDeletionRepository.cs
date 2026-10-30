@@ -50,4 +50,10 @@ public interface ILibraryItemDeletionRepository
     Task<LibraryItemDeletionDataResult> DeleteWorksAsync(
         IReadOnlyList<Guid> workIds,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Resolves the id of a show, season, album (a parent Work) or a Series (a collection) to the titles the library owns inside it.
+    /// Null when the id is neither, or when it is a Vault group (Vault titles are never reachable from here). Reads only.
+    /// </summary>
+    Task<LibraryItemDeletionGroup?> ResolveGroupAsync(Guid groupId, CancellationToken ct = default);
 }
