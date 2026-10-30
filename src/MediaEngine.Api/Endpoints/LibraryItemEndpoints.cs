@@ -209,8 +209,12 @@ public static class LibraryItemEndpoints
         .RequireEffectiveAdministratorInPerson();
 
         group.MapPost("/recycle-bin/empty", async (HttpContext http, [FromServices] IRequestAuthorityResolver authorities, [FromServices] VaultAccessResolver vaultAccess,
-            [FromServices] RecycleBinService bin, CancellationToken ct) =>
-            Results.Ok(new RecycleBinEmptiedDto { Removed = bin.Empty(await HiddenLibrariesAsync(http, authorities, vaultAccess, ct)) }))
+            [FromServices] RecycleBinService bin, [FromServices] RecycleBinKeptProgress keptProgress, CancellationToken ct) =>
+        {
+            var removed = bin.Empty(await HiddenLibrariesAsync(http, authorities, vaultAccess, ct));
+            await keptProgress.SweepAsync(DateTimeOffset.UtcNow, ct);
+            return Results.Ok(new RecycleBinEmptiedDto { Removed = removed });
+        })
         .WithName("EmptyRecycleBin")
         .WithSummary("Remove every file in the recycle bin from the disk for good.")
         .Produces<RecycleBinEmptiedDto>(StatusCodes.Status200OK)
@@ -271,12 +275,16 @@ public static class LibraryItemEndpoints
 
         // Removes one item from the disk for good, ahead of its time. Administrators at the Dashboard only, like Empty.
         group.MapDelete("/recycle-bin/{id:guid}", async (Guid id, HttpContext http, [FromServices] IRequestAuthorityResolver authorities,
-            [FromServices] VaultAccessResolver vaultAccess, [FromServices] RecycleBinService bin, CancellationToken ct) =>
+            [FromServices] VaultAccessResolver vaultAccess, [FromServices] RecycleBinService bin, [FromServices] RecycleBinKeptProgress keptProgress, CancellationToken ct) =>
         {
             var hidden = await HiddenLibrariesAsync(http, authorities, vaultAccess, ct);
-            return bin.List(hidden).Any(entry => entry.Id == id) && bin.Remove([id])
-                ? Results.NoContent()
-                : ApiErrors.NotFound("That item is no longer in the Recycle bin.");
+            if (!bin.List(hidden).Any(entry => entry.Id == id) || !bin.Remove([id]))
+            {
+                return ApiErrors.NotFound("That item is no longer in the Recycle bin.");
+            }
+
+            await keptProgress.SweepAsync(DateTimeOffset.UtcNow, ct);
+            return Results.NoContent();
         })
         .WithName("DeleteFromRecycleBinNow")
         .WithSummary("Remove one item in the Recycle bin from the disk for good.")

@@ -45,11 +45,18 @@ public interface ILibraryItemDeletionRepository
     /// In one transaction, removes the titles (Works), their editions and media assets and every record tied to them: chosen values,
     /// metadata claims, jobs, Needs Review rows, artwork links and the artwork only they used, search entries, saved items and
     /// ratings, every profile's progress, the titles' own activity history, and hand-picked collections left empty. Personal activity
-    /// history (<c>personal_activity</c>) is never touched. Returns what was removed.
+    /// history (<c>personal_activity</c>) is never touched. With <c>keepPersonalState</c> (files going to the Recycle bin) every profile's progress, history and bookmarks on the files are first kept by file fingerprint. Returns what was removed.
     /// </summary>
     Task<LibraryItemDeletionDataResult> DeleteWorksAsync(
         IReadOnlyList<Guid> workIds,
+        bool keepPersonalState = false,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Drops progress kept for files in the Recycle bin (delete groups D21): rows kept before <paramref name="olderThan"/>, or all of
+    /// them when null. Returns how many rows were dropped.
+    /// </summary>
+    Task<int> DiscardKeptProgressAsync(DateTimeOffset? olderThan, CancellationToken ct = default);
 
     /// <summary>
     /// Resolves the id of a show, season, album (a parent Work) or a Series (a collection) to the titles the library owns inside it.

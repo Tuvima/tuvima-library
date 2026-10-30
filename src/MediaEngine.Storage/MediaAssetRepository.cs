@@ -221,6 +221,12 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
 
         // Step 2: changes() returns 1 if a row was inserted, 0 if IGNORE fired.
         var changes = conn.ExecuteScalar<long>("SELECT changes();");
+        if (changes > 0 && asset.RenditionPurpose == RenditionPurpose.Original)
+        {
+            // The same file coming back from the Recycle bin gets its people's progress back (delete groups D21).
+            RecycleBinPersonalState.Reattach(conn, asset.Id, asset.ContentHash);
+        }
+
         return Task.FromResult(changes > 0);
     }
 

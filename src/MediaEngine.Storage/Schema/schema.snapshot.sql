@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0069 remove_per_profile_library_and_area_access).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0070 recycle_bin_personal_state).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2400,6 +2400,14 @@ CREATE TABLE reader_statistics (
     UNIQUE (user_id, asset_id)
 );
 
+CREATE TABLE recycle_bin_personal_state (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    content_hash TEXT NOT NULL,
+    table_name   TEXT NOT NULL,
+    row_json     TEXT NOT NULL,
+    kept_at      TEXT NOT NULL
+);
+
 CREATE TABLE resolver_cache (
     cache_key        TEXT NOT NULL PRIMARY KEY,
     normalized_title TEXT NOT NULL,
@@ -3674,6 +3682,8 @@ CREATE INDEX idx_reader_bookmarks_user_asset
 
 CREATE INDEX idx_reader_highlights_user_asset
     ON reader_highlights (user_id, asset_id);
+
+CREATE INDEX idx_recycle_bin_personal_state_hash ON recycle_bin_personal_state (content_hash);
 
 CREATE INDEX idx_resolver_cache_expires
     ON resolver_cache(expires_at);

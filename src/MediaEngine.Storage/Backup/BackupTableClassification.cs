@@ -178,6 +178,7 @@ public static partial class BackupTableClassification
         // ---------------------------------------------------------------------------------------------------------
         // Transient: not kept and not rebuilt from files.
         // ---------------------------------------------------------------------------------------------------------
+        Transient("recycle_bin_personal_state", "Progress kept for files waiting in the Recycle bin; the bin itself is not backed up, so these copies have nothing to come back to after a restore."),
         Transient("auth_sessions", "Sign-in sessions."),
         Transient("client_tokens", "Device and application tokens."),
         Transient("plugin_display_contributions", "Lines and badges plugins publish for the Library's pages; each plugin publishes them again when it next runs."),

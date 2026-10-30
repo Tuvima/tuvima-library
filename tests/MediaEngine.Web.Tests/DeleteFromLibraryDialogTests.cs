@@ -52,6 +52,7 @@ public sealed class DeleteFromLibraryDialogTests : AsyncBunitContext
         string fingerprint = "fp-1",
         int progress = 0,
         bool processing = false,
+        bool recycleBin = false,
         IEnumerable<LibraryItemDeletionFileDto>? files = null,
         IEnumerable<LibraryItemDeletionCollectionDto>? collections = null) => new()
         {
@@ -63,6 +64,7 @@ public sealed class DeleteFromLibraryDialogTests : AsyncBunitContext
         ],
             CuratedCollections = collections?.ToList() ?? [],
             ProfilesWithProgress = progress,
+            GoesToRecycleBin = recycleBin,
             ProcessingRunning = processing,
             BytesFreed = files is null ? SixtyOneGb : files.Where(file => file.Outcome == LibraryItemDeletionOutcomes.Delete).Sum(file => file.SizeBytes ?? 0),
             Fingerprint = fingerprint,
@@ -251,6 +253,16 @@ public sealed class DeleteFromLibraryDialogTests : AsyncBunitContext
         Ready(host);
 
         Assert.Contains(sentence, Body(host), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Progress_WhenTheFileGoesToTheRecycleBin_SaysItIsKeptAndComesBackOnRestore()
+    {
+        _preview = () => Task.FromResult(LibraryItemDeletionOutcome<LibraryItemDeletionPreview>.Ok(Movie(progress: 2, recycleBin: true)));
+        var (host, _) = await OpenAsync();
+        Ready(host);
+
+        Assert.Contains("2 people have progress on this. It is kept while the file is in the Recycle bin, and comes back if you restore it.", Body(host), StringComparison.Ordinal);
     }
 
     [Fact]

@@ -94,6 +94,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<ArtworkWritebackService>();
         services.AddHostedService<ArtworkWritebackWorker>();
         services.AddHostedService<MissingUniverseSweepService>();
+        services.AddSingleton<MediaEngine.Api.Services.Libraries.RecycleBinKeptProgress>();
         services.AddSingleton<MediaEngine.Api.Services.Libraries.RecycleBinRetentionHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<MediaEngine.Api.Services.Libraries.RecycleBinRetentionHostedService>());
         services.AddSingleton<MediaEngine.Api.Services.Libraries.HeldSubtitleExporter>();
