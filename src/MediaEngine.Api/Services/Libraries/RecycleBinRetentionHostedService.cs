@@ -11,6 +11,7 @@ namespace MediaEngine.Api.Services.Libraries;
 /// </summary>
 public sealed class RecycleBinRetentionHostedService(
     RecycleBinService bin,
+    RecycleBinKeptProgress keptProgress,
     IConfigurationLoader configuration,
     ISystemActivityRepository activity,
     INotificationPublisher notifications,
@@ -45,6 +46,7 @@ public sealed class RecycleBinRetentionHostedService(
             var vault = VaultLibraryIds();
             var retention = RecycleBinSummaryBuilder.RetentionFrom(configuration.LoadLibraries());
             var purged = bin.PurgeExpired(now, retention, vault);
+            await keptProgress.SweepAsync(now, ct).ConfigureAwait(false);
             if (purged.Items > 0)
             {
                 await activity.LogAsync(new SystemActivityEntry

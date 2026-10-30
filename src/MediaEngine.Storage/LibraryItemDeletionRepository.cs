@@ -410,8 +410,12 @@ public sealed partial class LibraryItemDeletionRepository(
             new { now, ids }).ToList();
     }
 
+    public Task<int> DiscardKeptProgressAsync(DateTimeOffset? olderThan, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, _, _) => RecycleBinPersonalState.Discard(connection, olderThan), ct);
+
     public async Task<LibraryItemDeletionDataResult> DeleteWorksAsync(
         IReadOnlyList<Guid> workIds,
+        bool keepPersonalState = false,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(workIds);
@@ -423,7 +427,7 @@ public sealed partial class LibraryItemDeletionRepository(
         }
 
         return await db.ExecuteWriteAsync(
-            (connection, transaction, _) => DeleteWorksCore(connection, transaction, distinct),
+            (connection, transaction, _) => DeleteWorksCore(connection, transaction, distinct, keepPersonalState),
             ct).ConfigureAwait(false);
     }
 
@@ -434,7 +438,8 @@ public sealed partial class LibraryItemDeletionRepository(
     internal static LibraryItemDeletionDataResult DeleteWorksCore(
         Microsoft.Data.Sqlite.SqliteConnection connection,
         Microsoft.Data.Sqlite.SqliteTransaction transaction,
-        IReadOnlyList<Guid> distinct)
+        IReadOnlyList<Guid> distinct,
+        bool keepPersonalState = false)
     {
         // The ids of everything that goes live in connection-private scratch tables for the length of this transaction, so no
         // statement carries a long parameter list. They are emptied before the commit (and a rollback takes the rows away too).
@@ -508,6 +513,12 @@ public sealed partial class LibraryItemDeletionRepository(
         connection.Execute(
             "UPDATE series_manifest_items SET linked_work_id = NULL WHERE linked_work_id IN (SELECT id FROM deletion_works);",
             transaction: transaction);
+
+        // A title going to the Recycle bin keeps every profile's progress by file fingerprint, so restoring the file gives it back.
+        if (keepPersonalState)
+        {
+            RecycleBinPersonalState.Snapshot(connection, transaction);
+        }
 
         // Everything else that belongs to the titles (progress, bookmarks, highlights, queue entries, play counts, telemetry
         // links, text tracks, derived files, coverage) hangs off the asset or the Work with ON DELETE CASCADE or SET NULL.

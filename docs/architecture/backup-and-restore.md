@@ -295,6 +295,7 @@ None of these are kept.
 
 | Table | Why |
 |---|---|
+| `recycle_bin_personal_state` | Progress kept for files waiting in the Recycle bin; the bin is not backed up, so these copies are not either. |
 | `auth_sessions` | Sign-in sessions. |
 | `client_tokens` | Device and application tokens. |
 | `plugin_display_contributions` | Lines and badges plugins publish for the Library's pages; each plugin publishes them again when it next runs. |

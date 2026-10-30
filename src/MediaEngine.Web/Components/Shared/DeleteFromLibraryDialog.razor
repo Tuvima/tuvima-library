@@ -124,7 +124,7 @@
                         <h3>Progress</h3>
                         <p>
                             @(_preview.ProfilesWithProgress == 1 ? "1 person has" : $"{DisplayFormat.FormatCount(_preview.ProfilesWithProgress)} people have")
-                            progress on @(IsSeveral ? "these" : "this"). It will be removed.
+                            progress on @(IsSeveral ? "these" : "this"). @(_preview.GoesToRecycleBin ? "It is kept while the file is in the Recycle bin, and comes back if you restore it." : "It will be removed.")
                         </p>
                     </section>
                 }

@@ -130,7 +130,7 @@ public sealed partial class LibraryItemDeletionService
         LibraryItemDeletionDataResult data;
         try
         {
-            data = await repository.DeleteWorksAsync(plan.WorkIds, ct).ConfigureAwait(false);
+            data = await repository.DeleteWorksAsync(plan.WorkIds, plan.Preview.GoesToRecycleBin && !actor.VaultMove, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
