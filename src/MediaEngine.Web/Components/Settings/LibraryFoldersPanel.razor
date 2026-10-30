@@ -685,6 +685,16 @@
         await SaveAsync(library, value ? "Deleted files now go to the recycle bin." : "Deleted files are removed straight away.");
     }
 
+    private async Task SetRecycleBinDaysAsync(LibraryFolderDto source, int days)
+    {
+        var library = Clone(source);
+        if (library is null || _saving) return;
+        library.RecycleBinDays = Math.Clamp(days, 0, 3650);
+        await SaveAsync(library, library.RecycleBinDays == 0
+            ? "Deleted files stay in the recycle bin until it is emptied."
+            : $"Deleted files stay in the recycle bin for {library.RecycleBinDays} days.");
+    }
+
     private async Task<bool> SaveAsync(LibraryFolderDto library, string message)
     {
         if (_configuration is null || _saving) return false;
@@ -929,6 +939,13 @@
                               Value="@library.RecycleBin"
                               Disabled="@(_saving || ReadOnly)"
                               ValueChanged="@((bool value) => SetRecycleBinAsync(library, value))" />
+                @if (library.RecycleBin)
+                {
+                    <AppNumericField Label="Keep deleted files for (days, 0 keeps them until the bin is emptied)"
+                                     Value="@library.RecycleBinDays" Min="0" Max="3650"
+                                     Disabled="@(_saving || ReadOnly)"
+                                     ValueChanged="@((int value) => SetRecycleBinDaysAsync(library, value))" />
+                }
             </div>
         }
     };

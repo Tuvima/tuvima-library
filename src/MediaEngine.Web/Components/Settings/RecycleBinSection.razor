@@ -39,7 +39,7 @@
     }
     else
     {
-        <p class="recycle-bin__note">@Count(_summary.TotalItems) · @DisplayFormat.FormatFileSize(_summary.TotalBytes)@RetentionText</p>
+        <p class="recycle-bin__note">@Count(_summary.TotalItems) · @DisplayFormat.FormatFileSize(_summary.TotalBytes)</p>
         @if (_summary.CanManage && _summary.LeavingSoonItems > 0)
         {
             <p class="recycle-bin__soon" role="status">
@@ -111,8 +111,6 @@
     private string? Scope => _showAll || string.IsNullOrWhiteSpace(MediaType) ? null : MediaType;
 
     private static string Count(int items) => items == 1 ? "1 item" : $"{items} items";
-
-    private string RetentionText => _summary is { RetentionDays: > 0 } ? $" · each item stays {_summary.RetentionDays} days" : string.Empty;
 
     private string SoonText => _summary?.LeavingSoonDays switch
     {

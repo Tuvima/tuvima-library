@@ -3636,7 +3636,6 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RecycleBinSummaryDto
   TotalItems: System.Int32 | nullability=not-null | accessors=get,init
   TotalBytes: System.Int64 | nullability=not-null | accessors=get,init
   CanManage: System.Boolean | nullability=not-null | accessors=get,init
-  RetentionDays: System.Int32 | nullability=not-null | accessors=get,init
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.RecycleBinListItemDto> | nullability=not-null | accessors=get,init
   OtherItems: System.Int32 | nullability=not-null | accessors=get,init
   OtherBytes: System.Int64 | nullability=not-null | accessors=get,init
@@ -8729,6 +8728,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   YoutubeLookup: System.Boolean | nullability=not-null | accessors=get,set
   RecycleBin: System.Boolean | nullability=not-null | accessors=get,set
+  RecycleBinDays: System.Int32 | nullability=not-null | accessors=get,set
   IsVault: System.Boolean | nullability=not-null | accessors=get,set
   FileHandling: MediaEngine.Contracts.Settings.LibraryFileHandlingDto | nullability=not-null | accessors=get,set
   Sources: System.Collections.Generic.List<MediaEngine.Contracts.Settings.LibrarySourceDto> | nullability=not-null | accessors=get,set

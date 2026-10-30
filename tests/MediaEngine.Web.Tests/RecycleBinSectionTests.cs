@@ -63,7 +63,7 @@ public sealed class RecycleBinSectionTests : AsyncBunitContext
     public void AnAdministratorSeesWhoDeletedAndWhenItLeaves_AndPuttingOneBackClearsTheList()
     {
         var item = Item("My trip", leavesIn: 3);
-        _summary = new RecycleBinSummaryDto { CanManage = true, TotalItems = 1, TotalBytes = 2048, RetentionDays = 90, Items = [item] };
+        _summary = new RecycleBinSummaryDto { CanManage = true, TotalItems = 1, TotalBytes = 2048, Items = [item] };
         var cut = Render<RecycleBinSection>();
         cut.WaitForAssertion(() => Assert.Contains("My trip", cut.Markup, StringComparison.Ordinal));
         Assert.Contains("by Shy", cut.Markup, StringComparison.Ordinal);
@@ -84,7 +84,6 @@ public sealed class RecycleBinSectionTests : AsyncBunitContext
             CanManage = true,
             TotalItems = 2,
             TotalBytes = 4096,
-            RetentionDays = 90,
             Items = [Item("a", 1), Item("b", 5)],
             LeavingSoonItems = 2,
             LeavingSoonBytes = 4096,
