@@ -447,7 +447,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var header = Text(cut.Find(".libpage__header"));
         Assert.Contains("Movies", header);
-                Assert.Contains("2 folders", header);
+        Assert.Contains("2 folders", header);
         cut.WaitForAssertion(() => Assert.Contains("Healthy", Text(cut.Find(".libpage__header"))));
         Assert.Equal(["Folders", "File handling", "Activity"], cut.FindAll(PageTabs).Select(Text).ToArray());
         Assert.Equal(["Scan now", "Add folder", "Add files"], cut.FindAll(".libpage__actions button").Select(Text).ToArray());
