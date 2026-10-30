@@ -104,4 +104,16 @@ public sealed class TvMatchBrowserMapperTests
 
         Assert.NotNull(refused);
     }
+
+    [Fact]
+    public void TheItemsOwnShowRow_BuiltFromItsStoredRecord_IsMarkedAsTheCurrentShow()
+    {
+        var row = new JsonObject { ["tvdb_id"] = "300", ["name"] = "Shimmer and Shine", ["year"] = "2015" };
+
+        var shows = TvMatchBrowserMapper.MapShows(new JsonArray(row), "300");
+
+        var only = Assert.Single(shows);
+        Assert.Equal("300", only.SeriesId);
+        Assert.True(only.IsCurrent);
+    }
 }

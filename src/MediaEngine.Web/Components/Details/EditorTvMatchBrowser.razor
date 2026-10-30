@@ -175,7 +175,8 @@
         }
 
         _startedFor = Subject.EntityId;
-        _query = NeedsEpisode && !string.IsNullOrWhiteSpace(Subject.ParentLabel) ? Subject.ParentLabel! : Subject.Title;
+        // An episode starts on its own show: by name when known, otherwise blank, which the Engine answers with the item's stored show.
+        _query = NeedsEpisode ? Subject.ParentLabel ?? string.Empty : Subject.Title;
         _show = null;
         _season = null;
         _seasons = [];
@@ -241,13 +242,6 @@
         }
 
         var text = _query.Trim();
-        if (text.Length == 0)
-        {
-            _shows = [];
-            _showsProblem = "Type a show name to search for.";
-            return;
-        }
-
         var ct = NewToken();
         _showsLoading = true;
         _showsProblem = null;
@@ -263,7 +257,9 @@
             _shows = response?.Shows ?? [];
             _showsProblem = response is null
                 ? "TheTVDB did not answer. Try again."
-                : _shows.Count == 0 ? $"Nothing called \"{text}\" on TheTVDB. Try other words." : null;
+                : _shows.Count == 0
+                    ? text.Length == 0 ? "Type a show name to search for." : $"Nothing called \"{text}\" on TheTVDB. Try other words."
+                    : null;
         }
         catch (OperationCanceledException)
         {

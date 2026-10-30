@@ -98,7 +98,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             else if (string.Equals(field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase))
             {
                 <AppTextarea Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
-                             Lines="6" aria-label="@field.Label" />
+                             Lines="@LinesFor(shown)" aria-label="@field.Label" />
                 <small class="tl-editor-field__count">@Count(shown)</small>
             }
             else
@@ -171,7 +171,9 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     private static bool IsWide(MediaEditorDetailsFieldPresentation field) =>
         field.IsChips
         || string.Equals(field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(field.Key, "title", StringComparison.OrdinalIgnoreCase);
+        || string.Equals(field.Label, "Title", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(field.Key, "title", StringComparison.OrdinalIgnoreCase)
+        || (Baseline(field).Length > 36 && !string.Equals(field.InputKind, "date", StringComparison.OrdinalIgnoreCase));
 
     private void ResetAll(ItemFieldEditSession fields, EditSessionState session, IReadOnlyList<MediaEditorDetailsFieldPresentation> editable)
     {
@@ -185,6 +187,9 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty);
         }
     }
+
+    // The box grows with the text, so a long synopsis never gets a scroll bar of its own inside the window's.
+    private static int LinesFor(string value) => Math.Clamp((value.Length / 90) + 2, 4, 14);
 
     private static string Count(string value) => $"{value.Length:N0} character{(value.Length == 1 ? string.Empty : "s")}";
 

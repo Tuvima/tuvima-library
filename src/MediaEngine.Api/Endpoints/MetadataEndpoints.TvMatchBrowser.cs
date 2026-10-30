@@ -36,7 +36,7 @@ public static partial class MetadataEndpoints
                 return ApiErrors.BadRequest("Connect TheTVDB in Settings before searching TV matches.");
             }
             var text = query?.Trim() ?? string.Empty;
-            if (text.Length is < 1 or > 200)
+            if (text.Length > 200)
             {
                 return ApiErrors.BadRequest("Type a show name to search for.");
             }
@@ -44,6 +44,30 @@ public static partial class MetadataEndpoints
             {
                 var currentShowId = GetCanonicalValue(
                     BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(root.FieldEntityId, ct)), BridgeIdKeys.TvdbId);
+                if (text.Length == 0)
+                {
+                    // No words typed: open on the item's own show so the person starts where the item already is.
+                    if (currentShowId is null)
+                    {
+                        return ApiErrors.BadRequest("Type a show name to search for.");
+                    }
+                    var own = await tvdb.GetAsync("tvdb", "series_extended", ProviderApiClient.Args(("id", currentShowId)), ct);
+                    if (own is null)
+                    {
+                        return Results.Ok(new TvMatchBrowserShowsDto(string.Empty, []));
+                    }
+                    var ownName = await ReadTvdbShowNameAsync(tvdb, currentShowId, own, ct);
+                    var row = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["tvdb_id"] = currentShowId,
+                        ["name"] = ownName,
+                        ["year"] = own["year"]?.ToString(),
+                        ["image_url"] = own["image"]?.ToString(),
+                        ["overview"] = own["overview"]?.ToString(),
+                    };
+                    return Results.Ok(new TvMatchBrowserShowsDto(string.Empty,
+                        TvMatchBrowserMapper.MapShows(new System.Text.Json.Nodes.JsonArray(row), currentShowId)));
+                }
                 var results = await tvdb.GetAsync("tvdb", "search", ProviderApiClient.Args(("query", text)), ct);
                 return Results.Ok(new TvMatchBrowserShowsDto(text, TvMatchBrowserMapper.MapShows(results, currentShowId)));
             }
