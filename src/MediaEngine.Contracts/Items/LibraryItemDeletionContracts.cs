@@ -235,12 +235,52 @@ public sealed class RecycleBinEmptiedDto
     [JsonPropertyName("removed")] public int Removed { get; init; }
 }
 
-/// <summary>One file waiting in the recycle bin. The folder it came from stays inside the Engine.</summary>
-public sealed class RecycleBinItemDto
+/// <summary>
+/// What a profile may see of the Recycle bin (spec Delete a show, season, album or Series, D12 to D15, D18, D23). Everyone sees the totals;
+/// the list holds only what the profile may see, and everything else is rolled into <c>other_items</c> with no title or kind.
+/// </summary>
+public sealed class RecycleBinSummaryDto
+{
+    [JsonPropertyName("total_items")] public int TotalItems { get; init; }
+    [JsonPropertyName("total_bytes")] public long TotalBytes { get; init; }
+
+    /// <summary>True for an administrator at the Dashboard: Restore, Delete now and Empty are offered.</summary>
+    [JsonPropertyName("can_manage")] public bool CanManage { get; init; }
+
+    /// <summary>Days an item stays in the bin; 0 means never removed automatically.</summary>
+    [JsonPropertyName("retention_days")] public int RetentionDays { get; init; }
+
+    [JsonPropertyName("items")] public IReadOnlyList<RecycleBinListItemDto> Items { get; init; } = [];
+
+    /// <summary>Items the caller may not see: counted and sized, never named.</summary>
+    [JsonPropertyName("other_items")] public int OtherItems { get; init; }
+    [JsonPropertyName("other_bytes")] public long OtherBytes { get; init; }
+
+    /// <summary>Administrators only: items that will leave the bin within the warning days.</summary>
+    [JsonPropertyName("leaving_soon_items")] public int LeavingSoonItems { get; init; }
+    [JsonPropertyName("leaving_soon_bytes")] public long LeavingSoonBytes { get; init; }
+    [JsonPropertyName("leaving_soon_days")] public int? LeavingSoonDays { get; init; }
+
+    /// <summary>The warning window: items with this many days or fewer left count as leaving soon.</summary>
+    [JsonPropertyName("leaving_soon_window_days")] public int LeavingSoonWindowDays { get; init; }
+}
+
+/// <summary>One item in the Recycle bin as a profile may see it.</summary>
+public sealed class RecycleBinListItemDto
 {
     [JsonPropertyName("id")] public Guid Id { get; init; }
-    [JsonPropertyName("file_name")] public string FileName { get; init; } = string.Empty;
-    [JsonPropertyName("title")] public string? Title { get; init; }
+    [JsonPropertyName("title")] public string Title { get; init; } = string.Empty;
+    [JsonPropertyName("media_type")] public string? MediaType { get; init; }
     [JsonPropertyName("size_bytes")] public long SizeBytes { get; init; }
     [JsonPropertyName("deleted_at")] public DateTimeOffset DeletedAt { get; init; }
+    [JsonPropertyName("deleted_by")] public string? DeletedBy { get; init; }
+
+    /// <summary>Whole days left before the automatic removal; null when the bin never empties itself.</summary>
+    [JsonPropertyName("leaves_in_days")] public int? LeavesInDays { get; init; }
+
+    /// <summary>The caller already asked to keep this item.</summary>
+    [JsonPropertyName("requested")] public bool Requested { get; init; }
+
+    /// <summary>Administrators only: who asked to keep it.</summary>
+    [JsonPropertyName("requested_by")] public IReadOnlyList<string> RequestedBy { get; init; } = [];
 }

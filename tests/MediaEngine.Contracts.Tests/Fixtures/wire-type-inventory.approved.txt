@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1323; api=0; web-client=54
+# scopes: contracts=1324; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4341,14 +4341,33 @@
   Removed: System.Int32 | json=removed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"removed":7}
 
-[contracts] MediaEngine.Contracts.Items.RecycleBinItemDto
+[contracts] MediaEngine.Contracts.Items.RecycleBinListItemDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Title: System.String | json=title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaType: System.String | json=media_type | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SizeBytes: System.Int64 | json=size_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DeletedAt: System.DateTimeOffset | json=deleted_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","file_name":"sample","title":"sample","size_bytes":7,"deleted_at":"2025-01-02T03:04:05+00:00"}
+  DeletedBy: System.String | json=deleted_by | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LeavesInDays: System.Int32? | json=leaves_in_days | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Requested: System.Boolean | json=requested | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RequestedBy: System.Collections.Generic.IReadOnlyList<System.String> | json=requested_by | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","title":"sample","media_type":"sample","size_bytes":7,"deleted_at":"2025-01-02T03:04:05+00:00","deleted_by":"sample","leaves_in_days":7,"requested":true,"requested_by":[]}
+
+[contracts] MediaEngine.Contracts.Items.RecycleBinSummaryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  TotalItems: System.Int32 | json=total_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TotalBytes: System.Int64 | json=total_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanManage: System.Boolean | json=can_manage | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RetentionDays: System.Int32 | json=retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.RecycleBinListItemDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OtherItems: System.Int32 | json=other_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OtherBytes: System.Int64 | json=other_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LeavingSoonItems: System.Int32 | json=leaving_soon_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LeavingSoonBytes: System.Int64 | json=leaving_soon_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LeavingSoonDays: System.Int32? | json=leaving_soon_days | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LeavingSoonWindowDays: System.Int32 | json=leaving_soon_window_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"total_items":7,"total_bytes":7,"can_manage":true,"retention_days":7,"items":[],"other_items":7,"other_bytes":7,"leaving_soon_items":7,"leaving_soon_bytes":7,"leaving_soon_days":7,"leaving_soon_window_days":7}
 
 [contracts] MediaEngine.Contracts.Items.VideoIdentifyRequest
   kind=class | converter=default | number-handling=default | unmapped=default

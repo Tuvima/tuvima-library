@@ -338,8 +338,19 @@ public sealed partial class EngineApiClient
     public Task<bool> RemoveVideoFromSeriesAsync(Guid entityId, CancellationToken ct = default) =>
         PostAsync("POST /library/items/{id}/video-series/remove", $"/library/items/{entityId}/video-series/remove", new { }, ct: ct);
 
-    public async Task<IReadOnlyList<RecycleBinItemDto>?> GetRecycleBinAsync(CancellationToken ct = default) =>
-        await GetAsync<List<RecycleBinItemDto>>("GET /library/items/recycle-bin", "/library/items/recycle-bin", ct: ct);
+    public Task<RecycleBinSummaryDto?> GetRecycleBinSummaryAsync(string? mediaType = null, CancellationToken ct = default) =>
+        GetAsync<RecycleBinSummaryDto>(
+            "GET /library/items/recycle-bin/summary",
+            string.IsNullOrWhiteSpace(mediaType)
+                ? "/library/items/recycle-bin/summary"
+                : $"/library/items/recycle-bin/summary?media_type={Uri.EscapeDataString(mediaType)}",
+            ct: ct);
+
+    public Task<bool> AskToKeepFromRecycleBinAsync(Guid id, CancellationToken ct = default) =>
+        PostAsync("POST /library/items/recycle-bin/{id}/ask-to-keep", $"/library/items/recycle-bin/{id}/ask-to-keep", new { }, ct: ct);
+
+    public Task<bool> DeleteFromRecycleBinNowAsync(Guid id, CancellationToken ct = default) =>
+        DeleteAsync("DELETE /library/items/recycle-bin/{id}", $"/library/items/recycle-bin/{id}", ct: ct);
 
     public Task<bool> RestoreFromRecycleBinAsync(Guid id, CancellationToken ct = default) =>
         PostAsync("POST /library/items/recycle-bin/{id}/restore", $"/library/items/recycle-bin/{id}/restore", new { }, ct: ct);

@@ -83,6 +83,10 @@
                       Title="@UnsupportedTitle"
                       Message="@UnsupportedMessage" />
     }
+    @if (IsSupportedBrowseTab && !NoTabs)
+    {
+        <RecycleBinEntry Tab="@Tab" />
+    }
 </MediaSectionShell>
 
 @code {

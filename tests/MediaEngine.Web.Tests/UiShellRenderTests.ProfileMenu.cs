@@ -75,8 +75,8 @@ public sealed partial class UiShellRenderTests
                 : item.TextContent.Trim())
             .ToArray();
 
-        Assert.Equal(["person:Sam", "Who's watching?", "Manage profiles", "Profile", "Settings", "Help"],
-            order.Take(6).ToArray());
+        Assert.Equal(["person:Sam", "Who's watching?", "Manage profiles", "Profile", "Settings", "Recycle bin", "Help"],
+            order.Take(7).ToArray());
         Assert.DoesNotContain("person:Shy", order);
     }
 

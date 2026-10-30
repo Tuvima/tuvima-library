@@ -179,20 +179,6 @@ public static class LibraryItemEndpoints
 
         // The recycle bin of the library types that have it switched on. Same audience as deleting: effective administrators at
         // the Dashboard. Restoring never overwrites; emptying is the only step that removes files from the disk.
-        group.MapGet("/recycle-bin", async (HttpContext http, [FromServices] IRequestAuthorityResolver authorities, [FromServices] VaultAccessResolver vaultAccess,
-            [FromServices] RecycleBinService bin, CancellationToken ct) => Results.Ok(bin.List(await HiddenLibrariesAsync(http, authorities, vaultAccess, ct)).Select(entry => new RecycleBinItemDto
-            {
-                Id = entry.Id,
-                FileName = entry.FileName,
-                Title = entry.Title,
-                SizeBytes = entry.SizeBytes,
-                DeletedAt = entry.DeletedAt,
-            }).ToList()))
-        .WithName("ListRecycleBin")
-        .WithSummary("The files waiting in the recycle bin.")
-        .Produces<IReadOnlyList<RecycleBinItemDto>>(StatusCodes.Status200OK)
-        .RequireEffectiveAdministratorInPerson();
-
         group.MapPost("/recycle-bin/{id:guid}/restore", async (Guid id, HttpContext http, IRequestAuthorityResolver authorities,
             [FromServices] VaultAccessResolver vaultAccess, [FromServices] RecycleBinService bin,
             [FromServices] RestoredFileWriteQueuer restoredWrites, CancellationToken ct) =>
@@ -230,9 +216,83 @@ public static class LibraryItemEndpoints
         .Produces<RecycleBinEmptiedDto>(StatusCodes.Status200OK)
         .RequireEffectiveAdministratorInPerson();
 
+        // What the signed-in profile may know about the bin: totals for everyone, names only where allowed (D12 to D14). A restricted
+        // (child) profile gets totals alone, because the bin keeps no age rating per item and a guess could show what it must not.
+        group.MapGet("/recycle-bin/summary", async (string? media_type, HttpContext http, [FromServices] IRequestAuthorityResolver authorities,
+            [FromServices] VaultAccessResolver vaultAccess, [FromServices] IProfileRepository profiles, [FromServices] IConfigurationLoader configuration,
+            [FromServices] RecycleBinService bin, CancellationToken ct) =>
+        {
+            var authority = await authorities.ResolveAsync(http, ct);
+            var hidden = (await vaultAccess.ResolveAsync(authority, ct)).HiddenLibraryIds;
+            var maintenance = configuration.LoadMaintenance();
+            var viewer = new RecycleBinViewer(
+                authority.IsEffectiveAdministrator,
+                !authority.ActiveProfileIsRestricted,
+                await ProfileNameAsync(authority, profiles, ct));
+            return Results.Ok(RecycleBinSummaryBuilder.Build(
+                bin.List(hidden), DateTimeOffset.UtcNow, maintenance.RecycleBinRetentionDays, maintenance.RecycleBinWarningDays, media_type, viewer));
+        })
+        .WithName("GetRecycleBinSummary")
+        .WithSummary("The Recycle bin as the signed-in profile may see it: totals, the items it may see, and a count of the rest.")
+        .Produces<RecycleBinSummaryDto>(StatusCodes.Status200OK)
+        .RequireHumanSelfService();
+
+        // Anyone who can see an item can ask for it to be kept; administrators are told and can put it back.
+        group.MapPost("/recycle-bin/{id:guid}/ask-to-keep", async (Guid id, HttpContext http, [FromServices] IRequestAuthorityResolver authorities,
+            [FromServices] VaultAccessResolver vaultAccess, [FromServices] IProfileRepository profiles, [FromServices] RecycleBinService bin,
+            [FromServices] INotificationPublisher notifications, CancellationToken ct) =>
+        {
+            var authority = await authorities.ResolveAsync(http, ct);
+            if (authority.ActiveProfileIsRestricted)
+            {
+                return ApiErrors.Forbidden("This profile can't see items in the Recycle bin.");
+            }
+
+            var hidden = (await vaultAccess.ResolveAsync(authority, ct)).HiddenLibraryIds;
+            var name = await ProfileNameAsync(authority, profiles, ct);
+            var title = bin.List(hidden).FirstOrDefault(entry => entry.Id == id) is { } entry
+                ? (string.IsNullOrWhiteSpace(entry.Title) ? entry.FileName : entry.Title)
+                : null;
+            if (title is null || !bin.AddKeepRequest(id, name, hidden))
+            {
+                return ApiErrors.NotFound("That item is no longer in the Recycle bin.");
+            }
+
+            notifications.Publish(new NotificationRequest(
+                NotificationEventIds.RecycleBinKeepRequested, Subject: id.ToString("N"), Detail: $"{name} asked to keep \"{title}\" in the Recycle bin."));
+            return Results.NoContent();
+        })
+        .WithName("AskToKeepFromRecycleBin")
+        .WithSummary("Ask the administrators to keep an item that is in the Recycle bin.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireHumanSelfService();
+
+        // Removes one item from the disk for good, ahead of its time. Administrators at the Dashboard only, like Empty.
+        group.MapDelete("/recycle-bin/{id:guid}", async (Guid id, HttpContext http, [FromServices] IRequestAuthorityResolver authorities,
+            [FromServices] VaultAccessResolver vaultAccess, [FromServices] RecycleBinService bin, CancellationToken ct) =>
+        {
+            var hidden = await HiddenLibrariesAsync(http, authorities, vaultAccess, ct);
+            return bin.List(hidden).Any(entry => entry.Id == id) && bin.Remove([id])
+                ? Results.NoContent()
+                : ApiErrors.NotFound("That item is no longer in the Recycle bin.");
+        })
+        .WithName("DeleteFromRecycleBinNow")
+        .WithSummary("Remove one item in the Recycle bin from the disk for good.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministratorInPerson();
+
         MapMoveEndpoints(group);
 
         return app;
+    }
+
+    private static async Task<string> ProfileNameAsync(RequestAuthority authority, IProfileRepository profiles, CancellationToken ct)
+    {
+        var profile = authority.ActiveProfileId is { } profileId ? await profiles.GetByIdAsync(profileId, ct) : null;
+        return string.IsNullOrWhiteSpace(profile?.DisplayName) ? "Someone" : profile.DisplayName.Trim();
     }
 
     private static IResult GroupDeletionRefusal(LibraryItemDeletionRefusal refusal) => refusal.Kind switch

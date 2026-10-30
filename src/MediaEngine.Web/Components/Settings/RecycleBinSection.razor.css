@@ -44,3 +44,29 @@
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-sm);
 }
+
+.recycle-bin__filter {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.recycle-bin__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-1);
+}
+
+.recycle-bin__soon {
+    margin: 0;
+    color: var(--tl-warning, var(--tl-text-default));
+    font-size: var(--tl-font-size-sm);
+}
+
+.recycle-bin__request {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
