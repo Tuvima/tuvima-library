@@ -464,8 +464,9 @@ body {
     background: transparent;
 }
 
+/* Active tab reads like the top bar: white (primary) text with the purple underline (spec plugins-and-integrations-screens-v3 D21). */
 .tl-tab.tl-tab-active {
-    color: var(--tl-accent-primary);
+    color: var(--tl-text-primary);
     border-bottom-color: var(--tl-accent-primary);
     background: transparent;
 }
@@ -482,7 +483,7 @@ body {
 }
 
 .tl-tab.tl-tab-active .tl-tab__count {
-    color: inherit;
+    color: var(--tl-text-secondary);
 }
 
 /* The one card grid: 3 columns on desktop, 2 on tablet, 1 on phone; every card in a row is the same height. */
@@ -6101,6 +6102,31 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     font-size: 24px;
 }
 
+/* Media pills: the design-system media colours as a soft pill (spec plugins-and-integrations-screens-v3 D23). */
+.app-media-pill {
+    --app-media-pill-colour: var(--tl-media-unknown);
+    color: var(--app-media-pill-colour);
+    border-color: color-mix(in srgb, var(--app-media-pill-colour) 40%, transparent);
+    background: color-mix(in srgb, var(--app-media-pill-colour) 14%, transparent);
+}
+
+.app-media-pill--books { --app-media-pill-colour: var(--tl-media-books); }
+.app-media-pill--audiobooks { --app-media-pill-colour: var(--tl-media-audiobooks); }
+.app-media-pill--comics { --app-media-pill-colour: var(--tl-media-comics); }
+.app-media-pill--movies { --app-media-pill-colour: var(--tl-media-movies); }
+.app-media-pill--tv { --app-media-pill-colour: var(--tl-media-tv); }
+.app-media-pill--music { --app-media-pill-colour: var(--tl-media-music); }
+.app-media-pill--videos { --app-media-pill-colour: var(--tl-media-video); }
+.app-media-pill--photos { --app-media-pill-colour: var(--tl-media-document); }
+
+/* Summary counts carry colour by meaning (spec plugins-and-integrations-screens-v3 D22). */
+.app-summary-strip__item--accent .app-summary-strip__value { color: var(--tl-accent-primary); }
+.app-summary-strip__item--ok .app-summary-strip__value { color: var(--tl-status-success, #34d399); }
+.app-summary-strip__item--warn .app-summary-strip__value { color: var(--tl-status-warning, #fbbf24); }
+.app-summary-strip__item--mute .app-summary-strip__value { color: var(--tl-text-muted); }
+
+.app-official-pill__icon { display: block; flex: 0 0 auto; }
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
@@ -6642,4 +6668,5 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
+
 

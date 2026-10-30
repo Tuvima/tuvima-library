@@ -43,15 +43,18 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ListCard_PutsKindWarningAndBadgesInOneRowAndKeepsTheNameOnOneLine()
+    public void ListCard_PutsStatusKindWarningAndBadgesInOneRowAndKeepsTheNameOnOneLine()
     {
         var cut = Render<AppListCard>(p => p
             .Add(c => c.Title, "Commercial Skip")
             .Add(c => c.Kind, "Media processing")
+            .Add(c => c.Status, b => b.AddMarkupContent(0, "<span class=\"app-status-badge\" data-testid=\"status\">Working</span>"))
             .Add(c => c.Warning, b => b.AddMarkupContent(0, "<button class=\"app-warning-strip\">Requires Comskip</button>")));
 
         var row = cut.Find(".app-list-card__badges");
-        Assert.NotNull(row.QuerySelector(".app-list-card__kind"));
+        Assert.Equal("Working", row.FirstElementChild!.TextContent);
+        Assert.Contains("Media processing", row.TextContent);
+        Assert.Empty(cut.FindAll(".app-list-card__aside"));
         Assert.NotNull(row.QuerySelector(".app-list-card__warning .app-warning-strip"));
         Assert.Equal("Commercial Skip", cut.Find(".app-list-card__title").GetAttribute("title"));
     }
@@ -79,6 +82,67 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
         Assert.Equal(3, items.Count);
         Assert.Contains("need attention", items[2].TextContent);
         Assert.Equal("1", items[2].QuerySelector(".app-summary-strip__value")!.TextContent);
+    }
+
+    [Fact]
+    public void SummaryStrip_CarriesTheColourOfEachCountsMeaning()
+    {
+        var cut = Render<AppSummaryStrip>(p => p.Add(c => c.Items, new[]
+        {
+            new AppSummaryItem("installed", "17", Tone: AppSummaryTone.Accent),
+            new AppSummaryItem("switched on", "15", Tone: AppSummaryTone.Ok),
+            new AppSummaryItem("need attention", "2", Tone: AppSummaryTone.Warn),
+            new AppSummaryItem("broken", "0", Tone: AppSummaryTone.Mute),
+        }));
+
+        var items = cut.FindAll(".app-summary-strip__item");
+        Assert.Contains("app-summary-strip__item--accent", items[0].ClassList);
+        Assert.Contains("app-summary-strip__item--ok", items[1].ClassList);
+        Assert.Contains("app-summary-strip__item--warn", items[2].ClassList);
+        Assert.Contains("app-summary-strip__item--mute", items[3].ClassList);
+    }
+
+    [Theory]
+    [InlineData("books", "Books")]
+    [InlineData("tv", "TV")]
+    [InlineData("audiobooks", "Audiobooks")]
+    public void MediaPill_UsesTheStatusPillShapeInTheMediaColour(string media, string label)
+    {
+        var cut = Render<AppMediaPill>(p => p.Add(c => c.Media, media));
+
+        var pill = cut.Find(".app-status-badge");
+        Assert.Equal(label, pill.TextContent.Trim());
+        Assert.Contains("app-media-pill", pill.ClassList);
+        Assert.Contains($"app-media-pill--{media}", pill.ClassList);
+    }
+
+    [Fact]
+    public void NoPageStylesItsOwnPill()
+    {
+        // One pill set (spec plugins-and-integrations-screens-v3 D23): cards use AppStatusBadge / AppMediaPill, not hand-styled spans or AppChip.
+        var web = FindWebSource();
+        var offenders = Directory.EnumerateFiles(web, "*.*", SearchOption.AllDirectories)
+            .Where(path => path.EndsWith(".razor", StringComparison.Ordinal) || path.EndsWith(".css", StringComparison.Ordinal))
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") && !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
+            .Where(path => File.ReadAllText(path).Contains("app-list-card__kind", StringComparison.Ordinal))
+            .ToList();
+        Assert.Empty(offenders);
+
+        var card = File.ReadAllText(Path.Combine(web, "Components", "Shared", "AppListCard.razor"));
+        Assert.DoesNotContain("<AppChip", card, StringComparison.Ordinal);
+        Assert.DoesNotContain("<span class=\"app-list-card__kind\"", card, StringComparison.Ordinal);
+    }
+
+    private static string FindWebSource()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, "src", "MediaEngine.Web")))
+        {
+            dir = dir.Parent;
+        }
+
+        Assert.NotNull(dir);
+        return Path.Combine(dir!.FullName, "src", "MediaEngine.Web");
     }
 
     [Fact]
@@ -179,7 +243,7 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
             .Add(c => c.Footer, b => b.AddMarkupContent(0, "<span id=\"foot\">Configure</span>")));
 
         Assert.Equal("MusicBrainz", cut.Find(".app-list-card__title").TextContent);
-        Assert.Equal("Metadata", cut.Find(".app-list-card__kind").TextContent);
+        Assert.Equal("Metadata", cut.Find(".app-list-card__badges .app-status-badge").TextContent.Trim());
         Assert.Equal("Configure", cut.Find("#foot").TextContent);
         Assert.Empty(cut.FindAll(".app-list-card__warning"));
     }

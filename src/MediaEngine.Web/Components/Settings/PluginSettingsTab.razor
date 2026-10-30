@@ -178,7 +178,7 @@ else
     private static string CategoryLabel(PluginSummaryResponse plugin) =>
         Categories.FirstOrDefault(category => category.Key == PluginCategories.Resolve(plugin.Category)).Label ?? "Utilities";
 
-    private bool Narrowed => !string.IsNullOrWhiteSpace(_search) || _statusFilter != "all" || _mediaFilter != "all" || _officialOnly || _categoryTab != "all";
+    private bool Narrowed => !string.IsNullOrWhiteSpace(_search) || _statusFilter != "all" || _mediaFilter != "all" || _officialOnly;
 
     private HealthWord WordOf(PluginSummaryResponse plugin)
     {
@@ -255,7 +255,6 @@ else
         _statusFilter = "all";
         _mediaFilter = "all";
         _officialOnly = false;
-        _categoryTab = "all";
         _page = 1;
     }
 
@@ -297,7 +296,7 @@ else
                                ValueChanged="@(value => Narrow(() => _mediaFilter = value ?? "all"))" />
                     <AppSelect Label="Sort" Value="@_sort" Options="@SortOptions" Native="true" FullWidth="false"
                                ValueChanged="@(value => Narrow(() => _sort = value ?? "name"))" />
-                    <AppSwitchRow Label="Official Tuvima" Icon="@AppMaterialIcons.Outlined.Shield" Value="@_officialOnly"
+                    <AppSwitchRow Label="Official Tuvima" ImageIcon="images/tuvima-icon.svg" Value="@_officialOnly"
                                   ValueChanged="@(value => Narrow(() => _officialOnly = value))" />
                 </AppSearchFilterRow>
             }
@@ -307,9 +306,16 @@ else
             _page = Math.Clamp(_page, 1, Math.Max(1, (int)Math.Ceiling(visible.Count / (double)PageSize)));
             @if (visible.Count == 0)
             {
-                <AppEmptyState Title="No plugins match" Message="Nothing installed fits that search or filter.">
-                    <Action><AppButton Label="Clear filters" Size="AppControlSize.Compact" OnClick="@ClearFilters" /></Action>
-                </AppEmptyState>
+                @if (Narrowed)
+                {
+                    <AppEmptyState Title="No plugins match" Message="Nothing installed fits that search or filter.">
+                        <Action><AppButton Label="Clear filters" Size="AppControlSize.Compact" OnClick="@ClearFilters" /></Action>
+                    </AppEmptyState>
+                }
+                else
+                {
+                    <AppEmptyState Title="Nothing in this category yet" Message="Plugins of this kind will appear here." />
+                }
             }
             else
             {
@@ -334,9 +340,9 @@ else
         var attention = _plugins.Count(NeedsAttention);
         return
         [
-            new("installed", _plugins.Count.ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.Extension),
-            new("switched on", _plugins.Count(plugin => plugin.Enabled).ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.CheckCircle),
-            new("need attention", attention.ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.Warning),
+            new("installed", _plugins.Count.ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.Extension, AppSummaryTone.Accent),
+            new("switched on", _plugins.Count(plugin => plugin.Enabled).ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.CheckCircle, AppSummaryTone.Ok),
+            new("need attention", attention.ToString(CultureInfo.InvariantCulture), attention == 0 ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.Warning, attention == 0 ? AppSummaryTone.Mute : AppSummaryTone.Warn),
         ];
     }
 
@@ -370,9 +376,10 @@ else
 
                               Footer="@PluginFooter(plugin, state.Word, canChange)">
             <Badges>
+                @MediaPills(plugin)
                 @if (official)
                 {
-                    <AppStatusBadge Text="Official Tuvima" Icon="@AppMaterialIcons.Outlined.Shield" Tone="AppUiTone.Primary" />
+                    <AppOfficialPill />
                 }
                 else
                 {
@@ -391,6 +398,25 @@ else
             </Warning>
         </AppStateCard>;
     }
+
+    // Two media pills and "+N" (the rest are on the plugin's page); a plugin for every type says so in one neutral pill.
+    private static RenderFragment MediaPills(PluginSummaryResponse plugin) => @<text>
+        @if (plugin.MediaTypes.Count == 0)
+        {
+            <AppStatusBadge Text="All media" Tone="AppUiTone.Neutral" />
+        }
+        else
+        {
+            @foreach (var media in plugin.MediaTypes.Take(2))
+            {
+                <AppMediaPill Media="@media" />
+            }
+            @if (plugin.MediaTypes.Count > 2)
+            {
+                <AppStatusBadge Text="@($"+{plugin.MediaTypes.Count - 2}")" Tone="AppUiTone.Neutral" Title="@string.Join(", ", plugin.MediaTypes.Skip(2))" />
+            }
+        }
+    </text>;
 
     // A plugin that needs a tool the health check cannot find: the strip names the tools and opens Tools and requirements.
     private static string? MissingToolText(PluginSummaryResponse plugin, HealthWord word)

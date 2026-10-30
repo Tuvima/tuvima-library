@@ -62,9 +62,16 @@
             _page = Math.Clamp(_page, 1, Math.Max(1, (int)Math.Ceiling(visible.Count / (double)PageSize)));
             @if (visible.Count == 0)
             {
-                <AppEmptyState Title="No integrations match" Message="Nothing connected fits that search or filter.">
-                    <Action><AppButton Label="Clear filters" Size="AppControlSize.Compact" OnClick="@ClearFilters" /></Action>
-                </AppEmptyState>
+                @if (Narrowed)
+                {
+                    <AppEmptyState Title="No integrations match" Message="Nothing connected fits that search or filter.">
+                        <Action><AppButton Label="Clear filters" Size="AppControlSize.Compact" OnClick="@ClearFilters" /></Action>
+                    </AppEmptyState>
+                }
+                else
+                {
+                    <AppEmptyState Title="Nothing in this category yet" Message="Integrations of this kind will appear here." />
+                }
             }
             else
             {
@@ -220,10 +227,10 @@
     };
 
     private RenderFragment IntegrationCard(ApplicationResponse app) => @<AppListCard Title="@app.Name" Icon="@AppMaterialIcons.Outlined.Apps" Kind="@KindLabel(app)" Description="@app.Description">
-        <Aside><AppChip Text="@StatusText(app)" Tone="@StatusTone(app)" /></Aside>
+        <Status><AppStatusBadge Text="@(FailingWebhook(app) is not null ? "Delivery failed" : StatusText(app))" Tone="@(FailingWebhook(app) is not null ? AppUiTone.Error : StatusTone(app))" /></Status>
+        <Badges><AppStatusBadge Text="@PresetLabel(app)" Tone="@(app.IsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)" /></Badges>
         <ChildContent>
             <p class="access-card__meta">
-                <AppChip Text="@PresetLabel(app)" Tone="@(app.IsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)" />
                 <span>@app.Credentials.Count(credential => credential.RevokedAt is null) active keys@(CredentialExpirySummary(app) is { } expiry ? $" · {expiry}" : null)</span>
                 <span>@(app.LastUsedAt is null ? "Never used" : $"Last used {app.LastUsedAt.Value.ToLocalTime():g}")</span>
             </p>
@@ -283,10 +290,11 @@
     private string KindLabel(ApplicationResponse app) => IsWebhook(app) ? "Webhook" : TypeLabel(app.ApplicationType);
     private string StatusText(ApplicationResponse app) => !app.IsEnabled ? "Disabled" : NeedsAttention(app) ? "Needs attention" : "Enabled";
     private AppUiTone StatusTone(ApplicationResponse app) => !app.IsEnabled ? AppUiTone.Neutral : NeedsAttention(app) ? AppUiTone.Warning : AppUiTone.Success;
-    private bool Narrowed => !string.IsNullOrWhiteSpace(_search) || _statusFilter != "all" || _accessFilter != "all" || _kindTab != "all";
+    // Tabs are navigation, not a filter: only search and the filter menus count (spec plugins-and-integrations-screens-v3 D20).
+    private bool Narrowed => !string.IsNullOrWhiteSpace(_search) || _statusFilter != "all" || _accessFilter != "all";
 
     private void Narrow(Action change) { change(); _page = 1; }
-    private void ClearFilters() { _search = null; _statusFilter = _accessFilter = _kindTab = "all"; _page = 1; }
+    private void ClearFilters() { _search = null; _statusFilter = _accessFilter = "all"; _page = 1; }
 
     private bool MatchesFilters(ApplicationResponse app) =>
         (string.IsNullOrWhiteSpace(_search) || app.Name.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -312,9 +320,9 @@
 
     private IReadOnlyList<AppSummaryItem> SummaryItems() =>
     [
-        new("integrations", _applications.Count.ToString(), AppMaterialIcons.Outlined.Apps),
-        new("active", _applications.Count(app => app.IsEnabled).ToString(), AppMaterialIcons.Outlined.CheckCircle),
-        new("need attention", _applications.Count(NeedsAttention).ToString(), AppMaterialIcons.Outlined.ErrorOutline),
+        new("integrations", _applications.Count.ToString(), AppMaterialIcons.Outlined.Apps, AppSummaryTone.Accent),
+        new("active", _applications.Count(app => app.IsEnabled).ToString(), AppMaterialIcons.Outlined.CheckCircle, AppSummaryTone.Ok),
+        new("need attention", _applications.Count(NeedsAttention).ToString(), AppMaterialIcons.Outlined.ErrorOutline, _applications.Count(NeedsAttention) == 0 ? AppSummaryTone.Mute : AppSummaryTone.Warn),
     ];
 
     private async Task SetEnabledAsync(ApplicationResponse app, bool enabled)

@@ -1,0 +1,28 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* A media type as a soft pill in its design-system colour (books, audiobooks, comics, movies, TV, music, videos, photos).
+   Same shape and size as the status pill, so a card's pill row reads as one set (spec: plugins-and-integrations-screens-v3 D23). *@
+<AppStatusBadge Text="@Label" Tone="AppUiTone.Neutral" Class="@RootClass" Title="@Title" />
+
+@code {
+    /// <summary>The media kind key: books, audiobooks, comics, movies, tv, music, videos or photos.</summary>
+    [Parameter, EditorRequired] public string Media { get; set; } = string.Empty;
+    [Parameter] public string? Title { get; set; }
+
+    private string Key => Media.Trim().ToLowerInvariant();
+
+    private string Label => Key switch
+    {
+        "books" => "Books",
+        "audiobooks" => "Audiobooks",
+        "comics" => "Comics",
+        "movies" => "Movies",
+        "tv" => "TV",
+        "music" => "Music",
+        "videos" => "Videos",
+        "photos" => "Photos",
+        _ => Media,
+    };
+
+    private string RootClass => $"app-media-pill app-media-pill--{Key}";
+}
