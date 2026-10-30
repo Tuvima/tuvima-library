@@ -1,6 +1,6 @@
 # Spec: Safer deleting in View
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-21 · **Related docs:** [Product overview](../product/overview.md) · [Deleting personal files in View](archive/view-personal-file-deletion.md) (Built v3; sections 2 and 8 name the three gaps this spec closes) · [Delete from library](archive/delete-from-library.md) · [Videos](videos.md) (D14, D49 recycle bin) · [View personal media (public)](../../docs/architecture/view-personal-media.md) · [Security model (public)](../../docs/architecture/security.md)
+> **Status:** Built · **Version:** 2 · **Last updated:** 2026-10-21 · **Related docs:** [Product overview](../../product/overview.md) · [Deleting personal files in View](view-personal-file-deletion.md) (Built v3; sections 2 and 8 name the three gaps this spec closes) · [Delete from library](delete-from-library.md) · [Videos](../videos.md) (D14, D49 recycle bin) · [View personal media (public)](../../../docs/architecture/view-personal-media.md) · [Security model (public)](../../../docs/architecture/security.md)
 
 > Written 2026-10-21 after Shy agreed (open-items review) to plan safer deleting in View. This is a **new spec, not a new Version of the Built one**: Deleting personal files in View is Built and archived, and its meaning does not change. It builds on it. Version 2 records Shy's answers on how Missing items behave (hidden, 90-day purge, findable in search). Locked by Shy on 2026-10-21.
 
