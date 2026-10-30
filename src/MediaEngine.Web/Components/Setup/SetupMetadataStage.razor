@@ -1,0 +1,177 @@
+@namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Contracts.Setup
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Components.Shared.Providers
+@inject IAppDialogService DialogService
+
+<div class="setup-stage-content">
+    <div class="setup-stage__heading">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudSync" />
+        <div>
+            <h2 id="setup-stage-title">Connect your metadata sources</h2>
+            <p>Choose where information about your media comes from. Each source below says what it can supply.</p>
+        </div>
+    </div>
+
+    <SetupLocaleStage Value="@Locale" ValueChanged="LocaleChanged" ShowDisplay="false" ShowMetadata="true" />
+
+    @if (Catalogue.Count == 0)
+    {
+        <div class="setup-preparing" role="status">
+            <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
+            <span>Finding metadata sources for your library…</span>
+        </div>
+    }
+    else
+    {
+        <div class="setup-sources-bar">
+            <p class="setup-sources-bar__note">
+                @if (Filtering)
+                {
+                    <span>Showing the sources that fit the libraries you added.</span>
+                    <AppButton Label="Show all sources" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => _showAll = true)" />
+                }
+                else if (_showAll && HasLibraryFilter)
+                {
+                    <span>Showing every source.</span>
+                    <AppButton Label="Only the ones that fit" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => _showAll = false)" />
+                }
+            </p>
+            <AppLayoutSwitch StorageKey="tuvima.setup.metadata.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Sources layout" />
+        </div>
+
+        @if (_layout == AppLayoutSwitch.List)
+        {
+            <div class="setup-builtins setup-sources-list" data-testid="setup-sources-list">
+                @foreach (var provider in Visible)
+                {
+                    <div class="setup-source-row">
+                        <AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" />
+                        <div><strong>@provider.DisplayName</strong><small>@Purpose(provider)</small></div>
+                        @StatusBadge(provider)
+                        @ConnectButton(provider)
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="setup-provider-grid" data-testid="setup-sources-cards">
+                @foreach (var provider in Visible)
+                {
+                    <AppListCard Title="@provider.DisplayName" Description="@Purpose(provider)">
+                        <Logo><AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" /></Logo>
+                        <Status>@StatusBadge(provider)</Status>
+                        <Footer>@ConnectButton(provider)</Footer>
+                    </AppListCard>
+                }
+            </div>
+        }
+
+        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+            <AppButton Label="@(AnythingConfigured ? "Continue" : "Skip for now")" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || Catalogue.Count == 0)" OnClick="@(AnythingConfigured ? Continue : Defer)" />
+        </SetupStageFooter>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ProviderCatalogueDto> Catalogue { get; set; } = [];
+    [Parameter] public string? SetupSession { get; set; }
+    /// <summary>The metadata language is one pre-filled line above the sources; it is saved with the step.</summary>
+    [Parameter] public SetupLocaleDto? Locale { get; set; }
+    [Parameter] public EventCallback<SetupLocaleDto> LocaleChanged { get; set; }
+    /// <summary>The media types of the libraries added so far; sources that do not fit any of them are tucked away behind "Show all sources". Empty means no library was added, so everything shows.</summary>
+    [Parameter] public IReadOnlyCollection<string>? LibraryMediaTypes { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback RefreshRequested { get; set; }
+    [Parameter] public EventCallback Continue { get; set; }
+    [Parameter] public EventCallback Defer { get; set; }
+    [Parameter] public EventCallback Back { get; set; }
+    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
+    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
+
+    private string _layout = AppLayoutSwitch.Cards;
+    private bool _showAll;
+
+    private bool HasLibraryFilter => LibraryMediaTypes is { Count: > 0 };
+
+    private bool Fits(ProviderCatalogueDto provider) => !HasLibraryFilter
+        || provider.MediaTypes.Count == 0
+        || provider.MediaTypes.Any(type => LibraryMediaTypes!.Contains(type, StringComparer.OrdinalIgnoreCase));
+
+    // Sources that still need a key come first, then saved keys, then the ones that need nothing.
+    private IReadOnlyList<ProviderCatalogueDto> Visible => Catalogue
+        .Where(provider => _showAll || Fits(provider))
+        .OrderBy(provider => SourceState(provider))
+        .ThenBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private bool Filtering => HasLibraryFilter && !_showAll && Catalogue.Any(provider => !Fits(provider));
+
+    private enum SourceStates { NeedsKey, KeySaved, NoKeyNeeded }
+
+    private static SourceStates SourceState(ProviderCatalogueDto provider)
+    {
+        var supplied = provider.Onboarding?.Credentials.Where(IsUserSupplied).ToList() ?? [];
+        if (supplied.Count == 0) return SourceStates.NoKeyNeeded;
+        return supplied.Any(credential => credential.Configured) ? SourceStates.KeySaved : SourceStates.NeedsKey;
+    }
+
+    private RenderFragment StatusBadge(ProviderCatalogueDto provider) => SourceState(provider) switch
+    {
+        SourceStates.KeySaved => @<AppStatusBadge Text="Key saved" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
+        SourceStates.NeedsKey => @<AppStatusBadge Text="Needs a key" Tone="AppUiTone.Warning" Icon="@AppMaterialIcons.Outlined.Key" />,
+        _ => @<AppStatusBadge Text="No key needed" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
+    };
+
+    // No switch and no menu here: a source is either connected or it is not, and the rest is Settings.
+    private RenderFragment? ConnectButton(ProviderCatalogueDto provider) => SourceState(provider) == SourceStates.NoKeyNeeded
+        ? null
+        : @<AppButton Label="@ProviderAction(provider)" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="@(() => OpenProviderAsync(provider))" />;
+
+    private async Task OpenProviderAsync(ProviderCatalogueDto provider)
+    {
+        var parameters = new AppDialogParameters<ProviderOnboardingDialog>
+        {
+            { component => component.Catalogue, provider },
+            { component => component.SetupSession, SetupSession },
+            { component => component.Operation, ProviderOnboardingOperation.Connect },
+        };
+        var dialog = await DialogService.ShowAsync<ProviderOnboardingDialog>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Large,
+            FullWidth = true,
+            CloseButton = false,
+            CloseOnEscapeKey = true,
+        });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: ProviderOnboardingDialogResult })
+            await RefreshRequested.InvokeAsync();
+    }
+
+    private static bool IsUserSupplied(ProviderCredentialFieldDto credential) =>
+        string.Equals(credential.Ownership, "user_supplied", StringComparison.OrdinalIgnoreCase);
+
+    // True once at least one key the person supplies has been entered and saved; until then the step is skipped, not passed.
+    // Services that work without an account do not count: nothing was set up here.
+    internal static bool HasConfiguredKey(IEnumerable<ProviderCatalogueDto> catalogue) => catalogue.Any(provider =>
+        provider.Onboarding is not null
+        && provider.Onboarding.Credentials.Any(credential => IsUserSupplied(credential) && credential.Configured));
+
+    private bool AnythingConfigured => HasConfiguredKey(Catalogue);
+
+    private static string ProviderAction(ProviderCatalogueDto provider) => SourceState(provider) == SourceStates.KeySaved ? "Review key" : "Connect";
+    private static string Purpose(ProviderCatalogueDto provider) => provider.Onboarding?.Intro?.Summary
+        ?? (provider.Onboarding?.SupportedLanes.Count > 0
+            ? $"Improves {string.Join(", ", provider.Onboarding.SupportedLanes.Select(Friendly))}."
+            : "Optional metadata enrichment.");
+
+    private static string Initials(string name) => string.Concat(name
+        .Split([' ', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries)
+        .Take(2)
+        .Select(word => char.ToUpperInvariant(word[0])));
+
+    private static string Friendly(string value) => string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries)
+        .Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
+}

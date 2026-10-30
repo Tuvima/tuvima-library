@@ -9585,6 +9585,7 @@ MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupAdministratorReques
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupAdministratorResponse
   Created: System.Boolean | nullability=not-null | accessors=get,init
   RecoveryCodes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Session: MediaEngine.Contracts.Authentication.AuthSessionResponse | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupBackupInspectionDto
   OperationId: System.Guid | nullability=not-null | accessors=get,init

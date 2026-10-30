@@ -11333,6 +11333,7 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Created: System.Boolean | json=created | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RecoveryCodes: System.Collections.Generic.IReadOnlyList<System.String> | json=recovery_codes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Session: MediaEngine.Contracts.Authentication.AuthSessionResponse | json=session | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Setup.SetupBackupInspectionDto
   kind=class | converter=default | number-handling=default | unmapped=default

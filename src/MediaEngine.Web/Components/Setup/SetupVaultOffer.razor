@@ -9,7 +9,7 @@
 @inject ConfirmedActionRunner Confirmed
 @inject DeviceContextService DeviceContext
 
-@* "Turn on the Vault?" (library setup and add-folder v2, D17 to D21): the optional last part of the Libraries step, offered once, after the libraries,
+@* "Turn on the Vault?" (library setup and add-folder v2, D17 to D21): its own optional step after Libraries, offered once, after the libraries,
    to the first administrator only. Not now leaves no trace: the caller carries straight on and nothing here is ever drawn. Set up the Vault asks for a PIN
    typed twice (strongly suggested, never required: Vault sections D44), turns the Vault on for this administrator only, opens it for the rest of setup
    with the usual two-screen Add library so a first private library can be added now, and leaves it out of the main menu. It is one profile PIN, the same
@@ -20,7 +20,7 @@
         case Phase.Offer:
             <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">Turn on the Vault?</h2><p>The Vault is a private place for libraries that only people you choose can open. It stays hidden until you turn it on.</p></div></div>
             <SetupStageFooter>
-                <AppButton Label="Not now" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="Finished" />
+                <AppButton Label="Not now" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Finished.InvokeAsync(false))" />
                 <AppButton Label="Set up the Vault" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="StartSetup" />
             </SetupStageFooter>
             break;
@@ -32,7 +32,7 @@
             </div>
             @if (_error is not null) { <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert> }
             <SetupStageFooter>
-                <AppButton Label="Not now" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="Finished" />
+                <AppButton Label="Not now" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Finished.InvokeAsync(false))" />
                 <AppButton Label="Turn on the Vault" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || !PinTypedValid)" OnClick="@(() => TurnOnAsync(_pin))" />
             </SetupStageFooter>
             break;
@@ -79,7 +79,7 @@
                 <AppAlert Tone="AppUiTone.Error"><span>@_loadError</span></AppAlert>
             }
             <SetupStageFooter>
-                <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Finished" />
+                <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Finished.InvokeAsync(true))" />
             </SetupStageFooter>
             break;
     }
@@ -97,7 +97,8 @@
     [Parameter] public string? SetupSession { get; set; }
 
     /// <summary>Raised when the person is done with this part: Not now, or Continue once the Vault is on.</summary>
-    [Parameter] public EventCallback Finished { get; set; }
+    /// <summary>Raised when the step is over; true when the Vault was turned on, false after Not now.</summary>
+    [Parameter] public EventCallback<bool> Finished { get; set; }
 
     private Phase _phase = Phase.Offer;
     private bool _hasPin;

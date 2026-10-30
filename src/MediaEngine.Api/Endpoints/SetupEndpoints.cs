@@ -170,7 +170,7 @@ public static class SetupEndpoints
         group.MapPost("/administrator", async (
             SetupAdministratorRequest request, HttpContext context, ClaimsPrincipal user,
             SetupSessionService sessions, IFirstPartyIdentityService identity,
-            IContainerProbe container, OnboardingRepository onboarding, CancellationToken ct) =>
+            IContainerProbe container, OnboardingRepository onboarding, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {
@@ -229,7 +229,8 @@ public static class SetupEndpoints
                 await onboarding.SetStepAsync(
                     "profile", "passed", "Administrator account and initial profile created.",
                     null, issued.Profile.Id, ct).ConfigureAwait(false);
-                return Results.Ok(new SetupAdministratorResponse(true, issued.RecoveryCodes));
+                // The sign-in the Engine just issued goes back to the Dashboard so setup continues signed in on the same page.
+                return Results.Ok(new SetupAdministratorResponse(true, issued.RecoveryCodes, await AuthenticationEndpoints.ToResponseAsync(issued, projector, ct).ConfigureAwait(false)));
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
