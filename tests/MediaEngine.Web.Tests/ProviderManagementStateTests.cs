@@ -8,7 +8,7 @@ public sealed class ProviderManagementStateTests
     public void ProviderSettings_UsesSharedOnboardingWithoutProviderSpecificInstructions()
     {
         var page = File.ReadAllText(FindRepoFile(
-            "src", "MediaEngine.Web", "Components", "Settings", "MetadataSettingsPage.razor"));
+            "src", "MediaEngine.Web", "Components", "Settings", "Plugins", "ProviderDetail.razor"));
         var dialog = File.ReadAllText(FindRepoFile(
             "src", "MediaEngine.Web", "Components", "Shared", "Providers", "ProviderOnboardingDialog.razor"));
 

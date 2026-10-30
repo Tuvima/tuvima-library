@@ -531,8 +531,7 @@
     private AudiobookBookmarkActionSnapshot FilterSnapshot(AudiobookBookmarkActionSnapshot snapshot,
         AudiobookBookmarkActionContext context)
     {
-        var saved = snapshot.Saved.Where(bookmark => (bookmark.ProfileId == context.ProfileId || bookmark.IsGlobal)
-            && bookmark.WorkId == context.WorkId && _boundAuthorizedAssetIds.Contains(bookmark.AssetId)).ToArray();
+        var saved = snapshot.Saved.Where(bookmark => bookmark.WorkId == context.WorkId && _boundAuthorizedAssetIds.Contains(bookmark.AssetId)).ToArray();
         var draft = snapshot.Draft is { } captured
             && captured.ProfileId == context.ProfileId
             && captured.WorkId == context.WorkId

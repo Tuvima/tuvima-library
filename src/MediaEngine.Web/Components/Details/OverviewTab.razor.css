@@ -54,6 +54,26 @@
     margin: 0;
 }
 
+:where(.tl-detail-page) .tl-overview-section__prose--collapsed p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+}
+
+:where(.tl-detail-page) .tl-overview-section__more {
+    margin-top: 0.5rem;
+    min-height: 2rem;
+    padding: 0.2rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--tl-accent, #a78bfa);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
 :where(.tl-detail-page) :where(.tl-overview-surface) ::deep .tl-overview-section__credits-link {
     display: inline-flex;
     align-items: center;
@@ -123,8 +143,8 @@
 .tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact,
 .tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child {
         display: block;
-        width: clamp(6.5rem, 6.8vw, 7.75rem);
-        max-width: clamp(6.5rem, 6.8vw, 7.75rem);
+        width: clamp(7.5rem, 9vw, 10rem);
+        max-width: clamp(7.5rem, 9vw, 10rem);
         min-height: 0;
     }
 
@@ -151,8 +171,8 @@
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--compact {
         display: block;
-        width: clamp(6.5rem, 7vw, 8rem);
-        max-width: clamp(6.5rem, 7vw, 8rem);
+        width: clamp(7.5rem, 9vw, 10rem);
+        max-width: clamp(7.5rem, 9vw, 10rem);
         min-height: 0;
         padding: 0;
         border: 0;

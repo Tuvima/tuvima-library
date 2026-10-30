@@ -130,12 +130,11 @@
    so a shelf with no See All is exactly as tall as one that has it. */
 :root[data-form-factor="phone"] .media-tile-shelf-header { flex-direction:row; align-items:center; min-height:48px; }
 
-/* The View all tile ends every shelf that has a See all link. Each tile sets its own size (portrait, square and landscape, and they
-   differ by density), so the end tile follows the row: a narrow tile that stretches to the full height of the row's tiles (artwork
-   and caption), content centred, never under 48px in either direction. */
+/* The View all tile ends every shelf that has a See all link: a square, centred vertically against the row's tiles, never
+   under 48px in either direction. It stays small instead of stretching to the full height of the posters and captions. */
 .media-tile-shelf-view-all {
     flex: 0 0 auto;
-    align-self: stretch;
+    align-self: center;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -145,6 +144,7 @@
     padding: 8px;
     text-align: center;
     width: max(48px, var(--media-tile-shelf-view-all-width));
+    aspect-ratio: 1 / 1;
     min-width: 48px;
     min-height: 48px;
     scroll-snap-align: start;

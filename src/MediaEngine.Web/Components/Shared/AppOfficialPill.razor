@@ -1,0 +1,14 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* "Official Tuvima" with the real Tuvima icon, not a generic shield (spec: plugins-and-integrations-screens-v3 D28). *@
+<AppStatusBadge Text="@Text" Tone="AppUiTone.Primary" Title="Made by Tuvima" Class="app-official-pill">
+    <img class="app-official-pill__icon" src="images/tuvima-icon.svg" alt="" width="@IconSize" height="@IconSize" />
+    <span>@Text</span>
+</AppStatusBadge>
+
+@code {
+    [Parameter] public string Text { get; set; } = "Official Tuvima";
+
+    /// <summary>14 on tiles and the filter switch; 16 beside the name in lists and page headers.</summary>
+    [Parameter] public int IconSize { get; set; } = 14;
+}

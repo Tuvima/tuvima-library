@@ -5,7 +5,7 @@
 <ul class="@RootClass" aria-label="@(AriaLabel ?? "Summary")">
     @foreach (var item in Items)
     {
-        <li class="app-summary-strip__item">
+        <li class="@ItemClass(item)">
             @if (!string.IsNullOrWhiteSpace(item.Icon))
             {
                 <AppMaterialIcon Icon="@item.Icon" />
@@ -28,6 +28,15 @@
     [Parameter] public bool Loading { get; set; }
     [Parameter] public string? AriaLabel { get; set; }
     [Parameter] public string? Class { get; set; }
+
+    private static string ItemClass(AppSummaryItem item) => item.Tone switch
+    {
+        AppSummaryTone.Accent => "app-summary-strip__item app-summary-strip__item--accent",
+        AppSummaryTone.Ok => "app-summary-strip__item app-summary-strip__item--ok",
+        AppSummaryTone.Warn => "app-summary-strip__item app-summary-strip__item--warn",
+        AppSummaryTone.Mute => "app-summary-strip__item app-summary-strip__item--mute",
+        _ => "app-summary-strip__item",
+    };
 
     private string RootClass => string.Join(" ", new[] { "app-summary-strip", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
 }

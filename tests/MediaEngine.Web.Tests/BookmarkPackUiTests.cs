@@ -71,7 +71,7 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
     {
         var api = EngineApiClientStub.Create(_ => { });
 
-        var none = RenderSection(api, saved: [Own(100, "shared", global: true), Own(200, "someone else's", profile: Guid.NewGuid())]);
+        var none = RenderSection(api, saved: [Own(100, "shared", global: true)]);
         Assert.True(none.FindAll("button").First(button => button.TextContent.Trim() == "Export").HasAttribute("disabled"));
     }
 

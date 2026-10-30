@@ -71,12 +71,21 @@
             }
             else
             {
-                <div class="tl-overview-section__prose">
-                    @foreach (var paragraph in OverviewDescriptionParagraphs)
+                <div class="@(CanCollapseOverview && !_overviewExpanded ? "tl-overview-section__prose tl-overview-section__prose--collapsed" : "tl-overview-section__prose")">
+                    @foreach (var paragraph in VisibleOverviewParagraphs)
                     {
                         <p>@paragraph</p>
                     }
                 </div>
+                @if (CanCollapseOverview)
+                {
+                    <AppNativeButton Type="button"
+                                     Class="tl-overview-section__more"
+                                     aria-expanded="@(_overviewExpanded ? "true" : "false")"
+                                     OnClick="@(() => _overviewExpanded = !_overviewExpanded)">
+                        @(_overviewExpanded ? "Show less" : "Show more")
+                    </AppNativeButton>
+                }
                 <DescriptionAttribution Attribution="Model.DescriptionAttribution" Compact="true" />
             }
             <div class="tl-overview-section__edit">
@@ -137,7 +146,18 @@
     [Parameter] public EventCallback<SequenceContainerOptionViewModel> OnContainerSelected { get; set; }
 
     private bool _creditsExpanded;
+    private bool _overviewExpanded;
     private int _orderVersion;
+
+    // A long overview opens on its first two paragraphs, each clamped to a few lines, so the cast beside it
+    // is not pushed far down the page; Show more opens all of it.
+    private const int CollapsedParagraphs = 2;
+    private const int LongParagraphLength = 520;
+    private bool CanCollapseOverview => OverviewDescriptionParagraphs.Count > CollapsedParagraphs
+        || OverviewDescriptionParagraphs.Any(paragraph => paragraph.Length > LongParagraphLength);
+    private IReadOnlyList<string> VisibleOverviewParagraphs => CanCollapseOverview && !_overviewExpanded
+        ? OverviewDescriptionParagraphs.Take(CollapsedParagraphs).ToList()
+        : OverviewDescriptionParagraphs;
 
     // Editing Mode: the description is editable; the credits are provider facts and show a lock with the reason.
     private static readonly string[] DescriptionKeys = ["description", "episode_description", "issue_description"];

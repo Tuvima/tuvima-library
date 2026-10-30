@@ -635,6 +635,33 @@ public sealed partial class EngineApiClient
         CancellationToken ct = default)
         => await _providerClient.UpdateProviderAsync(name, enabled, ct);
 
+    public Task<StashBoxSettingsDto?> GetStashBoxSettingsAsync(CancellationToken ct = default) =>
+        GetAsync<StashBoxSettingsDto>("GET /settings/stashbox", "/settings/stashbox", ct: ct);
+
+    public Task<StashBoxTestResultDto?> TestStashBoxServerAsync(string serverId, CancellationToken ct = default) =>
+        PostAsync<StashBoxTestRequest, StashBoxTestResultDto>("POST /settings/stashbox/test", "/settings/stashbox/test", new StashBoxTestRequest { ServerId = serverId }, ct: ct);
+
+    public Task<StashBoxTestResultDto?> SaveStashBoxServerKeyAsync(string serverId, string apiKey, CancellationToken ct = default) =>
+        PutAsync<StashBoxKeyRequest, StashBoxTestResultDto>("PUT /settings/stashbox/servers/key", $"/settings/stashbox/servers/{Uri.EscapeDataString(serverId)}/key", new StashBoxKeyRequest { ApiKey = apiKey }, ct: ct);
+
+    public async Task<bool> RemoveStashBoxServerAsync(string serverId, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.DeleteAsync($"/settings/stashbox/servers/{Uri.EscapeDataString(serverId)}", ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "DELETE /settings/stashbox/servers failed");
+            LastError = ex.Message;
+            return false;
+        }
+    }
+
+    public Task<StashBoxSettingsDto?> SetStashBoxFingerprintPermissionAsync(bool allowed, CancellationToken ct = default) =>
+        PutAsync<StashBoxFingerprintPermissionRequest, StashBoxSettingsDto>("PUT /settings/stashbox/fingerprint-permission", "/settings/stashbox/fingerprint-permission", new StashBoxFingerprintPermissionRequest { Allowed = allowed }, ct: ct);
+
     public async Task<List<ProviderHealthStatusResponse>> GetProviderHealthAsync(
         CancellationToken ct = default)
     {
