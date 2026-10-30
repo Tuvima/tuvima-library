@@ -21,10 +21,13 @@ namespace MediaEngine.Api.Endpoints;
 
 public static partial class ItemCanonicalEndpoints
 {
+    /// <summary>How long a save waits for the title and poster a match changes before leaving the rest to the background job.</summary>
+    internal static readonly TimeSpan TvVisibleRefreshBudget = TimeSpan.FromSeconds(10);
+
     /// <summary>
     /// Replaces the item's retail match. The one write path behind both the editor's retail-match action and the edit session's
     /// identity change. <paramref name="allowParentMove"/> false leaves the item where it is (only identity and details change);
-    /// <paramref name="validateOnly"/> runs the cheap local checks and writes nothing.
+    /// <paramref name="validateOnly"/> runs every verification the save runs (including TheTVDB reads) and writes nothing.
     /// </summary>
     internal static async Task<IResult> ReplaceRetailMatchCoreAsync(
         RetailMatchWriter writer,
@@ -95,15 +98,11 @@ public static partial class ItemCanonicalEndpoints
             return ApiErrors.BadRequest(incompatibility!);
         }
 
-        if (validateOnly)
-        {
-            // The edit session's check: everything above is cheap and local. Nothing below (provider calls, writes) runs.
-            return await workRepo.GetLineageByAssetAsync(context.AssetId, ct) is null
-                ? ApiErrors.NotFound($"No work lineage found for {entityId}.")
-                : Results.Ok(new ItemCanonicalApplyResponseDto { EntityId = entityId });
-        }
-
-        if (policy.MediaType == MediaType.TV.ToString() && policy.TargetFieldGroup == "show")
+        // A TV show match also swaps the show's poster before the save returns (universal editor v2, D6), taking it from the
+        // verified TheTVDB record so a rematch is visible at once instead of after the background job.
+        string? verifiedShowPosterUrl = null;
+        var isTvShowMatch = policy.MediaType == MediaType.TV.ToString() && policy.TargetFieldGroup == "show";
+        if (isTvShowMatch)
         {
             if (!tvdb.IsConfigured("tvdb"))
             {
@@ -116,6 +115,7 @@ public static partial class ItemCanonicalEndpoints
                 {
                     return ApiErrors.BadRequest("The selected TheTVDB series is no longer available. Search again before applying it.");
                 }
+                verifiedShowPosterUrl = remoteSeries?["image"]?.ToString();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -171,6 +171,13 @@ public static partial class ItemCanonicalEndpoints
         if (relationVerification is not null)
         {
             return relationVerification;
+        }
+
+        if (validateOnly)
+        {
+            // The edit session's check runs the same verification the save runs (universal editor v2, D9), minus every write,
+            // so Review never passes a match the save then refuses for a reason that could be known in advance.
+            return Results.Ok(new ItemCanonicalApplyResponseDto { EntityId = entityId });
         }
 
         var identityTarget = ResolvePolicyIdentityTarget(context.AssetId, lineage, policy);
@@ -246,6 +253,33 @@ public static partial class ItemCanonicalEndpoints
             NeedsReview = false,
             WinningProviderId = providerId,
         }).ToList();
+
+        // The show's displayed title reads "title" before "show_name", so a show match writes both and the new name shows at once.
+        if (isTvShowMatch && selectedFields.TryGetValue(MetadataFieldConstants.ShowName, out var matchedShowName))
+        {
+            var titleTarget = ResolvePolicyScopedTarget(context.AssetId, lineage, policy, MetadataFieldConstants.ShowName);
+            claims.Add(new MetadataClaim
+            {
+                Id = Guid.NewGuid(),
+                EntityId = titleTarget,
+                ProviderId = providerId,
+                DecisionSourceProviderId = WellKnownProviders.UserManual,
+                ClaimKey = MetadataFieldConstants.Title,
+                ClaimValue = matchedShowName,
+                ClaimedAt = now,
+                Confidence = 1.0,
+            });
+            canonicals.Add(new CanonicalValue
+            {
+                EntityId = titleTarget,
+                Key = MetadataFieldConstants.Title,
+                Value = matchedShowName,
+                LastScoredAt = now,
+                IsConflicted = false,
+                NeedsReview = false,
+                WinningProviderId = providerId,
+            });
+        }
 
         var identityRevision = Guid.NewGuid().ToString("N");
         claims.AddRange(
@@ -443,9 +477,10 @@ public static partial class ItemCanonicalEndpoints
         }, ct);
 
         RetailArtworkReplacementResult? artworkResult = null;
-        if (SupportsImmediateRetailArtworkReplacement(policy))
+        var coverUrl = string.IsNullOrWhiteSpace(request.CoverUrl) && isTvShowMatch ? verifiedShowPosterUrl : request.CoverUrl;
+        if (SupportsImmediateRetailArtworkReplacement(policy) || (isTvShowMatch && !string.IsNullOrWhiteSpace(coverUrl)))
         {
-            if (!string.IsNullOrWhiteSpace(request.CoverUrl))
+            if (!string.IsNullOrWhiteSpace(coverUrl))
             {
                 await claimRepo.InsertBatchAsync(
                 [
@@ -456,19 +491,32 @@ public static partial class ItemCanonicalEndpoints
                         ProviderId = providerId,
                         DecisionSourceProviderId = WellKnownProviders.UserManual,
                         ClaimKey = MetadataFieldConstants.Cover,
-                        ClaimValue = request.CoverUrl.Trim(),
+                        ClaimValue = coverUrl.Trim(),
                         ClaimedAt = now,
                         Confidence = 1.0,
                     },
                 ], ct);
             }
 
-            artworkResult = await coverArtWorker.ReplaceProviderArtworkAsync(
-                context.AssetId,
-                request.CoverUrl,
-                request.ProviderName,
-                providerId,
-                ct);
+            // Bounded (D6): a slow provider never holds the save for more than TvVisibleRefreshBudget. Whatever did not finish is
+            // finished by the identity job queued above, which also fetches artwork.
+            using var artworkBudget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            artworkBudget.CancelAfter(TvVisibleRefreshBudget);
+            try
+            {
+                artworkResult = await coverArtWorker.ReplaceProviderArtworkAsync(
+                    context.AssetId,
+                    coverUrl,
+                    request.ProviderName,
+                    providerId,
+                    artworkBudget.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                loggerFactory.CreateLogger("MediaEngine.Api.Endpoints.ItemCanonicalEndpoints").LogWarning(
+                    "Immediate artwork for {EntityId} did not finish within {Budget}; the queued identity job will finish it.",
+                    entityId, TvVisibleRefreshBudget);
+            }
         }
 
         string? albumManifestRefreshDetail = null;
