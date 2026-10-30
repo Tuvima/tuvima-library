@@ -12,7 +12,10 @@
 
 .playback-seek-rail__bookmarks { position:absolute; inset:0; pointer-events:none; }
 .playback-seek-rail__bookmark-wrap { position:absolute; top:50%; transform:translate(-50%,-50%); pointer-events:auto; }
-.playback-seek-rail__bookmark { box-sizing:content-box; width:6px; height:16px; padding:0; border:9px solid transparent; border-radius:12px; background:var(--tl-accent-primary) padding-box; cursor:pointer; }
+.playback-seek-rail__bookmark { position:relative; box-sizing:border-box; width:12px; height:12px; padding:0; border:2px solid #000a; border-radius:50%; background:var(--tl-accent-primary); cursor:pointer; transition:transform .12s ease; }
+.playback-seek-rail__bookmark::before { content:""; position:absolute; inset:-8px; }
+.playback-seek-rail__bookmark:hover,.playback-seek-rail__bookmark[aria-expanded="true"] { transform:scale(1.25); }
+.playback-seek-rail__notice { position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); padding:4px 10px; border-radius:6px; background:rgba(0,0,0,.7); color:#fff; font-size:.85rem; white-space:nowrap; pointer-events:none; }
 .playback-seek-rail__bookmark.is-global { background-color:var(--playback-text); }
 .playback-seek-rail__bookmark.is-pack { background-color:var(--tl-accent-secondary); }
 .playback-seek-rail__quicklook { position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); display:grid; gap:4px; width:max-content; max-width:min(260px,70vw); padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm); background:var(--playback-surface); color:var(--playback-text); text-align:left; white-space:normal; overflow-wrap:anywhere; z-index:6; }

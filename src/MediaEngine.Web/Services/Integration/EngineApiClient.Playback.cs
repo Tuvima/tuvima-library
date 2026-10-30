@@ -30,7 +30,8 @@ public sealed partial class EngineApiClient
         string client = "web",
         Guid? profileId = null,
         CancellationToken ct = default,
-        PlaybackConnectionContextDto? connection = null)
+        PlaybackConnectionContextDto? connection = null,
+        bool adaptive = false)
     {
         var endpoint = $"GET /playback/{assetId}/manifest";
         try
@@ -42,6 +43,11 @@ public sealed partial class EngineApiClient
             if (profileId.HasValue)
             {
                 query.Add($"profileId={profileId.Value:D}");
+            }
+
+            if (adaptive)
+            {
+                query.Add("delivery=hls");
             }
 
             if (connection is not null)
