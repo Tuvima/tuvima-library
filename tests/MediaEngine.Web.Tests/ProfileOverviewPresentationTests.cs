@@ -61,7 +61,7 @@ public sealed class ProfileOverviewPresentationTests
 
         var stats = ProfileOverviewPresentation.Stats(summary);
 
-        Assert.Equal([("In progress", null), ("Finished", "Last 30 days"), ("Hours enjoyed", "All time"), ("Days active", "Last 30 days")],
+        Assert.Equal([("In progress", "Right now"), ("Finished", "Last 30 days"), ("Hours enjoyed", "All time"), ("Days active", "Last 30 days")],
             stats.Select(stat => (stat.Label, stat.Note)).ToArray());
         Assert.Equal(["2", "6", "1", "9"], stats.Select(stat => stat.Value).ToArray());
     }

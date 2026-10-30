@@ -5852,6 +5852,11 @@ button.view-inbox-chip:disabled { cursor: default; opacity: .6; }
     outline-offset: var(--tl-focus-ring-offset);
 }
 
+/* Who's watching: a profile is a round picture, so its focus ring is the picture's own glow (above), never a box around the picture and name. */
+:root:root button.who-card.who-card:focus-visible:not(:disabled) {
+    outline: none;
+}
+
 /* tv form factor: 10-foot presentation for remote-driven televisions. Larger root type, 56px dock targets, 14px dock
    labels, a wider shelf gutter and a readable hero line length. Phone and desktop layouts are untouched. */
 html[data-form-factor="tv"] {

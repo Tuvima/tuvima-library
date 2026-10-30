@@ -4,13 +4,14 @@
     display: grid;
     margin: 0;
     gap: var(--tl-space-3, 12px);
-    justify-items: start;
+    justify-items: stretch;
 }
 
+/* Like a wall calendar: the weekday names run across the top and each week is a row, so the days fill the card's width. */
 .overview-heatmap__body {
-    display: flex;
-    max-width: 100%;
-    gap: var(--tl-space-2, 8px);
+    display: grid;
+    min-width: 0;
+    gap: var(--gap);
 }
 
 .overview-heatmap__days {
@@ -18,30 +19,29 @@
     margin: 0;
     padding: 0;
     gap: var(--gap);
-    grid-auto-rows: var(--cell);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     list-style: none;
 }
 
 .overview-heatmap__days li {
     display: flex;
-    align-items: center;
+    justify-content: center;
     color: var(--tl-text-muted);
     font-size: 0.75rem;
     line-height: 1;
 }
 
-/* Seven rows (Monday to Sunday), a column per week. */
+/* Seven columns (Monday to Sunday), a row per week. */
 .overview-heatmap__grid {
     display: grid;
     gap: var(--gap);
-    grid-auto-columns: var(--cell);
-    grid-auto-flow: column;
-    grid-template-rows: repeat(7, var(--cell));
+    grid-auto-rows: var(--cell);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .overview-heatmap__cell {
     display: block;
-    width: var(--cell);
+    width: 100%;
     height: var(--cell);
     border-radius: var(--tl-radius-sm, 6px);
     background: color-mix(in srgb, var(--tl-text-muted) 14%, transparent);
@@ -65,6 +65,10 @@
     width: 0.9rem;
     height: 0.9rem;
     border-radius: var(--tl-radius-xs, 4px);
+}
+
+.overview-heatmap__legend {
+    justify-self: end;
 }
 
 .overview-heatmap__legend span:first-child {

@@ -74,6 +74,25 @@ public sealed class PlayerCatalogueScope(IHttpContextAccessor http)
         return row ?? throw new PlayerResourceDeniedException();
     }
 
+    /// <summary>
+    /// The full display row of an asset (title, show, artist, album, episode numbers), for a person's own activity record.
+    /// <see cref="RequireAssetContextAsync"/> carries only ids; when the full row cannot be found the light row comes back.
+    /// </summary>
+    internal async Task<DisplayWorkRow> DisplayContextAsync(DisplayWorkRow asset, CancellationToken ct)
+    {
+        var rows = await Context.RequestServices.GetRequiredService<AuthorizedDisplayProjectionReadService>()
+            .LoadDetailWorksAsync(asset.WorkId, ct);
+        var full = rows.FirstOrDefault(row => row.AssetId == asset.AssetId);
+        if (full is null)
+        {
+            return asset;
+        }
+
+        // The Vault check on the record reads the library, which the access check above already settled.
+        full.LibraryId = asset.LibraryId;
+        return full;
+    }
+
     public async Task<Guid?> FindAssetAsync(Guid workId, Guid? requestedAsset, CancellationToken ct) =>
         (await AssetsAsync(ct)).Where(row => row.WorkId == workId &&
                 (!requestedAsset.HasValue || row.AssetId == requestedAsset))

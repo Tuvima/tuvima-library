@@ -48,7 +48,7 @@ public static class ProfileOverviewPresentation
         var enjoyed = summary.WatchSeconds + summary.ReadSeconds + summary.ListenSeconds;
         return
         [
-            new("in-progress", DisplayFormat.FormatCount(summary.InProgressCount), "In progress", null),
+            new("in-progress", DisplayFormat.FormatCount(summary.InProgressCount), "In progress", "Right now"),
             new("finished", DisplayFormat.FormatCount(summary.FinishedLast30Days), "Finished", "Last 30 days"),
             new("hours", HoursEnjoyed(enjoyed), "Hours enjoyed", "All time"),
             new("days-active", DisplayFormat.FormatCount(summary.DaysActiveLast30), "Days active", $"Last {RollingDays} days"),
