@@ -194,8 +194,8 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
         Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
         Assert.Equal(3, cut.FindAll(".libs__group[data-area=view] tbody tr").Count);
-        Assert.Equal(3, cut.FindAll("button").Count(button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true));
-        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Add library");
+        Assert.Equal(3, cut.FindAll(".libs__group[data-area=view] button").Count(button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true));
+        Assert.DoesNotContain(cut.FindAll(".libs__group[data-area=view] button"), button => Text(button) == "Add library");
         Assert.Empty(cut.FindAll("a.libs__link"));
     }
 

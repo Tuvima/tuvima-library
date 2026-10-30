@@ -8,7 +8,6 @@
 @inject NavigationManager Navigation
 @inject DashboardSessionAccessor Session
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
-@inject IAppDialogService DialogService
 
 @* Add library: two screens, one question each. Screen 1 "What is it?" is only the content type of the area the person is standing in; screen 2 "Choose your
    Movies folder" is the folder (Browse opens the shared "Choose source folder" pop-up, the same one Add folder uses) and a name that is already filled in. Add
@@ -48,54 +47,18 @@
             }
             else
             {
-                <section class="create-library__section">
-                    <span class="create-library__caption" id="create-library-folder-caption">Folder</span>
-                    <div class="create-library__folder">
-                        <div class="create-library__folder-path" data-folder-path aria-labelledby="create-library-folder-caption">
-                            @if (_folder is { } chosen)
-                            {
-                                <AppMaterialIcon Icon="@(FolderUsable ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.WarningAmber)" />
-                                <span class="create-library__folder-text">@chosen.Path</span>
-                            }
-                            else
-                            {
-                                <span class="create-library__folder-text create-library__folder-text--empty">Browse for a folder</span>
-                            }
-                        </div>
-                        <AppButton Label="Browse"
-                                   StartIcon="@AppMaterialIcons.Outlined.FolderOpen"
-                                   ButtonStyle="AppButtonStyle.Outlined"
-                                   Disabled="@(_saving || Kind is null)"
-                                   OnClick="BrowseAsync" />
-                    </div>
-                    @if (_folder is { } problem && !FolderUsable)
-                    {
-                        <AppAlert Tone="AppUiTone.Warning" Dense="true">@FolderProblemText(problem)</AppAlert>
-                    }
-                    else if (FolderResultText is { } accessible)
-                    {
-                        <p class="create-library__check" data-folder-result="accessible"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />@accessible</p>
-                    }
+                <div class="create-library__picker" data-folder-step>
+                    <ServerFolderPicker @key="@_pickerKey"
+                                        Inline="true"
+                                        HideConfirm="true"
+                                        MediaType="@Kind?.MediaTypes.FirstOrDefault()"
+                                        SelectionMode="@PickerMode"
+                                        KindKey="@_kindKey"
+                                        SetupSession="@SetupSession"
+                                        InitialPath="@_pickerStart"
+                                        OnValidationChanged="FolderChecked" />
                     <p class="create-library__line" data-scan-line>@ScanLine</p>
-                </section>
-
-                <section class="create-library__section">
-                    <span class="create-library__caption">Library name</span>
-                    <AppTextField Label="Library name"
-                                  HideLabel="true"
-                                  Value="@_name"
-                                  ValueChanged="NameChanged"
-                                  MaxLength="@MaxNameLength"
-                                  ReadOnly="@_saving"
-                                  Error="@(NameProblem is not null)"
-                                  ErrorText="@NameProblem" />
-                    <p class="create-library__line">This is how it appears in your list. You can rename it later.</p>
-                </section>
-
-                @if (_folder is null)
-                {
-                    <p class="create-library__line" data-choose-folder>Choose a folder to continue.</p>
-                }
+                </div>
             }
 
             @if (!string.IsNullOrWhiteSpace(_error))
@@ -113,6 +76,16 @@
             }
             else
             {
+                <div class="create-library__name" data-library-name>
+                    <AppTextField Label="Library name"
+                                  Value="@_name"
+                                  ValueChanged="NameChanged"
+                                  MaxLength="@MaxNameLength"
+                                  ReadOnly="@_saving"
+                                  Error="@(NameProblem is not null)"
+                                  ErrorText="@NameProblem" />
+                    <span class="create-library__hint">You can rename it later.</span>
+                </div>
                 <AppButton Label="Back" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="BackAsync" />
                 <AppButton Label="Add library" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanCreate)" OnClick="CreateAsync" />
             }
@@ -130,7 +103,7 @@
     /// <summary>The centred dialog every host opens Add library with.</summary>
     public static AppDialogOptions DialogOptions { get; } = new()
     {
-        MaxWidth = AppMaxWidth.Medium,
+        MaxWidth = AppMaxWidth.Large,
         FullWidth = true,
         CloseButton = false,
         NoHeader = true,
@@ -174,6 +147,7 @@
     private ServerFolderValidationResultDto? _folder;
     // Where the folder picker opens: the folder already chosen when the content type changes under it.
     private string? _pickerStart;
+    private int _pickerKey;
     private bool _saving;
     private string? _error;
 
@@ -224,8 +198,6 @@
     private string ScanLine => Handling == AddFolderHandling.Managed
         ? "Library scans this folder and its subfolders, and keeps it organised."
         : "Library scans this folder and its subfolders. Your files are never changed.";
-
-    private string? FolderResultText => ServerFolderResultText.For(_folder);
 
     private LibraryTypeOption? Kind => _kindKey is null ? null : KindsOfArea.FirstOrDefault(kind => kind.Key == _kindKey);
 
@@ -333,47 +305,9 @@
     private void RestartPicker()
     {
         _pickerStart = _folder?.Path;
+        _pickerKey++;
         _error = null;
-        if (_folder is not null) _ = RecheckFolderAsync();
     }
-
-    // The folder already chosen is checked again for the new content type, so changing the type never throws the choice away.
-    private async Task RecheckFolderAsync()
-    {
-        var path = _folder?.Path;
-        if (string.IsNullOrWhiteSpace(path)) return;
-        var request = new ValidateServerFolderRequest { ManualPath = path, SelectionMode = PickerMode, KindKey = _kindKey };
-        var result = string.IsNullOrWhiteSpace(SetupSession)
-            ? await Api.ValidateServerFolderAsync(request)
-            : await Api.ValidateSetupServerFolderAsync(request, SetupSession);
-        if (!string.Equals(_folder?.Path, path, StringComparison.Ordinal)) return;
-        _folder = result;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    // Choose source folder: its own pop-up over this one, so the browser has room and this screen stays short.
-    private async Task BrowseAsync()
-    {
-        var parameters = new AppDialogParameters<ServerFolderPicker>
-        {
-            { component => component.Title, $"Choose your {(Kind is { } chosen ? LabelOf(chosen) : "library")} folder" },
-            { component => component.HelpText, $"Choose the folder on the Library server that holds your {Plural}." },
-            { component => component.MediaType, Kind?.MediaTypes.FirstOrDefault() },
-            { component => component.ConfirmLabel, "Choose folder" },
-            { component => component.SelectionMode, PickerMode },
-            { component => component.KindKey, _kindKey },
-            { component => component.SetupSession, SetupSession },
-            { component => component.InitialPath, _folder?.Path ?? _pickerStart },
-        };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
-        if (await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto selected })
-        {
-            await FolderChecked(selected);
-        }
-    }
-
-    private static string FolderProblemText(ServerFolderValidationResultDto folder) =>
-        folder.Issues.FirstOrDefault(issue => issue.Severity == "error")?.Message ?? "Library can't use this folder. Choose another one.";
 
     // The name starts as the content type's name (a second "Videos" becomes "Videos 2") and follows the type until the person types their own.
     private void PrefillName()
@@ -409,6 +343,7 @@
     {
         _folder = folder;
         _error = null;
+        StateHasChanged();
         return Task.CompletedTask;
     }
 
