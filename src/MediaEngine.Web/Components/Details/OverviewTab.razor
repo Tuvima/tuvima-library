@@ -81,7 +81,7 @@
                 {
                     <AppNativeButton Type="button"
                                      Class="tl-overview-section__more"
-                                     aria-expanded="@_overviewExpanded"
+                                     aria-expanded="@(_overviewExpanded ? "true" : "false")"
                                      OnClick="@(() => _overviewExpanded = !_overviewExpanded)">
                         @(_overviewExpanded ? "Show less" : "Show more")
                     </AppNativeButton>

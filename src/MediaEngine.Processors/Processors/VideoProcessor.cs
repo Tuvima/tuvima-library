@@ -211,6 +211,32 @@ public sealed class VideoProcessor : IMediaProcessor
         @"^(?<n>\d{1,3})\s*[\-–—._ ]+\s*(?<t>\S.*)$",
         RegexOptions.Compiled);
 
+    private static readonly HashSet<string> NumberedVideoExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mp4", ".mkv", ".avi", ".mov", ".m4v", ".webm", ".ts",
+    };
+
+    /// <summary>True when at least two video files in the file's folder (this one included) start with an ordinal.</summary>
+    private static bool SiblingsAreNumbered(string filePath)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(filePath);
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                return false;
+            }
+
+            return Directory.EnumerateFiles(dir)
+                .Where(f => NumberedVideoExtensions.Contains(Path.GetExtension(f)))
+                .Count(f => NumberedEntryRegex.IsMatch(Path.GetFileNameWithoutExtension(f))) >= 2;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     private static IReadOnlyList<ExtractedClaim> BuildClaims(
         string filePath, VideoContainer container, VideoMetadata? meta)
     {
@@ -320,10 +346,13 @@ public sealed class VideoProcessor : IMediaProcessor
                 }
 
                 // A numbered lesson or episode ("03 Form Shooting Practice") in a folder of its own
-                // carries no show name; the folder is the best evidence for one. Kept low so a real
+                // carries no show name; the folder is the best evidence for one. Needs a run of numbered
+                // siblings so a lone "12 Monkeys" or "8 Mile" is never read as an episode. Kept low so a real
                 // filename or retail match always wins, and only read when the file is filed as TV.
                 var numbered = NumberedEntryRegex.Match(basicTitle);
-                var folderShow = numbered.Success ? InferShowNameFromPath(filePath) : null;
+                var folderShow = numbered.Success && hints.Year is null && SiblingsAreNumbered(filePath)
+                    ? InferShowNameFromPath(filePath)
+                    : null;
                 if (!string.IsNullOrWhiteSpace(folderShow))
                 {
                     claims.Add(Claim("show_name", folderShow, 0.40));

@@ -368,11 +368,20 @@ public class VideoProcessorTests
     [Fact]
     public async Task ProcessAsync_NumberedLessonInAFolder_UsesTheFolderAsALowConfidenceShowName()
     {
-        var claims = await ProcessClaimsAsync("03 Form Shooting Practice.mp4", "Stephen Curry - MasterClass - Shooting, Ball-Handling, and Scoring");
+        var claims = await ProcessClaimsAsync("03 Form Shooting Practice.mp4", "Stephen Curry - MasterClass - Shooting, Ball-Handling, and Scoring", "04 Ball Handling.mp4");
 
         Assert.Contains(claims, c => c.Key == "show_name" && c.Value == "Stephen Curry - MasterClass - Shooting, Ball-Handling, and Scoring" && c.Confidence <= 0.40);
         Assert.Contains(claims, c => c.Key == "episode_number" && c.Value == "3");
         Assert.Contains(claims, c => c.Key == "episode_title" && c.Value == "Form Shooting Practice");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_LoneNumberedTitle_IsNotReadAsAnEpisode()
+    {
+        var claims = await ProcessClaimsAsync("8 Mile.mp4", "8 Mile");
+
+        Assert.DoesNotContain(claims, c => c.Key == "show_name");
+        Assert.DoesNotContain(claims, c => c.Key == "episode_number");
     }
 
     [Fact]
@@ -383,13 +392,17 @@ public class VideoProcessorTests
         Assert.DoesNotContain(claims, c => c.Key == "show_name");
     }
 
-    private static async Task<IReadOnlyList<ExtractedClaim>> ProcessClaimsAsync(string fileName, string? folder = null)
+    private static async Task<IReadOnlyList<ExtractedClaim>> ProcessClaimsAsync(string fileName, string? folder = null, string? siblingFileName = null)
     {
         var dir = Path.Combine(Path.GetTempPath(), $"video_processor_{Guid.NewGuid():N}");
         var fileDir = folder is null ? dir : Path.Combine(dir, folder);
         Directory.CreateDirectory(fileDir);
         var file = Path.Combine(fileDir, fileName);
         await File.WriteAllBytesAsync(file, MinimalMp4Header());
+        if (siblingFileName is not null)
+        {
+            await File.WriteAllBytesAsync(Path.Combine(fileDir, siblingFileName), MinimalMp4Header());
+        }
         try
         {
             var result = await new VideoProcessor(new StubVideoMetadataExtractor()).ProcessAsync(file);

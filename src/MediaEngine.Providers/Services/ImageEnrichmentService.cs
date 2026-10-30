@@ -526,14 +526,14 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var showHeld = 0;
         var preferred = 0;
         var offered = new Dictionary<(Guid Owner, AssetType Type), List<string>>();
-        async Task AddAsync(string? value, AssetType type, Guid owner, bool makePreferred = true)
+        async Task<bool> AddAsync(string? value, AssetType type, Guid owner, bool makePreferred = true)
         {
             if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
                 || uri.Scheme != Uri.UriSchemeHttps
                 || !(uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
                     || uri.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase)))
             {
-                return;
+                return false;
             }
             if (!offered.TryGetValue((owner, type), out var urls))
             {
@@ -550,6 +550,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             held += processed.HeldCount;
             showHeld += owner == context.RootWorkId ? processed.HeldCount : 0;
             preferred += processed.UpdatedPreferredCount;
+            return processed.StoredCount + processed.HeldCount + processed.UpdatedPreferredCount > 0;
         }
         async Task AddArtworksAsync(JsonNode? record, string scope, Guid owner)
         {
@@ -557,9 +558,16 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             {
                 return;
             }
+            // When the best picture of a type cannot be fetched, the next one takes its place as preferred.
+            var settled = new HashSet<AssetType>();
             foreach (var item in SelectTvdbArtworks(record, scope, typeNames))
             {
-                await AddAsync(item.Node["image"]?.ToString(), item.Type, owner, item.Preferred).ConfigureAwait(false);
+                var stored = await AddAsync(item.Node["image"]?.ToString(), item.Type, owner,
+                    item.Preferred || !settled.Contains(item.Type)).ConfigureAwait(false);
+                if (stored)
+                {
+                    settled.Add(item.Type);
+                }
             }
         }
 
