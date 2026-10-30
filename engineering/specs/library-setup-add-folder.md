@@ -2,6 +2,8 @@
 
 > **Status:** In progress (Version 2 locked by Shy 2026-10-29; packets 1 to 5 of Version 1 are Built, awaiting Local checks; packet 6 is waiting on a local check of the faster checks in PR #543; packets 7 to 10 are Built, awaiting Local checks) · **Version:** 2 · **Last updated:** 2026-10-29 · **Related docs:** [Library pages](library-pages.md) (v14, Built; D3, D4, D5, D10) · [Simpler library access](library-access.md) (v3, Built, awaiting Local checks) · [One shared look for pages](one-shared-look.md) · [First-run setup flow](first-run-setup-flow.md) · [Library setup](library-setup-groups.md) (D13)
 
+> Version 3 note (2026-10-30): the Locked [Libraries redesign](libraries-redesign.md) spec supersedes D0 and D0d (no Browse button; step 2 of Add library is the folder pop-up itself, with area tabs on step 1 and View as a fourth tab) and packets 1, 2, 3 and 6. D13 to D21 (View and the optional Vault step in setup) stand.
+
 > Written 2026-10-29 from Shy's local-review notes on the setup wizard's Libraries step, the Add folder dialog, the number of steps, the "go to music" prompt and the many "i" buttons. It was checked against the code on main (after PR #533). **Builds after packet 4 of One shared look**, because it reuses the shared tabs, cards and buttons.
 
 > Version 2 (2026-10-29) answers Shy's choice "add both View and Vault to first-run setup" (B). It changes only what first-run setup offers: **View** becomes a fifth button beside Watch, Listen and Read, and the **Vault** becomes an optional last step. It replaces the part of Library setup D13 and Library pages D13 that limited setup to Watch, Listen and Read with no Vault. Packets 1 to 6 of Version 1 stand unchanged; packets 7 to 10 are new.

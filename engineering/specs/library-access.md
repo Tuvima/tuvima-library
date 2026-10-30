@@ -2,6 +2,8 @@
 
 > **Status:** Built, awaiting your Local checks (Locked by Shy 2026-10-29) · **Version:** 3 · **Last updated:** 2026-10-29 · **Related docs:** [Simpler access](simpler-access.md) (v5, Built) · [Library pages](library-pages.md) (v15, Built) · [Users, profiles and households](users-profiles-households.md) (v6, Built) · [Backup and restore](backup-and-restore.md) (D10, D19, D20) · [Vault sections and Move to Vault](vault-sections-and-move.md) · [Library setup](library-setup-groups.md) (D68)
 
+> Version 4 note (2026-10-30, Shy): library access is on or off per household only. The per-profile library ticks (D1) and the per-profile area switches (Simpler access D1) are removed by the Locked [Libraries redesign](libraries-redesign.md) spec (D16, D19); the household ceiling (D2), Kid's profile and Kid levels (D4, D9, D10) and the Vault's own access (D5, D6) stand. Built by that spec's WP8 with the security review.
+
 > Written from Shy's bug-log items F83 and F82. Version 1 (2026-10-28) proposed dropping per-profile library access altogether. Version 2 (2026-10-29) replaces that after Shy showed how Plex does it: **who can see which library is set on the person, as ticks under each area**, with household limits above it and rating limits beside it. Section 9 lists exactly what changes; the build (LA6) writes those versions.
 
 > Version 3 (2026-10-29) records Shy's decision that **the Vault becomes a fifth top-level area** beside Watch, Listen, Read and View (see the library setup spec, add-folder flow). It replaces v2's Adult content rule (D6) and the "Keep this library in the Vault" creation tick. Everything else in v2 stays. Locked by Shy on 2026-10-29.
