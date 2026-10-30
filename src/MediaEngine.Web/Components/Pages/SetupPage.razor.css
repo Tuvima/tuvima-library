@@ -59,12 +59,12 @@
 ::deep .setup-builtins { display: grid; padding: 0 16px; border: 1px solid var(--tl-border-subtle); border-radius: 12px; }
 ::deep .setup-restore { display: grid; gap: 14px; }
 ::deep .setup-file-input { min-height: 48px; width: 100%; padding: 10px; border: 1px dashed var(--tl-border-strong); border-radius: 10px; color: var(--tl-text-primary); }
-@media (max-width: 900px) {
+@media (max-width: 1179px) {
     .setup-shell { grid-template-columns: 1fr; gap: 28px; }
     .setup-sidebar { position: static; gap: 16px; padding-bottom: 18px; }
     .setup-brand { justify-content: center; }
 }
-@media (max-width: 700px) {
+@media (max-width: 599px) {
     ::deep .setup-form-grid, ::deep .setup-facts, ::deep .setup-choice-grid, ::deep .setup-storage-row, ::deep .setup-preparing__checks { grid-template-columns: 1fr; }
     .setup-page { width: min(100% - 20px, 560px); gap: 16px; padding-top: 14px; }
     .setup-stage { min-height: 0; padding: 17px; border-radius: 12px; }

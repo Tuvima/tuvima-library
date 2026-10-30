@@ -319,6 +319,28 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.All(others, file => Assert.DoesNotContain("Vault", File.ReadAllText(file), StringComparison.OrdinalIgnoreCase));
     }
 
+    // First-run setup D14: nothing a person clicks inside a step changes the browser address. Only All set may link out (to Settings, and to sign in).
+    [Fact]
+    public void NoSetupStepChangesTheBrowserAddressExceptAllSetsTwoLinks()
+    {
+        var root = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components");
+        var offenders = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories)
+            .Where(file => Path.GetFileName(file) != "SetupReadinessStage.razor")
+            .Where(file =>
+            {
+                var source = File.ReadAllText(file);
+                return source.Contains("NavigateTo(", StringComparison.Ordinal)
+                    || source.Contains("href=", StringComparison.OrdinalIgnoreCase)
+                    || source.Contains("Href=", StringComparison.Ordinal);
+            })
+            .Select(Path.GetFileName)
+            .ToList();
+        Assert.Empty(offenders);
+
+        var overview = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibrariesOverview.razor"));
+        Assert.Contains("if (!Simple) Navigation.NavigateTo(row.Href);", overview, StringComparison.Ordinal);
+    }
+
     private sealed class IdleClientFactory : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new(new HttpClientHandler()) { BaseAddress = new Uri("http://engine.test") };
