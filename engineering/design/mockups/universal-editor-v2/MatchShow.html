@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Re-match a show: what will change</title>
+</head>
+<body>
+
+
+<style>
+body{margin:0;background:#070A12;color:#F5F7FB;font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.35}
+a{color:#A46FFF}a:hover{color:#C4A1FF}
+*{box-sizing:border-box}
+.vp{width:1440px;height:900px;position:relative;overflow:hidden;background:#070A12}
+.nav{height:56px;display:flex;align-items:center;gap:28px;padding:0 32px;border-bottom:1px solid #1E293B;background:#0B1020}
+.brand{font-weight:700;letter-spacing:.08em;font-size:15px}
+.nav .links{display:flex;gap:22px;color:#B6C2D6}
+.avatar{margin-left:auto;width:32px;height:32px;border-radius:50%;background:#8852FC}
+.page{position:absolute;top:56px;left:0;right:0;bottom:0;overflow:hidden}
+.hero{height:380px;background:linear-gradient(180deg,#3a1f2a 0%,#0B1020 100%);padding:150px 48px 0;display:flex;gap:28px;align-items:flex-end}
+.poster{width:150px;height:225px;border-radius:10px;background:linear-gradient(160deg,#8c3a5a,#381522)}
+.h1{font-size:34px;font-weight:700;margin:0 0 8px}
+.dim{position:absolute;inset:0;background:rgba(3,5,10,.66)}
+.win{position:absolute;left:140px;top:40px;width:1160px;height:820px;background:#0F1626;border:1px solid #243049;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.65);display:flex;flex-direction:column;overflow:hidden}
+.win-h{height:60px;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid #1E293B;flex:none}
+.thumb{width:40px;height:40px;border-radius:8px;background:linear-gradient(160deg,#8c3a5a,#381522)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border:1px solid #2A3650;border-radius:999px;color:#B6C2D6;font-size:13px;background:transparent;font-family:inherit}
+.pill.on{border-color:#8852FC;color:#F5F7FB}
+.sep{color:#56637A}
+.win-b{flex:1;display:flex;min-height:0}
+.rail{width:168px;border-right:1px solid #1E293B;padding:14px 10px;display:flex;flex-direction:column;gap:4px;flex:none}
+.rail a{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:10px;color:#B6C2D6;text-decoration:none;font-weight:600}
+.rail a.on{background:#1D2940;color:#F5F7FB}
+.main{flex:1;min-width:0;overflow:hidden;padding:22px 28px;display:flex;flex-direction:column;gap:16px}
+.win-f{height:64px;display:flex;align-items:center;gap:12px;padding:0 24px;border-top:1px solid #1E293B;background:#0C1322;flex:none}
+.btn{height:38px;padding:0 18px;border-radius:10px;font-weight:600;font-size:14px;border:1px solid #2A3650;background:transparent;color:#F5F7FB;display:inline-flex;align-items:center;gap:8px;font-family:inherit;cursor:pointer}
+.btn.p{background:#8852FC;border-color:#8852FC}
+.btn.t{border-color:transparent;color:#B6C2D6}
+.muted{color:#94A3B8}.sec{color:#B6C2D6}
+.dot{width:8px;height:8px;border-radius:50%;background:#8852FC;display:inline-block;flex:none}
+.inp{height:38px;border:1px solid #2A3650;border-radius:9px;background:#0B1020;padding:0 12px;display:flex;align-items:center;color:#F5F7FB;gap:8px}
+.card{background:#111827;border:1px solid #1E293B;border-radius:12px}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:#1D2940;color:#B6C2D6;white-space:nowrap}
+.tag.ok{background:rgba(34,197,94,.16);color:#4ADE80}
+.tag.warn{background:rgba(245,158,11,.18);color:#FBBF24}
+.tag.best{background:rgba(136,82,252,.22);color:#C4A1FF}
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:#1D2940;color:#F5F7FB;font-size:12px}
+.x{margin-left:auto;width:36px;height:36px;border-radius:9px;background:transparent;border:1px solid transparent;color:#B6C2D6;display:inline-flex;align-items:center;justify-content:center}
+.two{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;flex:1;min-height:0}
+.list{display:flex;flex-direction:column;gap:4px}
+.row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:#B6C2D6}
+.row b{color:#F5F7FB;font-weight:600;display:block}
+.row.sel{background:#1D2940;box-shadow:inset 0 0 0 1px #8852FC}
+.row .art{width:40px;height:60px;border-radius:6px;background:linear-gradient(160deg,#3a2f6a,#1c1538);flex:none}
+.seg{display:inline-flex;border:1px solid #2A3650;border-radius:9px;overflow:hidden}
+.seg span{padding:7px 14px;font-size:13px;color:#B6C2D6}
+.seg span.on{background:#1D2940;color:#F5F7FB}
+.cmp{display:grid;grid-template-columns:120px 1fr 1fr;gap:8px 14px;font-size:13px;align-items:center}
+.cmp .k{color:#94A3B8}
+.cmp .new{color:#F5F7FB}
+.cmp .same{color:#B6C2D6}
+.sw{width:36px;height:20px;border-radius:999px;background:#2A3650;position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#94A3B8}
+.sw.on{background:#8852FC}.sw.on::after{left:18px;background:#fff}
+.swrow{display:flex;gap:10px;align-items:flex-start;font-size:13px}
+.swrow .t{color:#F5F7FB;font-weight:600}
+.swrow .d{color:#94A3B8;font-size:12px}
+</style>
+
+<div class="vp">
+  <div class="nav"><span class="brand">TUVIMA</span><div class="links"><span>Home</span><span style="color:#F5F7FB">Watch</span><span>Listen</span><span>Read</span><span>View</span></div><span class="avatar"></span></div>
+  <div class="page"><div class="hero"><div class="poster"></div><div><h1 class="h1">Shimmer and Shine</h1><div class="sec">2015 · 2 seasons · 16 episodes</div></div></div></div>
+  <div class="dim" aria-hidden="true"></div>
+
+  <div class="win" role="dialog" aria-label="Editing Shimmer and Shine, Match">
+    <div class="win-h">
+      <span class="thumb"></span><strong style="font-size:15px">Editing</strong>
+      <button class="pill on" type="button">Shimmer and Shine <span class="sep">▾</span></button>
+      <span class="muted" style="font-size:13px;margin-left:6px">Show · 2 seasons · 16 episodes</span>
+      <button class="x" type="button" aria-label="Close the editor"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="win-b">
+      <nav class="rail" aria-label="Editing tools">
+        <a href="#details">Details</a>
+        <a href="#artwork">Artwork</a>
+        <a href="#match" class="on">Match</a>
+        <a href="#history">History</a>
+      </nav>
+      <div class="main">
+        <div style="display:flex;align-items:center;gap:14px">
+          <h2 style="margin:0;font-size:18px">Match</h2>
+          <span class="sec">This show is matched to</span>
+          <span class="chip" style="height:30px;gap:8px"><span class="tag warn" style="padding:1px 6px">TheTVDB</span>Shimmer &amp; Shine (2014, pilot shorts)</span>
+          <a href="#tvdb" style="font-size:13px">View on TheTVDB</a>
+        </div>
+        <div class="two">
+          <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:12px;min-height:0">
+            <div style="display:flex;gap:10px;align-items:center">
+              <label class="inp" style="flex:1" for="q"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span id="q" style="flex:1">Shimmer and Shine</span></label>
+              <div class="inp" style="width:92px;justify-content:space-between"><span>2015</span><span class="sep">▾</span></div>
+              <div class="seg" aria-label="Search in"><span class="on">TheTVDB</span><span>TMDB</span></div>
+            </div>
+            <div class="list">
+              <div class="row sel"><span class="art"></span><span><b>Shimmer and Shine</b>2015–2020 · Nickelodeon · 4 seasons · 84 episodes</span><span class="tag best" style="margin-left:auto">Best guess</span></div>
+              <div class="row"><span class="art"></span><span><b>Shimmer &amp; Shine</b>2014 · Pilot shorts · 1 season · 3 episodes</span><span class="tag" style="margin-left:auto">Matched now</span></div>
+              <div class="row"><span class="art"></span><span><b>Shimmer and Shine: Genie Treasures</b>2019 · Specials</span></div>
+              <div class="row"><span class="art"></span><span><b>Shine</b>1996 · Film</span></div>
+            </div>
+            <div class="muted" style="font-size:12px;margin-top:auto">Results are ordered by how well they fit your files. Only TheTVDB records can be used for TV; TMDB is shown for looking up.</div>
+          </div>
+
+          <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:14px;min-height:0">
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <span style="width:84px;height:126px;border-radius:8px;background:linear-gradient(160deg,#3a2f6a,#1c1538);flex:none"></span>
+              <div style="min-width:0">
+                <div style="font-size:16px;font-weight:700">Shimmer and Shine</div>
+                <div class="sec" style="font-size:13px">2015–2020 · Nickelodeon · Animation, Family</div>
+                <p class="muted" style="font-size:12px;margin:8px 0 0;line-height:1.45">Twin genies-in-training Shimmer and Shine grant wishes for their human best friend Leah, with magical mishaps that always get set right.</p>
+              </div>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:#94A3B8;letter-spacing:.04em;text-transform:uppercase">What will change</div>
+            <div class="cmp">
+              <span class="k">Title</span><span class="same">Shimmer &amp; Shine</span><span class="new">Shimmer and Shine</span>
+              <span class="k">Year</span><span class="same">2014</span><span class="new">2015</span>
+              <span class="k">Poster, backdrop, logo</span><span class="same">from pilot shorts</span><span class="new">replaced now (English logo)</span>
+              <span class="k">Cast</span><span class="same">none</span><span class="new">12 people</span>
+              <span class="k">Seasons &amp; episodes</span><span class="same">2 seasons unmatched</span><span class="new">16 files re-aligned to S1–S2 in the background</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;padding-top:4px">
+              <div class="swrow"><span class="sw on"></span><span><span class="t">Keep my own edits (1)</span><br><span class="d">Your description stays.</span></span></div>
+              <div class="swrow"><span class="sw on"></span><span><span class="t">Re-match seasons and episodes</span><br><span class="d">By number, after saving. Odd ones go to Needs Review.</span></span></div>
+              <div class="swrow"><span class="sw"></span><span><span class="t">Rename and move the files</span><br><span class="d">Off unless you turn it on.</span></span></div>
+              <div class="swrow"><span class="sw on"></span><span><span class="t">Fetch artwork and cast now</span><br><span class="d">Takes a few seconds while saving.</span></span></div>
+            </div>
+            <div style="margin-top:auto;display:flex;gap:10px;justify-content:flex-end">
+              <button class="btn t" type="button">Clear match</button>
+              <button class="btn p" type="button">Use this match</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="win-f">
+      <span class="tag ok">Files will be updated: On</span><a href="#wb" style="font-size:13px">Change</a>
+      <button class="btn" type="button" style="margin-left:auto">Cancel</button>
+      <button class="btn" type="button" disabled style="opacity:.5">Save changes</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

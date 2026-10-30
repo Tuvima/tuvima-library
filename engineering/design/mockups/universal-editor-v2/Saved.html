@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>After Save: proof the change took</title>
+</head>
+<body>
+
+
+<style>
+body{margin:0;background:#070A12;color:#F5F7FB;font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.35}
+a{color:#A46FFF}a:hover{color:#C4A1FF}
+*{box-sizing:border-box}
+.vp{width:1440px;height:900px;position:relative;overflow:hidden;background:#070A12}
+.nav{height:56px;display:flex;align-items:center;gap:28px;padding:0 32px;border-bottom:1px solid #1E293B;background:#0B1020}
+.brand{font-weight:700;letter-spacing:.08em;font-size:15px}
+.nav .links{display:flex;gap:22px;color:#B6C2D6}
+.avatar{margin-left:auto;width:32px;height:32px;border-radius:50%;background:#8852FC}
+.ribbon{height:48px;display:flex;align-items:center;gap:14px;padding:0 48px;background:#0F1626;border-bottom:1px solid #1E293B;font-size:13px}
+.bar{width:180px;height:6px;border-radius:999px;background:#1D2940;overflow:hidden}
+.bar i{display:block;width:66%;height:100%;background:#8852FC}
+.hero{height:380px;background:linear-gradient(180deg,#221a3e 0%,#0B1020 100%);padding:120px 48px 0;display:flex;gap:28px;align-items:flex-end}
+.poster{width:150px;height:225px;border-radius:10px;background:linear-gradient(160deg,#3a4a8c,#151c38);box-shadow:0 0 0 2px #8852FC,0 0 28px rgba(136,82,252,.45)}
+.h1{font-size:34px;font-weight:700;margin:0 0 8px}
+.meta{color:#B6C2D6;display:flex;gap:14px;align-items:center}
+.btn{height:38px;padding:0 18px;border-radius:10px;font-weight:600;font-size:14px;border:1px solid #2A3650;background:transparent;color:#F5F7FB;display:inline-flex;align-items:center;gap:8px;font-family:inherit}
+.btn.p{background:#8852FC;border-color:#8852FC}
+.btn.sm{height:30px;padding:0 12px;font-size:13px}
+.strip{padding:22px 48px;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:28px}
+.ep{display:flex;gap:16px;align-items:center;padding:12px 10px;border-bottom:1px solid #151E2F;color:#B6C2D6;border-radius:10px}
+.ep.glow{background:rgba(136,82,252,.10);box-shadow:inset 0 0 0 1px rgba(136,82,252,.55)}
+.ep .still{width:128px;height:72px;border-radius:8px;background:#1A2438;flex:none}
+.ep.glow .still{background:linear-gradient(160deg,#3a4a8c,#151c38)}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:#1D2940;color:#B6C2D6;white-space:nowrap}
+.tag.ok{background:rgba(34,197,94,.16);color:#4ADE80}
+.tag.new{background:rgba(136,82,252,.22);color:#C4A1FF}
+.card{background:#111827;border:1px solid #1E293B;border-radius:12px;padding:14px 16px}
+.hist{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-top:1px solid #151E2F;color:#B6C2D6;font-size:13px}
+.hist:first-of-type{border-top:0}
+.hist time{color:#94A3B8;flex:none;width:52px}
+.muted{color:#94A3B8}.sec{color:#B6C2D6}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid #2A3650;border-top-color:#8852FC;flex:none}
+</style>
+
+<div class="vp">
+  <div class="nav"><span class="brand">TUVIMA</span><div class="links"><span>Home</span><span style="color:#F5F7FB">Watch</span><span>Listen</span><span>Read</span><span>View</span></div><span class="avatar"></span></div>
+  <div class="ribbon" role="status">
+    <span class="tag ok">Saved 5 changes · 21:14</span>
+    <span class="spin" aria-hidden="true"></span>
+    <span>Finishing up from TheTVDB: title and poster done · cast done · <b>episode details and stills</b> running</span>
+    <span class="bar" aria-hidden="true"><i></i></span>
+    <span class="muted">2 of 3</span>
+    <a href="#changes" style="margin-left:auto;font-size:13px">See what changed</a>
+    <a href="#undo" class="muted" style="font-size:13px">Dismiss</a>
+  </div>
+  <div class="hero">
+    <div class="poster" aria-hidden="true"></div>
+    <div>
+      <h1 class="h1">The Continental: From the World of John Wick</h1>
+      <div class="meta"><span>2023</span><span>1 season · 3 episodes</span><span>Crime · Action</span><span class="tag ok">Matched to TheTVDB</span><span class="tag new">Poster updated just now</span></div>
+      <div style="display:flex;gap:10px;margin-top:16px"><button class="btn p" type="button">Play</button><button class="btn" type="button">My List</button><button class="btn" type="button" aria-label="More actions">…</button></div>
+    </div>
+  </div>
+  <div class="strip">
+    <div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><h2 style="margin:0;font-size:18px">Season 1</h2><span class="muted">3 episodes</span></div>
+      <div class="ep"><div class="still"></div><div><div style="color:#F5F7FB;font-weight:600">1. Brothers in Arms</div><div>22 Sep 2023 · 1 h 25 min <span class="tag" style="margin-left:6px">was E2's file</span></div></div></div>
+      <div class="ep glow"><div class="still"></div><div><div style="color:#F5F7FB;font-weight:600">2. Loyalty to the Master</div><div>29 Sep 2023 · 1 h 20 min <span class="tag new" style="margin-left:6px">Changed just now</span></div></div><span class="muted" style="margin-left:auto;font-size:12px;display:inline-flex;gap:8px;align-items:center"><span class="spin"></span>fetching still</span></div>
+      <div class="ep"><div class="still"></div><div><div style="color:#F5F7FB;font-weight:600">3. Theater of Pain</div><div>6 Oct 2023 · 1 h 32 min <span class="tag" style="margin-left:6px">No file</span></div></div></div>
+    </div>
+    <div class="card" id="changes">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><b style="font-weight:600">What changed</b><span class="muted" style="font-size:12px">from History</span></div>
+      <div class="hist"><time>21:14</time><span><b style="color:#F5F7FB">E1 → E2</b> Matched to TheTVDB “Loyalty to the Master”. File renamed. <span class="tag ok">done</span></span></div>
+      <div class="hist"><time>21:14</time><span>Poster replaced (TheTVDB 1000×1500, English). <span class="tag ok">done</span></span></div>
+      <div class="hist"><time>21:14</time><span>Title and description overrides saved. <span class="tag ok">done</span></span></div>
+      <div class="hist"><time>21:14</time><span>Cast: 9 people added. <span class="tag ok">done</span></span></div>
+      <div class="hist"><time>now</time><span>Episode details and stills from TheTVDB. <span class="tag">running</span></span></div>
+      <div class="muted" style="font-size:12px;margin-top:10px">If anything fails it shows here in amber with the reason, and the item goes to Needs Review.</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
