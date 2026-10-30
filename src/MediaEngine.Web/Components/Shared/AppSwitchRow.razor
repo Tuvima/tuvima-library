@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 <label class="@RootClass" @onclick:stopPropagation="@StopClickPropagation">
     @if (!string.IsNullOrWhiteSpace(Icon)) { <AppMaterialIcon Icon="@Icon" Size="AppSize.Small" Class="app-switch-row__icon" /> }
+    @if (!string.IsNullOrWhiteSpace(ImageIcon)) { <img class="app-official-pill__icon" src="@ImageIcon" alt="" width="14" height="14" /> }
     @if (HasCopy) { <span class="app-switch-row__copy">@if (!string.IsNullOrWhiteSpace(Label)) { <span class="app-switch-row__label">@Label</span> }@if (!string.IsNullOrWhiteSpace(Description)) { <span class="app-switch-row__description">@Description</span> }</span> }
     <span class="app-switch-row__control tl-switch tl-switch--@Size.ToString().ToLowerInvariant()">
         <input type="checkbox" role="switch" @bind:get="Value" @bind:set="ChangedAsync" disabled="@Disabled" aria-label="@EffectiveAriaLabel" />
@@ -12,6 +13,9 @@
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? Description { get; set; }
     [Parameter] public string? Icon { get; set; }
+
+    /// <summary>An image mark instead of a material icon (the Tuvima icon on the Official switch).</summary>
+    [Parameter] public string? ImageIcon { get; set; }
     [Parameter] public bool Value { get; set; }
     [Parameter] public EventCallback<bool> ValueChanged { get; set; }
     [Parameter] public bool Disabled { get; set; }

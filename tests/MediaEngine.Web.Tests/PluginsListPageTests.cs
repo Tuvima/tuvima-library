@@ -387,6 +387,26 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ClickingATab_NeverShowsClearFilters_AndClearingKeepsTheTab()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true), Plugin("b", "Beta", enabled: true)];
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, CardCount(cut)));
+
+        var tabs = cut.FindAll("[role=tab]");
+        tabs[^1].Click();
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.FindAll("[role=tab]")[^1].GetAttribute("aria-selected")));
+        Assert.DoesNotContain("Clear filters", cut.Markup);
+
+        cut.Find(".app-search-filter-row input").Input("zzz");
+        cut.WaitForAssertion(() => Assert.Contains("Clear filters", cut.Markup));
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Clear filters").Click();
+
+        cut.WaitForAssertion(() => Assert.DoesNotContain("Clear filters", cut.Markup));
+        Assert.Equal("true", cut.FindAll("[role=tab]")[^1].GetAttribute("aria-selected"));
+    }
+
+    [Fact]
     public void NoPlugins_ShowsTheEmptyStateAndNoFilters()
     {
         _plugins = [];

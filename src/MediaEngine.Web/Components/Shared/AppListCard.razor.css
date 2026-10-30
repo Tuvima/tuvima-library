@@ -6,6 +6,5 @@
 .app-list-card__aside { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; margin-left: auto; }
 .app-list-card__description { display: -webkit-box; min-height: calc(2 * 1.45em); margin: 0; overflow: hidden; color: var(--tl-text-muted); font-size: var(--tl-font-size-md); line-height: 1.45; overflow-wrap: break-word; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .app-list-card__badges { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
-.app-list-card__kind { padding: 2px 8px; color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-pill); white-space: nowrap; }
 .app-list-card__warning { display: inline-flex; min-width: 0; max-width: 100%; }
 .app-list-card__footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
