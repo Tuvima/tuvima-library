@@ -42,13 +42,6 @@ public sealed class MaintenanceSettings
     [JsonPropertyName("delete_type_to_confirm_gigabytes")]
     public int DeleteTypeToConfirmGigabytes { get; set; } = 50;
 
-    /// <summary>
-    /// Days a deleted file stays in the Recycle bin before it is removed for good (spec Delete a show, season, album or Series, D18).
-    /// 0 means never: the bin then empties only when an administrator empties it.
-    /// </summary>
-    [JsonPropertyName("recycle_bin_retention_days")]
-    public int RecycleBinRetentionDays { get; set; } = 90;
-
     /// <summary>Days before removal at which administrators are told items are leaving the Recycle bin (D23).</summary>
     [JsonPropertyName("recycle_bin_warning_days")]
     public int RecycleBinWarningDays { get; set; } = 7;

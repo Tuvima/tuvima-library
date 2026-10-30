@@ -230,7 +230,7 @@ public static class LibraryItemEndpoints
                 !authority.ActiveProfileIsRestricted,
                 await ProfileNameAsync(authority, profiles, ct));
             return Results.Ok(RecycleBinSummaryBuilder.Build(
-                bin.List(hidden), DateTimeOffset.UtcNow, maintenance.RecycleBinRetentionDays, maintenance.RecycleBinWarningDays, media_type, viewer));
+                bin.List(hidden), DateTimeOffset.UtcNow, RecycleBinSummaryBuilder.RetentionFrom(configuration.LoadLibraries()), maintenance.RecycleBinWarningDays, media_type, viewer));
         })
         .WithName("GetRecycleBinSummary")
         .WithSummary("The Recycle bin as the signed-in profile may see it: totals, the items it may see, and a count of the rest.")

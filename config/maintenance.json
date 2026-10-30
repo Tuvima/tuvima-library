@@ -7,7 +7,6 @@
   "missing_file_retention_days": 90,
   "delete_type_to_confirm_titles": 25,
   "delete_type_to_confirm_gigabytes": 50,
-  "recycle_bin_retention_days": 90,
   "recycle_bin_warning_days": 7,
   "unmatched_retry_days": 7,
   "upload_piece_bytes": 67108864,

@@ -43,19 +43,20 @@ public sealed class RecycleBinRetentionHostedService(
         {
             var settings = configuration.LoadMaintenance();
             var vault = VaultLibraryIds();
-            var purged = bin.PurgeExpired(now, settings.RecycleBinRetentionDays, vault);
+            var retention = RecycleBinSummaryBuilder.RetentionFrom(configuration.LoadLibraries());
+            var purged = bin.PurgeExpired(now, retention, vault);
             if (purged.Items > 0)
             {
                 await activity.LogAsync(new SystemActivityEntry
                 {
                     ActionType = SystemActionType.AutoPurge,
                     EntityType = "RecycleBin",
-                    Detail = $"The Recycle bin removed {purged.Items} item{(purged.Items == 1 ? string.Empty : "s")} for good after {settings.RecycleBinRetentionDays} days, freeing {FormatBytes(purged.Bytes)}.",
+                    Detail = $"The Recycle bin removed {purged.Items} item{(purged.Items == 1 ? string.Empty : "s")} for good after their retention days, freeing {FormatBytes(purged.Bytes)}.",
                 }, ct).ConfigureAwait(false);
             }
 
             var summary = RecycleBinSummaryBuilder.Build(
-                bin.List(vault), now, settings.RecycleBinRetentionDays, settings.RecycleBinWarningDays, null,
+                bin.List(vault), now, retention, settings.RecycleBinWarningDays, null,
                 new RecycleBinViewer(CanManage: true, CanListItems: false, Requester: string.Empty));
             if (summary.LeavingSoonItems > 0)
             {

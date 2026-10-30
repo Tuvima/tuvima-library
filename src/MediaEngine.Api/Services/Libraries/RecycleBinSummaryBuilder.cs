@@ -14,7 +14,7 @@ public static class RecycleBinSummaryBuilder
     public static RecycleBinSummaryDto Build(
         IReadOnlyList<RecycleBinEntry> entries,
         DateTimeOffset now,
-        int retentionDays,
+        Func<string?, int> retentionDaysFor,
         int warningDays,
         string? mediaType,
         RecycleBinViewer viewer)
@@ -44,29 +44,37 @@ public static class RecycleBinSummaryBuilder
                 SizeBytes = entry.SizeBytes,
                 DeletedAt = entry.DeletedAt,
                 DeletedBy = entry.DeletedBy,
-                LeavesInDays = DaysLeft(entry, now, retentionDays),
+                LeavesInDays = DaysLeft(entry, now, retentionDaysFor(entry.LibraryId)),
                 Requested = requests.Contains(viewer.Requester, StringComparer.OrdinalIgnoreCase),
                 RequestedBy = viewer.CanManage ? requests : [],
             });
         }
 
-        var soon = viewer.CanManage && retentionDays > 0
-            ? inScope.Where(entry => DaysLeft(entry, now, retentionDays) is { } left && left <= warningDays).ToList()
+        var soon = viewer.CanManage
+            ? inScope.Where(entry => DaysLeft(entry, now, retentionDaysFor(entry.LibraryId)) is { } left && left <= warningDays).ToList()
             : [];
         return new RecycleBinSummaryDto
         {
             TotalItems = inScope.Count,
             TotalBytes = inScope.Sum(entry => entry.SizeBytes),
             CanManage = viewer.CanManage,
-            RetentionDays = retentionDays,
             Items = listed,
             OtherItems = otherItems,
             OtherBytes = otherBytes,
             LeavingSoonItems = soon.Count,
             LeavingSoonBytes = soon.Sum(entry => entry.SizeBytes),
             LeavingSoonWindowDays = warningDays,
-            LeavingSoonDays = soon.Count == 0 ? null : soon.Min(entry => DaysLeft(entry, now, retentionDays)),
+            LeavingSoonDays = soon.Count == 0 ? null : soon.Min(entry => DaysLeft(entry, now, retentionDaysFor(entry.LibraryId))),
         };
+    }
+
+    /// <summary>Each library's own retention days; a library the settings no longer know keeps the 90-day default.</summary>
+    public static Func<string?, int> RetentionFrom(MediaEngine.Domain.Configuration.LibrariesConfiguration libraries)
+    {
+        var days = libraries.Libraries
+            .Where(library => library.RecycleBin)
+            .ToDictionary(library => library.Id, library => library.RecycleBinDays, StringComparer.Ordinal);
+        return id => id is not null && days.TryGetValue(id, out var value) ? value : 90;
     }
 
     /// <summary>Whole days before the automatic removal (0 = today); null when the bin never empties itself.</summary>

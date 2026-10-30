@@ -247,9 +247,6 @@ public sealed class RecycleBinSummaryDto
     /// <summary>True for an administrator at the Dashboard: Restore, Delete now and Empty are offered.</summary>
     [JsonPropertyName("can_manage")] public bool CanManage { get; init; }
 
-    /// <summary>Days an item stays in the bin; 0 means never removed automatically.</summary>
-    [JsonPropertyName("retention_days")] public int RetentionDays { get; init; }
-
     [JsonPropertyName("items")] public IReadOnlyList<RecycleBinListItemDto> Items { get; init; } = [];
 
     /// <summary>Items the caller may not see: counted and sized, never named.</summary>

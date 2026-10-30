@@ -140,22 +140,28 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
     }
 
     /// <summary>
-    /// Removes every entry deleted more than <paramref name="retentionDays"/> days before <paramref name="now"/> (the automatic purge, D18).
-    /// 0 days means never. Vault entries are skipped here too: only the Vault's own tools remove those. Returns what was removed.
+    /// Removes every entry deleted more than its library's retention days before <paramref name="now"/> (the automatic purge, D18).
+    /// <paramref name="retentionDaysFor"/> answers per library id; 0 days means never. Vault entries are skipped here too: only the Vault's
+    /// own tools remove those. Returns what was removed.
     /// </summary>
-    public RecycleBinPurgeResult PurgeExpired(DateTimeOffset now, int retentionDays, IReadOnlySet<string>? skipLibraryIds = null)
+    public RecycleBinPurgeResult PurgeExpired(DateTimeOffset now, Func<string?, int> retentionDaysFor, IReadOnlySet<string>? skipLibraryIds = null)
     {
-        if (retentionDays <= 0 || !Directory.Exists(Root))
+        if (!Directory.Exists(Root))
         {
             return new RecycleBinPurgeResult(0, 0);
         }
 
-        var cutoff = now - TimeSpan.FromDays(retentionDays);
         var items = 0;
         long bytes = 0;
         foreach (var folder in Directory.EnumerateDirectories(Root))
         {
-            if (TryRead(folder) is not { } entry || entry.DeletedAt > cutoff || IsHidden(entry, skipLibraryIds))
+            if (TryRead(folder) is not { } entry || IsHidden(entry, skipLibraryIds))
+            {
+                continue;
+            }
+
+            var retentionDays = retentionDaysFor(entry.LibraryId);
+            if (retentionDays <= 0 || entry.DeletedAt > now - TimeSpan.FromDays(retentionDays))
             {
                 continue;
             }

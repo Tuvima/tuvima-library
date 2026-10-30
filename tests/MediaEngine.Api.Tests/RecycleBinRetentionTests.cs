@@ -35,11 +35,11 @@ public sealed class RecycleBinRetentionTests : IDisposable
         var fresh = Bin("fresh.mp4");
 
         // Both were deleted "now"; moving the clock 91 days on expires both, so keep one fresh by purging at a clock 89 days on.
-        var nothing = _store.PurgeExpired(DateTimeOffset.UtcNow.AddDays(89), 90);
+        var nothing = _store.PurgeExpired(DateTimeOffset.UtcNow.AddDays(89), _ => 90);
         Assert.Equal(0, nothing.Items);
         Assert.Equal(2, _store.List().Count);
 
-        var purged = _store.PurgeExpired(now, 90);
+        var purged = _store.PurgeExpired(now, _ => 90);
 
         Assert.Equal(2, purged.Items);
         Assert.Empty(_store.List());
@@ -51,7 +51,7 @@ public sealed class RecycleBinRetentionTests : IDisposable
     {
         Bin("a.mp4");
 
-        var purged = _store.PurgeExpired(DateTimeOffset.UtcNow.AddDays(4000), 0);
+        var purged = _store.PurgeExpired(DateTimeOffset.UtcNow.AddDays(4000), _ => 0);
 
         Assert.Equal(0, purged.Items);
         Assert.Single(_store.List());
@@ -63,7 +63,7 @@ public sealed class RecycleBinRetentionTests : IDisposable
         Bin("vault.mp4", library: "vault-videos");
         Bin("normal.mp4");
 
-        var purged = _store.PurgeExpired(DateTimeOffset.UtcNow.AddDays(100), 90, new HashSet<string> { "vault-videos" });
+        var purged = _store.PurgeExpired(DateTimeOffset.UtcNow.AddDays(100), _ => 90, new HashSet<string> { "vault-videos" });
 
         Assert.Equal(1, purged.Items);
         Assert.Equal("vault-videos", Assert.Single(_store.List()).LibraryId);
@@ -74,7 +74,7 @@ public sealed class RecycleBinRetentionTests : IDisposable
     {
         Bin("dune.mp4");
 
-        var summary = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, 90, 7, null, Admin);
+        var summary = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, _ => 90, 7, null, Admin);
 
         var item = Assert.Single(summary.Items);
         Assert.Equal("dune", item.Title);
@@ -92,7 +92,7 @@ public sealed class RecycleBinRetentionTests : IDisposable
         Bin("another.mp4", mediaType: "Movies");
         var child = new RecycleBinViewer(CanManage: false, CanListItems: false, Requester: "Mia");
 
-        var summary = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, 90, 7, null, child);
+        var summary = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, _ => 90, 7, null, child);
 
         Assert.Empty(summary.Items);
         Assert.Equal(2, summary.TotalItems);
@@ -109,7 +109,7 @@ public sealed class RecycleBinRetentionTests : IDisposable
         Bin("movie.mp4", mediaType: "Movies");
         Bin("show.mp4", mediaType: "TV");
 
-        var summary = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, 90, 7, "movies", Admin);
+        var summary = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, _ => 90, 7, "movies", Admin);
 
         Assert.Equal("movie", Assert.Single(summary.Items).Title);
         Assert.Equal(1, summary.TotalItems);
@@ -121,11 +121,11 @@ public sealed class RecycleBinRetentionTests : IDisposable
         Bin("soon.mp4");
         var inSixteen = DateTimeOffset.UtcNow.AddDays(84);
 
-        var summary = RecycleBinSummaryBuilder.Build(_store.List(), inSixteen, 90, 7, null, Admin);
+        var summary = RecycleBinSummaryBuilder.Build(_store.List(), inSixteen, _ => 90, 7, null, Admin);
 
         Assert.Equal(1, summary.LeavingSoonItems);
         Assert.InRange(summary.LeavingSoonDays ?? -1, 5, 7);
-        var plain = RecycleBinSummaryBuilder.Build(_store.List(), inSixteen, 90, 7, null, Admin with { CanManage = false });
+        var plain = RecycleBinSummaryBuilder.Build(_store.List(), inSixteen, _ => 90, 7, null, Admin with { CanManage = false });
         Assert.Equal(0, plain.LeavingSoonItems);
     }
 
@@ -137,10 +137,10 @@ public sealed class RecycleBinRetentionTests : IDisposable
         Assert.True(_store.AddKeepRequest(entry.Id, "Mia"));
         Assert.True(_store.AddKeepRequest(entry.Id, "mia"));
 
-        var asMia = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, 90, 7, null, new RecycleBinViewer(false, true, "Mia"));
+        var asMia = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, _ => 90, 7, null, new RecycleBinViewer(false, true, "Mia"));
         Assert.True(Assert.Single(asMia.Items).Requested);
         Assert.Empty(asMia.Items[0].RequestedBy);
-        var asAdmin = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, 90, 7, null, Admin);
+        var asAdmin = RecycleBinSummaryBuilder.Build(_store.List(), DateTimeOffset.UtcNow, _ => 90, 7, null, Admin);
         Assert.Equal(["Mia"], Assert.Single(asAdmin.Items).RequestedBy);
     }
 

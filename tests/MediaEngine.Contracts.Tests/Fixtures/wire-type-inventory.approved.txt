@@ -4360,7 +4360,6 @@
   TotalItems: System.Int32 | json=total_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TotalBytes: System.Int64 | json=total_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanManage: System.Boolean | json=can_manage | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  RetentionDays: System.Int32 | json=retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.RecycleBinListItemDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OtherItems: System.Int32 | json=other_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OtherBytes: System.Int64 | json=other_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -4368,7 +4367,7 @@
   LeavingSoonBytes: System.Int64 | json=leaving_soon_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LeavingSoonDays: System.Int32? | json=leaving_soon_days | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LeavingSoonWindowDays: System.Int32 | json=leaving_soon_window_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"total_items":7,"total_bytes":7,"can_manage":true,"retention_days":7,"items":[],"other_items":7,"other_bytes":7,"leaving_soon_items":7,"leaving_soon_bytes":7,"leaving_soon_days":7,"leaving_soon_window_days":7}
+  sample={"total_items":7,"total_bytes":7,"can_manage":true,"items":[],"other_items":7,"other_bytes":7,"leaving_soon_items":7,"leaving_soon_bytes":7,"leaving_soon_days":7,"leaving_soon_window_days":7}
 
 [contracts] MediaEngine.Contracts.Items.VideoIdentifyRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10289,6 +10288,7 @@
   MediaTypes: System.Collections.Generic.List<System.String> | json=media_types | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   YoutubeLookup: System.Boolean | json=youtube_lookup | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RecycleBin: System.Boolean | json=recycle_bin | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecycleBinDays: System.Int32 | json=recycle_bin_days | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsVault: System.Boolean | json=vault | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileHandling: MediaEngine.Contracts.Settings.LibraryFileHandlingDto | json=file_handling | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Sources: System.Collections.Generic.List<MediaEngine.Contracts.Settings.LibrarySourceDto> | json=sources | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -10298,7 +10298,7 @@
   Notes: System.String | json=notes | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UnmatchedCount: System.Int32 | json=unmatched_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=WhenWritingDefault | converter=default | number-handling=default | extension-data=no
   ReviewCount: System.Int32 | json=review_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=WhenWritingDefault | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","name":"sample","category":"sample","kind":"sample","kind_key":"sample","area":"sample","presentation":"sample","metadata_policy":"sample","media_types":[],"youtube_lookup":true,"recycle_bin":true,"vault":true,"file_handling":null,"sources":[],"primary_destination_source_id":"sample","accepted_intake_modes":[],"organization_policy":null,"notes":"sample","unmatched_count":7,"review_count":7}
+  sample={"id":"sample","name":"sample","category":"sample","kind":"sample","kind_key":"sample","area":"sample","presentation":"sample","metadata_policy":"sample","media_types":[],"youtube_lookup":true,"recycle_bin":true,"recycle_bin_days":7,"vault":true,"file_handling":null,"sources":[],"primary_destination_source_id":"sample","accepted_intake_modes":[],"organization_policy":null,"notes":"sample","unmatched_count":7,"review_count":7}
 
 [contracts] MediaEngine.Contracts.Settings.LibraryKindDto
   kind=class | converter=default | number-handling=default | unmapped=default
