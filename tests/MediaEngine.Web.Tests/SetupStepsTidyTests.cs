@@ -9,7 +9,10 @@ namespace MediaEngine.Web.Tests;
 public sealed class SetupStepsTidyTests : AsyncBunitContext
 {
     private static readonly string[] SixSteps =
-        ["Name your server", "Your account", "Libraries", "Language", "Enhance your library", "All set"];
+        ["Welcome", "Your profile", "Tools", "Libraries", "Metadata", "All set"];
+
+    private static readonly string[] SevenSteps =
+        ["Welcome", "Your profile", "Tools", "Libraries", "Vault", "Metadata", "All set"];
 
     private static readonly ToolRequirementsDto NoToolsNeeded = new(
         ToolInstallKinds.Source, DateTimeOffset.UnixEpoch, false, []);
@@ -19,44 +22,63 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         .ToList();
 
     [Fact]
-    public void Stepper_ShowsSixSteps_WithoutAServerCheck()
+    public void Stepper_ShowsTheEnginesStepsInOrder_AndNoVaultEntryUnlessOffered()
     {
         var cut = Render<SetupStepper>(parameters => parameters
             .Add(p => p.Steps, Statuses())
-            .Add(p => p.CurrentStep, "administrator")
-            .Add(p => p.WorkflowStep, "administrator"));
+            .Add(p => p.CurrentStep, "profile")
+            .Add(p => p.WorkflowStep, "profile"));
 
         var labels = cut.FindAll("li small").Select(item => item.TextContent.Trim()).ToList();
         Assert.Equal(SixSteps, labels);
-        Assert.DoesNotContain("Server check", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Stepper_KeepsTheFirstStepCurrent_WhileTheSilentCheckRuns()
+    public void Stepper_ShowsAllSevenSteps_WhenTheVaultIsOffered_AndDropsItAfterNotNow()
+    {
+        var offered = Render<SetupStepper>(parameters => parameters
+            .Add(p => p.Steps, Statuses())
+            .Add(p => p.ShowVault, true)
+            .Add(p => p.CurrentStep, "profile")
+            .Add(p => p.WorkflowStep, "profile"));
+        Assert.Equal(SevenSteps, offered.FindAll("li small").Select(item => item.TextContent.Trim()).ToList());
+
+        var declined = Render<SetupStepper>(parameters => parameters
+            .Add(p => p.Steps, Statuses("vault"))
+            .Add(p => p.ShowVault, true)
+            .Add(p => p.CurrentStep, "done")
+            .Add(p => p.WorkflowStep, "done"));
+        Assert.Equal(SixSteps, declined.FindAll("li small").Select(item => item.TextContent.Trim()).ToList());
+        Assert.DoesNotContain("Vault", declined.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Stepper_MarksTheWorkflowStepCurrent_WithNoMappingToAnotherEntry()
     {
         var cut = Render<SetupStepper>(parameters => parameters
             .Add(p => p.Steps, Statuses())
-            .Add(p => p.CurrentStep, "preflight")
-            .Add(p => p.WorkflowStep, "preflight"));
+            .Add(p => p.CurrentStep, "tools")
+            .Add(p => p.WorkflowStep, "tools"));
 
         var current = cut.FindAll("li.is-current");
         Assert.Single(current);
-        Assert.Contains("Name your server", current[0].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Tools", current[0].TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Stepper_ShowsLater_OnlyWhenTheEnhanceStepWasSkipped()
+    public void Stepper_ShowsLater_OnlyWhenTheMetadataStepWasSkipped()
     {
         var skipped = Render<SetupStepper>(parameters => parameters
-            .Add(p => p.Steps, Statuses("providers"))
-            .Add(p => p.CurrentStep, "readiness")
-            .Add(p => p.WorkflowStep, "readiness"));
+            .Add(p => p.Steps, Statuses("metadata"))
+            .Add(p => p.CurrentStep, "done")
+            .Add(p => p.WorkflowStep, "done"));
         Assert.Single(skipped.FindAll("em"));
 
         var passed = Render<SetupStepper>(parameters => parameters
             .Add(p => p.Steps, Statuses())
-            .Add(p => p.CurrentStep, "readiness")
-            .Add(p => p.WorkflowStep, "readiness"));
+            .Add(p => p.CurrentStep, "done")
+            .Add(p => p.WorkflowStep, "done"));
         Assert.Empty(passed.FindAll("em"));
     }
 
@@ -118,7 +140,7 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     [Fact]
     public void FirstScreen_OffersRestoreAsATextLink()
     {
-        var cut = Render<SetupServerStage>(parameters => parameters.Add(p => p.ServerName, "Home"));
+        var cut = Render<SetupWelcomeStage>(parameters => parameters.Add(p => p.ServerName, "Home"));
 
         Assert.Contains("Restore a backup instead", cut.Markup, StringComparison.Ordinal);
     }

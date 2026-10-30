@@ -135,9 +135,9 @@
         _ => AppUiTone.Neutral,
     };
 
-    private static bool ShowRow(SetupCapabilityDto item) => item.Key != "readiness" && (item.Key != "preflight" || item.Status == "blocked");
-    private static string CapabilityLabel(string key) => key switch { "server" => "Server", "preflight" => "Server check", "administrator" => "Your Account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };
-    private static string CapabilityIcon(string key) => key switch { "server" or "preflight" => AppMaterialIcons.Outlined.Dns, "administrator" => AppMaterialIcons.Outlined.PersonOutline, "media-locations" => AppMaterialIcons.Outlined.FolderOpen, "providers" => AppMaterialIcons.Outlined.Storage, _ => AppMaterialIcons.Outlined.CheckCircleOutline };
+    private static bool ShowRow(SetupCapabilityDto item) => item.Key != "done" && (item.Key != "tools" || item.Status == "blocked");
+    private static string CapabilityLabel(string key) => key switch { "welcome" => "Welcome", "profile" => "Your profile", "tools" => "Server check", "libraries" => "Libraries", "metadata" => "Metadata", _ => key.Replace('-', ' ') };
+    private static string CapabilityIcon(string key) => key switch { "welcome" or "tools" => AppMaterialIcons.Outlined.Dns, "profile" => AppMaterialIcons.Outlined.PersonOutline, "libraries" => AppMaterialIcons.Outlined.FolderOpen, "metadata" => AppMaterialIcons.Outlined.Storage, _ => AppMaterialIcons.Outlined.CheckCircleOutline };
     private static string StatusLabel(string status) => status switch { "passed" => "Ready", "deferred" => "Ready · later", "blocked" => "Needs attention", _ => "Not checked" };
     private static AppUiTone StatusTone(string status) => status switch { "passed" => AppUiTone.Success, "blocked" => AppUiTone.Error, "deferred" => AppUiTone.Neutral, _ => AppUiTone.Neutral };
 }

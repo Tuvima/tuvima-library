@@ -189,9 +189,9 @@ public sealed class NetworkSettingsUiTests
     }
 
     [Fact]
-    public void SetupServerStageNoLongerAsksToKeepTheDashboardPrivate()
+    public void SetupWelcomeStageNoLongerAsksToKeepTheDashboardPrivate()
     {
-        var stage = Read(@"src/MediaEngine.Web/Components/Setup/SetupServerStage.razor");
+        var stage = Read(@"src/MediaEngine.Web/Components/Setup/SetupWelcomeStage.razor");
 
         Assert.DoesNotContain("private network until the first administrator", stage, StringComparison.Ordinal);
     }

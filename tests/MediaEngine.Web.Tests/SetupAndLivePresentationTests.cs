@@ -66,8 +66,8 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     {
         var readiness = new SetupReadinessDto(true,
         [
-            new SetupCapabilityDto("preflight", "Preflight", "passed", true, "Server capabilities validated.", null),
-            new SetupCapabilityDto("media-locations", "Media", "deferred", false, "Libraries can be added later.", "/setup?step=media-locations"),
+            new SetupCapabilityDto("tools", "Preflight", "passed", true, "Server capabilities validated.", null),
+            new SetupCapabilityDto("libraries", "Media", "deferred", false, "Libraries can be added later.", "/setup?step=libraries"),
         ]);
         var cut = Render<SetupReadinessStage>(parameters => parameters
             .Add(component => component.Readiness, readiness)
@@ -84,15 +84,15 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     {
         var readiness = new SetupReadinessDto(true,
         [
-            new SetupCapabilityDto("preflight", "Preflight", "passed", true, "Server capabilities validated.", null),
-            new SetupCapabilityDto("administrator", "Administrator", "passed", true, "Administrator is ready.", null),
-            new SetupCapabilityDto("media-locations", "Media", "deferred", false, "Libraries can be added later.", "/setup?step=media-locations"),
-            new SetupCapabilityDto("providers", "Providers", "deferred", false, "Providers can be added later.", "/setup?step=providers"),
+            new SetupCapabilityDto("tools", "Tools", "passed", true, "Server capabilities validated.", null),
+            new SetupCapabilityDto("profile", "Profile", "passed", true, "Administrator is ready.", null),
+            new SetupCapabilityDto("libraries", "Media", "deferred", false, "Libraries can be added later.", "/setup?step=libraries"),
+            new SetupCapabilityDto("metadata", "Providers", "deferred", false, "Providers can be added later.", "/setup?step=metadata"),
         ]);
         var cut = Render<SetupReadinessStage>(parameters => parameters.Add(component => component.Readiness, readiness));
 
         var names = cut.FindAll(".setup-checks strong").Select(item => item.TextContent.Trim()).ToList();
-        Assert.Equal(["Your Account", "Libraries", "Enhance your library"], names);
+        Assert.Equal(["Your profile", "Libraries", "Metadata"], names);
         Assert.DoesNotContain("Core server capabilities", cut.Markup, StringComparison.Ordinal);
         var links = cut.FindAll(".setup-checks a").Select(link => link.TextContent.Trim()).ToList();
         Assert.Equal(["Set up", "Set up"], links);
@@ -100,16 +100,16 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ReadinessNamesTheServerRowWithACapitalAndSaysWhatWasSaved()
+    public void ReadinessNamesTheWelcomeRowWithACapitalAndSaysWhatWasSaved()
     {
         var readiness = new SetupReadinessDto(true,
         [
-            new SetupCapabilityDto("server", "server", "passed", false,
+            new SetupCapabilityDto("welcome", "welcome", "passed", false,
                 "This server is called \"Home\" and shows up on your home network as home.local.", null),
         ]);
         var cut = Render<SetupReadinessStage>(parameters => parameters.Add(component => component.Readiness, readiness));
 
-        Assert.Equal(["Server"], cut.FindAll(".setup-checks strong").Select(item => item.TextContent.Trim()));
+        Assert.Equal(["Welcome"], cut.FindAll(".setup-checks strong").Select(item => item.TextContent.Trim()));
         Assert.Contains("shows up on your home network as home.local.", cut.Find(".setup-checks small").TextContent, StringComparison.Ordinal);
     }
 
@@ -117,12 +117,12 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     public void ReadinessSubtitleAgreesWithTheHeading()
     {
         var ready = Render<SetupReadinessStage>(parameters => parameters
-            .Add(component => component.Readiness, new SetupReadinessDto(true, [new SetupCapabilityDto("administrator", "Administrator", "passed", true, "Ready.", null)])));
+            .Add(component => component.Readiness, new SetupReadinessDto(true, [new SetupCapabilityDto("profile", "Administrator", "passed", true, "Ready.", null)])));
         Assert.Contains("You're all set", ready.Markup, StringComparison.Ordinal);
         Assert.Contains("Library is ready to start finding your media.", ready.Markup, StringComparison.Ordinal);
 
         var blocked = Render<SetupReadinessStage>(parameters => parameters
-            .Add(component => component.Readiness, new SetupReadinessDto(false, [new SetupCapabilityDto("administrator", "Administrator", "blocked", false, "Create the first administrator.", "/setup?step=administrator")])));
+            .Add(component => component.Readiness, new SetupReadinessDto(false, [new SetupCapabilityDto("profile", "Administrator", "blocked", false, "Create the first administrator.", "/setup?step=profile")])));
         Assert.Contains("Almost there", blocked.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Library is ready to start finding your media.", blocked.Markup, StringComparison.Ordinal);
         Assert.Contains("A few things need attention before you open your library.", blocked.Markup, StringComparison.Ordinal);
@@ -141,7 +141,7 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     [Fact]
     public void FirstSetupStepHasNoBackButtonAndNoDatabaseEpoch()
     {
-        var first = Render<SetupServerStage>(parameters => parameters
+        var first = Render<SetupWelcomeStage>(parameters => parameters
             .Add(component => component.ServerName, "Home")
             .Add(component => component.ShowRestore, true)
             .Add(component => component.Backup, new SetupBackupInspectionDto(Guid.NewGuid(), "backup.zip", null, "1", "guid-blob-v1", 10, 20, 3, 2, "This replaces your library.")));

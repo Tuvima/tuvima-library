@@ -11,7 +11,7 @@ public sealed class DashboardFirstRunExperienceTests
         var dashboard = Read("src/MediaEngine.Web/Services/Integration/DashboardAuthenticationEndpoints.cs");
         var setup = Read("src/MediaEngine.Web/Components/Pages/SetupPage.razor");
         var setupClient = Read("src/MediaEngine.Web/Services/Integration/EngineApiClient.Setup.cs");
-        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupServerStage.razor");
+        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupWelcomeStage.razor");
         var engine = Read("src/MediaEngine.Api/Endpoints/AuthenticationEndpoints.cs");
         var setupSessions = Read("src/MediaEngine.Api/Services/SetupSessionService.cs");
 
@@ -127,7 +127,7 @@ public sealed class DashboardFirstRunExperienceTests
         Assert.DoesNotContain("TMDB", providers, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Fanart.tv", providers, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Ownership", providerDialog, StringComparison.Ordinal);
-        Assert.Contains("RunPreflightAsync(automaticallyAdvance: true)", setup, StringComparison.Ordinal);
+        Assert.Contains("await RunPreflightAsync();", setup, StringComparison.Ordinal);
         Assert.Contains("LoadReadinessAsync", setup, StringComparison.Ordinal);
         Assert.Contains("Ready · later", readiness, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"local-ai\"", setup, StringComparison.Ordinal);

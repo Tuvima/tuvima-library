@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Contracts.Setup
 @using MediaEngine.Web.Components.Shared.Providers
 @inject IAppDialogService DialogService
 
@@ -7,10 +8,12 @@
     <div class="setup-stage__heading">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudSync" />
         <div>
-            <h2 id="setup-stage-title">Enhance your library</h2>
+            <h2 id="setup-stage-title">Connect your metadata sources</h2>
             <p>Choose where information about your media comes from. Each source below says what it can supply.</p>
         </div>
     </div>
+
+    <SetupLocaleStage Value="@Locale" ValueChanged="LocaleChanged" ShowDisplay="false" ShowMetadata="true" />
 
     @if (Catalogue.Count == 0)
     {
@@ -75,6 +78,9 @@
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<ProviderCatalogueDto> Catalogue { get; set; } = [];
     [Parameter] public string? SetupSession { get; set; }
+    /// <summary>The metadata language is one pre-filled line above the sources; it is saved with the step.</summary>
+    [Parameter] public SetupLocaleDto? Locale { get; set; }
+    [Parameter] public EventCallback<SetupLocaleDto> LocaleChanged { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback RefreshRequested { get; set; }
     [Parameter] public EventCallback Continue { get; set; }
