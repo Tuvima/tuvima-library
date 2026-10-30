@@ -3620,12 +3620,29 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.PlaybackTechnicalSummary
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RecycleBinEmptiedDto
   Removed: System.Int32 | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RecycleBinItemDto
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RecycleBinListItemDto
   Id: System.Guid | nullability=not-null | accessors=get,init
-  FileName: System.String | nullability=not-null | accessors=get,init
-  Title: System.String | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=nullable | accessors=get,init
   SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
   DeletedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  DeletedBy: System.String | nullability=nullable | accessors=get,init
+  LeavesInDays: System.Int32? | nullability=nullable | accessors=get,init
+  Requested: System.Boolean | nullability=not-null | accessors=get,init
+  RequestedBy: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RecycleBinSummaryDto
+  TotalItems: System.Int32 | nullability=not-null | accessors=get,init
+  TotalBytes: System.Int64 | nullability=not-null | accessors=get,init
+  CanManage: System.Boolean | nullability=not-null | accessors=get,init
+  RetentionDays: System.Int32 | nullability=not-null | accessors=get,init
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.RecycleBinListItemDto> | nullability=not-null | accessors=get,init
+  OtherItems: System.Int32 | nullability=not-null | accessors=get,init
+  OtherBytes: System.Int64 | nullability=not-null | accessors=get,init
+  LeavingSoonItems: System.Int32 | nullability=not-null | accessors=get,init
+  LeavingSoonBytes: System.Int64 | nullability=not-null | accessors=get,init
+  LeavingSoonDays: System.Int32? | nullability=nullable | accessors=get,init
+  LeavingSoonWindowDays: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoIdentifyRequest
   Link: System.String | nullability=not-null | accessors=get,init

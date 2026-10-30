@@ -1,0 +1,14 @@
+.recycle-bin-entry {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin: var(--tl-space-6) 0 var(--tl-space-2);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    text-decoration: none;
+}
+
+.recycle-bin-entry:hover,
+.recycle-bin-entry:focus-visible {
+    color: var(--tl-text-default);
+}

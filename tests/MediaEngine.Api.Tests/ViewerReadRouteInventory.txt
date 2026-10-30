@@ -54,6 +54,7 @@
 /plugins/* | plugin | Endpoints/PluginEndpoints.cs | a plugin's connection state for the caller
 /profiles* | own-data | Endpoints/ProfileEndpoints.cs | profiles of the caller's own household
 /read/resolve/* | catalogue-authorization | Endpoints/ReadEndpoints.cs | resolves a work to a file the viewer may open
+/library/items/recycle-bin/summary | vault-area | Endpoints/LibraryItemEndpoints.cs | entries of Vault and hidden libraries are left out of every count and name (VaultAccessResolver); a restricted profile gets totals only, with no title or kind
 /settings/* | own-data | Endpoints/UISettingsEndpoints.cs | the caller's own display settings and media types
 /setup/v1/* | system | Endpoints/SetupEndpoints.cs | first-run setup facts
 /system/* | system | Endpoints/SystemEndpoints.cs | health and status

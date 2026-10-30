@@ -1,0 +1,5 @@
+.recycle-bin-page {
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: var(--tl-space-6) var(--tl-space-4);
+}

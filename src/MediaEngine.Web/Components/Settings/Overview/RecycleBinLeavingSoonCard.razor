@@ -1,0 +1,53 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Items
+@using MediaEngine.Web.Services.Formatting
+@inject IEngineApiClient Api
+
+@* Administrators only: items that will leave the Recycle bin for good within days (spec Delete a show, season, album or Series, D23).
+   Review opens the bin; Keep them puts every one of those items back. Nothing shows when nothing is leaving soon. *@
+@if (_summary is { CanManage: true, LeavingSoonItems: > 0 } && !_kept)
+{
+    <AppCard>
+        <div class="leaving-soon">
+            <span class="leaving-soon__text" role="status">
+                @(_summary.LeavingSoonItems == 1 ? "1 item" : $"{_summary.LeavingSoonItems} items") (@DisplayFormat.FormatFileSize(_summary.LeavingSoonBytes))
+                will be deleted from the Recycle bin @When.
+            </span>
+            <span class="leaving-soon__actions">
+                <a class="leaving-soon__review" href="/recycle-bin">Review</a>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           Disabled="@_busy" OnClick="KeepAsync">Keep them</AppButton>
+            </span>
+        </div>
+    </AppCard>
+}
+
+@code {
+    private RecycleBinSummaryDto? _summary;
+    private bool _busy;
+    private bool _kept;
+
+    private string When => _summary?.LeavingSoonDays switch
+    {
+        0 => "today",
+        1 => "tomorrow",
+        { } days => $"in {days} days",
+        _ => "soon",
+    };
+
+    protected override async Task OnInitializedAsync() => _summary = await Api.GetRecycleBinSummaryAsync();
+
+    private async Task KeepAsync()
+    {
+        if (_summary is null) return;
+        _busy = true;
+        var soon = _summary.Items.Where(item => item.LeavesInDays is { } left && left <= _summary.LeavingSoonWindowDays).ToList();
+        foreach (var item in soon)
+        {
+            await Api.RestoreFromRecycleBinAsync(item.Id);
+        }
+
+        _kept = true;
+        _busy = false;
+    }
+}

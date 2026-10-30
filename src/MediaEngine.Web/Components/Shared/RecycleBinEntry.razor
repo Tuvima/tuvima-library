@@ -1,0 +1,51 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Formatting
+@inject IEngineApiClient Api
+
+@* A small entry at the foot of a library page: "Recycle bin · 38 items · 24 GB". Shown only while the bin holds something for this
+   page's library type (spec Delete a show, season, album or Series, D12). It opens the bin narrowed to that type (D19). *@
+@if (_items > 0)
+{
+    <a class="recycle-bin-entry" href="@Href">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Class="recycle-bin-entry__icon" />
+        <span>Recycle bin · @(_items == 1 ? "1 item" : $"{_items} items") · @DisplayFormat.FormatFileSize(_bytes)</span>
+    </a>
+}
+
+@code {
+    /// <summary>The lane's tab id (for example "movies"); only the library types that can have a bin map to a type.</summary>
+    [Parameter] public string? Tab { get; set; }
+
+    private int _items;
+    private long _bytes;
+    private string? _loadedFor;
+
+    private static readonly IReadOnlyDictionary<string, string> TypesByTab = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["movies"] = "Movies",
+        ["tv"] = "TV",
+        ["music"] = "Music",
+        ["audiobooks"] = "Audiobooks",
+        ["books"] = "Books",
+        ["comics"] = "Comics",
+        ["youtube"] = "Videos",
+        ["videos"] = "Videos",
+    };
+
+    private string? MediaType => Tab is { } tab && TypesByTab.TryGetValue(tab, out var type) ? type : null;
+
+    private string Href => MediaType is { } type ? $"/recycle-bin?type={Uri.EscapeDataString(type)}" : "/recycle-bin";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (MediaType is not { } type || string.Equals(_loadedFor, type, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _loadedFor = type;
+        var summary = await Api.GetRecycleBinSummaryAsync(type);
+        _items = summary?.TotalItems ?? 0;
+        _bytes = summary?.TotalBytes ?? 0;
+    }
+}

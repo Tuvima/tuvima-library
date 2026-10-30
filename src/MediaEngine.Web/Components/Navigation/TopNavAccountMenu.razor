@@ -123,6 +123,18 @@
                     </a>
                 }
 
+                @if (!IsKids)
+                {
+                    <a class="top-nav-account-menu__item"
+                       href="/recycle-bin"
+                       role="menuitem"
+                       @onclick="CloseMenu">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline"
+                                 Class="top-nav-account-menu__item-icon" />
+                        <span>Recycle bin</span>
+                    </a>
+                }
+
                 <a class="top-nav-account-menu__item"
                    href="@ProjectLinks.DocsSite"
                    target="_blank"

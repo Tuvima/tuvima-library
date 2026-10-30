@@ -1,0 +1,18 @@
+@page "/recycle-bin"
+@namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Navigation
+
+<PageTitle>Recycle bin · Library</PageTitle>
+@* Reachable from the top bar's profile menu and from a library page; the type in the address narrows it to where the person came from. *@
+<div class="recycle-bin-page">
+    <RecycleBinSection MediaType="@Type" />
+</div>
+
+@code {
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private string? Type => RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("type");
+}
