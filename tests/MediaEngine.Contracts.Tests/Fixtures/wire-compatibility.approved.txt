@@ -1217,6 +1217,7 @@
   input client | default="web" | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
   input connection | default=null | shape=cad043aa17f8979e6a58d5f34fe698c2c846cb168a4c2d666c2e54b5aadb2a0f
+  input adaptive | default=False | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
   response | shape=fabd62aff073cc59f83800bb38f4e6b959498d61a67d5b13b51ec918d442574b
 
 [method] GetPlaybackSettingsAsync
