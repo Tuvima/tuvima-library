@@ -1,10 +1,12 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
+@using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Formatting
 @inject IEngineApiClient Api
 @inject NavigationManager Navigation
 @inject DeviceContextService DeviceContext
+@inject LibraryFolderAddService AddService
 
 @* A library's Unidentified files tab (Libraries redesign D3, D6): the files the Engine could not identify, each with the reason in plain words and when it
    was last tried. Identify opens the file's own page, where Edit > Match sorts it out in the universal editor (no editor lives in Settings); Try again looks it
@@ -84,6 +86,11 @@
                                     <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" aria-label="@($"Try {item.FileName} again")" OnClick="@(() => RetryAsync(item))" />
                                 }
                                 <AppButton Label="Keep as it is" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" aria-label="@($"Keep {item.FileName} as it is")" OnClick="@(() => KeepAsync(item))" />
+                                @if (SourceOf(item) is { } source)
+                                {
+                                    <AppButton Label="Change what this folder is" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" aria-label="@($"Change what the folder of {item.FileName} is")"
+                                               OnClick="@(() => ChangeFolderKindAsync(source))" />
+                                }
                             }
                             else
                             {
@@ -105,6 +112,9 @@
     private const int PageSize = 50;
 
     [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
+    /// <summary>The library kinds and the saved libraries, so a row can offer Change what this folder is for the folder the file sits in.</summary>
+    [Parameter] public LibraryKindCatalog? Kinds { get; set; }
+    [Parameter] public LibrariesConfigurationDto? Configuration { get; set; }
     /// <summary>Phones: look only, no control that changes anything.</summary>
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>Raised after a file was retried, kept or changed, so the page can read the counts again.</summary>
@@ -156,6 +166,29 @@
         }
 
         _busy = false;
+    }
+
+    // The library folder a file sits in: the one whose path holds the file's folder (the deepest, when folders nest). No folder to name, no button.
+    private LibrarySourceDto? SourceOf(UnmatchedItemDto item)
+    {
+        if (Kinds is null || Configuration is null || string.IsNullOrWhiteSpace(item.Folder)) return null;
+        var folder = Normal(item.Folder);
+        return Library.Sources
+            .Where(source => !string.IsNullOrWhiteSpace(source.Path) && (folder.Equals(Normal(source.Path), StringComparison.OrdinalIgnoreCase)
+                || folder.StartsWith(Normal(source.Path) + "/", StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(source => source.Path.Length)
+            .FirstOrDefault();
+    }
+
+    private static string Normal(string path) => path.Replace('\\', '/').TrimEnd('/');
+
+    private async Task ChangeFolderKindAsync(LibrarySourceDto source)
+    {
+        if (Kinds is null || Configuration is null) return;
+        _busy = true;
+        var follow = await AddService.ChangeKindAsync(FolderAddScope.Settings, Kinds, Configuration, Library, source);
+        _busy = false;
+        if (follow.Started) await Changed.InvokeAsync();
     }
 
     private Task RetryAsync(UnmatchedItemDto item) => ActAsync(() => Api.RetryUnmatchedItemAsync(item.AssetId), "That file could not be tried again. Try again in a moment.");

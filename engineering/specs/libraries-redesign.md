@@ -196,6 +196,16 @@ On SHY-DESKTOP at 1440 px wide and at about 1280 px, with the small test library
 - **Simpler access v5:** its per-profile area switches (D1) are removed by D16 and D19 (Q3: A); a note on its next version.
 - **Universal editor (Locked):** Identify from the Unidentified tab is a new launcher of the existing Match panel, on the library's own page, desktop only; no change to the editor's rules.
 
+## Built notes (2026-10-30)
+
+- **Add library step 1** has the Watch, Listen, Read and View tabs. The View tab lists Photos, Personal videos and Documents; Next opens the existing View folder pop-up (its own Browse button, not the shared inline picker), so "View's extras in the footer of the shared pop-up" (D8, Q6) is still open.
+- **Header rename:** a pencil on the library page header (not for View libraries, the Vault or phones).
+- **Unidentified rows** offer Change what this folder is for a file inside one of the library's folders.
+- **Not built, needs a decision or another spec:**
+  - *Remove from library* on an Unidentified row needs an Engine action that deletes a Media Asset through the Recycle bin; that action belongs to `delete-groups.md` (Locked, not built). Add the button when that lands.
+  - *Identify opening the Match panel* conflicts with the editing rules (no pop-up editor for a single item, never started from a deep link). Identify opens the item's own page, where Edit > Match works. Shy to say if a Match-only launcher on the library page is wanted.
+  - Picker speed beyond the listing change waits for the Engine log.
+
 ## Plain English summary
 
 Libraries becomes one screen you can always read: a list of every library on the left, grouped under Watch, Listen, Read, View and the Vault, with a coloured dot that says how each one is doing, and the chosen library on the right. The numbers finally mean something: "12 files not identified" opens a list of those twelve files that says why each one failed and lets you fix, keep or remove it, and "3 need review" opens the review list for that library. The confusing Advanced section is removed because every setting in it already had a proper home. Adding a library is two windows, "What is it?" and "Where is it?", and the second one is the folder browser itself, so there is no third window and no Browse button; adding a folder is that same browser. Folder names show up first and the check runs underneath, so the window never freezes while it counts. First-run setup uses the very same table and dialog. Shy agreed to every recommendation and locked the spec on 2026-10-30; it is ready to build.
