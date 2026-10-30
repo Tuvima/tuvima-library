@@ -1,0 +1,287 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Ui
+
+@* Review changes (universal editor spec D8, D12): the last stop before anything is saved, as a page that can sit inside the Editor window
+   or inside the small dialog the bulk and bar paths still use. It asks the Engine to check the whole list, shows what would change grouped
+   Metadata, Identity, Artwork, Relationships and Physical files, and saves only on "Save N changes". Each row can be sent back to its tool
+   (Edit) or taken out of the list (the row's menu). A row the Engine refuses shows its plain reason and blocks Save until it is fixed or
+   removed. After a save that only partly went through it stays, shows every row's result and says what was saved. How the person left it is
+   raised as an outcome. *@
+<div class="review-changes @(ShowHeading ? "review-changes--page" : null)">
+    @if (ShowHeading)
+    {
+        <header class="review-changes__heading">
+            @if (Subtitle is not null)
+            {
+                <p>@Subtitle</p>
+            }
+        </header>
+    }
+    @if (_notice is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error">
+            @_notice
+            @if (!_afterSave)
+            {
+                <AppButton Label="Check again" ButtonStyle="AppButtonStyle.Text" Class="review-changes__retry" Disabled="@Busy" OnClick="RefreshAsync" />
+            }
+        </AppAlert>
+    }
+
+    @if (_savedNote is not null)
+    {
+        <AppAlert Tone="AppUiTone.Warning" Class="review-changes__saved-note">@_savedNote</AppAlert>
+    }
+
+    @if (_loading)
+    {
+        <p class="review-changes__state">Checking your changes...</p>
+    }
+    else if (_rows.Count == 0)
+    {
+        <p class="review-changes__state">There are no changes to review.</p>
+    }
+
+    @foreach (var group in Groups)
+    {
+        <section class="review-changes__group" aria-label="@EditReviewRows.GroupTitle(group.Key)">
+            <h3>@EditReviewRows.GroupTitle(group.Key) <span class="review-changes__count">@group.Count()</span></h3>
+            <ul class="review-changes__rows">
+                @foreach (var row in group)
+                {
+                    var shown = StatusOf(row);
+                    <li class="review-changes__row" data-row="@row.RowId" data-state="@shown.State">
+                        <div class="review-changes__what">
+                            <strong>@row.Item</strong>
+                            <span>@row.What</span>
+                        </div>
+                        <div class="review-changes__values">
+                            @if (row.Before is not null)
+                            {
+                                <span class="review-changes__before"><span class="review-changes__label">Before</span> @row.Before</span>
+                            }
+                            <span class="review-changes__after"><span class="review-changes__label">After</span> @row.After</span>
+                        </div>
+                        @if (row.Warning is not null)
+                        {
+                            <AppAlert Tone="AppUiTone.Warning" Dense="true" Class="review-changes__warning">@row.Warning</AppAlert>
+                        }
+
+                        @if (shown.Text is not null)
+                        {
+                            <p class="review-changes__status" role="@(shown.State == "invalid" || shown.State == "failed" ? "alert" : "status")">@shown.Text</p>
+                        }
+
+                        @if (!_finished)
+                        {
+                            <div class="review-changes__actions">
+                                @if (Source.CanJumpTo(row))
+                                {
+                                    <AppButton Label="Edit" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" aria-label="@($"Edit {row.What} for {row.Item}")" OnClick="@(() => EditAsync(row))" />
+                                }
+                                <AppRowMenu AriaLabel="@($"More actions for {row.What}")" Items="@MenuFor(row)" />
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    <p class="review-changes__note">Provider records are never modified.</p>
+    <ReviewFilesStatus Source="Source" Disabled="@Busy" />
+    <div class="@(ShowHeading ? "review-changes__footer" : "review-changes__footer app-dialog-shell__footer")">
+    @if (_finished)
+    {
+        <AppButton Label="Close" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="BackAsync" />
+    }
+    else
+    {
+        <AppButton Label="Back to editing" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="BackAsync" />
+        <AppButton Label="Discard changes" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DiscardAsync" />
+        <AppButton Label="@SaveLabel"
+                   ButtonStyle="AppButtonStyle.Filled"
+                   Tone="AppUiTone.Primary"
+                   Loading="@_saving"
+                   Disabled="@(!CanSave)"
+                   OnClick="SaveAsync" />
+    }
+    </div>
+</div>
+
+@code {
+    private readonly Dictionary<string, EditSessionChangeResult> _results = new(StringComparer.Ordinal);
+    private List<EditReviewRow> _rows = [];
+    private bool _loading = true;
+    private bool _saving;
+    private bool _afterSave;
+    private bool _finished;
+    private string? _notice;
+    private string? _savedNote;
+
+    [Parameter, EditorRequired] public IReviewSource Source { get; set; } = default!;
+
+    /// <summary>Raised when the person leaves Review: back to editing, to a tool, discarded, or saved.</summary>
+    [Parameter] public EventCallback<ReviewChangesOutcome> OnOutcome { get; set; }
+
+    /// <summary>True when the page shows its own heading (inside the Editor window); the dialog has a header of its own.</summary>
+    [Parameter] public bool ShowHeading { get; set; }
+
+    /// <summary>True while a save is running, so a host can refuse to close.</summary>
+    public bool IsSaving => _saving;
+
+    private bool Busy => _loading || _saving;
+
+    private string? Subtitle => _finished ? null : "Nothing is saved until you choose Save.";
+
+    private IEnumerable<IGrouping<EditReviewGroup, EditReviewRow>> Groups => _rows.GroupBy(row => row.Group).OrderBy(group => group.Key);
+
+    private bool HasInvalidRow => !_afterSave && _rows.Any(row => IsRefused(row));
+
+    private bool CanSave => !Busy && _rows.Count > 0 && _notice is null && !HasInvalidRow;
+
+    private string SaveLabel => _saving ? "Saving..." : _rows.Count == 1 ? "Save 1 change" : $"Save {_rows.Count} changes";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    // Rebuilds the rows from the pending list and asks the Engine to check them. A change the check refuses keeps its reason on its row.
+    private async Task RefreshAsync()
+    {
+        _rows = [.. Source.ReviewRows()];
+        _results.Clear();
+        _notice = null;
+        _afterSave = false;
+        if (_rows.Count == 0)
+        {
+            _loading = false;
+            return;
+        }
+
+        _loading = true;
+        StateHasChanged();
+        var outcome = await Source.PreviewAsync();
+        if (outcome.Results is { } results)
+        {
+            foreach (var result in results)
+            {
+                _results[result.Id] = result;
+            }
+        }
+        else
+        {
+            _notice = outcome.Message ?? "Your changes could not be checked.";
+        }
+
+        _loading = false;
+    }
+
+    private (string State, string? Text) StatusOf(EditReviewRow row)
+    {
+        if (!_results.TryGetValue(row.ChangeId, out var result))
+        {
+            return ("pending", null);
+        }
+
+        var reason = string.IsNullOrWhiteSpace(result.Reason) ? "This change could not be saved." : result.Reason;
+        return result.Status switch
+        {
+            EditSessionChangeStatuses.Invalid or EditSessionChangeStatuses.Failed => (result.Status, reason),
+            EditSessionChangeStatuses.NotApplied => ("not_applied", "Not applied"),
+            // A passed check is not worth a line; after a save it means saved, unless the whole list was held back.
+            _ => _afterSave ? (Source.DataSaved ? "ok" : "not_applied", Source.DataSaved ? "Saved" : "Not applied") : ("ok", null),
+        };
+    }
+
+    private bool IsRefused(EditReviewRow row) =>
+        _results.TryGetValue(row.ChangeId, out var result) && result.Status is EditSessionChangeStatuses.Invalid or EditSessionChangeStatuses.Failed;
+
+    private IReadOnlyList<AppRowMenuItem> MenuFor(EditReviewRow row) =>
+    [
+        new AppRowMenuItem
+        {
+            Label = "Remove this change",
+            Icon = AppMaterialIcons.Outlined.Close,
+            Destructive = true,
+            Disabled = Busy,
+            OnClick = EventCallback.Factory.Create(this, () => RemoveAsync(row)),
+        },
+    ];
+
+    private async Task RemoveAsync(EditReviewRow row)
+    {
+        Source.RemoveReviewRow(row);
+        await RefreshAsync();
+    }
+
+    private async Task EditAsync(EditReviewRow row)
+    {
+        if (!Source.CanJumpTo(row))
+        {
+            return;
+        }
+
+        await Source.JumpToAsync(row);
+        await OnOutcome.InvokeAsync(ReviewChangesOutcome.Edit);
+    }
+
+    private Task BackAsync() => _saving ? Task.CompletedTask : OnOutcome.InvokeAsync(ReviewChangesOutcome.Back);
+
+    private async Task DiscardAsync()
+    {
+        // Asks "Unsaved changes" first; staying keeps this dialog and every change.
+        if (await Source.LeaveAsync())
+        {
+            await OnOutcome.InvokeAsync(ReviewChangesOutcome.Discarded);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave)
+        {
+            return;
+        }
+
+        _saving = true;
+        _notice = null;
+        var saved = await Source.SaveAsync();
+        _saving = false;
+        if (saved)
+        {
+            await OnOutcome.InvokeAsync(ReviewChangesOutcome.Saved);
+            return;
+        }
+
+        _results.Clear();
+        foreach (var result in Source.Results)
+        {
+            _results[result.Id] = result;
+        }
+
+        _afterSave = true;
+        if (Source.DataSaved)
+        {
+            // The data is in the library; what is left are file moves (or similar) that did not go through. The rows are no longer editable.
+            var failed = _rows.Count(row => _results.TryGetValue(row.ChangeId, out var result) && result.Status != EditSessionChangeStatuses.Ok);
+            var onlyMoves = _rows.Where(row => _results.TryGetValue(row.ChangeId, out var result) && result.Status != EditSessionChangeStatuses.Ok)
+                .All(row => row.Kind == EditSessionChangeKinds.FileMove);
+            _savedNote = onlyMoves
+                ? $"Your changes were saved; {failed} file {(failed == 1 ? "move" : "moves")} could not be completed."
+                : $"Your changes were saved; {failed} {(failed == 1 ? "change" : "changes")} could not be completed.";
+            _finished = true;
+        }
+        else if (!string.IsNullOrWhiteSpace(Source.Message))
+        {
+            _notice = Source.Message;
+        }
+        else if (_results.Count == 0)
+        {
+            _notice = "Nothing was saved. Try again.";
+        }
+    }
+}
