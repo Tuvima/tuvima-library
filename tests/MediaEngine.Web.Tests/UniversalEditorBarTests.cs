@@ -363,9 +363,9 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ClosingThePanel_KeepsEditModeAndThePendingChanges_WithoutAsking()
+    public async Task ClosingTheWindowWithChangesStaged_Asks_AndKeepEditingKeepsEverything()
     {
-        var editor = await StartEditorAsync();
+        var editor = await StartEditorAsync(discardWhenAsked: false);
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editor-details")));
@@ -373,15 +373,15 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
 
         cut.Find("button.tl-editor-panel__close").Click();
 
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editor-panel")));
+        cut.WaitForAssertion(() => Assert.Single(editor.Asked));
+        Assert.NotEmpty(cut.FindAll(".tl-editor-panel"));
         Assert.True(editor.Mode.IsOn);
         Assert.True(editor.Session.IsActive);
         Assert.Equal(1, editor.Session.Pending.Count);
-        Assert.Empty(editor.Asked);
     }
 
     [Fact]
-    public async Task OpeningThePanel_MovesFocusIntoIt_AndClosingIt_PutsFocusBackOnTheToolsButton()
+    public async Task OpeningTheWindow_MovesFocusIntoIt_AndClosingItWithNothingStaged_LeavesEditing()
     {
         var editor = await StartEditorAsync();
         var bar = RenderBar(editor);
@@ -393,8 +393,7 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
 
         panel.Find("button.tl-editor-panel__close").Click();
 
-        bar.WaitForAssertion(() => Assert.Equal("tl-editing-tool-details", FocusedIds().Last()));
-        Assert.True(editor.Session.IsActive);
+        bar.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
     }
 
     private List<string?> FocusedIds() => JSInterop.Invocations
@@ -403,19 +402,17 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         .ToList();
 
     [Fact]
-    public async Task EscClosesTheOpenPanelFirst_ThenAsksOnlyWhenChangesArePending()
+    public async Task EscAsksUnsavedChangesWhenChangesArePending_AndKeepEditingLeavesTheWindowOpen()
     {
         var editor = await StartEditorAsync(discardWhenAsked: false);
         await editor.Flow.SelectToolAsync(EditTool.Details);
         editor.Session.Pending.SetField(MovieId, "title", "Dune");
 
-        Assert.True(await editor.Flow.HandleEscapeAsync());
-        Assert.Null(editor.Session.ActiveTool);
-        Assert.Empty(editor.Asked);
-
+        // The editor is a window: Esc asks "Unsaved changes" straight away when something is staged, and Keep editing leaves it open.
         Assert.True(await editor.Flow.HandleEscapeAsync());
         Assert.Single(editor.Asked);
         Assert.True(editor.Mode.IsOn);
+        Assert.Equal(EditTool.Details, editor.Session.ActiveTool);
     }
 
     [Fact]

@@ -26,7 +26,7 @@
                            Class="tl-editor-panel__close"
                            Tooltip="@($"Close {TitleOverride ?? TitleFor(tool)}")"
                            AriaLabel="@($"Close {TitleOverride ?? TitleFor(tool)}")"
-                           OnClick="@(() => flow.ClosePanelAsync())" />
+                           OnClick="@(() => flow.LeaveAsync())" />
         </header>
         <div class="tl-editor-window__main">
             @if (TitleOverride is null)
@@ -41,7 +41,7 @@
                                    StartIcon="@icon"
                                    Disabled="@(flow.Saving || flow.Switching)"
                                    aria-pressed="@(isOpen ? "true" : "false")"
-                                   OnClick="@(() => flow.SelectToolAsync(railTool))">
+                                   OnClick="@(() => railTool == tool ? Task.CompletedTask : flow.SelectToolAsync(railTool))">
                             @label
                         </AppButton>
                     }
