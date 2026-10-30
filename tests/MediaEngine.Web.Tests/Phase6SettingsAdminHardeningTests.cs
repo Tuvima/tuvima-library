@@ -136,6 +136,7 @@ public sealed class Phase6SettingsAdminHardeningTests
     public void MetadataSettings_DoesNotUseHardcodedFallbackAsLiveConfig()
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor")
+                     + ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor")
                      + ReadRepoFile(@"src/MediaEngine.Web/Services/Integration/MetadataSettingsStateService.cs");
 
         Assert.Contains("No sample provider state is being shown", source, StringComparison.Ordinal);
@@ -158,8 +159,9 @@ public sealed class Phase6SettingsAdminHardeningTests
 
         Assert.Contains("GetPipelinesAsync", state, StringComparison.Ordinal);
         Assert.Contains("BuildFlow(mediaType, pipelines, providers)", state, StringComparison.Ordinal);
-        Assert.Contains("Canonical identity", page, StringComparison.Ordinal);
-        Assert.Contains("What Happens Next", page, StringComparison.Ordinal);
+        var editor = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/IngestionFlowEditor.razor");
+        Assert.Contains("IngestionFlowEditor", page, StringComparison.Ordinal);
+        Assert.Contains("GetPipelinesAsync", editor, StringComparison.Ordinal);
         Assert.DoesNotContain("DragIndicator", page, StringComparison.Ordinal);
         Assert.DoesNotContain("SavePipelinesAsync", page, StringComparison.Ordinal);
     }
@@ -222,7 +224,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("MetadataMatchingTab", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("Metadata & Matching", nav, StringComparison.Ordinal);
         Assert.Contains("\"metadata\"", nav, StringComparison.Ordinal);
-        Assert.Contains("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
         Assert.Contains("IngestionFlowSubsection, \"Ingestion Flow\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"enrichment\", \"Enrichment\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"canonical\", \"Canonical & Universes\"", nav, StringComparison.Ordinal);
@@ -266,7 +268,8 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("Diagnostics", delivery, StringComparison.Ordinal);
         // No "planned" note: Available plugins draws an Install button only when the Engine says installing is supported.
         Assert.DoesNotContain("marketplace flows are planned", plugins, StringComparison.Ordinal);
-        Assert.Contains("<AvailablePluginsPanel OnChanged=\"ReloadAsync\" />", plugins, StringComparison.Ordinal);
+        // The directory panel is kept but not drawn on the Plugins page (Plugins and Integrations screens v3).
+        Assert.DoesNotContain("<AvailablePluginsPanel", plugins, StringComparison.Ordinal);
         var available = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/AvailablePluginsPanel.razor");
         Assert.Contains("InstallSupported: true", available, StringComparison.Ordinal);
         Assert.Contains("Advanced settings", plugins, StringComparison.Ordinal);

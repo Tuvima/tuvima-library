@@ -210,7 +210,7 @@ public sealed class UiArchitectureGuardrailTests
         Assert.Contains("<SettingsPageFrame", settings, StringComparison.Ordinal);
         Assert.Contains("<SidebarPageHeader", Read("src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settings, StringComparison.Ordinal);
-        Assert.Contains("<MetadataAdminShell ActiveSubsection=\"@ActiveSurface\">", metadata, StringComparison.Ordinal);
+        Assert.Contains("<MetadataAdminShell ActiveSubsection=\"ingestion-flow\">", metadata, StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", metadata, StringComparison.Ordinal);
         Assert.DoesNotContain("Source Priority", metadata, StringComparison.Ordinal);
         Assert.DoesNotContain("DragIndicator", metadata, StringComparison.Ordinal);

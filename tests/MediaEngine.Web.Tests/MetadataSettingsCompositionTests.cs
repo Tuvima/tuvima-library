@@ -5,36 +5,31 @@ namespace MediaEngine.Web.Tests;
 public sealed class MetadataSettingsCompositionTests
 {
     [Fact]
-    public void MetadataSettings_ComposesOnlyProvidersAndIngestionFlow()
+    public void MetadataSettings_ComposesOnlyTheIngestionFlow_AndSourcesAreOnThePluginsPage()
     {
         var page = Read("src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
         var nav = Read("src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs");
 
-        Assert.Contains("ProvidersPage()", page, StringComparison.Ordinal);
-        Assert.Contains("ProviderDetailPage()", page, StringComparison.Ordinal);
-        Assert.Contains("IngestionFlowPage()", page, StringComparison.Ordinal);
-        Assert.Contains("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
+        Assert.Contains("IngestionFlowEditor", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProvidersPage()", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProviderDetailPage()", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
         Assert.Contains("IngestionFlowSubsection, \"Ingestion Flow\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"enrichment\", \"Enrichment\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"canonical\", \"Canonical & Universes\"", nav, StringComparison.Ordinal);
-        Assert.DoesNotContain("EnrichmentOverview", page, StringComparison.Ordinal);
-        Assert.DoesNotContain("CanonicalOverview", page, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Providers_AreOneProviderKeyInventoryWithTruthfulFilters()
+    public void Providers_AreListedAsPluginTilesByTheEngine()
     {
-        var page = Read("src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
         var state = Read("src/MediaEngine.Web/Services/Integration/MetadataSettingsStateService.cs");
+        var listings = Read("src/MediaEngine.Api/Services/Plugins/Sources/ProviderListings.cs");
+        var tab = Read("src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
 
-        Assert.Contains("_snapshot!.Providers", page, StringComparison.Ordinal);
-        Assert.Contains("Search providers", page, StringComparison.Ordinal);
-        Assert.Contains("Needs setup", page, StringComparison.Ordinal);
-        Assert.Contains("Connected", page, StringComparison.Ordinal);
-        Assert.Contains("ProviderRoute(provider.Key)", page, StringComparison.Ordinal);
         Assert.Contains("Where(IsUserVisibleProvider)", state, StringComparison.Ordinal);
         Assert.DoesNotContain("ContextualProviderName", state, StringComparison.Ordinal);
-        Assert.DoesNotContain("ProviderRoute(pipeline.MediaType)", page, StringComparison.Ordinal);
+        Assert.Contains("ListingKind = \"provider\"", listings, StringComparison.Ordinal);
+        Assert.Contains("IsProvider(plugin)", tab, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -59,15 +54,12 @@ public sealed class MetadataSettingsCompositionTests
     [Fact]
     public void ProviderConfiguration_ProtectsSecretsAndRequiredProviders()
     {
-        var page = Read("src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
+        var page = Read("src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor");
         var dialog = Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor");
         var form = Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderCredentialForm.razor");
 
-        Assert.Contains("Provider enabled", page, StringComparison.Ordinal);
-        Assert.Contains("Disabled=\"@provider.RequiredSystemProvider\"", page, StringComparison.Ordinal);
-        Assert.Contains("Connect provider", page, StringComparison.Ordinal);
-        Assert.Contains("Replace credential", page, StringComparison.Ordinal);
-        Assert.Contains("Remove credential", page, StringComparison.Ordinal);
+        Assert.Contains("Replace key", page, StringComparison.Ordinal);
+        Assert.Contains("Remove key", page, StringComparison.Ordinal);
         Assert.DoesNotContain("CredentialReplacements", page, StringComparison.Ordinal);
         Assert.Contains("The stored value is encrypted and is never returned", form, StringComparison.Ordinal);
         Assert.Contains("field.InputType, \"password\"", form, StringComparison.Ordinal);

@@ -36,6 +36,7 @@ internal static class PluginEndpoints
             PluginCatalog catalog,
             [FromServices] IConfigSecretsStore secrets,
             [FromServices] PluginHostServicesReader hostServices,
+            [FromServices] ProviderListings providers,
             ILoggerFactory loggers,
             CancellationToken ct) =>
         {
@@ -48,6 +49,8 @@ internal static class PluginEndpoints
                     await hostServices.DescribeAsync(registration, ct).ConfigureAwait(false)));
             }
 
+            // The metadata providers are tiles in the same list (Plugins and Integrations screens v3 D15).
+            summaries.AddRange(providers.List());
             return Results.Ok(summaries);
         })
             .WithName("ListPlugins")
