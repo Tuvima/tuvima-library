@@ -64,7 +64,7 @@
             if (Presenter.NoSourceOn)
             {
                 <div class="playback-lyrics__notice" role="status" data-lyrics-state="no-source">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" />
+                    <span class="playback-lyrics__notice-icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
                     <div>
                         <strong>No lyrics source is switched on</strong>
                         <p>Lyrics are fetched from an online lyrics source that is part of Library's plugins. @(IsAdministrator ? "Switch one on and lyrics will appear here." : "Ask an administrator to switch one on.")</p>
