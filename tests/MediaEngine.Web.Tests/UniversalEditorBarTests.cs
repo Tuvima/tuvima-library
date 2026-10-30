@@ -548,6 +548,24 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         Assert.Equal(1, _refreshes);
         Assert.True(editor.Session.Pending.IsEmpty);
         Assert.False(editor.Session.IsActive);
+        Assert.Equal(1, editor.Flow.LastSave?.Count);
+    }
+
+    [Fact]
+    public async Task AfterASave_TheRibbonSaysHowManyChangesWereSaved_AndDismissClearsIt()
+    {
+        var editor = await StartEditorAsync();
+        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
+        var bar = RenderBar(editor);
+        var ribbon = Render<EditSavedRibbon>(parameters => parameters.Add(component => component.Flow, editor.Flow));
+        Assert.Empty(ribbon.FindAll(".tl-saved-ribbon"));
+
+        SaveFromReview(bar);
+
+        ribbon.WaitForAssertion(() => Assert.Contains("Saved 1 change at", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal));
+        ribbon.Find(".tl-saved-ribbon button").Click();
+        ribbon.WaitForAssertion(() => Assert.Empty(ribbon.FindAll(".tl-saved-ribbon")));
+        Assert.Null(editor.Flow.LastSave);
     }
 
     [Fact]
