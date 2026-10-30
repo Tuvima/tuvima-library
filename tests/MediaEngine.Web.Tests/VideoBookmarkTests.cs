@@ -80,13 +80,14 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ASharedBookmarkFromAnotherProfile_IsListedAndCanBeReplayed_ButAPersonalOneFromThemIsNot()
+    public async Task EveryBookmarkTheEngineReturns_IsListedAndCanBeReplayed_WhateverProfileIdTheDashboardHolds()
     {
+        // The Engine already returns only the signed-in profile's own bookmarks plus the shared ones, so the
+        // Dashboard must not second-guess ownership with its own copy of the profile id.
         var shared = Dto(Guid.NewGuid(), SomeoneElse, 300, global: true);
-        var theirs = Dto(Guid.NewGuid(), SomeoneElse, 400);
-        var mine = Dto(Guid.NewGuid(), Me, 500);
+        var personal = Dto(Guid.NewGuid(), SomeoneElse, 400);
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetAudiobookBookmarksWithOutcomeAsync), _ =>
-            Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([theirs, shared, mine]))));
+            Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([personal, shared]))));
         AudiobookBookmarkDto? replayed = null;
         var service = new AudiobookBookmarkActionService(api, null, (bookmark, _) => { replayed = bookmark; return Task.CompletedTask; });
         var context = Context();
@@ -95,13 +96,10 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
 
         await service.LoadSavedAsync(context, assets);
 
-        Assert.Equal([mine.Id, shared.Id], service.GetSnapshot(context.DialogId).Saved.Select(item => item.Id).ToArray());
-        var result = await service.ReplayAsync(context, shared.Id, assets);
+        Assert.Equal([personal.Id, shared.Id], service.GetSnapshot(context.DialogId).Saved.Select(item => item.Id).ToArray());
+        var result = await service.ReplayAsync(context, personal.Id, assets);
         Assert.Equal(AudiobookBookmarkOperationOutcome.Success, result.Outcome);
-        Assert.Equal(shared.Id, replayed!.Id);
-        replayed = null;
-        Assert.Equal(AudiobookBookmarkOperationOutcome.DefiniteFailure, (await service.ReplayAsync(context, theirs.Id, assets)).Outcome);
-        Assert.Null(replayed);
+        Assert.Equal(personal.Id, replayed!.Id);
     }
 
     // ---------------------------------------------------------------- the dialog
