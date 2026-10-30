@@ -55,9 +55,3 @@ public sealed class AccountRemovalChangedException() : InvalidOperationException
 {
     public const string DefaultMessage = "Something changed since you looked. Check the list and try again.";
 }
-
-/// <summary>
-/// A profile's access changed after the caller loaded it (someone else saved, or the profile's roles changed), so the access the
-/// caller sent may undo that change. Nothing was saved. The message is shown to the person as it is.
-/// </summary>
-public sealed class ProfileAccessChangedException() : InvalidOperationException(AccountRemovalChangedException.DefaultMessage);

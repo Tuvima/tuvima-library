@@ -53,7 +53,7 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
         var mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
             accounts,
             new ProfileAccessRepository(_database), identities, profiles, _configuration, decisions, new AllowEvaluator(),
-            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
+            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
             accounts, new ProfileAccessRepository(_database), _identity);
         _devices = new ClientAuthorizationRepository(_database);
         _service = new PhoneBackupProfileService(_devices, accounts, profiles, _identity, decisions, new NoOpAudit(), TimeProvider.System);
@@ -275,8 +275,7 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
     private static CreateAccountAccessCommand NewAccount(string email, bool administrator, string personName) => new(
         email, IsAdministrator: administrator, ProfileId: null,
         NewProfile: new NewAccountProfileCommand(personName, "#112233"),
-        Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-        HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null);
+        TemporaryPassword: null);
 
     private static RequestAuthority Authority(
         Guid accountId, Guid profileId, bool serverAdmin = false, Guid? householdId = null, bool householdAdmin = false) =>

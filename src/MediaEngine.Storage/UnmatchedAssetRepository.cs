@@ -286,7 +286,8 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
                    u.kept_as_is AS KeptAsIs,
                    u.kept_at AS KeptAt,
                    a.file_path_root AS FilePath,
-                   (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = u.asset_id AND cv.key = 'title') AS Title
+                   (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = u.asset_id AND cv.key = 'title') AS Title,
+                   (SELECT e.work_id FROM editions e WHERE e.id = a.edition_id) AS WorkId
             FROM unmatched_assets u
             JOIN media_assets a ON a.id = u.asset_id
             WHERE COALESCE(NULLIF(a.library_id, ''), u.library_id) = @libraryId AND (@includeKept = 1 OR u.kept_as_is = 0)
@@ -295,7 +296,7 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
             """,
             new { libraryId, includeKept = keptFilter, take = Math.Max(1, take), skip = Math.Max(0, skip) });
         return Task.FromResult(new UnmatchedAssetPage(
-            rows.Select(row => new UnmatchedAssetListItem(row.ToModel(), row.FilePath, row.Title)).ToList(),
+            rows.Select(row => new UnmatchedAssetListItem(row.ToModel(), row.FilePath, row.Title, row.WorkId)).ToList(),
             total));
     }
 
@@ -353,5 +354,6 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
     {
         public string FilePath { get; set; } = string.Empty;
         public string? Title { get; set; }
+        public Guid? WorkId { get; set; }
     }
 }

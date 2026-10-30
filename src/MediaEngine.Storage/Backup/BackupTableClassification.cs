@@ -20,8 +20,6 @@ public static partial class BackupTableClassification
         Config("account_passkeys", "Passkey public keys, needed to sign in after a restore."),
         Config("account_two_step", "Two-step sign-in data, needed to sign in after a restore; the secret is protected with this computer's Data Protection key, so the export writes it readable (or keeps it as it is when it cannot be read).", portable: ["secret_protected"]),
         Config("account_notice_dismissals", "Notices an account has dismissed, so they do not return."),
-        Config("profile_feature_grants", "Which features a profile may use."),
-        Config("profile_library_hidden", "Which libraries an administrator hid from a profile."),
         Config("household_library_hidden", "Which libraries an administrator hid for a whole household (the household ceiling)."),
         Config("profile_admin_protections", "Optional extra lock (lock settings) on a profile's administrator rights."),
         Config("households", "Households that group profiles (and, through them, users)."),

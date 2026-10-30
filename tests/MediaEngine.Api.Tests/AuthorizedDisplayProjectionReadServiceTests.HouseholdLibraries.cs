@@ -11,7 +11,7 @@ namespace MediaEngine.Api.Tests;
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {
     private LibraryVisibilityRule SelectedAwareRule() => new(
-        new ProfileAccessRepository(_database), new HouseholdLibraryAccessRepository(_database), new VaultLibraryRepository(_database));
+        new HouseholdLibraryAccessRepository(_database), new VaultLibraryRepository(_database));
 
     private Guid HouseholdOf(Guid account)
     {
@@ -74,16 +74,16 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task AProfileHiddenFromOneLibrary_KeepsTheRest_WhileTheHouseholdHidesAnother()
+    public async Task EveryLibraryTheHouseholdHides_IsAbsent_WhileTheRestStays()
     {
-        var householdHidden = Guid.NewGuid();
-        var profileHidden = Guid.NewGuid();
+        var hiddenOne = Guid.NewGuid();
+        var hiddenTwo = Guid.NewGuid();
         var open = Guid.NewGuid();
         var person = Guid.NewGuid();
-        await CreateHumanAsync(person, WatchOnly, new HashSet<Guid> { profileHidden });
-        await HideForHouseholdAsync(HouseholdOf(person), householdHidden);
-        await InsertOwnedWorkWithIdAsync(householdHidden, "Household hidden", "Movie");
-        await InsertOwnedWorkWithIdAsync(profileHidden, "Profile hidden", "Movie");
+        await CreateHumanAsync(person, WatchOnly, new HashSet<Guid>());
+        await HideForHouseholdAsync(HouseholdOf(person), hiddenOne, hiddenTwo);
+        await InsertOwnedWorkWithIdAsync(hiddenOne, "Hidden one", "Movie");
+        await InsertOwnedWorkWithIdAsync(hiddenTwo, "Hidden two", "Movie");
         var visible = await InsertOwnedWorkWithIdAsync(open, "Open film", "Movie");
 
         Assert.Equal([visible.WorkId],

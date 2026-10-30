@@ -221,7 +221,7 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
             new Resources(_vaultAsset, _vaultLibrary, _ordinaryAsset, _ordinaryLibrary), TimeProvider.System,
             counting.Repository, new NsfwAccessRepository(_database),
             new VaultPathClassifier(new VaultLibraryRepository(_database), _configuration),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         var first = new IntercomAudienceConnection("first", _sessionId, _accountId);
         var second = new IntercomAudienceConnection("second", _sessionId, _accountId);
         var enriched = new PersonEnrichedEvent(person, "Shared Performer", null, "QSHARED");
@@ -337,7 +337,7 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
         new Resources(_vaultAsset, _vaultLibrary, _ordinaryAsset, _ordinaryLibrary), TimeProvider.System,
         new VaultLibraryRepository(_database), new NsfwAccessRepository(_database),
         new VaultPathClassifier(new VaultLibraryRepository(_database), _configuration),
-        TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+        TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
 
     private static async Task<bool> Receives(IntercomAudienceAuthorizer authorizer, IntercomAudienceConnection connection, string eventName, object payload) =>
         await authorizer.CanReceiveAsync(connection, eventName, payload);
@@ -388,9 +388,7 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
                 CreatedAt = now,
                 UpdatedAt = now,
             },
-            new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid>());
+            new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator));
         await _identities.InsertSessionAsync(new AuthSession
         {
             Id = _sessionId,

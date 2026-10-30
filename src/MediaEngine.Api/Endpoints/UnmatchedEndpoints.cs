@@ -174,6 +174,8 @@ public static class UnmatchedEndpoints
         LibraryId = item.Asset.LibraryId,
         Title = item.Title,
         FileName = Path.GetFileName(item.FilePath),
+        Folder = Path.GetDirectoryName(item.FilePath),
+        WorkId = item.WorkId,
         Reason = item.Asset.Reason,
         FirstUnmatchedAt = item.Asset.FirstUnmatchedAt,
         LastTriedAt = item.Asset.LastTriedAt,

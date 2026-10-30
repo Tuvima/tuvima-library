@@ -498,33 +498,16 @@ public static class AccountEndpoints
 
     private static void MapManagedProfiles(RouteGroupBuilder access)
     {
-        access.MapGet("/libraries", async (HttpContext http, IRequestAuthorityResolver resolver,
-            IProfileAccessRepository profileAccess, IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries,
-            [Microsoft.AspNetCore.Mvc.FromServices] IHouseholdLibraryAccessRepository householdLibraries, CancellationToken ct) =>
+        access.MapGet("/libraries", async (
+            IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
-            // The Vault is in no library list, not even the one an administrator picks the libraries to hide from (Videos spec D45).
+            // The Vault is in no library list, not even the one an administrator picks a household's libraries from (Videos spec D45).
             var vaultIds = await vaultLibraries.GetIdsAsync(ct);
-            // A household administrator sees every library, with the ones hidden from their own profile marked: they can't be changed.
-            var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
-            IReadOnlySet<Guid>? hiddenFromActor = null;
-            // The libraries hidden for the household administrator's household can't be ticked for anyone in it (library access D2).
-            IReadOnlySet<Guid>? hiddenForHousehold = null;
-            if (household is { } ownHousehold)
-            {
-                var actor = await resolver.ResolveAsync(http, ct);
-                hiddenFromActor = actor.ActiveProfileId is { } actingProfile
-                    ? await profileAccess.GetHiddenLibrariesAsync(actingProfile, ct)
-                    : new HashSet<Guid>();
-                hiddenForHousehold = await householdLibraries.GetHiddenLibrariesAsync(ownHousehold, ct);
-            }
-
             var values = configuration.LoadLibraries().Libraries
                 .Where(library => library.Kind == LibraryKinds.Catalogued && !library.IsVault && !vaultIds.Contains(library.Id) &&
                     Guid.TryParse(library.Id, out _))
                 .Select(library => new AccessLibraryOptionDto(Guid.Parse(library.Id),
-                    library.Name, library.Category, library.Area,
-                    hiddenFromActor?.Contains(Guid.Parse(library.Id)) == true,
-                    hiddenForHousehold?.Contains(Guid.Parse(library.Id)) == true))
+                    library.Name, library.Category, library.Area))
                 .ToList();
             return Results.Ok(values);
         }).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersRead)
@@ -549,8 +532,7 @@ public static class AccountEndpoints
 
         var profiles = access.MapGroup("/profiles");
         profiles.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver,
-            IProfileRepository repository, IAccountRepository accounts, IProfileAccessRepository profileAccess,
-            [FromServices] IHouseholdLibraryAccessRepository householdLibraries, CancellationToken ct) =>
+            IProfileRepository repository, IAccountRepository accounts, CancellationToken ct) =>
         {
             var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
             var usersByProfile = (await accounts.GetAllAsync(ct)).ToDictionary(user => user.ProfileId);
@@ -558,7 +540,7 @@ public static class AccountEndpoints
             foreach (var profile in (await repository.GetAllAsync(ct))
                 .Where(profile => household is null || profile.HouseholdId == household))
             {
-                values.Add(await MapProfileDetailAsync(profile, usersByProfile.GetValueOrDefault(profile.Id), profileAccess, householdLibraries, ct));
+                values.Add(MapProfileDetail(profile, usersByProfile.GetValueOrDefault(profile.Id)));
             }
 
             return Results.Ok(values);
@@ -653,29 +635,6 @@ public static class AccountEndpoints
             return Results.NoContent();
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("ReorderHouseholdPeople").Produces(StatusCodes.Status204NoContent);
-
-        // What a profile may use. A household administrator hands out only what their own profile holds, only inside their household.
-        profiles.MapPut("/{profileId:guid}/access", async (Guid profileId, ReplaceProfileAccessRequest request,
-            HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
-        {
-            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
-            {
-                return stale;
-            }
-
-            if (request.FeatureIds is null || request.HiddenLibraryIds is null)
-            {
-                throw new ArgumentException("Send both feature_ids and hidden_library_ids (either can be an empty list).");
-            }
-
-            await mutations.ReplaceProfileAccessAsync(await resolver.ResolveAsync(http, ct), profileId,
-                request.FeatureIds.Select(id => new AccountFeatureId(id)).ToHashSet(),
-                request.HiddenLibraryIds.ToHashSet(), request.ExpectedAccessVersion, ct);
-            return Results.NoContent();
-        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
-           .WithName("ReplaceProfileAccess")
-           .Produces(StatusCodes.Status204NoContent);
 
         // Household administrator and server administrator roles of a profile (D15, D17).
         profiles.MapPut("/{profileId:guid}/roles", async (Guid profileId, SetProfileRolesRequest request,
@@ -881,17 +840,10 @@ public static class AccountEndpoints
             AccessVersion: profile.AuthorizationVersion,
             SortPosition: profile.SortPosition);
 
-    /// <summary>A profile with its roles, what it may use and the user it opens, for the lists that manage profiles.</summary>
-    private static async Task<ManagedProfileResponse> MapProfileDetailAsync(
-        MediaEngine.Domain.Aggregates.Profile profile, Account? user,
-        IProfileAccessRepository profileAccess, IHouseholdLibraryAccessRepository householdLibraries, CancellationToken ct) =>
+    /// <summary>A profile with its roles and the user it opens, for the lists that manage profiles.</summary>
+    private static ManagedProfileResponse MapProfileDetail(MediaEngine.Domain.Aggregates.Profile profile, Account? user) =>
         MapProfile(profile) with
         {
-            HouseholdHiddenLibraryIds = profile.HouseholdId is { } householdId
-                ? (await householdLibraries.GetHiddenLibrariesAsync(householdId, ct)).Order().ToList()
-                : [],
-            FeatureIds = (await profileAccess.GetFeatureGrantsAsync(profile.Id, ct)).Select(feature => feature.Value).Order().ToList(),
-            HiddenLibraryIds = (await profileAccess.GetHiddenLibrariesAsync(profile.Id, ct)).Order().ToList(),
             User = user is null ? null : new ManagedProfileUserDto(user.Id, user.Email),
         };
 

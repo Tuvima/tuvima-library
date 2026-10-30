@@ -239,6 +239,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /settings/vault-libraries/destination — where Move to Vault would put an item of a content type (administrators); null when the Engine refused or could not be read.</summary>
     Task<VaultMoveDestinationDto?> GetVaultMoveDestinationAsync(string kindKey, CancellationToken ct = default);
 
+    /// <summary>GET /library/unmatched/libraries/{libraryId} — one library's Unmatched files, newest first, a page at a time (administrators); null when the Engine refused or could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.UnmatchedPageDto?> GetUnmatchedItemsAsync(string libraryId, int skip = 0, int take = 50, CancellationToken ct = default);
+
     /// <summary>POST /library/unmatched/libraries/{libraryId}/retry — Retry now for one library's Unmatched files (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default);
 

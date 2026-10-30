@@ -41,16 +41,15 @@ public sealed class ProfileHeldAccessTests : IDisposable
     // ── Every user points at its own profile ───────────────────────────────────
 
     [Fact]
-    public async Task ANewSignInWithANewPerson_OpensThatPerson_AndTheProfileHoldsItsAccess()
+    public async Task ANewSignInWithANewPerson_OpensThatPerson_AndTheProfileHoldsNoLibraryOrAreaSettings()
     {
         var person = NewProfile("Sam");
         var account = NewAccount("sam@example.com");
 
-        await _accounts.CreateAccountAsync(account, Grant(account.Id, person.Id, isDefault: true),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid>(), newProfile: person);
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, person.Id, isDefault: true), newProfile: person);
 
         Assert.Equal(person.Id, (await _accounts.GetByIdAsync(account.Id))!.ProfileId);
-        Assert.Equal(new[] { "read", "watch" }, (await _access.GetFeatureGrantsAsync(person.Id)).Select(feature => feature.Value).Order());
+        Assert.Equal(new[] { "listen", "read", "watch" }, (await _access.GetAreasAsync(person.Id)).Select(area => area.Value).Order());
     }
 
     [Fact]
@@ -60,8 +59,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
         var mary = await AddHouseholdPersonAsync(admin, "Mary");
         var account = NewAccount("mary@example.com");
 
-        await _accounts.CreateAccountAsync(account, Grant(account.Id, mary.Id, isDefault: true),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, mary.Id, isDefault: true));
 
         Assert.Equal(mary.Id, (await _accounts.GetByIdAsync(account.Id))!.ProfileId);
     }
@@ -71,16 +69,12 @@ public sealed class ProfileHeldAccessTests : IDisposable
     {
         var admin = await CreateServerAdministratorAsync();
         var mary = await AddHouseholdPersonAsync(admin, "Mary");
-        await _access.ReplaceAccessAsync(mary.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>(), _now);
         var before = (await _access.GetAdminFlagsAsync(mary.Id))!.AuthorizationVersion;
         var account = NewAccount("mary@example.com");
 
-        await _accounts.CreateAccountAsync(account, Grant(account.Id, mary.Id, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid> { Guid.NewGuid() }, preserveProfileAccess: true);
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, mary.Id, isDefault: true, administrator: true), preserveProfileAccess: true);
 
         Assert.Equal(mary.Id, (await _accounts.GetByIdAsync(account.Id))!.ProfileId);
-        Assert.Equal(new[] { "listen" }, (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
-        Assert.Empty(await _access.GetHiddenLibrariesAsync(mary.Id));
         var flags = (await _access.GetAdminFlagsAsync(mary.Id))!;
         Assert.False(flags.IsServerAdministrator);
         Assert.False(flags.IsHouseholdAdministrator);
@@ -92,14 +86,12 @@ public sealed class ProfileHeldAccessTests : IDisposable
     {
         var admin = await CreateServerAdministratorAsync();
         var mary = await AddHouseholdPersonAsync(admin, "Mary");
-        await _access.ReplaceAccessAsync(mary.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>(), _now);
         var invited = NewAccount("mary@example.com");
 
         await _accounts.CreateInvitedAccountAsync(invited, [Grant(invited.Id, mary.Id, isDefault: true)], NewInvitation(invited.Id),
             preserveProfileAccess: true);
 
         Assert.Equal(mary.Id, (await _accounts.GetByIdAsync(invited.Id))!.ProfileId);
-        Assert.Equal(new[] { "watch" }, (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
     }
 
     [Fact]
@@ -109,7 +101,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
         var second = NewAccount("second@example.com");
 
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.CreateAccountAsync(
-            second, Grant(second.Id, Profile.SeedProfileId, isDefault: true), new HashSet<AccountFeatureId>(), new HashSet<Guid>()));
+            second, Grant(second.Id, Profile.SeedProfileId, isDefault: true)));
 
         Assert.Equal(AlreadyHasSignIn, refused.Message);
         Assert.Null(await _accounts.GetByIdAsync(second.Id));
@@ -146,8 +138,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
         // A second household administrator, so the first can be turned off (a household always keeps one).
         var second = NewAccount("second@example.com");
         var secondPerson = NewProfile("Second");
-        await _accounts.CreateAccountAsync(second, Grant(second.Id, secondPerson.Id, isDefault: true),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: secondPerson, householdId: person.HouseholdId);
+        await _accounts.CreateAccountAsync(second, Grant(second.Id, secondPerson.Id, isDefault: true), newProfile: secondPerson, householdId: person.HouseholdId);
         await _access.SetHouseholdAdministratorAsync(secondPerson.Id, true, _now);
         await _access.SetHouseholdAdministratorAsync(person.Id, false, _now);
         var before = (await _access.GetAdminFlagsAsync(person.Id))!.AuthorizationVersion;
@@ -237,8 +228,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
 
         // D17: a server administrator profile lives in the Library's own household.
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.CreateAccountAsync(
-            second, Grant(second.Id, secondPerson.Id, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: secondPerson));
+            second, Grant(second.Id, secondPerson.Id, isDefault: true, administrator: true), newProfile: secondPerson));
 
         Assert.Equal("A server administrator must belong to the Library's own household.", refused.Message);
         Assert.Null(await _accounts.GetByIdAsync(second.Id));
@@ -262,20 +252,17 @@ public sealed class ProfileHeldAccessTests : IDisposable
     {
         var admin = await CreateServerAdministratorAsync();
         var mary = await AddHouseholdPersonAsync(admin, "Mary");
-        await _access.ReplaceAccessAsync(mary.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>(), _now);
         using (var connection = _database.CreateConnection())
         {
             connection.Execute("UPDATE profiles SET is_server_admin = 1, is_household_admin = 1 WHERE id = @id;", new { id = mary.Id });
         }
 
         var account = NewAccount("mary@example.com");
-        await _accounts.CreateAccountAsync(account, Grant(account.Id, mary.Id, isDefault: true),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), preserveProfileAccess: true);
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, mary.Id, isDefault: true), preserveProfileAccess: true);
 
         var flags = (await _access.GetAdminFlagsAsync(mary.Id))!;
         Assert.False(flags.IsServerAdministrator);
         Assert.False(flags.IsHouseholdAdministrator);
-        Assert.Equal(new[] { "listen" }, (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
     }
 
     [Fact]
@@ -340,27 +327,25 @@ public sealed class ProfileHeldAccessTests : IDisposable
         member.UpdatedAt = _now.AddMinutes(1);
         Assert.True(await _accounts.UpdateAsync(member));
 
-        Assert.Equal(new[] { "read" }, (await _access.GetFeatureGrantsAsync(memberPerson.Id)).Select(feature => feature.Value));
+        Assert.Equal(new[] { "listen", "read", "view", "watch" }, (await _access.GetAreasAsync(memberPerson.Id)).Select(area => area.Value).Order());
     }
 
     [Fact]
-    public async Task DeletingAUser_LeavesEveryonesProfileWithItsOwnAccess()
+    public async Task DeletingAUser_LeavesEveryonesProfileInPlace()
     {
         var admin = await CreateServerAdministratorAsync();
         var householdId = (await _households.GetForAccountAsync(admin.Id))!.Id;
         var (first, firstPerson) = await CreateMainSignInAsync(admin, "first@example.com");
         var second = NewAccount("second@example.com");
         var secondPerson = NewProfile("Second");
-        await _accounts.CreateAccountAsync(second, Grant(second.Id, secondPerson.Id, isDefault: true),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>(), newProfile: secondPerson, householdId: householdId);
+        await _accounts.CreateAccountAsync(second, Grant(second.Id, secondPerson.Id, isDefault: true), newProfile: secondPerson, householdId: householdId);
         var mary = await AddHouseholdPersonAsync(admin, "Mary");
-        await _access.ReplaceAccessAsync(mary.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), _now);
 
         await _accounts.DeleteAccountAsync(first.Id);
 
         Assert.Null(await _accounts.GetByIdAsync(first.Id));
-        Assert.Equal(new[] { "read" }, (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
-        Assert.Equal(new[] { "watch" }, (await _access.GetFeatureGrantsAsync(secondPerson.Id)).Select(feature => feature.Value));
+        Assert.NotEmpty(await _access.GetAreasAsync(mary.Id));
+        Assert.NotEmpty(await _access.GetAreasAsync(secondPerson.Id));
         Assert.NotNull(await _accounts.GetByIdAsync(second.Id));
         Assert.NotNull(await _access.GetAdminFlagsAsync(firstPerson.Id));
     }
@@ -368,61 +353,45 @@ public sealed class ProfileHeldAccessTests : IDisposable
     // ── New people without a sign-in ───────────────────────────────────────────
 
     [Fact]
-    public async Task APersonAddedToAHousehold_StartsWithTheFeaturesOfWhoeverAddedThem_NothingHiddenForThemselves_AndNeverAnAdministratorRole()
+    public async Task APersonAddedToAHousehold_HoldsNoSettingsOfTheirOwn_AndIsNeverAnAdministrator()
     {
         var admin = await CreateServerAdministratorAsync();
         var householdId = (await _households.GetForAccountAsync(admin.Id))!.Id;
-        var (main, mainPerson) = await CreateMainSignInAsync(admin, "main@example.com");
-        var library = Guid.NewGuid();
-        await _access.ReplaceAccessAsync(mainPerson.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.View },
-            new HashSet<Guid> { library }, _now.AddMinutes(1));
-        await _access.SetHouseholdAdministratorAsync(mainPerson.Id, true, _now.AddMinutes(1));
         var mary = NewProfile("Mary");
 
-        await _accounts.CreateHouseholdPersonAsync(mary, householdId, accessFromProfileId: mainPerson.Id);
+        await _accounts.CreateHouseholdPersonAsync(mary, householdId);
 
-        Assert.Equal(new[] { "read", "view" }, (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
-        // What the household hides is hidden by the household itself; the new person has nothing hidden for themselves (library access D19).
-        Assert.Empty(await _access.GetHiddenLibrariesAsync(mary.Id));
+        // The household's own list decides which libraries Mary sees (library access v4); the person has no rows of their own.
+        using (var connection = _database.CreateConnection())
+        {
+            Assert.Equal(0, connection.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('profile_library_hidden','profile_feature_grants');"));
+        }
+
         var flags = (await _access.GetAdminFlagsAsync(mary.Id))!;
         Assert.False(flags.IsServerAdministrator);
         Assert.False(flags.IsHouseholdAdministrator);
     }
 
     [Fact]
-    public async Task APersonAddedByAServerAdministratorFromAnotherHousehold_StartsWithViewOffAndNoLibrary()
+    public async Task APersonInTheServersOwnHouseholdReachesView_AndAPersonInAnotherHouseholdDoesNot()
     {
         var admin = await CreateServerAdministratorAsync();
+        var home = (await _households.GetForAccountAsync(admin.Id))!.Id;
         var guest = NewAccount("guest@example.com");
         var guestPerson = NewProfile("Guest");
         await _accounts.CreateInvitedAccountAsync(guest, [Grant(guest.Id, guestPerson.Id, isDefault: true)], NewInvitation(guest.Id),
             newProfile: guestPerson);
         var guestHousehold = (await _households.GetForAccountAsync(guest.Id))!.Id;
-        var library = Guid.NewGuid();
-        await _access.ReplaceAccessAsync(Profile.SeedProfileId, AccountFeatureId.All.ToHashSet(), new HashSet<Guid> { library }, _now);
+        var neighbour = NewProfile("Neighbour");
         var friend = NewProfile("Friend");
 
-        await _accounts.CreateHouseholdPersonAsync(friend, guestHousehold, accessFromProfileId: Profile.SeedProfileId);
+        await _accounts.CreateHouseholdPersonAsync(neighbour, home);
+        await _accounts.CreateHouseholdPersonAsync(friend, guestHousehold);
 
-        Assert.Equal(new[] { "listen", "read", "watch" }, (await _access.GetFeatureGrantsAsync(friend.Id)).Select(feature => feature.Value).Order());
-        Assert.Empty(await _access.GetHiddenLibrariesAsync(friend.Id));
-        Assert.False((await _access.GetAdminFlagsAsync(friend.Id))!.IsServerAdministrator);
+        Assert.Contains(AccountFeatureId.View, await _access.GetAreasAsync(neighbour.Id));
+        Assert.Equal(new[] { "listen", "read", "watch" }, (await _access.GetAreasAsync(friend.Id)).Select(area => area.Value).Order());
         Assert.Equal(Profile.SeedProfileId, (await _accounts.GetByIdAsync(admin.Id))!.ProfileId);
-    }
-
-    [Fact]
-    public async Task APersonAddedWithNoAdderProfile_StartsWithEveryFeatureAndNoLibrary()
-    {
-        var admin = await CreateServerAdministratorAsync();
-        var householdId = (await _households.GetForAccountAsync(admin.Id))!.Id;
-        var mary = NewProfile("Mary");
-
-        await _accounts.CreateHouseholdPersonAsync(mary, householdId, accessFromProfileId: null);
-
-        Assert.Equal(AccountFeatureId.All.Select(feature => feature.Value).Order(),
-            (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
-        Assert.Empty(await _access.GetHiddenLibrariesAsync(mary.Id));
-        Assert.False((await _access.GetAdminFlagsAsync(mary.Id))!.IsHouseholdAdministrator);
     }
 
     // ── The default household ──────────────────────────────────────────────────
@@ -457,7 +426,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
     // ── Deleting a person with a sign-in ───────────────────────────────────────
 
     [Fact]
-    public async Task DeletingTheLastHouseholdAdministratorsUser_TakesTheHouseholdAndTheProfileWithIt_AndTheirAccessRows()
+    public async Task DeletingTheLastHouseholdAdministratorsUser_TakesTheHouseholdAndTheProfileWithIt()
     {
         var (_, person, account) = await CreateMemberAsync();
 
@@ -468,7 +437,6 @@ public sealed class ProfileHeldAccessTests : IDisposable
         Assert.Null(await _accounts.GetByIdAsync(account.Id));
         using var connection = _database.CreateConnection();
         Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id = @id;", new { id = person.Id }));
-        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_feature_grants WHERE profile_id = @id;", new { id = person.Id }));
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -477,8 +445,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
     private async Task<Account> CreateServerAdministratorAsync()
     {
         var admin = NewAccount("admin@example.com");
-        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
+        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true));
         return admin;
     }
 
@@ -502,8 +469,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
     {
         var account = NewAccount(email);
         var person = NewProfile(email);
-        await _accounts.CreateAccountAsync(account, Grant(account.Id, person.Id, isDefault: true),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), newProfile: person,
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, person.Id, isDefault: true), newProfile: person,
             householdId: (await _households.GetForAccountAsync(admin.Id))!.Id);
         return (account, person);
     }
@@ -514,8 +480,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
         var admin = await CreateServerAdministratorAsync();
         var account = NewAccount("member@example.com");
         var person = NewProfile("Member");
-        await _accounts.CreateAccountAsync(account, Grant(account.Id, person.Id, isDefault: true),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), newProfile: person);
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, person.Id, isDefault: true), newProfile: person);
         return (await _accounts.GetByIdAsync(admin.Id) ?? admin, person, (await _accounts.GetByIdAsync(account.Id))!);
     }
 
@@ -523,7 +488,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
     {
         var household = (await _households.GetForAccountAsync(admin.Id))!.Id;
         var person = NewProfile(name);
-        await _accounts.CreateHouseholdPersonAsync(person, household, accessFromProfileId: Profile.SeedProfileId);
+        await _accounts.CreateHouseholdPersonAsync(person, household);
         person.HouseholdId = household;
         return person;
     }

@@ -64,8 +64,6 @@ public sealed class DevHarnessResetService
         "households",
         "accounts",
         "account_invitations",
-        "profile_feature_grants",
-        "profile_library_hidden",
         "household_library_hidden",
         "profile_admin_protections",
         "profile_admin_unlocks",

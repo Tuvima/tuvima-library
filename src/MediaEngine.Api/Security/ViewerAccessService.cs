@@ -36,7 +36,7 @@ public static class ViewerAccessStages
     [
         new(ViewerAccessStage.VaultAndSections, "A Vault item is absent unless this session unlocked Vault mode; never part of a shared list.",
             $"{nameof(VaultVisibility)} / {nameof(VaultAccessResolver)}"),
-        new(ViewerAccessStage.SharedLibrary, "Areas, libraries hidden for the household and libraries hidden for the profile decide which libraries the profile sees.",
+        new(ViewerAccessStage.SharedLibrary, "Areas and libraries hidden for the household decide which libraries the profile sees.",
             nameof(LibraryVisibilityRule)),
         new(ViewerAccessStage.ContentLimit, "A Kid's profile follows the household's level for the item's area; an unrated item follows the household's Show unrated items switch.",
             nameof(ContentLimitFilter)),

@@ -9,92 +9,33 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Storage;
 
 /// <summary>
-/// SQLite implementation of <see cref="IProfileAccessRepository"/>: the access a profile holds (users, profiles and households
-/// spec). Every change to a profile's access raises <c>profiles.authorization_version</c> in the same transaction.
+/// SQLite implementation of <see cref="IProfileAccessRepository"/>: the roles and areas a profile holds (users, profiles and households
+/// spec; library access v4 removed the per-profile library and area rows). Every change to a profile's access raises <c>profiles.authorization_version</c> in the same transaction.
 /// </summary>
 public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAccessRepository
 {
-    public Task<IReadOnlySet<AccountFeatureId>> GetFeatureGrantsAsync(Guid profileId, CancellationToken ct = default)
+    public Task<IReadOnlySet<AccountFeatureId>> GetAreasAsync(Guid profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
-        var features = conn.Query<string>("SELECT feature_id FROM profile_feature_grants WHERE profile_id=@profileId;", new { profileId })
-            .Select(value => new AccountFeatureId(value)).ToFrozenSet();
-        return Task.FromResult<IReadOnlySet<AccountFeatureId>>(features);
-    }
-
-    public Task<IReadOnlySet<Guid>> GetHiddenLibrariesAsync(Guid profileId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = db.CreateConnection();
-        var libraries = conn.Query<Guid>("SELECT library_id FROM profile_library_hidden WHERE profile_id=@profileId;", new { profileId })
-            .ToFrozenSet();
-        return Task.FromResult<IReadOnlySet<Guid>>(libraries);
-    }
-
-    public async Task<bool> IsLibraryHiddenAsync(Guid profileId, Guid libraryId, CancellationToken ct = default) =>
-        (await GetHiddenLibrariesAsync(profileId, ct).ConfigureAwait(false)).Contains(libraryId);
-
-    public Task<bool> ReplaceAccessAsync(
-        Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, DateTimeOffset changedAt,
-        CancellationToken ct = default, Guid? changedByProfileId = null, long? expectedAuthorizationVersion = null)
-    {
-        ArgumentNullException.ThrowIfNull(features);
-        ArgumentNullException.ThrowIfNull(hiddenLibraries);
-        return db.ExecuteWriteAsync((conn, tx, token) =>
+        var row = conn.QueryFirstOrDefault<AreaRow>("""
+            SELECT p.household_id AS HouseholdId,
+                   (SELECT id FROM households WHERE is_default=1 LIMIT 1) AS DefaultHouseholdId
+            FROM profiles p WHERE p.id=@profileId;
+            """, new { profileId });
+        if (row is null)
         {
-            token.ThrowIfCancellationRequested();
-            var currentVersion = conn.QueryFirstOrDefault<long?>(
-                "SELECT authorization_version FROM profiles WHERE id=@profileId;", new { profileId }, tx);
-            if (currentVersion is null)
-            {
-                return false;
-            }
-
-            // Checked in the write transaction itself, so a change saved a moment ago is never silently undone.
-            if (expectedAuthorizationVersion is { } expected && expected != currentVersion)
-            {
-                throw new ProfileAccessChangedException();
-            }
-
-            WriteAccessRows(conn, tx, profileId, features, hiddenLibraries, changedAt, changedByProfileId);
-            BumpAuthorizationVersion(conn, tx, profileId);
-            return true;
-        }, ct);
-    }
-
-    /// <summary>
-    /// Replaces a profile's Read/Watch/Listen/View and hidden-library rows on the caller's connection and transaction (the caller
-    /// raises the authorization version when the profile already existed). Every library in the profile's areas is visible unless
-    /// hidden here (simpler access D2). The Vault opens only through Vault mode, so it is never in the hidden list either
-    /// (owner decision 2026-10-22; simpler access D9).
-    /// </summary>
-    internal static void WriteAccessRows(
-        IDbConnection conn, IDbTransaction tx, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries,
-        DateTimeOffset changedAt, Guid? changedByProfileId = null)
-    {
-        var vaultIds = conn.Query<string>("SELECT library_id FROM vault_libraries;", transaction: tx)
-            .Select(text => Guid.TryParse(text, out var parsed) ? parsed : Guid.Empty)
-            .ToHashSet();
-        if (hiddenLibraries.Any(vaultIds.Contains))
-        {
-            throw new ArgumentException("The Vault can't be hidden from or shown to a profile as a library. It opens only through Vault mode.");
+            return Task.FromResult<IReadOnlySet<AccountFeatureId>>(FrozenSet<AccountFeatureId>.Empty);
         }
 
-        var at = Iso(changedAt);
-        conn.Execute("DELETE FROM profile_feature_grants WHERE profile_id=@profileId;", new { profileId }, tx);
-        conn.Execute("DELETE FROM profile_library_hidden WHERE profile_id=@profileId;", new { profileId }, tx);
-        foreach (var feature in features)
+        // Read, Watch and Listen are open to every profile; View (the Library's shared photos and videos) only to the default household.
+        var areas = new List<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen };
+        if (row.HouseholdId is { } household && household == row.DefaultHouseholdId)
         {
-            conn.Execute("INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,@feature,@at);",
-                new { profileId, feature = feature.Value, at }, tx);
+            areas.Add(AccountFeatureId.View);
         }
 
-        foreach (var libraryId in hiddenLibraries)
-        {
-            conn.Execute("INSERT INTO profile_library_hidden(profile_id,library_id,created_at,created_by_profile_id) VALUES(@profileId,@libraryId,@at,@changedByProfileId);",
-                new { profileId, libraryId, at, changedByProfileId }, tx);
-        }
+        return Task.FromResult<IReadOnlySet<AccountFeatureId>>(areas.ToFrozenSet());
     }
 
     public Task<ProfileAdminFlags?> GetAdminFlagsAsync(Guid profileId, CancellationToken ct = default)
@@ -409,6 +350,12 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
     private static string Iso(DateTimeOffset value) => value.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
 
     private static DateTimeOffset ParseRequired(string value) => DateTimeOffset.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+
+    private sealed class AreaRow
+    {
+        public Guid? HouseholdId { get; set; }
+        public Guid? DefaultHouseholdId { get; set; }
+    }
 
     private sealed class FlagsRow
     {

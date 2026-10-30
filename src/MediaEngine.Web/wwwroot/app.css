@@ -5554,7 +5554,6 @@ input[type="reset"],
 @media (max-width: 840px) {
     .folder-table__menu { display: none; }
 }
-.library-advanced__tabs { min-width: 0; max-width: 100%; }
 
 /* Settings banner X (SettingsNoticeBubble): an AppNativeButton, so its root styles live here. Touch and narrow windows grow it to 44px
    in the shared tap-target block. */
@@ -5987,7 +5986,10 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-editor-panel .tl-editing-slot--panel .tl-editing-slot__header{min-height:0;padding:var(--tl-space-3) var(--tl-space-4) var(--tl-space-1);border:0}
 .tl-editor-panel .tl-editing-slot--panel .tl-editing-slot__body{min-height:0;max-height:none;overflow:visible}
 .tl-editor-details{display:flex;flex-direction:column;gap:var(--tl-space-5);padding:var(--tl-space-4)}
-.tl-editor-details__group{display:flex;flex-direction:column;gap:var(--tl-space-3)}
+.tl-editor-details__toolbar{display:flex;justify-content:flex-end}
+.tl-editor-details__group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-3) var(--tl-space-5)}
+.tl-editor-details__group>.tl-editor-details__heading,.tl-editor-field--wide{grid-column:1 / -1}
+@media (max-width:840px){.tl-editor-details__group{grid-template-columns:minmax(0,1fr)}}
 .tl-editor-details__heading{margin:0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm);font-weight:var(--tl-font-weight-semibold)}
 .tl-editor-field{display:flex;flex-direction:column;gap:var(--tl-space-1)}
 .tl-editor-field__label{display:flex;align-items:center;gap:var(--tl-space-2);color:var(--tl-text-secondary);font-size:var(--tl-font-size-sm)}
@@ -6059,6 +6061,7 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-match__switches{display:flex;flex-direction:column;gap:var(--tl-space-2)}
 .tl-match__actions{display:flex;justify-content:space-between;gap:var(--tl-space-3)}
 .tl-match__problem{align-items:center}
+.tl-match__happen{margin:0;font-size:var(--tl-font-size-md);font-weight:var(--tl-font-weight-semibold)}
 
 /* Universe hero: the Universe's own cover, description and background once the editor has set them (spec D17a). */
 .universe-hero__cover {

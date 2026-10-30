@@ -198,7 +198,7 @@ public sealed class LibraryFolderConfig
 
     /// <summary>
     /// True for a Vault-protected library: it lives under the Vault's own rules and is never listed through the library visibility rule.
-    /// Every other library is visible to a profile unless it is hidden for the profile's household or for the profile (library access D2).
+    /// Every other library is visible to a profile unless it is hidden for the profile's household (library access D2 and v4).
     /// </summary>
     [JsonPropertyName("vault")]
     public bool IsVault { get; set; }

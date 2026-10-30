@@ -787,8 +787,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         var person = new Profile { Id = Guid.NewGuid(), DisplayName = "Invited", AvatarColor = "#7C4DFF", Role = ProfileRole.StandardUser, CreatedAt = _clock.GetUtcNow() };
         await _accounts.CreateAccountAsync(
             invited,
-            new TestGrant(invited.Id, person.Id, IsDefault: true),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: person);
+            new TestGrant(invited.Id, person.Id, IsDefault: true), newProfile: person);
         return (invited, person.Id);
     }
 

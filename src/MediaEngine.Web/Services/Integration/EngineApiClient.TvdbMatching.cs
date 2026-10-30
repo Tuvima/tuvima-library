@@ -53,4 +53,20 @@ public sealed partial class EngineApiClient
             $"/metadata/{entityId}/tvdb-match/order",
             request, ct: ct);
     }
+
+    public async Task<TvMatchBrowserShowsDto?> SearchTvMatchBrowserShowsAsync(Guid entityId, string query, CancellationToken ct = default) =>
+        await GetAsync<TvMatchBrowserShowsDto>(
+            "TV match browser shows",
+            $"/metadata/{entityId}/tv-match-browser/shows",
+            new Dictionary<string, string?> { ["query"] = query }, ct: ct);
+
+    public async Task<TvMatchBrowserSeasonsDto?> GetTvMatchBrowserSeasonsAsync(Guid entityId, string seriesId, CancellationToken ct = default) =>
+        await GetAsync<TvMatchBrowserSeasonsDto>(
+            "TV match browser seasons",
+            $"/metadata/{entityId}/tv-match-browser/shows/{Uri.EscapeDataString(seriesId)}/seasons", ct: ct);
+
+    public async Task<TvMatchBrowserEpisodesDto?> GetTvMatchBrowserEpisodesAsync(Guid entityId, string seriesId, int seasonNumber, CancellationToken ct = default) =>
+        await GetAsync<TvMatchBrowserEpisodesDto>(
+            "TV match browser episodes",
+            $"/metadata/{entityId}/tv-match-browser/shows/{Uri.EscapeDataString(seriesId)}/seasons/{seasonNumber}/episodes", ct: ct);
 }

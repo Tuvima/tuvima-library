@@ -29,8 +29,7 @@ public sealed class AccountPasskeyStoreEmailTests : IDisposable
         var account = new Account { Id = id, IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now };
         account.MarkThisComputerOnly();
         await _accounts.CreateAccountAsync(account,
-            new TestGrant(id, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+            new TestGrant(id, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: false));
         var store = new AccountPasskeyStore(_accounts, _database);
         var loaded = (await store.FindByIdAsync(id.ToString("D"), CancellationToken.None))!;
 

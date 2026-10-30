@@ -2,3 +2,4 @@
 .lib-status--warning { color: var(--tl-status-warning); }
 .lib-status--muted { color: var(--tl-text-muted); }
 a.lib-status:hover { text-decoration: underline; }
+.lib-status-group { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; }

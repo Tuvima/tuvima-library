@@ -172,8 +172,9 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
     private AngleSharp.Dom.IElement DialogButton(string text) => _dialogs.FindAll("button").Single(x => Text(x) == text);
 
+    // Setup lists every area in one table (Libraries redesign D2, D13), so there is no area to choose; the argument only names what the caller expects to see.
     private static void ChooseArea(IRenderedComponent<SetupMediaStage> cut, string label) =>
-        cut.FindAll("[aria-label='Library areas'] button").Single(tab => Text(tab) == label).Click();
+        Assert.Contains(cut.FindAll(".libs__group-heading"), heading => Text(heading).StartsWith(label, StringComparison.Ordinal));
 
     private void OpenViewFolderDialog(IRenderedComponent<SetupMediaStage> cut, string kindLabel)
     {
@@ -191,10 +192,10 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
         ChooseArea(cut, "View");
 
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll("[aria-label='Library areas'] button").Select(Text).ToArray());
-        Assert.Equal(3, cut.FindAll("tbody tr").Count);
-        Assert.Equal(3, cut.FindAll("button").Count(button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true));
-        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Add library");
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
+        Assert.Equal(3, cut.FindAll(".libs__group[data-area=view] tbody tr").Count);
+        Assert.Equal(3, cut.FindAll(".libs__group[data-area=view] button").Count(button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true));
+        Assert.DoesNotContain(cut.FindAll(".libs__group[data-area=view] button"), button => Text(button) == "Add library");
         Assert.Empty(cut.FindAll("a.libs__link"));
     }
 
@@ -435,8 +436,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.Equal([RightPin], _unlocks);
         Assert.DoesNotContain(nameof(IEngineApiClient.SetNsfwNavigationAsync), _stub.Calls);
         Assert.False(Services.GetRequiredService<NsfwModeState>().ShowInNavigation);
-        Assert.Contains(cut.FindAll("[aria-label='Library areas'] button"), tab => Text(tab) == "Vault");
-        Assert.Equal("true", cut.FindAll("[aria-label='Library areas'] button").Single(tab => Text(tab) == "Vault").GetAttribute("aria-pressed"));
+        Assert.Contains(cut.FindAll(".libs__group-heading"), heading => Text(heading).StartsWith("Vault", StringComparison.Ordinal));
         Assert.Contains("stays out of the menu", cut.Markup, StringComparison.Ordinal);
 
         await cut.ClickAsync(page => Button(page, "Continue"));

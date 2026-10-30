@@ -1,8 +1,8 @@
 @namespace MediaEngine.Web.Components.Settings
-@using MediaEngine.Web.Services.Formatting
 
-@* A library's status in words (Library pages D17): Healthy, Needs review (a count that links to Needs Review for the library), Empty,
-   Folder offline (the warning's words open as a tooltip) or Scanning. Nothing is claimed while the status is not known. *@
+@* A library's status in words (Libraries redesign D3): Healthy, Empty, Scanning, Folder offline (the warning's words open as a tooltip), or an amber
+   count that names its kind and goes exactly there: "12 files not identified" opens the library's Unidentified tab, "3 need review" opens Needs
+   Review for the library. A library can have both; each is its own link, never mixed. Nothing is claimed while the status is not known. *@
 @if (Row.Status is not { } status)
 {
     <span class="lib-status lib-status--muted" data-status="unknown" aria-label="No status to show">—</span>
@@ -14,11 +14,24 @@ else
         case LibraryStatusKind.Healthy:
             <span class="lib-status" data-status="healthy"><LibraryHealthIcon Health="@LibraryHealth.Ok" />Healthy</span>
             break;
+        case LibraryStatusKind.NotIdentified:
         case LibraryStatusKind.NeedsReview:
-            <a class="lib-status lib-status--warning" data-status="needs-review" href="@LibraryListing.NeedsReviewAddress(Row.Key)" @onclick:stopPropagation="true"
-               aria-label="@($"Needs review, {DisplayFormat.FormatCount(Row.NeedsReview)}. Open Needs Review for {Row.Name}")">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />Needs review (@DisplayFormat.FormatCount(Row.NeedsReview))
-            </a>
+            <span class="lib-status-group">
+                @if (Row.Unidentified > 0)
+                {
+                    <a class="lib-status lib-status--warning" data-status="not-identified" href="@LibraryListing.UnidentifiedAddress(Row.Key)" @onclick:stopPropagation="true"
+                       aria-label="@($"{LibraryListing.UnidentifiedText(Row.Unidentified)}. Open the Unidentified files for {Row.Name}")">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />@LibraryListing.UnidentifiedText(Row.Unidentified)
+                    </a>
+                }
+                @if (Row.NeedsReview > 0)
+                {
+                    <a class="lib-status lib-status--warning" data-status="needs-review" href="@LibraryListing.NeedsReviewAddress(Row.Key)" @onclick:stopPropagation="true"
+                       aria-label="@($"{LibraryListing.NeedsReviewText(Row.NeedsReview)}. Open Needs Review for {Row.Name}")">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />@LibraryListing.NeedsReviewText(Row.NeedsReview)
+                    </a>
+                }
+            </span>
             break;
         case LibraryStatusKind.FolderOffline:
             <AppTooltip Text="@Row.StatusDetail">

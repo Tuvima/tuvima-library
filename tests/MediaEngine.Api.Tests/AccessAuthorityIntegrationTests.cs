@@ -73,9 +73,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
 
         _accounts.CreateAccountAsync(
             Account(_accountId, administrator: true),
-            Grant(_accountId, administrator: true),
-            AccountFeatureId.All.ToHashSet(),
-            new HashSet<Guid>()).GetAwaiter().GetResult();
+            Grant(_accountId, administrator: true)).GetAwaiter().GetResult();
     }
 
     [Fact]
@@ -496,7 +494,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     private AccountAccessDecisionService CreateDecisions() =>
         new(new ProfileAccessRepository(_database), new GrantAdminUnlockService(
             new ProfileAccessRepository(_database), new StubProfilePins(), _clock),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
 
     private async Task<MediaEngine.Domain.Entities.Application> CreateApplicationAsync(
         ApplicationType type,
@@ -608,7 +606,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     {
         var profile = new Profile { Id = Guid.NewGuid(), DisplayName = "Person", Role = ProfileRole.StandardUser, CreatedAt = _clock.GetUtcNow() };
         var grant = Grant(account.Id, administrator: _administrators.Contains(account.Id)) with { ProfileId = profile.Id };
-        await _accounts.CreateAccountAsync(account, grant, features, new HashSet<Guid>(), newProfile: profile);
+        await _accounts.CreateAccountAsync(account, grant, newProfile: profile);
         return profile.Id;
     }
 

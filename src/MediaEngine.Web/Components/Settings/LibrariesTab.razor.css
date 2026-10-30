@@ -21,3 +21,9 @@ summary {cursor:pointer;padding:8px 0}
  .library-detail__advanced summary span {display:block;margin:6px 0 0}
  .libraries__savebar {position:static}
 }
+
+/* Two panes (Libraries redesign D1, D14): a rail of areas and libraries, then the overview or the library. The rail is 220 to 260 px wide;
+   below 1180 it is a strip of chips above the pane. */
+.libraries__layout {display:grid;grid-template-columns:clamp(220px,18vw,260px) minmax(0,1fr);gap:24px;align-items:start;min-width:0}
+.libraries__pane {display:flex;flex-direction:column;gap:16px;min-width:0}
+@media(max-width:1180px) {.libraries__layout {grid-template-columns:minmax(0,1fr);gap:12px}}

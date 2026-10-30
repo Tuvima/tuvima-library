@@ -18,14 +18,12 @@ internal static class UserCreationTestExtensions
     /// <summary>
     /// Creates the user in <paramref name="account"/> opening <paramref name="grant"/>'s profile. <paramref name="preserveProfileAccess"/>
     /// attaches it to a person who already exists without changing them; otherwise the profile is set up with
-    /// <paramref name="features"/>, <paramref name="hiddenLibraries"/> and (when the grant says so) the server administrator role.
+    /// (when the grant says so) the server administrator role.
     /// </summary>
     public static Task CreateAccountAsync(
         this IAccountAccessMutationRepository accounts,
         Account account,
         TestGrant grant,
-        IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> hiddenLibraries,
         CancellationToken ct = default,
         Profile? newProfile = null,
         bool preserveProfileAccess = false,
@@ -41,9 +39,7 @@ internal static class UserCreationTestExtensions
                 newProfile is null ? null : householdId,
                 newHouseholdName,
                 SetUpProfile: newProfile is null && !preserveProfileAccess,
-                IsServerAdministrator: grant.AdminEnabled,
-                Features: features,
-                HiddenLibraries: hiddenLibraries),
+                IsServerAdministrator: grant.AdminEnabled),
             invitation,
             ct);
     }
@@ -62,8 +58,6 @@ internal static class UserCreationTestExtensions
         accounts.CreateAccountAsync(
             account,
             grants.Single(grant => grant.IsDefault),
-            new HashSet<AccountFeatureId>(),
-            new HashSet<Guid>(),
             ct,
             newProfile,
             preserveProfileAccess,

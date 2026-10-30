@@ -16,7 +16,7 @@
 @inject DeviceContextService DeviceContext
 
 @* Settings > Manage Profiles > one person, in three tabs: Profile (details, sign-in, roles), Preferences (watching, listening, reading,
-   subtitles, Home) and Access & safety (libraries, Vault, administrator PIN, delete). The same for your own profile and, for
+   subtitles, Home) and Access & safety (Kid's profile, Vault, administrator PIN, delete). The same for your own profile and, for
    administrators, anyone in the household. *@
 <div class="profile-detail" data-profile-section="detail" data-profile-tab="@(Tab.Length == 0 ? "profile" : Tab)">
     @if (IsAdministrator)
@@ -224,13 +224,6 @@
                     {
                         <p class="who-page__error" role="alert" data-kid-error>@_kidError</p>
                     }
-                    @if (_managedPerson is not null)
-                    {
-                        <ManagedAccessUserPermissions Person="@_managedPerson" Libraries="@_accessLibraries"
-                                                      LibrariesUnavailable="@_accessLibrariesUnavailable"
-                                                      OfferedFeatureIds="@OfferedFeatureIds" HouseholdName="@_householdName"
-                                                      OnSave="SaveAccessAsync" RetryLibraries="RetryLibrariesAsync" />
-                    }
                 }
             </SettingsSectionPanel>
             </div>
@@ -321,10 +314,6 @@
     private bool _editorSaving;
     private string? _editorError;
     private ManagedProfileResponse? _managedPerson;
-    private List<AccessLibraryOptionDto> _accessLibraries = [];
-    private bool _accessLibrariesUnavailable;
-    private bool _accessSaving;
-    private string _householdName = string.Empty;
     private bool _kidBusy;
     private string? _kidError;
     private RoleSwitchState _householdRole = RoleSwitchState.Hidden;
@@ -390,11 +379,6 @@
     private IReadOnlyList<ManagedProfileResponse> HouseholdPeople => _managedPerson is null
         ? []
         : _managed.Where(person => person.HouseholdId == _managedPerson.HouseholdId).ToList();
-
-    // A household administrator hands out only what their own profile holds; a server administrator hands out everything.
-    private IReadOnlySet<string>? OfferedFeatureIds => IsServerAdministrator
-        ? null
-        : AccessAreas.All.Select(area => area.Key).Where(Session.HasNavigation).ToHashSet();
 
     // A Kid's profile is for people, not administrators: the Engine refuses it for one.
     private bool KidLocked => _managedPerson is { IsServerAdmin: true } or { IsHouseholdAdmin: true };
@@ -527,12 +511,6 @@
                 await NameChanged.InvokeAsync(_person.DisplayName);
                 await LoadSettingsAsync();
                 await LoadProtectionAsync();
-                if (ShowAccess && !_managedPerson!.IsServerAdmin)
-                {
-                    // The access section lists the libraries and names the household that limits them.
-                    await LoadLibrariesAsync();
-                    await LoadHouseholdNameAsync();
-                }
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
@@ -626,85 +604,6 @@
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not load this profile's administrator PIN setting.");
-        }
-    }
-
-    // Reads the Engine's library picker. A failed read is "unavailable", never "empty": the libraries are then left as they are.
-    private async Task LoadLibrariesAsync()
-    {
-        var loaded = await Identity.GetAccessLibrariesAsync();
-        _accessLibrariesUnavailable = loaded is null;
-        _accessLibraries = loaded ?? [];
-    }
-
-    // The household's name, for "Not available to {household}". A missing name only changes the wording.
-    private async Task LoadHouseholdNameAsync()
-    {
-        _householdName = string.Empty;
-        if (_managedPerson?.HouseholdId is not { } householdId)
-        {
-            return;
-        }
-
-        try
-        {
-            var households = await Identity.GetManagedHouseholdsAsync();
-            _householdName = households.FirstOrDefault(household => household.Id == householdId)?.Name ?? string.Empty;
-        }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-        {
-            Logger.LogWarning(exception, "Could not load the household's name.");
-        }
-    }
-
-    private async Task RetryLibrariesAsync()
-    {
-        try
-        {
-            await LoadLibrariesAsync();
-        }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-        {
-            Logger.LogWarning(exception, "Could not load the Libraries to choose from.");
-            _accessLibrariesUnavailable = true;
-        }
-    }
-
-    // Save changes on the access section: the areas and hidden libraries go in one request, against the version the section was drawn from.
-    // Answers null when the Engine took it, or the sentence to show. A change made elsewhere since (409) saves nothing: the person is read
-    // again so the section starts over from what is saved now.
-    private async Task<string?> SaveAccessAsync(ReplaceProfileAccessRequest request)
-    {
-        if (_accessSaving || !ShowAccess)
-        {
-            return "Access is changed on a computer or tablet.";
-        }
-
-        _accessSaving = true;
-        try
-        {
-            var result = await Confirmed.RunAsync(() => Identity.ReplaceProfileAccessResultAsync(ProfileId, request));
-            if (!result.Succeeded)
-            {
-                if (result.Failure == DashboardAccessMutationFailure.Conflict)
-                {
-                    await ReloadManagedAsync();
-                    return string.IsNullOrWhiteSpace(result.Message)
-                        ? "Something changed since you looked. Check the list and try again."
-                        : result.Message;
-                }
-
-                return AccessFailureMessage(result.Failure, result.Message);
-            }
-
-            await ReloadManagedAsync();
-            return null;
-        }
-        finally
-        {
-            _accessSaving = false;
-            // The section reported the save, not this page, so nothing else would draw the person's new saved state.
-            StateHasChanged();
         }
     }
 

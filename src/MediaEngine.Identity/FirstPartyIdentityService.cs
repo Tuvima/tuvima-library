@@ -136,9 +136,9 @@ public sealed class FirstPartyIdentityService(
                 account.MarkThisComputerOnly();
             }
 
-            // The first start: the Owner profile becomes the server administrator's (in a household made for it) and starts with every feature.
+            // The first start: the Owner profile becomes the server administrator's (in a household made for it) and sees every area.
             await accounts.CreateUserAsync(account,
-                new NewUserPlacement(SetUpProfile: true, IsServerAdministrator: true, Features: AccountFeatureId.All.ToHashSet(), HiddenLibraries: new HashSet<Guid>()),
+                new NewUserPlacement(SetUpProfile: true, IsServerAdministrator: true),
                 ct: ct).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(pin))
             {

@@ -94,7 +94,7 @@ public sealed class HouseholdPeopleTests
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, households) = (fixture.Mutations, fixture.Accounts, fixture.Households);
-        var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read, AccountFeatureId.Watch);
+        var owner = await fixture.CreateOwnerAsync();
         // Acting as the owner's profile: new people start with what that profile holds.
         var actor = fixture.Actor with { ActiveProfileId = owner.ProfileId };
         var household = (await households.GetForAccountAsync(owner.Id))!;
@@ -115,19 +115,9 @@ public sealed class HouseholdPeopleTests
         Assert.False(flags.IsHouseholdAdministrator);
         Assert.True(Assert.Single(await accounts.GetHouseholdProfilesAsync(maryAccount.Id), profile => profile.IsOwn).ProfileId == mary.Id);
 
-        // Attaching a sign-in never changes the person: Mary keeps exactly the access she started with (and her version).
-        Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
+        // Attaching a sign-in never changes the person: Mary keeps exactly what she started with (and her version).
+        Assert.Equal(new[] { "listen", "read", "watch" }, (await fixture.Access.GetAreasAsync(mary.Id)).Select(area => area.Value).Order());
         Assert.Equal(before, (await fixture.Access.GetAdminFlagsAsync(mary.Id))!.AuthorizationVersion);
-
-        // Each profile holds its own access: changing the owner's does not reach Mary.
-        await mutations.ReplaceProfileAccessAsync(actor, owner.ProfileId,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
-        Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
-
-        // Her access is edited on her own profile.
-        await mutations.ReplaceProfileAccessAsync(actor, mary.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
-        Assert.Equal(new[] { "listen" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
 
         // An invitation works the same way and the new sign-in opens only that person.
         var invited = await mutations.CreateUserAsync(actor, new CreateUserCommand(
@@ -145,27 +135,6 @@ public sealed class HouseholdPeopleTests
             new AddHouseholdPersonCommand(household.Id, "Third", null, false, null));
         await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.CreateUserAsync(actor, new CreateUserCommand(
             "MARY@example.com", third.Id, null, NewUserSignInMethod.Invitation)));
-    }
-
-    [Fact]
-    public async Task ReplaceProfileAccess_ForAUser_ChangesOnlyThatPersonsProfile()
-    {
-        // A person's access lives on their profile (users, profiles and households spec D1): nothing follows the household's main sign-in.
-        await using var fixture = await Fixture.CreateAsync();
-        var (mutations, households) = (fixture.Mutations, fixture.Households);
-        var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read, AccountFeatureId.Watch);
-        var actor = fixture.Actor with { ActiveProfileId = owner.ProfileId };
-        var household = (await households.GetForAccountAsync(owner.Id))!;
-        var mary = await mutations.AddHouseholdPersonAsync(actor,
-            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
-        await mutations.CreateUserAsync(actor, new CreateUserCommand(
-            "mary@example.com", mary.Id, null, NewUserSignInMethod.TemporaryPassword, "a long temporary password"));
-
-        await mutations.ReplaceProfileAccessAsync(actor, mary.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
-
-        Assert.Equal(new[] { "listen" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
-        Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(owner.ProfileId)).Select(feature => feature.Value).Order());
     }
 
     [Fact]
@@ -222,7 +191,7 @@ public sealed class HouseholdPeopleTests
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
-        var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read);
+        var owner = await fixture.CreateOwnerAsync();
         var household = (await households.GetForAccountAsync(owner.Id))!;
         var mary = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
@@ -448,8 +417,8 @@ public sealed class HouseholdPeopleTests
         var (mutations, accounts, actor) = (fixture.Mutations, fixture.Accounts, fixture.Actor);
         var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
             "admin@example.com", IsAdministrator: true, ProfileId: null,
-            NewProfile: new NewAccountProfileCommand("Admin", "#7C4DFF"),
-            Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
+            NewProfile: new NewAccountProfileCommand("Admin", "#7C4DFF")
+            ));
         var application = actor with { PrincipalKind = PrincipalKind.ServiceApplication, ActiveProfileIsServerAdministrator = false };
 
         // A trusted application with identity.users.write could otherwise move the address and then reset the password to it.
@@ -539,7 +508,7 @@ public sealed class HouseholdPeopleTests
                 new NoOpInvalidation(),
                 fixture.Audit,
                 fixture.Identity,
-                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
+                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
                 fixture.Accounts, fixture.Access, fixture.Identity);
             return Task.FromResult(fixture);
         }
@@ -566,16 +535,14 @@ public sealed class HouseholdPeopleTests
             new NoOpInvalidation(),
             Audit,
             Identity,
-            new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries());
+            new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
 
-        public Task<Account> CreateOwnerAsync(params AccountFeatureId[] features) => Mutations.CreateAsync(Actor,
+        public Task<Account> CreateOwnerAsync() => Mutations.CreateAsync(Actor,
             new CreateAccountAccessCommand(
                 "owner@example.com",
                 IsAdministrator: false,
                 ProfileId: null,
-                NewProfile: new NewAccountProfileCommand("Owner", "#7C4DFF"),
-                Features: features.ToHashSet(),
-                HiddenLibraries: new HashSet<Guid>()));
+                NewProfile: new NewAccountProfileCommand("Owner", "#7C4DFF")));
 
         public ValueTask DisposeAsync()
         {

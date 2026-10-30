@@ -1,0 +1,5 @@
+.libs-rules__title { margin: 0; font-size: 1.1rem; }
+.libs-rules__sub { margin: 2px 0 12px; color: var(--tl-text-muted); font-size: 0.9rem; }
+.libs-rules__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+.libs-rules__row small { display: block; color: var(--tl-text-muted); }
+.libs-rules__saved { margin: 8px 0 0; color: var(--tl-status-success); font-size: 0.9rem; }

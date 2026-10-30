@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0068 household_kid_settings).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0069 remove_per_profile_library_and_area_access).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2183,13 +2183,6 @@ CREATE TABLE profile_credentials (
     UNIQUE(profile_id, credential_kind)
 );
 
-CREATE TABLE profile_feature_grants (
-    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    feature_id TEXT NOT NULL CHECK (feature_id IN ('read','watch','listen','view')),
-    granted_at TEXT NOT NULL,
-    PRIMARY KEY (profile_id, feature_id)
-);
-
 CREATE TABLE profile_grid_preferences (
     profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     grid_key    TEXT NOT NULL CHECK (grid_key IN ('watch', 'read', 'listen', 'my-list', 'liked')),
@@ -2214,14 +2207,6 @@ CREATE TABLE profile_hero_settings (
     allow_listen   INTEGER NOT NULL DEFAULT 1 CHECK (allow_listen IN (0, 1)),
     continued_only INTEGER NOT NULL DEFAULT 0 CHECK (continued_only IN (0, 1)),
     updated_at     TEXT    NOT NULL   -- ISO 8601 UTC
-);
-
-CREATE TABLE profile_library_hidden (
-    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    library_id            BLOB NOT NULL,
-    created_at            TEXT NOT NULL,
-    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
-    PRIMARY KEY (profile_id, library_id)
 );
 
 CREATE TABLE profile_notice_dismissals (

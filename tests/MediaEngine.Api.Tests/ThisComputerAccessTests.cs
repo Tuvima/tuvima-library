@@ -200,8 +200,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         var otherProfile = new MediaEngine.Domain.Aggregates.Profile { Id = Guid.NewGuid(), DisplayName = "Other", CreatedAt = now };
         await _accounts.CreateAccountAsync(
             new Account { Id = otherId, Email = "taken@example.com", NormalizedEmail = "TAKEN@EXAMPLE.COM", IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now },
-            new TestGrant(otherId, otherProfile.Id, IsDefault: true, AdminEnabled: false),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: otherProfile);
+            new TestGrant(otherId, otherProfile.Id, IsDefault: true, AdminEnabled: false), newProfile: otherProfile);
         await using var app = BuildAuthenticationApplication();
 
         var response = await SendAsync(app, "POST", "/auth/account/secure",

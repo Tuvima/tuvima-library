@@ -195,6 +195,15 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("unmatched_count")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int UnmatchedCount { get; set; }
+
+    /// <summary>
+    /// Read-only: how many identified items in this library wait in Needs Review (Libraries redesign D3). Not the same list as
+    /// <see cref="UnmatchedCount"/>. Filled on the list read for an administrator and ignored when the list is saved; zero (left out of the
+    /// JSON) when none.
+    /// </summary>
+    [JsonPropertyName("review_count")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int ReviewCount { get; set; }
 }
 
 public sealed class LibrarySourceDto
