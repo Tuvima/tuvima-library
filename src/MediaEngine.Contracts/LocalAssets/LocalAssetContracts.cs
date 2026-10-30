@@ -62,7 +62,9 @@ public sealed record LocalAssetDto(
     [property: JsonPropertyName("can_trash")] bool CanTrash = true,
     [property: JsonPropertyName("content_kind")] string? ContentKind = null,
     [property: JsonPropertyName("added_by_profile_id")] Guid? AddedByProfileId = null,
-    [property: JsonPropertyName("added_by_name")] string? AddedByName = null);
+    [property: JsonPropertyName("added_by_name")] string? AddedByName = null,
+    [property: JsonPropertyName("file_missing")] bool FileMissing = false,
+    [property: JsonPropertyName("part_missing")] bool PartMissing = false);
 
 /// <summary>
 /// What is known about the words read from a document, and how it has been organised. <c>text_source</c> is

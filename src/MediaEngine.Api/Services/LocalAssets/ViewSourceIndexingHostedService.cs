@@ -22,7 +22,8 @@ public sealed class ViewSourceIndexingHostedService(
     IViewPathIndexer indexer,
     IViewSourceWatcherFactory watcherFactory,
     ViewSourceIndexingOptions options,
-    ILogger<ViewSourceIndexingHostedService> logger) : BackgroundService
+    ILogger<ViewSourceIndexingHostedService> logger,
+    IViewMissingFileSweeper? sweeper = null) : BackgroundService
 {
     private static readonly StringComparison PathComparison = OperatingSystem.IsWindows()
         ? StringComparison.OrdinalIgnoreCase
@@ -31,15 +32,45 @@ public sealed class ViewSourceIndexingHostedService(
     private readonly object _lifecycleLock = new();
     private readonly List<IViewSourceWatcher> _watchers = [];
     private DebounceQueue? _queue;
-    private readonly Channel<Guid> _scanRequests = Channel.CreateUnbounded<Guid>(new UnboundedChannelOptions { SingleReader = true });
+    private readonly Channel<(Guid LibraryId, bool Scan)> _scanRequests =
+        Channel.CreateUnbounded<(Guid LibraryId, bool Scan)>(new UnboundedChannelOptions { SingleReader = true });
     private readonly ConcurrentDictionary<Guid, byte> _pendingScans = new();
+    private readonly ConcurrentDictionary<Guid, byte> _pendingSweeps = new();
+    private readonly CancellationTokenSource _shutdown = new();
 
     public void RequestReconcile(Guid libraryId)
     {
         if (_pendingScans.TryAdd(libraryId, 0))
         {
-            _scanRequests.Writer.TryWrite(libraryId);
+            _scanRequests.Writer.TryWrite((libraryId, true));
         }
+    }
+
+    /// <summary>
+    /// A file was deleted or renamed in this library: after a short wait (so a move whose new place is still being indexed, or a short
+    /// hiccup on a network share, is never mistaken for a deletion) the folders are looked at again and gone files are marked missing.
+    /// </summary>
+    private void ScheduleSweep(Guid libraryId)
+    {
+        if (sweeper is null || !_pendingSweeps.TryAdd(libraryId, 0))
+        {
+            return;
+        }
+
+        var token = _shutdown.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(options.MissingRecheckDelay, token).ConfigureAwait(false);
+                _pendingSweeps.TryRemove(libraryId, out _);
+                _scanRequests.Writer.TryWrite((libraryId, false));
+            }
+            catch (OperationCanceledException)
+            {
+                // Engine shutdown; the next start's sweep is the backstop.
+            }
+        }, CancellationToken.None);
     }
     private IReadOnlyList<ViewSourceWatch> _sources = [];
     private bool _resourcesDisposed;
@@ -248,25 +279,53 @@ public sealed class ViewSourceIndexingHostedService(
 
     private async Task ReconcileExistingFilesAsync(CancellationToken ct)
     {
-        await foreach (var libraryId in _scanRequests.Reader.ReadAllAsync(ct))
+        await foreach (var (libraryId, scan) in _scanRequests.Reader.ReadAllAsync(ct))
         {
-            _pendingScans.TryRemove(libraryId, out _);
             ct.ThrowIfCancellationRequested();
-            try
+            if (scan)
             {
-                var result = await indexer.ScanAsync(libraryId, ct).ConfigureAwait(false);
-                if (result is not null)
+                _pendingScans.TryRemove(libraryId, out _);
+                try
                 {
-                    logger.LogInformation(
-                        "View background reconciliation completed for {LibraryId}: {FilesSeen} files, {ItemsAdded} new items, {Errors} errors.",
-                        libraryId, result.FilesSeen, result.ItemsAdded, result.Errors);
+                    var result = await indexer.ScanAsync(libraryId, ct).ConfigureAwait(false);
+                    if (result is not null)
+                    {
+                        logger.LogInformation(
+                            "View background reconciliation completed for {LibraryId}: {FilesSeen} files, {ItemsAdded} new items, {Errors} errors.",
+                            libraryId, result.FilesSeen, result.ItemsAdded, result.Errors);
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                catch (Exception exception)
+                {
+                    logger.LogWarning(exception, "View background reconciliation failed for {LibraryId}", libraryId);
                 }
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-            catch (Exception exception)
+            else
             {
-                logger.LogWarning(exception, "View background reconciliation failed for {LibraryId}", libraryId);
+                _pendingSweeps.TryRemove(libraryId, out _);
             }
+
+            // The scan has just indexed every file that is there (a moved file's new place included), so what is still gone is gone.
+            await SweepMissingAsync(libraryId, ct).ConfigureAwait(false);
+        }
+    }
+
+    private async Task SweepMissingAsync(Guid libraryId, CancellationToken ct)
+    {
+        if (sweeper is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await sweeper.SweepAsync(libraryId, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Checking View library {LibraryId} for missing files failed.", libraryId);
         }
     }
 
@@ -313,9 +372,21 @@ public sealed class ViewSourceIndexingHostedService(
         var queue = _queue;
         if (queue is null
             || ViewStorageService.IsInsideStagingFolder(change.Path)
-            || !TryResolveLibrary(_sources, change.Path, out _))
+            || !TryResolveLibrary(_sources, change.Path, out var changedLibrary))
         {
             return;
+        }
+
+        if (change.Kind == ViewSourceFileEventKind.Deleted)
+        {
+            ScheduleSweep(changedLibrary);
+            return;
+        }
+
+        if (change.Kind == ViewSourceFileEventKind.Renamed && change.OldPath is not null)
+        {
+            // The old place is gone; it is marked once the new place has been indexed, so the item stays.
+            ScheduleSweep(changedLibrary);
         }
 
         var type = change.Kind switch
@@ -345,6 +416,8 @@ public sealed class ViewSourceIndexingHostedService(
 
     private void DisposeResources()
     {
+        try { _shutdown.Cancel(); }
+        catch (ObjectDisposedException) { }
         List<IViewSourceWatcher> watchers;
         DebounceQueue? queue;
         lock (_lifecycleLock)
@@ -421,13 +494,14 @@ internal sealed class FileSystemViewSourceWatcher : IViewSourceWatcher
         _watcher = new FileSystemWatcher(source.RootPath)
         {
             IncludeSubdirectories = source.IncludeSubdirectories,
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
             InternalBufferSize = 65_536,
             EnableRaisingEvents = false,
         };
         _watcher.Created += OnCreated;
         _watcher.Changed += OnChanged;
         _watcher.Renamed += OnRenamed;
+        _watcher.Deleted += OnDeleted;
         _watcher.Error += OnError;
     }
 
@@ -457,6 +531,9 @@ internal sealed class FileSystemViewSourceWatcher : IViewSourceWatcher
     private void OnRenamed(object sender, RenamedEventArgs args) =>
         Raise(args.FullPath, ViewSourceFileEventKind.Renamed, args.OldFullPath);
 
+    private void OnDeleted(object sender, FileSystemEventArgs args) =>
+        Raise(args.FullPath, ViewSourceFileEventKind.Deleted);
+
     private void Raise(string path, ViewSourceFileEventKind kind, string? oldPath = null)
     {
         // Files Empty Trash is removing sit in a hidden staging folder; they are never indexed.
@@ -483,6 +560,7 @@ internal sealed class FileSystemViewSourceWatcher : IViewSourceWatcher
         _watcher.Created -= OnCreated;
         _watcher.Changed -= OnChanged;
         _watcher.Renamed -= OnRenamed;
+        _watcher.Deleted -= OnDeleted;
         _watcher.Error -= OnError;
         _watcher.Dispose();
     }

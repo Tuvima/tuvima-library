@@ -42,7 +42,7 @@ internal static class ViewCatalogueSql
     /// on documents. Needs the parameters added by <see cref="AddViewer"/>.
     /// </summary>
     public const string ItemVisibleToViewer =
-        "(li.hidden = 0 OR li.owner_profile_id = @viewer) AND (@includeDocuments = 1 OR li.media_kind <> 'document')"
+        "li.missing_since IS NULL AND (li.hidden = 0 OR li.owner_profile_id = @viewer) AND (@includeDocuments = 1 OR li.media_kind <> 'document')"
         + " AND (@hasBlockedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @blockedKinds)";
 
     public static void AddViewer(DynamicParameters parameters, ViewCatalogueViewer viewer)

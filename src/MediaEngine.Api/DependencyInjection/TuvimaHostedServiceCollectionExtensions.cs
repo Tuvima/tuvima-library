@@ -85,6 +85,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<IViewSourceWatcherFactory, FileSystemViewSourceWatcherFactory>();
         services.AddSingleton<ViewSourceIndexingHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ViewSourceIndexingHostedService>());
+        services.AddHostedService<ViewMissingFileHostedService>();
         services.AddHostedService<ViewTrashRecoveryHostedService>();
         services.AddSingleton<ViewIntakeHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ViewIntakeHostedService>());

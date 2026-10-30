@@ -48,4 +48,14 @@ public sealed class PhotoFilingSettings
     /// <summary>The hour of the day (0-23, server time) a scheduled Tidy this folder run starts. A run is scheduled per folder.</summary>
     [JsonPropertyName("tidy_hour")]
     public int TidyHour { get; set; } = 2;
+
+    /// <summary>The default for <see cref="MissingFileRetentionDays"/>.</summary>
+    public const int DefaultMissingFileRetentionDays = 90;
+
+    /// <summary>
+    /// How many days Library keeps what it knows about a photo, video or document whose file was deleted outside Library (notes, tags,
+    /// Gallery spots) before removing it. 0 means never remove. Nothing here ever deletes a file.
+    /// </summary>
+    [JsonPropertyName("missing_file_retention_days")]
+    public int MissingFileRetentionDays { get; set; } = DefaultMissingFileRetentionDays;
 }

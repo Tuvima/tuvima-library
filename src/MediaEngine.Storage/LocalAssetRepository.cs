@@ -76,6 +76,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         public long Hidden { get; init; }
         public DateTimeOffset? ArchivedAt { get; init; }
         public DateTimeOffset? TrashedAt { get; init; }
+        public long FileMissing { get; init; }
+        public long PartMissing { get; init; }
         public DateTimeOffset EffectiveAt { get; init; }
         public long SourceCount { get; init; }
         public long TotalCount { get; init; }
@@ -213,6 +215,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    li.hidden AS Hidden,
                    li.archived_at AS ArchivedAt,
                    li.trashed_at AS TrashedAt,
+                   CASE WHEN li.missing_since IS NULL THEN 0 ELSE 1 END AS FileMissing, li.part_missing AS PartMissing,
                    COALESCE(li.captured_at, li.created_at) AS EffectiveAt,
                    (SELECT COUNT(DISTINCT lfs.id)
                       FROM local_item_files lif
@@ -235,6 +238,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     OR (@Lifecycle = 0 AND li.archived_at IS NULL AND li.trashed_at IS NULL)
                     OR (@Lifecycle = 1 AND li.archived_at IS NOT NULL AND li.trashed_at IS NULL)
                     OR (@Lifecycle = 2 AND li.trashed_at IS NOT NULL))
+               AND (li.missing_since IS NULL OR @IncludeMissing = 1 OR li.trashed_at IS NOT NULL)
                AND (@HasMediaKinds = 0 OR li.media_kind IN @MediaKinds)
                AND (@GalleryId IS NULL OR EXISTS (
                     SELECT 1 FROM view_gallery_items vgi
@@ -258,6 +262,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             MediaKinds = mediaKinds.Length == 0 ? [LocalAssetMediaKinds.Other] : mediaKinds,
             query.GalleryId,
             Lifecycle = (int)query.Lifecycle,
+            IncludeMissing = query.IncludeMissing ? 1 : 0,
             SearchExpression = searchExpression,
         }).ToList();
 
@@ -386,6 +391,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
                    li.favorite AS Favorite, li.hidden AS Hidden,
                    li.archived_at AS ArchivedAt, li.trashed_at AS TrashedAt,
+                   CASE WHEN li.missing_since IS NULL THEN 0 ELSE 1 END AS FileMissing, li.part_missing AS PartMissing,
                    {{effectiveAtSql}} AS EffectiveAt,
                    (SELECT COUNT(DISTINCT lfs.id)
                       FROM local_item_files lif
@@ -415,6 +421,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     SELECT 1 FROM view_gallery_items vgi
                      WHERE vgi.gallery_id = @GalleryId AND vgi.item_id = li.id))
                AND {{TimelineEligiblePredicate}}
+               AND {{MissingVisibilityPredicate}}
                AND ({{smartRule.Predicate}})
                AND ({{documentFilterPredicate}})
                AND (@SearchExpression IS NULL OR EXISTS (
@@ -550,6 +557,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     SELECT 1 FROM view_gallery_items vgi
                      WHERE vgi.gallery_id = @GalleryId AND vgi.item_id = li.id))
                AND {{TimelineEligiblePredicate}}
+               AND {{MissingVisibilityPredicate}}
                AND ({{smartRule.Predicate}})
                AND ({{documentFilterPredicate}})
                AND (@SearchExpression IS NULL OR EXISTS (
@@ -566,6 +574,12 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             row.EarliestAt,
             row.LatestAt)).ToList();
     }
+
+    /// <summary>
+    /// Items whose files were deleted outside Library are hidden everywhere (Safer deleting in View D7). Only a search with the Missing
+    /// filter on finds them, and Trash still lists its own so Empty Trash can clear them.
+    /// </summary>
+    private const string MissingVisibilityPredicate = "(li.missing_since IS NULL OR @IncludeMissing = 1 OR li.trashed_at IS NOT NULL)";
 
     /// <summary>The "belongs in the timeline" test, shared by the timeline, its index and the added-by counts.</summary>
     private const string TimelineEligiblePredicate = """
@@ -594,6 +608,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             .Distinct()
             .Select(GuidSql.ToBlob)
             .ToArray() ?? [];
+        parameters.Add("IncludeMissing", query.IncludeMissing ? 1 : 0);
         parameters.Add("HasExcludedKinds", excluded.Length == 0 ? 0 : 1);
         parameters.Add("ExcludedKinds", excluded.Length == 0 ? new[] { ViewContentKinds.Photos } : excluded);
         parameters.Add("HasAddedBy", query.AddedByProfileIds is null ? 0 : 1);
@@ -658,6 +673,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                AND (@HasMediaKinds = 0 OR li.media_kind IN @MediaKinds)
                AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                AND {{TimelineEligiblePredicate}}
+               AND {{MissingVisibilityPredicate}}
              GROUP BY p.id, p.display_name
              ORDER BY COUNT(*) DESC, p.display_name COLLATE NOCASE, p.id;
             """, parameters, cancellationToken: ct)).ToList();
@@ -877,6 +893,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    li.favorite AS Favorite,
                    li.hidden AS Hidden,
                    li.archived_at AS ArchivedAt, li.trashed_at AS TrashedAt,
+                   CASE WHEN li.missing_since IS NULL THEN 0 ELSE 1 END AS FileMissing, li.part_missing AS PartMissing,
                    COALESCE(li.captured_at, li.created_at) AS EffectiveAt,
                    (SELECT COUNT(DISTINCT lfs.id)
                       FROM local_item_files lif
@@ -1237,7 +1254,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                         source_id = excluded.source_id,
                         device_id = excluded.device_id,
                         modified_at = excluded.modified_at,
-                        indexed_at = excluded.indexed_at;
+                        indexed_at = excluded.indexed_at,
+                        missing_since = NULL;
                     """, new
                 {
                     observationId = Guid.NewGuid(),
@@ -1278,6 +1296,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 ReplaceTags(connection, transaction, itemId.Value, registration.Tags, now);
             }
             RebuildSearchDocument(connection, transaction, itemId.Value);
+            // A file that came back (or a new place for the same contents, such as a move) brings the item back with everything on it.
+            ViewMissingFileRepository.Recompute(connection, transaction, itemId.Value);
             return new LocalAssetUpsertResult(itemId.Value, itemAdded, filesAdded, sourcesAdded);
         }, ct);
     }
@@ -1373,6 +1393,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               JOIN local_file_sources lfs ON lfs.file_id = lf.id AND lfs.library_id = li.library_id
              WHERE li.media_kind IN ('document', 'image')
                AND li.trashed_at IS NULL
+               AND li.missing_since IS NULL
                AND NOT EXISTS (SELECT 1 FROM vault_image_items vx WHERE vx.item_id = li.id)
                AND (@after IS NULL OR li.id > @after)
                AND (m.text_source IS NULL OR m.text_source = 'none')
@@ -1890,7 +1911,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             CanTrash: row.ScopeKind == LocalAssetScopeKinds.Personal && !readOnly,
             ContentKind: row.ContentKind,
             AddedByProfileId: row.AddedByName is null ? null : row.AddedByProfileId,
-            AddedByName: row.AddedByName);
+            AddedByName: row.AddedByName,
+            FileMissing: row.FileMissing != 0,
+            PartMissing: row.PartMissing != 0);
 
     private static LocalAssetDocumentInfoDto? MapDocumentInfo(
         ItemRow row,

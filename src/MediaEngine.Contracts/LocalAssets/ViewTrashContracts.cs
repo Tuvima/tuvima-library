@@ -52,6 +52,8 @@ public sealed record ViewTrashPreviewSkippedDto(
 /// <summary>
 /// Exactly what Empty Trash would do right now, worked out by the Engine. The person confirms this summary by sending
 /// <see cref="Fingerprint"/> back; if anything changed in between, the Engine refuses. No disk paths are included.
+/// <see cref="AlreadyMissingCount"/> is how many of the items to delete have no file left (it was deleted outside Library); they are
+/// counted in <see cref="DeleteCount"/> and only their records go.
 /// </summary>
 public sealed record ViewTrashEmptyPreviewDto(
     [property: JsonPropertyName("items")] IReadOnlyList<ViewTrashPreviewItemDto> Items,
@@ -65,7 +67,8 @@ public sealed record ViewTrashEmptyPreviewDto(
     [property: JsonPropertyName("skipped")] IReadOnlyList<ViewTrashPreviewSkippedDto> Skipped,
     [property: JsonPropertyName("bytes_freed")] long BytesFreed,
     [property: JsonPropertyName("has_compound")] bool HasCompound,
-    [property: JsonPropertyName("fingerprint")] string Fingerprint);
+    [property: JsonPropertyName("fingerprint")] string Fingerprint,
+    [property: JsonPropertyName("already_missing_count")] int AlreadyMissingCount = 0);
 
 /// <summary>The body of Empty Trash: the fingerprint of the summary the person confirmed.</summary>
 public sealed record ViewTrashEmptyRequestDto(
@@ -79,13 +82,15 @@ public sealed record ViewTrashEmptyFailureDto(
 /// <summary>
 /// What Empty Trash did. <see cref="SkippedCount"/> is the items the summary already said would stay (read-only folder, waiting for
 /// the Shared Library, refused by the safety check); <see cref="Failed"/> is items that were meant to go but could not, and are
-/// still in Trash.
+/// still in Trash. <see cref="AlreadyMissingCount"/> is the items already counted in <see cref="DeletedCount"/> whose files had been
+/// deleted outside Library before: only their records were removed.
 /// </summary>
 public sealed record ViewTrashEmptyResultDto(
     [property: JsonPropertyName("deleted_count")] int DeletedCount,
     [property: JsonPropertyName("bytes_freed")] long BytesFreed,
     [property: JsonPropertyName("skipped_count")] int SkippedCount,
-    [property: JsonPropertyName("failed")] IReadOnlyList<ViewTrashEmptyFailureDto> Failed);
+    [property: JsonPropertyName("failed")] IReadOnlyList<ViewTrashEmptyFailureDto> Failed,
+    [property: JsonPropertyName("already_missing_count")] int AlreadyMissingCount = 0);
 
 /// <summary>The 409 body of Empty Trash when the summary the person confirmed is out of date. Nothing was deleted.</summary>
 public sealed record ViewTrashEmptyConflictDto(
