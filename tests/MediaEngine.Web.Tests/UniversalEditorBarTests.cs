@@ -1,9 +1,8 @@
 using Bunit;
-using Microsoft.Extensions.Configuration;
-using MediaEngine.Contracts.Realtime;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Contracts.Realtime;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
@@ -12,6 +11,7 @@ using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
