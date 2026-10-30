@@ -1,6 +1,6 @@
 # Video player controls and bookmarks
 
-> **Status:** In progress (Shy, 2026-10-30 06:02Z) · **Version:** 2 · **Last updated:** 2026-10-30 · **Related docs:** [Videos spec](videos.md) (D43, D43a, D46) · [Music player and queue](music-player-and-queue.md) · [Design system](../design/design-system.md) · Mockups: [`../design/mockups/video-player-controls-and-bookmarks.html`](../design/mockups/video-player-controls-and-bookmarks.html) (also https://claude.ai/artifact/DfwqZtJAoQrbHGaZ94x2VS)
+> **Status:** Built, awaiting your Local checks (built 2026-10-30; PRs #555, #557) · **Version:** 2 · **Last updated:** 2026-10-30 · **Related docs:** [Videos spec](videos.md) (D43, D43a, D46) · [Music player and queue](music-player-and-queue.md) · [Design system](../design/design-system.md) · Mockups: [`../design/mockups/video-player-controls-and-bookmarks.html`](../design/mockups/video-player-controls-and-bookmarks.html) (also https://claude.ai/artifact/DfwqZtJAoQrbHGaZ94x2VS)
 
 ## 1. Goal
 

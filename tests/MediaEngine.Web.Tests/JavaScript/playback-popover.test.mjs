@@ -69,6 +69,13 @@ test('focus departure retains the destination while an inside queue mutation lea
     popover.detach(state.root);
 });
 
+test('a focused button replaced inside the panel (focusout with no target) does not close it', () => {
+    const state = openPanel();
+    state.panel.emit('focusout', { relatedTarget: null });
+    assert.equal(state.calls.some(([method]) => method === 'CloseFromBrowserAsync'), false);
+    popover.detach(state.root);
+});
+
 test('Escape and an explicit trigger dismissal carry true and restore the trigger', () => {
     const state = openPanel(); state.outside.focus();
     const event = { key: 'Escape', preventDefault() { this.prevented = true; }, stopImmediatePropagation() { this.stopped = true; } };

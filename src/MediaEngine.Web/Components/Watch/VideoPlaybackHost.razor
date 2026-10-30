@@ -83,10 +83,11 @@
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
                                Bookmarks="@_railBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
             <div class="playback-video-controls">
-                <div class="playback-video-controls__left">            <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="compact" OnClick="SkipBackAsync" />
+                <div class="playback-video-controls__left">
             <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
                                    disabled="@(Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error)"
                                    Size="compact" OnClick="TogglePlayPauseAsync" />
+            <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="compact" OnClick="SkipBackAsync" />
             <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="compact" OnClick="SkipForwardAsync" />
 
                 <div class="playback-video-controls__volume">
@@ -243,6 +244,7 @@
     private int _availableAudioTrackCount;
     private int? _selectedAudioTrackIndex, _pendingAudioIndex;
     private bool _switchingAudio;
+    private bool _keyboardFocused;
     private bool _canPictureInPicture;
     private string? _continuationStatus;
 
@@ -662,6 +664,16 @@
             }
         }
 
+        // The B, Space and arrow shortcuts only reach the player once it holds the keyboard, so take it when the video opens.
+        if (Playback.IsVideoMode && !_keyboardFocused)
+        {
+            _keyboardFocused = true;
+            await _hostRef.FocusAsync(preventScroll: true);
+        }
+        else if (!Playback.IsVideoMode)
+        {
+            _keyboardFocused = false;
+        }
         _chromeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-chrome.js");
         _presentationModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/video-presentation.js");
         _touchModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/video-touch.js");
