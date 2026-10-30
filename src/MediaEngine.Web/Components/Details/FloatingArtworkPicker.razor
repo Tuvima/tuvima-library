@@ -80,6 +80,17 @@
                                OnClick="UseAsync">
                         Use this artwork
                     </AppButton>
+                    @if (!string.IsNullOrWhiteSpace(picker.ShownUrl))
+                    {
+                        <AppButton Href="@picker.ShownUrl"
+                                       Target="_blank"
+                                       ButtonStyle="AppButtonStyle.Text"
+                                       Tone="AppUiTone.Neutral"
+                                       StartIcon="@AppMaterialIcons.Outlined.OpenInNew"
+                                       Class="tl-art-picker__full">
+                            Open full size
+                        </AppButton>
+                    }
                     @if (staged)
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Text"
@@ -175,6 +186,14 @@
     private string? _lastRequestedSlot;
     private string _source = SourceSaved;
     private string _address = string.Empty;
+    private string _language = ArtworkCandidateFilter.All;
+    private string _size = ArtworkCandidateFilter.AnySize;
+
+    private static readonly IReadOnlyList<AppSelectOption> SizeOptions =
+    [
+        new(ArtworkCandidateFilter.AnySize, "Any size"),
+        new(ArtworkCandidateFilter.LargeOnly, $"Large ({ArtworkCandidateFilter.LargeFromPixels} px or more)"),
+    ];
     private EditingModeContext? _subscribed;
     private ArtworkPickerSession? _subscribedPicker;
 
@@ -296,8 +315,38 @@
                 }
             }
 
+            var languages = ArtworkCandidateFilter.Languages(picker.Provider.Items);
+            var hasSizes = picker.Provider.Items.Any(item => item.Width is not null || item.Height is not null);
+            @if (languages.Count > 1 || hasSizes)
+            {
+                <div class="tl-art-picker__filters">
+                    @if (languages.Count > 1)
+                    {
+                        <AppSelect T="string"
+                                   Label="Language"
+                                   Value="@_language"
+                                   ValueChanged="@((string value) => _language = value)"
+                                   Options="@(new[] { new AppSelectOption(ArtworkCandidateFilter.All, "All languages") }.Concat(languages.Select(entry => new AppSelectOption(entry.Value, entry.Label))).ToList())" />
+                    }
+                    @if (hasSizes)
+                    {
+                        <AppSelect T="string"
+                                   Label="Size"
+                                   Value="@_size"
+                                   ValueChanged="@((string value) => _size = value)"
+                                   Options="@SizeOptions" />
+                    }
+                </div>
+            }
+
+            var shown = ArtworkCandidateFilter.Apply(picker.Provider.Items, _language, _size);
+            @if (shown.Count == 0)
+            {
+                <p class="tl-art-picker__hint">No pictures match these filters.</p>
+            }
+
             <div class="tl-art-picker__grid" role="group" aria-label="Provider pictures">
-                @foreach (var candidate in picker.Provider.Items)
+                @foreach (var candidate in shown)
                 {
                     var picked = picker.PickedTarget == "provider:" + candidate.Id;
                     <AppNativeButton Type="button"
@@ -307,7 +356,7 @@
                                      aria-pressed="@(picked ? "true" : "false")"
                                      OnClick="@(() => picker.PickProvider(candidate))">
                         <img src="@MediaTileArtworkUrl.ForDrawnSize(candidate.ThumbnailUrl, 128)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(candidate.ThumbnailUrl, 128)" alt="" loading="lazy" decoding="async" />
-                        <span>@(candidate.AlreadyAdded ? "Already saved" : candidate.Provider)</span>
+                        <span>@(candidate.AlreadyAdded ? "Already saved" : ArtworkCandidateFilter.LabelFor(candidate.Language) is { } spoken ? $"{candidate.Provider} · {spoken}" : candidate.Provider)</span>
                     </AppNativeButton>
                 }
             </div>

@@ -515,6 +515,7 @@ MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkCandi
   Width: System.Int32? | nullability=nullable | accessors=get,init
   Height: System.Int32? | nullability=nullable | accessors=get,init
   AlreadyAdded: System.Boolean | nullability=not-null | accessors=get,init
+  Language: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkDiscoveryDto
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Artwork.ProviderArtworkCandidateDto> | nullability=not-null | accessors=get,init

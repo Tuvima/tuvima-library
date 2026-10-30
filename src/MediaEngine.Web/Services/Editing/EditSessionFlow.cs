@@ -300,6 +300,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
         // Counted before the applied changes leave the list: the ribbon says how many this save wrote.
         var savedCount = _session.Pending.ChangeCount;
+        var savedItems = _session.Pending.Changes.Select(change => change.EntityId).Where(id => id != Guid.Empty).Distinct().ToList();
         if (Saved is { } refresh)
         {
             await refresh();
@@ -320,7 +321,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         _session.End();
         WriteIntoFiles = null;
         _mode.Leave();
-        LastSave = new EditSaveSummary(savedCount, DateTimeOffset.Now);
+        LastSave = new EditSaveSummary(savedCount, DateTimeOffset.Now, savedItems);
         Changed?.Invoke();
         return true;
     }
@@ -499,5 +500,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     }
 }
 
-/// <summary>What a save wrote: how many changes and when, shown in the confirmation ribbon after the window closes.</summary>
-public sealed record EditSaveSummary(int Count, DateTimeOffset At);
+/// <summary>
+/// What a save wrote: how many changes and when, shown in the confirmation ribbon after the window closes, and which items they were on so
+/// the ribbon can say when the Engine's follow-up work for them arrives.
+/// </summary>
+public sealed record EditSaveSummary(int Count, DateTimeOffset At, IReadOnlyList<Guid>? ItemIds = null);

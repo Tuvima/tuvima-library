@@ -1,4 +1,6 @@
 using Bunit;
+using Microsoft.Extensions.Configuration;
+using MediaEngine.Contracts.Realtime;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
@@ -38,6 +40,11 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         Services.AddSingleton(_device);
         // Save changes opens Review changes, which reads the write-back setting through the same client the editor uses.
         Services.AddSingleton(Api());
+        Services.AddSingleton(new DashboardSessionAccessor());
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        Services.AddScoped<ActiveProfileSessionService>();
+        Services.AddScoped<UniverseStateContainer>();
+        Services.AddScoped<UIOrchestratorService>();
         Render<AppPopoverHost>();
         _dialogs = Render<AppDialogHost>();
     }
@@ -586,6 +593,24 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         ribbon.Find(".tl-saved-ribbon button").Click();
         ribbon.WaitForAssertion(() => Assert.Empty(ribbon.FindAll(".tl-saved-ribbon")));
         Assert.Null(editor.Flow.LastSave);
+    }
+
+    [Fact]
+    public async Task AfterASave_TheRibbonNamesTheProviderWhoseDetailsArriveForTheSavedItem_AndIgnoresOtherItems()
+    {
+        var editor = await StartEditorAsync();
+        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
+        var bar = RenderBar(editor);
+        var ribbon = Render<EditSavedRibbon>(parameters => parameters.Add(component => component.Flow, editor.Flow));
+        var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
+        SaveFromReview(bar);
+        ribbon.WaitForElement(".tl-saved-ribbon");
+
+        await ribbon.InvokeAsync(() => orchestrator.RaiseHydrationStageCompleted(new HydrationStageCompletedEvent(Guid.NewGuid(), 1, 5, "Other")));
+        await ribbon.InvokeAsync(() => orchestrator.RaiseHydrationStageCompleted(new HydrationStageCompletedEvent(MovieId, 1, 5, "TMDB")));
+
+        ribbon.WaitForAssertion(() => Assert.Contains("Updated from TMDB.", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal));
+        Assert.DoesNotContain("Other", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
