@@ -1,7 +1,6 @@
 using Bunit;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.WriteBack;
-using MediaEngine.Web.Components.MediaEditor.Sections;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Formatting;
@@ -344,32 +343,4 @@ public sealed class LibraryWriteScheduleTests : AsyncBunitContext
         Assert.Null(FileWriteStatusText.WaitingNote(null));
         Assert.Null(FileWriteStatusText.FailureNote(null));
     }
-
-    [Fact]
-    public void EditingModeFileCard_ShowsTheWaitingNoteAndTheFailureReasonOnlyWhenTheyApply()
-    {
-        var shown = RenderFileCard(
-            FileWriteStatusText.WaitingNote(new AssetFileWriteStatusDto { Waiting = true, NextRunAt = NextRun }),
-            FileWriteStatusText.FailureNote(new AssetFileWriteStatusDto { LastError = "Another app has the file open." }));
-
-        Assert.Contains("Changes waiting to be written to the file · next run", shown.Markup);
-        Assert.Contains("Another app has the file open.", shown.Find(".sme-details-file-note--failed").TextContent);
-
-        var quiet = RenderFileCard(null, null);
-
-        Assert.Empty(quiet.FindAll(".sme-details-file-note"));
-    }
-
-    private IRenderedComponent<EditorDetailsSection> RenderFileCard(string? waitingNote, string? failureNote) =>
-        Render<EditorDetailsSection>(parameters => parameters
-            .Add(x => x.IsSingleItem, true)
-            .Add(x => x.HasActiveScope, true)
-            .Add(x => x.ScopeId, "asset")
-            .Add(x => x.DetailsImageShape, "poster")
-            .Add(x => x.DetailsImageWidthClass, string.Empty)
-            .Add(x => x.DetailsImageSizes, string.Empty)
-            .Add(x => x.CurrentTargetTitle, "Dune")
-            .Add(x => x.DetailsFiles, [new MediaEditorDetailsFilePresentation("Edition", "Dune.epub", "EPUB")])
-            .Add(x => x.FileWriteWaitingNote, waitingNote)
-            .Add(x => x.FileWriteFailureNote, failureNote));
 }

@@ -112,7 +112,7 @@ Current UI entry points:
 5. `src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor` for detailed Read/Watch/Listen browse behavior under tab routes.
 6. `src/MediaEngine.Web/Components/Details/DetailPage.razor` for detail surfaces and modal edit launch points.
 7. `src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor` for the exception queue (its Needs Review section; `/settings/review` redirects there).
-8. `src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor` for normal, review, and batch editing.
+8. `src/MediaEngine.Web/Components/Details/EditorPanelHost.razor` (the Editor window: tool rail, fixed Cancel and Save), with its tools `EditorDetailsPanel`, `EditorMatchPanel`, `EditorHistoryTool`, `BulkEditPanel` and the docked `FloatingArtworkPicker`, and `ReviewChangesView` for Review changes.
 9. `src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor` for the Ingestion dashboard at `/settings/ingestion`; it uses the Engine `GET /ingestion/presentation` and `GET /ingestion/queue-progress` views plus SignalR ingestion progress.
 10. `src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs` and `src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor` for Listen playback state, typed commands, and shared transport controls.
 

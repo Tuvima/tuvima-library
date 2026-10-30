@@ -176,7 +176,7 @@
         }
 
         var entityId = item.WorkId ?? item.EditionId ?? item.GroupId;
-        Services.GetService<DetailsOverlayState>()?.OfferEditResume(new DetailsEditResume(entityId, EditingSection.History, null));
+        Services.GetService<DetailsOverlayState>()?.OfferEditResume(new DetailsEditResume(entityId, EditingSection.Details, null));
         Nav.NavigateTo($"/details/work/{entityId:D}");
         return Task.CompletedTask;
     }

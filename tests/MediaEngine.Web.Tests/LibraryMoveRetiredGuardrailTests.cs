@@ -73,15 +73,6 @@ public sealed class LibraryMoveRetiredGuardrailTests
         Assert.True(offenders.Count == 0, "The old move paths are retired (spec D12); moves use the Match step: " + string.Join("; ", offenders));
     }
 
-    [Fact]
-    public void TheRetailRematchKeepsItsOwnConfirmMove()
-    {
-        var section = File.ReadAllText(Path.Combine(SrcRoot, "MediaEngine.Web", "Components", "MediaEditor", "Sections", "EditorMatchSection.razor"));
-
-        Assert.Contains("Confirm move", section, StringComparison.Ordinal);
-        Assert.Contains("Confirm parent move", section, StringComparison.Ordinal);
-    }
-
     private static bool IsSkipped(string path) =>
         Path.GetRelativePath(SrcRoot, path)
             .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)

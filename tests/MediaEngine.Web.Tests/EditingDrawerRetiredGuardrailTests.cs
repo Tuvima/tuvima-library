@@ -22,7 +22,7 @@ public sealed partial class EditingDrawerRetiredGuardrailTests
             .Select(file => file.RelativePath)
             .ToList();
 
-        Assert.True(offenders.Count == 0, "The Editing Mode drawer is retired (spec D3); use EditingBanner and EditingSectionSlot: " + string.Join(", ", offenders));
+        Assert.True(offenders.Count == 0, "The Editing Mode drawer is retired (spec D3); use the Editor window (EditorPanelHost): " + string.Join(", ", offenders));
     }
 
     [Fact]
@@ -48,15 +48,6 @@ public sealed partial class EditingDrawerRetiredGuardrailTests
             .ToList();
 
         Assert.True(offenders.Count == 0, "No .tl-editing-drawer class, drawer-width variable or shell drawer mode may exist: " + string.Join(", ", offenders));
-    }
-
-    [Fact]
-    public void TheEditorShellHasASectionModeAndNoDrawerParameter()
-    {
-        var shell = File.ReadAllText(Path.Combine(SrcRoot, "MediaEngine.Web", "Components", "MediaEditor", "SharedMediaEditorShell.Section.cs"));
-
-        Assert.Contains("[Parameter] public string? Section { get; set; }", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("public bool Drawer", shell, StringComparison.Ordinal);
     }
 
     private static IEnumerable<(string RelativePath, string Source)> SourceFiles() =>

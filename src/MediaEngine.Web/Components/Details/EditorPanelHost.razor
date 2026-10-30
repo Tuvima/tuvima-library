@@ -32,7 +32,7 @@
             @if (TitleOverride is null && !_reviewing)
             {
                 <nav class="tl-editor-window__rail" aria-label="Editing tools">
-                    @foreach (var (railTool, label, icon) in RailTools(mode))
+                    @foreach (var (railTool, label, icon) in RailTools(mode, ShowHistory))
                     {
                         var isOpen = railTool == tool;
                         <AppButton ButtonStyle="AppButtonStyle.Text"
@@ -108,7 +108,10 @@
     /// <summary>The page's artwork picker session; when set, the Artwork tool is drawn inside the window instead of by the page.</summary>
     [Parameter] public ArtworkPickerSession? Picker { get; set; }
 
-    private static IReadOnlyList<(EditTool Tool, string Label, string Icon)> RailTools(EditingModeContext mode)
+    /// <summary>True on pages whose items keep a change history (not the Universe pages): the rail then offers the History tool.</summary>
+    [Parameter] public bool ShowHistory { get; set; }
+
+    private static IReadOnlyList<(EditTool Tool, string Label, string Icon)> RailTools(EditingModeContext mode, bool showHistory)
     {
         var tools = new List<(EditTool, string, string)> { (EditTool.Details, "Details", AppMaterialIcons.Outlined.Description) };
         if (mode.Fields.CanEditArtwork)
@@ -119,6 +122,11 @@
         if (mode.Fields.CanMatch)
         {
             tools.Add((EditTool.Match, "Match", AppMaterialIcons.Outlined.TravelExplore));
+        }
+
+        if (showHistory)
+        {
+            tools.Add((EditTool.History, "History", AppMaterialIcons.Outlined.History));
         }
 
         return tools;
@@ -142,6 +150,7 @@
     {
         EditTool.Artwork => "Artwork",
         EditTool.Match => "Match",
+        EditTool.History => "History",
         _ => "Details",
     };
 

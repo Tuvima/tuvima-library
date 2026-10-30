@@ -59,17 +59,6 @@ public sealed class Phase7LocalAiTests
     }
 
     [Fact]
-    public void AudiobookChapterNamingAutomation_IsRemoved()
-    {
-        var shell = ReadRepoFile(@"src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
-        var code = ReadRepoFile(@"src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
-
-        Assert.DoesNotContain("Suggest chapter names", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("SuggestAudiobookChapterNamesAsync", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("PlaybackChapterTitleSources.AiSuggested", code, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void AdvancedSettings_UseTheSharedUrlBackedSubsectionNavigationOnly()
     {
         var localAi = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");

@@ -170,7 +170,7 @@
         }
         var row = new BulkEditRow(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, album, "Music");
         Services.GetService<MediaEngine.Web.Services.Navigation.DetailsOverlayState>()?.OfferEditResume(
-            new MediaEngine.Web.Services.Navigation.DetailsEditResume(album, EditingSection.History, null, row));
+            new MediaEngine.Web.Services.Navigation.DetailsEditResume(album, EditingSection.Details, null, row));
         Services.GetService<NavigationManager>()?.NavigateTo($"/details/musicalbum/{album:D}?context=listen&track={identity.WorkId:D}");
         return Task.CompletedTask;
     }

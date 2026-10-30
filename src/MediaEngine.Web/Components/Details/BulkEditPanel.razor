@@ -44,6 +44,15 @@
     }
     else
     {
+        <div class="tl-bulk__items" role="list" aria-label="Items being edited together">
+            @foreach (var row in Selection.OrderedRows())
+            {
+                <span role="listitem">
+                    <AppChip Text="@row.Title" OnClose="@(() => Selection.Toggle(row))" />
+                </span>
+            }
+        </div>
+
         @if (!CanChange)
         {
             <AppAlert Severity="AppSeverity.Info" Dense="true">You can look at these details but not change them.</AppAlert>

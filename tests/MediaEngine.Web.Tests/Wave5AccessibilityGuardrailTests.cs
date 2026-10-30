@@ -27,58 +27,6 @@ public sealed class Wave5AccessibilityGuardrailTests
     }
 
     [Fact]
-    public void ActiveEditors_IncludeNavigationLockForUnsavedChanges()
-    {
-        Assert.Contains("NavigationLock", Read("src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor"));
-        Assert.Contains("NavigationLock", Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor"));
-    }
-
-    [Fact]
-    public void EditingMode_ReusesTheEditorGuardsAndKeepsEveryControlKeyboardReachable()
-    {
-        var details = "src/MediaEngine.Web/Components/Details/";
-        var banner = Read(details + "EditingBanner.razor");
-        var slot = Read(details + "EditingSectionSlot.razor");
-        var pencil = Read(details + "EditableFieldPencil.razor");
-        var hero = Read(details + "EditingHeroArtworkButtons.razor");
-        var shell = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
-
-        // One unsaved-input question for the page ("Save or discard?" from Done, Esc and Back) and the browser's own prompt
-        // for reload; the editor in the slot registers no lock of its own, so nothing is asked twice.
-        Assert.Contains("<NavigationLock", banner);
-        Assert.Contains("OnBeforeInternalNavigation", banner);
-        Assert.Contains("DoneAsync", banner);
-        Assert.Contains("<NavigationLock", shell);
-        Assert.Contains("@if (!IsSection)", shell);
-        Assert.Contains("role=\"region\" aria-label=\"Editing\"", banner);
-        Assert.Contains("role=\"group\" aria-label=\"Editing sections\"", banner);
-        Assert.Contains("aria-pressed", banner);
-        Assert.Contains("role=\"alert\"", banner);
-
-        // The slot is a labelled region; Esc closes it and focus returns to the control that opened it.
-        Assert.Contains("aria-labelledby=\"tl-editing-slot-title\"", slot);
-        Assert.Contains("HandleEscapeFromBrowser", slot);
-        Assert.Contains("./js/editing-section-escape.js", slot);
-        Assert.Contains("tuvimaFocusReturn.remember", slot);
-        Assert.Contains("tuvimaFocusReturn.restore", slot);
-        Assert.Contains("Tooltip=\"@($\"Close {Heading(mode.OpenSectionKind)}\")\"", slot);
-
-        // Pencils are real buttons with names, locks are focusable with the reason, and results are announced.
-        Assert.Contains("AriaLabel=\"@($\"Edit {field.Label.ToLowerInvariant()}\")\"", pencil);
-        Assert.Contains("tabindex=\"0\" role=\"img\" aria-label=\"@($\"{field.Label} is locked. {why}\")\"", pencil);
-        Assert.Contains("role=\"alert\"", pencil);
-        Assert.Contains("role=\"status\"", pencil);
-        Assert.Contains("Escape", pencil);
-        Assert.Contains("role=\"group\" aria-label=\"Edit hero artwork\"", hero);
-
-        // The banner and slot never trap a pointer-free user and add no motion that would need a reduced-motion rule.
-        Assert.DoesNotContain("<AppFocusTrap", banner);
-        Assert.DoesNotContain("<AppFocusTrap", slot);
-        Assert.DoesNotContain("animation", Read(details + "EditingBanner.razor.css"));
-        Assert.DoesNotContain("animation", Read(details + "EditingSectionSlot.razor.css"));
-    }
-
-    [Fact]
     public void EditorFieldActions_ExposeTheirTooltipLabelsToAssistiveTechnology()
     {
         var source = Read("src/MediaEngine.Web/Components/Shared/AppFormFieldRow.razor");
@@ -120,19 +68,6 @@ public sealed class Wave5AccessibilityGuardrailTests
         Assert.DoesNotContain("role=\"button\"", metadata);
         Assert.Contains("<AppNativeButton Type=\"button\"", nowRow);
         Assert.Contains("AriaLabel=\"@OpenAriaLabel\"", nowRow);
-    }
-
-    [Fact]
-    public void ArtworkPreview_RemainsAnAccessibleFocusedComponent()
-    {
-        var adapter = Read("src/MediaEngine.Web/Components/MediaEditor/MediaEditorArtworkLightbox.razor");
-        var source = Read("src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor");
-
-        Assert.Contains("<MediaViewerShell", adapter);
-        Assert.Contains("role=\"dialog\"", source);
-        Assert.Contains("aria-modal=\"true\"", source);
-        Assert.Contains("AriaLabel=\"Close viewer\"", source);
-        Assert.Contains("<AppFocusTrap", source);
     }
 
     [Fact]

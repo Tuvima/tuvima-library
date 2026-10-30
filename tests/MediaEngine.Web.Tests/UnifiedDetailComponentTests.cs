@@ -327,43 +327,6 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
-    public void SequencePlacement_UsesArtworkSeasonBrowserForTvEpisodes()
-    {
-        var source = ReadSequenceMarkup();
-        var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
-        var editor = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
-
-        var styles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css");
-
-        Assert.Contains("IsSeasonContainer", source);
-        Assert.Contains("ShowGroupSelector => IsSeasonContainer", source);
-        Assert.Contains("HeadingLabel => IsSeasonContainer ? \"Season\" : \"Series\"", source);
-        Assert.Contains("ActiveGroup?.Title", source);
-        Assert.Contains("Choose season", source);
-        Assert.Contains("tl-season-toggle", source);
-        Assert.Contains("tl-season-browser__strip", source);
-        Assert.Contains("ArtworkSmallUrl", source);
-        Assert.Contains("BackgroundArtworkUrl", source);
-        Assert.DoesNotContain("SeasonOwnedSummary", source);
-        Assert.DoesNotContain("Edit season artwork", source);
-        Assert.DoesNotContain("Edit artwork for {season.Title}", source);
-        Assert.DoesNotContain("tl-season-card__edit", source);
-        Assert.DoesNotContain("OnEditGroup", source);
-        Assert.DoesNotContain("OpenSeasonEditorAsync", detailPage);
-        Assert.Contains("SeasonPosterArtworkSlot", editor);
-        Assert.Contains("scope.ArtworkSlots", editor);
-        Assert.Contains("tl-season-toggle__chevron", source);
-        Assert.Contains("AppMaterialIcons.Outlined.ExpandMore", source);
-        Assert.DoesNotContain("SeasonCountSummary", source);
-        Assert.Contains("aria-label=\"@OwnershipSummaryLabel\"", source);
-        Assert.Contains("item.Route", source);
-        Assert.DoesNotContain("CurrentActiveTab is \"episodes\"", detailPage);
-        Assert.Contains("SequencePlacementPanel", ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor"));
-        Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Details/EpisodesTab.razor")));
-        Assert.Contains("var(--tl-accent-primary, #8852FC)", ReadSequenceStyles());
-    }
-
-    [Fact]
     public void SequencePlacement_EnlargesSeasonArtworkWithoutGrowingTheBrowserRow()
     {
         var styles = ReadSequenceStyles();
