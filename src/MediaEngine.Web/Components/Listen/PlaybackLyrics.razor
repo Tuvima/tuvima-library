@@ -63,8 +63,14 @@
         else if (Presenter.Lines.Count == 0) {
             if (Presenter.NoSourceOn)
             {
-                <p class="playback-lyrics__empty" data-lyrics-state="no-source">No lyrics source is switched on.</p>
-                @if (IsAdministrator) { <a class="playback-lyrics__manage" href="/settings/plugins">Open Plugins</a> }
+                <div class="playback-lyrics__notice" role="status" data-lyrics-state="no-source">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" />
+                    <div>
+                        <strong>No lyrics source is switched on</strong>
+                        <p>Lyrics are fetched from an online lyrics source that is part of Library's plugins. @(IsAdministrator ? "Switch one on and lyrics will appear here." : "Ask an administrator to switch one on.")</p>
+                        @if (IsAdministrator) { <a class="playback-lyrics__manage" href="/settings/plugins">Open Plugins</a> }
+                    </div>
+                </div>
             }
             else { <p class="playback-lyrics__empty" data-lyrics-state="none-found">No lyrics found for this track.</p> }
         }

@@ -769,24 +769,11 @@ else
     // The file's measured length wins; provider lengths only fill gaps. The plain "duration" and
     // "runtime" fields hold minutes (retail providers), so a bare number there is never read as seconds.
     internal static long GetTrackDurationSeconds(WorkViewModel work)
-        => LibraryHelpers.NormalizeDurationSeconds(
+        => LibraryHelpers.NormalizeTrackDurationSeconds(
             GetCanonicalValue(work, "duration_sec"),
             GetCanonicalValue(work, "duration_seconds"),
-            MinutesToClock(GetCanonicalValue(work, "duration")),
-            MinutesToClock(GetCanonicalValue(work, "runtime"))) ?? 0;
-
-    private static string? MinutesToClock(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value) || value.Contains(':', StringComparison.Ordinal))
-        {
-            return value;
-        }
-
-        return double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var minutes)
-               && minutes > 0
-            ? Math.Round(minutes * 60d, MidpointRounding.AwayFromZero).ToString(System.Globalization.CultureInfo.InvariantCulture)
-            : null;
-    }
+            GetCanonicalValue(work, "duration"),
+            GetCanonicalValue(work, "runtime")) ?? 0;
 
     private static string? GetCanonicalValue(WorkViewModel work, params string[] keys)
     {
