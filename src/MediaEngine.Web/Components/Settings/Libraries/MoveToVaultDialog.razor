@@ -6,6 +6,7 @@
 @implements IDisposable
 @inject IEngineApiClient Api
 @inject IAppDialogService Dialogs
+@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 
 @* Move to Vault and Move out, from the "..." menu of a folder on the Folders tab (Library pages D11; Vault sections D31, D33, D38). Before anything is
    touched it checks where the items would go and shows counts only, never a title. With no Vault-protected library of this content type it says so
@@ -223,7 +224,7 @@
         _starting = true;
         _error = null;
         VaultMoveJobDto? started = null;
-        var confirmed = await VaultPinPrompt.AskAsync(Dialogs, "Enter your PIN to continue",
+        var confirmed = await VaultPinPrompt.AskIfSetAsync(Nsfw.HasPin, Dialogs, "Enter your PIN to continue",
             _isOut
                 ? "This is your own profile PIN, asked for again before items leave the Vault."
                 : "This is your own profile PIN, asked for again before items move into the Vault.",

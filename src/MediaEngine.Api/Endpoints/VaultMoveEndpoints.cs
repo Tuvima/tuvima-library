@@ -57,7 +57,7 @@ internal static class VaultMoveEndpoints
 
                 return Results.Ok(new StartVaultMoveResultDto { Started = true, Job = await service.GetAsync(outcome.JobId!.Value, http.RequestAborted) });
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return VaultEndpoints.PinFailure(ex);
             }

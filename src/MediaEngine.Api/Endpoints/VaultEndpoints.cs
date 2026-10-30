@@ -153,11 +153,11 @@ public static class VaultEndpoints
             {
                 return ApiErrors.BadRequest(ex.Message);
             }
-            catch (InvalidOperationException ex) when (ex is not VaultAdminPinNotSetException)
+            catch (InvalidOperationException ex)
             {
                 return ApiErrors.Conflict(ex.Message);
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
@@ -245,7 +245,7 @@ public static class VaultEndpoints
             {
                 return ApiErrors.BadRequest(ex.Message);
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
@@ -269,7 +269,7 @@ public static class VaultEndpoints
             {
                 return ApiErrors.BadRequest(ex.Message);
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
@@ -297,7 +297,7 @@ public static class VaultEndpoints
                     _ => ApiErrors.NotFound("Not found."),
                 };
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
@@ -337,11 +337,11 @@ public static class VaultEndpoints
                 await VaultLibrarySettings.RemoveEntryAsync(configuration, libraryId, ct);
                 return Results.NoContent();
             }
-            catch (InvalidOperationException ex) when (ex is not VaultAdminPinNotSetException)
+            catch (InvalidOperationException ex)
             {
                 return ApiErrors.Conflict(ex.Message);
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
@@ -436,10 +436,6 @@ public static class VaultEndpoints
             title: "Too many attempts",
             detail: "Too many attempts. Try again later.",
             statusCode: StatusCodes.Status429TooManyRequests),
-        VaultAdminPinNotSetException notSet => Results.Problem(
-            title: "Administrator PIN required",
-            detail: notSet.Message,
-            statusCode: StatusCodes.Status428PreconditionRequired),
         ProfilePinRequiredException => Results.Problem(
             title: "PIN required",
             detail: "Enter the PIN to continue.",

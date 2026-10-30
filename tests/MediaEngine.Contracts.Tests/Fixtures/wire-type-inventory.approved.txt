@@ -12594,6 +12594,7 @@
   TitlesHiddenUntilPointed: System.Boolean | json=titlesHiddenUntilPointed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ShowQuickCheck: System.Boolean | json=showQuickCheck | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HoverStills: System.Boolean | json=hoverStills | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HiddenReminderDismissed: System.Boolean | json=hiddenReminderDismissed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.WriteBack.AssetFileWriteStatusDto
   kind=class | converter=default | number-handling=default | unmapped=default

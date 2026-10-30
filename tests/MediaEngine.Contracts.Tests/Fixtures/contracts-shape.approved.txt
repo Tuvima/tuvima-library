@@ -10617,6 +10617,7 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultViewPreferences
   TitlesHiddenUntilPointed: System.Boolean | nullability=not-null | accessors=get,init
   ShowQuickCheck: System.Boolean | nullability=not-null | accessors=get,init
   HoverStills: System.Boolean | nullability=not-null | accessors=get,init
+  HiddenReminderDismissed: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.WriteBack.MediaEngine.Contracts.WriteBack.AssetFileWriteStatusDto
   Waiting: System.Boolean | nullability=not-null | accessors=get,init

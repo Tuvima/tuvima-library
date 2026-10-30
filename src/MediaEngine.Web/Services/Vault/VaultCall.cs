@@ -15,9 +15,6 @@ public enum VaultOutcome
     /// <summary>A PIN is needed, or the one given was not right.</summary>
     PinRequired,
 
-    /// <summary>The administrator needs a profile PIN of their own before the Engine will do this (Videos spec D25).</summary>
-    AdministratorPinNotSet,
-
     /// <summary>Too many wrong tries; the Engine asks to wait.</summary>
     TooManyAttempts,
 

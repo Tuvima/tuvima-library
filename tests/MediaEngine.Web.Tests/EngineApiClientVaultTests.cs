@@ -81,12 +81,8 @@ public sealed class EngineApiClientVaultTests
     }
 
     [Fact]
-    public async Task AdministratorCalls_TellAMissingAdministratorPinFromAWrongOne()
+    public async Task AdministratorCalls_TellAWrongPinWhenTheEngineAsksForOne()
     {
-        var (client, _, _) = Client(_ => Problem(HttpStatusCode.PreconditionRequired, "Administrator PIN required", "Set your own profile PIN first."));
-        var notSet = await client.CreateVaultLibraryAsync(new CreateVaultLibraryRequest { AdultsConfirmed = true, AdminPin = Pin });
-        Assert.Equal(VaultOutcome.AdministratorPinNotSet, notSet.Outcome);
-
         var (wrong, _, _) = Client(_ => Problem(HttpStatusCode.PreconditionRequired, "PIN required", "Enter the PIN to continue."));
         Assert.Equal(VaultOutcome.PinRequired, (await wrong.SetProfileNsfwAccessAsync(Guid.NewGuid(), new SetNsfwAccessRequest { Mode = "pin", AdminPin = Pin })).Outcome);
     }

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Bunit;
 using MediaEngine.Contracts.Settings;
@@ -9,6 +10,7 @@ using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,6 +43,8 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Services.AddLocalization();
         Services.AddNativeUiServices();
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        Services.AddSingleton(new DashboardIdentityClient(new IdleClientFactory()));
+        Services.AddScoped<AuthenticationStateProvider>(_ => new SignedOutProvider());
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler("get_LastError", _ => null);
@@ -116,15 +120,15 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.Contains(Session, _setupSessions);
     }
 
-    // 2. Simple mode: Watch, Listen and Read; no Access, no Vault, rows that open nothing.
+    // 2. Simple mode: Watch, Listen, Read and View; no Access, no Vault, rows that open nothing.
     [Fact]
-    public void SimpleModeHasNoViewAreaNoAccessColumnNoVaultAndRowsThatOpenNothing()
+    public void SimpleModeHasTheFourAreasNoAccessColumnNoVaultAndRowsThatOpenNothing()
     {
         AddMoviesLibrary();
         _configuration.Libraries.Add(new() { Id = VaultId, Name = "Private movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"], IsVault = true, Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
         var cut = RenderStage(hasLibraries: true);
 
-        Assert.Equal(["Watch", "Listen", "Read"], cut.FindAll("[aria-label='Library areas'] button").Select(Text).ToArray());
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll("[aria-label='Library areas'] button").Select(Text).ToArray());
         Assert.DoesNotContain(cut.FindAll("th"), header => Text(header) == "Access");
         Assert.Empty(cut.FindAll("a.libs__link"));
         Assert.Empty(cut.FindAll(".libs__chevron"));
@@ -152,11 +156,11 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SimpleModeSaysPhotosAndTheImportFolderComeAfterSetup()
+    public void SimpleModePointsToSettingsForTheImportFolderAndEachLibrarysOwnSettings()
     {
         var cut = RenderStage();
 
-        Assert.Contains("added after setup, in Settings", Text(cut.Find("[data-later]")), StringComparison.Ordinal);
+        Assert.Contains("are in Settings", Text(cut.Find("[data-later]")), StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("a[href='/settings/libraries/import']"));
     }
 
@@ -286,5 +290,38 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             Assert.DoesNotContain("<AppSegmentedControl", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<AppTable", source, StringComparison.Ordinal);
         });
+    }
+
+    // Add-folder v2 (A4 for View and the Vault): setup's View folders use Settings' own folder dialog and shared pop-up, the Vault step draws the same Libraries
+    // table, and no other setup screen knows the word Vault, so a skipped Vault step leaves nothing behind.
+    [Fact]
+    public void SetupsViewFoldersAndVaultStepReuseSettingsComponentsAndTheVaultStaysInOneStep()
+    {
+        var root = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components");
+        var overview = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibrariesOverview.razor"));
+        var viewDialog = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "AddViewFolderDialog.razor"));
+        var vaultStep = File.ReadAllText(Path.Combine(root, "Setup", "SetupVaultOffer.razor"));
+        var stage = File.ReadAllText(Path.Combine(root, "Setup", "SetupMediaStage.razor"));
+
+        Assert.Contains("AppDialogParameters<AddViewFolderDialog>", overview, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", viewDialog, StringComparison.Ordinal);
+        Assert.Contains("<LibrariesOverview", vaultStep, StringComparison.Ordinal);
+        Assert.Contains("EffectiveAdministrator == true", stage, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AppTable", vaultStep, StringComparison.Ordinal);
+        Assert.DoesNotContain("<CreateLibraryDialog", vaultStep, StringComparison.Ordinal);
+
+        var others = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories)
+            .Where(file => Path.GetFileName(file) is not ("SetupVaultOffer.razor" or "SetupMediaStage.razor"));
+        Assert.All(others, file => Assert.DoesNotContain("Vault", File.ReadAllText(file), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private sealed class IdleClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(new HttpClientHandler()) { BaseAddress = new Uri("http://engine.test") };
+    }
+
+    private sealed class SignedOutProvider : AuthenticationStateProvider
+    {
+        public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
     }
 }

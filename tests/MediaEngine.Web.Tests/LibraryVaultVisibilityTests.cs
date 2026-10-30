@@ -81,7 +81,7 @@ public sealed class LibraryVaultVisibilityTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheSharedTableInFirstRunSetupNeverListsOrMentionsTheVaultEvenWithVaultModeOn()
+    public async Task TheSharedTableInFirstRunSetupMentionsTheVaultOnlyAfterTheVaultWasTurnedOn()
     {
         await SetUpAsync();
         _configuration.Libraries.Add(new() { Id = "11111111-1111-4111-8111-111111111111", Name = "Movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"], Sources = [new() { Id = "m1", Path = "E:\\Movies" }] });
@@ -92,10 +92,12 @@ public sealed class LibraryVaultVisibilityTests : AsyncBunitContext
 
         var settingsVault = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true).Add(x => x.Area, "vault"));
 
-        // Settings lists the Vault library only inside the Vault area; setup has no Vault button, library or word at all.
+        // Settings lists the Vault library only inside the Vault area; setup draws the Vault only once it was turned on in setup (ShowVault) and never otherwise.
         Assert.Equal(["Movies"], settings.FindAll(".libs__link").Select(Text).ToArray());
         Assert.Equal(["Private movies"], settingsVault.FindAll(".libs__link").Select(Text).ToArray());
         Assert.Equal(["Movies"], setup.FindAll(".libs__link").Select(Text).ToArray());
-        Assert.DoesNotContain("vault", setup.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("vault", setup.Markup, StringComparison.OrdinalIgnoreCase);
+        var setupWithoutVault = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.Simple, true));
+        Assert.DoesNotContain("vault", setupWithoutVault.Markup, StringComparison.OrdinalIgnoreCase);
     }
 }
