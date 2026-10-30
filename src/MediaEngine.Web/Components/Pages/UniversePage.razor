@@ -72,6 +72,7 @@
                               EnrichmentRunning="@(overview.Enrichment.State == UniverseEnrichmentStateDto.Running)" />
 
 
+                <EditSavedRibbon Flow="_flow" />
                 <EditorPanelHost Mode="_editing" Flow="_flow" Picker="_artworkPicker">
                     @if (context == EditTool.Details)
                     {

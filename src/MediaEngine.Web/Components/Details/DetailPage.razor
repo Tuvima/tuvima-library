@@ -123,6 +123,7 @@ else if (Model is not null)
 
         @* The right-hand panel of the editor: Details here (or the bulk panel while rows are ticked and the bar opened it), Match through the
            editor section it has always used. *@
+        <EditSavedRibbon Flow="_flow" />
         <EditorPanelHost Mode="_editing" Flow="_flow" Picker="_artworkPicker" TitleOverride="@BulkPanelTitle">
             @if (context == EditTool.Details)
             {
