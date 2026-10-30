@@ -116,7 +116,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.Single(cut.FindComponents<LibrariesOverview>());
         Assert.True(cut.FindComponent<LibrariesOverview>().Instance.Simple);
         Assert.Equal(Session, cut.FindComponent<LibrariesOverview>().Instance.SetupSession);
-        Assert.Equal(["Movies"], cut.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.Equal(["Movies"], cut.FindAll(".libs__group[data-area=watch] .libs__link").Select(Text).ToArray());
         Assert.Contains(Session, _setupSessions);
     }
 
@@ -128,7 +128,8 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         _configuration.Libraries.Add(new() { Id = VaultId, Name = "Private movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"], IsVault = true, Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
         var cut = RenderStage(hasLibraries: true);
 
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll("[aria-label='Library areas'] button").Select(Text).ToArray());
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
+        Assert.Empty(cut.FindAll(".librail"));
         Assert.DoesNotContain(cut.FindAll("th"), header => Text(header) == "Access");
         Assert.Empty(cut.FindAll("a.libs__link"));
         Assert.Empty(cut.FindAll(".libs__chevron"));
@@ -141,18 +142,18 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.Equal(before, navigation.Uri);
     }
 
-    // Choosing Watch, Listen or Read in setup changes the table in place; leaving the wizard would abandon the first run.
+    // Setup lists every area in one table with no rail and no area control, so there is nowhere in it that could leave the wizard (Libraries redesign D13).
     [Fact]
-    public void ChoosingAnotherAreaInSetupStaysInTheWizard()
+    public void SetupHasNoRailAndNoAreaControlSoNothingInItLeavesTheWizard()
     {
         var cut = RenderStage();
         var navigation = Services.GetRequiredService<NavigationManager>();
         var before = navigation.Uri;
 
-        cut.FindAll("[aria-label='Library areas'] button").Single(tab => Text(tab) == "Listen").Click();
+        Assert.Empty(cut.FindAll(".librail, [aria-label='Library areas']"));
+        Assert.Empty(cut.FindAll(".libs__group a[href]"));
 
         Assert.Equal(before, navigation.Uri);
-        Assert.Equal("true", cut.FindAll("[aria-label='Library areas'] button").Single(tab => Text(tab) == "Listen").GetAttribute("aria-pressed"));
     }
 
     [Fact]
@@ -281,7 +282,9 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var overview = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibrariesOverview.razor"));
 
         Assert.Contains("<LibrariesOverview", stage, StringComparison.Ordinal);
-        Assert.Contains("AppDialogParameters<CreateLibraryDialog>", overview, StringComparison.Ordinal);
+        Assert.Contains("LibraryAddFlow.OpenAsync", overview, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<CreateLibraryDialog>", File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibraryAddFlow.cs")), StringComparison.Ordinal);
+        Assert.DoesNotContain("<LibrariesRail", overview, StringComparison.Ordinal);
         Assert.All(setupSources, source =>
         {
             Assert.DoesNotContain("<CreateLibraryDialog", source, StringComparison.Ordinal);
@@ -289,6 +292,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             Assert.DoesNotContain("AppDialogParameters<ServerFolderPicker>", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<AppSegmentedControl", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<AppTable", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("<LibrariesRail", source, StringComparison.Ordinal);
         });
     }
 

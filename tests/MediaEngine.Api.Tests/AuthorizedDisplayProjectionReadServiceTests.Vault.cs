@@ -58,19 +58,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Vault_AnUnlockedProfileWithoutTheWatchFeature_StillSeesNothingOfTheVault()
-    {
-        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false, features: new HashSet<AccountFeatureId> { AccountFeatureId.Read });
-        var session = NewVaultSession(shape.Account);
-        await UnlockVaultAsync(session);
-        var service = CreateService(VaultContext(shape.Account, session), RealReaders());
-
-        Assert.DoesNotContain(shape.Secret.WorkId, (await service.LoadWorksAsync(default)).Select(row => row.WorkId));
-        Assert.DoesNotContain(shape.Secret.WorkId, await service.LoadVisibleWorkIdsAsync(default));
-        Assert.DoesNotContain(shape.Secret.AssetId, (await service.LoadAuthorizedAssetsAsync(default)).Select(row => row.AssetId));
-    }
-
-    [Fact]
     public async Task Vault_AWorkWithAnyFileInTheVault_IsHiddenAsAWhole_FromALockedProfile()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
@@ -427,7 +414,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Vault_AnUnlockedProfile_CanReachAVaultFile_WithoutAGrantOnTheVaultLibrary_ButOnlyWithTheWatchFeature()
+    public async Task Vault_AnUnlockedProfile_CanReachAVaultFile_WithoutAGrantOnTheVaultLibrary()
     {
         var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
@@ -438,10 +425,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, shape.Secret.AssetId, ApplicationPermissionIds.PlaybackRead));
         Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateEntityAsync(context, "Work", shape.Secret.WorkId, ApplicationPermissionIds.PlaybackRead));
         Assert.Contains(shape.Secret.AssetId, await resources.GetAuthorizedAssetIdsForWorkAsync(context, shape.Secret.WorkId, VaultProfile, ApplicationPermissionIds.PlaybackRead));
-
-        using var connection = _database.CreateConnection();
-        connection.Execute("DELETE FROM profile_feature_grants WHERE profile_id=@profile AND feature_id='watch';", new { profile = VaultProfile });
-        Assert.Equal(CatalogueResourceAccess.NotFound, await CreateResourceService(context).EvaluateAssetAsync(context, shape.Secret.AssetId, ApplicationPermissionIds.PlaybackRead));
     }
 
     [Fact]
@@ -473,14 +456,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var normal = await InsertOwnedWorkWithIdAsync(normalLibrary, "Ordinary film", "Movie");
         var secret = await InsertOwnedWorkWithIdAsync(vaultLibrary, "Secret scene", "Movie");
         var account = Guid.NewGuid();
-        // A stale hidden row on what later becomes a Vault library must change nothing: the Vault is never ruled by hiding or showing.
-        var hiddenLibraries = new HashSet<Guid>();
-        if (hasAStaleHiddenRowOnTheVaultLibrary)
-        {
-            hiddenLibraries.Add(vaultLibrary);
-        }
-
-        await CreateHumanAsync(account, features ?? EveryFeature, hiddenLibraries, administrator);
+        await CreateHumanAsync(account, features ?? EveryFeature, new HashSet<Guid>(), administrator);
         using var connection = _database.CreateConnection();
         var now = DateTimeOffset.UtcNow.ToString("O");
         // The profile used by these tests is an adult, so it can hold Vault access.
@@ -488,6 +464,15 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         connection.Execute(
             "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES(@library,'none',@now,@now,@now);",
             new { library = vaultLibrary.ToString("D"), now });
+        if (hasAStaleHiddenRowOnTheVaultLibrary)
+        {
+            // A stale household row on what later becomes a Vault library (written past the repository, which refuses a Vault id) must
+            // change nothing: the Vault is never ruled by hiding or showing a library.
+            connection.Execute(
+                "INSERT INTO household_library_hidden(household_id,library_id,created_at) SELECT household_id,@library,@now FROM profiles WHERE id=@profile;",
+                new { library = GuidSql.ToBlob(vaultLibrary), profile = VaultProfile, now });
+        }
+
         // The profile has been given this Vault section (nothing is granted by default; Vault sections D28, D39). Tests of the other case remove it.
         connection.Execute(
             "INSERT INTO vault_section_grants(library_id, profile_id, created_at) VALUES(@library,@profile,@now);",

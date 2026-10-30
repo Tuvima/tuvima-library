@@ -37,18 +37,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.DoesNotContain(shape.OnlyInLibraryB, visible);
     }
 
-    [Fact]
-    public async Task VisibleWorkIds_AreTheWorkIdsOfTheFullReadForAProfileLimitedByMediaType()
-    {
-        var shape = await SeedVisibleWorkShapeAsync();
-        var account = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>());
-
-        var visible = await AssertVisibleIdsMatchFullReadAsync(HumanContext(account, ProfileOf(account)));
-
-        Assert.Equal(shape.Movies.Order(), visible.Order());
-    }
-
     [Theory]
     [InlineData("PG", false)]
     [InlineData("PG", true)]

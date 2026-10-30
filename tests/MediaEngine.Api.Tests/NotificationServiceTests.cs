@@ -339,8 +339,6 @@ public sealed class NotificationServiceTests : IDisposable
                 UpdatedAt = Start,
             },
             new TestGrant(accountId, profile.Id, IsDefault: true, AdminEnabled: administrator),
-            new HashSet<AccountFeatureId>(),
-            new HashSet<Guid>(),
             newProfile: profile,
             // Every server administrator lives in the Library's own household.
             householdId: administrator ? _household : null);

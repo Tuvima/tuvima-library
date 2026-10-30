@@ -826,10 +826,11 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         }
 
         Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb]"));
-        // The Import folder panel and View's settings are unchanged panels with headings of their own; every other level has none.
+        // The Import folder panel and View's settings are unchanged panels with headings of their own; every other level has no page title of its own
+        // (the area headings and the rules card title are section headings, level three).
         if (subsection != "import" && detail != "photos")
         {
-            Assert.Empty(cut.FindAll(".libraries h1, .libraries h2, .libraries h3"));
+            Assert.Empty(cut.FindAll(".libraries h1, .libraries h2"));
         }
     }
 

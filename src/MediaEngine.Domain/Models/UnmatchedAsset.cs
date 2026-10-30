@@ -51,7 +51,7 @@ public sealed record UnmatchedWorkFile(Guid WorkId, Guid AssetId, string Library
 public sealed record UnmatchedWorkLibrary(Guid WorkId, string LibraryId, bool EveryFileUnmatched, bool EveryUnmatchedFileKept);
 
 /// <summary>One Unmatched file as a list shows it: the row plus where the file is and the title it plays under.</summary>
-public sealed record UnmatchedAssetListItem(UnmatchedAsset Asset, string FilePath, string? Title);
+public sealed record UnmatchedAssetListItem(UnmatchedAsset Asset, string FilePath, string? Title, Guid? WorkId = null);
 
 /// <summary>One page of a library's Unmatched files, newest first, with the total that match the filter.</summary>
 public sealed record UnmatchedAssetPage(IReadOnlyList<UnmatchedAssetListItem> Items, int Total);

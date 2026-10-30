@@ -247,7 +247,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     private async Task<bool> AllowsAsync(AdministratorOrApplicationRequirement requirement, HttpContext http)
     {
         var decisions = new AccountAccessDecisionService(new ProfileAccessRepository(_database), new GrantAdminUnlockService(
-            new ProfileAccessRepository(_database), new StubProfilePins(), _clock), TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            new ProfileAccessRepository(_database), new StubProfilePins(), _clock), TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         var evaluator = new AuthorizationEvaluator(
             decisions, _applications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts),
             new HttpContextAccessor { HttpContext = http });
@@ -333,8 +333,6 @@ public sealed class NeedsReviewAccessTests : IDisposable
                 UpdatedAt = _clock.GetUtcNow(),
             },
             new TestGrant(id, profile.Id, IsDefault: true, AdminEnabled: administrator),
-            AccountFeatureId.All.ToHashSet(),
-            new HashSet<Guid>(),
             newProfile: profile);
         return id;
     }

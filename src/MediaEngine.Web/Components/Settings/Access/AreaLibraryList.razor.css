@@ -1,5 +1,0 @@
-.area-library-list { display: grid; gap: 2px; margin: 0 0 8px 16px; }
-.area-library-list__all { padding-bottom: 4px; margin-bottom: 2px; border-bottom: 1px solid var(--tl-border-subtle); font-weight: 600; }
-.area-library-list__item { display: grid; gap: 0; overflow-wrap: anywhere; }
-.area-library-list__note { margin: -6px 0 6px 32px; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm, .85rem); }
-.area-library-list__item--limited, .area-library-list__item--held { opacity: .6; }

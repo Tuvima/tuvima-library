@@ -90,8 +90,7 @@ public sealed class LibraryActivityEndpointsTests : IAsyncLifetime
         builder.Services.AddSingleton<IVaultLibraryRepository>(vaultLibraries);
         builder.Services.AddSingleton<ILibraryActivityReadRepository>(new LibraryActivityReadRepository(_database));
         builder.Services.AddSingleton<LibraryActivityReadService>();
-        builder.Services.AddSingleton(new LibraryVisibilityRule(
-            new ProfileAccessRepository(_database), new HouseholdLibraryAccessRepository(_database), vaultLibraries));
+        builder.Services.AddSingleton(new LibraryVisibilityRule(new HouseholdLibraryAccessRepository(_database), vaultLibraries));
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver());
         _app = builder.Build();
         _app.UseAuthentication();

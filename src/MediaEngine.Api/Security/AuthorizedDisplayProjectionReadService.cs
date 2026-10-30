@@ -398,7 +398,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return new(authority, false, false, new HashSet<Guid>(), new HashSet<AccountFeatureId>(), ContentLimitFilter.Unrestricted);
         }
 
-        var features = await profileAccess.GetFeatureGrantsAsync(actingProfile, ct).ConfigureAwait(false);
+        var features = await profileAccess.GetAreasAsync(actingProfile, ct).ConfigureAwait(false);
         var hidden = await HiddenLibrariesAsync(actingProfile, ct).ConfigureAwait(false);
         return new(authority, true, false, hidden, features, content);
     }

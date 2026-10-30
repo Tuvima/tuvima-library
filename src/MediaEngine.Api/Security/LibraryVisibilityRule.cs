@@ -4,17 +4,16 @@ namespace MediaEngine.Api.Security;
 
 /// <summary>
 /// The one rule that answers "may this profile see this library" (library access D2; simpler access D11). A profile sees a library when it
-/// is a server administrator profile, or when the library is not a Vault library, the profile has the library's area (Read, Watch, Listen
-/// or View), the library is not hidden for the profile's household, and it is not hidden for the profile itself. Nothing is hidden by
-/// default: a new library is visible straight away to everyone with its area, and a new profile gets what its household has. Every place
-/// that decides library visibility (browse, search, detail pages, players, artwork, streams, events, counts, downloads, the native apps)
-/// asks this type or uses the hidden set it loads; none keeps a copy of the rule. "Hidden" here is the household's hidden libraries plus the
-/// profile's own, so a caller that already applies <see cref="MaySee"/> to a hidden set needs no second check.
+/// is a server administrator profile, or when the library is not a Vault library, the profile reaches the library's area (Read, Watch,
+/// Listen or View) and the library is not hidden for the profile's household. A library is on or off per household only (library access
+/// v4): there is no per-profile library rule, so a new profile gets exactly what its household has. Nothing is hidden by default: a new
+/// library is visible straight away. Every place that decides library visibility (browse, search, detail pages, players, artwork, streams,
+/// events, counts, downloads, the native apps) asks this type or uses the hidden set it loads; none keeps a copy of the rule. "Hidden" here
+/// is the household's hidden libraries, so a caller that already applies <see cref="MaySee"/> to a hidden set needs no second check.
 /// The Vault is never visible through this rule, not even to an administrator; its visibility stays with <see cref="VaultVisibility"/>
 /// and <see cref="VaultAccessResolver"/>.
 /// </summary>
 public sealed class LibraryVisibilityRule(
-    IProfileAccessRepository access,
     IHouseholdLibraryAccessRepository householdLibraries,
     IVaultLibraryRepository vaultLibraries)
 {
@@ -26,37 +25,17 @@ public sealed class LibraryVisibilityRule(
         !isVault && (isAdministrator || (hasArea && !isHidden));
 
     /// <summary>
-    /// The libraries hidden from the profile: its household's hidden libraries plus its own hidden rows. A caller that asks about many
-    /// libraries in one request loads it once and uses <see cref="MaySee"/>. An administrator never consults it.
+    /// The libraries hidden from the profile: its household's hidden libraries. A caller that asks about many libraries in one request
+    /// loads it once and uses <see cref="MaySee"/>. An administrator never consults it.
     /// </summary>
-    public async ValueTask<IReadOnlySet<Guid>> LoadHiddenAsync(Guid profileId, CancellationToken ct = default)
-    {
-        var own = await access.GetHiddenLibrariesAsync(profileId, ct).ConfigureAwait(false);
-        var household = await householdLibraries.GetHiddenLibrariesForProfileAsync(profileId, ct).ConfigureAwait(false);
-        if (household.Count == 0)
-        {
-            return own;
-        }
+    public async ValueTask<IReadOnlySet<Guid>> LoadHiddenAsync(Guid profileId, CancellationToken ct = default) =>
+        await householdLibraries.GetHiddenLibrariesForProfileAsync(profileId, ct).ConfigureAwait(false);
 
-        return own.Count == 0 ? household : own.Concat(household).ToHashSet();
-    }
-
-    /// <summary>Whether one library is hidden from the profile (hidden for its household, or for the profile itself).</summary>
-    public async ValueTask<bool> IsHiddenAsync(Guid profileId, Guid libraryId, CancellationToken ct = default)
-    {
-        if (await access.IsLibraryHiddenAsync(profileId, libraryId, ct).ConfigureAwait(false))
-        {
-            return true;
-        }
-
-        return (await householdLibraries.GetHiddenLibrariesForProfileAsync(profileId, ct).ConfigureAwait(false)).Contains(libraryId);
-    }
-
-    /// <summary>Whether the household of the profile hides the library (its own list, not the profile's), so a screen can name the household.</summary>
-    public async ValueTask<bool> IsHiddenByHouseholdAsync(Guid profileId, Guid libraryId, CancellationToken ct = default) =>
+    /// <summary>Whether one library is hidden from the profile (hidden for its household).</summary>
+    public async ValueTask<bool> IsHiddenAsync(Guid profileId, Guid libraryId, CancellationToken ct = default) =>
         (await householdLibraries.GetHiddenLibrariesForProfileAsync(profileId, ct).ConfigureAwait(false)).Contains(libraryId);
 
-    /// <summary>The rule for one library, reading the Vault list, the profile's hidden libraries and its household's.</summary>
+    /// <summary>The rule for one library, reading the Vault list and the profile's household's hidden libraries.</summary>
     public async ValueTask<bool> MaySeeAsync(
         Guid profileId,
         bool isAdministrator,

@@ -89,7 +89,7 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
 
             // A subscription names libraries the person may see: each must be a configured library, in an area the profile has
             // (administrators have them all), and not hidden. An unknown library or an area that can't be worked out fails closed.
-            var features = await profileAccess.GetFeatureGrantsAsync(actingProfile, ct).ConfigureAwait(false);
+            var features = await profileAccess.GetAreasAsync(actingProfile, ct).ConfigureAwait(false);
             var configured = configuration.LoadLibraries().Libraries;
             foreach (var id in libraryIds)
             {
@@ -186,7 +186,7 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
             }
 
             if (value.Subject.FeatureId is not { } featureId ||
-                !(await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(featureId))
+                !(await profileAccess.GetAreasAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(featureId))
             {
                 return false;
             }

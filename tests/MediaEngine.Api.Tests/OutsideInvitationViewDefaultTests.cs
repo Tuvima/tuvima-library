@@ -12,7 +12,7 @@ namespace MediaEngine.Api.Tests;
 public sealed class OutsideInvitationViewDefaultTests
 {
     [Fact]
-    public async Task OutsidePersonCannotUseViewUntilAnAdministratorSwitchesItOn()
+    public async Task AnOutsidePersonNeverReachesView()
     {
         var root = Path.Combine(Path.GetTempPath(), $"tuvima-view-default-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -43,16 +43,12 @@ public sealed class OutsideInvitationViewDefaultTests
                 CreatedAt = now,
             };
 
-            await accounts.CreateAccountAsync(account, grant,
-                new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen },
-                new HashSet<Guid>(), newProfile: profile);
+            await accounts.CreateAccountAsync(account, grant, newProfile: profile);
             var access = new ProfileAccessRepository(database);
-            Assert.DoesNotContain(AccountFeatureId.View, await access.GetFeatureGrantsAsync(profileId));
-
-            var features = (await access.GetFeatureGrantsAsync(profileId)).Append(AccountFeatureId.View).ToHashSet();
-            await access.ReplaceAccessAsync(profileId, features, new HashSet<Guid>(), DateTimeOffset.UtcNow);
-
-            Assert.Contains(AccountFeatureId.View, await access.GetFeatureGrantsAsync(profileId));
+            // Someone outside the server's own household never reaches View (and no switch can give it to them); Read, Watch and Listen are open.
+            var areas = await access.GetAreasAsync(profileId);
+            Assert.DoesNotContain(AccountFeatureId.View, areas);
+            Assert.Contains(AccountFeatureId.Watch, areas);
             TestTemp.ReleaseSqlitePoolsIn(root);
         }
         finally

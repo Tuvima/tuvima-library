@@ -1,4 +1,6 @@
-.library-handling { display: flex; flex-direction: column; gap: var(--tl-space-3); min-width: 0; max-width: 720px; }
+.library-handling { display: flex; flex-direction: column; gap: var(--tl-space-3); min-width: 0; }
+.library-handling__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-3); align-items: start; }
+@media (min-width: 1180px) { .library-handling__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .library-handling__choices { display: grid; gap: var(--tl-space-2); }
 .library-handling__note { margin: 0; color: var(--tl-text-muted); }
 .library-handling__example { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2); color: var(--tl-text-muted); }

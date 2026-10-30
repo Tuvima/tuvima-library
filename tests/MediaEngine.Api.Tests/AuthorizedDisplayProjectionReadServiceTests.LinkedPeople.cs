@@ -159,7 +159,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         // The same data for a profile the library is not hidden from shows the linked person, as before.
         using (var connection = _database.CreateConnection())
         {
-            connection.Execute("DELETE FROM profile_library_hidden;");
+            connection.Execute("DELETE FROM household_library_hidden;");
         }
 
         var openViewer = await ViewerAccessFor(SeedProfileContext(sam)).GetCatalogueAsync();

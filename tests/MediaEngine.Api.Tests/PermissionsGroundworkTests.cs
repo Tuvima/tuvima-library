@@ -707,7 +707,7 @@ public sealed class PermissionsGroundworkTests
             world.Mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                 world.Accounts, new ProfileAccessRepository(world._database), identities, profiles, world._configuration, world.Decisions, new AllowEvaluator(),
                 new NoOpInvalidation(), new NoOpAudit(), world.Identity,
-                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
+                new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
                 world.Accounts, new ProfileAccessRepository(world._database), world.Identity);
             world.Management = new HouseholdManagementService(
                 world.Households, world.Accounts, world.Decisions, new AllowEvaluator(), audit, world.Clock);
@@ -724,8 +724,7 @@ public sealed class PermissionsGroundworkTests
             world.ServerAdminAccount = await world.Mutations.CreateAsync(bootstrap, new CreateAccountAccessCommand(
                 "server@example.com", IsAdministrator: true, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
+                TemporaryPassword: null));
             await identities.GiveAsync(world.ServerAdminAccount.Id);
             var serverProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value;
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile);
@@ -803,8 +802,7 @@ public sealed class PermissionsGroundworkTests
             // directly so the household administrator's view of such a person is still tested.
             var serverInA = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
                 "server.in.a@example.com", IsAdministrator: false, ProfileId: A.Spare.Id, NewProfile: null,
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
+                TemporaryPassword: null));
             using (var connection = _database.CreateConnection())
             {
                 connection.Execute("UPDATE profiles SET is_server_admin = 1 WHERE id = @profile;", new { profile = A.Spare.Id });
@@ -812,8 +810,7 @@ public sealed class PermissionsGroundworkTests
 
             var otherAdmin = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
                 "other.admin.in.a@example.com", IsAdministrator: false, ProfileId: A.Kid.Id, NewProfile: null,
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
+                TemporaryPassword: null));
             // A Kids profile can't look after a household, so the person becomes a standard one before being promoted.
             using (var connection = _database.CreateConnection())
             {
@@ -869,8 +866,7 @@ public sealed class PermissionsGroundworkTests
             var owner = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
                 email, IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand(personName, "#112233"),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
+                TemporaryPassword: null));
             var household = (await Households.GetForAccountAsync(owner.Id))!;
             var person = await Mutations.AddHouseholdPersonAsync(ServerAdmin,
                 new AddHouseholdPersonCommand(household.Id, $"{personName}'s friend", null, false, null));

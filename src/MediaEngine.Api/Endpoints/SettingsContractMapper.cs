@@ -99,6 +99,7 @@ internal static class SettingsContractMapper
         foreach (var library in value.Libraries)
         {
             library.UnmatchedCount = 0;
+            library.ReviewCount = 0;
             ClearFirstChecks(library);
         }
 

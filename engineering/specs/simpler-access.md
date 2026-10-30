@@ -1,6 +1,8 @@
 # Spec: Simpler access (areas, ratings, untick a library, folder checkbox)
 
 > **Status:** Built, awaiting your Local checks · **Version:** 5 · **Last updated:** 2026-10-29 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D51, D60) · [Vault sections and Move to Vault](vault-sections-and-move.md) (D28, D32, D39) · [Videos](videos.md) (D55) · [Library access v3](library-access.md) · [Security](../../docs/architecture/security.md)
+> Version 6 note (2026-10-30): the per-profile area switches (D1) are removed by the [Libraries redesign](libraries-redesign.md) (D16, D19-Q3, Built with WP8); library access is on or off per household only.
+
 
 > Version 6 note (2026-10-30): the per-profile area switches (D1) are removed by the Locked [Libraries redesign](libraries-redesign.md) spec (D16, D19); hiding is done with Kid levels, the household ceiling and the Vault.
 

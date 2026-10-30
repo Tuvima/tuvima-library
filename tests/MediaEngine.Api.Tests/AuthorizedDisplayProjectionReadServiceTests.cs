@@ -226,7 +226,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     }
 
     [Fact]
-    public async Task FiltersLibraryFeatureAndProfileBeforeComposerReadsRows()
+    public async Task FiltersLibraryAndProfileBeforeComposerReadsRows()
     {
         var accountId = Guid.NewGuid();
         var allowedLibrary = Guid.NewGuid();
@@ -250,8 +250,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var works = await service.LoadWorksAsync(CancellationToken.None);
         var journey = await service.LoadJourneyAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, null, CancellationToken.None);
 
-        Assert.Single(works);
-        Assert.Equal(allowedLibrary.ToString("D"), works[0].LibraryId);
+        Assert.Equal(2, works.Count);
+        Assert.All(works, work => Assert.Equal(allowedLibrary.ToString("D"), work.LibraryId));
         Assert.Single(journey);
         Assert.Equal(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, journey[0].ProfileId);
     }
@@ -273,12 +273,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
 
         var first = Assert.Single(await service.LoadWorksAsync(CancellationToken.None));
         Assert.Equal("Allowed book", first.Title);
-        // The profile the sign-in opened holds the access.
-        await new ProfileAccessRepository(_database).ReplaceAccessAsync(
-            MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid> { allowedLibrary },
-            DateTimeOffset.UtcNow);
+        // The household turns the other library off (and the first one back on).
+        var seedHousehold = (await new ProfileRepository(_database).GetByIdAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId))!.HouseholdId!.Value;
+        await new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(
+            seedHousehold, new HashSet<Guid> { allowedLibrary }, DateTimeOffset.UtcNow, null);
 
         // The next request builds its own service, so the hidden libraries are read again, live.
         var nextRequest = CreateService(HumanContext(
@@ -508,7 +506,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     }
 
     [Fact]
-    public async Task DirectAssetAuthorizationIntersectsFeatureAndLibrary()
+    public async Task DirectAssetAuthorizationFollowsTheHouseholdsLibraries_ForEveryArea()
     {
         var accountId = Guid.NewGuid();
         var allowedLibrary = Guid.NewGuid();
@@ -526,7 +524,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             await service.EvaluateAssetAsync(context, allowedBook, ApplicationPermissionIds.PlaybackRead));
         Assert.Equal(CatalogueResourceAccess.Denied,
             await service.EvaluateAssetAsync(context, deniedBook, ApplicationPermissionIds.PlaybackRead));
-        Assert.Equal(CatalogueResourceAccess.Denied,
+        // Areas are not a per-person choice: the movie in a library the household shows is reachable like the book.
+        Assert.Equal(CatalogueResourceAccess.Allowed,
             await service.EvaluateAssetAsync(context, deniedMovie, ApplicationPermissionIds.PlaybackRead));
         Assert.Equal(CatalogueResourceAccess.NotFound,
             await service.EvaluateAssetAsync(context, Guid.NewGuid(), ApplicationPermissionIds.PlaybackRead));
@@ -609,7 +608,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         Assert.Equal(CatalogueResourceAccess.Allowed,
             await service.EvaluateEntityAsync(
                 context, "Collection", bookCollectionId, ApplicationPermissionIds.LibraryRead));
-        Assert.Equal(CatalogueResourceAccess.Denied,
+        Assert.Equal(CatalogueResourceAccess.Allowed,
             await service.EvaluateEntityAsync(
                 context, "Collection", movieCollectionId, ApplicationPermissionIds.LibraryRead));
 
@@ -1695,7 +1694,12 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 accessor));
     }
 
-    private Task CreateHumanAsync(
+    /// <summary>
+    /// Makes a person with a sign-in. <paramref name="features"/> are the areas the test expects the person to reach (areas are worked
+    /// out, never set, library access v4); <paramref name="hiddenLibraries"/> are hidden for the person's whole household, the only place
+    /// a library can be turned off.
+    /// </summary>
+    private async Task CreateHumanAsync(
         Guid accountId,
         IReadOnlySet<AccountFeatureId> features,
         IReadOnlySet<Guid> hiddenLibraries,
@@ -1712,7 +1716,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 CreatedAt = DateTimeOffset.UtcNow,
             }
             : null;
-        return _accounts.CreateAccountAsync(
+        var profileId = ownProfile?.Id ?? MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        await _accounts.CreateAccountAsync(
             new Account
             {
                 Id = accountId,
@@ -1723,10 +1728,23 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new TestGrant(accountId, ownProfile?.Id ?? MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator),
-            features,
-            hiddenLibraries,
+            new TestGrant(accountId, profileId, IsDefault: true, AdminEnabled: administrator),
             newProfile: ownProfile);
+        var areas = await new ProfileAccessRepository(_database).GetAreasAsync(profileId);
+        Assert.True(features.All(areas.Contains), "The test expects an area the person cannot reach: areas are worked out, never set.");
+        if (hiddenLibraries.Count > 0)
+        {
+            await HideForHouseholdOfAsync(profileId, hiddenLibraries.ToHashSet());
+        }
+    }
+
+    /// <summary>Turns libraries off for the household of the profile (adding to what the household already hides).</summary>
+    private async Task HideForHouseholdOfAsync(Guid profileId, IReadOnlySet<Guid> libraries)
+    {
+        var households = new HouseholdLibraryAccessRepository(_database);
+        var household = (await new ProfileRepository(_database).GetByIdAsync(profileId))!.HouseholdId!.Value;
+        var hidden = (await households.GetHiddenLibrariesAsync(household)).Concat(libraries).ToHashSet();
+        await households.ReplaceHiddenLibrariesAsync(household, hidden, DateTimeOffset.UtcNow, null);
     }
 
     private bool SeedProfileHasASignIn()
@@ -1744,14 +1762,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             ?? MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
     }
 
-    /// <summary>An administrator hides one more library from the person's profile, as the person's page does (the others stay as they are).</summary>
+    /// <summary>An administrator turns one more library off for the person's household (the others stay as they are).</summary>
     private async Task HideLibraryFromAsync(Guid accountId, Guid libraryId)
     {
         var profileId = (await _accounts.GetByIdAsync(accountId))!.ProfileId;
-        var access = new ProfileAccessRepository(_database);
-        var hidden = (await access.GetHiddenLibrariesAsync(profileId)).ToHashSet();
-        hidden.Add(libraryId);
-        await access.ReplaceAccessAsync(profileId, await access.GetFeatureGrantsAsync(profileId), hidden, DateTimeOffset.UtcNow);
+        await HideForHouseholdOfAsync(profileId, new HashSet<Guid> { libraryId });
     }
 
     private static DefaultHttpContext HumanContext(Guid accountId, Guid profileId) =>

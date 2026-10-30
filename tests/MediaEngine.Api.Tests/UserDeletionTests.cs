@@ -437,7 +437,6 @@ public sealed class UserDeletionTests
             new AddHouseholdPersonCommand(world.Household.Id, "Zed", null, false, null));
         var deletion = world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Kim.Id);
         var profileDeletion = world.Mutations.DeleteProfileAsync(world.ServerAdmin, world.Mary.Id);
-        var access = world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id, new HashSet<AccountFeatureId>(), new HashSet<Guid>());
         var roles = world.Mutations.SetProfileRolesAsync(world.ServerAdmin, world.KimProfile.Id, false, false);
         var creation = world.Mutations.CreateUserAsync(world.ServerAdmin, new CreateUserCommand(
             "late@example.com", null, new NewUserProfileCommand("Late", null, world.Household.Id, null),
@@ -445,13 +444,12 @@ public sealed class UserDeletionTests
         await Task.Delay(150);
 
         // All of them are queued behind the held gate, so a delete's plan and the delete itself see the same grants.
-        Assert.All(new Task[] { person, deletion, profileDeletion, access, roles, creation }, task => Assert.False(task.IsCompleted));
+        Assert.All(new Task[] { person, deletion, profileDeletion, roles, creation }, task => Assert.False(task.IsCompleted));
 
         held.Dispose();
         await person;
         await deletion;
         await profileDeletion;
-        await access;
         await roles;
         await creation;
     }
@@ -700,7 +698,7 @@ public sealed class UserDeletionTests
                 world.Accounts,
                 world.Access, identities, world.Profiles, world._configuration,
                 new RealDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit,
-                identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), gate ?? new AuthenticationPolicyMutationGate(), new FixedVaultLibraries(), world.Log,
+                identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), gate ?? new AuthenticationPolicyMutationGate(), world.Log,
                 world.Households),
                 world.Accounts, world.Access, identity);
             var households = world.Households;
@@ -711,14 +709,14 @@ public sealed class UserDeletionTests
             world.ServerAdminAccount = await world.Mutations.CreateAsync(bootstrap, new CreateAccountAccessCommand(
                 "server@example.com", IsAdministrator: true, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
+                TemporaryPassword: null));
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value);
             await world.SecureServerAdministratorAsync();
 
             world.Alex = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
                 "alex@example.com", IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Alex", "#112233"),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
+                TemporaryPassword: null));
             world.Household = (await households.GetForAccountAsync(world.Alex.Id))!;
             world.Alex = (await world.Accounts.GetByIdAsync(world.Alex.Id))!;
 
@@ -746,7 +744,7 @@ public sealed class UserDeletionTests
             world.Bea = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
                 "bea@example.com", IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Bea", "#445566"),
-                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
+                TemporaryPassword: null));
             world.Bea = (await world.Accounts.GetByIdAsync(world.Bea.Id))!;
 
             world.AlexAuthority = await world.OwnerAuthorityAsync(world.Alex, isOwner: true);

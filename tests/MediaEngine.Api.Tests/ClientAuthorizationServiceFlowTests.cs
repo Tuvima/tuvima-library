@@ -35,9 +35,7 @@ public sealed class ClientAuthorizationServiceFlowTests : IDisposable
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new TestGrant(Account.SeedAccountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: true),
-            new HashSet<AccountFeatureId>(),
-            new HashSet<Guid>()).GetAwaiter().GetResult();
+            new TestGrant(Account.SeedAccountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: true)).GetAwaiter().GetResult();
         _authorization = new ClientAuthorizationService(
             new ClientAuthorizationRepository(_database),
             accounts,

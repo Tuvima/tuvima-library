@@ -62,9 +62,11 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new TestGrant(_account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen },
-            new HashSet<Guid> { _hidden }).GetAwaiter().GetResult();
+            new TestGrant(_account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId)).GetAwaiter().GetResult();
+        // A library is on or off per household: the household of this profile turns the hidden one off.
+        var household = new ProfileRepository(_database).GetByIdAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId).GetAwaiter().GetResult()!.HouseholdId!.Value;
+        new HouseholdLibraryAccessRepository(_database)
+            .ReplaceHiddenLibrariesAsync(household, new HashSet<Guid> { _hidden }, DateTimeOffset.UtcNow, null).GetAwaiter().GetResult();
         // Each library holds one identified book and one Unmatched book, in different series, so the lane answers and the Unmatched answers differ.
         SeedBook(_granted, "Granted Saga", "Granted Book");
         SeedBook(_hidden, "Hidden Saga", "Hidden Book");
@@ -208,7 +210,7 @@ public sealed class CollectionGroupNarrowingRouteTests : IDisposable
         builder.Services.AddSingleton<DisplayWorkProjectionReader>();
         builder.Services.AddSingleton<IRawDisplayProjectionReadService, LiveProjection>();
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IVaultLibraryRepository>(new FixedVaultLibraries());
-        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IHouseholdLibraryAccessRepository, TestLibraryVisibility.NoHouseholdLibraries>();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IHouseholdLibraryAccessRepository, HouseholdLibraryAccessRepository>();
         builder.Services.AddSingleton<MediaEngine.Api.Security.LibraryVisibilityRule>();
         builder.Services.AddScoped<AuthorizedDisplayProjectionReadService>();
         builder.Services.AddScoped<IDisplayProjectionReadService>(provider =>

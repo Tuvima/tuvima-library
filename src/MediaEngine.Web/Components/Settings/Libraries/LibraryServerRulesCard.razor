@@ -1,0 +1,117 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Contracts.Artwork
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@inject IEngineApiClient ApiClient
+
+@* "Rules for every library" (Libraries redesign D5): the server-wide file handling that used to sit in the folders panel's Advanced section. The duplicate
+   default, when changes are written into files, whether artwork goes inside the files, and what happens when a name is already taken. Per-library naming
+   and tags are in each library's File handling tab. Each switch saves at once and says "Saved" beside itself (no toast). *@
+<AppCard Class="libs-rules">
+    <div data-testid="library-server-rules">
+    <h3 class="libs-rules__title">Rules for every library</h3>
+    <p class="libs-rules__sub">Each library can override these in its own File handling tab.</p>
+    @if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
+    }
+    <div class="libs-rules__row">
+        <div>
+            <strong>When the same file arrives twice</strong>
+            <small>Library compares file contents, so renamed copies count as the same file.</small>
+        </div>
+        <AppSegmentedControl Options="DuplicateOptions"
+                             Value="@Configuration.FileHandling.DuplicatePolicy"
+                             ValueChanged="SetDuplicatePolicyAsync"
+                             AriaLabel="When the same file arrives twice"
+                             Disabled="@(ReadOnly || _saving)" />
+    </div>
+    <LibraryWriteSchedulePanel ReadOnly="@ReadOnly" />
+    <AppSwitchRow Label="Embed artwork in files"
+                  Description="Puts cover art inside the files Library writes tags to. Available while at least one library has tags switched on."
+                  Value="@(_artwork?.ArtworkEnabled ?? false)"
+                  ValueChanged="SetArtworkAsync"
+                  Disabled="@(ReadOnly || _saving || !AnyTagsOn)" />
+    <div class="libs-rules__row">
+        <div>
+            <strong>When a file with the same name already exists</strong>
+            <small>The new file gets a unique name; nothing is overwritten.</small>
+        </div>
+    </div>
+    @if (_saved)
+    {
+        <p class="libs-rules__saved" role="status">Saved</p>
+    }
+    </div>
+</AppCard>
+
+@code {
+    private static readonly IReadOnlyList<AppSelectOption> DuplicateOptions =
+    [
+        new("keep_one", "Keep one copy"),
+        new("keep_both", "Keep both"),
+    ];
+
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Raised after a rule was saved, so the page reads the configuration again.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private ArtworkWritebackSettingsDto? _artwork;
+    private bool _saving;
+    private bool _saved;
+    private string? _error;
+
+    private bool AnyTagsOn => Configuration.Libraries.Any(library => library.OrganizationPolicy.WriteTags);
+
+    protected override async Task OnInitializedAsync() => _artwork = await ApiClient.GetArtworkWritebackSettingsAsync();
+
+    // Copy the saved file handling and change only the duplicate rule, so settings added later are not dropped.
+    private async Task SetDuplicatePolicyAsync(string? policy)
+    {
+        if (policy is null || _saving) return;
+        _saving = true;
+        _saved = false;
+        _error = null;
+        try
+        {
+            var baseline = JsonSerializer.Deserialize<LibrariesConfigurationDto>(JsonSerializer.Serialize(Configuration))!;
+            var fileHandling = JsonSerializer.Deserialize<FileHandlingDto>(JsonSerializer.Serialize(baseline.FileHandling))!;
+            fileHandling.DuplicatePolicy = policy;
+            var saved = await ApiClient.UpdateLibrariesAsync(new UpdateLibrariesRequest
+            {
+                SchemaVersion = baseline.SchemaVersion,
+                StorageLocations = baseline.StorageLocations,
+                ViewStorage = baseline.ViewStorage,
+                Libraries = baseline.Libraries,
+                PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
+                FileHandling = fileHandling,
+            });
+            if (saved is null)
+            {
+                _error = ApiClient.LastError ?? "That change could not be saved. Try again in a moment.";
+                return;
+            }
+
+            _saved = true;
+        }
+        finally { _saving = false; }
+
+        await Changed.InvokeAsync();
+    }
+
+    private async Task SetArtworkAsync(bool enabled)
+    {
+        _saving = true;
+        _saved = false;
+        _error = null;
+        try
+        {
+            var updated = await ApiClient.UpdateArtworkWritebackSettingsAsync(new UpdateArtworkWritebackSettingsDto(enabled));
+            if (updated is null) _error = "The artwork setting could not be saved.";
+            else { _artwork = updated; _saved = true; }
+        }
+        finally { _saving = false; }
+    }
+}

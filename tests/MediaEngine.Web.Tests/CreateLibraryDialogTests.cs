@@ -175,19 +175,13 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
     private void Back() => _dialogs.FindAll("button").Single(x => Text(x) == "Back").Click();
 
-    // Browse opens "Choose source folder" in its own pop-up; it checks its starting folder, and Choose folder hands the answer back.
-    private async Task ChooseFolderAsync()
+    // Step 2 is the folder pop-up itself: it checks its starting folder and reports the answer to the dialog, so there is no Browse and no Choose folder.
+    private Task ChooseFolderAsync()
     {
-        _dialogs.WaitForElement(".create-library[data-step='2']");
-        _dialogs.FindAll(".create-library button").Single(x => Text(x) == "Browse").Click();
-        _dialogs.WaitForElement(".server-folder-picker");
-        _dialogs.WaitForAssertion(() => Assert.False(UseFolderButton.HasAttribute("disabled")));
-        UseFolderButton.Click();
-        _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".server-folder-picker")));
-        await Task.CompletedTask;
+        _dialogs.WaitForElement(".create-library[data-step='2'] .server-folder-picker");
+        _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
+        return Task.CompletedTask;
     }
-
-    private AngleSharp.Dom.IElement UseFolderButton => _dialogs.FindAll("button").Single(x => Text(x) == "Choose folder");
 
     private AngleSharp.Dom.IElement CreateButton => _dialogs.FindAll("button").Single(x => Text(x) == "Add library");
 
@@ -195,7 +189,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
     private AngleSharp.Dom.IElement KindRow(string title) => KindRows.Single(x => x.QuerySelector("strong")!.TextContent == title);
 
-    private AngleSharp.Dom.IElement NameInput => _dialogs.Find(".create-library input[type=text], .create-library input:not([type])");
+    private AngleSharp.Dom.IElement NameInput => _dialogs.Find("[data-library-name] input");
 
     [Fact]
     public async Task TheDialogIsTwoScreensOneQuestionEach()
@@ -215,12 +209,11 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
         _dialogs.WaitForAssertion(() => Assert.Equal("Step 2 of 2", Text(_dialogs.Find(".app-dialog-shell__eyebrow"))));
         Assert.Equal("Choose your TV Shows folder", Text(_dialogs.Find(".app-dialog-shell__title")));
-        Assert.Equal(["Folder", "Library name"], _dialogs.FindAll(".create-library__caption").Select(Text).ToArray());
-        Assert.Contains("Browse for a folder", Text(_dialogs.Find("[data-folder-path]")), StringComparison.Ordinal);
+        _dialogs.WaitForElement(".create-library .server-folder-picker");
+        Assert.Empty(_dialogs.FindAll("[data-folder-path]"));
+        Assert.Equal("TV Shows", NameInput.GetAttribute("value"));
         Assert.Contains("Library scans this folder and its subfolders. Your files are never changed.", _dialogs.Markup, StringComparison.Ordinal);
-        Assert.Contains("This is how it appears in your list. You can rename it later.", _dialogs.Markup, StringComparison.Ordinal);
-        Assert.Contains("Choose a folder to continue.", _dialogs.Markup, StringComparison.Ordinal);
-        Assert.True(CreateButton.HasAttribute("disabled"));
+        Assert.Contains("You can rename it later.", _dialogs.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -246,18 +239,15 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         await OpenAsync(kind: "tv", chooseFolder: false);
         Assert.True(CreateButton.HasAttribute("disabled"));
 
-        _dialogs.FindAll(".create-library button").Single(x => Text(x) == "Browse").Click();
+        _dialogs.WaitForElement(".create-library[data-step='2']");
         _dialogs.WaitForElement(".server-folder-picker");
         _dialogs.WaitForAssertion(() => Assert.Contains("already used by the library \"Movies\"", _dialogs.Find("[data-folder-result=refused]").TextContent, StringComparison.Ordinal));
-        Assert.True(UseFolderButton.HasAttribute("disabled"));
+        Assert.True(CreateButton.HasAttribute("disabled"));
         Assert.Empty(_dialogs.FindAll("[data-folder-result=accessible]"));
 
         _picked = Folder("E:\\Shows");
         _dialogs.Find("button[aria-label='Refresh folders']").Click();
-        _dialogs.WaitForAssertion(() => Assert.False(UseFolderButton.HasAttribute("disabled")));
-        UseFolderButton.Click();
         _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
-        Assert.Contains("E:\\Shows", Text(_dialogs.Find("[data-folder-path]")), StringComparison.Ordinal);
         Assert.Equal("Folder accessible, 126 video files found", Text(_dialogs.Find(".create-library [data-folder-result=accessible]")));
     }
 
@@ -522,7 +512,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     public async Task TheFolderCardSaysHowManyFilesWereFoundOrWhyTheFolderCannotBeUsed()
     {
         await OpenAsync(kind: "tv", chooseFolder: false);
-        _dialogs.FindAll(".create-library button").Single(x => Text(x) == "Browse").Click();
+        _dialogs.WaitForElement(".create-library[data-step='2']");
         _dialogs.WaitForElement(".server-folder-picker");
 
         _dialogs.WaitForAssertion(() => Assert.Equal("Folder accessible, 126 video files found", Text(_dialogs.Find("[data-folder-result=accessible]"))));

@@ -148,7 +148,7 @@ public sealed class AccountAccessDecisionService(
         }
 
         // Read/Watch/Listen/View come from the profile being acted as.
-        return (await profileAccess.GetFeatureGrantsAsync(authority.ActiveProfileId!.Value, ct).ConfigureAwait(false)).Contains(feature)
+        return (await profileAccess.GetAreasAsync(authority.ActiveProfileId!.Value, ct).ConfigureAwait(false)).Contains(feature)
             ? AuthorizationDecision.Allow()
             : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingFeatureGrant);
     }

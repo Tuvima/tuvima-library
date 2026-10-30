@@ -72,19 +72,6 @@ public sealed record ManagedProfileUserDto(
     [property: JsonPropertyName("email")] string? Email);
 
 /// <summary>
-/// Replaces what a profile may use: <c>feature_ids</c> (<c>read</c>, <c>watch</c>, <c>listen</c>, <c>view</c>) and
-/// <c>hidden_library_ids</c>, the libraries hidden from the profile (every other library in its areas is visible). A household
-/// administrator can hide any library for their household's profiles but cannot show one that is hidden from their own profile, and
-/// hands out only the features their own profile holds. <c>expected_access_version</c> is the profile's <c>access_version</c> the
-/// caller loaded; the Dashboard always sends it, and when it is no longer current the Engine refuses with 409 and changes nothing
-/// (left out, an application caller keeps the plain replace).
-/// </summary>
-public sealed record ReplaceProfileAccessRequest(
-    [property: JsonPropertyName("feature_ids")] IReadOnlyList<string> FeatureIds,
-    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid> HiddenLibraryIds,
-    [property: JsonPropertyName("expected_access_version")] long? ExpectedAccessVersion = null);
-
-/// <summary>
 /// Sets a profile's roles. Both values are the wanted state. A household administrator may change <c>is_household_admin</c>
 /// for profiles of their own household; only a server administrator changes <c>is_server_admin</c>.
 /// </summary>

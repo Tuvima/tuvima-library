@@ -282,18 +282,15 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
-    // The overview has the four area tabs; the selected one lists its libraries with their folder counts, and the Import folder is one line under them.
+    // The overview groups every area in one list; each library shows its folder count, and the Import folder is one line under them.
     [Fact]
-    public void OverviewListsTheAreaTabsAndTheSelectedAreasLibrariesWithTheirFolderCount()
+    public void OverviewGroupsTheAreasAndListsEveryLibraryWithItsFolderCount()
     {
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".libs__row");
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll("[aria-label='Library areas'] button").Select(Text).ToArray());
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
         Assert.Contains("3 folders", Text(cut.Find($".libs__row[data-library='{MoviesId}']")));
-
-        var listen = Render<LibrariesTab>(parameters => parameters.AddCascadingValue(RoutedPageQuery.CascadingName, "http://localhost/settings/libraries?area=listen"));
-        listen.WaitForElement(".libs__row");
-        Assert.Contains("1 folder", Text(listen.Find($".libs__row[data-library='{AudiobooksId}']")));
+        Assert.Contains("1 folder", Text(cut.Find($".libs__group[data-area=listen] .libs__row[data-library='{AudiobooksId}']")));
         Assert.Contains("Import folder", Text(cut.Find(".libs__note")));
     }
 
@@ -811,45 +808,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
     // Adding a folder (read-only, merge and managed, the Videos YouTube switch and the phone-footage hint) is tested in AddFolderWizardTests.
 
-    // Changing a naming preset asks before touching existing files; Only new files keeps today's behaviour.
-    [Fact]
-    public void ANamingChangeAsksWhetherToApplyToExistingFilesAndNeverStartsAJobSilently()
-    {
-        var dialogs = Render<AppDialogHost>();
-        var cut = Open("Movies");
-        cut.FindAll(".library-advanced__type button").First(x => Text(x) == "Keep original names").Click();
-        cut.WaitForAssertion(() => Assert.Equal("keep_original_names", _lastLibrary?.OrganizationPolicy.Mode));
-        dialogs.WaitForAssertion(() => Assert.Contains("Apply the new naming to your existing Movies?", dialogs.Markup));
-        Assert.Contains("4,280 files", dialogs.Markup);
-        Assert.Contains("cannot be undone automatically", dialogs.Markup);
-        Assert.Empty(_converted);
-        dialogs.FindAll("button").Single(x => Text(x) == "Only new files").Click();
-        Assert.Empty(_converted);
-    }
-
-    [Fact]
-    public void ApplyToExistingFilesNowQueuesAJobForEachManagedFolder()
-    {
-        var dialogs = Render<AppDialogHost>();
-        var cut = Open("Movies");
-        cut.FindAll(".library-advanced__type button").First(x => Text(x) == "Keep original names").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Apply the new naming to your existing Movies?", dialogs.Markup));
-        dialogs.FindAll("button").Single(x => Text(x) == "Apply to existing files now").Click();
-        cut.WaitForAssertion(() => Assert.Equal(["movies-main", "movies-plex"], _converted));
-    }
-
-    // The tags switch is not a naming change, so it never asks.
-    [Fact]
-    public void ChangingOnlyTheTagsSettingDoesNotAskAboutExistingFiles()
-    {
-        var dialogs = Render<AppDialogHost>();
-        var cut = Open("Movies");
-        cut.FindAll(".library-advanced__type input[role=switch]").Single().Change(false);
-        cut.WaitForAssertion(() => Assert.False(_lastLibrary?.OrganizationPolicy.WriteTags));
-        Assert.DoesNotContain("Apply the new naming", dialogs.Markup);
-        Assert.Empty(_converted);
-    }
-
     [Fact]
     public async Task SwitchingBackToReadOnlyWarnsThatRenamedFilesKeepTheirNames()
     {
@@ -890,7 +848,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var movies = Open("Movies");
         Assert.All(movies.FindAll(".folder-table__files"), cell =>
         {
-            Assert.Equal("Change in Advanced > Movies", Text(cell.QuerySelector(".folder-table__files-hint")!));
+            Assert.Equal("Change in File handling", Text(cell.QuerySelector(".folder-table__files-hint")!));
             Assert.False(cell.HasAttribute("title"));
         });
     }
@@ -977,50 +935,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("is-readonly", rows[2].QuerySelector(".folder-table__icon")!.ClassList);
         Assert.Contains("Read-only", IconLabel(rows[2]));
         Assert.NotEmpty(rows[2].QuerySelectorAll(".folder-table__lock"));
-    }
-
-    // A7: tags are on by default and a type can opt out.
-    [Fact]
-    public void AdvancedTagsAreOnByDefaultAndCanBeOptedOutPerType()
-    {
-        var cut = Open("Movies");
-        var tags = cut.FindAll(".library-advanced__type input[role=switch]").Single();
-        Assert.True(tags.HasAttribute("checked"));
-        tags.Change(false);
-        cut.WaitForAssertion(() => Assert.False(_lastLibrary?.OrganizationPolicy.WriteTags));
-        cut.WaitForAssertion(() => Assert.Equal(["Named", "Named", "Not touched"], cut.FindAll(".folder-table__files-value").Select(Text)));
-    }
-
-    // A7: a live example, and an invalid custom template is refused inline without saving.
-    [Fact]
-    public void AdvancedShowsALiveExampleAndRefusesAnInvalidCustomTemplateInline()
-    {
-        var cut = Open("Movies");
-        Assert.Contains("Movies/Dune (2021)/Dune (2021).mkv", cut.Find(".library-advanced__example code").TextContent);
-        cut.FindAll(".library-advanced__type button").Single(x => x.TextContent.Trim() == "Custom template").Click();
-        cut.WaitForElement(".library-advanced__type input:not([role=switch])");
-        var field = cut.Find(".library-advanced__type input:not([role=switch])");
-        field.Input("{Bad token");
-        cut.WaitForAssertion(() => Assert.Contains("isn't valid", cut.Markup));
-        Assert.True(cut.FindAll("button").Single(x => x.TextContent.Trim() == "Apply template").HasAttribute("disabled"));
-        Assert.Equal(0, _saves);
-
-        field.Input("{Title}/{Title} ({Year}){Ext}");
-        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(x => x.TextContent.Trim() == "Apply template").HasAttribute("disabled")));
-        cut.FindAll("button").Single(x => x.TextContent.Trim() == "Apply template").Click();
-        cut.WaitForAssertion(() => Assert.Equal("custom", _lastLibrary?.OrganizationPolicy.Mode));
-        Assert.Equal("{Title}/{Title} ({Year}){Ext}", _lastLibrary!.OrganizationPolicy.CustomTemplate);
-    }
-
-    // A7: the global rows save.
-    [Fact]
-    public void AdvancedGlobalRowsSave()
-    {
-        var cut = Open("Movies");
-        cut.FindAll(".library-advanced__global button").Single(x => x.TextContent.Trim() == "Keep both").Click();
-        cut.WaitForAssertion(() => Assert.Equal("keep_both", _lastUpdate?.FileHandling.DuplicatePolicy));
-        Assert.Contains("The new file gets a unique name; nothing is overwritten.", cut.Markup);
-        Assert.Contains("Embed artwork in files", cut.Markup);
     }
 
     private async Task OpenMenuItemAsync(IRenderedComponent<LibraryFoldersPanel> cut, int row, string label)
@@ -1400,7 +1314,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         // The last 840px block of the panel stylesheet is the read-only one.
         var phone = panel[panel.LastIndexOf("@media (max-width: 840px)", StringComparison.Ordinal)..];
         Assert.Contains(".library-folders__phone-note", phone);
-        foreach (var hidden in new[] { ".library-folders__detail-actions", ".library-folders__row-actions", ".library-folders__choose", ".library-folders__empty-action", ".library-folders__hint--merge", ".library-folders__advanced" })
+        foreach (var hidden in new[] { ".library-folders__detail-actions", ".library-folders__row-actions", ".library-folders__choose", ".library-folders__empty-action", ".library-folders__hint--merge" })
         {
             Assert.Contains(hidden, phone);
         }

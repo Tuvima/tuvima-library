@@ -67,7 +67,7 @@ public sealed class VisibilityAfterMoveReadService(
                 continue;
             }
 
-            var features = await profileAccess.GetFeatureGrantsAsync(profile.Id, ct).ConfigureAwait(false);
+            var features = await profileAccess.GetAreasAsync(profile.Id, ct).ConfigureAwait(false);
             var hidden = await rule.LoadHiddenAsync(profile.Id, ct).ConfigureAwait(false);
             var seesAfter = LibraryVisibilityRule.MaySee(false, false, HasArea(features, target.Area), hidden.Contains(request.TargetLibraryId));
 
@@ -84,7 +84,7 @@ public sealed class VisibilityAfterMoveReadService(
             }
 
             if (count > 0 && profile.HouseholdId is { } householdId
-                && await rule.IsHiddenByHouseholdAsync(profile.Id, request.TargetLibraryId, ct).ConfigureAwait(false))
+                && await rule.IsHiddenAsync(profile.Id, request.TargetLibraryId, ct).ConfigureAwait(false))
             {
                 lostByHousehold[householdId] = Math.Max(lostByHousehold.GetValueOrDefault(householdId), count);
             }

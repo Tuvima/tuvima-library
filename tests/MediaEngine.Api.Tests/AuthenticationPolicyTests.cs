@@ -510,7 +510,7 @@ public sealed class AuthenticationPolicyTests
         };
         account.NormalizedEmail = account.Email.ToUpperInvariant();
         var profileId = Guid.NewGuid();
-        await accounts.CreateAccountAsync(account, new TestGrant(account.Id, profileId, IsDefault: true, AdminEnabled: adminGrant), new HashSet<AccountFeatureId>(), new HashSet<Guid>(), CancellationToken.None, new Profile
+        await accounts.CreateAccountAsync(account, new TestGrant(account.Id, profileId, IsDefault: true, AdminEnabled: adminGrant), CancellationToken.None, new Profile
         {
             Id = profileId,
             DisplayName = "Administrator",

@@ -268,46 +268,29 @@ public sealed class AccessContractTests
     }
 
     [Fact]
-    public void TheProfileList_AddsRolesAccessAndUserWithoutChangingItsOlderMembers()
+    public void TheProfileList_AddsRolesAndUserWithoutChangingItsOlderMembers()
     {
         var older = JsonSerializer.Deserialize<ManagedProfileResponse>(
             "{\"id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"Sam\",\"avatar_color\":\"#7C4DFF\",\"avatar_path\":null,\"created_at\":\"2026-01-01T00:00:00+00:00\"}")!;
         Assert.False(older.IsServerAdmin);
         Assert.False(older.IsHouseholdAdmin);
-        Assert.Null(older.FeatureIds);
-        Assert.Null(older.HiddenLibraryIds);
         Assert.Null(older.User);
 
         var userId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        var library = Guid.Parse("33333333-3333-3333-3333-333333333333");
         var json = JsonSerializer.Serialize(older with
         {
             IsServerAdmin = true,
             IsHouseholdAdmin = true,
-            FeatureIds = ["read", "watch"],
-            HiddenLibraryIds = [library],
             User = new ManagedProfileUserDto(userId, "sam@home.test"),
         });
 
-        Assert.Contains("\"is_server_admin\":true,\"is_household_admin\":true,\"feature_ids\":[\"read\",\"watch\"]," +
-            "\"hidden_library_ids\":[\"33333333-3333-3333-3333-333333333333\"]," +
+        Assert.Contains("\"is_server_admin\":true,\"is_household_admin\":true," +
             "\"user\":{\"id\":\"22222222-2222-2222-2222-222222222222\",\"email\":\"sam@home.test\"}", json, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ProfileAccessAndRoleRequests_KeepTheirWireNames()
+    public void ProfileRoleRequests_KeepTheirWireNames()
     {
-        var library = Guid.Parse("33333333-3333-3333-3333-333333333333");
-
-        Assert.Equal(
-            "{\"feature_ids\":[\"read\"],\"hidden_library_ids\":[\"33333333-3333-3333-3333-333333333333\"],\"expected_access_version\":null}",
-            JsonSerializer.Serialize(new ReplaceProfileAccessRequest(["read"], [library])));
-        Assert.Equal(
-            "{\"feature_ids\":[],\"hidden_library_ids\":[],\"expected_access_version\":7}",
-            JsonSerializer.Serialize(new ReplaceProfileAccessRequest([], [], 7)));
-        Assert.Equal(7, JsonSerializer.Deserialize<ReplaceProfileAccessRequest>(
-            "{\"feature_ids\":[],\"hidden_library_ids\":[],\"expected_access_version\":7}")!.ExpectedAccessVersion);
-        Assert.Null(JsonSerializer.Deserialize<ReplaceProfileAccessRequest>("{\"feature_ids\":[],\"hidden_library_ids\":[]}")!.ExpectedAccessVersion);
         Assert.Equal(
             "{\"is_household_admin\":true,\"is_server_admin\":false}",
             JsonSerializer.Serialize(new SetProfileRolesRequest(true, false)));
@@ -315,27 +298,27 @@ public sealed class AccessContractTests
     }
 
     [Fact]
-    public void LibraryAccessIsTheListOfHiddenLibraries_NotAListOfGrantedOnes()
+    public void ALibraryIsOnOrOffPerHouseholdOnly_SoAProfileCarriesNoLibraryOrAreaLists()
     {
-        var hidden = Guid.NewGuid();
-        var json = JsonSerializer.Serialize(new ReplaceProfileAccessRequest(["watch"], [hidden]));
+        // Library access v4: the person has no library ticks and no Watch/Listen/Read/View switches on the wire.
+        var json = JsonSerializer.Serialize(new ManagedProfileResponse(
+            Guid.NewGuid(), "Sam", "#7C4DFF", null, DateTimeOffset.UtcNow));
 
-        Assert.Equal($"{{\"feature_ids\":[\"watch\"],\"hidden_library_ids\":[\"{hidden}\"],\"expected_access_version\":null}}", json);
-        Assert.DoesNotContain("\"library_ids\":", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("library_grants", JsonSerializer.Serialize(new ManagedProfileResponse(
-            Guid.NewGuid(), "Sam", "#7C4DFF", null, DateTimeOffset.UtcNow, HiddenLibraryIds: [hidden])), StringComparison.Ordinal);
+        Assert.DoesNotContain("hidden_library_ids", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("feature_ids", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("library_grants", json, StringComparison.Ordinal);
+        Assert.DoesNotContain(typeof(ManagedProfileResponse).Assembly.GetTypes(), type => type.Name == "ReplaceProfileAccessRequest");
     }
 
     [Fact]
-    public void TheLibraryPickerNamesEachLibrarysAreaAndWhetherItIsHiddenFromTheAdministratorUsingTheScreen()
+    public void TheLibraryPickerNamesEachLibrarysArea()
     {
         var id = Guid.NewGuid();
-        var json = JsonSerializer.Serialize(new AccessLibraryOptionDto(id, "Lectures", "videos", "watch", HiddenFromYou: true));
+        var json = JsonSerializer.Serialize(new AccessLibraryOptionDto(id, "Lectures", "videos", "watch"));
 
         Assert.Contains("\"area\":\"watch\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"hidden_from_you\":true", json, StringComparison.Ordinal);
-        Assert.False(JsonSerializer.Deserialize<AccessLibraryOptionDto>(
-            $"{{\"id\":\"{id}\",\"display_name\":\"Books\",\"category\":null,\"area\":\"read\"}}")!.HiddenFromYou);
+        Assert.DoesNotContain("hidden_from_you", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("hidden_for_household", json, StringComparison.Ordinal);
     }
 
     [Fact]

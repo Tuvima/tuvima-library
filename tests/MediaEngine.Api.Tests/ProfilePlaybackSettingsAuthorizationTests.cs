@@ -57,7 +57,7 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
         var decisions = new AccountAccessDecisionService(
             new ProfileAccessRepository(_database),
             new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         _services = new ServiceCollection()
             .AddSingleton<IRequestAuthorityResolver>(
                 new RequestAuthorityResolver(_accounts, new ApplicationRepository(_database)))
@@ -255,9 +255,7 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
         };
         await _accounts.CreateAccountAsync(
             account,
-            new TestGrant(id, profile.Id, IsDefault: true, AdminEnabled: adminGrant),
-            AccountFeatureId.All.ToHashSet(),
-            new HashSet<Guid>());
+            new TestGrant(id, profile.Id, IsDefault: true, AdminEnabled: adminGrant));
         if (householdAdmin)
         {
             await new ProfileAccessRepository(_database).SetHouseholdAdministratorAsync(profile.Id, true, Now);
