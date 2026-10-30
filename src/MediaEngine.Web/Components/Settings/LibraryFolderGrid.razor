@@ -70,18 +70,6 @@
                             {
                                 <span class="folder-grid__status" data-paused="true">Scanning is paused</span>
                             }
-                            @if (OnSetSuitableForLimited.HasDelegate && !ReadOnly && !IsMerged(source))
-                            {
-                                @* Simpler access D7: unrated items from this folder reach profiles with a rating limit. Saved straight away by the host. *@
-                                <div class="folder-grid__limited" title="@LibraryFolderTable.SuitableForLimitedHint">
-                                    <AppSwitchRow Label="Suitable for limited profiles"
-                                                  Size="AppSize.Small"
-                                                  AriaLabel="@($"Suitable for limited profiles: {name}")"
-                                                  Value="@source.OkForLimitedProfiles"
-                                                  Disabled="@(ReadOnly || Busy)"
-                                                  ValueChanged="@((bool value) => OnSetSuitableForLimited.InvokeAsync(new LibraryFolderTable.SuitableForLimitedChange(source, value)))" />
-                                </div>
-                            }
                             @if (OnKeepGoing.HasDelegate && source.FirstCheck is { } firstCheck)
                             {
                                 if (firstCheck.State == "paused")
@@ -202,8 +190,10 @@
     [Parameter] public EventCallback<LibrarySourceDto> OnMerge { get; set; }
     /// <summary>Move to Vault (Library pages D11): offered only when the host sets it, which it does for a server administrator on an ordinary library.</summary>
     [Parameter] public EventCallback<LibrarySourceDto> OnMoveToVault { get; set; }
+
+    /// <summary>Move out of the Vault (Vault sections D38): offered only when the host sets it, which it does for an unlocked administrator on a Vault library.</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnMoveOutOfVault { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnKeepGoing { get; set; }
-    [Parameter] public EventCallback<LibraryFolderTable.SuitableForLimitedChange> OnSetSuitableForLimited { get; set; }
 
     /// <summary>One turn of a folder's Scan switch.</summary>
     public sealed record ScanChange(LibrarySourceDto Source, bool Value);
@@ -249,6 +239,11 @@
         if (OnMoveToVault.HasDelegate && !IsMerged(source))
         {
             items.Add(new() { Label = "Move to Vault…", Icon = AppMaterialIcons.Outlined.Lock, OnClick = Raise(OnMoveToVault, source) });
+        }
+
+        if (OnMoveOutOfVault.HasDelegate && !IsMerged(source))
+        {
+            items.Add(new() { Label = "Move out of the Vault…", Icon = AppMaterialIcons.Outlined.LockOpen, OnClick = Raise(OnMoveOutOfVault, source) });
         }
 
         items.Add(new()

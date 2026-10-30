@@ -295,6 +295,35 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheSongsList_NumbersTheRows_AndHasNoQueueEditOrDeleteColumn()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+
+        var cut = RenderTable(Songs(3));
+
+        Assert.Equal(["1", "2", "3"], cut.FindAll(".listen-song-table__number").Select(cell => cell.TextContent));
+        var headers = cut.FindAll(".listen-song-table__head [role='columnheader']").Select(header => header.TextContent.Trim()).ToList();
+        Assert.DoesNotContain("Queue", headers);
+        Assert.DoesNotContain("Edit", headers);
+        Assert.DoesNotContain("Genre", headers);
+        Assert.Empty(cut.FindAll(".listen-song-table__queue"));
+    }
+
+    [Fact]
+    public async Task AddToQueue_SitsBesideTheRowMenu_ShownOnHoverOnly()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+
+        var cut = RenderTable(Songs(2));
+
+        var cells = cut.FindAll(".listen-song-table__options");
+        Assert.Equal(2, cells.Count);
+        Assert.All(cells, cell => Assert.NotNull(cell.QuerySelector(".listen-song-table__queue-hover button[title='Add to queue']")));
+    }
+
+    [Fact]
     public async Task KeysPressedOnTheQueueEditAndDeleteCellsNeverReachTheRowThatPlaysTheSong()
     {
         await UseDeviceAsync("desktop");

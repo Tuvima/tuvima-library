@@ -1,12 +1,7 @@
 using System.Net;
-using System.Reflection;
 using System.Text;
 using MediaEngine.Contracts.Universe;
-using MediaEngine.Web.Components.MediaEditor;
-using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
-using MediaEngine.Web.Services.Theming;
-using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -14,14 +9,6 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class EngineApiClientSharedEntityEditorTests
 {
-    // Editing is desktop-only, so a launcher without a qualifying device refuses before it does anything else.
-    private static DeviceContextService DesktopWithAMouse()
-    {
-        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
-        device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true)).GetAwaiter().GetResult();
-        return device;
-    }
-
     [Fact]
     public async Task SharedEntityContext_RecordsHttpNotFoundFailureSemantics()
     {
@@ -109,80 +96,6 @@ public sealed class EngineApiClientSharedEntityEditorTests
         Assert.Equal(2, handler.MultipartUploads);
     }
 
-    [Fact]
-    public async Task SharedTargetLaunch_AcceptsRootWithoutMediaEntityIdsAndRejectsInvalidTargets()
-    {
-        var dialogProxy = DispatchProxy.Create<IAppDialogService, DialogServiceProxy>();
-        var dialogState = (DialogServiceProxy)(object)dialogProxy;
-        var launcher = new MediaEditorLauncherService(dialogProxy, null, DesktopWithAMouse(), null);
-
-        var opened = await launcher.OpenAsync(new MediaEditorLaunchRequest
-        {
-            SharedEntityTarget = new(SharedEntityEditorTargetKinds.Universe, "Q42", null, "Q42"),
-        });
-
-        Assert.True(opened);
-        Assert.Equal(1, dialogState.SharedEditorRequests);
-        Assert.False(await launcher.OpenAsync(new MediaEditorLaunchRequest
-        {
-            SharedEntityTarget = new(SharedEntityEditorTargetKinds.FictionalEntity, "Q42", null, "Q123"),
-        }));
-        Assert.False(await launcher.OpenAsync(new MediaEditorLaunchRequest
-        {
-            SharedEntityTarget = new(SharedEntityEditorTargetKinds.Universe, "Q42", null, "Q42"),
-            Mode = SharedMediaEditorMode.Batch,
-        }));
-    }
-
-    [Fact]
-    public async Task SharedTargetLaunch_AcceptsHybridMediaRequestAndOpensOneSharedShell()
-    {
-        var dialogProxy = DispatchProxy.Create<IAppDialogService, DialogServiceProxy>();
-        var dialogState = (DialogServiceProxy)(object)dialogProxy;
-        var launcher = new MediaEditorLauncherService(dialogProxy, null, DesktopWithAMouse(), null);
-        var mediaId = Guid.Parse("22222222-3333-4444-5555-666666666666");
-        var sharedTarget = new SharedEntityEditorTargetDto(SharedEntityEditorTargetKinds.Universe, "Q42", null, "Q42");
-        var request = new MediaEditorLaunchRequest
-        {
-            EntityIds = [mediaId],
-            LaunchEntityId = mediaId,
-            LaunchEntityKind = "Work",
-            SharedEntityTarget = sharedTarget,
-            Mode = SharedMediaEditorMode.Normal,
-            HeaderTitle = "Dune",
-        };
-
-        var opened = await launcher.OpenAsync(request);
-
-        Assert.True(opened);
-        Assert.Equal(1, dialogState.SharedEditorRequests);
-        Assert.Same(request, dialogState.LastSharedEditorRequest);
-        Assert.Equal([mediaId], dialogState.LastSharedEditorRequest!.EntityIds);
-        Assert.Equal(mediaId, dialogState.LastSharedEditorRequest.LaunchEntityId);
-        Assert.Equal(sharedTarget, dialogState.LastSharedEditorRequest.SharedEntityTarget);
-    }
-
-    [Fact]
-    public async Task MediaLaunch_RejectsMultipleTargetsWithoutOpeningAnEditor()
-    {
-        var dialogProxy = DispatchProxy.Create<IAppDialogService, DialogServiceProxy>();
-        var dialogState = (DialogServiceProxy)(object)dialogProxy;
-        var launcher = new MediaEditorLauncherService(dialogProxy, null, DesktopWithAMouse(), null);
-        var targets = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
-
-        Assert.False(await launcher.OpenAsync(new MediaEditorLaunchRequest
-        {
-            EntityIds = targets,
-            Mode = SharedMediaEditorMode.Batch,
-        }));
-        Assert.False(await launcher.OpenAsync(new MediaEditorLaunchRequest
-        {
-            EntityIds = targets,
-            Mode = SharedMediaEditorMode.Normal,
-        }));
-        Assert.Equal(0, dialogState.SharedEditorRequests);
-    }
-
     private sealed class RecordingHandler : HttpMessageHandler
     {
         public List<(string MethodAndPath, string ContentType)> Requests { get; } = [];
@@ -220,37 +133,5 @@ public sealed class EngineApiClientSharedEntityEditorTests
             {
                 Content = new StringContent("{\"title\":\"Not found\",\"detail\":\"Universe context is unavailable.\"}", Encoding.UTF8, "application/problem+json"),
             });
-    }
-
-    private class DialogServiceProxy : DispatchProxy
-    {
-        public int SharedEditorRequests { get; private set; }
-        public MediaEditorLaunchRequest? LastSharedEditorRequest { get; private set; }
-
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
-        {
-            if (targetMethod?.Name == "ShowAsync" && targetMethod.IsGenericMethod)
-            {
-                if (targetMethod.GetGenericArguments()[0] == typeof(SharedMediaEditorShell))
-                {
-                    SharedEditorRequests++;
-                    var parameters = args?.OfType<AppDialogParameters>().FirstOrDefault();
-                    var indexer = parameters?.GetType().GetProperty("Item");
-                    LastSharedEditorRequest = indexer?.GetValue(parameters, [nameof(SharedMediaEditorShell.Request)]) as MediaEditorLaunchRequest;
-                }
-                var reference = DispatchProxy.Create<IAppDialogReference, DialogReferenceProxy>();
-                return Task.FromResult<IAppDialogReference?>(reference);
-            }
-
-            return null;
-        }
-    }
-
-    private class DialogReferenceProxy : DispatchProxy
-    {
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
-            targetMethod?.Name == "get_Result"
-                ? Task.FromResult<AppDialogResult?>(AppDialogResult.Ok(true))
-                : null;
     }
 }

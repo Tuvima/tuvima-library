@@ -8,7 +8,12 @@ public sealed record ProviderArtworkDiscoveryDto(IReadOnlyList<ProviderArtworkCa
     int Page = 1,
     int PageSize = 48,
     int TotalCount = 0,
-    bool HasMore = false);
+    bool HasMore = false)
+{
+    /// <summary>The message sent for a TV show that is not matched to TheTVDB; the Dashboard offers Match and Identity beside it.</summary>
+    public const string UnmatchedTvShowMessage =
+        "This show is not matched to TheTVDB yet. Open Match and Identity to choose the show.";
+}
 public sealed record ProviderArtworkRequestContextDto(
     string ScopeId,
     string Role,

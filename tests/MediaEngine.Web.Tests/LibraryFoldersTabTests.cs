@@ -302,7 +302,7 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AddFolderAddsToThisLibraryShowsOneConfirmationAndAsksNothingElse()
+    public async Task AddFolderAddsToThisLibraryGlowsTheNewRowAndShowsNoToastAndAsksNothingElse()
     {
         var dialogs = Render<AppDialogHost>();
         var toasts = Render<AppToastHost>();
@@ -310,9 +310,9 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
         var before = _configuration.Libraries.Count;
 
         await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
-        dialogs.WaitForAssertion(() => Assert.Contains("Add folder", dialogs.Markup));
-        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Add" && !button.HasAttribute("disabled")));
-        await dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Add" && !button.HasAttribute("disabled")));
+        dialogs.WaitForAssertion(() => Assert.Contains(" folder</", dialogs.Markup));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
+        await dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
 
         // It goes into THIS library (not a new one), the table comes back with the new row pointed at, and nothing else is asked.
         cut.WaitForAssertion(() => Assert.Single(_mutations));
@@ -320,8 +320,8 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
         Assert.Equal(before, _configuration.Libraries.Count);
         Assert.Contains(_mutations[0].Library!.Sources, source => source.Path == "G:\\More\\Movies");
         Assert.Equal("movies-main", _mutations[0].Library!.PrimaryDestinationSourceId);
-        toasts.WaitForAssertion(() => Assert.Contains("to Movies", Text(toasts.Find(".app-toast-host, [role=status], [role=alert]")) + toasts.Markup));
-        Assert.Single(Regex.Matches(toasts.Markup, "Added .* to Movies"));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr[data-highlighted=true]")));
+        Assert.DoesNotContain("Added", toasts.Markup, StringComparison.Ordinal);
         dialogs.WaitForAssertion(() => Assert.DoesNotContain("Organise", dialogs.Markup));
         Assert.DoesNotContain("go to", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(dialogs.FindAll("[role=dialog] button"));

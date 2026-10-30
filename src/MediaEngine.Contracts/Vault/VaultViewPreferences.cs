@@ -36,7 +36,8 @@ public enum VaultCoverMode
 /// <summary>
 /// One profile's Vault viewing options (D24), remembered on this device only. <see cref="ShowQuickCheck"/> is the optional
 /// Vault mode check in the top menu (D23b), off until the person turns it on. <see cref="HoverStills"/> is the optional extra of D41
-/// (pointing at a matched scene card cycles through up to four local stills), Vault only and off by default.
+/// (pointing at a matched scene card cycles through up to four local stills), Vault only and off by default. <see cref="HiddenReminderDismissed"/>
+/// is set when the person closed the quiet "Vault is set up but hidden" line on Home and in Settings (library setup and add-folder v2, 3b).
 /// </summary>
 public sealed record VaultViewPreferences(
     VaultLayout Layout = VaultLayout.ShelfRows,
@@ -45,7 +46,8 @@ public sealed record VaultViewPreferences(
     VaultCoverMode Covers = VaultCoverMode.Blur,
     bool TitlesHiddenUntilPointed = false,
     bool ShowQuickCheck = false,
-    bool HoverStills = false)
+    bool HoverStills = false,
+    bool HiddenReminderDismissed = false)
 {
     public static VaultViewPreferences Default { get; } = new();
 }

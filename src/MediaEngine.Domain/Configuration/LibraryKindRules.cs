@@ -163,7 +163,7 @@ public static partial class LibraryKindRules
         return problems;
     }
 
-    /// <summary>The key of the kind that is only ever offered Vault-protected or for Selected profiles (Library pages D12, D21).</summary>
+    /// <summary>The key of the kind that is only ever offered Vault-protected (library access D6).</summary>
     public const string AdultContentKey = "adult_content";
 
     /// <summary>
@@ -218,12 +218,10 @@ public static partial class LibraryKindRules
                 problems.Add($"{prefix}.media_types must include {kind.Format ?? "a format"}, the format of the library kind \"{kind.Key}\".");
             }
 
-            // Adult content is never open to every profile (Library pages D12, D21): it is Vault-protected, or Selected profiles that only administrators start with.
-            if (string.Equals(kind.Key, AdultContentKey, StringComparison.Ordinal)
-                && !string.Equals(library.Access, LibraryAccessLevels.Selected, StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase))
+            // Adult content exists only in the Vault (library access D6): a library of this kind must be Vault-protected.
+            if (string.Equals(kind.Key, AdultContentKey, StringComparison.Ordinal) && !library.IsVault)
             {
-                problems.Add($"{prefix}.access must be \"selected\" or \"vault\" for the library kind \"{kind.Key}\".");
+                problems.Add($"{prefix}.vault must be true for the library kind \"{kind.Key}\".");
             }
         }
 
@@ -298,7 +296,7 @@ public static partial class LibraryKindRules
             .Select((library, index) => (library, index))
             .Where(entry => string.Equals(entry.library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrEmpty(entry.library.KindKey)
-                && !string.Equals(entry.library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase))
+                && !entry.library.IsVault)
             .ToList();
 
         foreach (var group in catalogued.Where(entry => IsValidKey(entry.library.KindKey)).GroupBy(entry => entry.library.KindKey, StringComparer.Ordinal))

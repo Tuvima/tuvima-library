@@ -2,6 +2,7 @@ using System.Globalization;
 using MediaEngine.AI.Infrastructure;
 using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Taste;
+using MediaEngine.Domain.Activity;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
@@ -37,10 +38,12 @@ public sealed class PersonalTasteService(
     ITasteProfiler profiler,
     ITasteOverrideRepository overrides,
     IProfileRepository profiles,
+    IPersonalActivityRepository activity,
     IVibeVocabularySource vibeVocabulary,
     TimeProvider clock)
 {
     private const int GenreSuggestionLimit = 60;
+    private const int ShiftMonths = 12;
 
     public async Task<PersonalTasteResult<TasteViewDto>> GetAsync(RequestAuthority authority, string? scope, CancellationToken ct)
     {
@@ -72,6 +75,8 @@ public sealed class PersonalTasteService(
             var learned = await profiler.GetProfileAsync(profile.Id, ct).ConfigureAwait(false);
             var taste = learned.Status == TasteProfileBuildStatus.Generated ? learned.Profile : null;
             var own = changes.Where(change => change.ProfileId == profile.Id).ToList();
+            var summary = await activity.GetSummaryAsync(profile.Id, ct).ConfigureAwait(false);
+            var shifts = await activity.GetFinishedByMonthAsync(profile.Id, ShiftsSince(), ct).ConfigureAwait(false);
             view.People.Add(new TastePersonDto
             {
                 ProfileId = profile.Id.ToString("D"),
@@ -83,12 +88,37 @@ public sealed class PersonalTasteService(
                 MediaMix = taste is null ? [] : new Dictionary<string, double>(taste.MediaTypeMix),
                 Summary = taste?.Summary,
                 LastUpdatedAt = taste?.LastUpdatedAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),
+                FinishedTitleCount = summary.FinishedCount,
+                Shifts = MonthsOf(shifts),
             });
         }
 
         view.Suggestions = await SuggestionsAsync(ct).ConfigureAwait(false);
         return PersonalTasteResult<TasteViewDto>.Ok(view);
     }
+
+    // The start of the first month of the shifts window, so the oldest month is whole.
+    private DateTimeOffset ShiftsSince()
+    {
+        var now = clock.GetUtcNow();
+        return new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-(ShiftMonths - 1));
+    }
+
+    private static List<TasteMonthDto> MonthsOf(IReadOnlyList<PersonalFinishedMonthGenre> rows) =>
+    [
+        .. rows
+            .GroupBy(row => row.Month, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => new TasteMonthDto
+            {
+                Month = group.Key,
+                Finished = group.Sum(row => row.Titles),
+                Genres = group
+                    .Where(row => !string.IsNullOrWhiteSpace(row.Genre))
+                    .GroupBy(row => row.Genre!.Trim().ToLowerInvariant(), StringComparer.Ordinal)
+                    .ToDictionary(genre => genre.Key, genre => genre.Sum(row => row.Titles), StringComparer.Ordinal),
+            }),
+    ];
 
     public Task<PersonalTasteResult<bool>> AddAsync(RequestAuthority authority, string? group, string? value, CancellationToken ct) =>
         ChangeAsync(authority, group, value, TasteOverrideActions.Added, ct);

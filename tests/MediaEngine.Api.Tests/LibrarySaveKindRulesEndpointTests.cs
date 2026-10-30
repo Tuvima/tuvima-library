@@ -388,7 +388,6 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         builder.Services.AddSingleton(_kinds);
         // No Vault libraries: the saves under test hold ordinary libraries only.
         builder.Services.AddSingleton<IVaultLibraryRepository>(new FixedVaultLibraries());
-        builder.Services.AddSingleton(new MediaEngine.Api.Services.Libraries.LibraryAccessChangeService(new TestLibraryVisibility.NoLibraryProfileGrants()));
         builder.Services.AddSingleton(new ServerFolderBrowserService(_loader, NullLogger<ServerFolderBrowserService>.Instance));
         builder.Services.AddSingleton(sp => new FolderJobService(
             _loader,

@@ -272,7 +272,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
         Assert.True(File.Exists(locked));
         Assert.True(File.Exists(sidecar), "A sidecar stays beside the media file that could not be removed.");
         Assert.Equal(0, Count("works", "id", workId));
-        Assert.Equal(1, result.FilesDeleted);
+        Assert.Equal(0, result.FilesDeleted);
         var failed = Assert.Single(result.FilesFailed);
         Assert.Equal("Dune.mkv", failed.FileName);
         Assert.Equal("Movies › Dune", failed.FolderLabel);

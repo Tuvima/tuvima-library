@@ -135,7 +135,7 @@ public sealed class DockerfileGuardrailTests
         Assert.DoesNotContain("TUVIMA_WATCH_FOLDER", entrypoint);
         Assert.Contains("\"library_root\": \"/library\"", core);
         Assert.Contains("\"data_root\": \"/artwork-cache\"", core);
-        Assert.Contains("\"schema_version\": \"9.0\"", libraries);
+        Assert.Contains("\"schema_version\": \"10.0\"", libraries);
         Assert.DoesNotContain("\"path\": \"/watch\"", libraries);
         Assert.Contains("\"path\": \"/library/Books\"", libraries);
         Assert.Contains("\"view_storage\"", libraries);
@@ -227,7 +227,7 @@ public sealed class DockerfileGuardrailTests
         var workflow = File.ReadAllText(Path.Combine(repoRoot, ".github", "workflows", "docker-publish.yml"));
         var smoke = File.ReadAllText(Path.Combine(repoRoot, "tests", "container", "smoke.sh"));
 
-        Assert.Contains("docker/setup-qemu-action@v3", workflow);
+        Assert.Contains("docker/setup-qemu-action@v4", workflow);
         Assert.Contains("docker/setup-buildx-action@v3", workflow);
         Assert.Contains("linux/amd64", workflow);
         Assert.Contains("linux/arm64", workflow);

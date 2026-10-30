@@ -156,7 +156,7 @@ public sealed class BookmarkPackFileTests : IDisposable
                 var editionId = Guid.NewGuid();
                 connection.Execute(
                     """
-                    INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@profile,'Someone','#7C4DFF','Administrator',NULL,'2026-10-21T12:00:00.0000000+00:00');
+                    INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@profile,'Someone','#7C4DFF','Administrator','2026-10-21T12:00:00.0000000+00:00');
                     INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@workId, 'Videos', 'standalone', 'accepted');
                     INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
                     INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)

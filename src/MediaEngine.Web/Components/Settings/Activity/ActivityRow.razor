@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Activity
 @using MediaEngine.Web.Services.Formatting
+@inject NavigationManager Navigation
 @* One row of the Activity list (D27): the time, a picture, the title with its episode or artist, what happened, how long, how far,
    how it ended, the device and (when the scope covers other people) who. A title group also says how many sessions it holds and
    expands to them; a music session shows its covers as a collage with a Show songs button. A tap opens the item. No IP
@@ -90,6 +91,21 @@
                            aria-expanded="@(Expanded ? "true" : "false")"
                            data-activity-toggle="songs" />
             }
+            @if (!Attempt)
+            {
+                <span class="activity-row__menu" data-activity-menu>
+                    <AppOverflowMenu AriaLabel="@($"More about {ActivityListPresentation.Title(Item)}")" Icon="@AppMaterialIcons.Outlined.MoreHoriz">
+                        @if (ActivityListPresentation.Href(Item) is { } openHref)
+                        {
+                            <AppMenuItem Label="Open" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Navigation.NavigateTo(openHref))" />
+                        }
+                        @if (OnFind.HasDelegate)
+                        {
+                            <AppMenuItem Label="Find this title" Icon="@AppMaterialIcons.Outlined.Search" OnClick="@(() => OnFind.InvokeAsync(ActivityListPresentation.Title(Item)))" />
+                        }
+                    </AppOverflowMenu>
+                </span>
+            }
         </span>
     </div>
 
@@ -143,6 +159,9 @@
     [Parameter] public IReadOnlyList<PersonalActivityItemDto>? Songs { get; set; }
 
     [Parameter] public EventCallback OnToggle { get; set; }
+
+    /// <summary>Raised from the row's "..." menu to search the list for this row's title.</summary>
+    [Parameter] public EventCallback<string> OnFind { get; set; }
 
     private bool IsGroup => !Attempt && ActivityListPresentation.IsTitleGroup(Item);
 

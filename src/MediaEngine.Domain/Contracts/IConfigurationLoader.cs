@@ -100,6 +100,14 @@ public interface IConfigurationLoader
     /// <summary>Persist text recognition (OCR) settings to <c>config/ocr.json</c>.</summary>
     void SaveOcr(OcrSettings settings) { }
 
+    // ── Photo and video filing ───────────────────────────────────────────────
+
+    /// <summary>Load photo and video filing settings from <c>config/photo_filing.json</c>; a missing file means the defaults.</summary>
+    PhotoFilingSettings LoadPhotoFiling() => new();
+
+    /// <summary>Persist photo and video filing settings to <c>config/photo_filing.json</c>.</summary>
+    void SavePhotoFiling(PhotoFilingSettings settings) { }
+
     // ── Tool downloads ───────────────────────────────────────────────────────
 
     /// <summary>

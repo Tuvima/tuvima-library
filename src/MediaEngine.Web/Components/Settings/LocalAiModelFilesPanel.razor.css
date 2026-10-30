@@ -1,0 +1,4 @@
+.tools-requirements__list {
+    display: grid;
+    gap: 9px;
+}

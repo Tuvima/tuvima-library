@@ -45,9 +45,9 @@ public sealed class Phase7LocalAiTests
     }
 
     [Fact]
-    public void ToolsTab_RendersEngineModelStatusesAndLifecycleActions()
+    public void ModelsAndHardwareTab_RendersEngineModelStatusesAndLifecycleActions()
     {
-        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ToolsRequirementsTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiModelFilesPanel.razor");
 
         Assert.Contains("GetToolRequirementsAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetAiModelStatusesAsync", source, StringComparison.Ordinal);

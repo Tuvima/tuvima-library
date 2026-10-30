@@ -246,28 +246,26 @@ public sealed class LibraryKindsTests
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
         var vault = Library("movies", "Movies", "Movies", LibraryAreas.Watch);
-        vault.Access = LibraryAccessLevels.Vault;
+        vault.IsVault = true;
         var configuration = Libraries(Library("movies", "Movies", "Movies", LibraryAreas.Watch), vault);
 
         Assert.Empty(LibraryKindRules.LibraryProblems(configuration, kinds));
     }
 
     [Theory]
-    [InlineData("standard", false)]
-    [InlineData("", false)]
-    [InlineData("selected", true)]
-    [InlineData("vault", true)]
-    public void AnAdultContentLibraryIsNeverOpenToEveryProfile(string access, bool accepted)
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void AnAdultContentLibraryExistsOnlyInTheVault(bool vault, bool accepted)
     {
         var library = Library("adult_content", "Videos", "Adult content", LibraryAreas.Watch);
-        library.Access = access;
+        library.IsVault = vault;
 
         var problems = LibraryKindRules.LibraryProblems(Libraries(library), LibraryKindsConfiguration.BuiltIn());
 
         Assert.Equal(accepted, problems.Count == 0);
         if (!accepted)
         {
-            Assert.Contains("must be \"selected\" or \"vault\"", Assert.Single(problems), StringComparison.Ordinal);
+            Assert.Contains(".vault must be true", Assert.Single(problems), StringComparison.Ordinal);
         }
     }
 
@@ -406,26 +404,53 @@ public sealed class LibraryKindsTests
     [InlineData("tv", "TV")]
     [InlineData("music", "Music")]
     [InlineData("books", "Books")]
-    public void AVaultLibraryWithOnlineLookupSwitchedOn_AsksNoOutsideProvider_AndKeepsTheStoredChoice(string kindKey, string mediaType)
+    public void AVaultLibraryWithOnlineLookupSwitchedOn_MayAskRetailProvidersAndWikidata_ButNeverAVideoSite(string kindKey, string mediaType)
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
         var vault = Library(kindKey, mediaType);
-        vault.Access = LibraryAccessLevels.Vault;
+        vault.IsVault = true;
         vault.MetadataPolicy = LibraryMetadataPolicies.Enriched;
         vault.YoutubeLookup = true;
 
         var effective = LibraryKindLookupPolicy.For(vault, kinds);
 
-        // Nothing is asked of a retail provider, Wikidata or a video site, whatever the switch says.
+        Assert.False(effective.BypassesExternalIdentity);
+        Assert.Equal(LibraryMetadataPolicies.Enriched, effective.MetadataPolicy);
+        Assert.False(effective.YoutubeLookup);
+    }
+
+    [Theory]
+    [InlineData("movies", "Movies")]
+    [InlineData("music", "Music")]
+    public void AVaultLibraryWithOnlineLookupSwitchedOff_AsksNoOutsideProvider(string kindKey, string mediaType)
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var vault = Library(kindKey, mediaType);
+        vault.IsVault = true;
+        vault.MetadataPolicy = LibraryMetadataPolicies.LocalOnly;
+
+        Assert.True(LibraryKindLookupPolicy.BypassesExternalIdentity(vault, kinds));
+    }
+
+    [Theory]
+    [InlineData("adult_content", "Videos")]
+    [InlineData("youtube", "Videos")]
+    [InlineData("other_videos", "Videos")]
+    [InlineData("", "Videos")]
+    [InlineData("recorded_tv", "Videos")]
+    public void AVaultLibraryOfAnyOtherKind_AsksNoOutsideProvider_WhateverItsStoredChoiceSays(string kindKey, string mediaType)
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var vault = Library(kindKey, mediaType);
+        vault.IsVault = true;
+        vault.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        vault.YoutubeLookup = true;
+
+        var effective = LibraryKindLookupPolicy.For(vault, kinds);
+
         Assert.True(effective.BypassesExternalIdentity);
         Assert.Equal(LibraryMetadataPolicies.LocalOnly, effective.MetadataPolicy);
         Assert.False(effective.YoutubeLookup);
-        Assert.True(LibraryKindLookupPolicy.BypassesExternalIdentity(vault, kinds));
-
-        // The stored switch is not rewritten, so it takes effect once the Vault's lookup gates exist.
-        var libraries = new LibrariesConfiguration { Libraries = [vault] };
-        LibraryKindLookupPolicy.Normalise(libraries, kinds);
-        Assert.Equal(LibraryMetadataPolicies.Enriched, vault.MetadataPolicy);
     }
 
     [Fact]

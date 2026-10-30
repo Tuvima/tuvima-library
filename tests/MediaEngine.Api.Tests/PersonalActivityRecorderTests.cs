@@ -431,5 +431,11 @@ public sealed class PersonalActivityRecorderTests
 
         public Task<PersonalActivitySummary> GetSummaryAsync(Guid profileId, CancellationToken ct = default) =>
             throw new NotSupportedException();
+
+        public Task<PersonalActivityRolling> GetRollingAsync(Guid profileId, DateTimeOffset now, int days, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PersonalFinishedMonthGenre>> GetFinishedByMonthAsync(Guid profileId, DateTimeOffset since, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 }

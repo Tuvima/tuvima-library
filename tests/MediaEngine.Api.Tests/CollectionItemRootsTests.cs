@@ -96,6 +96,7 @@ public sealed class CollectionItemRootsTests : IDisposable
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _database.RunStartupChecks();
+        KidsLimitTestSupport.SetLimit(_database, null); // the seeded profile starts as an ordinary member, not a Kid's profile
         ReadyWorks.TreatEveryWorkAsReady(_database);
         CreateAccount();
         SeedLibrary();
@@ -756,10 +757,7 @@ public sealed class CollectionItemRootsTests : IDisposable
 
     private void SetContentLimit(string? limit)
     {
-        using var connection = _database.CreateConnection();
-        connection.Execute(
-            "UPDATE profiles SET content_limit=@limit, content_limit_allow_unrated=0 WHERE id=@id",
-            new { limit, id = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+        KidsLimitTestSupport.SetLimit(_database, limit);
     }
 
     // Requests ---------------------------------------------------------------------------------------------------
@@ -836,8 +834,7 @@ public sealed class CollectionItemRootsTests : IDisposable
         builder.Services.AddSingleton<DisplayCardBuilder>();
         builder.Services.AddSingleton<IRawDisplayProjectionReadService, LiveProjection>();
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IVaultLibraryRepository>(new FixedVaultLibraries());
-        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryProfileGrantRepository, TestLibraryVisibility.NoLibraryProfileGrants>();
-        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryAccessCatalog>(new FixedLibraryAccessCatalog());
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IHouseholdLibraryAccessRepository, TestLibraryVisibility.NoHouseholdLibraries>();
         builder.Services.AddSingleton<MediaEngine.Api.Security.LibraryVisibilityRule>();
         builder.Services.AddScoped<AuthorizedDisplayProjectionReadService>();
         builder.Services.AddScoped<IDisplayProjectionReadService>(provider =>

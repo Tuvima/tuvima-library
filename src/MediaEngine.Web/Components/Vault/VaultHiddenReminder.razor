@@ -1,0 +1,30 @@
+@namespace MediaEngine.Web.Components.Vault
+@implements IDisposable
+@inject NsfwModeState Nsfw
+
+@* One quiet line for a person who has Vault access but keeps it out of the menu (library setup and add-folder v2, 3b). It sits on Home and at the top
+   of Settings, can be turned on from here or closed for good, and never appears for anyone without Vault access: it draws only after the Engine says
+   this profile can use the Vault. There is no pop-up and no toast. *@
+@if (Visible)
+{
+    <div class="vault-hidden-reminder" data-vault-hidden-reminder role="note">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" />
+        <span class="vault-hidden-reminder__text">The Vault is set up but hidden. Turn on Show Vault in the menu to use it.</span>
+        <AppButton Label="Turn on" ButtonStyle="AppButtonStyle.Text" OnClick="TurnOnAsync" />
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" AriaLabel="Dismiss this reminder" OnClick="DismissAsync" />
+    </div>
+}
+
+@code {
+    private bool Visible => Nsfw.IsAvailable && !Nsfw.ShowInNavigation && !Nsfw.Preferences.HiddenReminderDismissed;
+
+    protected override void OnInitialized() => Nsfw.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task TurnOnAsync() => Nsfw.SetShowInNavigationAsync(true);
+
+    private Task DismissAsync() => Nsfw.UpdatePreferencesAsync(preferences => preferences with { HiddenReminderDismissed = true });
+
+    public void Dispose() => Nsfw.Changed -= OnChanged;
+}

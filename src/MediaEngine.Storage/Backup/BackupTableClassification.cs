@@ -5,7 +5,7 @@ namespace MediaEngine.Storage.Backup;
 /// <summary>
 /// The one registry saying what a backup does with every data store table. A guardrail test fails when a table is
 /// not listed here, so a new table cannot ship without a decision (Configuration, PersonalState, Catalogue or
-/// Transient). The public description is <c>docs/architecture/backup-and-restore.md</c>.
+/// Transient). The public description is the Backup and restore architecture page on docs.tuvima.com.
 /// </summary>
 public static partial class BackupTableClassification
 {
@@ -22,12 +22,14 @@ public static partial class BackupTableClassification
         Config("account_notice_dismissals", "Notices an account has dismissed, so they do not return."),
         Config("profile_feature_grants", "Which features a profile may use."),
         Config("profile_library_hidden", "Which libraries an administrator hid from a profile."),
-        Config("library_profile_grants", "Which profiles can see a Selected-profiles library."),
+        Config("household_library_hidden", "Which libraries an administrator hid for a whole household (the household ceiling)."),
         Config("profile_admin_protections", "Optional extra lock (lock settings) on a profile's administrator rights."),
         Config("households", "Households that group profiles (and, through them, users)."),
         Config("profiles", "People using the Library, with their display, content limit and navigation settings.", excluded: ["avatar_image_path"]),
         Config("profile_credentials", "Profile PIN hashes, needed to switch profile after a restore."),
         Config("profile_grid_preferences", "How a profile sorts each grid."),
+        Config("profile_hero_settings", "How a profile wants the Home hero to behave."),
+        Config("profile_hero_plugin_switches", "Which plugins' Home slides a profile switched off."),
         Config("profile_notice_dismissals", "Notices a profile has dismissed, so they do not return."),
         Config("profile_sequence_preferences", "Whether a profile shows missing items in a series or sequence.", refs: [Other("container_key")]),
         Config("profile_view_policies", "What a profile may do in View (access, sharing, documents)."),
@@ -241,6 +243,11 @@ public static partial class BackupTableClassification
         Transient("view_shared_contribution_items", "Items of shared library contribution requests."),
         Transient("view_shared_contribution_events", "Shared library contribution log."),
         Transient("view_shared_transfers", "Shared library transfers in progress."),
+        Transient("view_intake_files", "Photos and videos waiting in, or refused from, the Import area; the files themselves are never backed up."),
+        Transient("view_duplicate_groups", "Duplicate photo groups found by the cleanup job; found again by the next run."),
+        Transient("view_tidy_jobs", "Progress of Tidy this folder runs; a restored library is simply tidied again."),
+        Transient("view_tidy_moves", "The rename ledger of a Tidy this folder run; it only matters while the run is going."),
+        Transient("view_tidy_schedules", "Which folders are tidied every night; set again after a restore."),
         Transient("notifications", "Notifications already sent."),
         Transient("notification_channel_state", "Notification channel health."),
         Transient("notification_rate_marks", "Notification rate limiting marks."),
@@ -256,6 +263,9 @@ public static partial class BackupTableClassification
         // Videos Wave 3: the Vault. Settings and each person's own state are kept; the Vault catalogue is never backed up (a rescan rebuilds it).
         Config("profile_nsfw_settings", "How each profile's Vault mode is protected and when it turns off."),
         Config("vault_libraries", "Which libraries are Vault libraries and how they look things up."),
+        Config("vault_section_grants", "Which Vault sections each profile may open."),
+        Transient("vault_moves", "Move to Vault jobs; a job in flight is not worth restoring, the files are the record."),
+        Transient("vault_move_items", "The items of a Move to Vault job."),
         Personal("bookmark_packs", "profile_id", "Bookmark packs a person imported for a title.", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("bookmark_pack_items", null, "The bookmarks inside a pack (owned through the pack's profile).", refs: []),
         Transient("nsfw_session_unlocks", "Temporary Vault mode sessions."),

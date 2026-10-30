@@ -1,4 +1,5 @@
 @page "/universe/{Qid}/explore"
+@using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.Universe
 @using MediaEngine.Web.Services.Theming
 @using SharedEntityEditorTargetDto = MediaEngine.Contracts.Universe.SharedEntityEditorTargetDto
@@ -6,7 +7,8 @@
 @using SharedEntitySelectorItemDto = MediaEngine.Contracts.Universe.SharedEntitySelectorItemDto
 @using SharedEntitySelectorPageDto = MediaEngine.Contracts.Universe.SharedEntitySelectorPageDto
 @using MediaEngine.Web.Services.Editing
-@inject MediaEditorLauncherService MediaEditorLauncher
+@inject IAdministratorSurfaceAccessService AdministratorAccess
+@inject IAppDialogService Dialogs
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
 @inject IAppToastService Snackbar
@@ -19,6 +21,10 @@
 <PageTitle>Chronicle Explorer - @(_graph?.universe.label ?? Qid)</PageTitle>
 
 <AppContainer MaxWidth="AppMaxWidth.False" Class="tl-sp-pa-4">
+@* Editing the Universe, or one character, place or organisation in it, uses the same bar, side panel and floating artwork picker as every
+   other page (Name, Description and pictures; nothing is saved until Save changes shows Review changes). The graph, appearances and
+   relationships stay read-only. Desktop administrators only. *@
+<EditingBar Mode="_editing" Flow="_flow" CanDelete="false" GuardInternalNavigation="true" />
 @if (_loading)
 {
     <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
@@ -44,9 +50,21 @@ else
     </AppText>
     @if (_canEditUniverse && DeviceContext.CanEdit)
     {
-        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(null))">Edit Universe</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(null))">Edit Universe</AppButton>
     }
 </div>
+    @if (_editing is { IsOn: true, CanEdit: true } && _flow.Session is { IsActive: true, ActiveTool: EditTool.Artwork })
+    {
+        <FloatingArtworkPicker Mode="_editing" Flow="_flow" Picker="_artworkPicker" />
+    }
+
+    <EditorPanelHost Mode="_editing" Flow="_flow">
+        @if (context == EditTool.Details)
+        {
+            <EditorDetailsPanel Mode="_editing" Session="_flow.Session" />
+        }
+    </EditorPanelHost>
+
     <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="tl-sp-mb-3">
         <AppChip T="string" Color="AppColor.Primary" Size="AppSize.Small">
             @(_graph?.nodes.Count ?? 0) entities
@@ -379,7 +397,7 @@ else
 
             @if (_canEditUniverse && !_selectedEntity.supplemental && DeviceContext.CanEdit)
             {
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(_selectedEntity))">Edit @_selectedEntity.label</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(_selectedEntity))">Edit @_selectedEntity.label</AppButton>
             }
 
             @if (_selectedEntity.works.Any())
@@ -416,13 +434,54 @@ else
     private bool _openingEditor;
     private SharedEntityEditorTargetDto UniverseTarget => new(SharedEntityEditorTargetKinds.Universe, Qid, null, Qid);
 
+    private readonly CancellationTokenSource _lifetime = new();
+    private EditingModeContext _editing = default!;
+    private EditSessionFlow _flow = default!;
+    private EditPendingPreview _preview = default!;
+    private ArtworkPickerSession _artworkPicker = default!;
+
+    // What the editor is open on: the Universe itself (no id), or one character, place or organisation by its id.
+    private Guid? _editEntityId;
+    private string? _editEntityTitle;
+    private string? _editEntityKind;
+
+    protected override void OnInitialized()
+    {
+        _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger))
+        {
+            Loader = LoadEditingFieldsAsync,
+            AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs),
+        };
+        _editing.Changed += OnEditingChanged;
+        var session = new EditSessionState(new PendingEditList());
+        _flow = new EditSessionFlow(session, _editing, new EditSessionSaver(ApiClient), EditTrail, () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
+        {
+            Saved = RefreshAfterEditSavedAsync,
+        };
+        _preview = new EditPendingPreview(session, _editing.Fields);
+        _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);
+        session.Changed += OnEditingChanged;
+        _artworkPicker.Changed += OnEditingChanged;
+    }
+
+    private Task LoadEditingFieldsAsync() => _editEntityId is { } id
+        ? _editing.Fields.LoadSubjectAsync(id, _lifetime.Token)
+        : _editing.Fields.LoadUniverseSubjectAsync(Qid, _lifetime.Token);
+
+    private IReadOnlyList<EditTrailItem> EditTrail() =>
+        [new EditTrailItem(_editing.Fields.EntityId, _editEntityTitle ?? _graph?.universe.label ?? "Universe", _editEntityKind ?? "Universe")];
+
+    private void OnEditingChanged() => _ = InvokeAsync(StateHasChanged);
+
     private async Task EditUniverseAsync(UniverseGraphNodeDto? entity)
     {
-        if (_openingEditor || !_canEditUniverse) return;
+        if (_openingEditor || !_canEditUniverse || _editing.IsOn) return;
+        // Every edit handler asks the device rule again; a hidden button is never the only protection.
+        if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)) return;
         _openingEditor = true;
         try
         {
-            var target = UniverseTarget;
+            Guid? entityId = null;
             if (entity is not null)
             {
                 SharedEntitySelectorItemDto? selected = null;
@@ -435,19 +494,39 @@ else
                     offset += 100;
                 } while (selected is null && page?.has_more == true);
                 if (selected is null) { Snackbar.Add("This entity is not available for editing.", AppSeverity.Warning); return; }
-                target = new(SharedEntityEditorTargetKinds.FictionalEntity, Qid, selected.id, selected.qid);
+                entityId = selected.id;
             }
-            if (await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
-                { SharedEntityTarget = target, HeaderTitle = _graph?.universe.label, Mode = SharedMediaEditorMode.Normal }))
-            {
-                _graph = await ApiClient.GetUniverseGraphAsync(Qid, includeSupplementalLore: true);
-                if (entity is not null) _selectedEntity = _graph?.nodes.FirstOrDefault(node => node.id == entity.id);
-                if (_cytoscapeReady && _graph is not null)
-                    await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph", System.Text.Json.JsonSerializer.Serialize(_graph.nodes), System.Text.Json.JsonSerializer.Serialize(_graph.edges));
-            }
+            if (!await AdministratorAccess.EnsureUnlockedAsync(_lifetime.Token)) return;
+            _editEntityId = entityId;
+            _editEntityTitle = entity?.label;
+            _editEntityKind = entity?.type;
+            _editing.HasPermission = true;
+            if (await _editing.EnterAsync() && _editing.Fields.Loaded)
+                await _flow.SelectToolAsync(EditTool.Details);
         }
+        catch (OperationCanceledException) { /* the page was left while the unlock prompt was open */ }
         catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add("Universe editing is unavailable. Please try again.", AppSeverity.Error); }
         finally { _openingEditor = false; }
+    }
+
+    // Save changes went through: show the new names and pictures in the graph and start the next edit from the saved values.
+    private async Task RefreshAfterEditSavedAsync()
+    {
+        try
+        {
+            var selectedId = _selectedEntity?.id;
+            _graph = await ApiClient.GetUniverseGraphAsync(Qid, includeSupplementalLore: true);
+            if (selectedId is not null) _selectedEntity = _graph?.nodes.FirstOrDefault(node => node.id == selectedId);
+            if (_cytoscapeReady && _graph is not null)
+                await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph", System.Text.Json.JsonSerializer.Serialize(_graph.nodes), System.Text.Json.JsonSerializer.Serialize(_graph.edges));
+            await LoadEditingFieldsAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The Universe graph could not refresh after an edit for {UniverseQid}", Qid);
+            Snackbar.Add("Saved, but the graph could not refresh. Reload to see the change.", AppSeverity.Warning);
+        }
     }
 
     private int _loreDeltaChanges;
@@ -581,7 +660,38 @@ else
         _cytoscapeReady = true;
     }
 
+    private string? _loadedQid;
+
     protected override async Task OnInitializedAsync()
+    {
+        _loadedQid = Qid;
+        await LoadUniverseAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedQid is null || string.Equals(_loadedQid, Qid, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        // A different Universe in the same circuit starts over: an open edit belongs to the old one, so close it first.
+        _loadedQid = Qid;
+        _editing.Leave();
+        _editEntityId = null;
+        _editEntityTitle = null;
+        _editEntityKind = null;
+        _selectedEntity = null;
+        _selectedEntityEdges = [];
+        _canEditUniverse = false;
+        await LoadUniverseAsync();
+        if (_cytoscapeReady && _graph is not null)
+        {
+            await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph", System.Text.Json.JsonSerializer.Serialize(_graph.nodes), System.Text.Json.JsonSerializer.Serialize(_graph.edges));
+        }
+    }
+
+    private async Task LoadUniverseAsync()
     {
         _loading = true;
         _graph = await ApiClient.GetUniverseGraphAsync(Qid, includeSupplementalLore: true);
@@ -891,6 +1001,13 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        _editing.Changed -= OnEditingChanged;
+        _flow.Session.Changed -= OnEditingChanged;
+        _artworkPicker.Changed -= OnEditingChanged;
+        _flow.Dispose();
+        _editing.Dispose();
+        _lifetime.Cancel();
+        _lifetime.Dispose();
         if (_cytoscapeReady)
         {
             try

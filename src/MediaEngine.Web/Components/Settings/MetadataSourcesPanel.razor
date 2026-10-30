@@ -6,7 +6,7 @@
 
 @* Metadata sources (Developer tools spec WP20): every source that supplies information about your media, whether it ships
    with the Library or comes from a plugin, with what it supplies. Read-only: switching a source on or off stays on the
-   Metadata providers page, and plugin sources are switched on and off with their plugin above. *@
+   source's own page (Configure), and plugin sources are switched on and off with their plugin above. *@
 <AppCard Title="Metadata sources"
          Description="Where information about your media comes from, and what each source supplies."
          Class="metadata-sources">
@@ -36,6 +36,7 @@
                             {
                                 <AppStatusBadge Text="Off" Tone="AppUiTone.Neutral" />
                             }
+                            <AppButton Label="Configure" Href="@($"/settings/metadata/providers/{Uri.EscapeDataString(source.Name.ToLowerInvariant())}")" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" data-testid="metadata-source-configure" />
                         </div>
                         <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">@(source.Supplies.Count == 0 ? "Supplies nothing for your media." : "Supplies: " + string.Join(", ", source.Supplies))</AppText>
                         @if (source.SendsDataTo.Count > 0)

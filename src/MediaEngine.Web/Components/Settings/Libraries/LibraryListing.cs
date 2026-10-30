@@ -80,24 +80,18 @@ public static class LibraryListing
         return kinds.Find(library.KindKey) is { } kind && kinds.ForArea(kind.Area) is { } byKind ? byKind.Key : null;
     }
 
-    public static string AccessOf(LibraryFolderDto library) => library.Access?.Trim().ToLowerInvariant() switch
-    {
-        Selected => Selected,
-        Vault => Vault,
-        _ => Standard,
-    };
+    public static string AccessOf(LibraryFolderDto library) => library.IsVault ? Vault : Standard;
 
     public static string AccessText(string? access) => access switch
     {
-        Selected => "Selected profiles",
         Vault => "Vault-protected",
         Standard => "Standard",
         _ => "Per profile",
     };
 
     /// <summary>
-    /// The rows of one area tab. A Vault-protected library appears only when <paramref name="showVault"/> says the Vault may be shown
-    /// (an unlocked administrator); otherwise there is no trace of it. The Engine's own answer decides whether such a library exists.
+    /// The rows of one area. A Vault-protected library is listed only in the Vault area, and that area has rows only when <paramref name="showVault"/>
+    /// says the Vault may be shown (an unlocked administrator); otherwise there is no trace of it. The Engine's own answer decides whether such a library exists.
     /// </summary>
     public static IReadOnlyList<LibraryListRow> RowsFor(
         LibraryKindCatalog kinds,
@@ -113,16 +107,23 @@ public static class LibraryListing
             return [.. kinds.ViewKinds.Select(kind => ViewRowFor(kind, viewFolders?.GetValueOrDefault(kind.Key)))];
         }
 
+        var inVault = string.Equals(area, LibraryGroupCatalog.VaultKey, StringComparison.OrdinalIgnoreCase);
+        if (inVault && !showVault)
+        {
+            return [];
+        }
+
         var rows = new List<LibraryListRow>();
         foreach (var library in configuration.Libraries.Where(LibraryRollup.IsCatalogued))
         {
-            if (!string.Equals(AreaOf(kinds, library), area, StringComparison.OrdinalIgnoreCase))
+            // The Vault is its own area (library access D6): its libraries are listed only there, and never in Watch, Listen or Read.
+            var isVault = AccessOf(library) == Vault;
+            if (isVault != inVault)
             {
                 continue;
             }
 
-            var access = AccessOf(library);
-            if (access == Vault && !showVault)
+            if (!inVault && !string.Equals(AreaOf(kinds, library), area, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

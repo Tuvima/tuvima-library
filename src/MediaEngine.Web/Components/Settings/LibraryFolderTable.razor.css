@@ -94,10 +94,6 @@
     color: var(--tl-text-secondary);
 }
 
-.folder-table__limited {
-    margin-top: 4px;
-}
-
 .folder-table__status--warning {
     color: var(--tl-status-warning);
 }

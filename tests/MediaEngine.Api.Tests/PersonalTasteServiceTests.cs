@@ -1,7 +1,9 @@
+using Dapper;
 using MediaEngine.AI.Configuration;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Taste;
 using MediaEngine.Contracts.Taste;
+using MediaEngine.Domain.Activity;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
@@ -26,7 +28,7 @@ public sealed class PersonalTasteServiceTests : IAsyncLifetime
         _profiler = new SpyTasteProfiler();
         _overrides = new TasteOverrideRepository(_world.Database);
         _service = new PersonalTasteService(
-            _world.Scope, _profiler, _overrides, new ProfileRepository(_world.Database), new FixedVibeVocabulary(), _world.Clock);
+            _world.Scope, _profiler, _overrides, new ProfileRepository(_world.Database), new PersonalActivityRepository(_world.Database), new FixedVibeVocabulary(), _world.Clock);
         foreach (var person in new[] { _world.ServerPerson, _world.AdminA, _world.MemberA, _world.KidA, _world.AdminB, _world.MemberB })
         {
             _profiler.Learn(person.ProfileId, genres: new() { ["sci-fi"] = 0.6, ["drama"] = 0.4 }, moods: new() { ["cozy"] = 0.7 }, eras: new() { ["1990s"] = 1 });
@@ -54,6 +56,42 @@ public sealed class PersonalTasteServiceTests : IAsyncLifetime
         Assert.Equal(["sci-fi", "drama"], person.Genres.Select(item => item.Value));
         Assert.All(person.Genres, item => Assert.Equal(TasteValues.SourceLearned, item.Source));
         Assert.Equal(0, _world.AuditCount(PersonalScopeAuthorizer.TasteViewedOthers));
+    }
+
+    [Fact]
+    public async Task TheShifts_ListFinishedTitlesByMonthAndGenre_OnlyForThatPerson()
+    {
+        var now = _world.Clock.GetUtcNow();
+        var work = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        using (var connection = _world.Database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO works(id,media_type,work_kind,is_catalog_only,ownership) VALUES(@work,'Movies','standalone',0,'Owned');", new { work });
+            connection.Execute("INSERT INTO canonical_value_arrays(entity_id,key,ordinal,value) VALUES(@work,'genre',0,'Sci-Fi');", new { work });
+        }
+
+        await _world.AddAsync(_world.MemberA, PersonalActivityKinds.Watch, "Arrival", now.AddDays(-1), finished: true, percent: 100, work: work);
+        await _world.AddAsync(_world.MemberA, PersonalActivityKinds.Watch, "Mystery", now.AddDays(-2), finished: true, percent: 100, work: other);
+        await _world.AddAsync(_world.MemberA, PersonalActivityKinds.Watch, "Half way", now.AddDays(-3), finished: false);
+        await _world.AddAsync(_world.AdminA, PersonalActivityKinds.Watch, "Not mine", now.AddDays(-1), finished: true, percent: 100);
+
+        var person = Assert.Single((await _service.GetAsync(_world.MemberOfA, null, CancellationToken.None)).Value!.People);
+
+        Assert.Equal(2, person.FinishedTitleCount);
+        var month = Assert.Single(person.Shifts);
+        Assert.Equal(now.ToString("yyyy-MM"), month.Month);
+        Assert.Equal(2, month.Finished);
+        Assert.Equal(1, month.Genres["sci-fi"]);
+        Assert.Single(month.Genres);
+    }
+
+    [Fact]
+    public async Task APersonWithNothingFinished_HasNoShifts()
+    {
+        var person = Assert.Single((await _service.GetAsync(_world.MemberOfA, null, CancellationToken.None)).Value!.People);
+
+        Assert.Equal(0, person.FinishedTitleCount);
+        Assert.Empty(person.Shifts);
     }
 
     [Fact]
@@ -258,15 +296,28 @@ public sealed class PersonalTasteServiceTests : IAsyncLifetime
     [Fact]
     public async Task EveryoneEditsOnlyTheirOwnTaste_AndNobodyElsesIsTouched()
     {
-        foreach (var authority in new[] { _world.MemberOfA, _world.AdminOfA, _world.ServerAdmin, _world.KidOfA })
+        foreach (var authority in new[] { _world.MemberOfA, _world.AdminOfA, _world.ServerAdmin })
         {
             Assert.True((await _service.AddAsync(authority, TasteValues.Genres, "western", CancellationToken.None)).IsSuccess);
         }
 
         var changes = await _overrides.ListAsync(null);
         Assert.Equal(
-            new[] { _world.MemberA.ProfileId, _world.AdminA.ProfileId, _world.ServerPerson.ProfileId, _world.KidA.ProfileId }.Order(),
+            new[] { _world.MemberA.ProfileId, _world.AdminA.ProfileId, _world.ServerPerson.ProfileId }.Order(),
             changes.Select(change => change.ProfileId).Order());
+    }
+
+    [Fact]
+    public async Task AKidsProfile_SeesItsOwnTasteButCannotChangeIt()
+    {
+        Assert.True((await _service.GetAsync(_world.KidOfA, null, CancellationToken.None)).IsSuccess);
+
+        var added = await _service.AddAsync(_world.KidOfA, TasteValues.Genres, "western", CancellationToken.None);
+        var removed = await _service.RemoveAsync(_world.KidOfA, TasteValues.Genres, "drama", CancellationToken.None);
+
+        Assert.Equal(PersonalTasteFailure.Forbidden, added.Failure);
+        Assert.Equal(PersonalTasteFailure.Forbidden, removed.Failure);
+        Assert.Empty(await _overrides.ListAsync(null));
     }
 
     [Fact]

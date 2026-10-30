@@ -52,7 +52,7 @@
                         Saving="@(_saving)"
                         WikidataUrl="@(StaticHeaderIdentity?.WikidataQid is { } qid && !string.IsNullOrWhiteSpace(qid) ? ProviderCatalogue.GetExternalUrl("wikidata_qid", qid, EditorMediaType)?.Url : null)" />
                     }
-                            @if (!IsSharedEntityMode && HasContextNavigator && EditorContextLevels.Count > 0)
+                            @if (HasContextNavigator && EditorContextLevels.Count > 0)
             {
                 <div class="sme-context-band">
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
@@ -154,16 +154,6 @@
                 </div>
             }
 
-            @if (IsSharedEntityMode)
-            {
-                <SharedEntityEditorWorkspace @ref="_sharedEntityWorkspace"
-                                             InitialTarget="@(Request.SharedEntityTarget!)"
-                                             DirtyChanged="OnSharedEntityDirtyChanged"
-                                             ContextChanged="OnSharedEntityContextChanged"
-                                             Committed="OnSharedEntityCommittedAsync" />
-            }
-            else
-            {
             <div class="sme-workspace">
                 @* A section slot shows the one section the banner asked for: no rail to move between sections. *@
                 @if (!IsSection)
@@ -363,7 +353,7 @@
                                                      OnKeepAsFilm="KeepReviewAsFilmAsync" />
                         </div>
                     }
-                    @if (IsSingleItem && !IsSharedEntityMode)
+                    @if (IsSingleItem)
                     {
                         <ItemMoveArea ItemId="@MoveItemId"
                                       MediaType="@EditorMediaType"
@@ -479,7 +469,7 @@
                         CancelParentMove="@(() => { _retailMovePreview = null; _pendingRetailMoveCandidate = null; })"
                         CancelTvdbSelection="@(() => _selectedTvdbCandidate = null)"
                         GetRetailCandidateId="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => GetCandidateId(candidate))" />
-                    @if (IsSingleItem && !IsSharedEntityMode)
+                    @if (IsSingleItem)
                     {
                         <EditorSeriesBlock EntityId="@(CurrentEntityId)" Applied="@(OnSeriesPlacementApplied)" />
                     }
@@ -826,7 +816,6 @@
                     </div>
                 </div>
             </div>
-            }
 
             @if (ShouldShowNonInlineEditorFooter)
             {

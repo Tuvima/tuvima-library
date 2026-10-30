@@ -671,6 +671,32 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         public long ItemCount { get; init; }
     }
 
+    public LocalAssetPresence? FindPrimaryContent(
+        string scopeKind, Guid libraryId, Guid? personalSpaceId, string contentHash, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var hash = NormalizeHash(contentHash);
+        using var connection = database.CreateConnection();
+        var row = connection.QueryFirstOrDefault<PresenceRow>(new CommandDefinition("""
+            SELECT li.id AS ItemId, li.trashed_at AS TrashedAt
+              FROM local_items li
+              JOIN local_item_files lif ON lif.item_id = li.id AND lif.role = 'primary'
+              JOIN local_files lf ON lf.id = lif.file_id
+             WHERE li.scope_kind = @scopeKind AND li.library_id = @libraryId
+               AND ((@scopeKind = 'shared' AND li.personal_space_id IS NULL) OR li.personal_space_id = @personalSpaceId)
+               AND lf.content_hash = @hash COLLATE NOCASE
+             ORDER BY CASE WHEN li.trashed_at IS NULL THEN 0 ELSE 1 END
+             LIMIT 1;
+            """, new { scopeKind, libraryId, personalSpaceId, hash }, cancellationToken: ct));
+        return row is null ? null : new LocalAssetPresence(row.ItemId, row.TrashedAt is not null);
+    }
+
+    private sealed class PresenceRow
+    {
+        public Guid ItemId { get; init; }
+        public string? TrashedAt { get; init; }
+    }
+
     public bool IsDocument(Guid itemId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

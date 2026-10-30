@@ -1636,6 +1636,11 @@ window.keepMediaTileHoverInRowViewport = function (cardEl) {
     }, 360);
 };
 
+// One set of hover timings for every Movie and TV tile (Home and Watch). The preview fades in and out over the same
+// number of milliseconds (the .media-tile-hover-panel opacity transition); moving straight from one tile to the next
+// skips the pause.
+window.mediaTileHoverTimings = { pauseMs: 200, hideMs: 110, handoffMs: 250 };
+
 window.showMediaTileHover = function (cardEl) {
     if (!cardEl) return;
     var row = cardEl.closest('.media-tile-shelf-scroll');
@@ -1666,9 +1671,6 @@ window.showMediaTileHover = function (cardEl) {
         window.requestAnimationFrame(function () {
             if (!cardEl.classList.contains('is-hover-active')) return;
             panel.classList.add('is-visible');
-            window.setTimeout(function () {
-                if (cardEl.classList.contains('is-hover-active')) window.keepMediaTileHoverInRowViewport(cardEl);
-            }, 300);
         });
     });
 };
@@ -1677,6 +1679,7 @@ window.clearMediaTileHover = function (cardEl) {
     if (!cardEl) return;
 
     var panel = cardEl.__mediaTileHoverPanel || cardEl.querySelector('.media-tile-hover-panel');
+    if (cardEl.classList.contains('is-hover-active')) window.__mediaTileHoverClosedAt = Date.now();
     cardEl.classList.remove('is-hover-active');
 
     if (cardEl.__mediaTileShowTimer) {
@@ -1745,7 +1748,10 @@ window.registerMediaTileHover = function (cardEl) {
 
         var row = cardEl.closest('.media-tile-shelf-scroll, .media-tile-grid');
         var activeCard = row ? row.querySelector('.media-tile.is-hover-active') : null;
-        var showDelay = 200;
+        var timings = window.mediaTileHoverTimings;
+        var handingOff = (activeCard && activeCard !== cardEl)
+            || (Date.now() - (window.__mediaTileHoverClosedAt || 0) < timings.handoffMs);
+        var showDelay = handingOff ? 0 : timings.pauseMs;
 
         cardEl.__mediaTileShowTimer = window.setTimeout(function () {
             cardEl.__mediaTileShowTimer = null;
@@ -1787,7 +1793,7 @@ window.registerMediaTileHover = function (cardEl) {
             }
 
             window.clearMediaTileHover(cardEl);
-        }, 110);
+        }, window.mediaTileHoverTimings.hideMs);
     };
 
     var keepOpen = function () {

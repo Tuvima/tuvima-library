@@ -57,7 +57,7 @@ public sealed class HouseholdPeopleTests
     }
 
     [Fact]
-    public async Task ContentLimit_NewKidsStartOnPg_IsIndependentOfTheKidsLabel_AndKeepsUntilChanged()
+    public async Task KidsProfile_IsAFlagOnThePerson_ChangeableLater_AndNeverSetOnAnAdministrator()
     {
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, households, actor) = (fixture.Mutations, fixture.Households, fixture.Actor);
@@ -68,32 +68,25 @@ public sealed class HouseholdPeopleTests
             new AddHouseholdPersonCommand(household.Id, "Mary", null, IsChild: true, Pin: null));
         var grownUp = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Sam", null, IsChild: false, Pin: null));
-        var olderKid = await mutations.AddHouseholdPersonAsync(actor,
-            new AddHouseholdPersonCommand(household.Id, "Tom", null, IsChild: true, Pin: null, ContentLimit: "PG-13", ContentLimitAllowUnrated: true));
-        var freeKid = await mutations.AddHouseholdPersonAsync(actor,
-            new AddHouseholdPersonCommand(household.Id, "Ann", null, IsChild: true, Pin: null, ContentLimit: ""));
 
-        Assert.Equal("PG", kid.ContentLimit);
-        Assert.Null(grownUp.ContentLimit);
-        Assert.Equal("PG-13", olderKid.ContentLimit);
-        Assert.True(olderKid.ContentLimitAllowUnrated);
-        Assert.Null(freeKid.ContentLimit);
-        await Assert.ThrowsAnyAsync<ArgumentException>(() => mutations.AddHouseholdPersonAsync(actor,
-            new AddHouseholdPersonCommand(household.Id, "Bad", null, false, null, ContentLimit: "NC-17")));
+        Assert.True(kid.IsKidsProfile);
+        Assert.False(grownUp.IsKidsProfile);
 
-        // An adult can be limited, and a rename that leaves the limit out keeps it.
-        await mutations.UpdateProfileAsync(actor, grownUp.Id,
-            new UpdateManagedProfileCommand("Sam", null, null, ContentLimit: "R"));
+        // A person can be made a Kid's profile later, a rename that leaves the flag out keeps it, and it can be switched off again.
+        await mutations.UpdateProfileAsync(actor, grownUp.Id, new UpdateManagedProfileCommand("Sam", null, null, IsKids: true));
         await mutations.UpdateProfileAsync(actor, grownUp.Id, new UpdateManagedProfileCommand("Samuel", null));
         var stored = (await households.ListProfilesAsync(household.Id)).Single(profile => profile.Id == grownUp.Id);
         Assert.Equal("Samuel", stored.DisplayName);
-        Assert.Equal("R", stored.ContentLimit);
+        Assert.True(stored.IsKidsProfile);
 
-        await mutations.UpdateProfileAsync(actor, grownUp.Id,
-            new UpdateManagedProfileCommand("Samuel", null, null, ContentLimit: "", ContentLimitAllowUnrated: true));
+        await mutations.UpdateProfileAsync(actor, grownUp.Id, new UpdateManagedProfileCommand("Samuel", null, null, IsKids: false));
         stored = (await households.ListProfilesAsync(household.Id)).Single(profile => profile.Id == grownUp.Id);
-        Assert.Null(stored.ContentLimit);
-        Assert.True(stored.ContentLimitAllowUnrated);
+        Assert.False(stored.IsKidsProfile);
+
+        // The household's administrator looks after the household, so they can never be a Kid's profile.
+        var administrator = (await households.ListProfilesAsync(household.Id)).First(profile => profile.IsHouseholdAdministrator);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateProfileAsync(actor, administrator.Id,
+            new UpdateManagedProfileCommand(administrator.DisplayName, null, null, IsKids: true)));
     }
 
     [Fact]

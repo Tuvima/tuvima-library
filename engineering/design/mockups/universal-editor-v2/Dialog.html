@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Unsaved changes, the shared dialog</title>
+</head>
+<body>
+
+
+<style>
+body{margin:0;background:#070A12;color:#F5F7FB;font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.35}
+a{color:#A46FFF}a:hover{color:#C4A1FF}
+*{box-sizing:border-box}
+.vp{width:1440px;height:900px;position:relative;overflow:hidden;background:#070A12}
+.nav{height:56px;display:flex;align-items:center;gap:28px;padding:0 32px;border-bottom:1px solid #1E293B;background:#0B1020}
+.brand{font-weight:700;letter-spacing:.08em;font-size:15px}
+.nav .links{display:flex;gap:22px;color:#B6C2D6}
+.avatar{margin-left:auto;width:32px;height:32px;border-radius:50%;background:#8852FC}
+.dim{position:absolute;inset:0;background:rgba(3,5,10,.66)}
+.ghost{position:absolute;left:140px;top:40px;width:1160px;height:820px;background:#0F1626;border:1px solid #243049;border-radius:14px;opacity:.5}
+.dlg{position:absolute;left:500px;top:300px;width:440px;background:#111827;border:1px solid #243049;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.7);padding:22px 22px 18px}
+.dlg2{left:500px;top:520px}
+.row{display:flex;gap:14px;align-items:flex-start}
+.ic{width:36px;height:36px;border-radius:50%;background:rgba(245,158,11,.16);color:#FBBF24;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none;font-size:18px}
+.ic.red{background:rgba(239,68,68,.16);color:#F87171}
+h3{margin:0 0 4px;font-size:16px}
+p{margin:0;color:#B6C2D6;font-size:13px}
+.x{margin-left:auto;width:32px;height:32px;border-radius:8px;background:transparent;border:1px solid transparent;color:#B6C2D6;display:inline-flex;align-items:center;justify-content:center}
+hr{border:0;border-top:1px solid #1E293B;margin:16px 0 14px}
+.acts{display:flex;justify-content:flex-end;gap:10px}
+.btn{height:36px;padding:0 16px;border-radius:10px;font-weight:600;font-size:14px;border:1px solid #2A3650;background:transparent;color:#F5F7FB;display:inline-flex;align-items:center;font-family:inherit}
+.btn.p{background:#8852FC;border-color:#8852FC}
+.btn.d{background:#EF4444;border-color:#EF4444}
+.note{position:absolute;left:980px;top:300px;width:300px;color:#B6C2D6;font-size:13px;line-height:1.5}
+</style>
+
+<div class="vp">
+  <div class="nav"><span class="brand">TUVIMA</span><div class="links"><span>Home</span><span style="color:#F5F7FB">Watch</span><span>Listen</span><span>Read</span><span>View</span></div><span class="avatar"></span></div>
+  <div class="dim" aria-hidden="true"></div>
+  <div class="ghost" aria-hidden="true"></div>
+
+  <div class="dlg" role="alertdialog" aria-labelledby="t1">
+    <div class="row"><span class="ic" aria-hidden="true">!</span><div><h3 id="t1">Unsaved changes</h3><p>You have 5 changes that haven't been saved.</p></div><button class="x" type="button" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <hr>
+    <div class="acts"><button class="btn" type="button">Discard changes</button><button class="btn p" type="button">Keep editing</button></div>
+  </div>
+
+  <div class="dlg dlg2" role="alertdialog" aria-labelledby="t2">
+    <div class="row"><span class="ic red" aria-hidden="true">!</span><div><h3 id="t2">Rename 1 file on disk?</h3><p>S01E01 Brothers in Arms.mkv becomes S01E02 Loyalty to the Master.mkv. A rename on disk cannot be undone from Library.</p></div><button class="x" type="button" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <hr>
+    <div class="acts"><button class="btn" type="button">Save without renaming</button><button class="btn d" type="button">Rename and save</button></div>
+  </div>
+
+  <div class="note">
+    <b style="color:#F5F7FB">One dialog, everywhere.</b><br>Icon in a soft circle (amber for a question, red for something that cannot be undone), title, one line of plain text, close X, divider, buttons right-aligned: outlined on the left, the main action on the right. Same card for Unsaved changes, Remove artwork, Clear match, Discard all, and the file-rename question.
+  </div>
+</div>
+
+</body>
+</html>

@@ -289,19 +289,6 @@ public sealed class PipelineConfigurationTests
         Assert.Equal(["series", "franchise", "fictional_universe", "based_on"], types);
     }
 
-    [Fact]
-    public void Documentation_DescribesMusicBrainzFirstMusicIdentity()
-    {
-        var providerGuide = File.ReadAllText(FindRepoFile("docs", "guides", "configuring-providers.md"));
-        var architecture = File.ReadAllText(FindRepoFile("docs", "architecture", "ingestion-identity-enrichment-pipeline.md"));
-        var mediaTypes = File.ReadAllText(FindRepoFile("docs", "reference", "media-types.md"));
-
-        Assert.Contains("MusicBrainz tries identifiers and staged text searches first", providerGuide, StringComparison.Ordinal);
-        Assert.Contains("For music, Stage 1 is a bounded configured flow", architecture, StringComparison.Ordinal);
-        Assert.Contains("MusicBrainz - Stage 1 configured identifier lookup", mediaTypes, StringComparison.Ordinal);
-        Assert.Contains("Apple API - Stage 1 enrichment or fallback identity", mediaTypes, StringComparison.Ordinal);
-    }
-
     private static string[] ReadPriority(JsonDocument document, string mediaType, string field)
     {
         var root = document.RootElement;

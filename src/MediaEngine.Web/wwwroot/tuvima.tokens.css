@@ -13,7 +13,7 @@
        literals because custom properties are not valid in media conditions;
        JavaScript reads these unitless values instead of defining thresholds.
 
-       Supported widths (docs/reference/ui-supported-devices.md):
+       Supported widths (tuvima-docs: reference/ui-supported-devices):
        320 (must not break), 360-430 phone, 768-1024 tablet,
        1280-1920 desktop, 2560 large desktop / tv.
        New CSS uses only 600 / 840 / 1180 plus the tokens below.
@@ -73,7 +73,7 @@
     --tl-text-on-warning: #1F1303;
     --font-ui: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system,
         BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-    --font-brand: "Montserrat", sans-serif;
+    --font-brand: "Tuvima Sans", "Montserrat", sans-serif;
     --font-reader: "Merriweather", Georgia, serif;
     --font-reader-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
     --tl-reader-light-bg: #FAF8F2;

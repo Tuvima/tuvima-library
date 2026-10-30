@@ -111,72 +111,107 @@ public sealed class LibraryVisibilityRuleTests : IDisposable
         Assert.Empty(await _rule.LoadHiddenAsync(second));
     }
 
-    private (LibraryVisibilityRule Rule, LibraryProfileGrantRepository Grants, FixedLibraryAccessCatalog Catalog) SelectedAwareRule(params Guid[] selected)
+    private LibraryVisibilityRule HouseholdAwareRule() =>
+        new(_profileAccess, new HouseholdLibraryAccessRepository(_database), new VaultLibraryRepository(_database));
+
+    private async Task<(Guid Household, Guid First, Guid Second)> CreateHouseholdOfTwoAsync(string name)
     {
-        var grants = new LibraryProfileGrantRepository(_database);
-        var catalog = new FixedLibraryAccessCatalog(selected);
-        return (new LibraryVisibilityRule(_profileAccess, new VaultLibraryRepository(_database), grants, catalog), grants, catalog);
+        var households = new HouseholdRepository(_database);
+        var household = await households.CreateAsync(name, _now);
+        var first = await CreateProfileInAsync(household.Id, $"{name} first");
+        var second = await CreateProfileInAsync(household.Id, $"{name} second");
+        return (household.Id, first, second);
+    }
+
+    private async Task<Guid> CreateProfileInAsync(Guid householdId, string name)
+    {
+        var profile = new MediaEngine.Domain.Aggregates.Profile
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = name,
+            Role = ProfileRole.StandardUser,
+            CreatedAt = _now,
+        };
+        await _accounts.CreateHouseholdPersonAsync(profile, householdId);
+        return profile.Id;
     }
 
     [Fact]
-    public async Task ASelectedLibrary_IsVisibleOnlyToTheProfilesChosen_AndToAdministrators()
-    {
-        var library = Guid.NewGuid();
-        var chosen = await CreateProfileAsync("chosen@example.test", new HashSet<Guid>());
-        var notChosen = await CreateProfileAsync("notchosen@example.test", new HashSet<Guid>());
-        var (rule, grants, _) = SelectedAwareRule(library);
-        await grants.ReplaceGrantedProfilesAsync(library, new HashSet<Guid> { chosen }, _now, null);
-
-        Assert.True(await rule.MaySeeAsync(chosen, false, library, true));
-        Assert.False(await rule.MaySeeAsync(notChosen, false, library, true));
-        Assert.True(await rule.MaySeeAsync(notChosen, true, library, true));
-        Assert.True(await rule.IsHiddenAsync(notChosen, library));
-        Assert.False(await rule.IsHiddenAsync(chosen, library));
-    }
-
-    [Fact]
-    public async Task ANewProfile_HasNoAccessToASelectedLibrary_AndFullAccessToAStandardOne()
-    {
-        var selected = Guid.NewGuid();
-        var standard = Guid.NewGuid();
-        var earlier = await CreateProfileAsync("earlier@example.test", new HashSet<Guid>());
-        var (rule, grants, _) = SelectedAwareRule(selected);
-        await grants.ReplaceGrantedProfilesAsync(selected, new HashSet<Guid> { earlier }, _now, null);
-
-        var later = await CreateProfileAsync("later@example.test", new HashSet<Guid>());
-
-        Assert.False(await rule.MaySeeAsync(later, false, selected, true));
-        Assert.True(await rule.MaySeeAsync(later, false, standard, true));
-        Assert.Empty(await grants.GetGrantedLibrariesAsync(later));
-    }
-
-    [Fact]
-    public async Task LoadHidden_ListsEverySelectedLibraryTheProfileWasNotChosenFor_NextToItsOwnHiddenOnes()
-    {
-        var hiddenByAdmin = Guid.NewGuid();
-        var chosenFor = Guid.NewGuid();
-        var notChosenFor = Guid.NewGuid();
-        var profile = await CreateProfileAsync("loader@example.test", new HashSet<Guid> { hiddenByAdmin });
-        var (rule, grants, _) = SelectedAwareRule(chosenFor, notChosenFor);
-        await grants.ReplaceGrantedProfilesAsync(chosenFor, new HashSet<Guid> { profile }, _now, null);
-
-        Assert.Equal(new HashSet<Guid> { hiddenByAdmin, notChosenFor }, (await rule.LoadHiddenAsync(profile)).ToHashSet());
-    }
-
-    [Fact]
-    public async Task ASelectedLibrary_StillNeedsTheArea_AndStillHonoursAHiddenRow_EvenWhenChosen()
+    public async Task ALibraryHiddenForAHousehold_IsAbsentForEveryProfileInIt_AndPresentForAnotherHousehold()
     {
         var library = Guid.NewGuid();
-        var profile = await CreateProfileAsync("limits@example.test", new HashSet<Guid> { library });
-        var (rule, grants, _) = SelectedAwareRule(library);
-        await grants.ReplaceGrantedProfilesAsync(library, new HashSet<Guid> { profile }, _now, null);
+        var (householdTwo, firstOfTwo, secondOfTwo) = await CreateHouseholdOfTwoAsync("Household 2");
+        var (_, firstOfOne, _) = await CreateHouseholdOfTwoAsync("Household 1");
+        var rule = HouseholdAwareRule();
+        await new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(householdTwo, new HashSet<Guid> { library }, _now, null);
 
-        Assert.False(await rule.MaySeeAsync(profile, false, library, true));
-        Assert.False(await rule.MaySeeAsync(profile, false, library, false));
+        Assert.False(await rule.MaySeeAsync(firstOfTwo, false, library, true));
+        Assert.False(await rule.MaySeeAsync(secondOfTwo, false, library, true));
+        Assert.True(await rule.IsHiddenAsync(firstOfTwo, library));
+        Assert.True(await rule.MaySeeAsync(firstOfOne, false, library, true));
+        Assert.False(await rule.IsHiddenAsync(firstOfOne, library));
     }
 
     [Fact]
-    public async Task AVaultLibrary_IsNeverAcceptedAsAGrant_AndNeverVisibleThroughASelectedChoice()
+    public async Task AServerAdministrator_SeesALibraryHiddenForTheirHousehold()
+    {
+        var library = Guid.NewGuid();
+        var (household, first, _) = await CreateHouseholdOfTwoAsync("Admins");
+        var rule = HouseholdAwareRule();
+        await new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(household, new HashSet<Guid> { library }, _now, null);
+
+        Assert.True(await rule.MaySeeAsync(first, true, library, false));
+    }
+
+    [Fact]
+    public async Task AProfileHiddenFromOneLibrary_KeepsTheRest_WhenItsHouseholdHidesAnother()
+    {
+        var householdHidden = Guid.NewGuid();
+        var profileHidden = Guid.NewGuid();
+        var untouched = Guid.NewGuid();
+        var (household, first, second) = await CreateHouseholdOfTwoAsync("Mixed");
+        var rule = HouseholdAwareRule();
+        await new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(household, new HashSet<Guid> { householdHidden }, _now, null);
+        await _profileAccess.ReplaceAccessAsync(first, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { profileHidden }, _now);
+
+        Assert.False(await rule.MaySeeAsync(first, false, householdHidden, true));
+        Assert.False(await rule.MaySeeAsync(first, false, profileHidden, true));
+        Assert.True(await rule.MaySeeAsync(first, false, untouched, true));
+        Assert.True(await rule.MaySeeAsync(second, false, profileHidden, true));
+        Assert.False(await rule.MaySeeAsync(second, false, householdHidden, true));
+    }
+
+    [Fact]
+    public async Task LoadHidden_ListsTheHouseholdsHiddenLibraries_NextToTheProfilesOwn()
+    {
+        var byHousehold = Guid.NewGuid();
+        var byProfile = Guid.NewGuid();
+        var (household, first, _) = await CreateHouseholdOfTwoAsync("Loader");
+        var rule = HouseholdAwareRule();
+        await new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(household, new HashSet<Guid> { byHousehold }, _now, null);
+        await _profileAccess.ReplaceAccessAsync(first, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { byProfile }, _now);
+
+        Assert.Equal(new HashSet<Guid> { byHousehold, byProfile }, (await rule.LoadHiddenAsync(first)).ToHashSet());
+    }
+
+    [Fact]
+    public async Task ANewProfileInAHousehold_GetsWhatTheHouseholdHas_WithNothingHiddenForItself()
+    {
+        var hiddenForHousehold = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        var (household, _, _) = await CreateHouseholdOfTwoAsync("Newcomers");
+        var rule = HouseholdAwareRule();
+        await new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(household, new HashSet<Guid> { hiddenForHousehold }, _now, null);
+
+        var later = await CreateProfileInAsync(household, "later");
+
+        Assert.Empty(await _profileAccess.GetHiddenLibrariesAsync(later));
+        Assert.False(await rule.MaySeeAsync(later, false, hiddenForHousehold, true));
+        Assert.True(await rule.MaySeeAsync(later, false, other, true));
+    }
+
+    [Fact]
+    public async Task AVaultLibrary_IsRefusedInAHouseholdList_AndNeverVisibleThroughTheRule()
     {
         var vault = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
@@ -186,12 +221,13 @@ public sealed class LibraryVisibilityRuleTests : IDisposable
                 new { vault = vault.ToString("D"), now = _now.ToString("O") });
         }
 
-        var profile = await CreateProfileAsync("vaultgrant@example.test", new HashSet<Guid>());
-        var (rule, grants, _) = SelectedAwareRule(vault);
+        var (household, first, _) = await CreateHouseholdOfTwoAsync("Vaulty");
+        var rule = HouseholdAwareRule();
 
-        await Assert.ThrowsAsync<ArgumentException>(() => grants.ReplaceGrantedProfilesAsync(vault, new HashSet<Guid> { profile }, _now, null));
-        Assert.False(await rule.MaySeeAsync(profile, false, vault, true));
-        Assert.False(await rule.MaySeeAsync(profile, true, vault, true));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(household, new HashSet<Guid> { vault }, _now, null));
+        Assert.False(await rule.MaySeeAsync(first, false, vault, true));
+        Assert.False(await rule.MaySeeAsync(first, true, vault, true));
     }
 
     private async Task<Guid> CreateProfileAsync(string email, IReadOnlySet<Guid> hidden)

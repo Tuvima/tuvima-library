@@ -14,7 +14,8 @@ public sealed class VisibilityAfterMoveReadService(
     IMediaAssetLibraryCountRepository assets,
     IVaultLibraryRepository vaultLibraries,
     IConfigurationLoader configuration,
-    LibraryVisibilityRule rule) : IVisibilityAfterMoveReadService
+    LibraryVisibilityRule rule,
+    IHouseholdRepository? households = null) : IVisibilityAfterMoveReadService
 {
     /// <summary>The most files a list may name; a longer list is refused rather than cut short, so the answer is never partial.</summary>
     public const int MaxAssetIds = 5000;
@@ -54,6 +55,9 @@ public sealed class VisibilityAfterMoveReadService(
             .Where(library => Guid.TryParse(library.Id, out _))
             .ToDictionary(library => Guid.Parse(library.Id), library => library.Area);
         var lost = new List<VisibilityLossDto>();
+        // Library access D2: when a household's own list hides the target, everyone in it loses the files, so the household is named once
+        // (with the most any one of its people loses) instead of listing each person.
+        var lostByHousehold = new Dictionary<Guid, int>();
         foreach (var profile in await profiles.GetAllAsync(ct).ConfigureAwait(false))
         {
             // A server administrator profile sees everything. A profile whose only sign-in is disabled cannot be opened by it, so a
@@ -79,10 +83,21 @@ public sealed class VisibilityAfterMoveReadService(
                 }
             }
 
-            if (count > 0)
+            if (count > 0 && profile.HouseholdId is { } householdId
+                && await rule.IsHiddenByHouseholdAsync(profile.Id, request.TargetLibraryId, ct).ConfigureAwait(false))
+            {
+                lostByHousehold[householdId] = Math.Max(lostByHousehold.GetValueOrDefault(householdId), count);
+            }
+            else if (count > 0)
             {
                 lost.Add(new VisibilityLossDto(profile.Id, DisplayName(profile), count));
             }
+        }
+
+        foreach (var (householdId, count) in lostByHousehold)
+        {
+            var name = households is null ? null : (await households.GetByIdAsync(householdId, ct).ConfigureAwait(false))?.Name;
+            lost.Insert(0, new VisibilityLossDto(Guid.Empty, string.IsNullOrWhiteSpace(name) ? "A household" : name, count, householdId));
         }
 
         return new VisibilityAfterMoveResult(lost, null);

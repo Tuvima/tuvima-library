@@ -82,8 +82,9 @@ public sealed class ServerFolderPickerUiTests
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
 
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(shell, @"component\.MediaType, kind\.MediaTypes\.FirstOrDefault\(\)"));
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(create, @"<ServerFolderPicker\b"));
-        Assert.Contains("Inline=\"true\"", create, StringComparison.Ordinal);
+        // Add library opens the picker as its own "Choose source folder" pop-up, never embedded in the form.
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(create, @"ShowAsync<ServerFolderPicker>"));
+        Assert.DoesNotContain("Inline=\"true\"", create, StringComparison.Ordinal);
         Assert.DoesNotContain("component.MediaType", panel, StringComparison.Ordinal);
         foreach (var untyped in new[]
                  {
@@ -105,12 +106,13 @@ public sealed class ServerFolderPickerUiTests
 
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", panel, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ManagedLibrary", panel, StringComparison.Ordinal);
-        Assert.Contains("<ServerFolderPicker", create, StringComparison.Ordinal);
-        // The library page's Add folder opens the dialog that holds the picker inline (it also offers the administrator's Vault switch).
-        var addFolder = Read("src/MediaEngine.Web/Components/Settings/Libraries/LibraryAddFolderDialog.razor");
-        Assert.Contains("AppDialogParameters<LibraryAddFolderDialog>", shell, StringComparison.Ordinal);
-        Assert.Contains("<ServerFolderPicker", addFolder, StringComparison.Ordinal);
-        Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", addFolder, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", create, StringComparison.Ordinal);
+        // Add folder and Add library open the same "Choose source folder" pop-up (library setup D2, A2).
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", shell, StringComparison.Ordinal);
+        Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", shell, StringComparison.Ordinal);
+        Assert.Contains("ServerFolderPicker.DialogOptions", shell, StringComparison.Ordinal);
+        Assert.Contains("ServerFolderPicker.DialogOptions", create, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Settings/Libraries/LibraryAddFolderDialog.razor")), "Add folder uses the shared pop-up; it has no dialog of its own");
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceManaged", Read("src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor"), StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceExisting", view, StringComparison.Ordinal);

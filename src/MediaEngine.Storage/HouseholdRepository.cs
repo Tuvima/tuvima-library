@@ -40,12 +40,12 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         var rows = conn.Query<ProfileRow>("""
             SELECT id AS Id, display_name AS DisplayName, avatar_color AS AvatarColor,
                    avatar_image_path AS AvatarImagePath, avatar_icon AS AvatarIcon,
-                   content_limit AS ContentLimit, content_limit_allow_unrated AS ContentLimitAllowUnrated, role AS Role, created_at AS CreatedAt,
+                   role AS Role, created_at AS CreatedAt,
                    navigation_config AS NavigationConfig, household_id AS HouseholdId,
                    is_server_admin AS IsServerAdministrator, is_household_admin AS IsHouseholdAdministrator,
-                   authorization_version AS AuthorizationVersion
+                   authorization_version AS AuthorizationVersion, sort_position AS SortPosition
             FROM profiles WHERE household_id = @householdId
-            ORDER BY created_at, id;
+            ORDER BY sort_position, created_at, id;
             """, new { householdId }).Select(row => new Profile
         {
             Id = row.Id,
@@ -53,8 +53,6 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             AvatarColor = row.AvatarColor,
             AvatarImagePath = row.AvatarImagePath,
             AvatarIcon = row.AvatarIcon,
-            ContentLimit = row.ContentLimit,
-            ContentLimitAllowUnrated = row.ContentLimitAllowUnrated,
             Role = Enum.Parse<MediaEngine.Domain.Enums.ProfileRole>(row.Role),
             CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
             NavigationConfig = row.NavigationConfig,
@@ -62,6 +60,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             IsServerAdministrator = row.IsServerAdministrator,
             IsHouseholdAdministrator = row.IsHouseholdAdministrator,
             AuthorizationVersion = row.AuthorizationVersion,
+            SortPosition = row.SortPosition,
         }).ToList();
         return Task.FromResult<IReadOnlyList<Profile>>(rows);
     }
@@ -296,8 +295,6 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public string AvatarColor { get; set; } = string.Empty;
         public string? AvatarImagePath { get; set; }
         public string? AvatarIcon { get; set; }
-        public string? ContentLimit { get; set; }
-        public bool ContentLimitAllowUnrated { get; set; }
         public string Role { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
         public string? NavigationConfig { get; set; }
@@ -305,6 +302,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public bool IsServerAdministrator { get; set; }
         public bool IsHouseholdAdministrator { get; set; }
         public long AuthorizationVersion { get; set; }
+        public int SortPosition { get; set; }
     }
 
     private sealed class AccountRow

@@ -105,7 +105,6 @@ public sealed class ArtworkAndMatchSectionTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<UIOrchestratorService>();
         Services.AddSingleton(_ => new ProviderCatalogueService(api, new MemoryCache(new MemoryCacheOptions())));
-        Services.AddScoped<MediaEditorLauncherService>();
         Render<AppPopoverHost>();
     }
 

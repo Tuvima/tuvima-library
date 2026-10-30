@@ -125,3 +125,16 @@ public sealed record PersonalActivitySummary(
     int FinishedCount,
     int InProgressCount,
     DateTimeOffset? FirstActivityAt);
+
+
+/// <summary>One day (UTC) of a person's activity: time played and how many entries started.</summary>
+public sealed record PersonalActivityDay(DateOnly Date, long PlayedSeconds, int Entries);
+
+/// <summary>
+/// The rolling window behind the Overview: titles finished and days with any activity in the last <c>days</c> days
+/// ending today (UTC), and each active day. Days without activity are left out.
+/// </summary>
+public sealed record PersonalActivityRolling(int FinishedTitles, int DaysActive, IReadOnlyList<PersonalActivityDay> Days);
+
+/// <summary>Titles first finished in one month (UTC, <c>yyyy-MM</c>) under one genre; a title without a known genre has a null genre.</summary>
+public sealed record PersonalFinishedMonthGenre(string Month, string? Genre, int Titles);

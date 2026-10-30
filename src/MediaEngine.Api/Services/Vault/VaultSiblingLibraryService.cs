@@ -58,7 +58,7 @@ public sealed class VaultSiblingLibraryService(
 
     /// <summary>Makes the Vault library of a content type with its first folder. Refused when the type already has one.</summary>
     public async Task<VaultSiblingOutcome> CreateAsync(
-        Guid adminProfileId, string? kindKey, string? name, string? folderPath, CancellationToken ct)
+        Guid adminProfileId, string? kindKey, string? name, string? folderPath, CancellationToken ct, bool managed = false)
     {
         if (ResolveKind(kindKey) is not { } kind)
         {
@@ -99,7 +99,7 @@ public sealed class VaultSiblingLibraryService(
         {
             outcome = await attachment.AttachAsAdministratorAsync(
                 entryId, folderPath, NewEntry(entryId, trimmed, kind.Kind),
-                settings => TakenInside(settings, kind.Kind.Key, trimmed), ct).ConfigureAwait(false);
+                settings => TakenInside(settings, kind.Kind.Key, trimmed), managed, ct).ConfigureAwait(false);
         }
         catch
         {
@@ -120,7 +120,7 @@ public sealed class VaultSiblingLibraryService(
     /// Adds a folder as a Vault folder of a content type: to the type's Vault library, or, when it has none yet, to a new one named for the
     /// type. This is what "Add as a Vault folder" on Add folder does.
     /// </summary>
-    public async Task<VaultSiblingOutcome> AddFolderAsync(Guid adminProfileId, string? kindKey, string? folderPath, CancellationToken ct)
+    public async Task<VaultSiblingOutcome> AddFolderAsync(Guid adminProfileId, string? kindKey, string? folderPath, CancellationToken ct, bool managed = false)
     {
         if (ResolveKind(kindKey) is not { } kind)
         {
@@ -131,10 +131,10 @@ public sealed class VaultSiblingLibraryService(
         var held = VaultEntries(configuration.LoadLibraries(), vaultIds).FirstOrDefault(entry => KindOf(entry, kind.Kind.Key));
         if (held is null)
         {
-            return await CreateAsync(adminProfileId, kind.Kind.Key, DefaultName(kind.Kind.Label), folderPath, ct).ConfigureAwait(false);
+            return await CreateAsync(adminProfileId, kind.Kind.Key, DefaultName(kind.Kind.Label), folderPath, ct, managed).ConfigureAwait(false);
         }
 
-        var outcome = await attachment.AttachAsAdministratorAsync(held.Id, folderPath, null, null, ct).ConfigureAwait(false);
+        var outcome = await attachment.AttachAsAdministratorAsync(held.Id, folderPath, null, null, managed, ct).ConfigureAwait(false);
         return outcome.Status == VaultFolderAttachmentStatus.Attached
             ? new VaultSiblingOutcome(VaultSiblingStatus.Ok, Library: FindEntry(held.Id))
             : Refused(outcome);
@@ -224,7 +224,7 @@ public sealed class VaultSiblingLibraryService(
     // Checked again under the settings write gate, so two requests at once cannot make two Vault libraries of one type.
     private static string? TakenInside(LibrariesConfiguration settings, string kindKey, string name)
     {
-        var vaultEntries = settings.Libraries.Where(entry => string.Equals(entry.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase)).ToList();
+        var vaultEntries = settings.Libraries.Where(entry => entry.IsVault).ToList();
         if (vaultEntries.Any(entry => KindOf(entry, kindKey)))
         {
             return AlreadyExistsMessage;
@@ -272,7 +272,7 @@ public sealed class VaultSiblingLibraryService(
         MediaTypes = [kind.Format!],
         YoutubeLookup = false,
         RecycleBin = string.Equals(kind.Format, nameof(MediaEngine.Domain.Enums.MediaType.Videos), StringComparison.Ordinal),
-        Access = LibraryAccessLevels.Vault,
+        IsVault = true,
         AcceptedIntakeModes = [LibraryIntakeModes.IncomingFolder],
         // A Vault library's files follow the Vault's own rules: names are kept and tags are never written.
         OrganizationPolicy = new LibraryOrganizationPolicyConfig { Mode = LibraryOrganizationModes.KeepOriginalNames, WriteTags = false },

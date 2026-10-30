@@ -51,3 +51,22 @@
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-sm);
 }
+
+/* With an icon the row is icon tile, copy, radio. */
+.app-choice-row--icon {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.app-choice-row__icon {
+    display: inline-grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--tl-radius-md);
+}
+
+/* Without a host-supplied tile class the icon takes the accent colour. */
+.app-choice-row__icon--plain {
+    color: var(--tl-accent-primary);
+    background: color-mix(in srgb, var(--tl-accent-primary) 14%, transparent);
+}

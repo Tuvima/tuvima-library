@@ -46,15 +46,6 @@ public static class BackupArchiveFormat
     /// <summary>The most entries accepted in an archive when reading.</summary>
     public const int MaxEntries = 1000;
 
-    /// <summary>The most entries accepted in a user export (it holds one table per entry and a few more).</summary>
-    public const int MaxUserEntries = 200;
-
-    /// <summary>The largest single entry accepted in a user export, in bytes.</summary>
-    public const long MaxUserEntryBytes = 64L * 1024 * 1024;
-
-    /// <summary>The most uncompressed bytes accepted across a user export's entries.</summary>
-    public const long MaxUserTotalBytes = 256L * 1024 * 1024;
-
     private const string ConfigurationKind = "configuration";
     private const string PersonalKind = "personal_state";
     private const string ChoicesKind = "choices";
@@ -107,16 +98,8 @@ public static class BackupArchiveFormat
     /// </summary>
     public static BackupExport ReadBackupFile(ZipArchive archive) => Read(archive, MaxEntries, MaxEntryBytes, MaxTotalBytes, skipBackupFileParts: true);
 
-    /// <summary>
-    /// Reads a user export (see <see cref="UserExportScope"/>): the same format, but its contents must say <c>user</c>, only the tables a
-    /// user export holds are accepted, and there are no choices, corrections or configuration files. Only <c>manifest.json</c> is left
-    /// alone. A whole-Library backup is refused here exactly as a user export is refused by <see cref="ReadBackupFile"/>.
-    /// </summary>
-    public static BackupExport ReadUserExport(ZipArchive archive) =>
-        Read(archive, MaxUserEntries, MaxUserEntryBytes, MaxUserTotalBytes, skipBackupFileParts: true, userExport: true);
-
     /// <summary><see cref="Read(ZipArchive)"/> with explicit limits, so a test can use small ones.</summary>
-    internal static BackupExport Read(ZipArchive archive, int maxEntries, long maxEntryBytes, long maxTotalBytes, bool skipBackupFileParts = false, bool userExport = false)
+    internal static BackupExport Read(ZipArchive archive, int maxEntries, long maxEntryBytes, long maxTotalBytes, bool skipBackupFileParts = false)
     {
         ArgumentNullException.ThrowIfNull(archive);
 
@@ -158,7 +141,7 @@ public static class BackupArchiveFormat
                 }
 
                 if (skipBackupFileParts
-                    && (string.Equals(name, "manifest.json", StringComparison.Ordinal) || (!userExport && name.StartsWith("config/", StringComparison.Ordinal))))
+                    && (string.Equals(name, "manifest.json", StringComparison.Ordinal) || name.StartsWith("config/", StringComparison.Ordinal)))
                 {
                     continue;
                 }
@@ -181,11 +164,6 @@ public static class BackupArchiveFormat
                 }
                 else if (TryTableEntry(name, out var folder, out var table))
                 {
-                    if (userExport && (folder is ChoicesFolder or CorrectionsFolder || UserExportScope.Find(table) is null))
-                    {
-                        throw new InvalidDataException($"The file holds a table a user export never holds: {table}.");
-                    }
-
                     var rule = RuleFor(folder, table);
                     using var document = ParseEntry(entry, budget);
                     var (parsed, kind) = ReadTable(document.RootElement, table, rule, folder);
@@ -232,7 +210,7 @@ public static class BackupArchiveFormat
                 }
             }
 
-            return new BackupExport(tables, choices, titles, ReadContents(contentsDocument.RootElement, userExport), corrections);
+            return new BackupExport(tables, choices, titles, ReadContents(contentsDocument.RootElement), corrections);
         }
         catch (Exception ex) when (ex is FormatException or OverflowException or InvalidOperationException)
         {
@@ -262,20 +240,8 @@ public static class BackupArchiveFormat
     private static void WriteContents(Utf8JsonWriter writer, BackupExportContents contents)
     {
         writer.WriteStartObject();
-        writer.WriteString("kind", contents.Scope.IsUserFile ? UserExportScope.Kind : ContentsKind);
-        writer.WriteString("scope", contents.Scope.IsAccount ? "user" : contents.Scope.IsHousehold ? "household" : contents.Scope.IsProfile ? "profile" : "library");
-        if (contents.Scope.AccountId is { } accountId)
-        {
-            // The id only; the email is in the account row and the manifest, never repeated here.
-            writer.WriteString("account_id", accountId.ToString("D", CultureInfo.InvariantCulture));
-        }
-
-        if (contents.Scope.HouseholdId is { } householdId)
-        {
-            // The id only; never the household's name.
-            writer.WriteString("household_id", householdId.ToString("D", CultureInfo.InvariantCulture));
-        }
-
+        writer.WriteString("kind", ContentsKind);
+        writer.WriteString("scope", contents.Scope.IsProfile ? "profile" : "library");
         if (contents.Scope.ProfileId is { } profileId)
         {
             // The id only; never the profile's name.
@@ -794,23 +760,17 @@ public static class BackupArchiveFormat
         return titles;
     }
 
-    private static BackupExportContents ReadContents(JsonElement root, bool userExport)
+    private static BackupExportContents ReadContents(JsonElement root)
     {
-        if (root.ValueKind != JsonValueKind.Object || RequiredString(root, "kind") != (userExport ? UserExportScope.Kind : ContentsKind))
+        if (root.ValueKind != JsonValueKind.Object || RequiredString(root, "kind") != ContentsKind)
         {
-            throw new InvalidDataException(userExport ? "The file is not a user export." : "The backup is not a settings and personal state backup.");
+            throw new InvalidDataException("The backup is not a settings and personal state backup.");
         }
 
         var scope = RequiredString(root, "scope") switch
         {
-            "user" when userExport => Guid.TryParse(OptionalString(root, "account_id"), out var accountId) && accountId != Guid.Empty
-                ? BackupScope.ForAccount(accountId)
-                : throw new InvalidDataException("A user export does not say which account it holds."),
-            "household" when userExport => Guid.TryParse(OptionalString(root, "household_id"), out var householdId) && householdId != Guid.Empty
-                ? BackupScope.ForHousehold(householdId)
-                : throw new InvalidDataException("A household export does not say which household it holds."),
-            "library" when !userExport => BackupScope.WholeLibrary,
-            "profile" when !userExport => Guid.TryParse(OptionalString(root, "profile_id"), out var profileId) && profileId != Guid.Empty
+            "library" => BackupScope.WholeLibrary,
+            "profile" => Guid.TryParse(OptionalString(root, "profile_id"), out var profileId) && profileId != Guid.Empty
                 ? BackupScope.ForProfile(profileId)
                 : throw new InvalidDataException("A profile backup does not say which profile it holds."),
             _ => throw new InvalidDataException("The backup has an unknown scope."),

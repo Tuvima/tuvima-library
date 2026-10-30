@@ -368,7 +368,7 @@ public sealed class ProfileHeldAccessTests : IDisposable
     // ── New people without a sign-in ───────────────────────────────────────────
 
     [Fact]
-    public async Task APersonAddedToAHousehold_StartsWithTheAccessOfWhoeverAddedThem_AndNeverAnAdministratorRole()
+    public async Task APersonAddedToAHousehold_StartsWithTheFeaturesOfWhoeverAddedThem_NothingHiddenForThemselves_AndNeverAnAdministratorRole()
     {
         var admin = await CreateServerAdministratorAsync();
         var householdId = (await _households.GetForAccountAsync(admin.Id))!.Id;
@@ -382,7 +382,8 @@ public sealed class ProfileHeldAccessTests : IDisposable
         await _accounts.CreateHouseholdPersonAsync(mary, householdId, accessFromProfileId: mainPerson.Id);
 
         Assert.Equal(new[] { "read", "view" }, (await _access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
-        Assert.Equal(new[] { library }, (await _access.GetHiddenLibrariesAsync(mary.Id)).ToArray());
+        // What the household hides is hidden by the household itself; the new person has nothing hidden for themselves (library access D19).
+        Assert.Empty(await _access.GetHiddenLibrariesAsync(mary.Id));
         var flags = (await _access.GetAdminFlagsAsync(mary.Id))!;
         Assert.False(flags.IsServerAdministrator);
         Assert.False(flags.IsHouseholdAdministrator);

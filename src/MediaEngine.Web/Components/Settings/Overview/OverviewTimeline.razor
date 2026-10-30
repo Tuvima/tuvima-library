@@ -1,0 +1,151 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Contracts.Activity
+@using MediaEngine.Contracts.Display
+@using MediaEngine.Web.Services.Formatting
+@inject NavigationManager Navigation
+@* The Overview's Recent activity timeline (D2): the latest things watched, read and listened to, under Today / Yesterday / date
+   headings. Each row has its cover (or a music session's collage), the title, a caption that starts with a verb, a thin progress
+   bar or a check, and a "..." menu. Titles are always printed. *@
+@if (Tiles is null)
+{
+    <p class="overview-timeline__message" data-activity-unavailable>Recent activity isn't available right now.</p>
+}
+else if (Tiles.Count == 0)
+{
+    <p class="overview-timeline__message" data-activity-empty>Nothing yet — what you watch, read and listen to shows up here.</p>
+}
+else
+{
+    <div class="overview-timeline" data-activity-timeline>
+        @foreach (var day in Days)
+        {
+            <section class="overview-timeline__day" aria-label="@day.Heading" data-timeline-day="@day.Heading">
+                <h3 class="overview-timeline__heading">@day.Heading</h3>
+                <ol class="overview-timeline__rows">
+                    @foreach (var tile in day.Tiles)
+                    {
+                        var covers = PersonalActivityPresentation.CollageCovers(tile);
+                        var mark = PersonalActivityPresentation.ProgressMark(tile);
+                        <li class="overview-timeline__row"
+                            data-activity-kind="@tile.Kind"
+                            data-activity-shape="@PersonalActivityPresentation.ShapeClass(tile)">
+                            <span class="overview-timeline__time">@TimeOf(tile)</span>
+                            <span class="overview-timeline__art" aria-hidden="true">
+                                @if (covers.Count > 0 && PersonalActivityPresentation.IsMusicSession(tile))
+                                {
+                                    <span class="@("overview-timeline__collage overview-timeline__collage--" + CollageColumns(covers.Count))" data-activity-collage>
+                                        @foreach (var cover in covers)
+                                        {
+                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 56)" alt="" loading="lazy" decoding="async" />
+                                        }
+                                    </span>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(tile.ArtworkUrl))
+                                {
+                                    <img class="overview-timeline__image" src="@MediaTileArtworkUrl.ForDrawnSize(tile.ArtworkUrl, 56)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(tile.ArtworkUrl, 56)" alt="" loading="lazy" decoding="async" />
+                                }
+                                else
+                                {
+                                    <span class="overview-timeline__placeholder"><AppMaterialIcon Icon="@PlaceholderIcon(tile)" /></span>
+                                }
+                            </span>
+                            <span class="overview-timeline__text">
+                                <a class="overview-timeline__title" href="@PersonalActivityPresentation.Href(tile)">@PersonalActivityPresentation.HoverTitle(tile)</a>
+                                <span class="overview-timeline__detail">@Detail(tile)</span>
+                            </span>
+                            <span class="overview-timeline__status">
+                                @if (mark == ActivityProgressMark.Finished)
+                                {
+                                    <span class="overview-timeline__done" data-activity-finished><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>Finished</span></span>
+                                }
+                                else if (mark == ActivityProgressMark.Bar)
+                                {
+                                    <span class="overview-timeline__bar" data-activity-progress>
+                                        <AppProgressBar Value="@tile.ProgressPct" Decorative="true" AccentColor="var(--tl-accent-primary, #8852FC)" />
+                                        <span>@($"{Math.Round(tile.ProgressPct ?? 0):0}%")</span>
+                                    </span>
+                                }
+                            </span>
+                            <span class="overview-timeline__menu">
+                                <AppOverflowMenu AriaLabel="@($"More about {PersonalActivityPresentation.HoverTitle(tile)}")" Icon="@AppMaterialIcons.Outlined.MoreHoriz">
+                                    @if (PersonalActivityPresentation.OpensItem(tile))
+                                    {
+                                        var href = PersonalActivityPresentation.Href(tile);
+                                        <AppMenuItem Label="Open" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Navigation.NavigateTo(href))" />
+                                    }
+                                    <AppMenuItem Label="See all activity" Icon="@AppMaterialIcons.Outlined.History" OnClick="@(() => Navigation.NavigateTo(SeeAllHref))" />
+                                </AppOverflowMenu>
+                            </span>
+                        </li>
+                    }
+                </ol>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private sealed record DayGroup(string Heading, IReadOnlyList<PersonalActivityRecentTileDto> Tiles);
+
+    /// <summary>The tiles, newest first. Null means they could not be loaded; empty means there is nothing yet.</summary>
+    [Parameter] public IReadOnlyList<PersonalActivityRecentTileDto>? Tiles { get; set; }
+
+    /// <summary>"Today" and "Yesterday" are worked out from this; null means now.</summary>
+    [Parameter] public DateTimeOffset? Now { get; set; }
+
+    /// <summary>How many rows to draw; the rest are on the Activity page.</summary>
+    [Parameter] public int Limit { get; set; } = 8;
+
+    /// <summary>Where "See all activity" goes: the Activity tab, or My activity for a Kids profile.</summary>
+    [Parameter] public string SeeAllHref { get; set; } = MediaEngine.Web.Models.ViewDTOs.SettingsNav.ActivityRoute;
+
+    private IReadOnlyList<DayGroup> Days
+    {
+        get
+        {
+            var now = Now ?? DateTimeOffset.UtcNow;
+            return [.. (Tiles ?? [])
+                .Take(Limit)
+                .Select(tile => (Tile: tile, At: StartOf(tile)))
+                .Where(pair => pair.At is not null)
+                .GroupBy(pair => pair.At!.Value.ToLocalTime().Date)
+                .OrderByDescending(group => group.Key)
+                .Select(group => new DayGroup(
+                    ProfileOverviewPresentation.DayHeading(group.First().At!.Value, now),
+                    [.. group.Select(pair => pair.Tile)]))];
+        }
+    }
+
+    private static DateTimeOffset? StartOf(PersonalActivityRecentTileDto tile) =>
+        DateTimeOffset.TryParse(tile.StartedAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var at) ? at : null;
+
+    private static string TimeOf(PersonalActivityRecentTileDto tile) =>
+        StartOf(tile)?.ToLocalTime().ToString("t", CultureInfo.CurrentCulture) ?? string.Empty;
+
+    // The caption (Watched 1 h 12 m), then the episode, artist or song count when there is one.
+    private static string Detail(PersonalActivityRecentTileDto tile)
+    {
+        var parts = new List<string> { PersonalActivityPresentation.Caption(tile) };
+        if (PersonalActivityPresentation.MusicCounts(tile) is { } counts)
+        {
+            parts.Add(counts);
+        }
+        else if (!string.IsNullOrWhiteSpace(tile.Subtitle))
+        {
+            parts.Add(tile.Subtitle!);
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    private static int CollageColumns(int covers) => covers switch { <= 1 => 1, <= 4 => 2, _ => 3 };
+
+    private static string PlaceholderIcon(PersonalActivityRecentTileDto tile) => tile.Kind switch
+    {
+        PersonalActivityKindValues.Read => AppMaterialIcons.Outlined.MenuBook,
+        PersonalActivityKindValues.Listen or PersonalActivityKindValues.MusicSession => AppMaterialIcons.Outlined.MusicNote,
+        PersonalActivityKindValues.MyList => AppMaterialIcons.Outlined.FavoriteBorder,
+        _ => AppMaterialIcons.Outlined.PlayArrow,
+    };
+}

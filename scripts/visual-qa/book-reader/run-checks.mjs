@@ -926,6 +926,25 @@ await check('the contents list is flattened and an entry opens its chapter', () 
     await nextRelocation(page, count);
 }));
 
+await check('searching the book finds every place, opens one, ignores one-letter searches and lets a newer search replace an older one', () => withBook(desktop, {}, async ({ page }) => {
+    const found = await page.evaluate(() => window.br.search('chapter two'));
+    assert(!found.cancelled && !found.truncated, `unexpected search outcome ${JSON.stringify(found)}`);
+    assert(found.hits.length >= 2, `expected the heading and the link, got ${found.hits.length}`);
+    assert(found.hits.every(h => h.cfi && h.match.toLowerCase() === 'chapter two'), `a hit is missing its place or words ${JSON.stringify(found.hits)}`);
+    assert(found.hits.some(h => h.label === 'ch2'), `no hit says which chapter it is in ${JSON.stringify(found.hits.map(h => h.label))}`);
+    const none = await page.evaluate(() => window.br.search('zzzzqqqq'));
+    assert(none.hits.length === 0 && !none.cancelled, 'a search with no matches should say so plainly');
+    const tooShort = await page.evaluate(() => window.br.search('a'));
+    assert(tooShort.hits.length === 0, 'a one-letter search should not run');
+    const count = await relocationCount(page);
+    await page.evaluate(cfi => window.br.goTo(cfi), found.hits.find(h => h.label === 'ch2').cfi);
+    await frameWith(page, '#start');
+    await nextRelocation(page, count);
+    const [older, newer] = await page.evaluate(() => Promise.all([window.br.search('chapter'), window.br.search('chapter two')]));
+    assert(older.cancelled && !newer.cancelled && newer.hits.length >= 2, 'the newer search should replace the older one');
+    await page.evaluate(() => window.br.clearSearch());
+}));
+
 await check('settings are remembered per device, other stored keys survive, and flow/width/font apply', () => withBook(desktop, {}, async ({ page }) => {
     const saved = await page.evaluate(() => {
         localStorage.setItem('tuvima-reader-settings', JSON.stringify({ Theme: 'light', Margins: 48, FontFamily: 'Merriweather' }));

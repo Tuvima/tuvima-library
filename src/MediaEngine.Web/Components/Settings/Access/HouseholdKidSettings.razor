@@ -1,0 +1,225 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Services.Integration
+@inject DashboardIdentityClient Identity
+@inject ILogger<HouseholdKidSettings> Logger
+@* "What Kids can see" for one household on Settings > Profiles (library access D9, D10; administrators only): a maximum level for Watch, Read and
+   Listen, each a plain choice described by what it shows, and one "Show unrated items" switch. Every Kid's profile of the household follows
+   these at once, so nothing is stored per person. The choices are kept here until Save changes; Discard puts them back. A saved change is
+   confirmed in the section itself (no toast). The host does the save, so its administrator-PIN prompt applies. *@
+<div class="kid-settings" data-kid-settings="@HouseholdId">
+    <AppButton Class="kid-settings__toggle" ButtonStyle="AppButtonStyle.Text" Label="What Kids can see"
+               StartIcon="@AppMaterialIcons.Outlined.Person"
+               EndIcon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+               OnClick="ToggleAsync" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_bodyId" />
+    <AppInfoTip Label="What Kids can see"
+                Text="@($"The highest rating a Kid's profile in {HouseholdTitle} can open, for each area. It applies to every Kid's profile here at once. Items without a rating follow the switch below.")" />
+    @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
+    {
+        <span class="kid-settings__saved" role="status" data-kid-settings-saved>
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" Color="AppColor.Success" />@_confirmation
+        </span>
+    }
+    @if (_open)
+    {
+        <div id="@_bodyId" class="kid-settings__body">
+            @if (_loading)
+            {
+                <div role="status" aria-label="Loading Kid settings"><AppSkeleton Height="120px" /></div>
+            }
+            else if (_failed)
+            {
+                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">The Kid settings couldn't be loaded. Reload the page to try again.</AppAlert>
+            }
+            else
+            {
+                @foreach (var area in KidAreas)
+                {
+                    <div class="kid-settings__row" data-kid-level="@area.Key">
+                        <span class="kid-settings__label">
+                            <AppMaterialIcon Icon="@area.Icon" Size="AppSize.Small" Color="@area.Color" />@area.Label
+                        </span>
+                        <AppNativeSelect Value="@LevelOf(area.Key)" OnChange="@(value => SetLevel(area.Key, value.Value?.ToString()))"
+                                         Disabled="@Disabled" aria-label="@($"{area.Label} level")">
+                            @foreach (var level in _choices)
+                            {
+                                <option value="@level" selected="@(level == LevelOf(area.Key))">@LevelText(level)</option>
+                            }
+                        </AppNativeSelect>
+                    </div>
+                }
+                <div class="kid-settings__row kid-settings__row--switch" data-kid-unrated>
+                    <AppSwitchRow Label="Show unrated items" Value="@_showUnrated" ValueChanged="SetShowUnrated" Disabled="@Disabled" />
+                    <AppInfoTip Label="Show unrated items"
+                                Text="Home videos and most books and music have no rating. Turn this off to hide them from Kid's profiles. Rated items always follow the levels above." />
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <p class="kid-settings__error" role="alert" data-kid-settings-error>@_error</p>
+            }
+        </div>
+    }
+    <AppSaveBar HasChanges="@HasChanges" Saving="@_saving" OnSave="SaveAsync" OnDiscard="Discard"
+                Message="@($"Unsaved Kid settings for {HouseholdTitle}")" />
+</div>
+
+@code {
+    private readonly string _bodyId = "kid-settings-" + Guid.NewGuid().ToString("N");
+    private IReadOnlyList<string> _choices = [];
+    private HouseholdKidSettingsResponse? _saved;
+    private string _watch = string.Empty;
+    private string _read = string.Empty;
+    private string _listen = string.Empty;
+    private bool _showUnrated = true;
+    private bool _open;
+    private bool _loading;
+    private bool _failed;
+    private bool _saving;
+    private string? _error;
+    private string? _confirmation;
+
+    [Parameter, EditorRequired] public Guid HouseholdId { get; set; }
+
+    /// <summary>The household's name, as the Profiles page titles it.</summary>
+    [Parameter] public string HouseholdName { get; set; } = string.Empty;
+
+    /// <summary>True on a phone: the choices are shown but cannot be changed.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>
+    /// Saves the household's Kid settings and answers null when it went through, or the sentence to show.
+    /// </summary>
+    [Parameter, EditorRequired] public Func<Guid, UpdateHouseholdKidSettingsRequest, Task<string?>>? OnSave { get; set; }
+
+    // Kid settings cover the three areas that carry ratings, in the order the spec names them.
+    private static readonly IReadOnlyList<AccessAreas.Area> KidAreas = [.. new[] { "watch", "read", "listen" }.Select(key => AccessAreas.Find(key)!)];
+
+    private string HouseholdTitle => string.IsNullOrWhiteSpace(HouseholdName) ? "this household" : HouseholdName;
+
+    private bool Disabled => _saving || ReadOnly;
+
+    private bool HasChanges => _saved is { } saved
+        && (saved.WatchLevel != _watch || saved.ReadLevel != _read || saved.ListenLevel != _listen || saved.ShowUnrated != _showUnrated);
+
+    private string LevelOf(string areaKey) => areaKey switch { "watch" => _watch, "read" => _read, _ => _listen };
+
+    // What each level shows, in plain words (the ladder is the same for every area).
+    private static string LevelText(string level) => level switch
+    {
+        "G" => "G: only items for all ages",
+        "PG" => "PG: some parental guidance",
+        "PG-13" => "PG-13: teens and up",
+        "R" => "R: almost everything",
+        _ => level,
+    };
+
+    private async Task ToggleAsync()
+    {
+        _open = !_open;
+        if (_open && _saved is null && !_loading)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _failed = false;
+        try
+        {
+            var loaded = await Identity.GetHouseholdKidSettingsAsync(HouseholdId);
+            if (loaded is null)
+            {
+                _failed = true;
+                return;
+            }
+
+            Apply(loaded);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the Kid settings of a household.");
+            _failed = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Apply(HouseholdKidSettingsResponse settings)
+    {
+        _saved = settings;
+        _choices = settings.LevelChoices;
+        _watch = settings.WatchLevel;
+        _read = settings.ReadLevel;
+        _listen = settings.ListenLevel;
+        _showUnrated = settings.ShowUnrated;
+    }
+
+    private void SetLevel(string areaKey, string? level)
+    {
+        if (string.IsNullOrWhiteSpace(level))
+        {
+            return;
+        }
+
+        _confirmation = null;
+        _error = null;
+        switch (areaKey)
+        {
+            case "watch":
+                _watch = level;
+                break;
+            case "read":
+                _read = level;
+                break;
+            default:
+                _listen = level;
+                break;
+        }
+    }
+
+    private void SetShowUnrated(bool value)
+    {
+        _confirmation = null;
+        _error = null;
+        _showUnrated = value;
+    }
+
+    private void Discard()
+    {
+        if (_saved is { } saved)
+        {
+            Apply(saved);
+        }
+
+        _error = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_saving || OnSave is null || ReadOnly)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            _error = await OnSave(HouseholdId, new UpdateHouseholdKidSettingsRequest(_watch, _read, _listen, _showUnrated));
+            if (_error is null)
+            {
+                _saved = new HouseholdKidSettingsResponse(HouseholdId, _watch, _read, _listen, _showUnrated, _choices);
+                _confirmation = "Saved";
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

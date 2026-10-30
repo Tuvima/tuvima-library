@@ -63,31 +63,28 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
     ];
 
     [Fact]
-    public async Task PhoneShowsOneRowOfStartedItemsNewestFirstWithTypeIconsAndLabels()
+    public async Task PickUpRowIsOneRowOfStartedItemsAndRecentAlbumsNewestFirstOnEveryDevice()
     {
-        await UseAsync("phone");
-        var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = Seed() }));
-        Assert.Single(cut.FindAll(".continue-group"));
-        var cards = cut.FindAll("article.media-tile");
-        // The never-started movie is out; the rest run newest activity first: audiobook, episode, album, next-up episode, book.
-        Assert.Equal(5, cards.Count);
-        string Text(int index) => cards[index].TextContent;
-        Assert.Contains("The Martian", Text(0));
-        Assert.Contains("Chapter 4", Text(0));
-        Assert.Contains("Audiobook", Text(0));
-        Assert.Contains("S1 E2 · Night 1", Text(1));
-        Assert.Contains("23 min left", Text(1));
-        // The episode label is in the title line only; the sub line is just the time left.
-        var subLabel = cards[1].QuerySelector(".continue-sublabel")!.TextContent;
-        Assert.Contains("23 min left", subLabel);
-        Assert.DoesNotContain("S1 E2", subLabel);
-        Assert.Contains("Jagged Little Pill", Text(2));
-        Assert.Contains("S1 E1 · Pilot", Text(3));
-        Assert.Contains("Leviathan Wakes", Text(4));
-        Assert.Contains("Page 112", Text(4));
-        Assert.DoesNotContain("Never Started", cut.Markup);
-        // Each caption carries its small type icon.
-        Assert.Equal(5, cut.FindAll(".continue-sublabel svg").Count);
+        foreach (var device in new[] { "phone", "desktop" })
+        {
+            await UseAsync(device);
+            var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = Seed() }));
+            var cards = cut.FindAll(".pickup-card");
+            // The never-started movie is out; the rest run newest activity first: audiobook, episode, album, next-up episode, book.
+            Assert.Equal(5, cards.Count);
+            string Text(int index) => cards[index].TextContent;
+            Assert.Contains("The Martian", Text(0));
+            Assert.Contains("Listen", Text(0));
+            Assert.Contains("The Continental", Text(1));
+            Assert.Contains("S1 E2 · Night 1", Text(1));
+            Assert.Contains("23 min left", Text(1));
+            Assert.Contains("Jagged Little Pill", Text(2));
+            Assert.Contains("Recently played", Text(2));
+            Assert.Contains("S1 E1 · Pilot", Text(3));
+            Assert.Contains("Leviathan Wakes", Text(4));
+            Assert.Contains("42% complete", Text(4));
+            Assert.DoesNotContain("Never Started", cut.Markup);
+        }
     }
 
     [Fact]
@@ -108,16 +105,6 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
         Assert.Empty(zero.FindAll("[role='progressbar']"));
         var some = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [Seed()[0]] }));
         Assert.NotEmpty(some.FindAll("[role='progressbar']"));
-    }
-
-    [Fact]
-    public async Task DesktopKeepsTheThreeGroupsSoThePhoneRowIsPhoneOnly()
-    {
-        await UseAsync("desktop");
-        var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = Seed() }));
-        Assert.Empty(cut.FindAll(".continue-mixed"));
-        Assert.NotEmpty(cut.FindAll(".continue-watching"));
-        Assert.Empty(cut.FindAll(".continue-sublabel"));
     }
 
     [Fact]

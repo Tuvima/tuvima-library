@@ -30,6 +30,16 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
     private readonly List<(string LibraryId, bool Enabled)> _lookupSwitches = [];
     private readonly List<string> _activityReads = [];
     private VaultMoveDestinationDto? _destination = new("movies", VaultMoveDestinationStates.None, null, null, 0);
+    private VaultMovePreviewDto _preview = new()
+    {
+        State = VaultMovePreviewStates.Ready,
+        Items = 3,
+        Bytes = 3L * 1024 * 1024 * 1024,
+        SourceName = "Library Movies",
+        DestinationName = "Private Movies",
+        Fingerprint = "f1",
+    };
+    private readonly List<StartVaultMoveRequest> _startedMoves = [];
     private bool _lookupSaves = true;
     private LibrariesConfigurationDto _configuration = BuildConfiguration();
 
@@ -54,7 +64,7 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
         Area = "watch",
         Kind = "catalogued",
         MediaTypes = ["Movies"],
-        Access = "vault",
+        IsVault = true,
         MetadataPolicy = policy,
         Sources = [new() { Id = "vault-movies-1", Path = "E:\\Private\\Movies", ManagementMode = "existing_library", AccessMode = "read_only" }],
     };
@@ -74,7 +84,6 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetFolderJobsAsync), _ => Task.FromResult<IReadOnlyList<FolderJobStatusDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetExcludedFilesAsync), _ => Task.FromResult<IReadOnlyList<ExcludedFileDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryFolderTitlesAsync), _ => Task.FromResult<LibraryFolderTitlesDto?>(new() { Counts = [] }));
-            stub.SetHandler(nameof(IEngineApiClient.GetLibraryAccessAsync), _ => Task.FromResult<LibraryAccessGrantsDto?>(null));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryActivityAsync), args =>
             {
                 _activityReads.Add((string)args![0]!);
@@ -105,6 +114,18 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetNsfwStatusAsync), _ => Task.FromResult(
                 VaultCall<NsfwStatusDto>.Ok(new NsfwStatusDto { Mode = "allowed", Unlocked = true, HasPin = true, IdleLockMinutes = 60 })));
             stub.SetHandler(nameof(IEngineApiClient.GetVaultMoveDestinationAsync), _ => Task.FromResult(_destination));
+            stub.SetHandler(nameof(IEngineApiClient.PreviewVaultMoveAsync), _ => Task.FromResult(VaultCall<VaultMovePreviewDto>.Ok(_preview)));
+            stub.SetHandler(nameof(IEngineApiClient.StartVaultMoveAsync), args =>
+            {
+                _startedMoves.Add((StartVaultMoveRequest)args![0]!);
+                return Task.FromResult(VaultCall<StartVaultMoveResultDto>.Ok(new StartVaultMoveResultDto
+                {
+                    Started = true,
+                    Job = new VaultMoveJobDto { Id = Guid.NewGuid(), State = "running", Total = 3, Moved = 0 },
+                }));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetVaultMovesAsync), _ => Task.FromResult(
+                VaultCall<IReadOnlyList<VaultMoveJobDto>>.Ok([])));
             stub.SetHandler(nameof(IEngineApiClient.SetVaultOnlineLookupAsync), args =>
             {
                 var enabled = (bool)args![1]!;
@@ -188,8 +209,8 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
 
         await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
 
-        dialogs.WaitForAssertion(() => Assert.Contains("Add folder", dialogs.Markup, StringComparison.Ordinal));
-        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Add"));
+        dialogs.WaitForAssertion(() => Assert.Contains("Choose your ", dialogs.Markup, StringComparison.Ordinal));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder"));
         Assert.DoesNotContain("Vault", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -206,27 +227,44 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
         Assert.DoesNotContain(cut.FindAll("[role=menuitem]"), item => Text(item).Contains("Vault", StringComparison.OrdinalIgnoreCase));
 
         await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
-        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Add"));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder"));
         Assert.DoesNotContain("Vault", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task AddFolderOffersTheVaultSwitchToAnAdministratorAndAVaultFolderGoesToTheVaultNotToThisLibrary()
+    public async Task AddFolderOnAnOrdinaryLibraryOffersNoVaultChoiceEvenToAnAdministratorAndTheFolderJoinsThatLibrary()
     {
         SignIn(administrator: true);
         var dialogs = Render<AppDialogHost>();
-        var cut = OpenPage(_configuration.Libraries[0]);
+        var cut = OpenPage(_configuration.Libraries[0], vaultVisible: true);
 
         await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
-        dialogs.WaitForAssertion(() => Assert.Contains("Add as a Vault folder", dialogs.Markup, StringComparison.Ordinal));
-        dialogs.Find("[role=switch]").Change(true);
-        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Add" && !button.HasAttribute("disabled")));
-        await dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Add" && !button.HasAttribute("disabled")));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
+        Assert.DoesNotContain("Vault", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(dialogs.FindAll("[role=switch]"));
+        await dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(_mutations));
+        Assert.Empty(_vaultFolders);
+    }
+
+    [Fact]
+    public async Task AddFolderOnAVaultLibraryAlwaysAddsToTheVaultAndOffersOnlyTheManagedFolderSwitchOffByDefault()
+    {
+        SignIn(administrator: true);
+        var dialogs = Render<AppDialogHost>();
+        var cut = OpenPage(VaultMovies(), vaultVisible: true);
+
+        await cut.ClickAsync(page => page.FindAll(".libpage__actions button").First(button => Text(button) == "Add folder"));
+        dialogs.WaitForAssertion(() => Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
+        var managed = Assert.Single(dialogs.FindAll("[role=switch]"));
+        Assert.False(managed.HasAttribute("checked"));
+        await dialogs.ClickAsync(host => host.FindAll("button").First(button => Text(button) == "Choose folder" && !button.HasAttribute("disabled")));
 
         cut.WaitForAssertion(() => Assert.Single(_vaultFolders));
         Assert.Equal("movies", _vaultFolders[0].KindKey);
-        Assert.Equal("G:\\More\\Movies", _vaultFolders[0].FolderPath);
+        Assert.False(_vaultFolders[0].Managed);
         Assert.Empty(_mutations);
     }
 
@@ -277,7 +315,7 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
 
         var lookup = cut.Find("section.vault-lookup");
         Assert.False(lookup.QuerySelector("[role=switch]")!.HasAttribute("checked"));
-        Assert.Contains("nothing is sent to online services until then", lookup.TextContent + cut.Find("[data-testid=vault-lookup-privacy]").TextContent, StringComparison.Ordinal);
+        Assert.Contains(LibraryLookupRules.VaultPrivacyNote, cut.Find("[data-testid=vault-lookup-privacy]").TextContent, StringComparison.Ordinal);
         Assert.Empty(_activityReads);
     }
 
@@ -306,22 +344,6 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AddFolderDialogOnAVaultLibraryAlwaysAddsToTheVaultAndDrawsNoSwitch()
-    {
-        var dialogs = Render<AppDialogHost>();
-        Services.GetRequiredService<IAppDialogService>();
-        var parameters = new AppDialogParameters<LibraryAddFolderDialog>
-        {
-            { component => component.KindKey, "movies" },
-            { component => component.ForceVault, true },
-        };
-        _ = Services.GetRequiredService<IAppDialogService>().ShowAsync<LibraryAddFolderDialog>(string.Empty, parameters, LibraryAddFolderDialog.DialogOptions);
-
-        dialogs.WaitForElement(".add-folder");
-        Assert.Empty(dialogs.FindAll("[role=switch]"));
-    }
-
-    [Fact]
     public void MoveToVaultSaysThereIsNoVaultLibraryYetAndOffersToAddOneWithoutMovingAnything()
     {
         var dialogs = OpenMove();
@@ -343,15 +365,52 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MoveToVaultNamesTheDestinationAndStatesPlainlyThatNothingHasBeenMoved()
+    public void MoveToVaultCountsWhatWouldMoveAndNamesTheDestinationWithoutAnyTitle()
     {
         _destination = new("movies", VaultMoveDestinationStates.Ready, Guid.Parse(VaultMoviesId), "Private Movies", 1);
 
         var dialogs = OpenMove();
 
         var ready = dialogs.WaitForElement("[data-testid=move-to-vault-ready]");
+        Assert.Contains("3 items (3 GB)", Text(ready), StringComparison.Ordinal);
         Assert.Contains("Private Movies", Text(ready), StringComparison.Ordinal);
-        Assert.Contains("Nothing has been moved.", dialogs.Markup, StringComparison.Ordinal);
+        Assert.Empty(dialogs.FindAll("[role=switch]"));
+        Assert.Contains(dialogs.FindAll("button"), button => Text(button) == "Move to Vault");
+    }
+
+    [Fact]
+    public void MoveToVaultOnAReadOnlyFolderSaysTheOriginalsStayAndOffersRemovingThemAsASeparateChoiceOffByDefault()
+    {
+        _destination = new("movies", VaultMoveDestinationStates.Ready, Guid.Parse(VaultMoviesId), "Private Movies", 1);
+        _preview = new()
+        {
+            State = VaultMovePreviewStates.Ready,
+            Items = 1,
+            Bytes = 10,
+            SourceName = "Library Movies",
+            DestinationName = "Private Movies",
+            OriginalsStay = true,
+            Fingerprint = "f2",
+        };
+
+        var dialogs = OpenMove();
+
+        dialogs.WaitForElement("[data-testid=move-to-vault-originals]");
+        var remove = Assert.Single(dialogs.FindAll("[role=switch]"));
+        Assert.False(remove.HasAttribute("checked"));
+    }
+
+    [Fact]
+    public void MoveToVaultSaysWhyWhenTheEngineWillNotMoveTheFolder()
+    {
+        _destination = new("movies", VaultMoveDestinationStates.Ready, Guid.Parse(VaultMoviesId), "Private Movies", 1);
+        _preview = new() { State = VaultMovePreviewStates.NothingToMove, Message = "Nothing in this folder can be moved." };
+
+        var dialogs = OpenMove();
+
+        var blocked = dialogs.WaitForElement("[data-testid=move-to-vault-blocked]");
+        Assert.Contains("Nothing in this folder can be moved.", Text(blocked), StringComparison.Ordinal);
+        Assert.DoesNotContain(dialogs.FindAll("button"), button => Text(button) == "Move to Vault");
     }
 
     [Fact]

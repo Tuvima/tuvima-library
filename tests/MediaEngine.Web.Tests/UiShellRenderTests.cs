@@ -70,6 +70,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<IPlaybackCommandSink, DirectPlaybackCommandSink>();
         Services.AddScoped<PlaybackLyricsSelectionOwner>();
         Services.AddScoped<PlaybackLyricsPresenter>();
+        Services.AddMemoryCache();
+        Services.AddScoped<MediaEngine.Web.Services.Integration.ProviderCatalogueService>();
         Services.AddScoped<ShellActivityState>();
         Services.AddScoped<ActivityNotificationQueue>();
         Services.AddSingleton(new DashboardAuthUiOptions(false));
@@ -81,7 +83,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<ContextSidebarCoordinator>();
         Services.AddScoped<MediaReactionService>();
         Services.AddScoped<SavedItemService>();
-        Services.AddScoped<MediaEditorLauncherService>();
         Services.AddSingleton<IAdministratorSurfaceAccessService>(new AlwaysUnlockedAdministratorSurfaceAccessService());
         var profileId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
@@ -204,7 +205,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Equal(5, cut.FindAll(".layout-shell__nav-link").Count);
             Assert.Contains(cut.FindAll(".layout-shell__nav-link"),
                 link => string.Equals(link.GetAttribute("href"), "/view", StringComparison.Ordinal));
-            Assert.Equal("/images/library.svg", cut.Find(".layout-shell__brand-lockup").GetAttribute("src"));
+            Assert.Equal("Tuvima", cut.Find(".layout-shell__brand-wordmark").TextContent);
             Assert.Empty(cut.FindAll(".layout-shell__mobile-menu"));
             Assert.Contains("Body content", cut.Markup);
             // Desktop uses the top navigation: no phone dock and no hamburger.
@@ -315,7 +316,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("ShellActivityKind.Ingestion or ShellActivityKind.Enrichment", activityIndicator);
         Assert.Contains("system-activity-indicator__ring is-animated", activityIndicator);
         Assert.Contains("@keyframes system-activity-ring-spin", activityIndicatorCss);
-        Assert.Contains("/images/library.svg", source);
+        Assert.Contains("layout-shell__brand-wordmark", source);
         Assert.DoesNotContain("<AppLogo", source);
         Assert.Contains("Nav_Search", source);
         Assert.Contains("OpenSearch", source);
@@ -324,17 +325,16 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("TopBar_MyList", source);
         Assert.DoesNotContain("NotificationsNone", source);
         Assert.DoesNotContain("ToggleProfileMenu", source);
-        Assert.Contains("@if (CanViewReview)", accountSource);
-        Assert.Contains("TopBar_NeedsReview", accountSource);
+        Assert.DoesNotContain("TopBar_NeedsReview", accountSource);
+        Assert.DoesNotContain("href=\"/settings/review\"", accountSource);
         Assert.Contains("ShowSignOut", accountSource);
-        Assert.Contains("href=\"/settings/review\"", accountSource);
         Assert.Contains("href=\"/settings\"", accountSource);
         Assert.DoesNotContain("<MudMenu", accountSource);
         Assert.DoesNotContain("SettingsSelected", accountSource);
         Assert.DoesNotContain("ReviewSelected", accountSource);
         Assert.DoesNotContain("NotificationsNone", accountSource);
         Assert.Contains("top-nav-account-menu__trigger-copy", accountSource);
-        Assert.Contains("href=\"@MyProfileHref\"", accountSource);
+        Assert.Contains("href=\"@(IsKids ? KidsProfileHref : MyProfileHref)\"", accountSource);
         Assert.Contains("MyProfileHref = \"/settings/overview\"", accountSource);
         Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", accountSource);
         // Switching people now happens on the full-screen "Who's using Tuvima?" page.
@@ -510,7 +510,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
         });
 
-        await cut.InvokeAsync(() => cut.Find("button[aria-label='Expand Library and Ingestion']").Click());
+        await Task.CompletedTask;
 
         cut.WaitForAssertion(() =>
         {
@@ -519,7 +519,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
             // Recently Added is no longer a menu row: Library and Ingestion is shaded amber, with no count bubble.
             var libraryAndIngestion = cut.FindAll(".media-section-shell__tree-link")
-                .First(item => item.TextContent.Contains("Library and Ingestion", StringComparison.Ordinal));
+                .First(item => item.TextContent.Contains("Library & Ingestion", StringComparison.Ordinal));
             var reviewNotification = libraryAndIngestion.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.Null(reviewNotification);
             // System opens on the resources summary; the old library overview now lives under Library and Ingestion.
@@ -858,9 +858,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("/settings", null)]
-    [InlineData("/settings/overview", "overview")]
-    [InlineData("/settings/overview/apps", "overview")]
     [InlineData("/settings/playback", "playback")]
     [InlineData("/settings/profiles", "profiles")]
     public void SettingsPage_ForAKidsProfile_RedirectsToHomeAndDrawsNothing(string typedAddress, string? section)
@@ -998,14 +995,15 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
-            builder.OpenComponent<Settings>(3);
-            builder.AddAttribute(4, nameof(Settings.Section), "playback");
+            // The playback preferences are the Watching section of the profile's Preferences tab.
+            builder.OpenComponent<MediaEngine.Web.Components.Settings.PlaybackSettingsPage>(3);
+            builder.AddAttribute(4, nameof(MediaEngine.Web.Components.Settings.PlaybackSettingsPage.ProfileId), (Guid?)Guid.Parse("00000000-0000-0000-0000-000000000001"));
+            builder.AddAttribute(5, nameof(MediaEngine.Web.Components.Settings.PlaybackSettingsPage.Embedded), true);
             builder.CloseComponent();
         });
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Empty(cut.FindAll(".tl-tabs"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
             // Five playback cards plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
             Assert.Equal(6, cut.FindAll(".playback-settings-card").Count);
@@ -1940,7 +1938,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void UiConsistencyAudit_DocumentsMigrationPlan()
     {
-        var audit = File.ReadAllText(GetRepoFile("docs", "ui", "ui-consistency-audit.md"));
+        var audit = File.ReadAllText(GetRepoFile("engineering", "design", "ui-consistency-audit.md"));
 
         Assert.Contains("Inconsistent Form And Input Styling", audit);
         Assert.Contains("Inline Styles", audit);

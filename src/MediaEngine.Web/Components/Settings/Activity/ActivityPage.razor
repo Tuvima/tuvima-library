@@ -263,7 +263,8 @@
                                              Expanded="@_expanded.Contains(current.Id)"
                                              LoadingSongs="@_songsLoading.Contains(current.Id)"
                                              Songs="@SongsOf(current)"
-                                             OnToggle="@(() => ToggleAsync(current))" />
+                                             OnToggle="@(() => ToggleAsync(current))"
+                                             OnFind="OnSearchDebounced" />
                             }
                         </ul>
                     </section>

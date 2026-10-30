@@ -135,7 +135,7 @@ public sealed partial class UiShellRenderTests
                 .Where(text => text.Length > 0)
                 .Distinct()
                 .ToArray();
-            Assert.Equal(["Settings", "Server", "Library and Ingestion", "Needs Review"], trail);
+            Assert.Equal(["Settings", "Server", "Library & Ingestion", "Needs Review"], trail);
             Assert.DoesNotContain(host.FindAll(".media-section-shell__tree-link"),
                 link => link.TextContent.Contains("Needs Review", StringComparison.Ordinal));
         });

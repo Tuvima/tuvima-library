@@ -24,7 +24,8 @@ else
                           ImageUrl="@PreferredImageUrl"
                           Initials="@Credit.FallbackInitials"
                           Role="@Credit.PrimaryRole"
-                          Size="@AvatarSize" />
+                          Size="@AvatarSize"
+                          DrawnPx="@AvatarDrawnPx" />
         </div>
         <div class="tl-credit-card__body">
             <div class="tl-credit-card__name">@Credit.DisplayName</div>
@@ -54,6 +55,10 @@ else
     }
 
     private string AvatarSize => Compact ? "sm" : "md";
+
+    // The card draws the face across its full width (compact up to 8.75rem, full up to about 11rem), so it asks
+    // for the 320 px copy, not the 96 px badge copy the "sm" avatar style would pick on its own.
+    private int AvatarDrawnPx => Compact ? 140 : 176;
 
     private string? PreferredImageUrl
         => !string.IsNullOrWhiteSpace(Credit.CharacterName) && !string.IsNullOrWhiteSpace(Credit.CharacterImageUrl)

@@ -59,11 +59,11 @@ public sealed class IntegrationHealthTests
     [Fact]
     public void AFailingWebhook_ShadesTheIntegrationsRowRedWithBroken_OnlyOnAComputer()
     {
-        var desktop = Row(new SettingsMenuContext(true, false, IsMobile: false, 0, false, IntegrationsBroken: true));
+        var desktop = Row(new SettingsMenuContext(true, IsMobile: false, 0, false, IntegrationsBroken: true));
         Assert.Equal(MediaSectionAttentionLevel.Blocked, desktop.Attention);
         Assert.Equal("Broken", desktop.AttentionLabel);
 
-        var healthy = Row(new SettingsMenuContext(true, false, IsMobile: false, 0, false));
+        var healthy = Row(new SettingsMenuContext(true, IsMobile: false, 0, false));
         Assert.Equal(MediaSectionAttentionLevel.None, healthy.EffectiveAttention);
     }
 

@@ -38,20 +38,17 @@ public sealed class Profile
     /// </summary>
     public string? AvatarIcon { get; set; }
 
-    /// <summary>
-    /// The highest rating this person may see (<c>G</c>, <c>PG</c>, <c>PG-13</c> or <c>R</c>, see <see cref="ProfileContentLimits"/>).
-    /// <see langword="null"/> means Everything. It is set by a household administrator and does not depend on <see cref="Role"/>.
-    /// </summary>
-    public string? ContentLimit { get; set; }
-
-    /// <summary>True when items with no recognised rating stay visible although a <see cref="ContentLimit"/> is set.</summary>
-    public bool ContentLimitAllowUnrated { get; set; }
-
     /// <summary>Absolute path to the uploaded avatar image, when one has been stored.</summary>
     public string? AvatarImagePath { get; set; }
 
     /// <summary>Access level.  Determines which Settings tabs are visible.</summary>
     public ProfileRole Role { get; set; } = ProfileRole.RestrictedProfile;
+
+    /// <summary>
+    /// True for a Kid's profile (the restricted role). What it may see is the household's Kid settings, read live; the profile holds no
+    /// limit of its own. A Kid's profile can never hold Vault access or look after a household.
+    /// </summary>
+    public bool IsKidsProfile => Role == ProfileRole.RestrictedProfile;
 
     /// <summary>When this profile was created.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
@@ -82,6 +79,12 @@ public sealed class Profile
     /// only while a user is attached. Changed only through the profile access repository.
     /// </summary>
     public bool IsHouseholdAdministrator { get; set; }
+
+    /// <summary>
+    /// Where this person sits in the household's order (Who's watching and the profile menu list people by it, lowest first).
+    /// Set by the Engine: a new person gets the next position; only the household's reorder action moves people.
+    /// </summary>
+    public int SortPosition { get; set; }
 
     /// <summary>
     /// Raised on every change to what this profile may do, so open screens and sessions re-check. Always above zero.

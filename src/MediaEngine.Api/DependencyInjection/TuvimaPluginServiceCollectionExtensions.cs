@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugin.CommercialSkip;
 using MediaEngine.Plugin.FandomLore;
@@ -44,6 +45,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         // The one merged list of kinds (built-in plus switched-on plugins) that ingestion, the lookup guard, text tracks and artwork read.
         services.AddSingleton<ILibraryKindSource>(sp => sp.GetRequiredService<MediaEngine.Api.Services.Settings.LibraryKindListService>());
         services.AddSingleton<ProviderCapabilityCatalogue>();
+        services.AddSingleton<MediaEngine.Api.Services.Settings.PipelineFlowEditor>();
         services.AddSingleton<PluginDirectoryService>();
         services.AddSingleton<PluginSignatureVerifier>();
         services.AddSingleton<PluginPackageInstaller>();
@@ -68,7 +70,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginCircuitBreaker>();
         services.AddSingleton<PluginActivityService>();
         services.AddSingleton<PluginLibraryLimitService>();
-        services.AddSingleton<IVaultSectionOnlineLookup, VaultSectionOnlineLookupOff>();
+        services.AddSingleton<IVaultSectionOnlineLookup, VaultSectionOnlineLookup>();
         services.AddSingleton<IPluginAccessGate, PluginAccessGate>();
         services.AddSingleton<PluginRemovalService>();
         services.AddSingleton<PluginCheckNowService>();

@@ -158,7 +158,13 @@ public static class TuvimaProviderServiceCollectionExtensions
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
         var providerConfigurations = configLoader.LoadAllProviders();
-        services.AddSingleton(new ProviderStartupSnapshot(providerConfigurations.Where(config => config.PluginId is not null && config.Enabled).Select(config => config.Name)));
+
+        // The sources of switched-on plugins are built by LiveMetadataProviders so they can join while the Engine runs.
+        services.AddSingleton(new ProviderStartupSnapshot(
+            LiveMetadataProviders.IsPluginSource(providerConfigurations).Where(config => config.Enabled).Select(config => config.Name)));
+        services.AddSingleton<LiveMetadataProviders>();
+        services.AddSingleton<IMetadataSourceRefresher>(sp => sp.GetRequiredService<LiveMetadataProviders>());
+        services.AddSingleton<IEnumerable<IExternalMetadataProvider>>(sp => sp.GetRequiredService<LiveMetadataProviders>());
         foreach (var providerConfig in ConfigDrivenProviders(providerConfigurations).Where(config => config.RegistrationOrder <= 0))
         {
             RegisterConfigDrivenProvider(services, providerConfig);
@@ -201,7 +207,8 @@ public static class TuvimaProviderServiceCollectionExtensions
     }
 
     private static IEnumerable<ProviderConfiguration> ConfigDrivenProviders(IEnumerable<ProviderConfiguration> configurations) =>
-        configurations.Where(config => string.Equals(config.AdapterType, "config_driven", StringComparison.OrdinalIgnoreCase));
+        configurations.Where(config => config.PluginId is null
+            && string.Equals(config.AdapterType, "config_driven", StringComparison.OrdinalIgnoreCase));
 
     private static void RegisterConfigDrivenProvider(IServiceCollection services, ProviderConfiguration providerConfig)
     {
@@ -211,7 +218,7 @@ public static class TuvimaProviderServiceCollectionExtensions
             providerConfig.HttpClient?.UserAgent);
 
         var capturedConfig = providerConfig;
-        services.AddSingleton<IExternalMetadataProvider>(sp =>
+        services.AddKeyedSingleton<IExternalMetadataProvider>(LiveMetadataProviders.StartupKey, (sp, _) =>
             new ConfigDrivenAdapter(
                 capturedConfig,
                 sp.GetRequiredService<IHttpClientFactory>(),
@@ -330,7 +337,7 @@ public static class TuvimaProviderServiceCollectionExtensions
                 sp.GetRequiredService<IConfigurationLoader>(),
                 sp.GetService<Tuvima.Wikidata.WikidataReconciler>(),
                 sp.GetRequiredService<CommonsImageResolver>()));
-        services.AddSingleton<IExternalMetadataProvider>(sp =>
+        services.AddKeyedSingleton<IExternalMetadataProvider>(LiveMetadataProviders.StartupKey, (sp, _) =>
             sp.GetRequiredService<ReconciliationAdapter>());
     }
 }

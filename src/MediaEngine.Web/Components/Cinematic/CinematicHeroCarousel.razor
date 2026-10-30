@@ -63,7 +63,7 @@ else if (Slides.Count > 0)
                    href="@ActiveDetailsUrl"
                    aria-label="@($"Open details for {ActiveHero.Title}")"></a>
 
-                <div class="cinematic-hero-carousel__context">@CarouselContextLabel</div>
+                <div class="cinematic-hero-carousel__context" title="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>
 
                 <DetailHeroContent Title="@ActiveHero.Title"
                                    UseLogo="@UsesLogo"
@@ -225,7 +225,10 @@ else if (Slides.Count > 0)
         ? ActiveHero.Description
         : StringHelpers.FirstNonBlank(ActiveHero.Tagline, ActiveHero.Tldr, ActiveHero.Description);
     private string? DisplaySubtitle => ActiveHero.EpisodeContext is not null || !IsWatchHero ? ActiveHero.Subtitle : null;
-    private string CarouselContextLabel => IsContinuation
+    private bool IsSuggested => !IsContinuation && !string.IsNullOrWhiteSpace(ActiveHero.SuggestedBy);
+    private string CarouselContextLabel => IsSuggested
+        ? $"Suggested by {ActiveHero.SuggestedBy}{(ActiveHero.SuggestedByAi ? " · AI" : string.Empty)}"
+        : IsContinuation
         ? ActiveEntityType switch
         {
             DetailEntityType.Movie or DetailEntityType.TvShow => "Continue Watching",

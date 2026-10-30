@@ -98,7 +98,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
             {
                 var request = (CreateVaultLibraryRequest)args![0]!;
                 _created.Add(request);
-                return Task.FromResult(_createOutcome == VaultOutcome.Ok && request.AdminPin == AdminPin
+                return Task.FromResult(_createOutcome == VaultOutcome.Ok && (request.AdminPin == AdminPin || !_hasPin)
                     ? VaultCall<VaultLibraryDto>.Ok(new VaultLibraryDto { Id = "vault-1", LookupSource = "none" })
                     : VaultCall<VaultLibraryDto>.Of(_createOutcome == VaultOutcome.Ok ? VaultOutcome.PinRequired : _createOutcome));
             });
@@ -106,7 +106,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
             {
                 var request = (AttachVaultFolderRequest)args![1]!;
                 _attached.Add(((string)args[0]!, request));
-                if (request.AdminPin != AdminPin)
+                if (request.AdminPin != AdminPin && _hasPin)
                 {
                     return Task.FromResult(VaultCall<VaultLibraryDto>.Of(VaultOutcome.PinRequired));
                 }
@@ -160,8 +160,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
     private async Task LoadAsync(bool kids = false) => await State.RefreshAsync(Me, kids);
 
-    private static ProfileViewModel Person(Guid id, bool kids = false, string? limit = null, bool hasPin = false) =>
-        new(id, "Sam", "#C9922E", kids ? "RestrictedProfile" : "Profile", DateTimeOffset.UtcNow, HasPin: hasPin, ContentLimit: limit);
+    private static ProfileViewModel Person(Guid id, bool kids = false, bool hasPin = false) =>
+        new(id, "Sam", "#C9922E", kids ? "RestrictedProfile" : "Profile", DateTimeOffset.UtcNow, HasPin: hasPin);
 
     // -- Off and Kids profiles: not drawn, not even present -------------------------------------------------------------
 
@@ -200,8 +200,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         menu.Find(".top-nav-account-menu__trigger").Click();
         AssertNothingDrawn(menu.Markup);
 
-        // A Kids or limited profile's own page, and an administrator looking at one, offer nothing either.
-        foreach (var person in new[] { Person(Me, kids: true), Person(Me, limit: "PG") })
+        // A Kids profile's own page, and an administrator looking at one, offer nothing either.
+        foreach (var person in new[] { Person(Me, kids: true) })
         {
             foreach (var administrator in new[] { false, true })
             {
@@ -715,19 +715,21 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AddToVault_ForAnAdministratorWithoutAPin_AsksThemToSetOneFirst_AndCreatesNothing()
+    public async Task AddToVault_ForAnAdministratorWithoutAPin_AsksNoPin_AndStillAddsTheFolder()
     {
+        _hasPin = false;
         var (dialogs, onboarding) = await OnboardingAsync();
 
-        var task = onboarding.AddFolderAsync("/media/adult", Me, administratorHasPin: false);
-        dialogs.WaitForAssertion(() => Assert.Contains("Set your PIN first", dialogs.Markup));
-        await PressAsync(dialogs, "Open my profile");
+        var task = onboarding.AddFolderAsync("/media/adult");
+        dialogs.WaitForAssertion(() => Assert.Contains("Adults only", dialogs.Markup));
+        await PressAsync(dialogs, "I confirm");
         var result = await task;
 
-        Assert.Equal(VaultOnboardingOutcome.Cancelled, result.Outcome);
-        Assert.Empty(_created);
-        Assert.DoesNotContain(nameof(IEngineApiClient.CreateVaultLibraryAsync), _stub.Calls);
-        dialogs.WaitForAssertion(() => Assert.EndsWith($"/settings/profiles/{Me:D}", Navigation.Uri));
+        Assert.Equal(VaultOnboardingOutcome.FolderAttached, result.Outcome);
+        Assert.DoesNotContain("Enter your PIN to continue", dialogs.Markup);
+        Assert.Single(_created);
+        Assert.True(string.IsNullOrEmpty(_created[0].AdminPin));
+        Assert.Single(_attached);
     }
 
     [Fact]
@@ -735,7 +737,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     {
         var (dialogs, onboarding) = await OnboardingAsync();
 
-        var task = onboarding.AddFolderAsync("/media/adult", Me, administratorHasPin: true);
+        var task = onboarding.AddFolderAsync("/media/adult");
         dialogs.WaitForAssertion(() => Assert.Contains("Adults only", dialogs.Markup));
         Assert.Contains("visible on disk", dialogs.Markup);
         await PressAsync(dialogs, "I confirm");
@@ -767,7 +769,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         var (dialogs, onboarding) = await OnboardingAsync();
         _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
 
-        var task = onboarding.AddFolderAsync("/media/adult", Me, administratorHasPin: true);
+        var task = onboarding.AddFolderAsync("/media/adult");
         dialogs.WaitForAssertion(() => Assert.Contains("Adults only", dialogs.Markup));
         await PressAsync(dialogs, "I confirm");
         dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
@@ -786,7 +788,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         var (dialogs, onboarding) = await OnboardingAsync();
         _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
 
-        var task = onboarding.AddFolderAsync("/media/adult", Me, administratorHasPin: true);
+        var task = onboarding.AddFolderAsync("/media/adult");
         await PressAsync(dialogs, "I confirm");
         dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
         await TypePinAsync(dialogs, "9999");
@@ -807,7 +809,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         var (dialogs, onboarding) = await OnboardingAsync();
         _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
 
-        var task = onboarding.AddFolderAsync(folder, Me, administratorHasPin: true);
+        var task = onboarding.AddFolderAsync(folder);
         await PressAsync(dialogs, "I confirm");
         dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
         await TypePinAsync(dialogs, AdminPin);
@@ -826,7 +828,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
         _stub.SetHandler(nameof(IEngineApiClient.AttachVaultFolderAsync), _ => Task.FromResult(VaultCall<VaultLibraryDto>.Of(VaultOutcome.Failed)));
 
-        var task = onboarding.AddFolderAsync("/media/adult", Me, administratorHasPin: true);
+        var task = onboarding.AddFolderAsync("/media/adult");
         await PressAsync(dialogs, "I confirm");
         dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
         await TypePinAsync(dialogs, AdminPin);
@@ -845,7 +847,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         await LoadAsync();
         var onboarding = Services.GetRequiredService<VaultLibraryOnboarding>();
 
-        var result = await onboarding.AddFolderAsync("/media/adult", Me, administratorHasPin: true);
+        var result = await onboarding.AddFolderAsync("/media/adult");
 
         Assert.Equal(VaultOnboardingOutcome.NotAvailable, result.Outcome);
         Assert.DoesNotContain(nameof(IEngineApiClient.GetVaultLibrariesAsync), _stub.Calls);
@@ -890,7 +892,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         Assert.Equal([null], _unlockPins);
     }
 
-    // -- "Show Vault in the navigation bar" (Library pages D20) ----------------------------------------------------------------
+    // -- "Show Vault in the menu" (Library pages D20) ----------------------------------------------------------------
 
     [Fact]
     public async Task TheNavigationSwitch_IsOffByDefault_AndTheVaultEntryAppearsOnlyWhenAccessAndTheSwitchAreBothOn()
@@ -905,8 +907,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
         var cut = Render<VaultProfileSettings>(parameters => parameters
             .Add(p => p.Person, Person(Me, hasPin: true)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
-        cut.WaitForAssertion(() => Assert.Contains("Show Vault in the navigation bar", cut.Markup));
-        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show Vault in the navigation bar").Change(true));
+        cut.WaitForAssertion(() => Assert.Contains("Show Vault in the menu", cut.Markup));
+        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show Vault in the menu").Change(true));
 
         Assert.Equal([true], _navigationSaves);
         Assert.True(State.ShowInNavigation);
@@ -915,7 +917,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
             Assert.Contains(ShellNavigation.WithVault(links, State.ShowInNavigation), link => link.Key == "Vault" && link.Path == "/vault");
         }
 
-        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show Vault in the navigation bar").Change(false));
+        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show Vault in the menu").Change(false));
         Assert.Equal([true, false], _navigationSaves);
         Assert.False(State.ShowInNavigation);
     }
@@ -1096,6 +1098,34 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AnAdministrator_TicksTheVaultSectionsAnAdultMayOpen_AndNothingIsTickedByDefault()
+    {
+        UseEngine();
+        _mode = null;
+        var saved = new List<IReadOnlyList<string>>();
+        _stub.SetHandler(nameof(IEngineApiClient.GetProfileVaultSectionsAsync), _ => Task.FromResult(VaultCall<ProfileVaultSectionsDto>.Ok(
+            new ProfileVaultSectionsDto { OpensAll = false, Sections = [new VaultSectionDto { LibraryId = "vault-1", Name = "Private films", Granted = false }] })));
+        _stub.SetHandler(nameof(IEngineApiClient.SetProfileVaultSectionsAsync), args =>
+        {
+            var ids = (IReadOnlyList<string>)args![1]!;
+            saved.Add(ids);
+            return Task.FromResult(VaultCall<ProfileVaultSectionsDto>.Ok(
+                new ProfileVaultSectionsDto { OpensAll = false, Sections = [new VaultSectionDto { LibraryId = "vault-1", Name = "Private films", Granted = ids.Contains("vault-1") }] }));
+        });
+        var cut = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Other, hasPin: true)).Add(p => p.IsSelf, false).Add(p => p.IsAdministrator, true).Add(p => p.AdministratorHasPin, true));
+        cut.WaitForAssertion(() => Assert.Contains("data-profile-section=\"nsfw-access\"", cut.Markup));
+        await cut.InvokeAsync(() => Switch(cut, "Vault mode for Sam").Change(true));
+
+        cut.WaitForAssertion(() => Assert.Contains("Private films", cut.Markup));
+        Assert.False(Switch(cut, "Private films").HasAttribute("checked"));
+
+        await cut.InvokeAsync(() => Switch(cut, "Private films").Change(true));
+
+        cut.WaitForAssertion(() => Assert.Equal([["vault-1"]], saved));
+    }
+
+    [Fact]
     public async Task ForAProfileWithNoPin_VaultModeStartsWithoutThePinQuestion_AndAskingForItIsRefusedInPlainWords()
     {
         UseEngine();
@@ -1117,15 +1147,14 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AnAdministratorWithNoProfilePin_IsToldToSetOneFirst_AndGetsNoControls()
+    public void AnAdministratorWithNoProfilePin_IsToldAPinIsStronglySuggested_AndStillGetsTheControls()
     {
         UseEngine();
         var cut = Render<VaultProfileSettings>(parameters => parameters
             .Add(p => p.Person, Person(Other)).Add(p => p.IsSelf, false).Add(p => p.IsAdministrator, true).Add(p => p.AdministratorHasPin, false));
 
-        Assert.Contains("Set your own profile PIN first", cut.Markup);
-        Assert.Empty(cut.FindAll("select"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Save access");
+        Assert.Contains("A PIN is strongly suggested", cut.Find("[data-pin-suggestion]").TextContent);
+        Assert.NotEmpty(cut.FindAll("input[role='switch']"));
     }
 
     // -- Helpers ----------------------------------------------------------------------------------------------------------

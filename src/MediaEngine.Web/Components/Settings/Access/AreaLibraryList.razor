@@ -1,27 +1,37 @@
 @namespace MediaEngine.Web.Components.Settings
 @* Kept on the Settings namespace although it sits in Access/, like the Libraries/ components, so every Settings screen uses it without another using. *@
 @using MediaEngine.Contracts.Authentication
-@* The "Libraries" list under one area on a person's page: a tick per library in that area, all ticked unless an administrator has
-   hidden it from this person. It only shows the choice and reports each tick to the page, which saves it straight away; it draws
-   nothing for an area with one library or none. The Engine's picker never lists a Vault library, so none can appear here. *@
+@* The libraries under one area that is on, on a person's page (library access D1, Plex-style): an "All libraries" tick at the top and a tick per
+   library, all ticked unless an administrator has hidden it from this person. A library the household does not have is greyed with "Not
+   available to {household}" and cannot be ticked. This list only draws the draft it is given and reports each tick to the page's access
+   section, which keeps the changes until Save changes; nothing is saved here. An area with one library or none draws nothing. The Engine's
+   picker never lists a Vault library, so none can appear here. *@
 @if (_libraries.Count > 1)
 {
     <div class="area-library-list" role="group" aria-label="@($"{AreaLabel} libraries")" data-area-libraries="@AreaKey">
-        <small class="area-library-list__title">Libraries</small>
+        <div class="area-library-list__all" data-area-all="@AreaKey">
+            <AppCheckbox Value="@AllTicked" ValueChanged="AllChangedAsync" Disabled="@(Locked || !AnyChangeable)" Label="All libraries" />
+        </div>
         @foreach (var library in _libraries)
         {
+            var limited = IsLimited(library);
             // A library hidden from the household administrator's own profile cannot be shown again by them (it can still be hidden).
-            var held = library.HiddenFromYou && HiddenIds.Contains(library.Id);
-            <div class="area-library-list__item@(held ? " area-library-list__item--held" : string.Empty)" @key="@($"{library.Id:N}-{_refresh}")" data-library-id="@library.Id">
-                <AppCheckbox Value="@(!HiddenIds.Contains(library.Id))"
-                             ValueChanged="@((bool ticked) => ChangedAsync(library, ticked))"
-                             Disabled="@(held || ReadOnly || Busy)"
-                             Label="@library.DisplayName">
-                    @if (held)
-                    {
-                        <small class="area-library-list__note">Hidden from you</small>
-                    }
-                </AppCheckbox>
+            var held = !limited && library.HiddenFromYou && HiddenIds.Contains(library.Id);
+            var itemClass = limited ? "area-library-list__item area-library-list__item--limited"
+                : held ? "area-library-list__item area-library-list__item--held" : "area-library-list__item";
+            <div class="@itemClass" @key="@library.Id" data-library-id="@library.Id">
+                <AppCheckbox Value="@(!limited && !HiddenIds.Contains(library.Id))"
+                             ValueChanged="@((bool ticked) => TickedAsync(library, ticked))"
+                             Disabled="@(Locked || limited || held)"
+                             Label="@library.DisplayName" />
+                @if (limited)
+                {
+                    <small class="area-library-list__note" data-limited-note>Not available to @LimitedBy</small>
+                }
+                else if (held)
+                {
+                    <small class="area-library-list__note">Hidden from you</small>
+                }
             </div>
         }
     </div>
@@ -29,7 +39,6 @@
 
 @code {
     private IReadOnlyList<AccessLibraryOptionDto> _libraries = [];
-    private int _refresh;
 
     /// <summary>The area: <c>read</c>, <c>watch</c>, <c>listen</c> or <c>view</c>.</summary>
     [Parameter, EditorRequired] public string Area { get; set; } = string.Empty;
@@ -37,51 +46,43 @@
     /// <summary>Every library the Engine's picker listed (any area); this list keeps the ones in its own area.</summary>
     [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
 
-    /// <summary>The libraries hidden from the person right now (read only; the page owns it).</summary>
+    /// <summary>The libraries hidden from the person in the draft (the access section owns it).</summary>
     [Parameter, EditorRequired] public IReadOnlySet<Guid> HiddenIds { get; set; } = new HashSet<Guid>();
 
-    /// <summary>Who the ticks belong to, as the toast names them ("Hidden from Sam").</summary>
-    [Parameter] public string PersonName { get; set; } = string.Empty;
+    /// <summary>The libraries the person's household does not have (library access D2): greyed, never tickable.</summary>
+    [Parameter] public IReadOnlySet<Guid> LimitedIds { get; set; } = new HashSet<Guid>();
 
-    /// <summary>True on a phone: ticks are shown but cannot be changed.</summary>
-    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>The household's name, for "Not available to {household}".</summary>
+    [Parameter] public string HouseholdName { get; set; } = string.Empty;
 
-    /// <summary>True while a save is running, so a second tick cannot start before the first lands.</summary>
-    [Parameter] public bool Busy { get; set; }
+    /// <summary>True while ticks cannot be changed (a phone, or a save in progress).</summary>
+    [Parameter] public bool Locked { get; set; }
 
-    /// <summary>
-    /// Sends one tick: the library and whether it is now hidden. The page decides what to do with it (save it, or only remember
-    /// it for a person who does not exist yet) and answers true when it took effect, false when it did not.
-    /// </summary>
-    [Parameter] public Func<Guid, bool, Task<bool>>? OnHiddenChanged { get; set; }
+    /// <summary>One tick: the library and whether it is now hidden.</summary>
+    [Parameter] public EventCallback<(Guid LibraryId, bool Hidden)> OnTick { get; set; }
+
+    /// <summary>The All libraries tick: the area and whether every library is now shown.</summary>
+    [Parameter] public EventCallback<(string Area, bool Ticked)> OnAll { get; set; }
 
     private string AreaKey => Area.Trim().ToLowerInvariant();
 
-    private string AreaLabel => AreaKey switch
-    {
-        "read" => "Read",
-        "watch" => "Watch",
-        "listen" => "Listen",
-        "view" => "View",
-        _ => Area,
-    };
+    private string AreaLabel => AccessAreas.Find(AreaKey)?.Label ?? Area;
+
+    private string LimitedBy => string.IsNullOrWhiteSpace(HouseholdName) ? "this household" : HouseholdName;
+
+    private bool IsLimited(AccessLibraryOptionDto library) => library.HiddenForHousehold || LimitedIds.Contains(library.Id);
+
+    private bool AnyChangeable => _libraries.Any(library => !IsLimited(library) && !(library.HiddenFromYou && HiddenIds.Contains(library.Id)));
+
+    private bool AllTicked => AnyChangeable && _libraries.All(library => IsLimited(library) || !HiddenIds.Contains(library.Id));
 
     protected override void OnParametersSet() =>
-        _libraries = Libraries.Where(library => string.Equals(library.Area, AreaKey, StringComparison.OrdinalIgnoreCase)).ToList();
+        _libraries = AccessAreas.InOrder(Libraries.Where(library => string.Equals(library.Area, AreaKey, StringComparison.OrdinalIgnoreCase)), library => library.DisplayName).ToList();
 
-    private async Task ChangedAsync(AccessLibraryOptionDto library, bool ticked)
-    {
-        if (OnHiddenChanged is null || ReadOnly || Busy || (library.HiddenFromYou && HiddenIds.Contains(library.Id)))
-        {
-            _refresh++;
-            return;
-        }
+    private Task TickedAsync(AccessLibraryOptionDto library, bool ticked) =>
+        Locked || IsLimited(library) || (library.HiddenFromYou && HiddenIds.Contains(library.Id))
+            ? Task.CompletedTask
+            : OnTick.InvokeAsync((library.Id, !ticked));
 
-        var applied = await OnHiddenChanged(library.Id, !ticked);
-        if (!applied)
-        {
-            // The tick did not take effect: draw the box again from the saved state instead of leaving it as clicked.
-            _refresh++;
-        }
-    }
+    private Task AllChangedAsync(bool ticked) => Locked ? Task.CompletedTask : OnAll.InvokeAsync((AreaKey, ticked));
 }

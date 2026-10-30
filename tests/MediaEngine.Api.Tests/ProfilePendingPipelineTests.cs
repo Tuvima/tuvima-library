@@ -55,7 +55,7 @@ public sealed class ProfilePendingPipelineTests : IDisposable
     public async Task APendingSession_IsRefusedOnAnOrdinaryRoute_UntilAProfileIsChosen_WhileThePickersRoutesWork()
     {
         await using var app = await StartAsync();
-        // Setup is over: while it runs, a household of one is not asked who is using Library.
+        // Setup is over.
         using (var connection = _database.CreateConnection())
         {
             Dapper.SqlMapper.Execute(connection, "UPDATE onboarding_workflows SET state = 'complete';");
@@ -64,6 +64,8 @@ public sealed class ProfilePendingPipelineTests : IDisposable
         var identity = app.Services.GetRequiredService<IFirstPartyIdentityService>();
         var owner = await identity.BootstrapThisComputerAdministratorAsync(
             "owner@example.com", "Dad", "setup-device", "Setup", "Dashboard");
+        // A household of one with no PIN goes straight in; a PIN keeps the picker (and its PIN step) in front of the profile.
+        await identity.SetProfilePinAsync(owner.Profile.Id, "2468");
         var signedIn = await identity.SignInThisComputerAccountAsync("laptop", "Laptop", "Dashboard");
         Assert.NotNull(signedIn);
         Assert.True(signedIn!.Session.ProfilePending);
@@ -82,7 +84,7 @@ public sealed class ProfilePendingPipelineTests : IDisposable
         Assert.Equal(owner.Profile.Id, Assert.Single(profiles!).Id);
 
         using var chosen = await app.SendAsync(
-            HttpMethod.Post, "/auth/session/switch-profile", signedIn.PlaintextToken, new SwitchProfileRequest { ProfileId = ownProfile });
+            HttpMethod.Post, "/auth/session/switch-profile", signedIn.PlaintextToken, new SwitchProfileRequest { ProfileId = ownProfile, Secret = "2468" });
         Assert.Equal(HttpStatusCode.OK, chosen.StatusCode);
 
         // Once someone is picked the same route works for the same session.
@@ -126,8 +128,7 @@ public sealed class ProfilePendingPipelineTests : IDisposable
         builder.Services.AddScoped<IRequestAuthorityResolver, RequestAuthorityResolver>();
         builder.Services.AddScoped<DashboardAuthorityProjector>();
         builder.Services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
-        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryProfileGrantRepository>(new MediaEngine.Storage.LibraryProfileGrantRepository(_database));
-        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.ILibraryAccessCatalog>(new FixedLibraryAccessCatalog());
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IHouseholdLibraryAccessRepository>(new MediaEngine.Storage.HouseholdLibraryAccessRepository(_database));
         builder.Services.AddSingleton<LibraryVisibilityRule>();
         builder.Services.AddScoped<IAccountAccessDecisionService, AccountAccessDecisionService>();
         builder.Services.AddScoped<ISelfServiceAuthorizationService>(sp => (AccountAccessDecisionService)sp.GetRequiredService<IAccountAccessDecisionService>());

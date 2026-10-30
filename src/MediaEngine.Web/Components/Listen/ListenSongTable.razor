@@ -131,6 +131,7 @@ else
             }
         </AppCssElement>
 
+        @{ var positions = PositionsOf(DisplayTracks); }
         <Virtualize Items="@DisplayTracks" Context="track" TItem="WorkViewModel" ItemSize="48" OverscanCount="8">
             @{
                 var trackTitle = DisplayTrackTitle(track);
@@ -156,6 +157,7 @@ else
                                      aria-label="@($"Select {trackTitle}")" />
                     </div>
                 }
+                <span class="listen-song-table__number" role="cell">@(positions.TryGetValue(track.Id, out var position) ? position : null)</span>
                 <div class="listen-song-table__song @(ShowArtwork ? null : "listen-song-table__song--play-only")" role="cell">
                     @if (ShowArtwork)
                     {
@@ -224,13 +226,6 @@ else
                         case "dateAdded":
                             <span class="listen-song-table__meta" role="cell">@FormatDateAdded(track.CreatedAt)</span>
                             break;
-                        case "queue":
-                            <div class="listen-song-table__queue" role="cell" @onkeydown:stopPropagation="true">
-                                <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="Add to queue" AriaLabel="@($" Add {trackTitle} to queue")" StopPropagation="true" OnClick="@(() => QueueAsync(track))">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
-                                </AppNativeButton>
-                            </div>
-                            break;
                         case "edit":
                             <div class="listen-song-table__edit" role="cell" @onkeydown:stopPropagation="true">
                                 @if (ShowSelect)
@@ -243,6 +238,14 @@ else
                             break;
                         case "options":
                             <div class="listen-song-table__options" role="cell" @onclick:stopPropagation="true">
+                                @if (ShowQueue)
+                                {
+                                    <span class="listen-song-table__queue-hover">
+                                        <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="Add to queue" AriaLabel="@($" Add {trackTitle} to queue")" StopPropagation="true" OnClick="@(() => QueueAsync(track))">
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
+                                        </AppNativeButton>
+                                    </span>
+                                }
                                 <AppOverflowMenu Size="AppControlSize.Compact" Class="listen-song-table__overflow">
                                     <PersonalStatusMenuItems WorkId="track.Id" />
                                     <AppMenuItem Label="Open album"
@@ -277,12 +280,12 @@ else
     [Parameter] public bool ShowArtwork { get; set; } = true;
     [Parameter] public bool ShowArtist { get; set; } = true;
     [Parameter] public bool ShowAlbum { get; set; } = true;
-    [Parameter] public bool ShowGenre { get; set; } = true;
+    [Parameter] public bool ShowGenre { get; set; }
     [Parameter] public bool ShowPlays { get; set; } = true;
     [Parameter] public bool ShowDateAdded { get; set; } = true;
     [Parameter] public bool ShowFavorite { get; set; } = true;
     [Parameter] public bool ShowQueue { get; set; } = true;
-    [Parameter] public bool ShowEdit { get; set; } = true;
+    [Parameter] public bool ShowEdit { get; set; }
     [Parameter] public Guid? CurrentWorkId { get; set; }
     [Parameter] public string DefaultSortColumn { get; set; } = "dateAdded";
     [Parameter] public bool DefaultSortDescending { get; set; } = true;
@@ -300,6 +303,7 @@ else
     private readonly List<ListenSongTableColumn> _columns =
     [
         new("select", string.Empty, 40, 40),
+        new("number", "#", 40, 36),
         new("song", "Song", 260, 180),
         new("favorite", "Favorite", 64, 56),
         new("time", "Time", 56, 52),
@@ -308,9 +312,8 @@ else
         new("genre", "Genre", 82, 72),
         new("plays", "Plays", 50, 46),
         new("dateAdded", "Date Added", 112, 104),
-        new("queue", "Queue", 64, 56),
         new("edit", "Edit", 64, 56),
-        new("options", string.Empty, 42, 40),
+        new("options", string.Empty, 76, 76),
     ];
 
     // Phone cards render in pages: Virtualize spacer rows collapse to zero width inside the cards-mode table body.
@@ -522,17 +525,33 @@ else
     }
 
     private IReadOnlyList<ListenSongTableColumn> VisibleColumns => _columns.Where(IsColumnVisible).ToList();
-    private IReadOnlyList<ListenSongTableColumn> VisibleDataColumns => VisibleColumns.Where(column => column.Key is not ("select" or "song")).ToList();
+    private IReadOnlyList<ListenSongTableColumn> VisibleDataColumns => VisibleColumns.Where(column => column.Key is not ("select" or "number" or "song")).ToList();
 
-    private string GridTemplate => string.Join(" ", VisibleColumns.Select(column => $"{column.Width}px"));
+    // Columns give up width down to their minimum before the table scrolls sideways, so the row menu stays in view at 1280 px.
+    private string GridTemplate => string.Join(" ", VisibleColumns.Select(column => $"minmax({column.MinWidth}px, {column.Width}px)"));
 
     private IEnumerable<WorkViewModel> VisibleTracks => _removed.Count == 0
         ? Tracks
         : Tracks.Where(track => !_removed.Contains(track.Id));
 
-    private List<WorkViewModel> DisplayTracks => Sortable
-        ? SortTracks(VisibleTracks).ToList()
-        : VisibleTracks.ToList();
+    // Sorting a large list twice per render (rows and their numbers) would be wasteful, so the shown list is kept until something that shapes it changes.
+    private List<WorkViewModel>? _shown;
+    private (IReadOnlyList<WorkViewModel> Tracks, int Count, string? Column, bool Descending, int Removed, bool Sortable) _shownKey;
+
+    private List<WorkViewModel> DisplayTracks
+    {
+        get
+        {
+            var key = (Tracks, Tracks.Count, _sortColumn, _sortDescending, _removed.Count, Sortable);
+            if (_shown is null || !_shownKey.Equals(key))
+            {
+                _shown = Sortable ? SortTracks(VisibleTracks).ToList() : VisibleTracks.ToList();
+                _shownKey = key;
+            }
+
+            return _shown;
+        }
+    }
 
     private bool IsColumnVisible(ListenSongTableColumn column) => column.Key switch
     {
@@ -542,16 +561,26 @@ else
         "plays" => ShowPlays,
         "dateAdded" => ShowDateAdded,
         "favorite" => ShowFavorite,
-        "queue" => ShowQueue,
         "edit" => ShowEdit,
         "select" => ShowSelect,
         _ => true,
     };
 
+    private static Dictionary<Guid, int> PositionsOf(IReadOnlyList<WorkViewModel> shown)
+    {
+        var positions = new Dictionary<Guid, int>(shown.Count);
+        for (var index = 0; index < shown.Count; index++)
+        {
+            positions.TryAdd(shown[index].Id, index + 1);
+        }
+
+        return positions;
+    }
+
     private string RowClass(WorkViewModel track) =>
         $"listen-song-table__row {(CurrentWorkId == track.Id ? "is-playing" : string.Empty)}".Trim();
 
-    private static bool IsSortableColumn(string key) => key is not ("queue" or "edit" or "select");
+    private static bool IsSortableColumn(string key) => key is not ("edit" or "select" or "number");
 
     private void BeginColumnResize(string key, double clientX)
     {
@@ -688,8 +717,8 @@ else
             classes.Add("listen-song-table__song-head");
         if (columnKey == "favorite")
             classes.Add("listen-song-table__favorite-head");
-        if (columnKey == "queue")
-            classes.Add("listen-song-table__queue-head");
+        if (columnKey == "number")
+            classes.Add("listen-song-table__number-head");
         return string.Join(" ", classes);
     }
 

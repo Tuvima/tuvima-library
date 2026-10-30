@@ -33,17 +33,16 @@ public sealed class ProfileRepository : IProfileRepository
                    avatar_color AS AvatarColor,
                    avatar_image_path AS AvatarImagePath,
                    avatar_icon  AS AvatarIcon,
-                   content_limit AS ContentLimit,
-                   content_limit_allow_unrated AS ContentLimitAllowUnrated,
                    role         AS Role,
                    created_at   AS CreatedAt,
                    navigation_config AS NavigationConfig,
                    household_id AS HouseholdId,
                    is_server_admin AS IsServerAdministrator,
                    is_household_admin AS IsHouseholdAdministrator,
-                   authorization_version AS AuthorizationVersion
+                   authorization_version AS AuthorizationVersion,
+                   sort_position AS SortPosition
             FROM   profiles
-            ORDER  BY created_at ASC;
+            ORDER  BY sort_position ASC, created_at ASC, id ASC;
             """).AsList();
 
         return Task.FromResult<IReadOnlyList<Profile>>(rows.ConvertAll(MapRow));
@@ -61,15 +60,14 @@ public sealed class ProfileRepository : IProfileRepository
                    avatar_color AS AvatarColor,
                    avatar_image_path AS AvatarImagePath,
                    avatar_icon  AS AvatarIcon,
-                   content_limit AS ContentLimit,
-                   content_limit_allow_unrated AS ContentLimitAllowUnrated,
                    role         AS Role,
                    created_at   AS CreatedAt,
                    navigation_config AS NavigationConfig,
                    household_id AS HouseholdId,
                    is_server_admin AS IsServerAdministrator,
                    is_household_admin AS IsHouseholdAdministrator,
-                   authorization_version AS AuthorizationVersion
+                   authorization_version AS AuthorizationVersion,
+                   sort_position AS SortPosition
             FROM   profiles
             WHERE  id = @id
             LIMIT  1;
@@ -114,8 +112,6 @@ public sealed class ProfileRepository : IProfileRepository
         public string AvatarColor { get; set; } = string.Empty;
         public string? AvatarImagePath { get; set; }
         public string? AvatarIcon { get; set; }
-        public string? ContentLimit { get; set; }
-        public bool ContentLimitAllowUnrated { get; set; }
         public string Role { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
         public string? NavigationConfig { get; set; }
@@ -123,6 +119,7 @@ public sealed class ProfileRepository : IProfileRepository
         public bool IsServerAdministrator { get; set; }
         public bool IsHouseholdAdministrator { get; set; }
         public long AuthorizationVersion { get; set; }
+        public int SortPosition { get; set; }
     }
 
     private static Profile MapRow(ProfileRow r) => new()
@@ -132,8 +129,6 @@ public sealed class ProfileRepository : IProfileRepository
         AvatarColor = r.AvatarColor,
         AvatarImagePath = r.AvatarImagePath,
         AvatarIcon = r.AvatarIcon,
-        ContentLimit = r.ContentLimit,
-        ContentLimitAllowUnrated = r.ContentLimitAllowUnrated,
         Role = Enum.Parse<ProfileRole>(r.Role),
         CreatedAt = DateTimeOffset.Parse(r.CreatedAt),
         NavigationConfig = r.NavigationConfig,
@@ -141,5 +136,6 @@ public sealed class ProfileRepository : IProfileRepository
         IsServerAdministrator = r.IsServerAdministrator,
         IsHouseholdAdministrator = r.IsHouseholdAdministrator,
         AuthorizationVersion = r.AuthorizationVersion,
+        SortPosition = r.SortPosition,
     };
 }

@@ -559,15 +559,39 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         GiveNewProfileAccess(connection, transaction, profile.Id, householdId, accessFromProfileId, profile.CreatedAt);
     }, ct);
 
+    public Task ReorderHouseholdProfilesAsync(Guid householdId, IReadOnlyList<Guid> orderedProfileIds, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var members = connection.Query<Guid>(
+                "SELECT id FROM profiles WHERE household_id=@householdId;", new { householdId }, transaction).ToHashSet();
+            if (members.Count == 0)
+            {
+                throw new KeyNotFoundException("Household not found.");
+            }
+
+            // The whole household in one list: nobody missing, nobody twice, nobody from another household.
+            if (orderedProfileIds.Count != members.Count || orderedProfileIds.Distinct().Count() != members.Count
+                || orderedProfileIds.Any(id => !members.Contains(id)))
+            {
+                throw new ArgumentException("The new order must list every person in the household exactly once.");
+            }
+
+            for (var position = 0; position < orderedProfileIds.Count; position++)
+            {
+                connection.Execute("UPDATE profiles SET sort_position=@position WHERE id=@id;",
+                    new { position, id = orderedProfileIds[position] }, transaction);
+            }
+        }, ct);
+
     public Task UpdateManagedProfileAsync(Profile profile, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             var changed = connection.Execute("""
-                UPDATE profiles SET display_name=@DisplayName,avatar_color=@AvatarColor,avatar_icon=@AvatarIcon,
-                    content_limit=@ContentLimit,content_limit_allow_unrated=@ContentLimitAllowUnrated
+                UPDATE profiles SET display_name=@DisplayName,avatar_color=@AvatarColor,avatar_icon=@AvatarIcon,role=@Role
                 WHERE id=@Id;
-                """, profile, transaction);
+                """, new { profile.Id, profile.DisplayName, profile.AvatarColor, profile.AvatarIcon, Role = profile.Role.ToString() }, transaction);
             if (changed != 1)
             {
                 throw new KeyNotFoundException("Profile not found.");
@@ -773,8 +797,9 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     {
         profile.HouseholdId = householdId;
         connection.Execute("""
-            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,avatar_icon,content_limit,content_limit_allow_unrated,role,created_at,navigation_config,household_id)
-            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@ContentLimit,@ContentLimitAllowUnrated,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
+            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,avatar_icon,role,created_at,navigation_config,household_id,sort_position)
+            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@Role,@CreatedAt,@NavigationConfig,@HouseholdId,
+                   (SELECT COALESCE(MAX(sort_position) + 1, 0) FROM profiles WHERE household_id = @HouseholdId));
             """, new
         {
             profile.Id,
@@ -782,8 +807,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             profile.AvatarColor,
             profile.AvatarImagePath,
             profile.AvatarIcon,
-            profile.ContentLimit,
-            profile.ContentLimitAllowUnrated,
             Role = profile.Role.ToString(),
             CreatedAt = Iso(profile.CreatedAt),
             profile.NavigationConfig,
@@ -853,16 +876,16 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             """, new { profileId }, tx);
 
     /// <summary>
-    /// A person added without a sign-in starts with the Read/Watch/Listen/View access and hidden libraries of the profile of whoever
-    /// added them (<paramref name="sourceProfileId"/>); with no such profile they start with every feature and nothing hidden (every
-    /// library in their areas is visible, simpler access D2). Someone outside the adder's household starts with View off and nothing
-    /// hidden. A source profile that does not exist gives nothing. Never an administrator role.
+    /// A person added without a sign-in starts with the Read/Watch/Listen/View access of the profile of whoever added them
+    /// (<paramref name="sourceProfileId"/>); with no such profile they start with every feature. Nothing is hidden for the new profile
+    /// itself: it gets what its household has, because the household's hidden libraries apply to every profile in it (library access D2,
+    /// D3). Someone outside the adder's household starts with View off. A source profile that does not exist gives nothing. Never an
+    /// administrator role.
     /// </summary>
     private static void GiveNewProfileAccess(
         System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId, Guid householdId, Guid? sourceProfileId, DateTimeOffset at)
     {
         List<string> features;
-        List<Guid> hiddenLibraries = [];
         if (sourceProfileId is not { } source)
         {
             features = AccountFeatureId.All.Select(feature => feature.Value).ToList();
@@ -877,10 +900,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             features = c.Query<string>("SELECT feature_id FROM profile_feature_grants WHERE profile_id=@source;", new { source }, tx)
                 .Where(feature => sameHousehold || !string.Equals(feature, AccountFeatureId.View.Value, StringComparison.Ordinal))
                 .ToList();
-            if (sameHousehold)
-            {
-                hiddenLibraries = c.Query<Guid>("SELECT library_id FROM profile_library_hidden WHERE profile_id=@source;", new { source }, tx).ToList();
-            }
         }
 
         foreach (var feature in features)
@@ -889,11 +908,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 new { profileId, feature, at = Iso(at) }, tx);
         }
 
-        foreach (var libraryId in hiddenLibraries)
-        {
-            c.Execute("INSERT INTO profile_library_hidden(profile_id,library_id,created_at,created_by_profile_id) VALUES(@profileId,@libraryId,@at,@source);",
-                new { profileId, libraryId, at = Iso(at), source = sourceProfileId }, tx);
-        }
     }
 
     private static Guid? HouseholdOfProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId) =>

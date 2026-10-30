@@ -88,8 +88,7 @@
     padding-left: 52px;
 }
 
-.listen-song-table__favorite-head,
-.listen-song-table__queue-head {
+.listen-song-table__favorite-head {
     width: 100%;
     justify-content: center;
     text-align: center;
@@ -101,6 +100,19 @@
     color: var(--tl-text-secondary);
     cursor: pointer;
 }
+
+.listen-song-table__number,
+.listen-song-table__number-head {
+    justify-self: center;
+    color: var(--tl-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Add to queue shows on hover or keyboard focus, beside the "..." menu; touch screens keep it visible. */
+.listen-song-table__queue-hover { opacity: 0; }
+.listen-song-table__row:hover .listen-song-table__queue-hover,
+.listen-song-table__row:focus-within .listen-song-table__queue-hover { opacity: 1; }
+@media (hover: none) { .listen-song-table__queue-hover { opacity: 1; } }
 
 .listen-song-table__row:nth-of-type(odd) {
     background: color-mix(in srgb, var(--tl-bg-surface-raised) 34%, transparent);
@@ -258,6 +270,7 @@
     padding: 6px 8px;
     color: var(--tl-text-secondary);
     cursor: pointer;
+    border-bottom: 1px solid var(--tl-divider);
 }
 
 ::deep .listen-song-table__row:nth-of-type(odd) {
@@ -291,6 +304,10 @@
     text-align: left;
     text-transform: inherit;
     cursor: pointer;
+}
+
+::deep .listen-song-table__favorite-head {
+    justify-content: center;
 }
 
 ::deep .listen-song-table__sort-header:hover {

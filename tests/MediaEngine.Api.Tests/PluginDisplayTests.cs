@@ -147,6 +147,93 @@ public sealed class PluginDisplayTests : IDisposable
         Assert.Equal(PluginId, item.PluginId);
     }
 
+    [Theory]
+    [InlineData("Read <script>alert(1)</script> now", null)]
+    [InlineData("Look at https://example.com/poster.jpg", null)]
+    [InlineData("See www.example.com", null)]
+    [InlineData("A fine slide", "https://example.com/poster.jpg")]
+    [InlineData("A fine slide", "data:image/png;base64,AAAA")]
+    public async Task ASlideWithMarkupOrAnAddress_IsRefused_WithTheReasonLogged(string text, string? icon)
+    {
+        var logs = new List<string>();
+        var service = new PluginDisplayService(_repository, _catalog, _kit.Clock, new ListLogger(logs));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.PublishAsync(
+            PluginId, new PluginDisplayContribution(PluginDisplaySlot.HomeHeroCandidate, "w", "a", text, Icon: icon), default));
+
+        Assert.Equal(0, await _repository.CountAsync(PluginId));
+        Assert.Contains(logs, line => line.Contains(PluginId) && line.Contains("refused"));
+    }
+
+    [Fact]
+    public async Task PlainWordsAndAnIconName_AreAccepted()
+    {
+        await _service.PublishAsync(
+            PluginId, new PluginDisplayContribution(PluginDisplaySlot.HomeHeroCandidate, "w", "a", "Because you finished Dune: Part One", Icon: "auto_awesome"), default);
+
+        Assert.Equal(1, await _repository.CountAsync(PluginId));
+    }
+
+    [Fact]
+    public async Task Nominations_AreListedAcrossItems_AndHideWhenThePluginIsOff()
+    {
+        await _service.PublishAsync(PluginId, new PluginDisplayContribution(PluginDisplaySlot.HomeHeroCandidate, "w1", "a", "Weak", Strength: 10), default);
+        await _service.PublishAsync(PluginId, new PluginDisplayContribution(PluginDisplaySlot.HomeHeroCandidate, "w2", "a", "Strong", Strength: 90), default);
+        await _service.PublishAsync(PluginId, Line("a", "w3", "Not a slide"), default);
+
+        Assert.Equal(["Strong", "Weak"], (await _service.ListSlotAsync(PluginDisplaySlot.HomeHeroCandidate, 10, default)).Select(item => item.Text));
+
+        _catalog.SetEnabled(PluginId, false);
+        Assert.Empty(await _service.ListSlotAsync(PluginDisplaySlot.HomeHeroCandidate, 10, default));
+    }
+
+    [Fact]
+    public async Task HeroPluginSlides_SkipAProfileSwitchOff_AndAnItemTheGateRefuses()
+    {
+        var profile = Guid.NewGuid();
+        using (var connection = _kit.Database.CreateConnection())
+        {
+            Dapper.SqlMapper.Execute(connection,
+                "INSERT INTO profiles(id, display_name, role, created_at) VALUES (@profile, 'Alex', 'StandardUser', @at);",
+                new { profile, at = DateTimeOffset.UtcNow.ToString("O") });
+        }
+        var allowed = Guid.NewGuid();
+        var refused = Guid.NewGuid();
+        await _service.PublishAsync(PluginId, new PluginDisplayContribution(PluginDisplaySlot.HomeHeroCandidate, allowed.ToString("D"), "a", "Allowed", Strength: 50), default);
+        await _service.PublishAsync(PluginId, new PluginDisplayContribution(PluginDisplaySlot.HomeHeroCandidate, refused.ToString("D"), "a", "Refused", Strength: 40), default);
+        var settings = new ProfileHeroSettingsRepository(_kit.Database);
+        var slides = new MediaEngine.Api.Services.Display.HeroPluginSlides(_service, _catalog, new RefusingGate(refused), settings);
+
+        var nominations = await slides.NominationsAsync(profile, PluginAudience.Adults, default);
+
+        var one = Assert.Single(nominations);
+        Assert.Equal(allowed, one.ItemId);
+        Assert.Equal("Display Test", one.PluginName);
+
+        await settings.SetPluginSlidesAsync(profile, PluginId, enabled: false);
+        Assert.Empty(await slides.NominationsAsync(profile, PluginAudience.Adults, default));
+        Assert.False(Assert.Single(await slides.PluginsAsync(profile, default)).Enabled);
+
+        await settings.SetPluginSlidesAsync(profile, PluginId, enabled: true);
+        Assert.Single(await slides.NominationsAsync(profile, PluginAudience.Adults, default));
+    }
+
+    private sealed class RefusingGate(Guid refusedItem) : MediaEngine.Domain.Contracts.IPluginAccessGate
+    {
+        public Task<MediaEngine.Domain.Contracts.PluginAccessOutcome> CheckAsync(MediaEngine.Domain.Contracts.PluginAccessQuery query, CancellationToken ct = default) =>
+            Task.FromResult(query.EntityId == refusedItem
+                ? MediaEngine.Domain.Contracts.PluginAccessOutcome.NotInAudience
+                : MediaEngine.Domain.Contracts.PluginAccessOutcome.Allowed);
+    }
+
+    private sealed class ListLogger(List<string> lines) : Microsoft.Extensions.Logging.ILogger<PluginDisplayService>
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            lines.Add(formatter(state, exception));
+    }
+
     private static PluginDisplayContribution Line(string key, string? subject, string text, int strength = 0, bool fromAi = false) =>
         new(PluginDisplaySlot.ItemHero, subject, key, text, Strength: strength, FromLocalAi: fromAi);
 

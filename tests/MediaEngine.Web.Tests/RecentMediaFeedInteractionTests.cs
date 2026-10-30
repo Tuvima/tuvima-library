@@ -49,6 +49,33 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(3, _requests.Count));
     }
     [Fact]
+    public void PillsAreTogglesAndOnlyTypesWithItemsGetOne()
+    {
+        _read = type => Task.FromResult<DisplayRecentPageDto?>(Page(type, "Recent"));
+        IRenderedComponent<RecentMediaFeed>? cut = null;
+        cut = Render<RecentMediaFeed>(p => p.Add(c => c.Type, "all").Add(c => c.TypeChanged, type => cut!.Render(p => p.Add(c => c.Type, type))));
+        cut.WaitForAssertion(() => Assert.Single(_requests));
+        Assert.Equal(new[] { "All", "Watch", "Read", "View" }, cut.FindAll(".recent-filters button").Select(b => b.TextContent));
+        cut.FindAll(".recent-filters button").Single(b => b.TextContent == "View").Click();
+        cut.WaitForAssertion(() => Assert.Equal(new[] { "all", "view" }, _requests));
+        cut.FindAll(".recent-filters button").Single(b => b.TextContent == "Read").Click();
+        cut.WaitForAssertion(() => Assert.Equal(new[] { "all", "view", "read,view" }, _requests));
+        Assert.Equal("true", cut.FindAll(".recent-filters button").Single(b => b.TextContent == "View").GetAttribute("aria-pressed"));
+        Assert.Equal("true", cut.FindAll(".recent-filters button").Single(b => b.TextContent == "Read").GetAttribute("aria-pressed"));
+        Assert.Equal("false", cut.FindAll(".recent-filters button").Single(b => b.TextContent == "All").GetAttribute("aria-pressed"));
+        cut.FindAll(".recent-filters button").Single(b => b.TextContent == "View").Click();
+        cut.WaitForAssertion(() => Assert.Equal("read", _requests[^1]));
+    }
+    [Fact]
+    public void NoPillsAtAllWhenOnlyOneTypeHasItems()
+    {
+        _read = type => Task.FromResult<DisplayRecentPageDto?>(Page(type, "Recent", ["view"]));
+        var cut = Render<RecentMediaFeed>();
+        cut.WaitForAssertion(() => Assert.Single(_requests));
+        cut.WaitForAssertion(() => Assert.Contains("Recent", cut.Markup));
+        Assert.Empty(cut.FindAll(".recent-filters"));
+    }
+    [Fact]
     public async Task ObsoleteFilterAndProfileResponsesNeverReplaceCurrentItems()
     {
         var delayed = new TaskCompletionSource<DisplayRecentPageDto?>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -176,7 +203,7 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
         Assert.Equal("View all", cut.Find(".recent-view-all").TextContent.Trim());
     }
 
-    private static DisplayRecentPageDto Page(string type, string title) { var id = Guid.NewGuid(); var added = DateTimeOffset.UtcNow; return new(type, [new("view:" + id.ToString("N"), added, null, new(id, Guid.NewGuid(), title, "photo.jpg", "image", 800, 600, null, added))], null, false); }
+    private static DisplayRecentPageDto Page(string type, string title, string[]? available = null) { var id = Guid.NewGuid(); var added = DateTimeOffset.UtcNow; return new(type, [new("view:" + id.ToString("N"), added, null, new(id, Guid.NewGuid(), title, "photo.jpg", "image", 800, 600, null, added))], null, false) { AvailableTypes = available ?? ["watch", "read", "view"] }; }
     private sealed class ProfileAuth(Guid profile) : AuthenticationStateProvider
     {
         public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity([new Claim("tuvima:active_profile_id", profile.ToString("D"))], "test"))));

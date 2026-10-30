@@ -374,6 +374,36 @@
     white-space: nowrap;
 }
 
+.br-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.br-search-input {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    min-block-size: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--tl-border-subtle, rgba(255, 255, 255, 0.18));
+    border-radius: var(--tl-radius-md, 0.5rem);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.br-search-input:focus-visible {
+    outline: 2px solid var(--br-focus);
+    outline-offset: 2px;
+}
+
+.br-search-match {
+    padding: 0 0.125rem;
+    border-radius: 0.125rem;
+    background: rgba(234, 179, 8, 0.35);
+    color: inherit;
+}
+
 .br-empty,
 .br-hint {
     margin: 0;

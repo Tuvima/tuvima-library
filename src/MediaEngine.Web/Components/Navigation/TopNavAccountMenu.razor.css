@@ -88,7 +88,9 @@
     align-items: center;
     gap: 0.75rem;
     min-height: 3.35rem;
+    margin-bottom: 0.4rem;
     padding: 0.45rem 0.6rem 0.65rem;
+    border-bottom: 1px solid rgba(150, 164, 192, 0.14);
 }
 
 .top-nav-account-menu__header strong {

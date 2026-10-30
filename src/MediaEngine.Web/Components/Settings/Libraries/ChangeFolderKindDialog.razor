@@ -303,9 +303,11 @@
         // Only the name and the count are read: who is meant is the Engine's business, and the id is a profile.
         foreach (var person in preview.VisibilityLoss.Take(MostNamesShown))
         {
+            // A household is named when its own library list hides the target: everyone in it loses the files (library access D2).
+            var who = person.HouseholdId is null ? person.DisplayName : $"The {person.DisplayName} household";
             yield return ("visibility", person.FileCount == 1
-                ? $"{person.DisplayName} won't see this file."
-                : $"{person.DisplayName} won't see these {person.FileCount:N0} files.");
+                ? $"{who} won't see this file."
+                : $"{who} won't see these {person.FileCount:N0} files.");
         }
 
         if (preview.VisibilityLoss.Count > MostNamesShown)

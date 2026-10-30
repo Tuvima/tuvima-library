@@ -701,7 +701,7 @@ Wikidata-sourced person records. Always enriched from Wikidata; never manually c
 | `death_date` | TEXT | ISO-8601 date. NULL if living. |
 | `nationality` | TEXT | |
 | `headshot_url` | TEXT | Cached headshot image URL |
-| `last_enriched_at` | TEXT | Timestamp. Records enriched within 30 days skip re-fetch. |
+| `last_enriched_at` | TEXT | Timestamp. Records enriched within 90 days skip re-fetch. |
 | `last_revision_id` | TEXT | Wikidata revision ID. Used for freshness checks before full property re-fetch. |
 
 **Index:** `wikidata_qid`
@@ -997,8 +997,14 @@ A household is the group of people (profiles) who live together and the sign-ins
 | `name` | TEXT | Display name, for example `Alex's household` |
 | `created_at` | TEXT | Timestamp |
 | `is_default` | INTEGER | 1 for the server administrator's original household. At most one household has it (unique partial index `ux_households_default`); setup marks the first administrator's household. It is never deleted. Added by step `0046_profile_held_access`. |
+| `kid_watch_level` | TEXT | The highest rating a Kid's profile in this household may see in Watch: `G`, `PG`, `PG-13` or `R` (CHECK-constrained). Defaults to `PG`. Added by step `0068_household_kid_settings` (library access D9). |
+| `kid_read_level` | TEXT | The same for Read. Defaults to `PG`. |
+| `kid_listen_level` | TEXT | The same for Listen. Defaults to `PG`. |
+| `kid_show_unrated` | INTEGER | 1 (the default) shows items with no recognised rating to the household's Kid's profiles in every area; 0 hides them. Rated items always follow the level. |
 
 **Creation.** The baseline step creates `household_id` on `profiles`. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
+
+**Kid's profiles.** A Kid's profile is a profile with the `RestrictedProfile` role (`is_kids` on the wire). Its limits are these four household columns, so changing them updates every Kid's profile in the household at once; a profile has no rating limit of its own. Step `0068_household_kid_settings` dropped `profiles.content_limit` and `profiles.content_limit_allow_unrated` with no conversion, and rewrote the Vault eligibility triggers to key on the role (a Kid's profile can never have Vault access).
 
 ### profiles
 
@@ -1010,8 +1016,6 @@ User profiles for multi-user support.
 | `avatar_color` | TEXT | Avatar circle colour, `#RRGGBB`. The profile editor offers a fixed palette of 12 swatches. |
 | `avatar_image_path` | TEXT | Path of an uploaded avatar photo; NULL when none. A photo wins over an icon. |
 | `avatar_icon` | TEXT | Key of a built-in illustrated icon drawn on `avatar_color` (`cat`, `fox`, `owl`, `bear`, `panda`, `penguin`, `robot`, `rocket`, `planet`, `moon`, `crown`, `ghost`); NULL shows the person's initial. |
-| `content_limit` | TEXT | The highest rating this person may see: `G`, `PG`, `PG-13` or `R` (CHECK-constrained). NULL means Everything. Set by a household administrator and independent of `role`. Enforced by the Engine in every list, search, detail page, Continue Watching and player. |
-| `content_limit_allow_unrated` | INTEGER | 1 keeps items with no recognised rating visible although a `content_limit` is set; 0 (the default) hides them. |
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1023,7 +1027,7 @@ User profiles for multi-user support.
 | `is_household_admin` | INTEGER | 1 when the profile looks after its own household. Defaults to 0. Setup sets it on the first administrator's profile. |
 | `authorization_version` | INTEGER | Above zero, starts at 1, bumped on every change to the profile's administrator roles, feature and library access or admin PIN question, so open sessions re-check. |
 
-These three columns (and the four `profile_*` access tables below) were added by upgrade step `0046_profile_held_access`: the profile holds the person's access and a user (`accounts`) is only a sign-in. Since step `0047_storage_epoch_profile_held_access` (storage epoch `guid-blob-v12-profile-held-access`) the Engine reads roles and access only from the profile being acted as, and writes them only there. Step `0048_drop_account_held_access` (storage epoch `guid-blob-v13-profile-held-contract`) then removed the earlier account-side model: the tables `account_profile_grants`, `account_feature_grants`, `account_library_hidden` (added by step 0045 and replaced by `profile_library_hidden`), `grant_admin_protections` and `grant_admin_unlocks`, and the columns `accounts.is_administrator`, `accounts.household_admin`, `accounts.household_id`, `accounts.grants_inherit_from_account_id` and `households.primary_account_id`. It rebuilt `accounts` so `profile_id` is NOT NULL. A user's household is its profile's household. A new sign-in's profile is set up once from how the sign-in was created, and a person who already exists is never changed by getting a sign-in. A user file never carries the administrator columns, and a user import forces them to 0 (the person who starts a household by being imported becomes its household administrator on the profile their sign-in opens).
+These three columns (and the four `profile_*` access tables below) were added by upgrade step `0046_profile_held_access`: the profile holds the person's access and a user (`accounts`) is only a sign-in. Since step `0047_storage_epoch_profile_held_access` (storage epoch `guid-blob-v12-profile-held-access`) the Engine reads roles and access only from the profile being acted as, and writes them only there. Step `0048_drop_account_held_access` (storage epoch `guid-blob-v13-profile-held-contract`) then removed the earlier account-side model: the tables `account_profile_grants`, `account_feature_grants`, `account_library_hidden` (added by step 0045 and replaced by `profile_library_hidden`), `grant_admin_protections` and `grant_admin_unlocks`, and the columns `accounts.is_administrator`, `accounts.household_admin`, `accounts.household_id`, `accounts.grants_inherit_from_account_id` and `households.primary_account_id`. It rebuilt `accounts` so `profile_id` is NOT NULL. A user's household is its profile's household. A new sign-in's profile is set up once from how the sign-in was created, and a person who already exists is never changed by getting a sign-in. Export and import of people was removed by library access (D7); a full backup and restore is the only way to move people between Libraries.
 
 The PIN is not stored on this row. It is the `profile_credentials` row described below.
 
@@ -1095,11 +1099,11 @@ The features a profile may use: `profile_id` (references `profiles`, deleting th
 
 ### profile_library_hidden
 
-The libraries an administrator hid from a profile (simpler access D2, D11; the profile holds the access): one row per hidden library, `profile_id` (references `profiles`, deleting the profile removes its rows) and `library_id` (a 16-byte id, no foreign key; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A profile sees every library in the areas it has (`profile_feature_grants`) unless a row hides it, so a new library needs no row. Nothing is inherited from another profile. A Vault library is never listed and the repository refuses one. Server administrator profiles see every library whatever the rows say. Created by upgrade step `0046_profile_held_access`; it replaces both the earlier per-profile library grants and `account_library_hidden` (step 0045), which step `0048_drop_account_held_access` drops. Nothing was carried across.
+The libraries an administrator hid from a profile (simpler access D2, D11; the profile holds the access): one row per hidden library, `profile_id` (references `profiles`, deleting the profile removes its rows) and `library_id` (a 16-byte id, no foreign key; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A profile sees every library in the areas it has (`profile_feature_grants`) unless a row hides it, so a new library needs no row. Nothing is inherited from another profile. A Vault library is never listed and the repository refuses one. Server administrator profiles see every library whatever the rows say. Created by upgrade step `0046_profile_held_access`; it replaces both the earlier per-profile library grants and `account_library_hidden` (step 0045), which step `0048_drop_account_held_access` drops. Nothing was carried across. A library is visible to a profile only when it is also not hidden for the profile's household (`household_library_hidden`).
 
-### library_profile_grants
+### household_library_hidden
 
-The profiles chosen for a library whose access is **Selected profiles** (Library pages D9; the mode itself, `standard`, `selected` or `vault`, lives in `config/libraries.json`). One row per profile that may see the library: `library_id` (a 16-byte id, no foreign key) and `profile_id` (references `profiles`, deleting the profile removes its rows; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A Selected library is visible to server administrators and to the profiles listed here, and to nobody else, on top of the older rules (the profile's areas, hidden libraries, content limit); a library with no rows is visible to administrators only, and a new profile has no rows, so it starts without access. Switching a library between Standard and Selected clears its rows. A Vault library is never listed and the repository refuses one. Every change raises `profiles.authorization_version` of each profile that gained or lost a library. Indexed by `ix_library_profile_grants_profile`. Created by upgrade step `0057_library_profile_grants`.
+The household ceiling (library access D2, LA1): the libraries the server administrator has hidden for a whole household. One row per hidden library: `household_id` (references `households`, deleting the household removes its rows), `library_id` (a 16-byte id, no foreign key; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A library is visible to a profile when it is **not hidden for the profile's household** and **not hidden for the profile** (`profile_library_hidden`); administrators see everything. Nothing is hidden by default, so a new library, household or profile needs no row. A Vault library is never listed (its access is per profile) and the repository refuses one. A household administrator can hide more for the household's profiles but cannot show what the household lacks (the Engine answers `409`). The rows are configuration and are part of a backup. Created by upgrade step `0067_household_library_hidden`, which also dropped `library_profile_grants` (the old "Selected profiles" table) with no conversion.
 
 ### profile_admin_protections
 
@@ -1862,6 +1866,29 @@ Each person's own record of what they watched, listened to and read, and what th
 
 The small pictures `personal_activity` rows point at: a copy of the cover with a longest edge of at most 240 px (JPEG, or WebP when the cover has transparency), made once when the activity began and shared by every row with the same source cover. `key` is the SHA-256 of the source cover file (primary key), with `image` (BLOB), `content_type`, `width`, `height` and `created_at`. Deleting history removes the pictures no row uses any more.
 
+### profile_hero_settings
+
+How a person wants the Home hero (the big banner at the top of Home) to behave. Added by upgrade step `0060_profile_hero_settings`. One row per profile; a profile with no row gets the defaults (hero on, five slides, every type, in-progress items first and new items after). The settings only narrow what the hero rules choose from. Deleting a profile removes its row.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `profile_id` | BLOB | The profile. References `profiles(id)` with `ON DELETE CASCADE`. Primary key. |
+| `hero_enabled` | INTEGER | 1 shows the hero, 0 hides it and Home starts at the first row. |
+| `slide_count` | INTEGER | How many slides at most, 1 to 5. |
+| `allow_watch` / `allow_read` / `allow_listen` | INTEGER | 1 lets movies and shows / books and comics / music and audiobooks appear in the hero. |
+| `continued_only` | INTEGER | 1 shows only things the person has started; 0 adds new items after them. |
+| `updated_at` | TEXT | ISO 8601 UTC. |
+
+### profile_hero_plugin_switches
+
+Which plugins' Home slides a person switched off for themselves (Home page redesign spec WP8). Added by upgrade step `0061_profile_hero_plugin_switches`. A row means the profile does not want that plugin's slides; no row means they are on. Deleting a profile removes its rows.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `profile_id` | BLOB | The profile. References `profiles(id)` with `ON DELETE CASCADE`. Part of the primary key. |
+| `plugin_id` | TEXT | The plugin's manifest id. Part of the primary key. |
+| `updated_at` | TEXT | ISO 8601 UTC. |
+
 ### profile_grid_preferences
 
 The order a person last chose on each "View all" grid (Watch, Read, Listen, My list, Liked), remembered per profile so it follows them to every device. Added by upgrade step `0016_profile_grid_preferences`. One row per profile and grid; a grid with no row uses its default order. Deleting a profile removes its rows.
@@ -1898,6 +1925,14 @@ Added by upgrade step `0030_vault_access` (Videos spec WP9). A **Vault library**
 | `vault_field_sources` | Where each field came from: one row per `asset_id` and `field` (`title`, `description`, `release_date`, `cover`, `studio`, `performers`, `tags`) with the server, record, how it was matched, how it was applied, the language noted for the text, and when. An Identify replaces the rows of the fields that were ticked. |
 | `vault_file_fingerprints` | Fingerprints computed on this machine (`OSHASH`, `MD5`, `PHASH`) with the file size they were computed at, kept so a big file is not read twice. Computed and sent only while the administrator's separate fingerprint permission is on. |
 | `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside Vault mode to an administrator. |
+
+**Sections and moves (upgrade steps `0064` and `0065`, Vault sections and Move to Vault).** Three more tables.
+
+| Table | Meaning |
+|---|---|
+| `vault_section_grants` | Which Vault sections (Vault libraries) one profile may open: `profile_id`, `library_id`, `granted_by_profile_id`, `granted_at`. Nothing is granted by default, an administrator opens every section without a row, and a Kids or content-limited profile can never hold one. Read live on every request. Kept in a backup (it is a setting, not catalogue). |
+| `vault_moves` | One row per Move to Vault or Move out job, saved before any file is touched: `direction` (`in` or `out`), `kind_key`, the source and destination library and folder, `remove_read_only_originals` (the separate D30 choice), `state` (`queued`, `running`, `done`, `attention` or `failed`), a plain `message` and times. Never holds a title. Not kept in a backup (transient). |
+| `vault_move_items` | One row per title in a job: `position`, the work and asset ids, `new_asset_id`, the source path and final file name, size and `content_hash`, the sidecar list, a snapshot of the profiles' progress, ratings, bookmarks and highlights (`snapshot_json`), `original_left` (the copy is in place but the original could not be removed) and `state` (`planned`, `copied`, `retired`, `published`, `done`, `skipped`, `failed`) with a fixed `reason`. Saved after every step so a crash resumes. Not kept in a backup (transient). |
 
 **Vault bookmarks after a restore.** Step `0035_vault_pending_bookmarks` added a Vault-only waiting table; step `0040_drop_vault_pending_bookmarks` drops it. A restored Vault bookmark now waits in `waiting_personal_state` (below) like every other bookmark, marked `is_withheld`, and the Vault settings count reads those rows.
 

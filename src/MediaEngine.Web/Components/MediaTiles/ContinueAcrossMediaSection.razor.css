@@ -1,28 +1,2 @@
 .continue-across-media { min-width:0; }
-.continue-across-media h2 { margin:0 0 24px; font-size:var(--tl-font-size-xl); }
-.continue-groups { display:flex; flex-wrap:wrap; gap:32px; align-items:flex-start; container-type:inline-size; --continue-artwork-height:calc(var(--home-shelf-height) * .8); }
-.continue-groups ::deep .continue-group { flex:0 0 auto; min-width:0; width:max-content; position:relative; }
-.continue-groups ::deep .continue-group + .continue-group::before { content:""; position:absolute; left:-16px; top:0; bottom:0; width:1px; background:var(--playback-border); }
-.continue-groups ::deep .continue-group h3 { display:flex; align-items:center; gap:10px; margin:0; font-size:var(--tl-font-size-md); color:var(--tl-text-primary); }
-.continue-groups ::deep .continue-group .tl-icon-root { font-size:22px; }
-.continue-groups ::deep .continue-group .media-tile.is-landscape,
-.continue-groups ::deep .continue-group .media-tile.is-portrait,
-.continue-groups ::deep .continue-group .media-tile.is-square { --media-tile-media-height:var(--continue-artwork-height); }
-.continue-groups ::deep .continue-group .media-tile-identity-caption { display:grid; gap:4px; padding-top:8px; height:44px; font-size:var(--tl-font-size-secondary); }
-.continue-groups ::deep .continue-group .media-tile-identity-caption > * { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.continue-groups ::deep .continue-group .media-tile-identity-caption span { color:var(--tl-text-secondary); font-size:var(--tl-font-size-caption); }
-.continue-groups ::deep .continue-group .media-tile-shelf-scroll { padding-inline:8px; scroll-padding-inline:8px; }
-@media(max-width:1279px) { .continue-groups { flex-direction:column; gap:24px; } .continue-groups ::deep .continue-group { width:100%; } .continue-groups ::deep .continue-group + .continue-group::before { display:none; } }
-
-/* Keep two landscape cards on non-mobile full-width rows. All media shrink together. */
-@media(min-width:641px) and (max-width:1279px) {
-    .continue-groups ::deep .continue-group {
-        --continue-artwork-height:min(calc(var(--home-shelf-height) * .8), calc((100cqw - 138px) * 9 / 32));
-    }
-}
-
-/* Phones: Continue portrait and square cards keep the shared Continue height; gutter and landscape stills are set in MediaShelfScroller.razor.css and MediaTile.razor.css. */
-:root[data-form-factor="phone"] .continue-groups { --phone-shelf-height: var(--continue-artwork-height); }
-
-/* Phone Continue: one mixed row; the small type icon and one-line label sit under each title. */
-.continue-sublabel { display:flex; align-items:center; gap:4px; }
+.continue-across-media h2 { margin:0 0 12px; font-size:var(--tl-font-size-xl); }

@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using System.Globalization
 @using MediaEngine.Contracts.Activity
+@using MediaEngine.Contracts.Taste
 @using MediaEngine.Web.Components.Profiles
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Formatting
@@ -9,12 +10,14 @@
 @inject IEngineApiClient Api
 @inject DeviceContextService DeviceContext
 @inject ILogger<OverviewPage> Logger
-@* Personal > Overview (D11): you, with your counts, what you have been doing and your taste. It is your own page, so it reads
-   only the signed-in profile. Anything the Engine cannot supply is left out, never faked. *@
+@* Profile > Overview (spec: Profile Overview, Taste and Activity): you, with a few friendly numbers, what you are in the middle of,
+   what you did lately, your taste and the last 30 days. It is your own page, so it reads only the signed-in profile. Everything is
+   worked out from your own history; anything the Engine cannot supply is left out, never faked. *@
 @if (_loading)
 {
     <div class="overview-page__loading" aria-busy="true" aria-label="Loading your overview">
-        <AppSkeleton Width="100%" Height="120px" />
+        <AppSkeleton Width="100%" Height="140px" />
+        <AppSkeleton Width="100%" Height="88px" />
         <AppSkeleton Width="100%" Height="200px" />
     </div>
 }
@@ -27,7 +30,8 @@ else if (_profile is null)
 else
 {
     <div class="@RootClass" data-settings-overview>
-        <AppCard Class="overview-page__profile">
+        <div class="overview-page__profile">
+        <AppCard>
             <div class="overview-header">
                 <span class="overview-header__avatar">
                     <ProfileAvatar DisplayName="@_profile.DisplayName" ImageUrl="@_profile.AvatarImageUrl" Color="@_profile.AvatarColor" Icon="@_profile.AvatarIcon" />
@@ -36,48 +40,79 @@ else
                     <h2 class="overview-header__name">@_profile.DisplayName</h2>
                     <p class="overview-header__joined">Joined @Joined</p>
                 </div>
+                @if (!IsKids)
+                {
                 <div class="overview-header__actions">
                     <AppButton Label="Edit profile"
                                StartIcon="@AppMaterialIcons.Outlined.Edit"
                                Class="overview-header__edit"
                                FullWidth="@DeviceContext.IsPhone"
                                OnClick="OpenEditor" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Smartphone"
-                                   AriaLabel="Apps"
-                                   Tooltip="Apps"
-                                   Href="@AppsRoute"
-                                   Class="overview-header__apps" />
                 </div>
-            </div>
-
-            <ul class="overview-counts" role="list" aria-label="Your counts">
-                @foreach (var count in Counts)
-                {
-                    <li class="overview-counts__item" data-overview-count="@count.Key">
-                        <strong class="overview-counts__value">@count.Value</strong>
-                        <span class="overview-counts__label">@count.Label</span>
-                    </li>
                 }
-            </ul>
+            </div>
         </AppCard>
+        </div>
 
-        <SettingsSectionPanel Title="Recent activity" Icon="@AppMaterialIcons.Outlined.History" Class="tl-card settings-section-card settings-section-card--dense overview-page__activity">
-            <Actions>
-                <a class="overview-page__link" href="@SettingsNav.ActivityRoute" data-overview-see-all>See all</a>
-            </Actions>
+        @if (_summary is not null)
+        {
+            <OverviewStatStrip Stats="@ProfileOverviewPresentation.Stats(_summary)" />
+            @if (ProfileOverviewPresentation.IsNewProfile(_summary))
+            {
+                <p class="overview-page__invite" data-overview-invite>Nothing here yet. Watch, read or listen to something and this page fills in.</p>
+            }
+        }
+
+        <SettingsSectionPanel Title="Continue enjoying" Icon="@AppMaterialIcons.Outlined.PlayCircleOutline" Class="tl-card settings-section-card settings-section-card--dense overview-page__continue">
             <ChildContent>
-                <RecentActivityStrip Tiles="@_recent" />
+                <OverviewContinueEnjoying Items="@(_overview?.ContinueItems ?? [])" />
             </ChildContent>
         </SettingsSectionPanel>
 
-        <SettingsSectionPanel Title="Your taste" Icon="@AppMaterialIcons.Outlined.Category" Class="tl-card settings-section-card settings-section-card--dense overview-page__taste">
-            <Actions>
-                <a class="overview-page__link" href="@SettingsNav.TasteRoute" data-overview-taste-link>See your taste</a>
-            </Actions>
-            <ChildContent>
-                <p class="overview-page__taste-summary" data-overview-taste-summary>@(TasteLine ?? "Your taste appears here once you have watched, read or listened to a few things.")</p>
-            </ChildContent>
-        </SettingsSectionPanel>
+        <div class="overview-page__columns">
+            <SettingsSectionPanel Title="Recent activity" Icon="@AppMaterialIcons.Outlined.History" Class="tl-card settings-section-card settings-section-card--dense overview-page__activity">
+                <Actions>
+                    <a class="overview-page__link" href="@ActivityHref" data-overview-see-all>See all</a>
+                </Actions>
+                <ChildContent>
+                    <OverviewTimeline Tiles="@_recent" SeeAllHref="@ActivityHref" />
+                </ChildContent>
+            </SettingsSectionPanel>
+
+            <div class="overview-page__side">
+                <SettingsSectionPanel Title="Your taste" Icon="@AppMaterialIcons.Outlined.Category" Class="tl-card settings-section-card settings-section-card--dense overview-page__taste">
+                    <Actions>
+                        <a class="overview-page__link" href="@TasteHref" data-overview-taste-link>See your taste</a>
+                    </Actions>
+                    <ChildContent>
+                        <p class="overview-page__taste-summary" data-overview-taste-summary>@(TasteLine ?? "Your taste appears here once you have watched, read or listened to a few things.")</p>
+                        @if (TasteGenres.Count > 0)
+                        {
+                            <ul class="overview-page__taste-pills" role="list" data-overview-taste-genres>
+                                @foreach (var genre in TasteGenres)
+                                {
+                                    <li><AppChip Text="@genre" /></li>
+                                }
+                            </ul>
+                        }
+                    </ChildContent>
+                </SettingsSectionPanel>
+
+                @if (_calendar is not null)
+                {
+                    <SettingsSectionPanel Title="Last 30 days" Icon="@AppMaterialIcons.Outlined.CalendarMonth" Class="tl-card settings-section-card settings-section-card--dense overview-page__month">
+                        <ChildContent>
+                            <p class="overview-page__month-line" data-overview-month-line>@MonthLine</p>
+                            <OverviewHeatmap Days="@_calendar" />
+                        </ChildContent>
+                    </SettingsSectionPanel>
+                }
+            </div>
+        </div>
+
+        <p class="overview-page__apps">
+            <a class="overview-page__apps-link" href="@AppsRoute" data-overview-apps-link>Get the Library app for your phone or TV</a>
+        </p>
     </div>
 
     <ProfileEditorSheet Open="@_editorOpen"
@@ -94,6 +129,8 @@ else
     private ProfileOverviewViewModel? _overview;
     private PersonalActivitySummaryDto? _summary;
     private IReadOnlyList<PersonalActivityRecentTileDto>? _recent;
+    private TastePersonDto? _taste;
+    private IReadOnlyList<HeatmapDay>? _calendar;
     private bool _loading = true;
     private bool _editorOpen;
     private bool _saving;
@@ -101,48 +138,35 @@ else
 
     private const string AppsRoute = "/settings/overview/apps";
 
-    private sealed record OverviewCount(string Key, string Value, string Label);
-
     private string RootClass => DeviceContext.IsPhone ? "overview-page overview-page--phone" : "overview-page";
 
     private string Joined => _profile is null ? string.Empty : _profile.CreatedAt.ToLocalTime().ToString("MMMM yyyy", CultureInfo.CurrentCulture);
 
-    // The counts are the person's lifetime totals from their activity record, not a sample of their latest items. In progress and
-    // Finished always show (zero is an answer). The three time counts show only when there is a total for them; a count the Engine
-    // cannot supply is left out.
-    private IReadOnlyList<OverviewCount> Counts
+    // A Kids profile has no Settings: its own activity lives on My activity.
+    // A Kids profile has no Settings: it keeps its own pages, with no editing.
+    private bool IsKids => _profile?.IsRestricted == true;
+
+    private string TasteHref => IsKids ? SettingsNav.MyTasteRoute : SettingsNav.TasteRoute;
+
+    private string ActivityHref => _profile?.IsRestricted == true ? SettingsNav.MyActivityRoute : SettingsNav.ActivityRoute;
+
+    // The sentence comes from the taste with the person's own removals and additions applied, so it matches the Taste page.
+    // Before the Library has worked a taste out, nothing is said.
+    private string? TasteLine => _taste is null ? null : ProfileOverviewPresentation.Sentence(_taste, learned: _taste.LastUpdatedAt is not null);
+
+    private IReadOnlyList<string> TasteGenres => _taste is null || _taste.LastUpdatedAt is null
+        ? []
+        : [.. _taste.Genres.OrderByDescending(item => item.Weight ?? 0).Take(5).Select(item => ProfileOverviewPresentation.Capitalise(item.Value))];
+
+    private string MonthLine
     {
         get
         {
-            var counts = new List<OverviewCount>();
-            if (_summary is null)
-            {
-                return counts;
-            }
-
-            counts.Add(new("in-progress", DisplayFormat.FormatCount(_summary.InProgressCount), "In progress"));
-            counts.Add(new("finished", DisplayFormat.FormatCount(_summary.FinishedCount), "Finished"));
-            AddHours(counts, "watched", "Time watched", _summary.WatchSeconds);
-            AddHours(counts, "read", "Time read", _summary.ReadSeconds);
-            AddHours(counts, "listened", "Time listened", _summary.ListenSeconds);
-            return counts;
+            var days = _summary?.DaysActiveLast30 ?? 0;
+            var finished = _summary?.FinishedLast30Days ?? 0;
+            return $"Active on {days} of the last {ProfileOverviewPresentation.RollingDays} days · {finished} {(finished == 1 ? "title" : "titles")} finished";
         }
     }
-
-    private static void AddHours(List<OverviewCount> counts, string key, string label, double seconds)
-    {
-        if (PersonalActivityPresentation.FormatHours(seconds) is { } text)
-        {
-            counts.Add(new(key, text, label));
-        }
-    }
-
-    private string? TasteLine => _overview is null
-        ? null
-        : PersonalActivityPresentation.TasteSummary(
-            _overview.Taste?.GenreDistribution,
-            _overview.Taste?.MoodPreferences,
-            _overview.Stats.TopGenres);
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -157,14 +181,19 @@ else
                 return;
             }
 
-            // The profile overview now only feeds the taste line; the counts come from the activity summary.
+            // The profile overview feeds Continue enjoying; the numbers and the calendar come from the activity summary.
             var overview = Api.GetProfileOverviewAsync(_profile.Id);
             var summary = Api.GetPersonalActivitySummaryAsync();
             var recent = Api.GetPersonalActivityRecentAsync(PersonalActivityPresentation.StripLimit);
-            await Task.WhenAll(overview, summary, recent);
+            var taste = Api.GetPersonalTasteAsync(null);
+            await Task.WhenAll(overview, summary, recent, taste);
             _overview = await overview;
             _summary = await summary;
             _recent = (await recent)?.Tiles;
+            _taste = (await taste)?.People.FirstOrDefault(person => person.IsYou);
+            _calendar = _summary is { Daily.Count: > 0 }
+                ? ProfileOverviewPresentation.Calendar(_summary.Daily, DateOnly.FromDateTime(DateTime.UtcNow))
+                : null;
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {

@@ -91,11 +91,46 @@ public sealed partial class EngineApiClient
         return attached is null ? FailedVaultCall<VaultLibraryDto>() : VaultCall<VaultLibraryDto>.Ok(attached);
     }
 
+    public async Task<VaultCall<ProfileVaultSectionsDto>> GetProfileVaultSectionsAsync(Guid profileId, CancellationToken ct = default)
+    {
+        var sections = await GetAsync<ProfileVaultSectionsDto>(
+            "GET /api/v1/profiles/{id}/vault-sections", $"/api/v1/profiles/{profileId:D}/vault-sections", logAsWarning: false, ct: ct);
+        return sections is null ? FailedVaultCall<ProfileVaultSectionsDto>() : VaultCall<ProfileVaultSectionsDto>.Ok(sections);
+    }
+
+    public async Task<VaultCall<ProfileVaultSectionsDto>> SetProfileVaultSectionsAsync(Guid profileId, IReadOnlyList<string> libraryIds, CancellationToken ct = default)
+    {
+        var sections = await PutAsync<SetProfileVaultSectionsRequest, ProfileVaultSectionsDto>(
+            "PUT /api/v1/profiles/{id}/vault-sections", $"/api/v1/profiles/{profileId:D}/vault-sections",
+            new SetProfileVaultSectionsRequest { LibraryIds = libraryIds }, logAsWarning: false, ct: ct);
+        return sections is null ? FailedVaultCall<ProfileVaultSectionsDto>() : VaultCall<ProfileVaultSectionsDto>.Ok(sections);
+    }
+
     public async Task<VaultCall<bool>> RemoveVaultLibraryAsync(string libraryId, RemoveVaultLibraryRequest request, CancellationToken ct = default) =>
         await PostAsync(
             "POST /api/v1/vault/libraries/{id}/remove", $"{VaultLibrariesPath}/{Uri.EscapeDataString(libraryId)}/remove", request, logAsWarning: false, ct: ct)
             ? VaultCall<bool>.Ok(true)
             : FailedVaultCall<bool>();
+
+    public async Task<VaultCall<VaultMovePreviewDto>> PreviewVaultMoveAsync(VaultMovePreviewRequest request, CancellationToken ct = default)
+    {
+        var preview = await PostAsync<VaultMovePreviewRequest, VaultMovePreviewDto>(
+            "POST /settings/vault-moves/preview", "/settings/vault-moves/preview", request, logAsWarning: false, ct: ct);
+        return preview is null ? FailedVaultCall<VaultMovePreviewDto>() : VaultCall<VaultMovePreviewDto>.Ok(preview);
+    }
+
+    public async Task<VaultCall<StartVaultMoveResultDto>> StartVaultMoveAsync(StartVaultMoveRequest request, CancellationToken ct = default)
+    {
+        var started = await PostAsync<StartVaultMoveRequest, StartVaultMoveResultDto>(
+            "POST /settings/vault-moves", "/settings/vault-moves", request, logAsWarning: false, ct: ct);
+        return started is null ? FailedVaultCall<StartVaultMoveResultDto>() : VaultCall<StartVaultMoveResultDto>.Ok(started);
+    }
+
+    public async Task<VaultCall<IReadOnlyList<VaultMoveJobDto>>> GetVaultMovesAsync(CancellationToken ct = default)
+    {
+        var jobs = await GetAsync<List<VaultMoveJobDto>>("GET /settings/vault-moves", "/settings/vault-moves", logAsWarning: false, ct: ct);
+        return jobs is null ? FailedVaultCall<IReadOnlyList<VaultMoveJobDto>>() : VaultCall<IReadOnlyList<VaultMoveJobDto>>.Ok(jobs);
+    }
 
     // -- Identify, the match record and the activity list (/api/v1/vault/items, /api/v1/vault/activity) -----------
     // Typed search text travels only in the request body; no call here puts a title or a body in a log line.
@@ -339,7 +374,6 @@ public sealed partial class EngineApiClient
         return LastStatusCode switch
         {
             404 => VaultCall<T>.Of(VaultOutcome.NotAvailable),
-            428 when error.Contains("Administrator PIN required", StringComparison.OrdinalIgnoreCase) => VaultCall<T>.Of(VaultOutcome.AdministratorPinNotSet),
             428 => VaultCall<T>.Of(VaultOutcome.PinRequired),
             429 => VaultCall<T>.Of(VaultOutcome.TooManyAttempts),
             403 when error.Contains("Confirm it's you", StringComparison.OrdinalIgnoreCase) => VaultCall<T>.Of(VaultOutcome.ConfirmItsYou),

@@ -64,6 +64,21 @@ public sealed class ViewStorageService(
         return false;
     }
 
+    /// <summary>
+    /// Refuses, with a plain sentence, a new View folder while View has nowhere to keep its files (no storage location, or one that
+    /// cannot be written to), so a fresh install can never save a View folder that has no storage behind it (setup spec A9).
+    /// </summary>
+    public void RequireConfigured()
+    {
+        var settings = configuration.LoadLibraries();
+        var storage = settings.StorageLocations.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, settings.ViewStorage.StorageLocationId, StringComparison.OrdinalIgnoreCase));
+        if (storage is not { AllowWrite: true })
+        {
+            throw new InvalidOperationException("View needs somewhere to keep its files first. Choose a location for View, then add the folder.");
+        }
+    }
+
     public string GetRootPath() => GetRootPath(requireWrite: true);
 
     /// <summary>

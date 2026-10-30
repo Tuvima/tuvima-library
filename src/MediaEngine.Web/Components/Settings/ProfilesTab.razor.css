@@ -7,6 +7,10 @@
 .profiles-tab__list { margin: 0; padding: 0; list-style: none; }
 .profiles-tab__item + .profiles-tab__item { border-top: 1px solid var(--tl-border-subtle); }
 .profiles-tab__line { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 0; box-sizing: border-box; }
+.profiles-tab__item.is-dragging { opacity: .5; }
+.profiles-tab__drag { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--tl-radius-sm, 6px); background: transparent; color: var(--tl-text-muted); cursor: grab; }
+.profiles-tab__drag:hover { color: var(--tl-text-primary); background: var(--tl-surface-hover, transparent); }
+.profiles-tab__drag:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .profiles-tab__row-avatar { flex: none; display: inline-grid; place-items: center; width: 40px; height: 40px; }
 .profiles-tab__row-avatar--add { border-radius: 50%; border: 1px dashed var(--tl-border-strong); color: var(--tl-text-muted); }
 .profiles-tab__who { flex: 1; min-width: 0; display: grid; gap: 2px; }

@@ -1,0 +1,38 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Models.ViewDTOs
+@inject NavigationManager Nav
+
+@* The one row of tabs under a Settings page title. Every tab is a link with its own address, so reload, Back and a pasted link open
+   exactly that tab. The look is the shared tab (AppCountTabs); the row scrolls sideways on a phone and never wraps. *@
+@if (Tabs.Count > 1)
+{
+    <AppCountTabs Tabs="@TabItems"
+                  Selected="@Active?.Route"
+                  SelectedChanged="OpenAsync"
+                  AriaLabel="@($"{PageLabel} sections")"
+                  Class="settings-page-tabs" />
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SettingsPageTab> Tabs { get; set; } = [];
+
+    /// <summary>The tab the person is on, or <see langword="null"/> when the page they are on is not one of the tabs.</summary>
+    [Parameter] public SettingsPageTab? Active { get; set; }
+
+    [Parameter] public string PageLabel { get; set; } = "Settings";
+
+    // A tab's address is its key, so a link, the selection and the keyboard all agree on which tab is which.
+    private IReadOnlyList<AppCountTab> TabItems => Tabs
+        .Select(tab => new AppCountTab(tab.Route, tab.Label, null, tab.Route, tab.Icon))
+        .ToList();
+
+    private Task OpenAsync(string route)
+    {
+        if (!string.Equals(route, Active?.Route, StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo(route);
+        }
+
+        return Task.CompletedTask;
+    }
+}

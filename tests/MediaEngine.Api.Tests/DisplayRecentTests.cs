@@ -14,11 +14,16 @@ public sealed class DisplayRecentTests
     [InlineData("read", "read")]
     [InlineData("listen", "listen")]
     [InlineData("view", "view")]
+    [InlineData("read,watch", "watch,read")]
+    [InlineData("listen, watch,watch", "watch,listen")]
+    [InlineData("watch,read,listen,view", "all")]
     public void TypesAreExplicit(string? input, string expected) => Assert.Equal(expected, DisplayRecentCursor.NormalizeType(input));
     [Theory]
     [InlineData("")]
     [InlineData("bad")]
     [InlineData("watchlist")]
+    [InlineData("watch,bad")]
+    [InlineData("all,watch")]
     public void UnknownTypesRejected(string input) => Assert.Throws<ArgumentException>(() => DisplayRecentCursor.NormalizeType(input));
     [Fact]
     public void CursorBindsProfileFilterAndVersion()
@@ -68,6 +73,9 @@ public sealed class DisplayRecentTests
     [InlineData("read", 1)]
     [InlineData("listen", 2)]
     [InlineData("view", 0)]
+    [InlineData("watch,read", 2)]
+    [InlineData("read,listen", 3)]
+    [InlineData("watch,view", 1)]
     public void CatalogueFiltersAndStructuralIdentities(string type, int count)
     {
         var show = Guid.NewGuid(); var album = Guid.NewGuid();
