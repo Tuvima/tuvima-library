@@ -207,7 +207,7 @@ else
                                 <LocalAiSettingsTab Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Plugins:
-                                <PluginSettingsTab FocusPluginId="@PluginFocusId" />
+                                <PluginSettingsTab FocusPluginId="@PluginFocusId" DetailPluginId="@PluginDetailId" DetailTab="@PluginDetailTab" NameChanged="OnPluginNameChanged" />
                                 break;
                             case SettingsSection.Delivery:
                                 <PlaybackDeliverySettingsTab Subsection="@_activeSubsection" />
@@ -230,7 +230,7 @@ else
                                 }
                                 break;
                             case SettingsSection.Integrations:
-                                <UsersAccessSettingsTab Subsection="applications" />
+                                <UsersAccessSettingsTab Subsection="applications" IntegrationId="@IntegrationDetailId" DetailTab="@IntegrationDetailTab" NameChanged="OnIntegrationNameChanged" />
                                 break;
                             case SettingsSection.Server:
                                 <BackupRecoveryPanel />
@@ -255,6 +255,35 @@ else
     [Parameter] public string? Subsection { get; set; }
     [Parameter] public string? Detail { get; set; }
     private string? _profileBreadcrumbName;
+    private string? _pluginBreadcrumbName;
+    private void OnPluginNameChanged(string name)
+    {
+        if (_pluginBreadcrumbName != name)
+        {
+            _pluginBreadcrumbName = name;
+            StateHasChanged();
+        }
+    }
+
+    private string? _integrationBreadcrumbName;
+    private void OnIntegrationNameChanged(string name)
+    {
+        if (_integrationBreadcrumbName != name)
+        {
+            _integrationBreadcrumbName = name;
+            StateHasChanged();
+        }
+    }
+
+    // An integration's own page (Plugins and Integrations screens v3 D24): /settings/integrations/{id}/{tab}.
+    private bool IsIntegrationDetailRoute => _activeSection == SettingsSection.Integrations && !string.IsNullOrWhiteSpace(_activeSubsection);
+    private string? IntegrationDetailId => IsIntegrationDetailRoute ? _activeSubsection : null;
+    private string IntegrationDetailTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
+
+    // A plugin's own page (Plugins and Integrations screens v3 D17): /settings/plugins/{id}/{tab}. Providers use the same page.
+    private bool IsPluginDetailRoute => _activeSection == SettingsSection.Plugins && !string.IsNullOrWhiteSpace(_activeSubsection);
+    private string? PluginDetailId => IsPluginDetailRoute ? _activeSubsection : null;
+    private string PluginDetailTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
     private void OnProfileNameChanged(string name)
     {
         if (_profileBreadcrumbName != name)
@@ -335,10 +364,7 @@ else
     {
         get
         {
-            // A metadata source's own page belongs to Plugins in the menu, the heading and the breadcrumb.
-            var location = IsProviderDetailRoute
-                ? SettingsNav.FindMenuLocation(SettingsSection.Plugins)
-                : SettingsNav.FindMenuLocation(_activeSection, _activeSubsection);
+            var location = SettingsNav.FindMenuLocation(_activeSection, _activeSubsection);
             if (location is null)
             {
                 return null;
@@ -499,6 +525,16 @@ else
         if (!IsProfileDetailRoute)
         {
             _profileBreadcrumbName = null;
+        }
+
+        if (!IsPluginDetailRoute)
+        {
+            _pluginBreadcrumbName = null;
+        }
+
+        if (!IsIntegrationDetailRoute)
+        {
+            _integrationBreadcrumbName = null;
         }
 
         _scrollToTopPending = true;
@@ -687,9 +723,13 @@ else
         {
             _activeSubsection = Subsection!.Trim();
         }
+        else if (_activeSection is SettingsSection.Plugins or SettingsSection.Integrations && !string.IsNullOrWhiteSpace(Subsection))
+        {
+            _activeSubsection = Subsection!.Trim();
+        }
         else if (_activeSection == SettingsSection.Providers && string.IsNullOrWhiteSpace(Subsection))
         {
-            _activeSubsection = "providers";
+            _activeSubsection = SettingsNav.IngestionFlowSubsection;
         }
         else if (string.IsNullOrWhiteSpace(Subsection))
         {
@@ -718,8 +758,10 @@ else
             ? $"/settings/libraries/{_activeSubsection}{(string.IsNullOrWhiteSpace(Detail) ? string.Empty : "/" + Detail.Trim().ToLowerInvariant())}"
             : IsProfileDetailRoute
             ? $"/settings/profiles/{_activeSubsection}{(ProfileTab.Length == 0 ? string.Empty : "/" + ProfileTab)}"
-            : _activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail)
-            ? $"{SettingsNav.RouteFor(_activeSection, _activeSubsection)}/{Detail!.Trim().ToLowerInvariant()}"
+            : IsIntegrationDetailRoute
+            ? $"/settings/integrations/{Uri.EscapeDataString(_activeSubsection)}{(IntegrationDetailTab.Length == 0 ? string.Empty : "/" + IntegrationDetailTab)}"
+            : IsPluginDetailRoute
+            ? $"/settings/plugins/{Uri.EscapeDataString(_activeSubsection)}{(PluginDetailTab.Length == 0 ? string.Empty : "/" + PluginDetailTab)}"
             : string.IsNullOrWhiteSpace(Subsection)
             ? resolution.CanonicalRoute
             : SettingsNav.RouteFor(_activeSection, _activeSubsection);
@@ -774,8 +816,9 @@ else
         // A person's page has two more tabs beside Profile: Preferences and Access & safety.
         if (section == SettingsSection.Profiles) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "preferences" or "access";
         if (section == SettingsSection.Libraries) return SettingsNav.IsLibraryRouteSegment(subsection) && IsProviderRouteKey(detail);
-        if (section != SettingsSection.Providers) return false;
-        return subsection == "providers" && IsProviderRouteKey(detail);
+        if (section == SettingsSection.Integrations) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "access" or "keys" or "deliveries" or "activity";
+        if (section == SettingsSection.Plugins) return !string.IsNullOrWhiteSpace(subsection) && detail.Trim().ToLowerInvariant() is "settings" or "access" or "activity";
+        return false;
     }
 
     private static bool IsProviderRouteKey(string value) => value.All(character =>
@@ -853,15 +896,6 @@ else
             new("Settings", SettingsNav.RouteFor(SettingsSection.Overview)),
         };
 
-        // A metadata source's own page is a plugin page: Settings > Platform > Plugins > its friendly name.
-        if (IsProviderDetailRoute && SettingsNav.FindMenuLocation(SettingsSection.Plugins) is { } pluginsLocation)
-        {
-            breadcrumbs.Add(new SettingsBreadcrumb(pluginsLocation.Group.Label, SettingsNav.RouteFor(SettingsSection.Plugins)));
-            breadcrumbs.Add(new SettingsBreadcrumb(pluginsLocation.Page.Label, SettingsNav.RouteFor(SettingsSection.Plugins)));
-            breadcrumbs.Add(new SettingsBreadcrumb(ProviderFriendlyName, null));
-            return breadcrumbs;
-        }
-
         // Settings > Group > Page > Tab, straight from the menu. Every step is a link except the last, which is where you are.
         var location = CurrentLocation;
         var pageLabel = location?.Page.Label ?? GetHeroTitle();
@@ -884,6 +918,14 @@ else
             foreach (var level in levels.Skip(1))
                 steps.Add(new SettingsBreadcrumb(level.Label, level.Href));
         }
+        else if (IsPluginDetailRoute)
+        {
+            steps.Add(new SettingsBreadcrumb(_pluginBreadcrumbName ?? "Plugin", null));
+        }
+        else if (IsIntegrationDetailRoute)
+        {
+            steps.Add(new SettingsBreadcrumb(_integrationBreadcrumbName ?? "Integration", null));
+        }
         else if (IsProfileDetailRoute)
         {
             steps.Add(new SettingsBreadcrumb(_profileBreadcrumbName ?? "Profile", $"/settings/profiles/{ProfileDetailId:D}"));
@@ -904,14 +946,8 @@ else
         return breadcrumbs;
     }
 
-    private bool IsProviderDetailRoute => _activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail);
-
-    /// <summary>The name people know a metadata source by (Apple Books, TMDB), never its file name.</summary>
-    private string ProviderFriendlyName => ProviderNames.GetDisplayName(Detail ?? string.Empty);
-
     private string GetDetailBreadcrumbLabel() => _activeSection switch
     {
-        SettingsSection.Providers => ProviderFriendlyName,
         SettingsSection.Libraries => "Libraries",
         _ => FormatRouteLabel(Detail!),
     };
@@ -923,8 +959,6 @@ else
 
     private string GetHeroTitle()
     {
-        if (IsProviderDetailRoute)
-            return ProviderFriendlyName;
         if (_activeSection == SettingsSection.Libraries)
             return LibrariesLevel.Title;
         return CurrentLocation?.Page.Label ?? SettingsNav.GetItem(_activeSection).Label;
@@ -992,15 +1026,10 @@ else
 
     private string GetMetadataDescription()
     {
-        if (!string.IsNullOrWhiteSpace(Detail))
-        {
-            return "Configure this provider and review every place it participates in ingestion.";
-        }
-
         return _activeSubsection switch
         {
             "ingestion-flow" => "See which providers run at each stage and what they add to every media type.",
-            _ => "Manage every metadata, canonical identity, and enrichment provider in one place.",
+            _ => "See which providers run at each stage and what they add to every media type.",
         };
     }
 

@@ -325,6 +325,21 @@ public partial interface IEngineApiClient
     /// <summary>DELETE /settings/providers/{name} — disable/delete a provider.</summary>
     Task<bool> DeleteProviderAsync(string name, CancellationToken ct = default);
 
+    /// <summary>GET /settings/stashbox — the Stash-box servers, their connection state and the fingerprint permission. Never a key.</summary>
+    Task<StashBoxSettingsDto?> GetStashBoxSettingsAsync(CancellationToken ct = default);
+
+    /// <summary>POST /settings/stashbox/test — checks a saved server's own key and saves only the connection state.</summary>
+    Task<StashBoxTestResultDto?> TestStashBoxServerAsync(string serverId, CancellationToken ct = default);
+
+    /// <summary>PUT /settings/stashbox/servers/{id}/key — checks a key against its server and keeps it only if the server accepts it.</summary>
+    Task<StashBoxTestResultDto?> SaveStashBoxServerKeyAsync(string serverId, string apiKey, CancellationToken ct = default);
+
+    /// <summary>DELETE /settings/stashbox/servers/{id} — removes an added server (the default one stays).</summary>
+    Task<bool> RemoveStashBoxServerAsync(string serverId, CancellationToken ct = default);
+
+    /// <summary>PUT /settings/stashbox/fingerprint-permission — turns "sends a fingerprint of your file" on or off.</summary>
+    Task<StashBoxSettingsDto?> SetStashBoxFingerprintPermissionAsync(bool allowed, CancellationToken ct = default);
+
     // ── Organization template ─────────────────────────────────────────────────
 
     /// <summary>GET /settings/organization-template — current file organization template + preview.</summary>

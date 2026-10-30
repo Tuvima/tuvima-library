@@ -1,0 +1,61 @@
+@namespace MediaEngine.Web.Components.Shared
+@implements IDisposable
+@inject IJSRuntime JS
+
+@* The Cards / List switch on a list page (Plugins and Integrations screens v3 D27). The choice is remembered on this device
+   under StorageKey; a storage that is blocked just leaves Cards. *@
+<AppSegmentedControl Options="Options" Value="@Value" ValueChanged="ChangedAsync" AriaLabel="@AriaLabel" Class="app-layout-switch" />
+
+@code {
+    public const string Cards = "cards";
+    public const string List = "list";
+
+    private static readonly IReadOnlyList<AppSelectOption> Options =
+        [new(Cards, "Cards", AppMaterialIcons.Outlined.GridView), new(List, "List", AppMaterialIcons.Outlined.ViewList)];
+
+    private readonly CancellationTokenSource _disposed = new();
+
+    /// <summary><see cref="Cards"/> or <see cref="List"/>.</summary>
+    [Parameter] public string Value { get; set; } = Cards;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string AriaLabel { get; set; } = "Layout";
+
+    /// <summary>The browser storage key the choice is remembered under, one per page.</summary>
+    [Parameter, EditorRequired] public string StorageKey { get; set; } = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", _disposed.Token, StorageKey);
+            if (stored is Cards or List && stored != Value)
+                await ValueChanged.InvokeAsync(stored);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or OperationCanceledException)
+        {
+            // Storage is blocked or the circuit ended; the page keeps Cards.
+        }
+    }
+
+    private async Task ChangedAsync(string value)
+    {
+        await ValueChanged.InvokeAsync(value);
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", _disposed.Token, StorageKey, value);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or OperationCanceledException)
+        {
+            // Not remembered; the choice still applies to this visit.
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+}

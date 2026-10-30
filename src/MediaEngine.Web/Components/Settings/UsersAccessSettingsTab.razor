@@ -15,7 +15,7 @@
                 <ManagedAccessUsers />
                 break;
             case "applications":
-                <ManagedAccessApplications />
+                <ManagedAccessApplications IntegrationId="@IntegrationId" DetailTab="@DetailTab" NameChanged="NameChanged" />
                 break;
             case "authentication":
                 <SecurityTab Section="authentication" />
@@ -29,6 +29,9 @@
 
 @code {
     [Parameter] public string Subsection { get; set; } = string.Empty;
+    [Parameter] public string? IntegrationId { get; set; }
+    [Parameter] public string? DetailTab { get; set; }
+    [Parameter] public EventCallback<string> NameChanged { get; set; }
 
     private string ActiveSection => Subsection.ToLowerInvariant() switch
     {

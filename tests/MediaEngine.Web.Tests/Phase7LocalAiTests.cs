@@ -80,8 +80,7 @@ public sealed class Phase7LocalAiTests
         Assert.DoesNotContain("NormalizedSubsection", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", localAi, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", plugins, StringComparison.Ordinal);
-        Assert.Contains("<AvailablePluginsPanel OnChanged=\"ReloadAsync\" />", plugins, StringComparison.Ordinal);
-        Assert.Contains("@AdvancedPluginPanel()", plugins, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AvailablePluginsPanel", plugins, StringComparison.Ordinal);
         Assert.Contains("PluginHealthJobsPanel(plugin)", plugins, StringComparison.Ordinal);
         Assert.Contains("PluginCapabilitiesPanel(plugin)", plugins, StringComparison.Ordinal);
         Assert.Contains("DangerPanel(plugin)", plugins, StringComparison.Ordinal);
@@ -117,7 +116,7 @@ public sealed class Phase7LocalAiTests
 
         Assert.Contains("@PluginsListPage()", source, StringComparison.Ordinal);
         Assert.DoesNotContain("@AdvancedPluginLinks()", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("/settings/plugins/", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("/settings/plugins/catalog", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SettingsAdvancedLinkRow", source, StringComparison.Ordinal);
         Assert.DoesNotContain("@PluginManager()", source, StringComparison.Ordinal);
     }

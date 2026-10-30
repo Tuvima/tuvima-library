@@ -1,10 +1,4 @@
 .access-notice { margin-bottom: 1rem; }
-.access-drawer { border-left: 1px solid var(--app-border); background: var(--app-surface); }
-.access-drawer-host ::deep .tl-drawer.access-drawer { width: min(580px, 100%) !important; max-width: 100%; overflow: hidden; }
-.access-drawer__shell { display: flex; flex-direction: column; height: 100dvh; min-height: 0; }
-.access-drawer__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 5rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--app-border); }
-.access-drawer__body { display: grid; flex: 1 1 auto; align-content: start; gap: 1rem; min-height: 0; padding: 1.25rem; overflow-y: auto; }
-.access-drawer__footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: .75rem; min-height: 5rem; padding: 1rem 1.25rem; border-top: 1px solid var(--app-border); background: var(--app-surface); }
 .access-form-section { display: grid; gap: .75rem; }
 .access-form-section + .access-form-section { padding-top: 1.1rem; border-top: 1px solid var(--app-border); }
 .access-native-label, .access-form-section small { color: var(--app-text-muted); font-size: .8rem; }
@@ -25,3 +19,18 @@
 .access-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: 0; color: var(--app-text-muted); font-size: .82rem; }
 .access-card__failure { display: flex; align-items: center; gap: .35rem; margin: 0; color: var(--app-error, #ef4444); font-size: .82rem; }
 .access-page { display: grid; min-width: 0; gap: 18px; }
+
+.access-rows__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.access-rows tr { height: 56px; }
+.access-rows a { color: var(--tl-text-primary); font-weight: 600; text-decoration: none; }
+.access-rows__actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.integration-page { display: grid; gap: 16px; }
+.integration-page__header { display: flex; align-items: flex-start; gap: 16px; }
+.integration-page__logo { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; }
+.integration-page__title { display: grid; gap: 4px; min-width: 0; flex: 1 1 auto; }
+.integration-page__title h2 { margin: 0; }
+.integration-page__title p { margin: 0; color: var(--tl-text-secondary); }
+.integration-page__pills, .integration-page__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.integration-page__body { display: grid; gap: 16px; }
+.integration-page__savebar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 12px; padding: 12px 0; border-top: 1px solid var(--app-border); background: var(--app-surface); }
+@media (max-width: 640px) { .integration-page__header { flex-wrap: wrap; } }

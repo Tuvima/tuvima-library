@@ -358,19 +358,6 @@ public sealed class AvailablePluginsPanelTests : AsyncBunitContext
         Assert.Empty(Entry(cut, "acme.same").QuerySelectorAll("[data-testid=available-plugin-update]"));
     }
 
-    [Fact]
-    public void ThePluginsPage_ShowsAvailablePlugins_AndNoLongerTheApprovedCatalogOrThePlannedNote()
-    {
-        _directory = Directory(Entry("acme.one", "One"));
-
-        var cut = Render<PluginSettingsTab>();
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=available-plugin-entry]")));
-        Assert.Contains("Available plugins", cut.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Approved Catalog", cut.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("marketplace flows are planned", cut.Markup, StringComparison.OrdinalIgnoreCase);
-    }
-
     private static string Label(IRenderedComponent<AvailablePluginsPanel> cut, string id) =>
         Entry(cut, id).QuerySelector("[data-testid=available-plugin-trust]")!.TextContent.Trim();
 

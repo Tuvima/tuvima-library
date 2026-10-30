@@ -291,7 +291,7 @@
         _ => AppUiTone.Neutral,
     };
 
-    private static string ProviderRoute(string key) => $"/settings/metadata/providers/{Uri.EscapeDataString(key.ToLowerInvariant())}";
+    private static string ProviderRoute(string key) => $"/settings/plugins/{Uri.EscapeDataString(key.ToLowerInvariant())}";
 
     private static string Initials(string name) => string.Concat(name.Split([' ', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries).Take(2).Select(word => char.ToUpperInvariant(word[0])));
 }

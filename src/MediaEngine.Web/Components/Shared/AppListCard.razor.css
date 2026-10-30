@@ -8,3 +8,4 @@
 .app-list-card__badges { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
 .app-list-card__warning { display: inline-flex; min-width: 0; max-width: 100%; }
 .app-list-card__footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+.app-list-card__logo { display: grid; flex: 0 0 auto; width: 40px; height: 40px; place-items: center; }

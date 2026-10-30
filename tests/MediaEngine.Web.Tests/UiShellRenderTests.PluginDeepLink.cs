@@ -43,7 +43,6 @@ public sealed partial class UiShellRenderTests
         {
             var focused = Assert.Single(cut.FindAll("[data-focused=true]"));
             Assert.Equal("plugin-card-tuvima-fandom-lore", focused.Id);
-            Assert.Contains("Configure Plugin tuvima.fandom-lore", cut.Markup, StringComparison.Ordinal);
         });
     }
 

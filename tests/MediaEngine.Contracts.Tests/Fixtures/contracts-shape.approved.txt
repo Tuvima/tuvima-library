@@ -7492,6 +7492,16 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPeopleActionDt
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPeopleActionsResponse
   Actions: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginPeopleActionDto> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginProviderInfoDto
+  RequiresKey: System.Boolean | nullability=not-null | accessors=get,set
+  KeyPresent: System.Boolean | nullability=not-null | accessors=get,set
+  AlwaysOn: System.Boolean | nullability=not-null | accessors=get,set
+  VaultOnly: System.Boolean | nullability=not-null | accessors=get,set
+  Supplies: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  SendsDataTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  About: System.String | nullability=not-null | accessors=get,set
+  SignupUrl: System.String | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalImpactResponse
   PluginId: System.String | nullability=not-null | accessors=get,set
   WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -7583,6 +7593,8 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   IsBuiltIn: System.Boolean | nullability=not-null | accessors=get,init
   NeedsApproval: System.Boolean | nullability=not-null | accessors=get,set
   LoadError: System.String | nullability=nullable | accessors=get,set
+  ListingKind: System.String | nullability=not-null | accessors=get,set
+  Provider: MediaEngine.Contracts.Plugins.PluginProviderInfoDto | nullability=nullable | accessors=get,set
   Kind: System.String | nullability=not-null | accessors=get,set
   TrustLevel: System.String | nullability=not-null | accessors=get,set
   MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set

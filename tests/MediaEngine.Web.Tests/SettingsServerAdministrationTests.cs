@@ -50,7 +50,7 @@ public sealed class SettingsServerAdministrationTests
         Assert.Contains("case \"authentication\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("session-policy", source, StringComparison.Ordinal);
         Assert.Contains("case \"applications\"", source, StringComparison.Ordinal);
-        Assert.Contains("<ManagedAccessApplications />", source, StringComparison.Ordinal);
+        Assert.Contains("<ManagedAccessApplications IntegrationId=\"@IntegrationId\" DetailTab=\"@DetailTab\" NameChanged=\"NameChanged\" />", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SettingsSectionHeader", source, StringComparison.Ordinal);
 
         var security = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/SecurityTab.razor");
