@@ -66,29 +66,26 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     [Fact]
     public void SetupStep_WithARequiredToolMissing_ListsItWithItsFixAndOffersCheckAgainAndContinue()
     {
-        var cut = Render<SetupPreflightStage>(parameters => parameters
+        var cut = Render<SetupToolsStage>(parameters => parameters
             .Add(p => p.Preflight, Passed(Tools(Tool("ffmpeg", "FFmpeg", canLocate: true, waiting: 12))))
             .Add(p => p.Retry, EventCallback.Empty)
             .Add(p => p.Continue, EventCallback.Empty));
 
-        Assert.Contains("A few things to install", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("FFmpeg", cut.Markup, StringComparison.Ordinal);
         Assert.Contains(FfmpegEffect, cut.Markup, StringComparison.Ordinal);
         Assert.Contains(FfmpegFix, cut.Markup, StringComparison.Ordinal);
         Assert.Contains("12 files are waiting for FFmpeg.", cut.Markup, StringComparison.Ordinal);
         Assert.Contains(cut.FindAll("button"), button => button.TextContent.Contains("Check again", StringComparison.Ordinal));
         Assert.Contains(cut.FindAll("button"), button => button.TextContent.Contains("Continue", StringComparison.Ordinal));
-        Assert.DoesNotContain("Getting things ready", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Checking your tools", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
     public void SetupStep_WhileARequiredToolDownloads_ShowsItsProgressInsteadOfAskingForAnInstall()
     {
-        var cut = Render<SetupPreflightStage>(parameters => parameters
+        var cut = Render<SetupToolsStage>(parameters => parameters
             .Add(p => p.Preflight, Passed(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Downloading, percent: 55)))));
 
-        Assert.Contains("Getting your media tools", cut.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("A few things to install", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Downloading 55%", cut.Find("[data-tool-id=ffmpeg]").TextContent, StringComparison.Ordinal);
         Assert.Contains("Continue", string.Join(' ', cut.FindAll("button").Select(button => button.TextContent)), StringComparison.Ordinal);
     }
@@ -98,11 +95,22 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     {
         var failed = Tool("ffmpeg", "FFmpeg") with { StateReason = "The download didn't finish. Check the connection and try again." };
 
-        var cut = Render<SetupPreflightStage>(parameters => parameters.Add(p => p.Preflight, Passed(Tools(failed))));
+        var cut = Render<SetupToolsStage>(parameters => parameters.Add(p => p.Preflight, Passed(Tools(failed))));
 
-        Assert.Contains("A few things to install", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("The download didn't finish.", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("press Check again", cut.Markup, StringComparison.Ordinal);
+    }
+
+    // One UI (spec A3): the Tools step and Settings > Tools and requirements draw the same row, so a wording fix in one is a fix in both.
+    [Fact]
+    public void SetupToolsStage_DrawsTheSameRowSettingsDraws()
+    {
+        var setup = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Setup", "SetupToolsStage.razor"));
+        var settings = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Settings", "ToolsRequirementsTab.razor"));
+
+        Assert.Contains("<ToolRequirementRow", setup, StringComparison.Ordinal);
+        Assert.Contains("<ToolRequirementRow", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("<article", setup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -118,7 +126,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     [Fact]
     public void SetupStep_NeverOffersLocateIt_BecauseThatLivesInSettings()
     {
-        var cut = Render<SetupPreflightStage>(parameters => parameters
+        var cut = Render<SetupToolsStage>(parameters => parameters
             .Add(p => p.Preflight, Passed(Tools(Tool("ffmpeg", "FFmpeg", canLocate: true)))));
 
         Assert.DoesNotContain("Locate it", cut.Markup, StringComparison.Ordinal);
@@ -129,7 +137,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     {
         var retried = 0;
         var continued = 0;
-        var cut = Render<SetupPreflightStage>(parameters => parameters
+        var cut = Render<SetupToolsStage>(parameters => parameters
             .Add(p => p.Preflight, Passed(Tools(Tool("ffmpeg", "FFmpeg"))))
             .Add(p => p.Retry, EventCallback.Factory.Create(this, () => retried++))
             .Add(p => p.Continue, EventCallback.Factory.Create(this, () => continued++)));
@@ -142,33 +150,71 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SetupStep_WithEveryRequiredToolReady_ShowsNoList()
+    public void SetupStep_WithEveryToolReady_IsStillShown_WithATickPerToolAndAContinue()
     {
-        var cut = Render<SetupPreflightStage>(parameters => parameters
-            .Add(p => p.Preflight, Passed(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready)))));
+        var cut = Render<SetupToolsStage>(parameters => parameters
+            .Add(p => p.Preflight, Passed(Tools(
+                Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready),
+                Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready),
+                Tool("exiftool", "ExifTool", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready)))));
 
-        Assert.DoesNotContain("A few things to install", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Your tools are ready", cut.Markup, StringComparison.Ordinal);
+        Assert.Equal(3, cut.FindAll("[data-testid=setup-tools] article").Count);
+        Assert.All(cut.FindAll("[data-testid=setup-tools] article"), row => Assert.Equal(ToolRequirementStates.Ready, row.GetAttribute("data-state")));
+        Assert.Empty(cut.FindAll("input[type=checkbox]"));
+        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Contains("Continue", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void SetupStep_WithOnlyAnOptionalToolMissing_ShowsNoList_SoSetupPassesStraightThrough()
+    public void SetupStep_ASingleOptionalToolMissing_HasADownloadNowTickThatIsOnByDefault_AndReportsTheChange()
     {
-        var cut = Render<SetupPreflightStage>(parameters => parameters
-            .Add(p => p.Preflight, Passed(Tools(Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional)))));
+        (string ToolId, bool Download)? change = null;
+        var cut = Render<SetupToolsStage>(parameters => parameters
+            .Add(p => p.Preflight, Passed(Tools(Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional))))
+            .Add(p => p.DownloadChanged, EventCallback.Factory.Create<(string ToolId, bool Download)>(this, value => change = value)));
 
-        Assert.DoesNotContain("A few things to install", cut.Markup, StringComparison.Ordinal);
+        var tick = cut.Find("input[type=checkbox]");
+        Assert.True(tick.HasAttribute("checked"));
+        Assert.Contains("Download now", cut.Markup, StringComparison.Ordinal);
+
+        tick.Change(false);
+
+        Assert.Equal(("tesseract", false), change);
     }
 
     [Fact]
-    public void SetupStep_WhileChecking_ShowsGettingThingsReady_EvenIfTheLastResultListedATool()
+    public void SetupStep_ATickTurnedOffStaysOff_AndAReadyToolHasNoTick()
     {
-        var cut = Render<SetupPreflightStage>(parameters => parameters
+        var cut = Render<SetupToolsStage>(parameters => parameters
+            .Add(p => p.Skipped, new HashSet<string> { "tesseract" })
+            .Add(p => p.Preflight, Passed(Tools(
+                Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional),
+                Tool("exiftool", "ExifTool", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready)))));
+
+        Assert.Single(cut.FindAll("input[type=checkbox]"));
+        Assert.False(cut.Find("input[type=checkbox]").HasAttribute("checked"));
+    }
+
+    [Fact]
+    public void SetupStep_NeverListsLocalAi_AndPointsToItsSettingsPage()
+    {
+        var cut = Render<SetupToolsStage>(parameters => parameters
+            .Add(p => p.Preflight, Passed(Tools(
+                Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready),
+                Tool(ToolRequirementIds.AiRuntime, "Local AI engine", requirement: ToolRequirementLevels.Optional)))));
+
+        Assert.Single(cut.FindAll("[data-testid=setup-tools] article"));
+        Assert.Contains("Settings, Local AI", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SetupStep_WhileChecking_ShowsCheckingYourTools_EvenIfTheLastResultListedATool()
+    {
+        var cut = Render<SetupToolsStage>(parameters => parameters
             .Add(p => p.Preflight, Passed(Tools(Tool("ffmpeg", "FFmpeg"))))
             .Add(p => p.Busy, true));
 
-        Assert.Contains("Getting things ready", cut.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("A few things to install", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Checking your tools", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid=setup-tools]"));
     }
 
     [Fact]
@@ -176,11 +222,11 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     {
         var failed = new SetupPreflightDto(false, false, string.Empty, "win-x64", "X64", "X64", [], Tools(Tool("ffmpeg", "FFmpeg")));
 
-        var cut = Render<SetupPreflightStage>(parameters => parameters.Add(p => p.Preflight, failed));
+        var cut = Render<SetupToolsStage>(parameters => parameters.Add(p => p.Preflight, failed));
 
         Assert.Contains("The Library needs a hand", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Tuvima needs a hand", cut.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("A few things to install", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid=setup-tools]"));
     }
 
     [Fact]

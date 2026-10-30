@@ -146,6 +146,41 @@ public static class DashboardAuthenticationEndpoints
             return await FinishSignInAsync(context, issued, returnUrl).ConfigureAwait(false);
         }).AllowAnonymous();
 
+        // First-run setup carries on signed in without leaving its page: the page's script redeems the one-time code the
+        // Dashboard's server handed to the circuit when the first administrator was created (see SetupSignInHandoff).
+        // The custom header means a page on another site cannot send it, and the code is unguessable, single-use and short-lived.
+        app.MapPost("/auth/setup-handoff", async (HttpContext context, SetupSignInHandoff handoff) =>
+        {
+            if (RejectIfTooManyAttempts(context, json: true) is { } limited)
+            {
+                return limited;
+            }
+
+            if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var site)
+                && !site.ToString().Equals("same-origin", StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var issued = handoff.Redeem(context.Request.Headers["X-Tuvima-Setup-Handoff"].ToString());
+            if (issued is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            await context.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                DashboardPrincipalFactory.Create(issued, context.ClientIngress()),
+                new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    AllowRefresh = true,
+                    IssuedUtc = DateTimeOffset.UtcNow,
+                    ExpiresUtc = issued.ExpiresAt,
+                }).ConfigureAwait(false);
+            return Results.NoContent();
+        }).AllowAnonymous();
+
         // The second step of a password sign-in: the code from the authenticator app, or a recovery code.
         app.MapPost("/auth/login/two-step", async (HttpContext context, DashboardIdentityClient identity, IAntiforgery antiforgery) =>
         {

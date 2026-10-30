@@ -100,9 +100,9 @@ public sealed class DashboardFirstRunExperienceTests
     public void SetupWizard_IsReversibleFocusedAndProtectsCredentialEntry()
     {
         var setup = Read("src/MediaEngine.Web/Components/Pages/SetupPage.razor");
-        var administrator = Read("src/MediaEngine.Web/Components/Setup/SetupAdministratorStage.razor");
+        var administrator = Read("src/MediaEngine.Web/Components/Setup/SetupProfileStage.razor");
         var recoveryCodes = Read("src/MediaEngine.Web/Components/Shared/RecoveryCodesDisplay.razor");
-        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupPreflightStage.razor");
+        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupToolsStage.razor");
         var providers = Read("src/MediaEngine.Web/Components/Setup/SetupProvidersStage.razor");
         var providerDialog = Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor");
         var metadataSettings = Read("src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor");

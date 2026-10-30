@@ -92,7 +92,7 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         ],
             NoToolsNeeded);
 
-        var cut = Render<SetupPreflightStage>(parameters => parameters.Add(p => p.Preflight, failed));
+        var cut = Render<SetupToolsStage>(parameters => parameters.Add(p => p.Preflight, failed));
 
         Assert.Contains("We could not check this server. Check that the data folder is writable and has free space, then try again.", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Tuvima cannot write to the folder it keeps your library in.", cut.Markup, StringComparison.Ordinal);
@@ -116,7 +116,7 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         ],
             NoToolsNeeded);
 
-        var cut = Render<SetupPreflightStage>(parameters => parameters
+        var cut = Render<SetupToolsStage>(parameters => parameters
             .Add(p => p.Preflight, failed)
             .Add(p => p.Error, "System.IO.IOException: disk I/O error"));
 
@@ -129,11 +129,11 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SilentCheck_ShowsGettingThingsReady()
+    public void SilentCheck_ShowsCheckingYourTools()
     {
-        var cut = Render<SetupPreflightStage>(parameters => parameters.Add(p => p.Busy, true));
+        var cut = Render<SetupToolsStage>(parameters => parameters.Add(p => p.Busy, true));
 
-        Assert.Contains("Getting things ready", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Checking your tools", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Retry", cut.Markup, StringComparison.Ordinal);
     }
 

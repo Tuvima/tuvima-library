@@ -113,9 +113,15 @@ public sealed class SetupAdministratorRequest
     [JsonPropertyName("device_name")] public string DeviceName { get; init; } = string.Empty;
 }
 
+/// <summary>
+/// The outcome of creating the first administrator. <c>session</c> is the sign-in the Engine issued for that person, handed
+/// to the Dashboard (never the browser) so setup can carry on signed in without leaving the page; absent when the administrator
+/// already existed.
+/// </summary>
 public sealed record SetupAdministratorResponse(
     [property: JsonPropertyName("created")] bool Created,
-    [property: JsonPropertyName("recovery_codes")] IReadOnlyList<string> RecoveryCodes);
+    [property: JsonPropertyName("recovery_codes")] IReadOnlyList<string> RecoveryCodes,
+    [property: JsonPropertyName("session")] AuthSessionResponse? Session = null);
 
 public sealed record SetupMediaLocationsDto(
     [property: JsonPropertyName("passed")] bool Passed,

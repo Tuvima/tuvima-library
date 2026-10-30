@@ -22,7 +22,8 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     [Fact]
     public void AdministratorExplainsInvalidPasswordAndCanRevealIt()
     {
-        var cut = Render<SetupAdministratorStage>(p => p
+        var cut = Render<SetupProfileStage>(p => p
+            .Add(x => x.DisplayName, "Owner")
             .Add(x => x.Email, "owner@example.com")
             .Add(x => x.Password, "seven77")
             .Add(x => x.PasswordConfirmation, "seven77"));
@@ -32,13 +33,13 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
         Assert.Equal("text", cut.Find("#" + label.GetAttribute("for")).GetAttribute("type"));
         cut.Render(p => p.Add(x => x.Password, "mossy-anvil2").Add(x => x.PasswordConfirmation, "mossy-anvil2"));
         Assert.Empty(cut.FindAll(".tl-input-error"));
-        Assert.False(cut.FindAll("button").Single(x => x.TextContent.Contains("Create administrator")).HasAttribute("disabled"));
+        Assert.False(cut.FindAll("button").Single(x => x.TextContent.Contains("Create profile")).HasAttribute("disabled"));
     }
 
     [Fact]
     public void TypingKeepsTheLivePasswordErrorUntilTheLengthIsValid()
     {
-        var cut = Render<SetupAdministratorStage>();
+        var cut = Render<SetupProfileStage>();
         var label = cut.FindAll("label").Single(x => x.TextContent == "Password");
         var input = cut.Find("#" + label.GetAttribute("for"));
         input.Input("seven77");

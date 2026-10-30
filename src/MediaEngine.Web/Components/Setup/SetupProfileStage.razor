@@ -1,0 +1,120 @@
+@namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.Setup
+
+@* "Who are you, and how do you want to sign in?" One screen: your name, then two single-choice rows (Just my name / Email and password) with the
+   chosen row's fields under it. A profile PIN is a small link that opens its two boxes. Create profile signs the person in on this same page, so the
+   recovery codes (when a password was set) and the next step appear without a sign-in page. *@
+<div class="setup-stage-content">
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AdminPanelSettings" /><div><h2 id="setup-stage-title">Your profile</h2><p>Who are you, and how do you want to sign in?</p></div></div>
+    @if (RecoveryCodes.Count > 0)
+    {
+        <RecoveryCodesDisplay Codes="@RecoveryCodes"
+                              Heading="Library administrator recovery codes"
+                              FileName="tuvima-administrator-recovery-codes.txt" />
+        <SetupStageFooter ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+            <AppButton Label="I saved them, continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
+        </SetupStageFooter>
+    }
+    else if (AdministratorConfigured)
+    {
+        <AppAlert Tone="AppUiTone.Success">Your profile is ready.</AppAlert>
+        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+            @if (Continue.HasDelegate)
+            {
+                <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
+            }
+        </SetupStageFooter>
+    }
+    else
+    {
+        <div class="setup-form-grid">
+            <AppTextField Label="Your name" Value="@DisplayName" ValueChanged="DisplayNameChanged" />
+        </div>
+        <div class="setup-form-grid" role="group" aria-label="How will you sign in?">
+            @if (ThisComputerAvailable)
+            {
+                <AppChoiceRow Title="Just my name" Description="Recommended on this computer. Everyone on your home network goes straight in. You can add a password later; you'll need one before adding another household."
+                              Selected="@ThisComputerOnly" OnClick="@(() => SignInModeChanged.InvokeAsync(SetupSignInModes.ThisComputer))" />
+            }
+            <AppChoiceRow Title="Email and password" Description="Use Library on your other devices from the start."
+                          Selected="@(!ThisComputerOnly)" OnClick="@(() => SignInModeChanged.InvokeAsync(SetupSignInModes.Password))" />
+        </div>
+        @if (!ThisComputerOnly)
+        {
+            <div class="setup-form-grid">
+                <AppTextField Label="Email" Value="@Email" ValueChanged="EmailChanged" />
+                <AppTextField Label="Password" InputType="@(_showPassword ? AppInputType.Text : AppInputType.Password)" Value="@Password" ValueChanged="PasswordChanged"
+                              Adornment="AppAdornment.End" AdornmentIcon="@(_showPassword ? AppMaterialIcons.Outlined.VisibilityOff : AppMaterialIcons.Outlined.Visibility)" OnAdornmentClick="@(_ => _showPassword = !_showPassword)" AdornmentAriaLabel="@(_showPassword ? "Hide password" : "Show password")"
+                              Validation="@(new Func<string?, string?>(ValidatePassword))" Error="@(Password.Length > 0 && ValidatePassword(Password) is not null)" ErrorText="@PasswordRuleText" HelpText="@(ValidatePassword(Password) is null ? PasswordRuleText : null)" />
+                <AppTextField Label="Confirm password" InputType="@(_showConfirmation ? AppInputType.Text : AppInputType.Password)" Value="@PasswordConfirmation" ValueChanged="PasswordConfirmationChanged"
+                              Adornment="AppAdornment.End" AdornmentIcon="@(_showConfirmation ? AppMaterialIcons.Outlined.VisibilityOff : AppMaterialIcons.Outlined.Visibility)" OnAdornmentClick="@(_ => _showConfirmation = !_showConfirmation)" AdornmentAriaLabel="@(_showConfirmation ? "Hide confirmed password" : "Show confirmed password")"
+                              Validation="@(new Func<string?, string?>(value => !string.IsNullOrEmpty(value) && value != Password ? "Passwords do not match." : null))" Error="@(!string.IsNullOrEmpty(PasswordConfirmation) && !PasswordsMatch)" ErrorText="Passwords do not match." />
+            </div>
+            @if (_showPin || Pin.Length > 0)
+            {
+                <div class="setup-form-grid">
+                    <AppTextField Label="Profile PIN" InputType="AppInputType.Password" Value="@Pin" ValueChanged="PinChanged" InputMode="@AppInputMode.numeric" MaxLength="12"
+                                  Validation="@(new Func<string?, string?>(value => IsValidPin(value) ? null : "Use 4 to 12 digits."))" Error="@(Pin.Length > 0 && !PinValid)" ErrorText="Use 4 to 12 digits." HelpText="Unlock this profile with 4 to 12 digits. Your password is still required for account access." />
+                    <AppTextField Label="Confirm PIN" InputType="AppInputType.Password" Value="@PinConfirmation" ValueChanged="PinConfirmationChanged" InputMode="@AppInputMode.numeric" MaxLength="12"
+                                  Validation="@(new Func<string?, string?>(value => !string.IsNullOrEmpty(value) && value != Pin ? "PINs do not match." : null))" Error="@(PinConfirmation.Length > 0 && Pin != PinConfirmation)" ErrorText="PINs do not match." />
+                </div>
+            }
+            else
+            {
+                <div class="setup-actions setup-actions--secondary"><AppButton Label="Add a profile PIN" StartIcon="@AppMaterialIcons.Outlined.Lock" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _showPin = true)" /></div>
+            }
+        }
+        @if (!string.IsNullOrEmpty(Notice))
+        {
+            <AppAlert Tone="AppUiTone.Warning">@Notice</AppAlert>
+        }
+        <small>@(ThisComputerOnly ? "Your details stay on your Library server." : "Your credentials remain on your Library server.")</small>
+        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+            <AppButton Label="Create profile" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || !CanCreate)" OnClick="CreateAdministrator" />
+        </SetupStageFooter>
+    }
+</div>
+
+@code {
+    private bool _showPassword, _showConfirmation, _showPin;
+    [Parameter] public string Pin { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string?> PinChanged { get; set; }
+    [Parameter] public string PinConfirmation { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string?> PinConfirmationChanged { get; set; }
+    private bool PinValid => IsValidPin(Pin);
+    private static bool IsValidPin(string? value) => string.IsNullOrEmpty(value) || (value.Length is >= 4 and <= 12 && value.All(char.IsAsciiDigit));
+    private const string PasswordRuleText = "Use at least 12 characters, and avoid common passwords or your email address.";
+    private static string? ValidatePassword(string? value) => !string.IsNullOrEmpty(value) && value.Length is < 12 or > 128 ? PasswordRuleText : null;
+    [Parameter] public string DisplayName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string?> DisplayNameChanged { get; set; }
+    [Parameter] public string Email { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string?> EmailChanged { get; set; }
+    [Parameter] public string Password { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string?> PasswordChanged { get; set; }
+    [Parameter] public string PasswordConfirmation { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string?> PasswordConfirmationChanged { get; set; }
+    [Parameter] public IReadOnlyList<string> RecoveryCodes { get; set; } = [];
+    [Parameter] public bool AdministratorConfigured { get; set; }
+
+    /// <summary>True only on the computer that runs Tuvima (never a container or another device): the no-password start is offered.</summary>
+    [Parameter] public bool ThisComputerAvailable { get; set; }
+
+    /// <summary><c>this_computer</c> or <c>password</c> once chosen; empty while the two choices are shown.</summary>
+    [Parameter] public string SignInMode { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> SignInModeChanged { get; set; }
+
+    /// <summary>A plain-language reason the last attempt did not work, shown above the buttons.</summary>
+    [Parameter] public string? Notice { get; set; }
+    /// <summary>"Just my name" is the default on this computer (recommended); anywhere else the password choice is the only one.</summary>
+    private bool ThisComputerOnly => ThisComputerAvailable && SignInMode != SetupSignInModes.Password;
+    private bool CanCreate => !string.IsNullOrWhiteSpace(DisplayName) && (ThisComputerOnly
+        || (!string.IsNullOrWhiteSpace(Email) && ValidatePassword(Password) is null && Password.Length > 0 && PasswordsMatch && PinValid && Pin == PinConfirmation));
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback CreateAdministrator { get; set; }
+    /// <summary>Moves on to the next step once the recovery codes were saved; the sign-in itself already happened when the profile was created.</summary>
+    [Parameter] public EventCallback Continue { get; set; }
+    [Parameter] public EventCallback Back { get; set; }
+    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
+    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
+    private bool PasswordsMatch => string.Equals(Password, PasswordConfirmation, StringComparison.Ordinal);
+}

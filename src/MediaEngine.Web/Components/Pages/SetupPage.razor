@@ -16,6 +16,10 @@
 @inject IAppToastService Snackbar
 @inject SignInAttemptLimiter SignInLimiter
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
+@inject Microsoft.JSInterop.IJSRuntime JS
+@inject ILogger<SetupPage> Logger
+@inject MediaEngine.Web.Services.Integration.SetupSignInHandoff SignInHandoff
+@inject MediaEngine.Web.Services.Integration.DashboardSessionAccessor DashboardSession
 
 <PageTitle>Set up Library</PageTitle>
 
@@ -60,10 +64,12 @@
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "tools":
-                    <SetupPreflightStage Preflight="@_preflight" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync" />
+                    <SetupToolsStage Preflight="@_preflight" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync"
+                                     Skipped="@_skippedDownloads" DownloadChanged="DownloadChanged" RunInstaller="RunToolInstallerAsync"
+                                     Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "profile":
-                    <SetupAdministratorStage DisplayName="@_displayName" DisplayNameChanged="@((string? value) => _displayName = value ?? string.Empty)"
+                    <SetupProfileStage DisplayName="@_displayName" DisplayNameChanged="@((string? value) => _displayName = value ?? string.Empty)"
                                              Email="@_email" EmailChanged="@((string? value) => _email = value ?? string.Empty)"
                                              Password="@_password" PasswordChanged="@((string? value) => _password = value ?? string.Empty)"
                                              PasswordConfirmation="@_passwordConfirmation" PasswordConfirmationChanged="@((string? value) => _passwordConfirmation = value ?? string.Empty)"
@@ -72,7 +78,7 @@
                                              RecoveryCodes="@_recoveryCodes"
                                              AdministratorConfigured="@(_status.AdministratorConfigured)" Busy="@_busy" CreateAdministrator="CreateAdministratorAsync"
                                              ThisComputerAvailable="@ThisComputerAvailable" SignInMode="@_signInMode" SignInModeChanged="SignInModeChangedAsync" Notice="@_signInNotice"
-                                             SignIn="SignIn" Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                             Continue="ContinueAfterProfileAsync" Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "libraries":
                     <SetupMediaStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
@@ -367,6 +373,7 @@
         }
         finally { _busy = false; }
         _selectedStep = null;
+        _ = StartBackgroundCheckAsync();
         await ReloadAsync();
     }
 
@@ -395,7 +402,38 @@
     }
 
     // The Tools step is always shown, even when every tool is ready; Continue is what passes it, and a missing tool never blocks it.
-    private Task ContinuePastToolsAsync() => DecideStepAsync("tools", "passed", "Tools reviewed during first-run setup.");
+    // Every missing optional tool still ticked "Download now" starts its download here; the downloads finish in the background.
+    private async Task ContinuePastToolsAsync()
+    {
+        foreach (var tool in SetupToolRules.ListedTools(_preflight?.Tools))
+        {
+            if (SetupToolRules.Action(tool) != SetupToolAction.Download || _skippedDownloads.Contains(tool.Id)) continue;
+            try { await ApiClient.InstallToolAsync(tool.Id); }
+            catch (Exception ex) { Logger.LogWarning(ex, "Setup could not start the {Tool} download", tool.Id); }
+        }
+        await DecideStepAsync("tools", "passed", "Tools reviewed during first-run setup.");
+    }
+
+    private readonly HashSet<string> _skippedDownloads = new(StringComparer.Ordinal);
+
+    private Task DownloadChanged((string ToolId, bool Download) change)
+    {
+        if (change.Download) _skippedDownloads.Remove(change.ToolId); else _skippedDownloads.Add(change.ToolId);
+        return Task.CompletedTask;
+    }
+
+    // Welcome starts the server check in the background so the Tools step already has its answers; a failure here just leaves the
+    // check to run again when the Tools step opens.
+    private async Task StartBackgroundCheckAsync()
+    {
+        try
+        {
+            var result = await ApiClient.RunSetupPreflightAsync(_setupSession);
+            if (result is not null && _preflight is null) _preflight = result;
+        }
+        catch (Exception ex) { Logger.LogWarning(ex, "The background server check could not run"); }
+        await InvokeAsync(StateHasChanged);
+    }
 
     private static readonly TimeSpan ToolPollInterval = TimeSpan.FromSeconds(1.5);
     private readonly CancellationTokenSource _closed = new();
@@ -453,7 +491,8 @@
     private bool ThisComputerAvailable =>
         MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress) != MediaEngine.Web.Services.Configuration.IngressKind.Remote
         && !ClientForwarded;
-    private bool UsesThisComputer => ThisComputerAvailable && _signInMode == SetupSignInModes.ThisComputer;
+    // "Just my name" is the recommended default on this computer; anywhere else the password choice is the only one.
+    private bool UsesThisComputer => ThisComputerAvailable && _signInMode != SetupSignInModes.Password;
     private string _signInMode = string.Empty;
     private string? _signInNotice;
     private Task SignInModeChangedAsync(string mode) { _signInMode = mode; _signInNotice = null; return Task.CompletedTask; }
@@ -477,7 +516,38 @@
             if (UsesThisComputer && outcome.Code == SetupAdministratorRefusalCodes.NotAvailableHere) _signInNotice = "Starting without a password only works on the computer that runs Library. Choose another way to set a password instead.";
             else Snackbar.Add("The administrator could not be created.", AppSeverity.Error);
         }
-        else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); }
+        else
+        {
+            await ClearSetupSessionAsync();
+            var signedIn = await SignInInlineAsync(result);
+            if (!signedIn) { SignIn(); return; }
+            if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes;
+            else await ContinueAfterProfileAsync();
+        }
+    }
+
+    // Signs the person in without leaving this page: the circuit takes the Engine's session for its own calls, and the browser's
+    // cookie is set by redeeming a one-time code (SetupSignInHandoff), so a reload or a later visit is signed in too.
+    private async Task<bool> SignInInlineAsync(SetupAdministratorResponse created)
+    {
+        if (created.Session is not { } issued) return false;
+        try
+        {
+            var code = SignInHandoff.Issue(issued);
+            await using var module = await JS.InvokeAsync<Microsoft.JSInterop.IJSObjectReference>("import", "./js/setup-signin.js");
+            if (!await module.InvokeAsync<bool>("redeem", code)) return false;
+        }
+        catch (Exception) { return false; }
+        DashboardSession.Set(issued.SessionToken, issued.AccountId, issued.ActiveProfileId, issued.SessionId, issued.Authority);
+        _authenticated = true;
+        return true;
+    }
+
+    private async Task ContinueAfterProfileAsync()
+    {
+        _recoveryCodes = [];
+        _selectedStep = null;
+        await ReloadAsync();
     }
     private async Task ClearSetupSessionAsync() { _setupSession = null; try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } }
     private void SignIn() => Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
