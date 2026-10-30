@@ -21,7 +21,11 @@ public sealed class LibraryUnidentifiedTabTests : AsyncBunitContext
 
     private static readonly LibraryFolderDto Tv = new()
     {
-        Id = TvId, Name = "TV Shows", KindKey = "tv", Area = "watch", MediaTypes = ["TV"],
+        Id = TvId,
+        Name = "TV Shows",
+        KindKey = "tv",
+        Area = "watch",
+        MediaTypes = ["TV"],
         Sources = [new() { Id = "tv-main", Path = "Z:\\TV Shows", ManagementMode = "existing_library", AccessMode = "read_only" }],
     };
 
