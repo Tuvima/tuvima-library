@@ -57,6 +57,11 @@
         {
             <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? "Preparing video… Playback will begin automatically.")</div>
         }
+        <div class="video-playback-host__paused-title" data-paused="@(VideoIsPlaying ? "false" : "true")" aria-hidden="true">
+            @if (!string.IsNullOrWhiteSpace(_presentationContext?.ShowTitle)) { <small>@_presentationContext!.ShowTitle</small> }
+            @if (VideoEpisodeMetadata is { } pausedEpisode) { <span>@pausedEpisode</span> }
+            <strong>@(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</strong>
+        </div>
         <PlaybackVideoChrome>
             <HeaderContent>            <AppTooltip Text="Close">
                 <AppNativeButton Type="button" Class="video-playback-host__icon video-playback-host__header-tools" OnClick="ClosePlayerAsync" AriaLabel="Close video">
@@ -90,7 +95,7 @@
                         AriaLabel="Volume" ValueFormatter="FormatVolume" />
                 </div>
                 </div>
-                <div class="playback-video-controls__identity">@(_presentationContext?.ShowTitle ?? VideoContext) @VideoEpisodeMetadata @(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</div>
+                <div class="playback-video-controls__identity" title="@VideoBarTitle">@VideoBarTitle</div>
                 <div class="playback-video-controls__right">
                     @if (EligibleNextEpisode is not null) { <AppTooltip Text="Next episode"><AppNativeButton AriaLabel="Next episode" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip> }
                     @if (ContextKind is not null)
@@ -116,7 +121,7 @@
                             </ChildContent>
                         </PlaybackPopover>
                     }
-                    <PlaybackPopover Title="Captions" ToolId="video-captions" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
+                    <PlaybackPopover Title="Captions" ToolId="video-captions" Kind="video" Surface="video" ItemKey="@VideoInstanceKey" TriggerClass="@(_captionTracks.Any(track => track.Selected) ? "is-on" : null)">
                         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Captions" /></TriggerContent>
                         <ChildContent>
                             <PlaybackSheetList>
@@ -161,7 +166,7 @@
                             </ChildContent>
                         </PlaybackPopover>
                     }
-                    <PlaybackSpeedControl Value="@Playback.PlaybackRate" ValueChanged="SelectPlaybackRateAsync" Open="@_rateMenuOpen" MenuOpenChanged="HandleRateMenuOpenChanged" Surface="video" />
+                    <PlaybackSpeedControl Class="@(Math.Abs(Playback.PlaybackRate - 1d) > 0.001 ? "is-on" : null)" Value="@Playback.PlaybackRate" ValueChanged="SelectPlaybackRateAsync" Open="@_rateMenuOpen" MenuOpenChanged="HandleRateMenuOpenChanged" Surface="video" />
                     <PlaybackControlStrip Controls="@VideoHeaderUtilityControls" Size="compact" Surface="video" OnControl="HandleVideoUtilityControl" />
                     <PlaybackIconButton Control="@FullscreenControl" Surface="video" OnClick="ToggleFullscreenAsync" />
                 </div>
@@ -364,22 +369,15 @@
             .ToList();
     private IReadOnlyList<PlaybackControlDefinition> VideoHeaderUtilityControls =>
         VideoUtilityControls.Where(control => control.Key == PlaybackControlKey.PictureInPicture).ToList();
-    private string VideoContext
-    {
-        get
-        {
-            var item = Playback.CurrentItem;
-            if (item is null)
-            {
-                return "Now playing";
-            }
-
-            return StringHelpers.FirstNonBlankOr("Now playing", item.Album, item.Year, "Now playing");
-        }
-    }
     private string? VideoEpisodeMetadata => Playback.CurrentItem is { SeasonNumber: not null, EpisodeNumber: not null } item
         ? $"S{item.SeasonNumber} E{item.EpisodeNumber}"
         : null;
+    /// <summary>The centre of the bar: "From E4 · Episode name" for an episode, the title for a film.</summary>
+    private string VideoBarTitle => Playback.CurrentItem is { } item
+        ? item.EpisodeNumber is { } episode
+            ? $"From E{episode} · {item.EpisodeTitle ?? item.Title}"
+            : item.EpisodeTitle ?? item.Title
+        : string.Empty;
     private PlaybackSegmentDto? VisibleSkipSegment =>
         (Playback.CurrentManifest?.Segments ?? [])
             .Where(segment => segment.IsSkippable

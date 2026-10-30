@@ -3537,6 +3537,24 @@ button.app-menu-item {
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-chrome__bottom { bottom: max(6px, var(--tl-safe-area-bottom)); gap: 0; }
     .video-playback-host.is-expanded .playback-seek-rail--video { gap: 4px; }
 }
+/* Desktop video bar (video-player-controls-and-bookmarks D1-D3): centred title, one 34 px glyph in a 52 px target, accent hover, "on" underline. */
+@media (min-width: 840px) {
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-video-controls__identity { text-align: center; }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button { position: relative; min-width: 52px; height: 52px; }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-primary-button-shell { --playback-primary-size: 52px; --playback-primary-icon-size: 34px; }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-primary-button-shell .playback-primary-button,
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-primary-button-shell .playback-primary-button:hover { border: 0; }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-relative-skip { --playback-relative-skip-size: 52px; --playback-relative-skip-svg-size: 34px; }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .playback-utility-glyph,
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .tl-icon-root,
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .playback-icon-button__visual { width: 34px; height: 34px; font-size: 34px; flex-basis: 34px; }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):hover,
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):focus-visible { color: var(--tl-accent-primary); background: transparent; }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button.is-on::after,
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .is-on button::after,
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button.is-active::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 3px; border-radius: 2px; background: var(--tl-accent-primary); }
+}
 @keyframes playback-popover-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (max-width: 720px){
     .playback-popover .playback-context-tabs { gap: 4px; padding: 4px; border: 0; background: var(--playback-surface-hover); border-radius: 8px; }
