@@ -242,9 +242,7 @@ public sealed class HlsAccessGrantServiceTests : IDisposable
         };
         await _accounts.CreateAccountAsync(
             account,
-            new TestGrant(account.Id, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid>());
+            new TestGrant(account.Id, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false));
         return account;
     }
 

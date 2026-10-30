@@ -165,7 +165,7 @@ public static class VaultBrowseEndpoints
         var access = services.GetRequiredService<VaultAccessResolver>();
         if (!await access.MayOpenAnySectionAsync(authority, ct)
             || authority.ActiveProfileId is not { } watchingProfile
-            || !(await services.GetRequiredService<IProfileAccessRepository>().GetFeatureGrantsAsync(watchingProfile, ct)).Contains(AccountFeatureId.Watch))
+            || !(await services.GetRequiredService<IProfileAccessRepository>().GetAreasAsync(watchingProfile, ct)).Contains(AccountFeatureId.Watch))
         {
             return false;
         }

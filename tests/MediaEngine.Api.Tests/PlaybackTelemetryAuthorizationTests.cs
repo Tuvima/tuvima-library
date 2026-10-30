@@ -27,7 +27,7 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
     }
 
     [Fact]
-    public async Task DelegatedReadsCarryExactAccountProfileHiddenLibrariesAndFeaturesToRepository()
+    public async Task DelegatedReadsCarryExactAccountProfileHouseholdHiddenLibrariesAndAreasToRepository()
     {
         var accountId = Guid.NewGuid();
         var profileId = Guid.NewGuid();
@@ -46,7 +46,8 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
         Assert.Equal(profileId, scope.ProfileId);
         Assert.False(scope.AllLibraries);
         Assert.Equal([hiddenLibrary], scope.HiddenLibraryIds);
-        Assert.Equal([AccountFeatureId.Watch], scope.Features);
+        // Areas are derived for every profile (Read, Watch and Listen): nothing is stored per person.
+        Assert.Equal(new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen }, scope.Features.ToHashSet());
     }
 
     [Fact]
@@ -120,7 +121,7 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
         var context = new DefaultHttpContext();
         return new(new HttpContextAccessor { HttpContext = context }, new AuthorityResolver(authority),
             new Evaluator(decision), new ProfileAccessRepository(_database),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)), repository);
+            new LibraryVisibilityRule(new HouseholdLibraryAccessRepository(_database), new VaultLibraryRepository(_database)), repository);
     }
 
     private void SeedAccess(Guid accountId, Guid profileId, Guid libraryId)
@@ -128,16 +129,17 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
         using var connection = _database.CreateConnection();
         var now = DateTimeOffset.UtcNow.ToString("O");
         connection.Execute("""
-            INSERT INTO profiles(id,display_name,avatar_color,role,created_at)
-            VALUES(@profileId,'Viewer','#000000','RestrictedProfile',@now);
+            INSERT INTO households(id,name,created_at) VALUES(@householdId,'Viewer home',@now);
+            INSERT INTO profiles(id,display_name,avatar_color,role,created_at,household_id)
+            VALUES(@profileId,'Viewer','#000000','RestrictedProfile',@now,@householdId);
             INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id)
             VALUES(@accountId,@email,@normalized,1,1,@now,@now,@profileId);
-            INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,'watch',@now);
-            INSERT INTO profile_library_hidden(profile_id,library_id,created_at) VALUES(@profileId,@libraryId,@now);
+            INSERT INTO household_library_hidden(household_id,library_id,created_at) VALUES(@householdId,@libraryId,@now);
             """, new
         {
             accountId,
             profileId,
+            householdId = Guid.NewGuid(),
             libraryId,
             now,
             email = $"{accountId:N}@example.test",

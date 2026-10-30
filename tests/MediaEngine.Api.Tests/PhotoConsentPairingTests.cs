@@ -80,9 +80,7 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new TestGrant(Account.SeedAccountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: true),
-            new HashSet<AccountFeatureId>(),
-            new HashSet<Guid>());
+            new TestGrant(Account.SeedAccountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: true));
         _authorization = new ClientAuthorizationService(
             new ClientAuthorizationRepository(_database), _accounts, _applications, new PermissionRegistry(), TimeProvider.System);
 

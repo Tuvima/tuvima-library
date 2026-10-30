@@ -26,7 +26,7 @@ public sealed class UsersProfilesHouseholdsActionTests
         await using var world = await World.CreateAsync();
         await world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Kim.Id);
         var flagsBefore = (await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!;
-        var featuresBefore = (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray();
+        var featuresBefore = (await world.Access.GetAreasAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray();
 
         var created = await world.Mutations.CreateUserAsync(world.ServerAdmin, new CreateUserCommand(
             "kim@new.example.com", world.KimProfile.Id, null, NewUserSignInMethod.TemporaryPassword, Password));
@@ -38,7 +38,7 @@ public sealed class UsersProfilesHouseholdsActionTests
         var flagsAfter = (await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!;
         Assert.Equal(flagsBefore.IsServerAdministrator, flagsAfter.IsServerAdministrator);
         Assert.Equal(flagsBefore.IsHouseholdAdministrator, flagsAfter.IsHouseholdAdministrator);
-        Assert.Equal(featuresBefore, (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
+        Assert.Equal(featuresBefore, (await world.Access.GetAreasAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
         Assert.NotNull(await world.Identities.GetAccountCredentialAsync(created.User.Id, AccountCredentialKind.Password));
         Assert.Contains(world.Audit.Events, e => e.EventType == "account.created" && e.SubjectId == created.User.Id.ToString("D"));
     }
@@ -115,7 +115,7 @@ public sealed class UsersProfilesHouseholdsActionTests
     }
 
     [Fact]
-    public async Task ANewProfile_IsAnOrdinaryMemberByDefault_WithReadWatchListenAndViewAndNoLibrary()
+    public async Task ANewProfile_IsAnOrdinaryMemberByDefault_WithReadWatchAndListen()
     {
         await using var world = await World.CreateAsync();
 
@@ -127,8 +127,8 @@ public sealed class UsersProfilesHouseholdsActionTests
         Assert.Equal(world.Household.Id, profile.HouseholdId);
         Assert.False(profile.IsHouseholdAdministrator);
         Assert.False(profile.IsServerAdministrator);
-        Assert.Equal(["listen", "read", "view", "watch"], (await world.Access.GetFeatureGrantsAsync(profile.Id)).Select(feature => feature.Value).Order().ToArray());
-        Assert.Empty(await world.Access.GetHiddenLibrariesAsync(profile.Id));
+        // View is open only to profiles of the default household, which this household is not (areas are derived, never stored).
+        Assert.Equal(["listen", "read", "watch"], (await world.Access.GetAreasAsync(profile.Id)).Select(feature => feature.Value).Order().ToArray());
         Assert.Equal(profile.Id, created.User.ProfileId);
     }
 
@@ -163,7 +163,7 @@ public sealed class UsersProfilesHouseholdsActionTests
         Assert.Equal(householdsBefore + 1, (await world.Households.ListSummariesAsync()).Count);
         Assert.True(profile.IsHouseholdAdministrator);
         Assert.False(profile.IsServerAdministrator);
-        Assert.Equal(["listen", "read", "watch"], (await world.Access.GetFeatureGrantsAsync(profile.Id)).Select(feature => feature.Value).Order().ToArray());
+        Assert.Equal(["listen", "read", "watch"], (await world.Access.GetAreasAsync(profile.Id)).Select(feature => feature.Value).Order().ToArray());
         Assert.Contains(world.Audit.Events, e => e.EventType == "household.created" && e.SubjectId == household.Id.ToString("D"));
         Assert.Contains(world.Audit.Events, e => e.EventType == "household.admin_granted");
     }
@@ -294,7 +294,7 @@ public sealed class UsersProfilesHouseholdsActionTests
     {
         await using var world = await World.CreateAsync();
         var before = (await world.Access.GetAdminFlagsAsync(world.SamProfile.Id))!;
-        var features = (await world.Access.GetFeatureGrantsAsync(world.SamProfile.Id)).Select(feature => feature.Value).Order().ToArray();
+        var features = (await world.Access.GetAreasAsync(world.SamProfile.Id)).Select(feature => feature.Value).Order().ToArray();
         var profile = (await world.Profiles.GetByIdAsync(world.SamProfile.Id))!;
 
         var changed = await world.Mutations.ChangeEmailAsync(world.ServerAdmin, world.Sam.Id, "sam@new.example.com");
@@ -304,174 +304,13 @@ public sealed class UsersProfilesHouseholdsActionTests
         var after = (await world.Access.GetAdminFlagsAsync(world.SamProfile.Id))!;
         Assert.True(after.IsHouseholdAdministrator);
         Assert.Equal(before.AuthorizationVersion, after.AuthorizationVersion);
-        Assert.Equal(features, (await world.Access.GetFeatureGrantsAsync(world.SamProfile.Id)).Select(feature => feature.Value).Order().ToArray());
+        Assert.Equal(features, (await world.Access.GetAreasAsync(world.SamProfile.Id)).Select(feature => feature.Value).Order().ToArray());
         Assert.Equal(profile.DisplayName, (await world.Profiles.GetByIdAsync(world.SamProfile.Id))!.DisplayName);
         Assert.Equal(world.Household.Id, (await world.Profiles.GetByIdAsync(world.SamProfile.Id))!.HouseholdId);
         Assert.Null(await world.Accounts.GetByNormalizedEmailAsync("SAM@EXAMPLE.COM"));
         var taken = await Assert.ThrowsAsync<InvalidOperationException>(
             () => world.Mutations.ChangeEmailAsync(world.ServerAdmin, world.Sam.Id, "alex@example.com"));
         Assert.Equal("That email already has a sign-in.", taken.Message);
-    }
-
-    // ---- What a profile may use ----
-
-    [Fact]
-    public async Task AServerAdministrator_SetsWhatAnyProfileMayUse_AndItsVersionGoesUp()
-    {
-        await using var world = await World.CreateAsync();
-        var before = (await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!.AuthorizationVersion;
-
-        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid>());
-
-        Assert.Equal(["read", "watch"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
-        Assert.True((await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!.AuthorizationVersion > before);
-        Assert.Contains(world.Audit.Events, e => e.EventType == "profile.access_replaced" && e.SubjectId == world.KimProfile.Id.ToString("D"));
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, Guid.NewGuid(),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>()));
-        await Assert.ThrowsAsync<ArgumentException>(() => world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
-            new HashSet<AccountFeatureId>(), new HashSet<Guid> { Guid.NewGuid() }));
-    }
-
-    [Fact]
-    public async Task AHouseholdAdministrator_CanHandOutOnlyWhatTheirOwnProfileHolds_AndOnlyInTheirHousehold()
-    {
-        await using var world = await World.CreateAsync();
-        var alexProfile = await DefaultProfileAsync(world, world.Alex);
-        await world.Access.ReplaceAccessAsync(alexProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), DateTimeOffset.UtcNow);
-
-        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
-        var tooMuch = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReplaceProfileAccessAsync(
-            world.AlexAuthority, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid>()));
-
-        Assert.Contains("only hand out", tooMuch.Message, StringComparison.Ordinal);
-        Assert.Equal(["read"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
-        // The server administrator is not held to that ceiling.
-        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid>());
-    }
-
-    [Fact]
-    public async Task AHouseholdAdministrator_AddsFeaturesTheyHold_KeepsTheOnesTheyDoNot_HidesMoreLibraries_AndNeverShowsOneHiddenFromThem()
-    {
-        await using var world = await World.CreateAsync();
-        var alexProfile = await DefaultProfileAsync(world, world.Alex);
-        var (hiddenFromAlex, other) = AddCataloguedLibraries(world);
-        await world.Access.ReplaceAccessAsync(alexProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { hiddenFromAlex }, DateTimeOffset.UtcNow);
-        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid> { hiddenFromAlex });
-
-        // Alex does not hold View: adding Read keeps View, though the request omits it. The library hidden from Alex stays hidden from Kim.
-        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
-
-        Assert.Equal(["read", "view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
-        Assert.Equal([hiddenFromAlex], (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToArray());
-
-        // Alex can hide more from Kim, and show again what Alex can see, but not what is hidden from Alex.
-        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { other });
-        Assert.Equal(new HashSet<Guid> { hiddenFromAlex, other }, (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToHashSet());
-
-        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
-
-        Assert.Equal(["view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
-        Assert.Equal([hiddenFromAlex], (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToArray());
-
-        // The server administrator is not held to that rule.
-        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid>());
-        Assert.Empty(await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id));
-    }
-
-    [Fact]
-    public async Task AHouseholdAdministrator_CannotAddAFeatureTheyLack_ButSendingTheCurrentAccessBackIsFine()
-    {
-        await using var world = await World.CreateAsync();
-        var alexProfile = await DefaultProfileAsync(world, world.Alex);
-        var (_, other) = AddCataloguedLibraries(world);
-        await world.Access.ReplaceAccessAsync(alexProfile, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), DateTimeOffset.UtcNow);
-        await world.Mutations.ReplaceProfileAccessAsync(world.ServerAdmin, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid>());
-
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReplaceProfileAccessAsync(
-            world.AlexAuthority, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Listen }, new HashSet<Guid>()));
-        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid>());
-        // Hiding a library Alex can see is allowed.
-        await world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.View }, new HashSet<Guid> { other });
-
-        Assert.Equal(["view"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
-        Assert.Equal([other], (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToArray());
-    }
-
-    private static (Guid First, Guid Second) AddCataloguedLibraries(World world)
-    {
-        var root = Path.Combine(Path.GetTempPath(), "tuvima-grants-" + Guid.NewGuid().ToString("N"));
-        var config = world.Configuration.LoadLibraries();
-        config.StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Media", Path = root, AllowWrite = true }];
-        var ids = new List<Guid>();
-        foreach (var (name, kindKey, mediaType, area) in new[]
-        {
-            ("Recordings", "other_audio", "Music", LibraryAreas.Listen),
-            ("Loose books", "other_reading", "Books", LibraryAreas.Read),
-        })
-        {
-            var id = Guid.NewGuid();
-            ids.Add(id);
-            config.Libraries.Add(new LibraryFolderConfig
-            {
-                Id = id.ToString("D"),
-                Name = name,
-                Category = mediaType,
-                Kind = LibraryKinds.Catalogued,
-                KindKey = kindKey,
-                Area = area,
-                Presentation = LibraryPresentations.Catalogue,
-                MetadataPolicy = LibraryMetadataPolicies.LocalOnly,
-                MediaTypes = [mediaType],
-                Sources =
-                [
-                    new LibrarySourceConfig
-                    {
-                        Id = Guid.NewGuid().ToString("D"),
-                        Path = Path.Combine(root, kindKey),
-                        ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
-                        AccessMode = LibrarySourceAccessModes.ReadOnly,
-                    },
-                ],
-                OrganizationPolicy = new LibraryOrganizationPolicyConfig { Mode = LibraryOrganizationModes.KeepOriginalFolders, WriteTags = false },
-            });
-        }
-
-        world.Configuration.SaveLibraries(config);
-        return (ids[0], ids[1]);
-    }
-
-    [Fact]
-    public async Task ProfileAccess_IsNotFoundInAnotherHousehold_ForbiddenForAMember_AndNeverOnAServerAdministratorsProfile()
-    {
-        await using var world = await World.CreateAsync();
-        var beaProfile = await DefaultProfileAsync(world, world.Bea);
-        var empty = new HashSet<AccountFeatureId>();
-
-        var outside = await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, beaProfile, empty, new HashSet<Guid>()));
-        var missing = await Assert.ThrowsAsync<KeyNotFoundException>(() => world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, Guid.NewGuid(), empty, new HashSet<Guid>()));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReplaceProfileAccessAsync(world.KimAuthority, world.Mary.Id, empty, new HashSet<Guid>()));
-        var serverProfile = await DefaultProfileAsync(world, world.ServerAdminAccount);
-        // A server administrator's profile is in the default household; make Alex's household that one to put it in reach.
-        await world.Access.SetDefaultHouseholdAsync(world.Household.Id);
-        await world.GivePasswordAsync(world.Kim.Id);
-        await world.Mutations.SetProfileRolesAsync(world.ServerAdmin, world.KimProfile.Id, false, true);
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.ReplaceProfileAccessAsync(world.AlexAuthority, world.KimProfile.Id, empty, new HashSet<Guid>()));
-
-        Assert.Equal(missing.Message, outside.Message);
-        Assert.NotEqual(Guid.Empty, serverProfile);
     }
 
     // ---- Roles (D15, D17) ----

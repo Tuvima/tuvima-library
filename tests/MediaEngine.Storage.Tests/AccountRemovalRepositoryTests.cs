@@ -66,8 +66,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         await _accounts.DeleteUserAsync(sam.Id);
 
         var again = NewAccount("sam@new.example.com");
-        await _accounts.CreateAccountAsync(again, Grant(again.Id, samProfile, isDefault: true),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), preserveProfileAccess: true);
+        await _accounts.CreateAccountAsync(again, Grant(again.Id, samProfile, isDefault: true), preserveProfileAccess: true);
 
         Assert.Equal(samProfile, (await _accounts.GetByIdAsync(again.Id))!.ProfileId);
     }
@@ -278,8 +277,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     public async Task DeletingTheUserOfTheOwnerProfile_KeepsTheOwnerProfile_AndItLosesTheAdministratorRole()
     {
         var admin = NewAccount("admin@example.com");
-        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
+        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true));
         var other = await AddMainSignInAsync("other@example.com", "Other", (await UserAsync(admin.Id)).HouseholdId);
         AddPassword(admin.Id);
         AddPassword(other.Id);
@@ -297,8 +295,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     {
         var admin = NewAccount("admin@example.com");
         var profile = NewProfile("Admin");
-        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
+        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true), newProfile: profile);
         AddPassword(admin.Id);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteUserAsync(admin.Id));
@@ -380,8 +377,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
 
         var admin = NewAccount("admin@example.com");
         var profile = NewProfile("Admin");
-        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
+        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true), newProfile: profile);
         Assert.False(await _accounts.AreServerAdministratorsSecuredAsync());
         Assert.False(await _accounts.IsUserSecuredAsync(admin.Id));
 
@@ -404,8 +400,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         admin.Email = null;
         admin.NormalizedEmail = null;
         var profile = NewProfile("Admin");
-        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
+        await _accounts.CreateAccountAsync(admin, Grant(admin.Id, profile.Id, isDefault: true, administrator: true), newProfile: profile);
         AddPassword(admin.Id);
 
         Assert.False(await _accounts.AreServerAdministratorsSecuredAsync());
@@ -572,8 +567,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     {
         var account = NewAccount(email);
         var profile = NewProfile(profileName);
-        await _accounts.CreateAccountAsync(account, Grant(account.Id, profile.Id, isDefault: true),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: profile, householdId: householdId);
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, profile.Id, isDefault: true), newProfile: profile, householdId: householdId);
         return await UserAsync(account.Id);
     }
 
@@ -582,8 +576,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     {
         var account = NewAccount(email);
         var profile = NewProfile(profileName);
-        await _accounts.CreateAccountAsync(account, Grant(account.Id, profile.Id, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), newProfile: profile);
+        await _accounts.CreateAccountAsync(account, Grant(account.Id, profile.Id, isDefault: true, administrator: true), newProfile: profile);
         AddPassword(account.Id);
         return await UserAsync(account.Id);
     }

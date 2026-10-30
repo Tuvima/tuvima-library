@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace MediaEngine.Api.Tests;
 
-// Simpler access (D2, D11): a person sees every library in the areas they have unless an administrator hid it from them.
+// Library access v4: a person sees every library in the areas they reach unless it is turned off for their household.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {
     private static readonly HashSet<AccountFeatureId> WatchOnly = [AccountFeatureId.Watch];
@@ -29,7 +29,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(CatalogueResourceAccess.Allowed,
             await CreateResourceService(context).EvaluateAssetAsync(context, film.AssetId, ApplicationPermissionIds.PlaybackRead));
         using var connection = _database.CreateConnection();
-        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_library_hidden;"));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM household_library_hidden;"));
     }
 
     [Fact]
@@ -67,22 +67,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(new[] { shown.WorkId, secret.WorkId }.Order(), (await otherService.LoadWorksAsync(default)).Select(row => row.WorkId).Order());
         Assert.Equal(CatalogueResourceAccess.Allowed,
             await CreateResourceService(otherContext).EvaluateAssetAsync(otherContext, secret.AssetId, ApplicationPermissionIds.PlaybackRead));
-    }
-
-    [Fact]
-    public async Task AnAccountWithoutTheArea_DoesNotSeeTheLibrary_EvenWithNothingHidden()
-    {
-        var account = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
-        var library = Guid.NewGuid();
-        var film = await InsertOwnedWorkWithIdAsync(library, "A film", "Movie");
-        var context = SeedProfileContext(account);
-        var service = CreateService(context, RealReaders());
-
-        Assert.Empty(await service.LoadWorksAsync(default));
-        Assert.False((await service.LoadLibraryAccessAsync(default)).Allows(library.ToString("D"), "Movie"));
-        Assert.Equal(CatalogueResourceAccess.Denied,
-            await CreateResourceService(context).EvaluateAssetAsync(context, film.AssetId, ApplicationPermissionIds.PlaybackRead));
     }
 
     [Fact]

@@ -750,9 +750,7 @@ public sealed class CollectionItemRootsTests : IDisposable
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new TestGrant(_account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen },
-            new HashSet<Guid>()).GetAwaiter().GetResult();
+            new TestGrant(_account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: false)).GetAwaiter().GetResult();
     }
 
     private void SetContentLimit(string? limit)

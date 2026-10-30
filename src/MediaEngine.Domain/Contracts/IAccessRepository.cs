@@ -65,16 +65,13 @@ public interface IAccountAccessMutationRepository
     Task<UserRemovalOutcome> DeleteUserAsync(
         Guid userId, IReadOnlyCollection<Guid>? confirmedProfileIds = null, CancellationToken ct = default);
     /// <summary>
-    /// Adds a person (a profile without a user) to a household. Refused when the household is full.
-    /// <paramref name="accessFromProfileId"/> is the profile of whoever is adding them: the new person starts with that profile's
-    /// Read/Watch/Listen/View access and hidden libraries (View off and nothing hidden when it is in another household).
-    /// <see langword="null"/> gives every feature and nothing hidden. Never an administrator role.
+    /// Adds a person (a profile without a user) to a household. Refused when the household is full. The person has no library or area
+    /// settings of their own: they see what their household shows (library access v4). Never an administrator role.
     /// </summary>
     Task CreateHouseholdPersonAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         Guid householdId,
-        CancellationToken ct = default,
-        Guid? accessFromProfileId = null);
+        CancellationToken ct = default);
     /// <summary>
     /// Saves the order people are listed in (Who's watching and the profile menu): positions 0, 1, 2... in the given order. The list must
     /// hold every person of the household exactly once, or nothing changes and an <see cref="ArgumentException"/> is thrown.
@@ -129,17 +126,15 @@ public sealed record ProfileAdminProtectionCommand(
 /// <see cref="NewHouseholdName"/> whose first profile looks after it. With neither, a new household with the default name is made
 /// (first start only). <see cref="SetUpProfile"/> applies the same set-up to the existing profile a user opens (the first start,
 /// where the Owner profile becomes the first server administrator's). A profile that is set up takes <see cref="IsServerAdministrator"/>,
-/// the household administrator role when its household was just made for it, and <see cref="Features"/> and <see cref="HiddenLibraries"/>
-/// (the Vault is refused as a library). Any other existing profile keeps exactly what it has.
+/// and the household administrator role when its household was just made for it. A profile holds no library or area settings (library
+/// access v4: a library is on or off for a household). Any other existing profile keeps exactly what it has.
 /// </summary>
 public sealed record NewUserPlacement(
     MediaEngine.Domain.Aggregates.Profile? NewProfile = null,
     Guid? HouseholdId = null,
     string? NewHouseholdName = null,
     bool SetUpProfile = false,
-    bool IsServerAdministrator = false,
-    IReadOnlySet<AccountFeatureId>? Features = null,
-    IReadOnlySet<Guid>? HiddenLibraries = null);
+    bool IsServerAdministrator = false);
 
 /// <summary>An invitation just made. <paramref name="Code"/> is shown as <c>XXXXX-XXXXX</c> and is never available again.</summary>
 public sealed record IssuedAccountInvitation(
@@ -240,15 +235,6 @@ public interface IAccountAccessMutationService
         CancellationToken ct = default);
     /// <summary>What <see cref="DeleteUserAsync"/> would do, and whether it would be refused, for the confirmation. Changes nothing.</summary>
     Task<UserDeletionPreview> PreviewDeleteUserAsync(RequestAuthority actor, Guid userId, CancellationToken ct = default);
-    /// <summary>
-    /// Replaces the Read/Watch/Listen/View access and the hidden libraries of a profile (every library in its areas is visible unless
-    /// hidden, simpler access D2). A server administrator may set anything; a household administrator only within their own household,
-    /// only features their own profile holds, only libraries visible to their own profile (they cannot show what is hidden from
-    /// themselves, simpler access D4), and never on a server administrator's profile. <paramref name="expectedAccessVersion"/> is the
-    /// version of the profile's access the caller loaded; when it is no longer current <see cref="ProfileAccessChangedException"/> is
-    /// thrown and nothing changes (<see langword="null"/>, for application callers, skips the check).
-    /// </summary>
-    Task ReplaceProfileAccessAsync(RequestAuthority actor, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, long? expectedAccessVersion = null, CancellationToken ct = default);
     /// <summary>
     /// Sets the household administrator and server administrator roles of a profile (D15, D17). A household administrator may change
     /// the household administrator role of profiles in their own household; only a server administrator changes the server

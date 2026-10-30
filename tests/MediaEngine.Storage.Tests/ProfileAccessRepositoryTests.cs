@@ -9,8 +9,8 @@ using Microsoft.Data.Sqlite;
 namespace MediaEngine.Storage.Tests;
 
 /// <summary>
-/// The profile holds the person's access (users, profiles and households spec, wave UPH1a): administrator roles, features, libraries,
-/// the admin PIN question and its unlocks live on the profile, a sign-in is attached to one profile, and one household is the default.
+/// The profile holds the person's access (users, profiles and households spec, wave UPH1a; library access v4): administrator roles, the
+/// admin PIN question and its unlocks live on the profile (the libraries and areas a person sees are the household's alone), a sign-in is attached to one profile, and one household is the default.
 /// </summary>
 public sealed class ProfileAccessRepositoryTests : IDisposable
 {
@@ -43,68 +43,65 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
         Assert.Contains("authorization_version", Columns(connection, "profiles"));
         Assert.Contains("profile_id", Columns(connection, "accounts"));
         Assert.Contains("is_default", Columns(connection, "households"));
-        foreach (var table in new[] { "profile_feature_grants", "profile_library_hidden", "profile_admin_protections", "profile_admin_unlocks" })
+        foreach (var table in new[] { "profile_admin_protections", "profile_admin_unlocks", "household_library_hidden" })
         {
             Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=@table;", new { table }));
+        }
+
+        // Library access v4: no per-profile library ticks and no per-profile area switches are kept.
+        foreach (var table in new[] { "profile_feature_grants", "profile_library_hidden" })
+        {
+            Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=@table;", new { table }));
         }
     }
 
     [Fact]
-    public async Task AProfilesAccess_RoundTrips_AndEveryChangeRaisesItsAuthorizationVersion()
+    public async Task AProfilesRoles_RoundTrip_AndEveryChangeRaisesItsAuthorizationVersion()
     {
         var profileId = InsertProfile();
-        var libraryA = Guid.NewGuid();
-        var libraryB = Guid.NewGuid();
         var before = (await _access.GetAdminFlagsAsync(profileId))!;
         Assert.Equal(1, before.AuthorizationVersion);
         Assert.False(before.IsServerAdministrator);
         Assert.False(before.IsHouseholdAdministrator);
 
-        Assert.True(await _access.ReplaceAccessAsync(profileId, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid> { libraryA, libraryB }, _now));
-        Assert.Equal(2, (await _access.GetAdminFlagsAsync(profileId))!.AuthorizationVersion);
-        Assert.Equal([AccountFeatureId.Read, AccountFeatureId.Watch], (await _access.GetFeatureGrantsAsync(profileId)).OrderBy(feature => feature.Value));
-        Assert.Equal(new[] { libraryA, libraryB }.Order(), (await _access.GetHiddenLibrariesAsync(profileId)).Order());
-
-        Assert.True(await _access.ReplaceAccessAsync(profileId, new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>(), _now));
-        Assert.Equal([AccountFeatureId.Listen], await _access.GetFeatureGrantsAsync(profileId));
-        Assert.Empty(await _access.GetHiddenLibrariesAsync(profileId));
-
         Assert.True(await _access.SetAdminFlagsAsync(profileId, isServerAdministrator: true, isHouseholdAdministrator: true, _now));
         var after = (await _access.GetAdminFlagsAsync(profileId))!;
         Assert.True(after.IsServerAdministrator);
         Assert.True(after.IsHouseholdAdministrator);
-        Assert.Equal(4, after.AuthorizationVersion);
+        Assert.Equal(2, after.AuthorizationVersion);
         var read = await new ProfileRepository(_database).GetByIdAsync(profileId);
         Assert.True(read!.IsServerAdministrator);
         Assert.True(read.IsHouseholdAdministrator);
-        Assert.Equal(4, read.AuthorizationVersion);
+        Assert.Equal(2, read.AuthorizationVersion);
     }
 
     [Fact]
-    public async Task ChangingTheAccessOfAProfileThatDoesNotExist_ChangesNothingAndSaysSo()
+    public async Task ChangingTheRolesOfAProfileThatDoesNotExist_ChangesNothingAndSaysSo()
     {
         var missing = Guid.NewGuid();
 
-        Assert.False(await _access.ReplaceAccessAsync(missing, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), _now));
         Assert.False(await _access.SetAdminFlagsAsync(missing, true, true, _now));
         Assert.Null(await _access.GetAdminFlagsAsync(missing));
-        Assert.Empty(await _access.GetFeatureGrantsAsync(missing));
+        Assert.Empty(await _access.GetAreasAsync(missing));
     }
 
     [Fact]
-    public async Task TheVault_CanNeverBeHiddenFromOrShownToAProfileAsALibrary()
+    public async Task EveryProfileReachesReadWatchAndListen_AndViewOnlyWhenItIsInTheDefaultHousehold()
     {
-        var profileId = InsertProfile();
-        var vault = Guid.NewGuid();
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("INSERT INTO vault_libraries(library_id,adults_confirmed_at,created_at,updated_at) VALUES (@id,@now,@now,@now);",
-                new { id = vault.ToString(), now = _now.ToString("O") });
-        }
+        var home = await _households.CreateAsync("Home", _now);
+        var visitors = await _households.CreateAsync("Visitors", _now);
+        await _access.SetDefaultHouseholdAsync(home.Id);
+        var inHome = InsertProfile(home.Id);
+        var outside = InsertProfile(visitors.Id);
+        var noHousehold = InsertProfile();
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            _access.ReplaceAccessAsync(profileId, new HashSet<AccountFeatureId>(), new HashSet<Guid> { vault }, _now));
-        Assert.Empty(await _access.GetHiddenLibrariesAsync(profileId));
+        Assert.Equal(
+            new[] { AccountFeatureId.Listen, AccountFeatureId.Read, AccountFeatureId.View, AccountFeatureId.Watch }.Select(area => area.Value).Order(),
+            (await _access.GetAreasAsync(inHome)).Select(area => area.Value).Order());
+        Assert.Equal(
+            new[] { AccountFeatureId.Listen, AccountFeatureId.Read, AccountFeatureId.Watch }.Select(area => area.Value).Order(),
+            (await _access.GetAreasAsync(outside)).Select(area => area.Value).Order());
+        Assert.DoesNotContain(AccountFeatureId.View, await _access.GetAreasAsync(noHousehold));
     }
 
     [Fact]
@@ -194,15 +191,13 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task DeletingAProfile_DeletesItsUserItsGrantsItsProtectionAndItsUnlocks()
+    public async Task DeletingAProfile_DeletesItsUserItsProtectionAndItsUnlocks()
     {
         var profileId = InsertProfile();
         var spared = InsertProfile();
         var userId = InsertUser(profileId, "mom@home.com");
         var sparedUser = InsertUser(spared, "dad@home.com");
         var sessionId = InsertSession(spared);
-        await _access.ReplaceAccessAsync(profileId, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { Guid.NewGuid() }, _now);
-        await _access.ReplaceAccessAsync(spared, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid>(), _now);
         await _access.SetAdminProtectionAsync(new ProfileAdminProtection { ProfileId = profileId, IsEnabled = true, UpdatedAt = _now });
         await _access.SetAdminUnlockAsync(new ProfileAdminUnlock { SessionId = sessionId, ProfileId = profileId, ProtectionVersion = 1, Method = "ProfilePin", GrantedAt = _now });
         Assert.Equal(userId, await _access.FindUserIdOfProfileAsync(profileId));
@@ -214,12 +209,11 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
 
         Assert.Null(await _accounts.GetByIdAsync(userId));
         Assert.Null(await _access.FindUserIdOfProfileAsync(profileId));
-        Assert.Empty(await _access.GetFeatureGrantsAsync(profileId));
-        Assert.Empty(await _access.GetHiddenLibrariesAsync(profileId));
+        Assert.Empty(await _access.GetAreasAsync(profileId));
         Assert.Null(await _access.GetAdminProtectionAsync(profileId));
         Assert.Null(await _access.GetAdminUnlockAsync(sessionId, profileId, _now));
         Assert.NotNull(await _accounts.GetByIdAsync(sparedUser));
-        Assert.Equal([AccountFeatureId.Watch], await _access.GetFeatureGrantsAsync(spared));
+        Assert.NotEmpty(await _access.GetAreasAsync(spared));
     }
 
     [Fact]
@@ -262,7 +256,7 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ASignInCreatedForAProfile_GivesThatProfileTheAccountsRolesAndAccess_AndMakesItsHouseholdTheDefault()
+    public async Task ASignInCreatedForAProfile_GivesThatProfileTheAccountsRoles_AndMakesItsHouseholdTheDefault()
     {
         var profile = new Profile { Id = Guid.NewGuid(), DisplayName = "Shy", CreatedAt = _now };
         var account = new Account
@@ -281,15 +275,12 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
         await _accounts.CreateAccountAsync(
             account,
             new TestGrant(account.Id, profile.Id, IsDefault: true, AdminEnabled: true),
-            AccountFeatureId.All.ToHashSet(),
-            new HashSet<Guid> { library },
             newProfile: profile);
 
         var flags = (await _access.GetAdminFlagsAsync(profile.Id))!;
         Assert.True(flags.IsServerAdministrator);
         Assert.True(flags.IsHouseholdAdministrator);
-        Assert.Equal(AccountFeatureId.All.OrderBy(feature => feature.Value), (await _access.GetFeatureGrantsAsync(profile.Id)).OrderBy(feature => feature.Value));
-        Assert.Equal([library], await _access.GetHiddenLibrariesAsync(profile.Id));
+        Assert.Equal(AccountFeatureId.All.OrderBy(feature => feature.Value), (await _access.GetAreasAsync(profile.Id)).OrderBy(feature => feature.Value));
         Assert.Equal(account.Id, await _access.FindUserIdOfProfileAsync(profile.Id));
         Assert.Equal(profile.Id, (await _accounts.GetByIdAsync(account.Id))!.ProfileId);
         var householdId = (await new HouseholdRepository(_database).GetForAccountAsync(account.Id))!.Id;
@@ -322,13 +313,13 @@ public sealed class ProfileAccessRepositoryTests : IDisposable
     private static List<string> Columns(SqliteConnection connection, string table) =>
         connection.Query<string>($"SELECT name FROM pragma_table_info('{table}');").ToList();
 
-    private Guid InsertProfile()
+    private Guid InsertProfile(Guid? householdId = null)
     {
         var id = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,@name,'#7C4DFF','StandardUser',@now);",
-            new { id, name = $"Person {id:N}", now = _now.ToString("O") });
+            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at,household_id) VALUES(@id,@name,'#7C4DFF','StandardUser',@now,@householdId);",
+            new { id, name = $"Person {id:N}", now = _now.ToString("O"), householdId });
         return id;
     }
 

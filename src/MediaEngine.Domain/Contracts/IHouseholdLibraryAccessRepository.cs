@@ -2,8 +2,8 @@ namespace MediaEngine.Domain.Contracts;
 
 /// <summary>
 /// The libraries hidden for a whole household (library access D2): the household ceiling. A library is visible to a profile only when it
-/// is not hidden here for the profile's household and not hidden for the profile itself (<c>IProfileAccessRepository</c>). Nothing is
-/// hidden by default, so a new library and a new household need no rows. The Vault is never listed (the repository refuses a Vault id):
+/// is not hidden here for the profile's household: this is the only library switch (library access v4; there are no per-profile library
+/// rows). Nothing is hidden by default, so a new library and a new household need no rows. The Vault is never listed (the repository refuses a Vault id):
 /// its access is per profile. The rows are configuration, so they are part of a backup.
 /// </summary>
 public interface IHouseholdLibraryAccessRepository

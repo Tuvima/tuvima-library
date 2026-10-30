@@ -66,7 +66,7 @@ public sealed class DashboardAuthorityProjector(
 
         var navigation = authority.IsEffectiveAdministrator
             ? AccountFeatureId.All.Select(feature => feature.Value).ToList()
-            : (await profileAccess.GetFeatureGrantsAsync(profileId, ct).ConfigureAwait(false))
+            : (await profileAccess.GetAreasAsync(profileId, ct).ConfigureAwait(false))
                 .Select(feature => feature.Value)
                 .Order(StringComparer.Ordinal)
                 .ToList();

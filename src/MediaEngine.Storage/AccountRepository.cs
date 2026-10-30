@@ -544,8 +544,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     public Task CreateHouseholdPersonAsync(
         Profile profile,
         Guid householdId,
-        CancellationToken ct = default,
-        Guid? accessFromProfileId = null) => db.ExecuteWriteAsync((connection, transaction, token) =>
+        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
     {
         token.ThrowIfCancellationRequested();
         if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id=@householdId;",
@@ -556,7 +555,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
         RequireRoom(connection, transaction, householdId);
         InsertProfileRow(connection, transaction, profile, householdId);
-        GiveNewProfileAccess(connection, transaction, profile.Id, householdId, accessFromProfileId, profile.CreatedAt);
     }, ct);
 
     public Task ReorderHouseholdProfilesAsync(Guid householdId, IReadOnlyList<Guid> orderedProfileIds, CancellationToken ct = default) =>
@@ -829,8 +827,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     /// <summary>
     /// Sets up the profile a new user opens from the placement it was created with, in the caller's transaction (profile-held access):
     /// the server administrator role (in the Library's own household, D17), the household administrator role when the household was
-    /// just made for this profile (a household needs one, D7; the user is attached, D15), and the Read/Watch/Listen/View access and
-    /// libraries it starts with. Only for a brand-new profile or a first start; a person who already exists is never changed by
+    /// just made for this profile (a household needs one, D7; the user is attached, D15). A profile holds no area or library
+    /// settings (library access v4). Only for a brand-new profile or a first start; a person who already exists is never changed by
     /// getting a user.
     /// </summary>
     private static void SetUpProfile(
@@ -854,8 +852,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             household = startedHousehold ? 1 : 0,
             bump = bumpVersion ? 1 : 0,
         }, tx);
-        ProfileAccessRepository.WriteAccessRows(c, tx, profileId, placement.Features ?? new HashSet<AccountFeatureId>(),
-            placement.HiddenLibraries ?? new HashSet<Guid>(), user.CreatedAt);
         if (placement.IsServerAdministrator)
         {
             ProfileAccessRepository.MarkDefaultHouseholdIfNone(c, tx, householdId);
@@ -865,8 +861,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     /// <summary>
     /// A person who already exists gets a user: no administrator role left on the profile from an earlier sign-in comes back with
     /// it. The profile had no user until now, so clearing a role cannot strand a server administrator; a role is given again only
-    /// by an explicit choice afterwards (the server administrator's own, in the service). Their Read/Watch/Listen/View and library
-    /// access stay as they are.
+    /// by an explicit choice afterwards (the server administrator's own, in the service).
     /// </summary>
     private static void ClearStaleRolesForNewSignIn(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId) =>
         c.Execute("""
@@ -874,44 +869,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             SET is_server_admin=0, is_household_admin=0, authorization_version=authorization_version+1
             WHERE id=@profileId AND (is_server_admin=1 OR is_household_admin=1);
             """, new { profileId }, tx);
-
-    /// <summary>
-    /// A person added without a sign-in starts with the Read/Watch/Listen/View access of the profile of whoever added them
-    /// (<paramref name="sourceProfileId"/>); with no such profile they start with every feature. Nothing is hidden for the new profile
-    /// itself: it gets what its household has, because the household's hidden libraries apply to every profile in it (library access D2,
-    /// D3). Someone outside the adder's household starts with View off. A source profile that does not exist gives nothing. Never an
-    /// administrator role.
-    /// </summary>
-    private static void GiveNewProfileAccess(
-        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId, Guid householdId, Guid? sourceProfileId, DateTimeOffset at)
-    {
-        List<string> features;
-        if (sourceProfileId is not { } source)
-        {
-            features = AccountFeatureId.All.Select(feature => feature.Value).ToList();
-        }
-        else if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id=@source;", new { source }, tx) == 0)
-        {
-            features = [];
-        }
-        else
-        {
-            var sameHousehold = HouseholdOfProfile(c, tx, source) == householdId;
-            features = c.Query<string>("SELECT feature_id FROM profile_feature_grants WHERE profile_id=@source;", new { source }, tx)
-                .Where(feature => sameHousehold || !string.Equals(feature, AccountFeatureId.View.Value, StringComparison.Ordinal))
-                .ToList();
-        }
-
-        foreach (var feature in features)
-        {
-            c.Execute("INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@profileId,@feature,@at);",
-                new { profileId, feature, at = Iso(at) }, tx);
-        }
-
-    }
-
-    private static Guid? HouseholdOfProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId) =>
-        c.QueryFirstOrDefault<Guid?>("SELECT household_id FROM profiles WHERE id=@profileId;", new { profileId }, tx);
 
     private static void RequireRoom(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid householdId)
     {

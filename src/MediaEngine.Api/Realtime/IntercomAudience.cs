@@ -122,7 +122,7 @@ public sealed class IntercomAudienceAuthorizer(
         {
             // A person with no Vault section ticked is told nothing about it either (Vault sections D28, D39).
             return await nsfw.IsUnlockedAsync(session.Id, session.ActiveProfileId, timeProvider.GetUtcNow(), ct).ConfigureAwait(false)
-                && (await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(AccountFeatureId.Watch)
+                && (await profileAccess.GetAreasAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(AccountFeatureId.Watch)
                 && (administrator || vaultSections is null || (await vaultSections.GetGrantedAsync(profile.ProfileId, ct).ConfigureAwait(false)).Count > 0);
         }
 
@@ -148,7 +148,7 @@ public sealed class IntercomAudienceAuthorizer(
             }
 
             // The area first (cheap, and it decides whether hiding can matter), then the one library visibility rule.
-            var hasArea = (await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(provenance.FeatureId);
+            var hasArea = (await profileAccess.GetAreasAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(provenance.FeatureId);
             var isVault = (await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false)).Contains(provenance.LibraryId.ToString("D"));
             var isHidden = hasArea && !isVault && await libraryVisibility.IsHiddenAsync(profile.ProfileId, provenance.LibraryId, ct).ConfigureAwait(false);
             return LibraryVisibilityRule.MaySee(false, isVault, hasArea, isHidden);

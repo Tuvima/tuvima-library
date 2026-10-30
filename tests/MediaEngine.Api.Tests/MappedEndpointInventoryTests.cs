@@ -164,8 +164,6 @@ public sealed class MappedEndpointInventoryTests
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersRead);
         inventory.Require("/access/users/{userId:guid}", HttpMethods.Delete)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
-        inventory.Require("/access/profiles/{profileId:guid}/access", HttpMethods.Put)
-            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: true);
         inventory.Require("/access/profiles/{profileId:guid}/admin-protection", HttpMethods.Put)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: true);
 

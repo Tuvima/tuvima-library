@@ -40,8 +40,7 @@ public sealed class HouseholdsTests : IDisposable
         var admin = NewAccount("owner@example.com");
 
         await fixture.Accounts.CreateAccountAsync(admin,
-            Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
+            Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true));
 
         var household = await fixture.Households.GetForAccountAsync(admin.Id);
         Assert.NotNull(household);
@@ -130,7 +129,7 @@ public sealed class HouseholdsTests : IDisposable
         var member = NewAccount("member@example.com");
         var ninth = NewProfile("Ninth");
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Accounts.CreateAccountAsync(member,
-            Grant(member.Id, ninth.Id, isDefault: true), new HashSet<AccountFeatureId>(), new HashSet<Guid>(),
+            Grant(member.Id, ninth.Id, isDefault: true),
             newProfile: ninth, householdId: household.Id));
 
         Assert.Equal("A household can have up to 8 people.", failure.Message);
@@ -148,8 +147,7 @@ public sealed class HouseholdsTests : IDisposable
         var outsider = NewAccount("outsider@example.com");
         var outsiderProfile = NewProfile("Outsider");
         await fixture.Accounts.CreateAccountAsync(outsider,
-            Grant(outsider.Id, outsiderProfile.Id, isDefault: true),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: outsiderProfile);
+            Grant(outsider.Id, outsiderProfile.Id, isDefault: true), newProfile: outsiderProfile);
         Assert.NotEqual(
             (await fixture.Households.GetForAccountAsync(admin.Id))!.Id,
             (await fixture.Households.GetForAccountAsync(outsider.Id))!.Id);
@@ -220,8 +218,7 @@ public sealed class HouseholdsTests : IDisposable
     {
         var admin = NewAccount("owner@example.com");
         await fixture.Accounts.CreateAccountAsync(admin,
-            Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
-            AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
+            Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true));
         return admin;
     }
 

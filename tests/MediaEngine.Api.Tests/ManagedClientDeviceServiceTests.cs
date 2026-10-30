@@ -197,8 +197,6 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
             new TestGrant(id, ownProfile?.Id ?? Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator),
-            new HashSet<AccountFeatureId>(),
-            new HashSet<Guid>(),
             newProfile: ownProfile).GetAwaiter().GetResult();
     }
 

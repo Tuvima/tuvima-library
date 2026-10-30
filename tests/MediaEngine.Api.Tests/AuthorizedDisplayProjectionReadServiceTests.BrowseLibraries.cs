@@ -103,7 +103,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.Equal([MoviesLibrary, ShowsLibrary, LecturesLibrary, MusicLibrary, BooksLibrary], libraries.Select(library => library.Id).ToArray());
         using var connection = _database.CreateConnection();
-        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_library_hidden;"));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM household_library_hidden;"));
     }
 
     [Fact]
@@ -166,21 +166,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.DoesNotContain(libraries, library => library.Name == "Private");
     }
 
-    [Fact]
-    public async Task BrowseLibraries_AProfileWithoutTheListenFeature_GetsNoListenLibraries_ButKeepsTheOtherLanes()
-    {
-        var account = Guid.NewGuid();
-        await CreateHumanAsync(
-            account,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Watch, AccountFeatureId.Read },
-            new HashSet<Guid>());
-
-        var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
-
-        Assert.DoesNotContain(libraries, library => library.Area == "listen");
-        Assert.Equal([MoviesLibrary, ShowsLibrary, LecturesLibrary, BooksLibrary], libraries.Select(library => library.Id).ToArray());
-    }
-
     [Theory]
     [InlineData("PG")]
     [InlineData("G")]
@@ -215,15 +200,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
 
         Assert.Equal([MoviesLibrary], libraries.Select(library => library.Id).ToArray());
-    }
-
-    [Fact]
-    public async Task BrowseLibraries_AProfileWithoutAnyArea_GetsNothing_EvenWithNothingHidden()
-    {
-        var account = Guid.NewGuid();
-        await CreateHumanAsync(account, new HashSet<AccountFeatureId>(), new HashSet<Guid>());
-
-        Assert.Empty(await CreateBrowseLibraryList(account).ListAsync(default));
     }
 
     [Fact]

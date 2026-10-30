@@ -1,6 +1,8 @@
 # Spec: Library setup and add-folder flow (fewer steps, fewer info buttons, one screen for setup and Settings)
 
 > **Status:** In progress (Version 2 locked by Shy 2026-10-29; packets 1 to 5 of Version 1 are Built, awaiting Local checks; packet 6 is waiting on a local check of the faster checks in PR #543; packets 7 to 10 are Built, awaiting Local checks) · **Version:** 2 · **Last updated:** 2026-10-29 · **Related docs:** [Library pages](library-pages.md) (v14, Built; D3, D4, D5, D10) · [Simpler library access](library-access.md) (v3, Built, awaiting Local checks) · [One shared look for pages](one-shared-look.md) · [First-run setup flow](first-run-setup-flow.md) · [Library setup](library-setup-groups.md) (D13)
+> Version 3 note (2026-10-30): the Browse button and separate pop-up (D0, D0d) and packets 1, 2, 3 and 6 are superseded by the [Libraries redesign](libraries-redesign.md) (Built): Add library step 2 is the folder pop-up itself with the name in the footer, and Add folder uses the same pop-up. D13 to D21 (setup View and Vault step) stand.
+
 
 > Version 3 note (2026-10-30): the Locked [Libraries redesign](libraries-redesign.md) spec supersedes D0 and D0d (no Browse button; step 2 of Add library is the folder pop-up itself, with area tabs on step 1 and View as a fourth tab) and packets 1, 2, 3 and 6. D13 to D21 (View and the optional Vault step in setup) stand.
 

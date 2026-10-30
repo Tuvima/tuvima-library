@@ -843,7 +843,7 @@ public sealed class FolderKindChangeTests : IDisposable
     // ----- the preview -------------------------------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task The_preview_returns_the_counts_the_flags_and_Sam_when_Sam_hides_the_target_library()
+    public async Task The_preview_returns_the_counts_the_flags_and_Sam_when_Sams_household_hides_the_target_library()
     {
         var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: true);
         for (var index = 0; index < 3; index++)
@@ -851,7 +851,7 @@ public sealed class FolderKindChangeTests : IDisposable
             _w.AddFile(folder, $"film{index}.mkv", MediaType.Movies, $"Film {index}");
         }
 
-        var sam = await _w.CreateProfileAsync("sam@example.test", "Sam", hidden: [Guid.Parse(_w.VideosLibrary)]);
+        await _w.CreateProfileAsync("sam@example.test", "Sam", hidden: [Guid.Parse(_w.VideosLibrary)]);
 
         var preview = await _w.Service.PreviewAsync(folder.Id, new() { KindKey = "other_videos", LibraryId = _w.VideosLibrary }, default);
 
@@ -863,7 +863,10 @@ public sealed class FolderKindChangeTests : IDisposable
         Assert.Equal(("Movies", "Videos", _w.VideosLibrary), (preview.FromKindLabel, preview.ToKindLabel, preview.ToLibraryId));
         Assert.True(preview.VisibilityLossChecked);
         var loss = Assert.Single(preview.VisibilityLoss);
-        Assert.Equal((sam.Id, "Sam", 3), (loss.ProfileId, loss.DisplayName, loss.FileCount));
+        // A library is on or off per household: the household is named once, never a person.
+        Assert.NotNull(loss.HouseholdId);
+        Assert.Equal((Guid.Empty, 3), (loss.ProfileId, loss.FileCount));
+        Assert.False(string.IsNullOrWhiteSpace(loss.DisplayName));
         // Nothing was changed by asking.
         Assert.Empty(await _w.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 50));
         Assert.Equal(_w.MoviesLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets LIMIT 1;"));
@@ -1403,7 +1406,7 @@ public sealed class FolderKindChangeTests : IDisposable
                 NamingTemplate = "default",
             };
             var kinds = new FixedKinds([.. LibraryKindsConfiguration.BuiltIn(), vaultKind]);
-            var visibilityRule = TestLibraryVisibility.Rule(_profileAccess, vaultLibraries);
+            var visibilityRule = new LibraryVisibilityRule(new HouseholdLibraryAccessRepository(Database), vaultLibraries);
             Visibility = new SwitchableVisibility(new VisibilityAfterMoveReadService(
                 _accounts, new ProfileRepository(Database), _profileAccess, new MediaAssetLibraryCountRepository(Database), vaultLibraries, Config, visibilityRule));
 
@@ -1573,15 +1576,14 @@ public sealed class FolderKindChangeTests : IDisposable
                 CreatedAt = Now,
                 UpdatedAt = Now,
             };
-            var features = new HashSet<AccountFeatureId> { AccountFeatureId.Watch };
             await _accounts.CreateAccountAsync(
                 account,
                 new TestGrant(account.Id, profile.Id, IsDefault: true, AdminEnabled: false),
-                features,
-                hidden.ToHashSet(),
                 newProfile: profile,
                 newHouseholdName: $"{name}'s home");
-            await _profileAccess.ReplaceAccessAsync(profile.Id, features, hidden.ToHashSet(), Now);
+            // A library is turned off for the person's whole household (library access v4); each test person has a household of their own.
+            var householdId = (await new ProfileRepository(Database).GetByIdAsync(profile.Id))!.HouseholdId!.Value;
+            await new HouseholdLibraryAccessRepository(Database).ReplaceHiddenLibrariesAsync(householdId, hidden.ToHashSet(), Now, null);
             return profile;
         }
 
