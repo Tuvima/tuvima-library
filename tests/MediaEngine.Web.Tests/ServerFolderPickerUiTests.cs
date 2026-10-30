@@ -155,7 +155,7 @@ public sealed class ServerFolderPickerUiTests
         Assert.DoesNotContain("Library settings", panel, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/libraries/{", panel, StringComparison.Ordinal);
         Assert.Contains("<LibraryFolderTable", panel, StringComparison.Ordinal);
-        Assert.Contains("<LibraryAdvancedSettings", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("LibraryAdvancedSettings", panel, StringComparison.Ordinal);
     }
 
     [Fact]

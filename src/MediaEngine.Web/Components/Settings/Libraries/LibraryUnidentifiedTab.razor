@@ -1,0 +1,196 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Formatting
+@inject IEngineApiClient Api
+@inject NavigationManager Navigation
+@inject DeviceContextService DeviceContext
+
+@* A library's Unidentified files tab (Libraries redesign D3, D6): the files the Engine could not identify, each with the reason in plain words and when it
+   was last tried. Identify opens the file's own page, where Edit > Match sorts it out in the universal editor (no editor lives in Settings); Try again looks it
+   up now; Keep as it is stops further tries. Bulk Try again and Keep all as they are sit at the top. Phones can look but not change. *@
+<section class="lib-unid" aria-label="Unidentified files" data-testid="library-unidentified">
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading unidentified files" />
+    }
+    else if (_failed)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="Unidentified files could not be loaded"
+                      Message="Check that the Library server is running, then try again.">
+            <Actions>
+                <AppButton Label="Try again" OnClick="LoadAsync" />
+            </Actions>
+        </AppPageState>
+    }
+    else if (_items.Count == 0)
+    {
+        <AppPageState Kind="AppPageStateKind.Empty"
+                      Icon="@AppMaterialIcons.Outlined.CheckCircle"
+                      Title="Every file in this library is identified"
+                      Message="Files Library cannot identify will be listed here, with the reason." />
+    }
+    else
+    {
+        <div class="lib-unid__bar">
+            <p class="lib-unid__summary">@LibraryListing.UnidentifiedText(_total) · they stay where they are and keep playing under their file names.</p>
+            @if (CanChange)
+            {
+                <div class="lib-unid__bulk">
+                    <AppButton Label="Try again for all" StartIcon="@AppMaterialIcons.Outlined.Sync" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="RetryAllAsync" />
+                    <AppButton Label="Keep all as they are" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="KeepAllAsync" />
+                </div>
+            }
+        </div>
+        @if (_error is not null)
+        {
+            <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
+        }
+        <AppTable Hover="true" CardsOn="AppTableCardsMode.Phone" Class="lib-unid__table">
+            <caption class="sr-only">Unidentified files</caption>
+            <thead>
+                <tr>
+                    <th data-card-role="title">File</th>
+                    <th data-card-role="subtitle">Why</th>
+                    <th>Last tried</th>
+                    <th data-card-role="hidden"><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in _items)
+                {
+                    <tr @key="item.AssetId" data-asset="@item.AssetId">
+                        <td data-card-role="title">
+                            <span class="lib-unid__file">@item.FileName</span>
+                            @if (!string.IsNullOrWhiteSpace(item.Folder))
+                            {
+                                <span class="lib-unid__folder">@item.Folder</span>
+                            }
+                        </td>
+                        <td data-card-role="subtitle" class="lib-unid__reason">@ReasonText(item)</td>
+                        <td>@LastTried(item)</td>
+                        <td data-card-role="hidden" class="lib-unid__actions">
+                            @if (CanChange)
+                            {
+                                @if (item.WorkId is { } workId && DeviceContext.CanEdit)
+                                {
+                                    <AppButton Label="Identify" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" aria-label="@($"Identify {item.FileName}")"
+                                               OnClick="@(() => Navigation.NavigateTo($"/details/work/{workId:D}"))" />
+                                }
+                                @if (item.Reason != "no_youtube_id")
+                                {
+                                    <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" aria-label="@($"Try {item.FileName} again")" OnClick="@(() => RetryAsync(item))" />
+                                }
+                                <AppButton Label="Keep as it is" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" aria-label="@($"Keep {item.FileName} as it is")" OnClick="@(() => KeepAsync(item))" />
+                            }
+                            else
+                            {
+                                <span class="lib-unid__desktop">Use a desktop to identify files</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </AppTable>
+        @if (_items.Count < _total)
+        {
+            <AppButton Label="Show more" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="LoadMoreAsync" />
+        }
+    }
+</section>
+
+@code {
+    private const int PageSize = 50;
+
+    [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
+    /// <summary>Phones: look only, no control that changes anything.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Raised after a file was retried, kept or changed, so the page can read the counts again.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private readonly List<UnmatchedItemDto> _items = [];
+    private int _total;
+    private bool _loading = true;
+    private bool _failed;
+    private bool _busy;
+    private string? _error;
+
+    private bool CanChange => !ReadOnly;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _failed = false;
+        _error = null;
+        var page = await Api.GetUnmatchedItemsAsync(Library.Id, 0, PageSize);
+        _items.Clear();
+        if (page is null)
+        {
+            _failed = true;
+        }
+        else
+        {
+            _items.AddRange(page.Items);
+            _total = page.Total;
+        }
+
+        _loading = false;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _busy = true;
+        var page = await Api.GetUnmatchedItemsAsync(Library.Id, _items.Count, PageSize);
+        if (page is not null)
+        {
+            _items.AddRange(page.Items);
+            _total = page.Total;
+        }
+        else
+        {
+            _error = "More files could not be loaded. Try again in a moment.";
+        }
+
+        _busy = false;
+    }
+
+    private Task RetryAsync(UnmatchedItemDto item) => ActAsync(() => Api.RetryUnmatchedItemAsync(item.AssetId), "That file could not be tried again. Try again in a moment.");
+
+    private Task KeepAsync(UnmatchedItemDto item) => ActAsync(() => Api.KeepUnmatchedItemAsync(item.AssetId), "That file could not be kept as it is. Try again in a moment.");
+
+    private Task RetryAllAsync() => ActAsync(() => Api.RetryUnmatchedLibraryAsync(Library.Id), "The files could not be tried again. Try again in a moment.");
+
+    private Task KeepAllAsync() => ActAsync(() => Api.KeepAllUnmatchedLibraryAsync(Library.Id), "The files could not be kept as they are. Try again in a moment.");
+
+    private async Task ActAsync(Func<Task<UnmatchedActionResultDto?>> action, string failure)
+    {
+        _busy = true;
+        _error = null;
+        var result = await action();
+        if (result is null)
+        {
+            _error = Api.LastError ?? failure;
+        }
+        else
+        {
+            await LoadAsync();
+            await Changed.InvokeAsync();
+        }
+
+        _busy = false;
+    }
+
+    // The reasons the Engine records, in plain words (Libraries redesign D6). A reason this page does not know reads as the general one.
+    internal static string ReasonText(UnmatchedItemDto item) => item.Reason switch
+    {
+        "no_youtube_id" => "There is no YouTube video ID in the file name, so it cannot be looked up.",
+        _ when item.KeptAsIs => "Kept as it is. It is not looked up again.",
+        _ => "No match was found online. It is tried again from time to time.",
+    };
+
+    private static string LastTried(UnmatchedItemDto item) => item.LastTriedAt == default ? "Not yet" : item.LastTriedAt.ToLocalTime().ToString("d MMM yyyy, HH:mm");
+}

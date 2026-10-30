@@ -1,0 +1,98 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Formatting
+
+@* The rail of the Libraries page (Libraries redesign D1, D14, D15): every area as a heading and every library under it as a row with a status dot,
+   on every Libraries page, so Watch, Listen, Read, View and the Vault are always one click away. The selected row is highlighted. Below 1180 px it
+   folds into a strip of chips, still grouped by area. The Vault group is drawn only while the host says it may be shown. *@
+<nav class="librail" aria-label="Libraries" data-selected="@Selected">
+    <a class="librail__overview @(IsSelected(OverviewKey) ? "librail__on" : null)" href="/settings/libraries" aria-current="@(IsSelected(OverviewKey) ? "page" : null)">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" />All libraries
+    </a>
+
+    @foreach (var area in Kinds.Visible(ShowVault))
+    {
+        var rows = LibraryListing.RowsFor(Kinds, area.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault);
+        <div class="librail__group" data-area="@area.Key" role="group" aria-label="@area.Label">
+            <h3 class="librail__heading">
+                <span>@area.Label</span>
+                @if (CanAdd(area))
+                {
+                    <AppButton Label="Add" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Class="librail__add" aria-label="@($"Add a {area.Label} library")" OnClick="@(() => OnAddLibrary.InvokeAsync(area.Key))" />
+                }
+            </h3>
+            @foreach (var row in rows)
+            {
+                <a class="librail__lib @(IsSelected(row.Key) ? "librail__on" : null)" href="@row.Href" data-library="@row.Key" aria-current="@(IsSelected(row.Key) ? "page" : null)"
+                   title="@DotText(row)">
+                    <span class="@LibraryKindLook.TileClass(row.Type) librail__tile"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
+                    <span class="librail__name">@row.Name</span>
+                    @if (Attention(row) is > 0 and var count)
+                    {
+                        <span class="librail__count" data-count="@count">@DisplayFormat.FormatCount(count)</span>
+                    }
+                    <span class="librail__dot librail__dot--@DotKind(row)" aria-hidden="true"></span>
+                </a>
+            }
+            @if (rows.Count == 0)
+            {
+                <span class="librail__quiet">Nothing yet</span>
+            }
+        </div>
+    }
+
+    @if (!HideImport)
+    {
+        <hr class="librail__rule" />
+        <a class="librail__lib librail__lib--plain @(IsSelected(LibraryTypeCatalog.ImportKey) ? "librail__on" : null)" href="/settings/libraries/import">
+            <span class="librail__tile lib-kind-tile"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
+            <span class="librail__name">Import folder</span>
+        </a>
+    }
+</nav>
+
+@code {
+    public const string OverviewKey = "overview";
+
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
+    [Parameter] public LibraryOverviewDto? Overview { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
+    [Parameter] public bool ShowVault { get; set; }
+    /// <summary>What is open: <see cref="OverviewKey"/>, a library's Id, a View kind's key or the Import folder's key.</summary>
+    [Parameter] public string Selected { get; set; } = OverviewKey;
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool HideImport { get; set; }
+    /// <summary>Raised with the area key when a heading's Add link is chosen.</summary>
+    [Parameter] public EventCallback<string> OnAddLibrary { get; set; }
+
+    private bool IsSelected(string key) => string.Equals(Selected, key, StringComparison.OrdinalIgnoreCase);
+
+    // View has no Add library: its kinds always exist and take folders (Library pages WP11).
+    private bool CanAdd(LibraryGroup area) => !ReadOnly && !string.Equals(area.Key, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase);
+
+    private static int Attention(LibraryListRow row) => row.Unidentified + row.NeedsReview;
+
+    private static string DotKind(LibraryListRow row) => row.Status switch
+    {
+        LibraryStatusKind.FolderOffline => "off",
+        LibraryStatusKind.NotIdentified or LibraryStatusKind.NeedsReview => "warn",
+        LibraryStatusKind.Scanning => "scan",
+        LibraryStatusKind.Empty => "idle",
+        LibraryStatusKind.Healthy => "ok",
+        _ => "idle",
+    };
+
+    private static string DotText(LibraryListRow row) => row.Status is { } status
+        ? status switch
+        {
+            LibraryStatusKind.NotIdentified or LibraryStatusKind.NeedsReview => string.Join(", ", new[]
+            {
+                row.Unidentified > 0 ? LibraryListing.UnidentifiedText(row.Unidentified) : null,
+                row.NeedsReview > 0 ? LibraryListing.NeedsReviewText(row.NeedsReview) : null,
+            }.Where(text => text is not null)),
+            _ => LibraryListing.StatusText(status),
+        }
+        : row.Name;
+}

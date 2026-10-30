@@ -3885,6 +3885,8 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UnmatchedItemDto
   LibraryId: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=nullable | accessors=get,init
   FileName: System.String | nullability=not-null | accessors=get,init
+  Folder: System.String | nullability=nullable | accessors=get,init
+  WorkId: System.Guid? | nullability=nullable | accessors=get,init
   Reason: System.String | nullability=not-null | accessors=get,init
   FirstUnmatchedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   LastTriedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
@@ -8635,6 +8637,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   OrganizationPolicy: MediaEngine.Contracts.Settings.LibraryOrganizationPolicyDto | nullability=not-null | accessors=get,set
   Notes: System.String | nullability=nullable | accessors=get,set
   UnmatchedCount: System.Int32 | nullability=not-null | accessors=get,set
+  ReviewCount: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryKindDto
   Key: System.String | nullability=not-null | accessors=get,set

@@ -105,12 +105,13 @@ public sealed class LibraryFileHandlingTabTests : AsyncBunitContext
         _dialogs.ClickAsync(host => host.FindAll("button").Single(button => Text(button) == label));
 
     [Fact]
-    public void ABrandNewLibraryShowsFourCardsWithOneInfoTipEach_PreserveNamesSelected_BothSwitchesOff()
+    public void ABrandNewLibraryShowsFourCardsInTwoColumnsEachExplainedByItsSubtitle_PreserveNamesSelected_BothSwitchesOff()
     {
         var cut = Open();
 
         Assert.Equal(["Organization", "File changes", "Duplicates", "Deleted files"], cut.FindAll(".library-handling__card .app-card__title").Select(Text).ToArray());
-        Assert.Equal(4, cut.FindAll(".library-handling__card .app-card__header .app-info-tip").Count);
+        Assert.Empty(cut.FindAll(".library-handling__card .app-info-tip"));
+        Assert.Equal(4, cut.FindAll(".library-handling__grid .library-handling__card").Count);
         Assert.Equal(4, cut.FindAll(".library-handling__example").Count);
         Assert.True(Choice(cut, "Preserve original names").ClassList.Contains("is-selected"));
         Assert.False(Switch(cut, "Rename or move files automatically").HasAttribute("checked"));

@@ -21,6 +21,14 @@ public sealed class UnmatchedItemDto
     [JsonPropertyName("file_name")]
     public string FileName { get; init; } = string.Empty;
 
+    /// <summary>The folder the file sits in (Libraries redesign D6: the Unidentified tab names it); this list is for administrators only.</summary>
+    [JsonPropertyName("folder")]
+    public string? Folder { get; init; }
+
+    /// <summary>The Work the file plays under, so the list can open its page; null when none exists yet.</summary>
+    [JsonPropertyName("work_id")]
+    public Guid? WorkId { get; init; }
+
     /// <summary><c>no_match</c> (a lookup found nothing) or <c>no_youtube_id</c> (a YouTube library file with no video ID; never looked up).</summary>
     [JsonPropertyName("reason")]
     public string Reason { get; init; } = string.Empty;

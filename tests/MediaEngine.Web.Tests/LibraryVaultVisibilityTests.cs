@@ -90,12 +90,10 @@ public sealed class LibraryVaultVisibilityTests : AsyncBunitContext
         var settings = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true));
         var setup = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true).Add(x => x.Simple, true));
 
-        var settingsVault = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true).Add(x => x.Area, "vault"));
-
         // Settings lists the Vault library only inside the Vault area; setup draws the Vault only once it was turned on in setup (ShowVault) and never otherwise.
-        Assert.Equal(["Movies"], settings.FindAll(".libs__link").Select(Text).ToArray());
-        Assert.Equal(["Private movies"], settingsVault.FindAll(".libs__link").Select(Text).ToArray());
-        Assert.Equal(["Movies"], setup.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.Equal(["Movies"], settings.FindAll(".libs__group[data-area=watch] .libs__link").Select(Text).ToArray());
+        Assert.Equal(["Private movies"], settings.FindAll(".libs__group[data-area=vault] .libs__link").Select(Text).ToArray());
+        Assert.Equal(["Movies"], setup.FindAll(".libs__group[data-area=watch] .libs__link").Select(Text).ToArray());
         Assert.Contains("vault", setup.Markup, StringComparison.OrdinalIgnoreCase);
         var setupWithoutVault = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.Simple, true));
         Assert.DoesNotContain("vault", setupWithoutVault.Markup, StringComparison.OrdinalIgnoreCase);

@@ -122,6 +122,31 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         Assert.Equal(2, everything.Count);
     }
 
+    // The Libraries overview shows "N need review" per library (Libraries redesign D3): the same items the library's Needs Review list holds.
+    [Fact]
+    public async Task PendingCountsByLibrary_CountsTheSameItemsEachLibrarysListHolds()
+    {
+        var (workA, editionA, assetA) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (workB, editionB, assetB) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        SeedMediaAsset(workA, editionA, assetA);
+        SeedMediaAsset(workB, editionB, assetB);
+        SetLibrary(assetA, "Library-A");
+        SetLibrary(assetB, "library-b");
+
+        var repository = new ReviewQueueRepository(_db);
+        await repository.InsertAsync(Review(Guid.NewGuid(), assetA, "MediaAsset", "A one"));
+        await repository.InsertAsync(Review(Guid.NewGuid(), workB, "Work", "B one"));
+        await repository.InsertAsync(Review(Guid.NewGuid(), Guid.NewGuid(), "MediaAsset", "Stale missing asset"));
+
+        var service = new ReviewQueueReadService(_db);
+        var counts = await service.GetPendingCountsByLibraryAsync(CancellationToken.None);
+
+        Assert.Equal(1, counts["library-a"]);
+        Assert.Equal(1, counts["LIBRARY-B"]);
+        Assert.False(counts.ContainsKey("library-c"));
+        Assert.Equal((await service.GetPendingForLibraryAsync(10, "library-a", CancellationToken.None)).Count, counts["Library-A"]);
+    }
+
     private void SetLibrary(Guid assetId, string libraryId)
     {
         using var conn = _db.CreateConnection();

@@ -5519,7 +5519,6 @@ input[type="reset"],
 @media (max-width: 840px) {
     .folder-table__menu { display: none; }
 }
-.library-advanced__tabs { min-width: 0; max-width: 100%; }
 
 /* Settings banner X (SettingsNoticeBubble): an AppNativeButton, so its root styles live here. Touch and narrow windows grow it to 44px
    in the shared tap-target block. */

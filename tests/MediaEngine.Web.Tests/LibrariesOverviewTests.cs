@@ -122,7 +122,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var cut = Open(subsection, null, query);
         // The counts and status arrive after the first render, once the folder checks finish.
         // View's folders are never checked, so its rows keep a dash.
-        cut.WaitForAssertion(() => Assert.True(query == "area=view" || cut.FindAll("[data-library] [data-status=unknown]").Count == 0));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".libs__group:not([data-area=view]) [data-library] [data-status=unknown]")));
         return cut;
     }
 
@@ -131,18 +131,18 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
     private static AngleSharp.Dom.IElement Row(IRenderedComponent<LibrariesTab> cut, string id) => cut.Find($"tr[data-library='{id}']");
 
-    // 1. The four area buttons, in order, with one selected (library setup D0b: icon toggle buttons, not tabs).
-    private const string AreaButtons = "[aria-label='Library areas'] button";
+    // 1. One table grouped under Watch, Listen, Read and View (Libraries redesign D2), beside a rail of the same areas (D1).
+    private const string GroupHeadings = ".libs__group-heading";
 
     [Fact]
-    public void TheOverviewHasTheWatchListenReadAndViewButtonsWithWatchSelectedFirst()
+    public void TheOverviewGroupsEveryAreaInOneListAndTheRailListsTheSameAreasAndLibraries()
     {
         var cut = Open();
 
-        var buttons = cut.FindAll(AreaButtons);
-        Assert.Equal(["Watch", "Listen", "Read", "View"], buttons.Select(Text).ToArray());
-        Assert.Equal(["true", "false", "false", "false"], buttons.Select(button => button.GetAttribute("aria-pressed")!).ToArray());
-        Assert.All(buttons, button => Assert.NotNull(button.QuerySelector("svg, .app-material-icon")));
+        Assert.Equal(["Watch1", "Listen1", "Readnothing yetAdd a Read library", "View3"], cut.FindAll(GroupHeadings).Select(Text).ToArray());
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".librail__heading > span").Select(Text).ToArray());
+        Assert.Equal([MoviesId, AudiobooksId], cut.FindAll(".librail__lib[data-library]").Select(link => link.GetAttribute("data-library")!).Take(2).ToArray());
+        Assert.Empty(cut.FindAll("[aria-label='Library areas']"));
         Assert.DoesNotContain("Vault", cut.Markup);
     }
 
@@ -160,18 +160,18 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Contains("Healthy", cells[3]);
         Assert.DoesNotContain(cut.FindAll("th"), header => Text(header) == "Access");
         Assert.Equal($"/settings/libraries/{MoviesId}", row.QuerySelector("a")!.GetAttribute("href"));
-        Assert.Empty(cut.FindAll($"tr[data-library='{AudiobooksId}']"));
+        Assert.Empty(cut.FindAll($".libs__group[data-area=watch] tr[data-library='{AudiobooksId}']"));
     }
 
     [Fact]
-    public void TheListenAreaShowsOnlyListenLibraries()
+    public void TheListenGroupHoldsOnlyListenLibraries()
     {
-        var cut = OpenAndSettle(query: "area=listen");
+        var cut = OpenAndSettle();
 
-        Assert.Equal("true", cut.FindAll(AreaButtons)[1].GetAttribute("aria-pressed"));
         var row = Row(cut, AudiobooksId);
         Assert.Equal("1 folder · 12 titles", Text(row.QuerySelectorAll("td")[2]));
-        Assert.Empty(cut.FindAll($"tr[data-library='{MoviesId}']"));
+        Assert.Empty(cut.FindAll($".libs__group[data-area=listen] tr[data-library='{MoviesId}']"));
+        Assert.NotEmpty(cut.FindAll($".libs__group[data-area=listen] tr[data-library='{AudiobooksId}']"));
     }
 
     [Fact]
@@ -183,15 +183,16 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal("2 folders", Text(Row(cut, MoviesId).QuerySelectorAll("td")[2]));
     }
 
-    // 3. Selecting a tab filters the list and keeps the area in the address.
+    // 3. The rail never goes away: on a library's own page it still lists every library and highlights the open one (Libraries redesign A1).
     [Fact]
-    public void SelectingATabKeepsTheAreaInTheAddress()
+    public void TheRailStaysOnALibrarysPageAndHighlightsTheOpenLibrary()
     {
-        var cut = Open();
+        var cut = OpenAndSettle(MoviesId);
 
-        cut.FindAll(AreaButtons)[1].Click();
-
-        Assert.EndsWith("/settings/libraries?area=listen", CurrentUri, StringComparison.Ordinal);
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".librail__heading > span").Select(Text).ToArray());
+        Assert.Equal(MoviesId, cut.Find(".librail__lib.librail__on").GetAttribute("data-library"));
+        cut.Find($".librail__lib[data-library='{AudiobooksId}']").GetAttribute("href");
+        Assert.Equal($"/settings/libraries/{AudiobooksId}", cut.Find($".librail__lib[data-library='{AudiobooksId}']").GetAttribute("href"));
     }
 
     // 4. The whole row opens the library.
@@ -229,7 +230,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         });
         var cut = OpenAndSettle();
 
-        Assert.Equal(["Movies", "Home videos", "Other videos"], cut.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.Equal(["Movies", "Home videos", "Other videos"], cut.FindAll(".libs__group[data-area=watch] .libs__link").Select(Text).ToArray());
         Assert.Equal("1 folder", Text(Row(cut, HomeVideosId).QuerySelectorAll("td")[2]));
         Assert.Equal("2 folders", Text(Row(cut, OtherVideosId).QuerySelectorAll("td")[2]));
         Assert.Equal($"/settings/libraries/{OtherVideosId}", Row(cut, OtherVideosId).QuerySelector("a")!.GetAttribute("href"));
@@ -254,7 +255,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var cut = OpenAndSettle();
 
-        Assert.Equal(["Movies", "Home videos", "TikTok edits", "Other videos"], cut.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.Equal(["Movies", "Home videos", "TikTok edits", "Other videos"], cut.FindAll(".libs__group[data-area=watch] .libs__link").Select(Text).ToArray());
     }
 
     // 6. The status words.
@@ -269,20 +270,25 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         Assert.Contains("Folder offline", Text(Row(cut, MoviesId).QuerySelector("[data-status]")!));
         Assert.Equal("folder-offline", Row(cut, MoviesId).QuerySelector("[data-status]")!.GetAttribute("data-status"));
-        var listen = OpenAndSettle(query: "area=listen");
-        Assert.Equal("Empty", Text(Row(listen, AudiobooksId).QuerySelector("[data-status]")!));
-        Assert.Equal("Nothing added yet", Text(Row(listen, AudiobooksId).QuerySelectorAll("td")[2]));
+        Assert.Equal("Empty", Text(Row(cut, AudiobooksId).QuerySelector("[data-status]")!));
+        Assert.Equal("Nothing added yet", Text(Row(cut, AudiobooksId).QuerySelectorAll("td")[2]));
     }
 
     [Fact]
-    public void FilesThatNeedReviewShowTheCountAsALinkToNeedsReviewForThatLibrary()
+    public void UnidentifiedFilesAndNeedsReviewItemsAreTwoCountsEachLinkingToItsOwnList()
     {
-        _configuration!.Libraries[0].UnmatchedCount = 3;
+        _configuration!.Libraries[0].UnmatchedCount = 12;
+        _configuration.Libraries[0].ReviewCount = 3;
         var cut = OpenAndSettle();
 
-        var status = Row(cut, MoviesId).QuerySelector("a[data-status=needs-review]")!;
-        Assert.Equal("Needs review (3)", Text(status));
-        Assert.Equal($"/settings/review?library={MoviesId}", status.GetAttribute("href"));
+        var unidentified = Row(cut, MoviesId).QuerySelector("a[data-status=not-identified]")!;
+        Assert.Equal("12 files not identified", Text(unidentified));
+        Assert.Equal($"/settings/libraries/{MoviesId}?tab=unidentified", unidentified.GetAttribute("href"));
+        var review = Row(cut, MoviesId).QuerySelector("a[data-status=needs-review]")!;
+        Assert.Equal("3 need review", Text(review));
+        Assert.Equal($"/settings/review?library={MoviesId}", review.GetAttribute("href"));
+        // The rail carries the same total beside the library.
+        Assert.Equal("15", Text(cut.Find($".librail__lib[data-library='{MoviesId}'] .librail__count")));
     }
 
     [Fact]
@@ -315,41 +321,41 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("Healthy", Row(cut, MoviesId).TextContent));
     }
 
-    // 7. The Vault is a fifth area button, drawn only when the host says the Vault may be shown; its libraries are listed only there.
+    // 7. The Vault is a fifth area, drawn only when the host says the Vault may be shown; its libraries are listed only there.
     [Fact]
-    public void AVaultLibraryIsListedOnlyInTheVaultAreaAndTheVaultButtonExistsOnlyWhileTheVaultMayBeShown()
+    public void AVaultLibraryIsListedOnlyInTheVaultAreaAndTheVaultGroupExistsOnlyWhileTheVaultMayBeShown()
     {
         var kinds = LibraryKindsTestData.Catalog;
         var configuration = BuildConfiguration();
         configuration.Libraries.Add(new() { Id = "99999999-9999-4999-8999-999999999999", Name = "Private movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"], IsVault = true, Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
 
         var shown = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration).Add(x => x.ShowVault, true));
-        var vault = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration).Add(x => x.ShowVault, true).Add(x => x.Area, "vault"));
         var hidden = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration));
-        var hiddenVaultAddress = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration).Add(x => x.Area, "vault"));
+        var rail = Render<LibrariesRail>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration));
 
-        Assert.Equal(["Watch", "Listen", "Read", "View", "Vault"], shown.FindAll(AreaButtons).Select(Text).ToArray());
-        Assert.Equal(["Movies"], shown.FindAll(".libs__link").Select(Text).ToArray());
-        Assert.Equal(["Private movies"], vault.FindAll(".libs__link").Select(Text).ToArray());
-        Assert.NotNull(vault.Find("tr[data-library='99999999-9999-4999-8999-999999999999'] .libs__lock"));
-        Assert.Equal(["Watch", "Listen", "Read", "View"], hidden.FindAll(AreaButtons).Select(Text).ToArray());
-        Assert.Equal(["Movies"], hidden.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.Equal(["Watch", "Listen", "Read", "View", "Vault"], shown.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
+        Assert.Equal(["Movies"], shown.FindAll(".libs__group[data-area=watch] .libs__link").Select(Text).ToArray());
+        Assert.Equal(["Private movies"], shown.FindAll(".libs__group[data-area=vault] .libs__link").Select(Text).ToArray());
+        Assert.NotNull(shown.Find("tr[data-library='99999999-9999-4999-8999-999999999999'] .libs__lock"));
+        Assert.Equal(["Watch", "Listen", "Read", "View"], hidden.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
+        Assert.Equal(["Movies"], hidden.FindAll(".libs__group[data-area=watch] .libs__link").Select(Text).ToArray());
         Assert.DoesNotContain("Vault", hidden.Markup);
-        // The Vault's address reads as the first area for someone who may not open it.
-        Assert.Equal(["Movies"], hiddenVaultAddress.FindAll(".libs__link").Select(Text).ToArray());
-        Assert.DoesNotContain("Private", hiddenVaultAddress.Markup);
+        Assert.DoesNotContain("Private", hidden.Markup);
+        // The rail is the same: no Vault group, row, count or word for someone who may not open it.
+        Assert.DoesNotContain("Vault", rail.Markup);
+        Assert.DoesNotContain("Private", rail.Markup);
     }
 
     // 8. Empty area, search, status filter, loading and error.
     [Fact]
-    public void AnAreaWithNoLibrariesSaysSoWithOneProminentAddLibraryButton()
+    public void AnAreaWithNoLibrariesSaysNothingYetAndOffersToAddOne()
     {
-        var cut = Open(query: "area=read");
+        var cut = Open();
 
-        Assert.Contains("No Read libraries yet", cut.Markup);
-        var add = cut.FindAll("button").Single(button => Text(button) == "Add library");
-        Assert.Contains("primary", add.ClassName, StringComparison.OrdinalIgnoreCase);
-        Assert.Empty(cut.FindAll("table"));
+        var heading = Text(cut.Find(".libs__group[data-area=read] .libs__group-heading"));
+        Assert.Equal("Readnothing yetAdd a Read library", heading);
+        Assert.Empty(cut.FindAll(".libs__group[data-area=read] table"));
+        Assert.Contains(cut.FindAll("button"), button => Text(button) == "Add library");
     }
 
     [Fact]
@@ -363,7 +369,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(["Home videos"], cut.FindAll(".libs__link").Select(Text).ToArray()));
         cut.Find("input[type=search], input").Input("zzz");
-        cut.WaitForAssertion(() => Assert.Contains("No libraries match", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("libraries match", cut.Markup));
     }
 
     [Fact]
@@ -392,7 +398,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         _configuration = BuildConfiguration();
         cut.FindAll("button").Single(button => Text(button) == "Try again").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("Movies", Text(cut.Find(".libs__link"))));
+        cut.WaitForAssertion(() => Assert.Contains("Movies", Text(cut.Find(".libs__group[data-area=watch] .libs__link"))));
     }
 
     // 9. View libraries sit in the same table and open the existing View settings.
@@ -404,11 +410,11 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
             new(Guid.NewGuid(), "local_folder", "Pictures", "linked", "D:\\Pictures", true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, ContentKind: "photos"),
             new(Guid.NewGuid(), "local_folder", "Paperwork", "linked", "C:\\Paperwork", true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, ContentKind: "documents"),
         ];
-        var cut = OpenAndSettle(query: "area=view");
+        var cut = OpenAndSettle();
 
-        cut.WaitForAssertion(() => Assert.Equal(["1 folder", "Nothing added yet", "1 folder"], cut.FindAll("tbody tr").Select(row => Text(row.QuerySelectorAll("td")[2])).ToArray()));
-        Assert.Equal(["Photos", "Personal videos", "Documents"], cut.FindAll(".libs__link").Select(Text).ToArray());
-        Assert.Equal("/settings/libraries/view/photos", cut.FindAll(".libs__link")[0].GetAttribute("href"));
+        cut.WaitForAssertion(() => Assert.Equal(["1 folder", "Nothing added yet", "1 folder"], cut.FindAll(".libs__group[data-area=view] tbody tr").Select(row => Text(row.QuerySelectorAll("td")[2])).ToArray()));
+        Assert.Equal(["Photos", "Personal videos", "Documents"], cut.FindAll(".libs__group[data-area=view] .libs__link").Select(Text).ToArray());
+        Assert.Equal("/settings/libraries/view/photos", cut.FindAll(".libs__group[data-area=view] .libs__link")[0].GetAttribute("href"));
     }
 
     // 10. Phone: counts and status, nothing that changes anything.
@@ -441,8 +447,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var header = Text(cut.Find(".libpage__header"));
         Assert.Contains("Movies", header);
-        Assert.Contains("Standard", header);
-        Assert.Contains("2 folders", header);
+                Assert.Contains("2 folders", header);
         cut.WaitForAssertion(() => Assert.Contains("Healthy", Text(cut.Find(".libpage__header"))));
         Assert.Equal(["Folders", "File handling", "Activity"], cut.FindAll(PageTabs).Select(Text).ToArray());
         Assert.Equal(["Scan now", "Add folder", "Add files"], cut.FindAll(".libpage__actions button").Select(Text).ToArray());
@@ -557,8 +562,11 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var offline = new LibraryHealth(false, "1 folder unavailable");
 
         Assert.Equal(LibraryStatusKind.FolderOffline, LibraryListing.StatusOf(library, 10, offline).Status);
-        Assert.Equal(LibraryStatusKind.NeedsReview, LibraryListing.StatusOf(library, 10, LibraryHealth.Ok).Status);
+        Assert.Equal(LibraryStatusKind.NotIdentified, LibraryListing.StatusOf(library, 10, LibraryHealth.Ok).Status);
         library.UnmatchedCount = 0;
+        library.ReviewCount = 1;
+        Assert.Equal(LibraryStatusKind.NeedsReview, LibraryListing.StatusOf(library, 10, LibraryHealth.Ok).Status);
+        library.ReviewCount = 0;
         Assert.Equal(LibraryStatusKind.Empty, LibraryListing.StatusOf(library, 0, LibraryHealth.Ok).Status);
         Assert.Equal(LibraryStatusKind.Healthy, LibraryListing.StatusOf(library, null, LibraryHealth.Ok).Status);
         Assert.Null(LibraryListing.StatusOf(library, 5, null).Status);

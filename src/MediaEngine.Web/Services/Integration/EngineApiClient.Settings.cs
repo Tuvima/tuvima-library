@@ -489,6 +489,10 @@ public sealed partial class EngineApiClient
         PostAsync<MediaEngine.Contracts.Library.LibraryAddFilesRequest, MediaEngine.Contracts.Library.LibraryAddFilesResultDto>(
             "POST /library/libraries/{libraryId}/add-files", $"/library/libraries/{Uri.EscapeDataString(libraryId)}/add-files", request, ct: ct);
 
+    public Task<MediaEngine.Contracts.Library.UnmatchedPageDto?> GetUnmatchedItemsAsync(string libraryId, int skip = 0, int take = 50, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Library.UnmatchedPageDto>(
+            "GET /library/unmatched/libraries/{libraryId}", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}?skip={skip}&take={take}", ct: ct);
+
     public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> KeepAllUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default) =>
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
             "POST /library/unmatched/libraries/{libraryId}/keep", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}/keep", null, ct: ct);
