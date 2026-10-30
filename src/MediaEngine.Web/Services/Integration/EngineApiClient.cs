@@ -378,13 +378,23 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         int limit = 50, CancellationToken ct = default)
         => (await GetPendingReviewsAttemptAsync(limit, ct)).Items ?? [];
 
-    public async Task<ReviewListAttempt> GetPendingReviewsAttemptAsync(
+    public Task<ReviewListAttempt> GetPendingReviewsAttemptAsync(
         int limit = 50, CancellationToken ct = default)
+        => LoadPendingReviewsAsync(limit, null, ct);
+
+    public Task<ReviewListAttempt> GetPendingReviewsForLibraryAttemptAsync(
+        string libraryId, int limit = 50, CancellationToken ct = default)
+        => LoadPendingReviewsAsync(limit, libraryId, ct);
+
+    private async Task<ReviewListAttempt> LoadPendingReviewsAsync(int limit, string? libraryId, CancellationToken ct)
     {
         const string endpoint = "GET /review/pending";
         try
         {
-            var response = await _http.GetAsync($"/review/pending?limit={limit}", ct);
+            var address = string.IsNullOrWhiteSpace(libraryId)
+                ? $"/review/pending?limit={limit}"
+                : $"/review/pending?limit={limit}&library={Uri.EscapeDataString(libraryId)}";
+            var response = await _http.GetAsync(address, ct);
             if (!response.IsSuccessStatusCode)
             {
                 await RecordHttpFailureAsync(endpoint, response, ct);

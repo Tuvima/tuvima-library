@@ -19,13 +19,6 @@ public static class TuvimaBackupServiceCollectionExtensions
         services.AddSingleton<WaitingPersonalStateRepository>();
         services.AddHostedService<WaitingStateReattachHostedService>();
 
-        // One user between Libraries: export a person, import them as a new user. The kept upload lives in the backup folder's staging area.
-        services.AddSingleton<UserImportRepository>();
-        services.AddSingleton(sp => new UserImportStagingArea(
-            sp.GetRequiredService<DatabaseBackupService>().BackupDirectory,
-            sp.GetRequiredService<TimeProvider>(),
-            sp.GetRequiredService<ILogger<UserImportStagingArea>>()));
-        services.AddScoped<IUserTransferService, UserTransferService>();
         services.AddSingleton<BackupSettingsAccessor>();
         services.AddSingleton<IBackupDestination, LocalFolderBackupDestination>();
         services.AddSingleton<IBackupHttp, BackupHttp>();

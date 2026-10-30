@@ -363,7 +363,7 @@ public sealed class AccessContractTests
         var json = JsonSerializer.Serialize(new VisibilityAfterMoveResponse([new VisibilityLossDto(profile, "Sam", 40)]));
         var roundTrip = JsonSerializer.Deserialize<VisibilityAfterMoveResponse>(json)!;
 
-        Assert.Equal($"{{\"people\":[{{\"profile_id\":\"{profile}\",\"display_name\":\"Sam\",\"file_count\":40}}]}}", json);
+        Assert.Equal($"{{\"people\":[{{\"profile_id\":\"{profile}\",\"display_name\":\"Sam\",\"file_count\":40,\"household_id\":null}}]}}", json);
         Assert.Equal(("Sam", 40), (roundTrip.People[0].DisplayName, roundTrip.People[0].FileCount));
     }
 }

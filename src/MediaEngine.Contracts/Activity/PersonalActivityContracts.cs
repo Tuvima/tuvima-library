@@ -176,7 +176,16 @@ public sealed record PersonalActivitySummaryDto(
     [property: JsonPropertyName("audiobook_seconds")] long AudiobookSeconds,
     [property: JsonPropertyName("finished_count")] int FinishedCount,
     [property: JsonPropertyName("in_progress_count")] int InProgressCount,
-    [property: JsonPropertyName("first_activity_at")] string? FirstActivityAt);
+    [property: JsonPropertyName("first_activity_at")] string? FirstActivityAt,
+    [property: JsonPropertyName("finished_last_30_days")] int FinishedLast30Days = 0,
+    [property: JsonPropertyName("days_active_last_30")] int DaysActiveLast30 = 0,
+    [property: JsonPropertyName("daily")] IReadOnlyList<PersonalActivityDayDto>? Daily = null);
+
+/// <summary>One day (UTC, <c>yyyy-MM-dd</c>) with activity in the last 30 days: time played and how many entries started. Days without activity are left out.</summary>
+public sealed record PersonalActivityDayDto(
+    [property: JsonPropertyName("date")] string Date,
+    [property: JsonPropertyName("played_seconds")] long PlayedSeconds,
+    [property: JsonPropertyName("entries")] int Entries);
 
 /// <summary>What deleting history would remove.</summary>
 public sealed record PersonalActivityDeletePreviewDto(

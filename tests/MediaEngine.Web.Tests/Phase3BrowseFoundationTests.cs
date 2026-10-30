@@ -24,7 +24,6 @@ public sealed class Phase3BrowseFoundationTests : AsyncBunitContext
         Services.AddLocalization();
         Services.AddLogging();
         Services.AddNativeUiServices();
-        Services.AddScoped<MediaEditorLauncherService>();
     }
 
     [Fact]

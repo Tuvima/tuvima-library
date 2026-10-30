@@ -141,6 +141,12 @@ public sealed class LlamaInferenceService : ILlamaInferenceService, IAsyncDispos
             _logger.LogWarning("Inference timed out after {Timeout} for role {Role}", requestOptions.Timeout, role);
             return new(InferenceOutcomeStatus.TimedOut, null, "Inference timed out.", stopwatch.Elapsed);
         }
+        catch (AiRuntimeNotInstalledException ex)
+        {
+            // The optional runtime was never installed: nothing is broken, so no error and no stack trace.
+            _logger.LogInformation("Local AI is off for {Role}: the AI runtime is not installed.", role);
+            return new(InferenceOutcomeStatus.ModelUnavailable, null, ex.Message, stopwatch.Elapsed);
+        }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Model {Role} is unavailable", role);

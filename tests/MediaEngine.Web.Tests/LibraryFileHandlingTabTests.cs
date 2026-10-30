@@ -59,14 +59,14 @@ public sealed class LibraryFileHandlingTabTests : AsyncBunitContext
         _dialogs = Render<AppDialogHost>();
     }
 
-    private static LibraryFolderDto Library(string access = "standard", string mode = "keep_original_names", bool managed = false, bool tags = false) => new()
+    private static LibraryFolderDto Library(bool vault = false, string mode = "keep_original_names", bool managed = false, bool tags = false) => new()
     {
         Id = LibraryId,
         Name = "Movies",
         KindKey = "movies",
         Area = "watch",
         MediaTypes = ["Movies"],
-        Access = access,
+        IsVault = vault,
         OrganizationPolicy = new() { Mode = mode, WriteTags = tags },
         Sources =
         [
@@ -328,7 +328,7 @@ public sealed class LibraryFileHandlingTabTests : AsyncBunitContext
     [Fact]
     public void AVaultLibraryCannotBeChangedHereAndSaysWhy()
     {
-        _library = Library(access: "vault");
+        _library = Library(vault: true);
         var cut = Open();
 
         Assert.Contains("Vault-protected", cut.Find(".app-alert").TextContent, StringComparison.Ordinal);

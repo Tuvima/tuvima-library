@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain.Aggregates;
@@ -8,6 +9,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
+using MediaEngine.Storage;
 using static MediaEngine.Api.Services.ReadServices.UniverseConnectionsReadService;
 
 namespace MediaEngine.Api.Endpoints;
@@ -179,6 +181,8 @@ public static class UniverseGraphEndpoints
             IEntityRelationshipRepository relRepo,
             IPluginLoreRepository pluginLoreRepo,
             IEraActorResolverService eraActorResolver,
+            ICollectionRepository collections,
+            CollectionDisplayOverrideRepository displayOverrides,
             CancellationToken ct) =>
         {
             var root = await rootRepo.FindByQidAsync(qid, ct);
@@ -372,7 +376,7 @@ public static class UniverseGraphEndpoints
             }
 
             return Results.Ok(new UniverseGraphResponse(
-                universe: new UniverseGraphRef(qid: root.Qid, label: root.Label),
+                universe: new UniverseGraphRef(qid: root.Qid, label: await UniverseLabelAsync(root, collections, displayOverrides, ct)),
                 nodes: nodes,
                 edges: edges));
         })
@@ -468,6 +472,25 @@ public static class UniverseGraphEndpoints
         .RequireCatalogueQidAccess(ApplicationPermissionIds.LibraryRead);
 
         return app;
+    }
+
+    // The Universe editor saves a local name on the Universe's collection; the explorer shows that name when there is one.
+    private static async Task<string> UniverseLabelAsync(
+        NarrativeRoot root,
+        ICollectionRepository collections,
+        CollectionDisplayOverrideRepository displayOverrides,
+        CancellationToken ct)
+    {
+        var universe = await collections.FindUniverseByQidAsync(root.Qid, ct);
+        if (universe is null)
+        {
+            return root.Label;
+        }
+
+        var local = await displayOverrides.LoadAsync(universe.Id, ct);
+        return local is not null && local.TryGetValue(GroupingEditSubject.TitleKey, out var title) && !string.IsNullOrWhiteSpace(title)
+            ? title
+            : root.Label;
     }
 
     private static async Task<(HashSet<string> Visible, HashSet<string> Hidden)> LoadVisibleEntityQidsAsync(

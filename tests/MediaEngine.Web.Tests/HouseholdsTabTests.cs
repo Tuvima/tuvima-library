@@ -30,6 +30,20 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
     private string _passwordDetail = PasswordSentence;
     private bool _confirmRemoval = true;
     private int _confirmCount;
+    private HttpStatusCode _ceilingStatus = HttpStatusCode.OK;
+
+    private const string CeilingRefusal = "That library can't be hidden for a household.";
+    private static readonly Guid MoviesId = Guid.NewGuid();
+    private static readonly Guid ShowsId = Guid.NewGuid();
+    private static readonly Guid MusicId = Guid.NewGuid();
+    private static readonly Guid BooksId = Guid.NewGuid();
+    private static readonly List<AccessLibraryOptionDto> Libraries =
+    [
+        new(MoviesId, "Movies", null, "watch"),
+        new(ShowsId, "TV Shows", null, "watch"),
+        new(MusicId, "Music", null, "listen"),
+        new(BooksId, "Books", null, "read"),
+    ];
 
     public HouseholdsTabTests()
     {
@@ -121,6 +135,91 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
         var cut = Render<HouseholdsTab>();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-households-add]")));
+    }
+
+    private IRenderedComponent<HouseholdsTab> OpenCeiling(Guid householdId)
+    {
+        UseSession(serverAdministrator: true);
+        var cut = Render<HouseholdsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".households-tab__item").Count));
+        cut.Find($"[data-household-ceiling='{householdId}'] .household-ceiling__toggle").Click();
+        return cut;
+    }
+
+    private static AngleSharp.Dom.IElement Tick(IRenderedComponent<HouseholdsTab> cut, Guid householdId, Guid libraryId) =>
+        cut.Find($"[data-household-ceiling='{householdId}'] [data-library-id='{libraryId}'] input");
+
+    [Fact]
+    public void Ceiling_ListsLibrariesUnderTheirAreas_AllTickedByDefault_AndNeverTheVault()
+    {
+        var cut = OpenCeiling(HomeId);
+
+        var home = cut.Find($"[data-household-ceiling='{HomeId}']");
+        Assert.Equal(["watch", "listen", "read"], home.QuerySelectorAll("[data-ceiling-area]").Select(area => area.GetAttribute("data-ceiling-area")!).ToArray());
+        var ticks = home.QuerySelectorAll("[data-library-id] input").ToList();
+        Assert.Equal(4, ticks.Count);
+        Assert.All(ticks, tick => Assert.NotNull(tick.GetAttribute("checked")));
+        Assert.NotNull(home.QuerySelector("[data-ceiling-all] input")!.GetAttribute("checked"));
+        Assert.DoesNotContain("Vault", home.TextContent);
+        Assert.Empty(home.QuerySelectorAll(".app-save-bar"));
+    }
+
+    [Fact]
+    public void Ceiling_AHiddenLibraryStartsUnticked_ForThatHouseholdOnly()
+    {
+        _households[0] = _households[0] with { HiddenLibraryIds = [MusicId] };
+        var cut = OpenCeiling(CabinId);
+        cut.Find($"[data-household-ceiling='{HomeId}'] .household-ceiling__toggle").Click();
+
+        Assert.Null(Tick(cut, HomeId, MusicId).GetAttribute("checked"));
+        Assert.NotNull(Tick(cut, CabinId, MusicId).GetAttribute("checked"));
+        Assert.Null(cut.Find($"[data-household-ceiling='{HomeId}'] [data-ceiling-all] input").GetAttribute("checked"));
+    }
+
+    [Fact]
+    public void Ceiling_UntickingALibrary_ShowsSaveAndDiscard_AndSavesOnlyThatHouseholdsHiddenList()
+    {
+        var cut = OpenCeiling(HomeId);
+
+        Tick(cut, HomeId, MoviesId).Change(false);
+        Assert.Contains("Unsaved library changes for Home", cut.Find(".app-save-bar").TextContent);
+        Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Put);
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Save changes").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Saved · 1 hidden", cut.Find($"[data-household-ceiling='{HomeId}'] [data-household-ceiling-saved]").TextContent));
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put);
+        Assert.Equal($"/access/households/{HomeId:D}/libraries", put.Path);
+        Assert.Equal([MoviesId], JsonSerializer.Deserialize<ReplaceHouseholdLibrariesRequest>(put.Body, new JsonSerializerOptions(JsonSerializerDefaults.Web))!.HiddenLibraryIds);
+        Assert.Empty(cut.FindAll(".app-save-bar"));
+    }
+
+    [Fact]
+    public void Ceiling_AllLibrariesTick_UntickAndTickHidesAndShowsEveryLibrary_AndDiscardRestores()
+    {
+        var cut = OpenCeiling(HomeId);
+
+        cut.Find($"[data-household-ceiling='{HomeId}'] [data-ceiling-all] input").Change(false);
+        Assert.All(cut.FindAll($"[data-household-ceiling='{HomeId}'] [data-library-id] input"), tick => Assert.Null(tick.GetAttribute("checked")));
+
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Discard").Click();
+
+        Assert.All(cut.FindAll($"[data-household-ceiling='{HomeId}'] [data-library-id] input"), tick => Assert.NotNull(tick.GetAttribute("checked")));
+        Assert.Empty(cut.FindAll(".app-save-bar"));
+        Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Put);
+    }
+
+    [Fact]
+    public void Ceiling_RefusedByTheEngine_ShowsItsSentence_AndKeepsTheTicksForAnotherTry()
+    {
+        _ceilingStatus = HttpStatusCode.BadRequest;
+        var cut = OpenCeiling(HomeId);
+
+        Tick(cut, HomeId, BooksId).Change(false);
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Save changes").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(CeilingRefusal, cut.Find("[data-household-ceiling-error]").TextContent));
+        Assert.NotEmpty(cut.FindAll(".app-save-bar"));
+        Assert.Null(Tick(cut, HomeId, BooksId).GetAttribute("checked"));
     }
 
     [Fact]
@@ -302,6 +401,28 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
                 var created = new HouseholdResponse(Guid.NewGuid(), name, 0, 0, DateTimeOffset.UtcNow);
                 owner._households.Add(created);
                 return new HttpResponseMessage(HttpStatusCode.Created) { Content = JsonContent.Create(created) };
+            }
+
+            if (request.Method == HttpMethod.Get && path == "/access/libraries")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(Libraries) };
+            }
+
+            if (request.Method == HttpMethod.Put && path.EndsWith("/libraries", StringComparison.Ordinal))
+            {
+                if (owner._ceilingStatus != HttpStatusCode.OK)
+                {
+                    return new HttpResponseMessage(owner._ceilingStatus)
+                    {
+                        Content = JsonContent.Create(new { title = "Bad request.", status = (int)owner._ceilingStatus, detail = CeilingRefusal }),
+                    };
+                }
+
+                var id = Guid.Parse(path["/access/households/".Length..^"/libraries".Length]);
+                var hidden = JsonSerializer.Deserialize<ReplaceHouseholdLibrariesRequest>(body, options)!.HiddenLibraryIds;
+                var index = owner._households.FindIndex(household => household.Id == id);
+                owner._households[index] = owner._households[index] with { HiddenLibraryIds = hidden };
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new HouseholdLibraryAccessResponse(id, hidden)) };
             }
 
             if (request.Method == HttpMethod.Put && path.StartsWith("/access/households/", StringComparison.Ordinal))

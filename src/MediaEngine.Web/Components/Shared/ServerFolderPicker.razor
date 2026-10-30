@@ -266,6 +266,13 @@ else
                 </div>
                 <span class="server-folder-picker__copied" aria-live="polite">@_copyMessage</span>
             </div>
+            @if (OfferManagedChoice)
+            {
+                <AppSwitchRow Label="Let Library manage this folder"
+                              Description="Needed to move items into the Vault. Library may add and remove files in a managed folder. Left off, the folder is read-only and your files are never changed."
+                              Value="@_managedChoice"
+                              ValueChanged="SetManagedChoiceAsync" />
+            }
             <AppActionBar Align="AppHorizontalAlignment.End">
                 @if (!Inline)
                 {
@@ -304,6 +311,26 @@ else
     [Parameter] public bool HideConfirm { get; set; }
     /// <summary>Called whenever the checked folder changes: the Engine's answer for the selected folder, or null while it is being checked or nothing is selected.</summary>
     [Parameter] public EventCallback<ServerFolderValidationResultDto?> OnValidationChanged { get; set; }
+
+    /// <summary>The centred pop-up every host opens the folder picker with, so Add library and Add folder look the same.</summary>
+    public static AppDialogOptions DialogOptions { get; } = new() { MaxWidth = AppMaxWidth.ExtraExtraLarge, FullWidth = false, CloseButton = false, CloseOnEscapeKey = true };
+
+    /// <summary>Draws one switch above the buttons, "Let Library manage this folder": on, the folder is checked for write access (a Vault library's managed folder, which Move to Vault needs).</summary>
+    [Parameter] public bool OfferManagedChoice { get; set; }
+    /// <summary>Called when the managed switch changes, so the host can read the choice after the pop-up closes.</summary>
+    [Parameter] public EventCallback<bool> OnManagedChoiceChanged { get; set; }
+
+    private bool _managedChoice;
+    private string EffectiveMode => _managedChoice ? ServerFolderSelectionModes.ManagedLibrary : SelectionMode;
+
+    private async Task SetManagedChoiceAsync(bool value)
+    {
+        if (_managedChoice == value) return;
+        _managedChoice = value;
+        await OnManagedChoiceChanged.InvokeAsync(value);
+        InvalidateValidation();
+        if (_validation is null && _activeLocation is not null) await ValidateSelectedAsync();
+    }
 
     private const string CantOpenMessage = "The Library can't open that folder.";
     private const string NotFoundMessage = "That folder doesn't exist.";
@@ -353,23 +380,7 @@ else
     private ServerFolderValidationResultDto? _reportedValidation;
 
     // The result card for a folder that can be used: it says so and, when the Engine counted them, how many supported files it holds.
-    private string? FolderResultText
-    {
-        get
-        {
-            if (_validating || _validation is not { CanSelect: true, Exists: true, HasRead: true } result) return null;
-            if (result.SupportedFileCountUnavailable) return "Folder accessible. The file count isn't available right now.";
-            if (result.SupportedFileCount is not { } count || string.IsNullOrWhiteSpace(result.SupportedFileKindLabel)) return "Folder accessible";
-            var noun = result.SupportedFileKindLabel;
-            if (result.SupportedFileCountCapped) return $"Folder accessible, {DisplayFormat.FormatCount(count)}+ {noun} files found";
-            return count switch
-            {
-                0 => $"Folder accessible, no {noun} files found yet",
-                1 => $"Folder accessible, 1 {noun} file found",
-                _ => $"Folder accessible, {DisplayFormat.FormatCount(count)} {noun} files found",
-            };
-        }
-    }
+    private string? FolderResultText => _validating ? null : ServerFolderResultText.For(_validation);
 
     // Drives and the server root are discovered automatically; anything else in the list is a configured media location.
     // Tuvima's own folders are never sent by the Engine, so there is nothing to hide or rename here.
@@ -436,7 +447,7 @@ else
             var request = new ValidateServerFolderRequest
             {
                 ManualPath = InitialPath,
-                SelectionMode = SelectionMode,
+                SelectionMode = EffectiveMode,
                 CurrentSourceId = CurrentSourceId,
                 KindKey = KindKey,
             };
@@ -640,7 +651,7 @@ else
         {
             StorageLocationId = _activeLocation.Id,
             RelativePath = _selectedRelativePath,
-            SelectionMode = SelectionMode,
+            SelectionMode = EffectiveMode,
             CurrentSourceId = CurrentSourceId,
             KindKey = KindKey,
         };
@@ -677,7 +688,7 @@ else
         _validating = true;
         _error = null;
         _pathMessage = null;
-        var request = new ValidateServerFolderRequest { ManualPath = _pathText, SelectionMode = SelectionMode, CurrentSourceId = CurrentSourceId, KindKey = KindKey };
+        var request = new ValidateServerFolderRequest { ManualPath = _pathText, SelectionMode = EffectiveMode, CurrentSourceId = CurrentSourceId, KindKey = KindKey };
         ServerFolderValidationResultDto? validation;
         try
         {
@@ -969,7 +980,7 @@ else
         {
             if (_validation is not { Exists: true }) yield break;
             if (!_validation.HasRead) yield return "Library can't read this folder.";
-            if (!_validation.HasWrite && ServerFolderSelectionModes.RequiresWrite(SelectionMode)) yield return "Library can't write to this folder.";
+            if (!_validation.HasWrite && ServerFolderSelectionModes.RequiresWrite(EffectiveMode)) yield return "Library can't write to this folder.";
         }
     }
 

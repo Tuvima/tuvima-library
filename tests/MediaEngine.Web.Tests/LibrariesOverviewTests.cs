@@ -48,7 +48,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
             },
             new()
             {
-                Id = AudiobooksId, Name = "Audiobooks", KindKey = "audiobooks", Area = "listen", MediaTypes = ["Audiobooks"], Access = "selected",
+                Id = AudiobooksId, Name = "Audiobooks", KindKey = "audiobooks", Area = "listen", MediaTypes = ["Audiobooks"],
                 Sources = [new() { Id = "audio-old", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library", AccessMode = "read_only" }],
             },
         ],
@@ -131,21 +131,24 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
     private static AngleSharp.Dom.IElement Row(IRenderedComponent<LibrariesTab> cut, string id) => cut.Find($"tr[data-library='{id}']");
 
-    // 1. The four area tabs, in order, with one selected.
+    // 1. The four area buttons, in order, with one selected (library setup D0b: icon toggle buttons, not tabs).
+    private const string AreaButtons = "[aria-label='Library areas'] button";
+
     [Fact]
-    public void TheOverviewHasTheWatchListenReadAndViewTabsWithWatchSelectedFirst()
+    public void TheOverviewHasTheWatchListenReadAndViewButtonsWithWatchSelectedFirst()
     {
         var cut = Open();
 
-        var tabs = cut.FindAll("[role=tab]");
-        Assert.Equal(["Watch", "Listen", "Read", "View"], tabs.Select(Text).ToArray());
-        Assert.Equal(["true", "false", "false", "false"], tabs.Select(tab => tab.GetAttribute("aria-selected")!).ToArray());
+        var buttons = cut.FindAll(AreaButtons);
+        Assert.Equal(["Watch", "Listen", "Read", "View"], buttons.Select(Text).ToArray());
+        Assert.Equal(["true", "false", "false", "false"], buttons.Select(button => button.GetAttribute("aria-pressed")!).ToArray());
+        Assert.All(buttons, button => Assert.NotNull(button.QuerySelector("svg, .app-material-icon")));
         Assert.DoesNotContain("Vault", cut.Markup);
     }
 
     // 2. Rows, counts and status per area.
     [Fact]
-    public void TheWatchTabListsItsLibrariesWithContentTypeAccessCountsAndStatus()
+    public void TheWatchAreaListsItsLibrariesWithContentTypeCountsAndStatusAndNoAccessColumn()
     {
         var cut = OpenAndSettle();
 
@@ -153,22 +156,21 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal("Movies", Text(row.QuerySelector(".libs__link")!));
         var cells = row.QuerySelectorAll("td").Select(Text).ToArray();
         Assert.Equal("Movies", cells[1]);
-        Assert.Equal("Standard", cells[2]);
-        Assert.Equal("2 folders · 1,284 titles", cells[3]);
-        Assert.Contains("Healthy", cells[4]);
+        Assert.Equal("2 folders · 1,284 titles", cells[2]);
+        Assert.Contains("Healthy", cells[3]);
+        Assert.DoesNotContain(cut.FindAll("th"), header => Text(header) == "Access");
         Assert.Equal($"/settings/libraries/{MoviesId}", row.QuerySelector("a")!.GetAttribute("href"));
         Assert.Empty(cut.FindAll($"tr[data-library='{AudiobooksId}']"));
     }
 
     [Fact]
-    public void TheListenTabShowsOnlyListenLibrariesAndSelectedProfilesAccessInWords()
+    public void TheListenAreaShowsOnlyListenLibraries()
     {
         var cut = OpenAndSettle(query: "area=listen");
 
-        Assert.Equal("true", cut.FindAll("[role=tab]")[1].GetAttribute("aria-selected"));
+        Assert.Equal("true", cut.FindAll(AreaButtons)[1].GetAttribute("aria-pressed"));
         var row = Row(cut, AudiobooksId);
-        Assert.Equal("Selected profiles", Text(row.QuerySelectorAll("td")[2]));
-        Assert.Equal("1 folder · 12 titles", Text(row.QuerySelectorAll("td")[3]));
+        Assert.Equal("1 folder · 12 titles", Text(row.QuerySelectorAll("td")[2]));
         Assert.Empty(cut.FindAll($"tr[data-library='{MoviesId}']"));
     }
 
@@ -178,7 +180,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         _overview = null;
         var cut = OpenAndSettle();
 
-        Assert.Equal("2 folders", Text(Row(cut, MoviesId).QuerySelectorAll("td")[3]));
+        Assert.Equal("2 folders", Text(Row(cut, MoviesId).QuerySelectorAll("td")[2]));
     }
 
     // 3. Selecting a tab filters the list and keeps the area in the address.
@@ -187,7 +189,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     {
         var cut = Open();
 
-        cut.FindAll("[role=tab]")[1].Click();
+        cut.FindAll(AreaButtons)[1].Click();
 
         Assert.EndsWith("/settings/libraries?area=listen", CurrentUri, StringComparison.Ordinal);
     }
@@ -228,8 +230,8 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var cut = OpenAndSettle();
 
         Assert.Equal(["Movies", "Home videos", "Other videos"], cut.FindAll(".libs__link").Select(Text).ToArray());
-        Assert.Equal("1 folder", Text(Row(cut, HomeVideosId).QuerySelectorAll("td")[3]));
-        Assert.Equal("2 folders", Text(Row(cut, OtherVideosId).QuerySelectorAll("td")[3]));
+        Assert.Equal("1 folder", Text(Row(cut, HomeVideosId).QuerySelectorAll("td")[2]));
+        Assert.Equal("2 folders", Text(Row(cut, OtherVideosId).QuerySelectorAll("td")[2]));
         Assert.Equal($"/settings/libraries/{OtherVideosId}", Row(cut, OtherVideosId).QuerySelector("a")!.GetAttribute("href"));
     }
 
@@ -269,7 +271,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal("folder-offline", Row(cut, MoviesId).QuerySelector("[data-status]")!.GetAttribute("data-status"));
         var listen = OpenAndSettle(query: "area=listen");
         Assert.Equal("Empty", Text(Row(listen, AudiobooksId).QuerySelector("[data-status]")!));
-        Assert.Equal("Nothing added yet", Text(Row(listen, AudiobooksId).QuerySelectorAll("td")[3]));
+        Assert.Equal("Nothing added yet", Text(Row(listen, AudiobooksId).QuerySelectorAll("td")[2]));
     }
 
     [Fact]
@@ -313,21 +315,29 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("Healthy", Row(cut, MoviesId).TextContent));
     }
 
-    // 7. Access: the Vault-protected lock chip appears only when the host says the Vault may be shown.
+    // 7. The Vault is a fifth area button, drawn only when the host says the Vault may be shown; its libraries are listed only there.
     [Fact]
-    public void AVaultProtectedLibraryIsListedWithALockChipOnlyWhileTheVaultMayBeShown()
+    public void AVaultLibraryIsListedOnlyInTheVaultAreaAndTheVaultButtonExistsOnlyWhileTheVaultMayBeShown()
     {
         var kinds = LibraryKindsTestData.Catalog;
         var configuration = BuildConfiguration();
-        configuration.Libraries.Add(new() { Id = "99999999-9999-4999-8999-999999999999", Name = "Private movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"], Access = "vault", Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
+        configuration.Libraries.Add(new() { Id = "99999999-9999-4999-8999-999999999999", Name = "Private movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"], IsVault = true, Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
 
         var shown = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration).Add(x => x.ShowVault, true));
+        var vault = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration).Add(x => x.ShowVault, true).Add(x => x.Area, "vault"));
         var hidden = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration));
+        var hiddenVaultAddress = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration).Add(x => x.Area, "vault"));
 
-        Assert.Equal(["Movies", "Private movies"], shown.FindAll(".libs__link").Select(Text).ToArray());
-        Assert.Contains("Vault-protected", Text(shown.Find("tr[data-library='99999999-9999-4999-8999-999999999999'] .app-chip")));
+        Assert.Equal(["Watch", "Listen", "Read", "View", "Vault"], shown.FindAll(AreaButtons).Select(Text).ToArray());
+        Assert.Equal(["Movies"], shown.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.Equal(["Private movies"], vault.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.NotNull(vault.Find("tr[data-library='99999999-9999-4999-8999-999999999999'] .libs__lock"));
+        Assert.Equal(["Watch", "Listen", "Read", "View"], hidden.FindAll(AreaButtons).Select(Text).ToArray());
         Assert.Equal(["Movies"], hidden.FindAll(".libs__link").Select(Text).ToArray());
         Assert.DoesNotContain("Vault", hidden.Markup);
+        // The Vault's address reads as the first area for someone who may not open it.
+        Assert.Equal(["Movies"], hiddenVaultAddress.FindAll(".libs__link").Select(Text).ToArray());
+        Assert.DoesNotContain("Private", hiddenVaultAddress.Markup);
     }
 
     // 8. Empty area, search, status filter, loading and error.
@@ -396,7 +406,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         ];
         var cut = OpenAndSettle(query: "area=view");
 
-        cut.WaitForAssertion(() => Assert.Equal(["1 folder", "Nothing added yet", "1 folder"], cut.FindAll("tbody tr").Select(row => Text(row.QuerySelectorAll("td")[3])).ToArray()));
+        cut.WaitForAssertion(() => Assert.Equal(["1 folder", "Nothing added yet", "1 folder"], cut.FindAll("tbody tr").Select(row => Text(row.QuerySelectorAll("td")[2])).ToArray()));
         Assert.Equal(["Photos", "Personal videos", "Documents"], cut.FindAll(".libs__link").Select(Text).ToArray());
         Assert.Equal("/settings/libraries/view/photos", cut.FindAll(".libs__link")[0].GetAttribute("href"));
     }
@@ -434,7 +444,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Contains("Standard", header);
         Assert.Contains("2 folders", header);
         cut.WaitForAssertion(() => Assert.Contains("Healthy", Text(cut.Find(".libpage__header"))));
-        Assert.Equal(["Folders", "Access", "File handling", "Activity"], cut.FindAll(PageTabs).Select(Text).ToArray());
+        Assert.Equal(["Folders", "File handling", "Activity"], cut.FindAll(PageTabs).Select(Text).ToArray());
         Assert.Equal(["Scan now", "Add folder", "Add files"], cut.FindAll(".libpage__actions button").Select(Text).ToArray());
     }
 
@@ -446,7 +456,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var cut = Open(YoutubeId);
 
-        cut.WaitForAssertion(() => Assert.Equal(["Folders", "Access", "File handling", "Activity", "Lookup"], cut.FindAll(PageTabs).Select(Text).ToArray()));
+        cut.WaitForAssertion(() => Assert.Equal(["Folders", "File handling", "Activity", "Lookup"], cut.FindAll(PageTabs).Select(Text).ToArray()));
     }
 
     [Fact]
@@ -454,7 +464,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     {
         var cut = Open(MoviesId, query: "tab=activity");
 
-        cut.WaitForAssertion(() => Assert.Equal("true", cut.FindAll(PageTabs)[3].GetAttribute("aria-selected")));
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.FindAll(PageTabs)[2].GetAttribute("aria-selected")));
         Assert.DoesNotContain("Coming in the next step", cut.Markup);
         Assert.Empty(cut.FindAll(".folder-table"));
     }
@@ -465,7 +475,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var cut = Open(MoviesId, query: "tab=file-handling");
 
         cut.WaitForAssertion(() => Assert.Contains("Deleted files", cut.Markup));
-        Assert.Equal("true", cut.FindAll(PageTabs)[2].GetAttribute("aria-selected"));
+        Assert.Equal("true", cut.FindAll(PageTabs)[1].GetAttribute("aria-selected"));
         Assert.DoesNotContain("Coming in the next step", cut.Markup);
         Assert.Empty(cut.FindAll(".folder-grid"));
     }
@@ -476,7 +486,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var cut = Open(MoviesId);
         cut.WaitForElement(".folder-grid");
 
-        cut.FindAll(PageTabs)[2].Click();
+        cut.FindAll(PageTabs)[1].Click();
 
         Assert.EndsWith($"/settings/libraries/{MoviesId}?tab=file-handling", CurrentUri, StringComparison.Ordinal);
     }

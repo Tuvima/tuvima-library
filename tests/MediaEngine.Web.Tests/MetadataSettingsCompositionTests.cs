@@ -14,7 +14,7 @@ public sealed class MetadataSettingsCompositionTests
         Assert.Contains("ProviderDetailPage()", page, StringComparison.Ordinal);
         Assert.Contains("IngestionFlowPage()", page, StringComparison.Ordinal);
         Assert.Contains("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
-        Assert.Contains("\"ingestion-flow\", \"Ingestion Flow\"", nav, StringComparison.Ordinal);
+        Assert.Contains("IngestionFlowSubsection, \"Ingestion Flow\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"enrichment\", \"Enrichment\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"canonical\", \"Canonical & Universes\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("EnrichmentOverview", page, StringComparison.Ordinal);
@@ -51,8 +51,9 @@ public sealed class MetadataSettingsCompositionTests
         Assert.Contains("\"Secondary\"", state, StringComparison.Ordinal);
         Assert.Contains("\"Fallback\"", state, StringComparison.Ordinal);
         Assert.Contains("catalogue.RequiredSystemProvider ? \"Required\" : \"Optional\"", state, StringComparison.Ordinal);
-        Assert.Contains("flow.Results", page, StringComparison.Ordinal);
-        Assert.Contains("Order and roles come from the active Engine configuration", page, StringComparison.Ordinal);
+        var editor = Read("src/MediaEngine.Web/Components/Settings/IngestionFlowEditor.razor");
+        Assert.Contains("IngestionFlowEditor", page, StringComparison.Ordinal);
+        Assert.Contains("GetPipelinesAsync", editor, StringComparison.Ordinal);
     }
 
     [Fact]

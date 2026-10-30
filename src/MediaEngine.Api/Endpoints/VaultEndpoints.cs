@@ -153,16 +153,63 @@ public static class VaultEndpoints
             {
                 return ApiErrors.BadRequest(ex.Message);
             }
-            catch (InvalidOperationException ex) when (ex is not VaultAdminPinNotSetException)
+            catch (InvalidOperationException ex)
             {
                 return ApiErrors.Conflict(ex.Message);
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
         }).WithName("SetProfileNsfwAccess").Produces<NsfwStatusDto>().ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireEffectiveAdministratorInPerson();
+
+        // The Vault sections a profile may open once its Vault mode is on (Vault sections D28, D39). The list names the sections, so it is for an
+        // administrator whose own Vault mode is on; anyone else gets the answer an unknown address gets.
+        admin.MapGet("/profiles/{profileId:guid}/vault-sections", async (
+            Guid profileId, HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access,
+            [FromServices] VaultSiblingLibraryService siblings, [FromServices] IVaultSectionGrantRepository grants, [FromServices] IProfileRepository profiles, CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            if (!authority.IsEffectiveAdministrator || !await access.IsUnlockedAsync(authority, ct))
+            {
+                return ApiErrors.NotFound("Not found.");
+            }
+
+            return await SectionsOfAsync(profileId, siblings, grants, profiles, ct);
+        }).WithName("GetProfileVaultSections").Produces<ProfileVaultSectionsDto>().RequireEffectiveAdministratorInPerson();
+
+        admin.MapPut("/profiles/{profileId:guid}/vault-sections", async (
+            Guid profileId, SetProfileVaultSectionsRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access,
+            [FromServices] VaultSiblingLibraryService siblings, [FromServices] IVaultSectionGrantRepository grants, [FromServices] IProfileRepository profiles,
+            TimeProvider clock, CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            if (!authority.IsEffectiveAdministrator || authority.ActiveProfileId is not { } adminProfileId || !await access.IsUnlockedAsync(authority, ct))
+            {
+                return ApiErrors.NotFound("Not found.");
+            }
+
+            try
+            {
+                await grants.ReplaceGrantedAsync(profileId, request.LibraryIds ?? [], clock.GetUtcNow(), adminProfileId, ct);
+            }
+            catch (KeyNotFoundException)
+            {
+                return ApiErrors.NotFound("Profile not found.");
+            }
+            catch (ArgumentException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ApiErrors.Conflict(ex.Message);
+            }
+
+            return await SectionsOfAsync(profileId, siblings, grants, profiles, ct);
+        }).WithName("SetProfileVaultSections").Produces<ProfileVaultSectionsDto>().ProducesProblem(StatusCodes.Status400BadRequest)
+          .RequireEffectiveAdministratorInPerson();
 
         var libraries = app.MapGroup("/api/v1/vault/libraries").WithTags("Vault");
 
@@ -198,7 +245,7 @@ public static class VaultEndpoints
             {
                 return ApiErrors.BadRequest(ex.Message);
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
@@ -222,7 +269,7 @@ public static class VaultEndpoints
             {
                 return ApiErrors.BadRequest(ex.Message);
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
@@ -250,7 +297,7 @@ public static class VaultEndpoints
                     _ => ApiErrors.NotFound("Not found."),
                 };
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
@@ -290,11 +337,11 @@ public static class VaultEndpoints
                 await VaultLibrarySettings.RemoveEntryAsync(configuration, libraryId, ct);
                 return Results.NoContent();
             }
-            catch (InvalidOperationException ex) when (ex is not VaultAdminPinNotSetException)
+            catch (InvalidOperationException ex)
             {
                 return ApiErrors.Conflict(ex.Message);
             }
-            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinRequiredException or ProfilePinLockedException)
             {
                 return PinFailure(ex);
             }
@@ -311,7 +358,7 @@ public static class VaultEndpoints
             // Private and uncacheable whether or not the image is found, so a cached answer never outlives the Vault mode session.
             CatalogueResourceAuthorizationService.ApplyVaultCacheControl(http.Response);
             var authority = await resolver.ResolveAsync(http, ct);
-            if (!await access.IsUnlockedAsync(authority, ct)
+            if (!await access.MayOpenAnySectionAsync(authority, ct)
                 || await artwork.GetAsync(artworkId, ct) is not { } record
                 || !File.Exists(record.FilePath))
             {
@@ -356,6 +403,27 @@ public static class VaultEndpoints
             : null;
     }
 
+    private static async Task<IResult> SectionsOfAsync(
+        Guid profileId, VaultSiblingLibraryService siblings, IVaultSectionGrantRepository grants, IProfileRepository profiles, CancellationToken ct)
+    {
+        if (await profiles.GetByIdAsync(profileId, ct) is not { } person)
+        {
+            return ApiErrors.NotFound("Profile not found.");
+        }
+
+        var granted = await grants.GetGrantedAsync(profileId, ct);
+        var sections = (await siblings.ListAsync(ct))
+            .Select(library => new VaultSectionDto
+            {
+                LibraryId = library.Id,
+                Name = library.Name,
+                KindKey = library.KindKey ?? string.Empty,
+                Granted = granted.Contains(library.Id),
+            })
+            .ToList();
+        return Results.Ok(new ProfileVaultSectionsDto { OpensAll = person.Role == MediaEngine.Domain.Enums.ProfileRole.Administrator, Sections = sections });
+    }
+
     private static async Task<Guid?> AdministratorProfileAsync(HttpContext http, IRequestAuthorityResolver resolver, CancellationToken ct)
     {
         var authority = await resolver.ResolveAsync(http, ct);
@@ -368,10 +436,6 @@ public static class VaultEndpoints
             title: "Too many attempts",
             detail: "Too many attempts. Try again later.",
             statusCode: StatusCodes.Status429TooManyRequests),
-        VaultAdminPinNotSetException notSet => Results.Problem(
-            title: "Administrator PIN required",
-            detail: notSet.Message,
-            statusCode: StatusCodes.Status428PreconditionRequired),
         ProfilePinRequiredException => Results.Problem(
             title: "PIN required",
             detail: "Enter the PIN to continue.",

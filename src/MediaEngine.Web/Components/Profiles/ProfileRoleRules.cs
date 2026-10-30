@@ -18,12 +18,12 @@ public sealed record RoleSwitchState(bool Visible, bool On, bool Enabled, string
 /// </summary>
 public static class ProfileRoleRules
 {
-    public const string NoSignInReason = "A household administrator needs a sign-in. A server administrator attaches one in Users and Sign-in first.";
+    public const string NoSignInReason = "A household administrator needs a sign-in. A server administrator attaches one in Users & Households first.";
     public const string KidsReason = "A Kids profile can't look after a household.";
     public const string ServerAdministratorOnlyReason = "Only a server administrator can change a server administrator's roles.";
     public const string LastHouseholdAdministratorReason = "A household always keeps one household administrator.";
     public const string KidsServerReason = "A Kids profile can't be a server administrator.";
-    public const string ServerNoSignInReason = "A server administrator needs a sign-in with an email and password. Attach one in Users and Sign-in first.";
+    public const string ServerNoSignInReason = "A server administrator needs a sign-in with an email and password. Attach one in Users & Households first.";
     public const string LastServerAdministratorReason = "The Library always keeps one server administrator.";
 
     /// <summary>The "Household administrator" switch for <paramref name="person"/>, given the people of their household.</summary>
@@ -37,7 +37,7 @@ public static class ProfileRoleRules
             return new(true, on, false, ServerAdministratorOnlyReason);
         }
 
-        if (!on && person.IsRestricted)
+        if (!on && person.IsKids)
         {
             return new(true, on, false, KidsReason);
         }
@@ -69,7 +69,7 @@ public static class ProfileRoleRules
         }
 
         var on = person.IsServerAdmin;
-        if (!on && person.IsRestricted)
+        if (!on && person.IsKids)
         {
             return new(true, on, false, KidsServerReason);
         }

@@ -25,5 +25,8 @@ public interface IPluginDisplayRepository
     /// <summary>Contributions in one slot for one subject (empty for the ones not about an item), strongest first.</summary>
     Task<IReadOnlyList<PluginDisplayRow>> ListAsync(string slot, string subjectId, CancellationToken ct = default);
 
+    /// <summary>The strongest contributions in one slot across every item (for slots that nominate items, such as the Home hero), at most <paramref name="limit"/>.</summary>
+    Task<IReadOnlyList<PluginDisplayRow>> ListSlotAsync(string slot, int limit, CancellationToken ct = default);
+
     Task<int> CountAsync(string pluginId, CancellationToken ct = default);
 }

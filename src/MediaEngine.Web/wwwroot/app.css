@@ -4,6 +4,16 @@
    This file owns global / body-level rules and CSS custom properties.
    -------------------------------------------------------------------------- */
 
+/* -- Self-hosted Tuvima Sans variable font (a Montserrat derivative, SIL OFL 1.1; licence in fonts/TuvimaSans-OFL.txt).
+   Used for the navigation and brand text only, never body text. ----- */
+@font-face {
+    font-family: "Tuvima Sans";
+    src: url("fonts/TuvimaSans-Variable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* -- Self-hosted Montserrat variable font ------------------------------ */
 @font-face {
     font-family: "Montserrat";
@@ -78,7 +88,6 @@ body {
 
 /* -- Glassmorphic AppSegmentedControl overrides ------------------------------ */
 
-.tl-tab,
 .tl-alert,
 .tl-popover,
 .tl-list-item,
@@ -110,17 +119,6 @@ body {
 .tl-dialog {
     z-index: var(--app-z-modal) !important;
 }
-/* Paces-style default tabs: simple bordered navigation, no heavy pill/card treatment. */
-
-.tl-tabs-toolbar .tl-tabs-toolbar-content {
-    gap: 4px !important;
-}
-
-.tl-tabs-toolbar .tl-tabs-inkbar {
-    height: 2px !important;
-
-}
-
 /* -- Muted the shared UI layer Input Overrides ----------------------------------- */
 
 /* -- Shared primary CTA button (no current Dashboard consumer) ----------------- */
@@ -417,37 +415,99 @@ body {
     line-height: 1.45 !important;
 }
 
+/* The one tab: flat, transparent, 2px accent underline on the active tab. AppTabs and AppCountTabs both render it, so
+   no page defines its own tab style (spec: one-shared-look). Labels sit one step up the type scale (D8). */
 .tl-tabs-toolbar {
-    min-height: 42px !important;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    min-height: var(--tl-tab-min-height, 44px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    background: transparent;
+    border-bottom: 1px solid var(--tl-divider);
+}
 
-    border-bottom: 1px solid var(--app-border) !important;
+.tl-tabs-toolbar::-webkit-scrollbar {
+    display: none;
 }
 
 .tl-tab {
-    min-height: var(--tl-tab-min-height, 42px) !important;
-    padding: 0 16px 10px !important;
-    border-radius: 0 !important;
-    color: var(--app-text-muted) !important;
-    font-family: var(--font-ui) !important;
-    font-size: var(--tl-control-font-size-md) !important;
-    font-weight: var(--tl-control-font-weight) !important;
-    line-height: var(--tl-control-line-height) !important;
-    letter-spacing: var(--tl-control-letter-spacing) !important;
-    text-transform: none !important;
-    white-space: nowrap !important;
-    max-width: 180px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: var(--tl-tab-min-height, 44px);
+    padding: 0 16px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-lg); /* one step up the type scale (D8) */
+    font-weight: var(--tl-control-font-weight);
+    line-height: var(--tl-control-line-height);
+    letter-spacing: var(--tl-control-letter-spacing);
+    text-decoration: none;
+    text-transform: none;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
-.tl-tab:hover,
+.tl-tab:hover {
+    color: var(--tl-text-primary);
+    background: transparent;
+}
+
 .tl-tab.tl-tab-active {
-    color: var(--tl-accent-primary) !important;
-    background: transparent !important;
+    color: var(--tl-accent-primary);
+    border-bottom-color: var(--tl-accent-primary);
+    background: transparent;
 }
 
-.tl-tabs-toolbar .tl-tabs-toolbar-content .tl-tabs-toolbar-inner {
-    min-height: 42px !important;
+.tl-tab:disabled {
+    color: var(--tl-text-disabled);
+    cursor: default;
+}
+
+.tl-tab__count {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    font-weight: 500;
+}
+
+.tl-tab.tl-tab-active .tl-tab__count {
+    color: inherit;
+}
+
+/* The one card grid: 3 columns on desktop, 2 on tablet, 1 on phone; every card in a row is the same height. */
+.app-card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 16px;
+}
+
+.app-card-grid > * {
+    display: grid;
+    min-width: 0;
+}
+
+@media (max-width: 1180px) {
+    .app-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .app-card-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .app-filter-bar {
@@ -1217,32 +1277,6 @@ body,
     color: var(--tl-status-danger) !important;
     background: var(--tl-status-danger-soft) !important;
     border-color: var(--tl-status-danger-border) !important;
-}
-
-.tl-tabs-toolbar {
-    background: transparent !important;
-    border-bottom: 1px solid var(--tl-divider) !important;
-}
-
-.tl-tab {
-    color: var(--tl-text-secondary) !important;
-    border: 1px solid transparent !important;
-    border-radius: var(--tl-radius-sm) var(--tl-radius-sm) 0 0 !important;
-}
-
-.tl-tab:hover {
-    color: var(--tl-text-primary) !important;
-    background: var(--tl-bg-surface-hover) !important;
-}
-
-.tl-tab.tl-tab-active {
-    color: var(--tl-accent-primary) !important;
-    background: var(--tl-accent-primary-soft) !important;
-    border-color: var(--tl-accent-primary-border) !important;
-}
-
-.tl-tabs-toolbar .tl-tabs-inkbar {
-    background: var(--tl-accent-primary) !important;
 }
 
 .app-filter-bar {
@@ -3345,6 +3379,7 @@ button.app-menu-item {
     display: flex;
     width: 100%;
     align-items: center;
+    justify-content: flex-start;
     border: 0;
     text-align: left;
     cursor: pointer;
@@ -4847,30 +4882,30 @@ input[type="reset"],
 .compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__fill { background:var(--tl-accent-primary-hover); }
 
 /* "Who's watching?" controls. The page renders them through shared native controls, so their roots are styled here. */
-.who-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(8px, 2vw, 28px); width: min(100%, 960px); margin: 0; padding: 0; list-style: none; animation: who-fade-in 320ms ease-out both; }
-.who-grid > li { min-width: 0; }
-.who-skeleton { display: grid; justify-items: center; gap: 12px; padding: 12px; }
-.who-skeleton__avatar { width: 100%; max-width: 148px; aspect-ratio: 1; border-radius: 50%; background: var(--tl-bg-surface-elevated); animation: who-pulse 1.4s ease-in-out infinite; }
+.who-grid { --who-size: clamp(88px, 26vw, 168px); display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: clamp(16px, 3.4vw, 44px) clamp(12px, 3vw, 40px); width: min(100%, 1080px); margin: 0; padding: 0; list-style: none; animation: who-fade-in 320ms ease-out both; }
+.who-grid > li { flex: 0 0 auto; width: var(--who-size); min-width: 0; }
+.who-skeleton { display: grid; justify-items: center; gap: 12px; width: var(--who-size); }
+.who-skeleton__avatar { width: 100%; aspect-ratio: 1; border-radius: 50%; background: var(--tl-bg-surface-elevated); animation: who-pulse 1.4s ease-in-out infinite; }
 .who-skeleton__name { width: 60%; height: 16px; border-radius: 8px; background: var(--tl-bg-surface-elevated); animation: who-pulse 1.4s ease-in-out infinite; }
 .profile-avatar { display: block; width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; }
 @keyframes who-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes who-pulse { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
-@media (min-width: 641px) { .who-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 1024px) { .who-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .who-grid, .who-skeleton__avatar, .who-skeleton__name { animation: none; } }
-.who-card { display: grid; justify-items: center; align-content: start; gap: 10px; width: 100%; padding: 12px; color: var(--tl-text-primary); border: 0; border-radius: 16px; background: transparent; font: inherit; cursor: pointer; transition: background-color 140ms ease, transform 140ms ease; }
-.who-card__picture { position: relative; display: block; width: 80%; max-width: 168px; aspect-ratio: 1; border-radius: 50%; transition: box-shadow 140ms ease; }
-.who-card:hover:not(:disabled), .who-card:focus-visible, .who-card.is-preselected { background: color-mix(in srgb, var(--tl-bg-surface-elevated) 70%, transparent); outline: none; transform: scale(1.04); }
-.who-card:hover:not(:disabled) .who-card__picture, .who-card:focus-visible .who-card__picture, .who-card.is-preselected .who-card__picture { box-shadow: 0 0 0 4px var(--tl-accent-primary), 0 0 28px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
+/* Open round pictures with the name underneath: no card, no box. The picture is the thing you tap. */
+.who-card { display: grid; justify-items: center; align-content: start; gap: 12px; width: 100%; padding: 0; color: var(--tl-text-muted); border: 0; background: transparent; font: inherit; cursor: pointer; transition: color 140ms ease; }
+.who-card__picture { position: relative; display: block; justify-self: stretch; width: 100%; aspect-ratio: 1; border-radius: 50%; transition: transform 140ms ease, box-shadow 140ms ease; }
+.who-card:hover:not(:disabled), .who-card:focus-visible { color: var(--tl-text-primary); outline: none; }
+.who-card:hover:not(:disabled) .who-card__picture, .who-card:focus-visible .who-card__picture { transform: scale(1.05); box-shadow: 0 0 0 4px var(--tl-accent-primary), 0 0 28px color-mix(in srgb, var(--tl-accent-primary) 45%, transparent); }
 .who-card:disabled { cursor: wait; opacity: .6; }
 .who-card--add:disabled { cursor: not-allowed; opacity: .5; }
 .who-card__picture--add { display: grid; place-items: center; color: var(--tl-text-muted); border: 2px dashed var(--tl-border-strong); box-sizing: border-box; }
 .who-card__picture--add svg { width: 40%; height: 40%; }
+.who-card:hover:not(:disabled) .who-card__picture--add, .who-card:focus-visible .who-card__picture--add { color: var(--tl-text-primary); border-color: var(--tl-accent-primary); box-shadow: none; }
 .who-card__lock { position: absolute; right: 2%; bottom: 2%; display: grid; place-items: center; width: 28%; height: 28%; min-width: 24px; min-height: 24px; color: var(--tl-text-primary); border-radius: 50%; background: var(--tl-bg-surface-elevated); box-shadow: 0 0 0 2px var(--tl-bg-base); }
 .who-card__lock svg { width: 56%; height: 56%; }
-.who-card__name { max-width: 100%; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
-@media (prefers-reduced-motion: reduce) { .who-card { transition: none; } .who-card:hover:not(:disabled), .who-card:focus-visible { transform: none; } }
-@media (min-width: 1600px) { .who-card__picture { max-width: 220px; } .who-card__name { font-size: 1.35rem; } .who-button, .who-link { min-height: 56px; } }
+.who-card__name { max-width: 100%; font-size: clamp(.95rem, 1.2vw, 1.15rem); font-weight: 600; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .who-card, .who-card__picture { transition: none; } .who-card:hover:not(:disabled) .who-card__picture, .who-card:focus-visible .who-card__picture { transform: none; } }
+@media (min-width: 1600px) { .who-grid { --who-size: 220px; } .who-card__name { font-size: 1.35rem; } .who-button, .who-link { min-height: 56px; } }
 .who-check__box { flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
 .who-link { min-height: 44px; padding: 0 8px; color: var(--tl-accent-primary); border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
 /* Settings > Profiles rows: the class sits on an AppNativeButton, so it cannot be styled from the page's isolated CSS. */
@@ -4878,7 +4913,7 @@ input[type="reset"],
 .profiles-tab__row:hover { background: color-mix(in srgb, var(--tl-text-primary) 6%, transparent); }
 .profiles-tab__row:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
 @media (min-width: 1600px) { .profiles-tab__row { min-height: 72px; font-size: 1.15rem; } }
-.who-button { min-height: 44px; padding: 0 20px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-radius-md); background: transparent; font: inherit; font-weight: 600; cursor: pointer; }
+.who-button { min-height: 44px; padding: 0 28px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: 999px; background: transparent; font: inherit; font-weight: 600; cursor: pointer; }
 .who-button--primary { color: #fff; border-color: transparent; background: var(--tl-accent-primary); }
 .who-button:disabled { cursor: not-allowed; opacity: .55; }
 .who-dialog__input { box-sizing: border-box; width: 100%; min-height: 48px; padding: 0 14px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-radius-md); background: var(--tl-bg-base); font: inherit; font-size: 1.2rem; letter-spacing: .3em; text-align: center; }
@@ -4969,7 +5004,7 @@ input[type="reset"],
 }
 
 /* Manage profiles on the picker (ProfilePickerPage.razor, ProfileEditorSheet.razor). */
-.who-card__edit { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; border-radius: 50%; background: rgb(0 0 0 / 48%); }
+.who-card__edit { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; border-radius: 50%; background: rgb(0 0 0 / 70%); backdrop-filter: blur(8px); }
 .who-card__edit svg { width: 36%; height: 36%; }
 .who-backdrop--top { z-index: 1400; }
 /* The padded, centred body every small popup card shares (PIN pads and the like). */
@@ -4985,18 +5020,13 @@ input[type="reset"],
 .profile-editor__choice span { display: grid; gap: 2px; }
 .profile-editor__choice small { color: var(--tl-text-muted); font-size: .85rem; }
 
-/* The Libraries list under an area on a person's page (AreaLibraryList); global because it sits inside several access screens. */
-.area-library-list { display: grid; gap: 2px; margin: 0 0 8px 16px; }
-.area-library-list__title, .area-library-list__note { color: var(--tl-text-muted); font-size: .85rem; }
-.area-library-list__item--held { opacity: .6; }
-.area-library-list__item .app-checkbox { flex-wrap: wrap; font-size: .9rem; }
-
 /* Top-bar quick profile switch (TopNavProfileSwitcher); global because its buttons are shared components. */
 .profile-switcher {
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
-    max-height: min(18rem, 45dvh);
+    /* Room for the seven other people of a full household without a scroll bar. */
+    max-height: min(24rem, 55dvh);
     overflow-y: auto;
     overscroll-behavior: contain;
 }
@@ -5490,8 +5520,6 @@ input[type="reset"],
     .folder-table__menu { display: none; }
 }
 .library-advanced__tabs { min-width: 0; max-width: 100%; }
-.library-advanced__tabs .tl-tabs-toolbar { overflow-x: auto; }
-.library-advanced__tabs .tl-tab { flex: 0 0 auto; white-space: nowrap; }
 
 /* Settings banner X (SettingsNoticeBubble): an AppNativeButton, so its root styles live here. Touch and narrow windows grow it to 44px
    in the shared tap-target block. */
@@ -5513,6 +5541,9 @@ input[type="reset"],
 /* The kind cards and the "Which library?" choices are shared by the file-drop and Change kind dialogs, so their layout lives here too. */
 .lib-choice__kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .lib-choice__kind, .lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* Equal-width kind cards with left-aligned content: the Metadata cell has a fixed width, so cards do not resize with their provider icons. */
+.lib-choice__kind .lib-choice__kind-option { flex: 1 1 0; justify-content: flex-start; }
+.lib-choice__kind .lib-meta { min-width: 112px; justify-content: flex-end; }
 .lib-choice__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: 1.25rem; }
 .lib-choice__options { display: grid; gap: 10px; }
 .lib-choice__lead, .lib-choice__question { margin: 0; }
@@ -6029,8 +6060,51 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     z-index: 1;
 }
 
+/* A Kids profile's Profile pages sit outside Settings, so the section-card headings they reuse get their layout here. */
+.my-profile-page .settings-section-card__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: var(--tl-space-4, 16px);
+}
+
+.my-profile-page .settings-section-card__heading {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.my-profile-page .settings-section-header__title {
+    margin: 0;
+}
+
+.my-profile-page .settings-section-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.my-profile-page .settings-section-card__title,
+.my-profile-page .settings-section-card__header .tl-typography {
+    color: var(--tl-text-primary);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.my-profile-page .settings-section-card__header .tl-icon-root {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    color: var(--tl-text-secondary);
+    font-size: 24px;
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
+
+
 
 /* Hero: sized to its content, with room under the floating top bar, instead of one full screen of backdrop. */
 html[data-form-factor="phone"] .tl-detail-page {
@@ -6568,3 +6642,4 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
+

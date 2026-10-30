@@ -19,7 +19,7 @@
         else if (_libraries.Count == 0)
         {
             <AppEmptyState Title="No Vault library yet"
-                           Message="Add a folder from Settings > Library and Ingestion > Videos, then choose the Vault." />
+                           Message="Add a folder from Settings > Server > Library & Ingestion > Videos, then choose the Vault." />
         }
         else
         {
@@ -81,7 +81,7 @@
         _busy = true;
         try
         {
-            var saved = await VaultPinPrompt.AskAsync(Dialogs, "Enter your PIN to continue",
+            var saved = await VaultPinPrompt.AskIfSetAsync(Nsfw.HasPin, Dialogs, "Enter your PIN to continue",
                 "This is your own profile PIN, asked for again before the Vault library changes.", "Save", "Your profile PIN",
                 async pin => VaultMessages.For(await ApiClient.UpdateVaultLibraryAsync(
                     library.Id, new UpdateVaultLibraryRequest { LookupSource = source, LookupServerId = library.LookupServerId, AdminPin = pin })));
@@ -109,7 +109,7 @@
         _busy = true;
         try
         {
-            var removed = await VaultPinPrompt.AskAsync(Dialogs, "Enter your PIN to continue",
+            var removed = await VaultPinPrompt.AskIfSetAsync(Nsfw.HasPin, Dialogs, "Enter your PIN to continue",
                 "This is your own profile PIN, asked for again before the Vault library is removed.", "Remove", "Your profile PIN",
                 async pin => VaultMessages.For(await ApiClient.RemoveVaultLibraryAsync(library.Id, new RemoveVaultLibraryRequest { AdminPin = pin })));
             if (removed)

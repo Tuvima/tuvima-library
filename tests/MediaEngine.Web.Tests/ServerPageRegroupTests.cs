@@ -55,7 +55,7 @@ public sealed class ServerPageRegroupTests
             "LocalAiRuntimePanel.razor", "Title=\"Runtime settings\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
         new("Runtime diagnostics", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
             "LocalAiRuntimePanel.razor", "Title=\"Runtime diagnostics\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
-        new("AI features", "/settings/ai/models", "/settings/ai", SettingsSection.LocalAi, null,
+        new("AI features", "/settings/ai/models", "/settings/ai/status", SettingsSection.LocalAi, null,
             "LocalAiSettingsTab.razor", "Title=\"AI features are plugins\"", null, null),
         new("Plugin health and jobs", "/settings/plugins/jobs-health", "/settings/plugins", SettingsSection.Plugins, null,
             "PluginSettingsTab.razor", "PluginHealthJobsPanel(plugin)", null, null),
@@ -74,7 +74,7 @@ public sealed class ServerPageRegroupTests
         // The new address is a real page in the menu.
         var location = SettingsNav.FindMenuLocation(moved.NewSection, moved.NewSubsection);
         Assert.NotNull(location);
-        Assert.Equal(moved.NewLocation, location!.Node.Route);
+        Assert.Equal(moved.NewLocation, location!.Tab?.Route ?? location.Page.Route);
 
         // The panel is rendered by the page that now owns it, and not by the page it left.
         Assert.Contains(moved.NewMarker, Read(moved.NewComponent), StringComparison.Ordinal);
@@ -96,23 +96,23 @@ public sealed class ServerPageRegroupTests
     public void TheRetiredServerSubPages_AreNotInTheMenuAndHaveNoRoute(SettingsSection section, string slug)
     {
         Assert.Null(SettingsNav.ResolveSubsection(section, slug));
-        var rows = SettingsNav.Flatten(SettingsNav.MenuGroups.SelectMany(group => group.Nodes));
-        Assert.DoesNotContain(rows, node => node.Section == section && string.Equals(node.Subsection, slug, StringComparison.OrdinalIgnoreCase));
+        var tabs = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).SelectMany(node => node.Tabs);
+        Assert.DoesNotContain(tabs, tab => tab.Section == section && string.Equals(tab.Subsection, slug, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void StreamingIsListedOnceInTheMenu_AndNetworkOpensOnConnectionStatus()
+    public void StreamingIsListedOnceInTheMenu_AndEachServerPageHasItsOwnTabs()
     {
-        var rows = SettingsNav.Flatten(SettingsNav.MenuGroups.SelectMany(group => group.Nodes)).ToArray();
+        var rows = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).ToArray();
 
         Assert.Single(rows, node => node.Label == "Streaming");
-        Assert.Equal(["Local Network", "Remote Access", "Advanced"],
-            rows.Single(node => node is { Section: SettingsSection.Network, Subsection: null }).Children.Select(node => node.Label));
-        Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"],
-            rows.Single(node => node is { Section: SettingsSection.Delivery, Subsection: null }).Children.Select(node => node.Label));
-        Assert.Equal(["Status", "Model and hardware", "Budget", "Usage"],
-            rows.Single(node => node is { Section: SettingsSection.LocalAi, Subsection: null }).Children.Select(node => node.Label));
-        Assert.Empty(rows.Single(node => node is { Section: SettingsSection.Plugins, Subsection: null }).Children);
+        Assert.Equal(["Overview", "Local Network", "Remote Access", "Advanced"],
+            rows.Single(node => node.Section == SettingsSection.Network).Tabs.Select(tab => tab.Label));
+        Assert.Equal(["Limits & Quality", "Hardware Acceleration", "Optimized Copies", "Diagnostics"],
+            rows.Single(node => node.Section == SettingsSection.Delivery).Tabs.Select(tab => tab.Label));
+        Assert.Equal(["Status", "Models & Hardware", "Budget", "Usage"],
+            rows.Single(node => node.Section == SettingsSection.LocalAi).Tabs.Select(tab => tab.Label));
+        Assert.Empty(rows.Single(node => node.Section == SettingsSection.Plugins).Tabs);
     }
 
     [Fact]

@@ -33,15 +33,14 @@ public static class NsfwAccessRules
     public const int MaximumIdleLockMinutes = 1440;
 
     /// <summary>
-    /// True when a profile can hold Vault access: a Kids profile (restricted role) or any profile with a content limit
-    /// can only be Off and can never unlock, whatever it is set to or knows the PIN of (D18).
+    /// True when a profile can hold Vault access: a Kids profile (restricted role) can only be Off and can never unlock, whatever it is set to
+    /// or knows the PIN of (D18; library access D6).
     /// </summary>
-    public static bool IsEligible(ProfileRole role, string? contentLimit) =>
-        role != ProfileRole.RestrictedProfile && string.IsNullOrWhiteSpace(contentLimit);
+    public static bool IsEligible(ProfileRole role) => role != ProfileRole.RestrictedProfile;
 
     /// <summary>The mode that actually applies: a profile that is not eligible is Off whatever is stored.</summary>
-    public static NsfwAccessMode Effective(NsfwAccessMode configured, ProfileRole role, string? contentLimit) =>
-        IsEligible(role, contentLimit) ? configured : NsfwAccessMode.Off;
+    public static NsfwAccessMode Effective(NsfwAccessMode configured, ProfileRole role) =>
+        IsEligible(role) ? configured : NsfwAccessMode.Off;
 
     public static string ToStored(NsfwAccessMode mode) => mode switch
     {

@@ -1,3 +1,10 @@
+.home-vault-reminder {
+    position: relative;
+    z-index: 2;
+    margin-top: var(--app-topbar-height, 65px);
+    padding-inline: var(--tl-space-4);
+}
+
 .home-discovery-loading {
     margin-top: var(--app-topbar-height, 65px);
     border-radius: var(--app-radius-md);

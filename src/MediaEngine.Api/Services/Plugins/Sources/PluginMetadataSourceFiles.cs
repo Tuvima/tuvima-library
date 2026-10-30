@@ -15,9 +15,9 @@ namespace MediaEngine.Api.Services.Plugins.Sources;
 /// Puts the metadata sources of switched-on JSON plugins into the providers folder, and takes them out again
 /// (Developer tools spec WP20). A plugin only suggests: the Library sets the weight, the order and the identity of every
 /// source it takes in, so a plugin can supply data into the Priority Cascade but never change how the cascade ranks it or
-/// pose as another source. The sources are read when the Engine starts, the same as the ones that ship with the Library.
+/// pose as another source. A new or changed source joins the running provider list at once, so no restart is needed.
 /// </summary>
-public sealed partial class PluginMetadataSourceFiles(IConfigurationLoader loader, ILogger<PluginMetadataSourceFiles> logger)
+public sealed partial class PluginMetadataSourceFiles(IConfigurationLoader loader, ILogger<PluginMetadataSourceFiles> logger, IMetadataSourceRefresher? refresher = null)
 {
     /// <summary>The weight every plugin-supplied source gets; below the sources that ship with the Library (1.0).</summary>
     public const double LibraryWeight = 0.5;
@@ -33,7 +33,7 @@ public sealed partial class PluginMetadataSourceFiles(IConfigurationLoader loade
 
     /// <summary>
     /// Makes the providers folder hold exactly the sources of the plugins that are switched on. Returns true when a file was
-    /// added, changed or removed (the Engine must restart before the change takes effect).
+    /// added, changed or removed. The running provider list is brought up to date at once, so no restart is needed.
     /// </summary>
     public bool Reconcile(IEnumerable<PluginRegistration> registrations)
     {
@@ -101,6 +101,11 @@ public sealed partial class PluginMetadataSourceFiles(IConfigurationLoader loade
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ConfigValidationException)
         {
             logger.LogWarning(ex, "The metadata sources of plugins could not be brought up to date in the providers folder");
+        }
+
+        if (changed)
+        {
+            refresher?.Refresh();
         }
 
         return changed;

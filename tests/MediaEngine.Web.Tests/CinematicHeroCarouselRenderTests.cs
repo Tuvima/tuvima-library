@@ -70,6 +70,47 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         Assert.Equal(expected, cut.FindAll("[role='progressbar']").Count > 0);
     }
 
+    [Theory]
+    [InlineData(false, "Suggested by Mood Match")]
+    [InlineData(true, "Suggested by Mood Match · AI")]
+    public void ASlideAPluginSuggested_NamesThePluginAndKeepsTheReasonOnHover(bool byAi, string label)
+    {
+        var hero = new DiscoveryHeroViewModel
+        {
+            Title = "Movie",
+            MediaKind = "Movie",
+            PrimaryActionLabel = "Watch",
+            SuggestedBy = "Mood Match",
+            SuggestedReason = "Because you finished Dune",
+            SuggestedByAi = byAi,
+        };
+
+        var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
+
+        var context = cut.Find(".cinematic-hero-carousel__context");
+        Assert.Equal(label, context.TextContent);
+        Assert.Equal("Because you finished Dune", context.GetAttribute("title"));
+    }
+
+    [Fact]
+    public void ASlideYouAreInTheMiddleOf_KeepsItsContinueLabelEvenIfAPluginSuggestedIt()
+    {
+        var hero = new DiscoveryHeroViewModel
+        {
+            Title = "Movie",
+            MediaKind = "Movie",
+            PrimaryActionLabel = "Resume",
+            ProgressPct = 40,
+            ContinuationState = DisplayContinuationState.InProgress,
+            PrimaryNavigationUrl = "/watch/asset",
+            SuggestedBy = "Mood Match",
+        };
+
+        var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
+
+        Assert.Equal("Continue Watching", cut.Find(".cinematic-hero-carousel__context").TextContent);
+    }
+
     [Fact]
     public void NextOwnedEpisodeKeepsShowAndEpisodeIdentityWithTruthfulStartAndShowsTheTitleLogo()
     {

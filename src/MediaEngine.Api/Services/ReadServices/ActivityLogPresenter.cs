@@ -69,6 +69,16 @@ public static partial class ActivityLogPresenter
                 dto.Count = changes.Number("count");
                 break;
 
+            case SystemActionType.PersonalMediaSkipped:
+            case SystemActionType.PersonalMediaRefused:
+            case SystemActionType.PersonalMediaStray:
+                // Counts and reasons only, written by the filer; never a file name.
+                dto.Title = FirstText(entry.CollectionName) ?? "Personal media";
+                dto.Detail = FirstText(entry.Detail);
+                dto.MediaType = changes.Number("photos") is 0 && changes.Number("videos") > 0 ? "Videos" : "Photos";
+                dto.Count = changes.Number("count");
+                break;
+
             case SystemActionType.ReviewItemCreated:
                 dto.Title = FirstText(entry.CollectionName) ?? UntitledItem;
                 dto.Detail = "Needs Review";

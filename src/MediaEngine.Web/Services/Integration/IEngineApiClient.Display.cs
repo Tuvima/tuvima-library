@@ -80,4 +80,13 @@ public partial interface IEngineApiClient
     /// <summary>PUT /api/v1/display/grid-preferences/{rememberKey} - remembers the sort the active profile chose on a View all grid.</summary>
     Task<bool> SetDisplayGridSortAsync(string rememberKey, string sort, CancellationToken ct = default);
 
+    /// <summary>GET /api/v1/display/hero-settings - how the active profile wants the Home hero to behave; null when it could not be read.</summary>
+    Task<DisplayHeroSettingsDto?> GetDisplayHeroSettingsAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/display/hero-settings - remembers how the active profile wants the Home hero to behave.</summary>
+    Task<bool> SetDisplayHeroSettingsAsync(DisplayHeroSettingsDto settings, CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/display/hero-settings/plugins/{pluginId} - switches one plugin's Home slides on or off for the active profile.</summary>
+    Task<bool> SetDisplayHeroPluginSlidesAsync(string pluginId, bool enabled, CancellationToken ct = default);
+
 }

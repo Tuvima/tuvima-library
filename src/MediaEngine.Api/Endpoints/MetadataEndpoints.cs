@@ -907,7 +907,9 @@ public static partial class MetadataEndpoints
                     mediaType: scope.MediaType));
             }
 
-            if (await ResolveTvdbArtworkIdAsync(scope, canonicalRepo, artworkScopeService, ct) is { } tvdbId)
+            if (await ResolveTvdbArtworkIdAsync(scope, canonicalRepo, ct,
+                    context.Scopes.FirstOrDefault(candidate => candidate.ScopeId == "series"), tvdb,
+                    context.Scopes.FirstOrDefault(candidate => candidate.ScopeId == "season")) is { } tvdbId)
             {
                 if (!tvdb.IsConfigured("tvdb"))
                 {
@@ -920,7 +922,7 @@ public static partial class MetadataEndpoints
             {
                 return Results.Ok(ArtworkScopeService.CreateProviderArtworkRefreshEnvelope(
                         status: "Skipped", skippedReason: "missing_tvdb_match",
-                        message: "Match this TV scope to TheTVDB before refreshing provider artwork.",
+                        message: UnmatchedTvShowMessage,
                         mediaType: scope.MediaType, provider: "tvdb", providerName: "TheTVDB"));
             }
 

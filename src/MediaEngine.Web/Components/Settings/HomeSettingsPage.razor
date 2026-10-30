@@ -1,0 +1,136 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Display
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+@* Home preferences: what the big banner at the top of Home may show. These only narrow what the Library picks from (the order
+   rules do not change), and the Engine applies them, so every phone, TV and browser agrees. Your own profile only. *@
+@if (_loading)
+{
+    <div class="listening-settings-skeleton" aria-label="Loading Home preferences">
+        <AppSkeleton Height="200px" />
+    </div>
+}
+else if (_settings is null)
+{
+    <AppErrorState Title="Home preferences are unavailable"
+                   Message="The Library could not read your Home settings. Try again in a moment."
+                   Retry="@LoadAsync" />
+}
+else
+{
+    <div class="settings-listening-page" data-home-section="hero">
+        <div class="listening-settings-grid">
+            <SettingsSectionPanel Title="Top banner"
+                                  Description="The large picture at the top of Home. It picks up what you are in the middle of first, then new items."
+                                  Class="tl-card settings-section-card listening-settings-card">
+                @SwitchRow("Show the top banner", "Turn this off and Home starts at its first row.", _settings.Enabled,
+                    value => SaveAsync(_settings with { Enabled = value }))
+                @if (_settings.Enabled)
+                {
+                    <div class="listening-preference-row">
+                        <div class="listening-preference-row__copy">
+                            <AppText Typo="AppTypo.body1">Slides</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">The most slides the banner cycles through.</AppText>
+                        </div>
+                        <AppIntSelect Value="@_settings.SlideCount"
+                                      ValueChanged="@(value => SaveAsync(_settings with { SlideCount = value }))"
+                                      Variant="AppVariant.Outlined"
+                                      Margin="AppMargin.Dense"
+                                      Dense="true"
+                                      Size="AppControlSize.Compact"
+                                      Class="listening-preference-row__select"
+                                      aria-label="Slides">
+                            @for (var count = 1; count <= 5; count++)
+                            {
+                                <AppSelectItem T="int" Value="@count">@(count == 1 ? "1 slide" : $"{count} slides")</AppSelectItem>
+                            }
+                        </AppIntSelect>
+                    </div>
+                    @SwitchRow("Include new items", "Off shows only things you have started.", !_settings.ContinuedOnly,
+                        value => SaveAsync(_settings with { ContinuedOnly = !value }))
+                }
+            </SettingsSectionPanel>
+
+            @if (_settings.Enabled)
+            {
+                <SettingsSectionPanel Title="What can appear"
+                                      Description="Leave a type off and the banner never shows it."
+                                      Class="tl-card settings-section-card listening-settings-card">
+                    @SwitchRow("Movies and shows", "Things to watch.", _settings.AllowWatch, value => SaveAsync(_settings with { AllowWatch = value }))
+                    @SwitchRow("Books and comics", "Things to read.", _settings.AllowRead, value => SaveAsync(_settings with { AllowRead = value }))
+                    @SwitchRow("Music and audiobooks", "Things to listen to.", _settings.AllowListen, value => SaveAsync(_settings with { AllowListen = value }))
+                </SettingsSectionPanel>
+            }
+
+            @if (_settings.Enabled && _settings.Plugins.Count > 0)
+            {
+                <SettingsSectionPanel Title="Suggestions from plugins"
+                                      Description="Plugins can suggest items for the banner. Their slides are labelled with the plugin's name, and never come before something you are in the middle of."
+                                      Class="tl-card settings-section-card listening-settings-card">
+                    @foreach (var plugin in _settings.Plugins)
+                    {
+                        var current = plugin;
+                        @SwitchRow(current.Name, "Show slides from this plugin.", current.Enabled, value => SavePluginAsync(current, value))
+                    }
+                </SettingsSectionPanel>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private DisplayHeroSettingsDto? _settings;
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _settings = await ApiClient.GetDisplayHeroSettingsAsync();
+        _loading = false;
+    }
+
+    private RenderFragment SwitchRow(string title, string description, bool value, Func<bool, Task> changed) => @<div class="listening-preference-row">
+        <div class="listening-preference-row__copy">
+            <AppText Typo="AppTypo.body1">@title</AppText>
+            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
+        </div>
+        <AppSwitchRow T="bool"
+                      Value="@value"
+                      ValueChanged="@changed"
+                      Color="AppColor.Primary"
+                      AriaLabel="@title" />
+    </div>;
+
+    private async Task SavePluginAsync(DisplayHeroPluginDto plugin, bool enabled)
+    {
+        var settings = _settings;
+        if (settings is null)
+        {
+            return;
+        }
+
+        _settings = settings with { Plugins = settings.Plugins.Select(p => p.PluginId == plugin.PluginId ? p with { Enabled = enabled } : p).ToList() };
+        if (!await ApiClient.SetDisplayHeroPluginSlidesAsync(plugin.PluginId, enabled))
+        {
+            _settings = settings;
+            Snackbar.Add($"The {plugin.Name} setting could not be saved. Nothing was changed.", AppSeverity.Error);
+        }
+    }
+
+    // The page shows the change at once and puts it back when the Engine could not keep it.
+    private async Task SaveAsync(DisplayHeroSettingsDto next)
+    {
+        var previous = _settings;
+        _settings = next;
+        if (!await ApiClient.SetDisplayHeroSettingsAsync(next))
+        {
+            _settings = previous;
+            Snackbar.Add("Your Home settings could not be saved. Nothing was changed.", AppSeverity.Error);
+        }
+    }
+}

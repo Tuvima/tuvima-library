@@ -297,7 +297,7 @@ public sealed class BackupStateEndpointTests : IDisposable
     {
         using var connection = database.CreateConnection();
         connection.Execute(
-            "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,'Maya','#7C4DFF','Administrator',NULL,@now);",
+            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,'Maya','#7C4DFF','Administrator',@now);",
             new { id, now = Now });
     }
 

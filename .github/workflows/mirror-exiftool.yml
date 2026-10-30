@@ -11,7 +11,7 @@ name: Mirror ExifTool
 # installer workflow (release.yml) only runs for v*.*.* tags and is not triggered by it.
 #
 # After a new version: update config/tool_downloads.json, the Dockerfile (version and commit),
-# THIRD-PARTY-NOTICES.md and docs/reference/attributions.md in the same change.
+# THIRD-PARTY-NOTICES.md here and the Attributions page in tuvima-docs in the same change.
 on:
   workflow_dispatch:
     inputs:

@@ -51,6 +51,26 @@ public sealed class ViewSharedTransferServiceTests
     }
 
     [Fact]
+    public async Task OnceAPhotoIsInTheSharedLibrary_ItsExactContentsAreRecognisedThere()
+    {
+        using var fixture = new Fixture();
+        await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
+            fixture.ProfileId, true, true, true, true, null));
+        var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, fixture.WriteManaged("dup-a.jpg", [71, 72, 73]));
+        var hash = fixture.Assets.FindPrimaryContent("personal", fixture.Space.LibraryId, fixture.Space.Id, Sha256Of([71, 72, 73]));
+        Assert.False(fixture.Transfers.IsInSharedLibrary(fixture.ProfileId, Sha256Of([71, 72, 73])));
+
+        await fixture.Transfers.ExecuteAsync(indexed!.ItemId, fixture.ProfileId, "timeline", null);
+
+        Assert.True(fixture.Transfers.IsInSharedLibrary(fixture.ProfileId, Sha256Of([71, 72, 73])));
+        Assert.False(fixture.Transfers.IsInSharedLibrary(fixture.ProfileId, Sha256Of([1, 2, 3])));
+        Assert.Equal("Already in the Shared Library.", new SharedAlreadyPresentException().Message);
+        _ = hash;
+    }
+
+    private static string Sha256Of(byte[] bytes) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+
+    [Fact]
     public async Task AnAcceptedContributionRecordsTheContributorOnEachItemItBringsInAndKeepsItsKind()
     {
         using var fixture = new Fixture();

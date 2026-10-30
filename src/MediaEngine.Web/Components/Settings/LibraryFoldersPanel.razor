@@ -213,6 +213,9 @@
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>Raised by a folder's "Move to Vault" menu entry; the entry is drawn only when the host sets this (server administrators, ordinary libraries).</summary>
     [Parameter] public EventCallback<LibrarySourceDto> OnMoveToVault { get; set; }
+
+    /// <summary>Raised by a Vault folder's "Move out of the Vault" menu entry; drawn only when the host sets this.</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnMoveOutOfVault { get; set; }
     /// <summary>The type to show (a standard key or "import").</summary>
     [Parameter] public string? TypeKey { get; set; }
     /// <summary>Raised after any saved change so the host can refresh its own state.</summary>
@@ -730,18 +733,6 @@
         finally { _saving = false; }
     }
 
-    // The folder's own switch (simpler access D7): saved straight away through the same folder save as the folder's other settings.
-    private async Task SetSuitableForLimitedAsync(LibraryFolderTable.SuitableForLimitedChange change)
-    {
-        var library = Clone(LibraryHolding(change.Source));
-        var target = library?.Sources.FirstOrDefault(item => item.Id == change.Source.Id);
-        if (library is null || target is null || _saving || ReadOnly) return;
-        target.OkForLimitedProfiles = change.Value;
-        await SaveAsync(library, change.Value
-            ? "Unrated items from this folder are now shown to limited profiles."
-            : "Unrated items from this folder follow each limited profile's own setting.");
-    }
-
     // The folder's Scan switch (and Pause or Resume scanning in its menu): saved straight away through the folder save. What is already
     // catalogued from a paused folder stays; only new scans and watching stop.
     private async Task SetScanAsync(LibraryFolderGrid.ScanChange change)
@@ -977,8 +968,8 @@
                                    OnOrganiseNow="OrganiseNowAsync"
                                    OnMerge="MergeIntoAsync"
                                    OnMoveToVault="@OnMoveToVault"
-                                   OnKeepGoing="@(EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
-                                   OnSetSuitableForLimited="@(EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))" />
+                                   OnMoveOutOfVault="@OnMoveOutOfVault"
+                                   OnKeepGoing="@(EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))" />
             }
             else
             {
@@ -993,7 +984,6 @@
                                 OnLabel="LabelFolderAsync"
                                 OnRemove="RemoveFolderAsync"
                                 OnKeepGoing="@(EventCallback.Factory.Create<LibrarySourceDto>(this, KeepGoingAsync))"
-                                OnSetSuitableForLimited="@(EventCallback.Factory.Create<LibraryFolderTable.SuitableForLimitedChange>(this, SetSuitableForLimitedAsync))"
                                 Jobs="@_jobs"
                                 OnJobControl="ControlJobAsync"
                                 OnOrganiseNow="OrganiseNowAsync"

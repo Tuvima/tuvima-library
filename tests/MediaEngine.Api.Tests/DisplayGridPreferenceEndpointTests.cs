@@ -5,8 +5,10 @@ using System.Text.Encodings.Web;
 using Dapper;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
@@ -52,6 +54,8 @@ public sealed class DisplayGridPreferenceEndpointTests : IAsyncLifetime
             options.AddPolicy(AuthPolicies.Authenticated, policy => policy.RequireAuthenticatedUser()));
         builder.Services.AddSingleton<IDatabaseConnection>(_database);
         builder.Services.AddSingleton<IProfileGridPreferenceRepository, ProfileGridPreferenceRepository>();
+        builder.Services.AddSingleton<IProfileHeroSettingsRepository, ProfileHeroSettingsRepository>();
+        builder.Services.AddSingleton<IHeroPluginSlides>(sp => new OnePluginSlides(sp.GetRequiredService<IProfileHeroSettingsRepository>()));
         builder.Services.AddSingleton<IRequestAuthorityResolver, HeaderAuthorityResolver>();
         builder.Services.AddSingleton<IAuthorizationEvaluator, AllowEvaluator>();
         _app = builder.Build();
@@ -150,6 +154,70 @@ public sealed class DisplayGridPreferenceEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, write.StatusCode);
     }
 
+    [Fact]
+    public async Task HeroSettings_StartAsTheDefaults_AndAreRememberedPerProfile()
+    {
+        var alice = SeedProfile();
+        var bob = SeedProfile();
+
+        Assert.Equal(new DisplayHeroSettingsDto(true, 5, true, true, true, false), await GetHero(alice) with { Plugins = [] });
+
+        using var saved = await PutHero(alice, new DisplayHeroSettingsDto(true, 2, true, false, true, true));
+
+        Assert.Equal(HttpStatusCode.NoContent, saved.StatusCode);
+        Assert.Equal(new DisplayHeroSettingsDto(true, 2, true, false, true, true), await GetHero(alice) with { Plugins = [] });
+        Assert.Equal(5, (await GetHero(bob)).SlideCount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(6)]
+    public async Task AHeroSlideCountOutsideOneToFive_IsRefused(int slides)
+    {
+        var alice = SeedProfile();
+
+        using var response = await PutHero(alice, new DisplayHeroSettingsDto(true, slides, true, true, true, false));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(5, (await GetHero(alice)).SlideCount);
+    }
+
+    [Fact]
+    public async Task HeroSettings_ListThePluginsThatOfferSlides_AndTheProfileCanSwitchOne()
+    {
+        var alice = SeedProfile();
+
+        Assert.True(Assert.Single((await GetHero(alice)).Plugins).Enabled);
+
+        using var off = await Send(HttpMethod.Put, "/api/v1/display/hero-settings/plugins/tuvima.mood", alice, body: null, rawBody: new DisplayHeroPluginSwitchRequest(false));
+        Assert.Equal(HttpStatusCode.NoContent, off.StatusCode);
+        Assert.False(Assert.Single((await GetHero(alice)).Plugins).Enabled);
+
+        using var unknown = await Send(HttpMethod.Put, "/api/v1/display/hero-settings/plugins/not.a.plugin", alice, body: null, rawBody: new DisplayHeroPluginSwitchRequest(false));
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+    }
+
+    [Fact]
+    public async Task HeroSettings_NeedAnActiveProfile()
+    {
+        using var read = await Send(HttpMethod.Get, "/api/v1/display/hero-settings", profile: null, body: null);
+        using var write = await Send(HttpMethod.Put, "/api/v1/display/hero-settings", profile: null, body: null,
+            rawBody: new DisplayHeroSettingsDto(true, 3, true, true, true, false));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, read.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, write.StatusCode);
+    }
+
+    private async Task<DisplayHeroSettingsDto> GetHero(Guid profile)
+    {
+        using var response = await Send(HttpMethod.Get, "/api/v1/display/hero-settings", profile, body: null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<DisplayHeroSettingsDto>())!;
+    }
+
+    private Task<HttpResponseMessage> PutHero(Guid profile, DisplayHeroSettingsDto settings) =>
+        Send(HttpMethod.Put, "/api/v1/display/hero-settings", profile, body: null, rawBody: settings);
+
     private async Task<DisplayGridPreferencesDto> Get(Guid profile, bool kids = false)
     {
         using var response = await Send(HttpMethod.Get, "/api/v1/display/grid-preferences", profile, body: null, kids);
@@ -161,7 +229,7 @@ public sealed class DisplayGridPreferenceEndpointTests : IAsyncLifetime
         Send(HttpMethod.Put, $"/api/v1/display/grid-preferences/{grid}", profile, new DisplayGridSortPreferenceRequest(sort), kids);
 
     private async Task<HttpResponseMessage> Send(
-        HttpMethod method, string url, Guid? profile, DisplayGridSortPreferenceRequest? body, bool kids = false)
+        HttpMethod method, string url, Guid? profile, DisplayGridSortPreferenceRequest? body, bool kids = false, object? rawBody = null)
     {
         using var request = new HttpRequestMessage(method, url);
         if (profile is { } id)
@@ -177,6 +245,10 @@ public sealed class DisplayGridPreferenceEndpointTests : IAsyncLifetime
         if (body is not null)
         {
             request.Content = JsonContent.Create(body);
+        }
+        else if (rawBody is not null)
+        {
+            request.Content = JsonContent.Create(rawBody, rawBody.GetType());
         }
 
         return await _client.SendAsync(request);
@@ -207,6 +279,16 @@ public sealed class DisplayGridPreferenceEndpointTests : IAsyncLifetime
             return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(
                 new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name)), Scheme.Name)));
         }
+    }
+
+    // One plugin that offers slides; its on/off answer comes from the real switch table, so the test sees what the route wrote.
+    private sealed class OnePluginSlides(IProfileHeroSettingsRepository settings) : IHeroPluginSlides
+    {
+        public Task<IReadOnlyList<HeroPluginNomination>> NominationsAsync(Guid? profileId, PluginAudience? requester, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<HeroPluginNomination>>([]);
+
+        public async Task<IReadOnlyList<(string PluginId, string Name, bool Enabled)>> PluginsAsync(Guid profileId, CancellationToken ct) =>
+            [("tuvima.mood", "Mood Match", !(await settings.GetSwitchedOffPluginsAsync(profileId, ct)).Contains("tuvima.mood"))];
     }
 
     private sealed class HeaderAuthorityResolver : IRequestAuthorityResolver

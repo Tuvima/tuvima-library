@@ -303,9 +303,7 @@ public sealed partial class EngineApiClient
         profile.NavigationConfig,
         NormalizeOptionalUrl(profile.AvatarImageUrl),
         profile.HasPin,
-        profile.AvatarIcon,
-        profile.ContentLimit,
-        profile.ContentLimitAllowUnrated);
+        profile.AvatarIcon);
 
     private ProfileOverviewViewModel MapProfileOverview(ProfileOverviewResponseDto overview) => new()
     {
@@ -451,19 +449,9 @@ public sealed partial class EngineApiClient
     public Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default) =>
         PostAsync<LibraryMutationRequest, LibrariesConfigurationDto>("POST /settings/libraries/mutations", "/settings/libraries/mutations", request, ct: ct);
 
-    public Task<LibraryAccessGrantsDto?> GetLibraryAccessAsync(string libraryId, CancellationToken ct = default) =>
-        GetAsync<LibraryAccessGrantsDto>(
-            "GET /settings/libraries/{libraryId}/access", $"/settings/libraries/{Uri.EscapeDataString(libraryId)}/access", ct: ct);
-
     public Task<MediaEngine.Contracts.Library.LibraryActivityDto?> GetLibraryActivityAsync(string libraryId, int take = 50, CancellationToken ct = default) =>
         GetAsync<MediaEngine.Contracts.Library.LibraryActivityDto>(
             "GET /library/libraries/{libraryId}/activity", $"/library/libraries/{Uri.EscapeDataString(libraryId)}/activity?take={take}", ct: ct);
-
-    public Task<LibraryAccessGrantsDto?> SetLibraryProfilesAsync(string libraryId, IReadOnlyList<Guid> profileIds, CancellationToken ct = default) =>
-        PutAsync<SetLibraryProfileGrantsRequest, LibraryAccessGrantsDto>(
-            "PUT /settings/libraries/{libraryId}/access/profiles",
-            $"/settings/libraries/{Uri.EscapeDataString(libraryId)}/access/profiles",
-            new SetLibraryProfileGrantsRequest(profileIds), ct: ct);
 
     public Task<IReadOnlyList<LibraryFolderDto>?> GetVaultSiblingLibrariesAsync(CancellationToken ct = default) =>
         GetAsync<IReadOnlyList<LibraryFolderDto>>("GET /settings/vault-libraries", "/settings/vault-libraries", logAsWarning: false, ct: ct);
@@ -1083,6 +1071,55 @@ public sealed partial class EngineApiClient
         {
             _logger.LogWarning(ex, "PUT /settings/pipelines failed");
             return false;
+        }
+    }
+
+    public Task<PipelineFlowOptionsResponse?> GetPipelineFlowOptionsAsync(CancellationToken ct = default) =>
+        GetAsync<PipelineFlowOptionsResponse>(
+            "GET /settings/pipelines/options",
+            "/settings/pipelines/options",
+            ct: ct);
+
+    public async Task<PipelineFlowSaveResponse> SavePipelineFlowAsync(PipelineFlowSaveRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            var resp = await _http.PutAsJsonAsync("/settings/pipelines/flow", request, ct);
+            if (resp.IsSuccessStatusCode)
+            {
+                return new PipelineFlowSaveResponse { Saved = true };
+            }
+
+            // A refused edit carries the problems as a "problems" extension on the problem details.
+            var failed = new PipelineFlowSaveResponse { Saved = false };
+            try
+            {
+                using var document = await System.Text.Json.JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+                if (document.RootElement.TryGetProperty("problems", out var problems))
+                {
+                    failed.Problems = problems.Deserialize<List<PipelineFlowProblemDto>>() ?? [];
+                }
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                _logger.LogDebug(ex, "PUT /settings/pipelines/flow returned a body that was not problem details");
+            }
+
+            if (failed.Problems.Count == 0)
+            {
+                failed.Problems.Add(new PipelineFlowProblemDto { Message = "The flow could not be saved." });
+            }
+
+            return failed;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "PUT /settings/pipelines/flow failed");
+            return new PipelineFlowSaveResponse
+            {
+                Saved = false,
+                Problems = [new PipelineFlowProblemDto { Message = "The Engine could not be reached. Nothing was saved." }],
+            };
         }
     }
 

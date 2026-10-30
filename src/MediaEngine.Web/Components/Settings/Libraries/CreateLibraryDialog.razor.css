@@ -3,8 +3,9 @@
     display: grid;
     gap: var(--tl-space-5);
     box-sizing: border-box;
-    width: min(calc(100vw - 64px), 820px);
+    width: min(calc(100vw - 64px), 560px);
     max-width: 100%;
+    padding-block: var(--tl-space-3) var(--tl-space-4);
 }
 
 .create-library__section,
@@ -13,10 +14,55 @@
     gap: var(--tl-space-2);
 }
 
-.create-library__heading {
+/* Small caps caption above a field ("Folder", "Library name"). */
+.create-library__caption {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* A plain visible sentence under a field, in place of an "i" button. */
+.create-library__line {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+/* The live answer for the chosen folder: a green tick and one plain sentence. */
+.create-library__check {
     display: flex;
     align-items: center;
-    gap: var(--tl-space-1);
+    gap: var(--tl-space-2);
     margin: 0;
-    font-size: var(--tl-font-size-md);
+    color: var(--tl-status-success);
+    font-size: var(--tl-font-size-sm);
 }
+
+/* Source folder: the chosen path with Browse beside it; the browser itself opens in its own pop-up. */
+.create-library__folder {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.create-library__folder-path {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-width: 0;
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+}
+
+.create-library__folder-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.create-library__folder-text--empty { color: var(--tl-text-secondary); }

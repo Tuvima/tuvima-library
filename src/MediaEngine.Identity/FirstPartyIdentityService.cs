@@ -1152,6 +1152,13 @@ public sealed class FirstPartyIdentityService(
             return issued;
         }
 
+        // A household with one profile that has no PIN has nobody to choose between and nothing to unlock, so the picker would only flash by.
+        if ((await accounts.GetProfileIdsAsync(account.Id, ct).ConfigureAwait(false)).Count == 1
+            && !await HasProfilePinAsync(profile.Id, ct).ConfigureAwait(false))
+        {
+            return issued;
+        }
+
         await identities.MarkSessionProfilePendingAsync(issued.Session.Id, ct).ConfigureAwait(false);
         issued.Session.ProfilePending = true;
         return issued with { ChooseProfile = true };

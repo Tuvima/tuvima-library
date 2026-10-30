@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Navigation
 
 @* Fixed-height stand-in for the detail hero and tab bar, shown only on the first load of a detail page
    (later navigations keep the previous page on screen instead). Sizes live in the scoped stylesheet so the
@@ -7,10 +8,31 @@
     <span class="tl-detail-skeleton__label">Loading details</span>
 
     <div class="tl-detail-skeleton__hero" aria-hidden="true">
-        <AppSkeleton Class="tl-detail-skeleton__artwork" />
+        @if (!string.IsNullOrWhiteSpace(Preview?.CoverUrl))
+        {
+            <img class="tl-detail-skeleton__cover" src="@MediaTileArtworkUrl.ForDrawnSize(Preview.CoverUrl, 320)" alt="" decoding="async" />
+        }
+        else
+        {
+            <AppSkeleton Class="tl-detail-skeleton__artwork" />
+        }
         <div class="tl-detail-skeleton__copy">
-            <AppSkeleton Class="tl-detail-skeleton__eyebrow" />
-            <AppSkeleton Class="tl-detail-skeleton__title" />
+            @if (Preview is not null)
+            {
+                @if (!string.IsNullOrWhiteSpace(Preview.LogoUrl))
+                {
+                    <img class="tl-detail-skeleton__logo" src="@MediaTileArtworkUrl.ForDrawnSize(Preview.LogoUrl, 544)" alt="@Preview.Title" decoding="async" />
+                }
+                else
+                {
+                    <h1 class="tl-detail-skeleton__heading">@Preview.Title</h1>
+                }
+            }
+            else
+            {
+                <AppSkeleton Class="tl-detail-skeleton__eyebrow" />
+                <AppSkeleton Class="tl-detail-skeleton__title" />
+            }
             <AppSkeleton Class="tl-detail-skeleton__meta" />
             <AppSkeleton Class="tl-detail-skeleton__line" />
             <AppSkeleton Class="tl-detail-skeleton__line tl-detail-skeleton__line--short" />
@@ -27,3 +49,8 @@
         <AppSkeleton Class="tl-detail-skeleton__tab" />
     </div>
 </div>
+
+@code {
+    /// <summary>What the clicked tile already knew; null on a direct address or reload.</summary>
+    [Parameter] public DetailPreview? Preview { get; set; }
+}

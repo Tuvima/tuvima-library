@@ -12,7 +12,7 @@ namespace MediaEngine.Api.Tests;
 public sealed class VaultModeWordingGuardrailTests
 {
     // Scanned: everything a person or a developer reads as product text.
-    private static readonly string[] ScannedRoots = ["src", "clients", "docs", "website", "engineering/architecture", "engineering/product", "engineering/design", "engineering/validation"];
+    private static readonly string[] ScannedRoots = ["src", "clients", "docs", "engineering/architecture", "engineering/product", "engineering/design", "engineering/validation"];
 
     private static readonly string[] ScannedExtensions =
         [".cs", ".razor", ".js", ".mjs", ".ts", ".css", ".html", ".json", ".resx", ".md", ".kt", ".swift", ".xml", ".txt", ".yml", ".yaml"];

@@ -278,12 +278,19 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
     }
 
     [Fact]
-    public async Task ASelectedLibrary_IsNeitherSubscribedToNorDeliveredToANativeClientOfAProfileNotChosen_AndMaySubscribeOnceChosen()
+    public async Task ALibraryHiddenForTheHousehold_IsNeitherSubscribedToNorDeliveredToANativeClient_AndMaySubscribeOnceTheHouseholdShowsIt()
     {
         var fixture = await CreateSubscriptionAsync();
-        var grants = new LibraryProfileGrantRepository(_database);
+        var householdLibraries = new HouseholdLibraryAccessRepository(_database);
         var rule = new LibraryVisibilityRule(
-            new ProfileAccessRepository(_database), new VaultLibraryRepository(_database), grants, new FixedLibraryAccessCatalog(_libraryId));
+            new ProfileAccessRepository(_database), householdLibraries, new VaultLibraryRepository(_database));
+        Guid household;
+        using (var connection = _database.CreateConnection())
+        {
+            household = connection.ExecuteScalar<Guid>("SELECT household_id FROM profiles WHERE id=@id;", new { id = Profile.SeedProfileId });
+        }
+
+        await householdLibraries.ReplaceHiddenLibrariesAsync(household, new HashSet<Guid> { _libraryId }, _clock.GetUtcNow(), null);
         var authorizer = NewAuthorizer(ConfiguredLibraries(), rule);
         var types = new List<string> { "library.item_added" };
         var libraries = new HashSet<Guid> { _libraryId };
@@ -291,9 +298,9 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
         Assert.False(await authorizer.CanSubscribeAsync(fixture.Subscriber.Authority, fixture.Subscriber.Consent, types, libraries, CancellationToken.None));
         Assert.False(await authorizer.CanDeliverDelegatedAsync(fixture.Subscriber, Event()));
 
-        await grants.ReplaceGrantedProfilesAsync(_libraryId, new HashSet<Guid> { Profile.SeedProfileId }, _clock.GetUtcNow(), null);
+        await householdLibraries.ReplaceHiddenLibrariesAsync(household, new HashSet<Guid>(), _clock.GetUtcNow(), null);
 
-        // Choosing a profile raises its authorization version, so a native token issued before it must be refreshed (as for any access change);
+        // Showing the library again raises the profile's authorization version, so a native token issued before it must be refreshed (as for any access change);
         // a connection that carries the current version may subscribe.
         long version;
         using (var connection = _database.CreateConnection())

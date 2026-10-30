@@ -100,7 +100,6 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
             new ActiveProfileSessionService(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api),
             new ConfigurationBuilder().Build(),
             NullLogger<UIOrchestratorService>.Instance));
-        Services.AddScoped<MediaEditorLauncherService>();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 

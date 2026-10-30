@@ -39,7 +39,6 @@ public sealed class DetailsOverlayShellRouterTests : AsyncBunitContext
         Services.AddScoped<ActiveProfileAccessor>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<UIOrchestratorService>();
-        Services.AddScoped<MediaEditorLauncherService>();
         Services.AddScoped<CollectionEditorLauncherService>();
         Services.AddSingleton(new SavedItemService(_api));
         Services.AddSingleton(new MediaReactionService(_api));

@@ -104,7 +104,8 @@ public sealed class FolderFirstCheckRepositoryTests : IDisposable
                 $"EXPLAIN QUERY PLAN SELECT COUNT(*) FROM media_assets a WHERE {FolderPathSql.InFolderOfBounds("a.file_path_root")};",
                 FolderFirstCheckRepository.BoundsArgs(SourceId, bounds)).Select(step => step.Detail));
 
-        Assert.Contains("SEARCH a USING INDEX ix_media_assets_path_folded", plan, StringComparison.Ordinal);
+        // SQLite words the plan "USING INDEX" or "USING COVERING INDEX" depending on its version; both are a range on the index.
+        Assert.Matches("SEARCH a USING (COVERING )?INDEX ix_media_assets_path_folded", plan);
     }
 
     [Fact]

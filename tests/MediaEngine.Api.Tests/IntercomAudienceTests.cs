@@ -238,12 +238,19 @@ public sealed class IntercomAudienceTests : IDisposable
     }
 
     [Fact]
-    public async Task LiveAudience_DoesNotReachAProfileNotChosenForASelectedLibrary_UntilItIsChosen()
+    public async Task LiveAudience_DoesNotReachAProfileWhoseHouseholdHidesTheLibrary_UntilTheHouseholdShowsIt()
     {
         await SeedHumanAsync();
-        var grants = new LibraryProfileGrantRepository(_database);
+        var householdLibraries = new HouseholdLibraryAccessRepository(_database);
         var rule = new LibraryVisibilityRule(
-            new ProfileAccessRepository(_database), new VaultLibraryRepository(_database), grants, new FixedLibraryAccessCatalog(_libraryId));
+            new ProfileAccessRepository(_database), householdLibraries, new VaultLibraryRepository(_database));
+        Guid household;
+        using (var lookup = _database.CreateConnection())
+        {
+            household = lookup.ExecuteScalar<Guid>("SELECT household_id FROM profiles WHERE id=@id;", new { id = Profile.SeedProfileId });
+        }
+
+        await householdLibraries.ReplaceHiddenLibrariesAsync(household, new HashSet<Guid> { _libraryId }, DateTimeOffset.UtcNow, null);
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
@@ -253,8 +260,7 @@ public sealed class IntercomAudienceTests : IDisposable
 
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
 
-        await grants.ReplaceGrantedProfilesAsync(
-            _libraryId, new HashSet<Guid> { Profile.SeedProfileId }, DateTimeOffset.UtcNow, null);
+        await householdLibraries.ReplaceHiddenLibrariesAsync(household, new HashSet<Guid>(), DateTimeOffset.UtcNow, null);
         Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
     }
 

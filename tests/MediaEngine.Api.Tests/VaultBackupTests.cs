@@ -96,6 +96,7 @@ public sealed class VaultBackupTests : IDisposable
 
         // Settings, PIN hashes and grants are kept.
         Assert.Contains("vault_libraries", Tables());
+        Assert.Contains("vault_section_grants", Tables());
         Assert.Contains("profile_nsfw_settings", Tables());
         Assert.Contains("profile_library_hidden", Tables());
         var credentials = export.Tables.Single(table => table.Table == "profile_credentials");
@@ -104,7 +105,7 @@ public sealed class VaultBackupTests : IDisposable
         Assert.Equal("pin", ((BackupValue.Text)Single(export, "profile_nsfw_settings", "access_mode")).Value);
 
         // Nothing of the catalogue travels, Vault or not.
-        Assert.DoesNotContain(Tables(), name => name.StartsWith("vault_", StringComparison.Ordinal) && name != "vault_libraries");
+        Assert.DoesNotContain(Tables(), name => name.StartsWith("vault_", StringComparison.Ordinal) && name is not ("vault_libraries" or "vault_section_grants"));
         foreach (var catalogue in new[] { "media_assets", "works", "editions", "canonical_values", "search_index", "local_items", "vault_matches", "vault_performers", "vault_image_items" })
         {
             Assert.DoesNotContain(catalogue, Tables());
@@ -301,7 +302,7 @@ public sealed class VaultBackupTests : IDisposable
         using var connection = database.CreateConnection();
         connection.Execute(
             """
-            INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@admin,'Admin','#7C4DFF','Administrator',NULL,@now);
+            INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@admin,'Admin','#7C4DFF','Administrator',@now);
             INSERT INTO vault_libraries(library_id, lookup_source, lookup_server_id, adults_confirmed_at, created_by_profile_id, created_at, updated_at)
                 VALUES(@vault,'none',NULL,@now,@admin,@now,@now);
             INSERT INTO profile_credentials(id, profile_id, credential_kind, secret_hash, hash_scheme, hash_version, security_stamp, created_at, updated_at)

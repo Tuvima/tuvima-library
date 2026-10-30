@@ -384,7 +384,8 @@ public sealed class PermissionsGroundworkTests
         foreach (var actor in world.Actors)
         {
             var own = actor.Authority.ActiveProfileId!.Value;
-            Assert.True(world.Scope.CanEditTaste(actor.Authority, own), $"{actor.Name} edits their own taste");
+            // A Kids profile sees its own taste but never changes it (Profile pages spec, D10).
+            Assert.Equal(!actor.Authority.ActiveProfileIsRestricted, world.Scope.CanEditTaste(actor.Authority, own));
             Assert.False(world.Scope.CanEditTaste(actor.Authority, world.A.Person.Id == own ? world.B.Person.Id : world.A.Person.Id),
                 $"{actor.Name} edits someone else's taste");
             Assert.False(world.Scope.CanEditTaste(actor.Authority, Guid.Empty));
@@ -476,6 +477,8 @@ public sealed class PermissionsGroundworkTests
     public async Task AnOutOfHouseholdProfile_IsRefusedWhenChosenAfterSignIn_ForEveryone_AndTheSessionStaysPending()
     {
         await using var world = await World.CreateAsync();
+        // The administrator is a household of one, which goes straight in unless its profile has a PIN to enter.
+        await world.Identity.SetProfilePinAsync((await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value, "2468");
         var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-pick", "Test", "Dashboard");
         var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-pick", "Test", "Dashboard");
 

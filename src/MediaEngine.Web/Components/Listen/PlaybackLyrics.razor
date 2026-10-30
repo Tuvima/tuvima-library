@@ -64,9 +64,17 @@
             if (Presenter.NoSourceOn)
             {
                 <p class="playback-lyrics__empty" data-lyrics-state="no-source">No lyrics source is switched on.</p>
+                <p class="playback-lyrics__empty">@OriginText</p>
                 @if (IsAdministrator) { <a class="playback-lyrics__manage" href="/settings/plugins">Open Plugins</a> }
+                @AddLyricsFile
             }
-            else { <p class="playback-lyrics__empty" data-lyrics-state="none-found">No lyrics found for this track.</p> }
+            else
+            {
+                <p class="playback-lyrics__empty" data-lyrics-state="none-found">No lyrics found for this song.</p>
+                <p class="playback-lyrics__empty">@OriginText</p>
+                @if (Presenter.Offers("find_lyrics")) { <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="Presenter.RefreshAsync">Look up lyrics now</AppNativeButton> }
+                @AddLyricsFile
+            }
         }
         else
         {
@@ -97,13 +105,29 @@
             }
         }
     </div>
-    @if (Presenter.Tracks.FirstOrDefault(track => track.Id == Presenter.SelectedTrackId)?.Provider.Equals("lrclib", StringComparison.OrdinalIgnoreCase) == true)
-    { <small class="playback-lyrics__attribution">Lyrics from LRCLIB</small> }
+    @if (Presenter.SourceLine is { } sourceLine)
+    { <small class="playback-lyrics__attribution" data-lyrics-source>@sourceLine</small> }
     @if (_needsReturn && ActiveIndex >= 0)
     { <AppNativeButton Type="button" Class="playback-lyrics__return" OnClick="FollowAsync" AriaLabel="Back to current line">Back to current line</AppNativeButton> }
 </div>
 
 @code {
+    private const string OriginText = "Lyrics come from a .lrc file next to the song, or from LRCLIB, a free lyrics service. Library looks them up when it adds a song.";
+    private const long MaxLyricsFileBytes = 5 * 1024 * 1024;
+    private RenderFragment AddLyricsFile => @<AppFileUpload T="Microsoft.AspNetCore.Components.Forms.IBrowserFile" Accept=".lrc,.txt,text/plain" Disabled="@Presenter.Refreshing" FilesChanged="LyricsFileChosenAsync" Class="playback-lyrics__add-file">
+        <CustomContent Context="upload"><AppButton Label="Add a lyrics file" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Presenter.Refreshing" OnClick="upload.OpenFilePickerAsync" /></CustomContent>
+    </AppFileUpload>;
+    private async Task LyricsFileChosenAsync(Microsoft.AspNetCore.Components.Forms.IBrowserFile? file)
+    {
+        if (file is null) return;
+        if (file.Size > MaxLyricsFileBytes) { Presenter.ShowStatus("That lyrics file is too big. Lyrics files must be 5 MB or smaller."); return; }
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxLyricsFileBytes);
+            await Presenter.ImportFileAsync(file.Name, file.ContentType, stream);
+        }
+        catch (IOException) { Presenter.ShowStatus("That lyrics file could not be read."); }
+    }
     [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
     [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
     private ListenPlaybackSnapshot? _clockSnapshot;

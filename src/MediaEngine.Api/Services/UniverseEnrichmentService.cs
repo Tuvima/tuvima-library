@@ -199,7 +199,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         }
 
         var maxItems = config.Stage3MaxItemsPerSweep > 0 ? config.Stage3MaxItemsPerSweep : 50;
-        var refreshDays = config.Stage3RefreshDays > 0 ? config.Stage3RefreshDays : 30;
+        var refreshDays = config.Stage3RefreshDays > 0 ? config.Stage3RefreshDays : 90;
         var staleThreshold = DateTimeOffset.UtcNow.AddDays(-refreshDays);
 
         var candidateIds = await services.CanonicalRepository.GetEntitiesNeedingEnrichmentAsync(

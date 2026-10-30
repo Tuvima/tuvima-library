@@ -1,0 +1,41 @@
+.my-profile-page {
+    display: flex;
+    min-width: 0;
+    max-width: 80rem;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+    margin-inline: auto;
+    padding: var(--tl-space-4) var(--tl-space-6) var(--tl-space-6);
+    box-sizing: border-box;
+    color: var(--tl-text-primary);
+}
+
+.my-profile-page__header {
+    display: grid;
+    gap: var(--tl-space-1);
+}
+
+.my-profile-page__title {
+    margin: 0;
+    font-size: var(--tl-font-size-xl);
+    font-weight: var(--tl-font-weight-bold);
+}
+
+.my-profile-page__back {
+    display: inline-flex;
+    min-height: var(--tl-touch-target-min, 44px);
+    align-items: center;
+    color: var(--tl-accent-primary);
+    font-weight: var(--tl-font-weight-semibold);
+    text-decoration: none;
+}
+
+.my-profile-page__back:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+    .my-profile-page {
+        padding-inline: var(--tl-space-4);
+    }
+}

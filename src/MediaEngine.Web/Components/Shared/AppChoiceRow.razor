@@ -6,6 +6,10 @@
         disabled="@Disabled"
         aria-pressed="@PressedText"
         @onclick="OnClick">
+    @if (!string.IsNullOrWhiteSpace(Icon))
+    {
+        <span class="@IconTileClass" aria-hidden="true"><AppMaterialIcon Icon="@Icon" /></span>
+    }
     <span class="app-choice-row__copy">
         <strong>@Title</strong>
         @if (!string.IsNullOrWhiteSpace(Description))
@@ -24,10 +28,16 @@
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public string? Class { get; set; }
+    /// <summary>An icon drawn in a tile before the title (a content type's own icon); without one the row is text only.</summary>
+    [Parameter] public string? Icon { get; set; }
+    /// <summary>Extra classes for the icon's tile, for a host that colours it.</summary>
+    [Parameter] public string? IconClass { get; set; }
 
     // Screen readers need the text "true" or "false" on a toggle button.
     private string PressedText => Selected ? "true" : "false";
 
-    private string RootClass => string.Join(" ", new[] { "app-choice-row", Selected ? "is-selected" : null, Class }
+    private string IconTileClass => string.Join(" ", new[] { "app-choice-row__icon", string.IsNullOrWhiteSpace(IconClass) ? "app-choice-row__icon--plain" : null, IconClass }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string RootClass => string.Join(" ", new[] { "app-choice-row", Selected ? "is-selected" : null, string.IsNullOrWhiteSpace(Icon) ? null : "app-choice-row--icon", Class }
         .Where(value => !string.IsNullOrWhiteSpace(value)));
 }

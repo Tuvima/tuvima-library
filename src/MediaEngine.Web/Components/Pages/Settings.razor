@@ -22,13 +22,14 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
 @inject ILogger<Settings> Logger
+@inject MediaEngine.Web.Services.Integration.ProviderCatalogueService ProviderNames
 @implements IAsyncDisposable
 
 <PageTitle>@BrowserTitle</PageTitle>
 
-@if (_kidsBlocked)
+@if (_leavingSettings)
 {
-    @* A Kids profile never reaches Settings. The move to Home is already under way, so nothing is drawn meanwhile. *@
+    @* A Kids profile reaches Profile and nothing else in Settings. The move to Home is already under way, so nothing is drawn meanwhile. *@
 }
 else if (!_profileRoleLoaded)
 {
@@ -49,7 +50,6 @@ else
 {
 <MediaSectionShell Title="Settings"
                    NavigationGroups="@SettingsNavigationGroups"
-                   AccordionNavigation="true"
                    FixedColumnTree="true"
                    ShowMobileNavigation="false">
     <div class="settings-shell-content" @ref="_contentElement">
@@ -67,7 +67,7 @@ else
                         <optgroup label="@group.Label">
                             @foreach (var option in group.Options)
                             {
-                                <option value="@option.Route" selected="@IsMobileNavigationOptionSelected(option.Route)">@PhoneOptionLabel(option)</option>
+                                <option value="@option.Route" selected="@IsMobileNavigationOptionSelected(option.Route)">@option.Label</option>
                             }
                         </optgroup>
                     }
@@ -75,12 +75,15 @@ else
             </div>
         </nav>
 
+        <MediaEngine.Web.Components.Vault.VaultHiddenReminder />
+
         <SettingsPageFrame Breadcrumbs="@Breadcrumbs"
                            Eyebrow="@GetHeroEyebrow()"
                            Title="@GetHeroTitle()"
-                           Description="@(IsEditingOtherPlaybackProfile ? null : GetSectionDescription(_activeSection))"
+                           Description="@GetSectionDescription(_activeSection)"
                            Notices="@(ShowAttentionBanner ? AttentionBanner : null)"
-                           PageNotice="@PageNoticeFragment">
+                           PageNotice="@PageNoticeFragment"
+                           Tabs="@PageTabsFragment">
             <div @key="DeviceContext.DeviceClass" class="@PageCanvasClass">
                 <AdministratorSurfaceGate Required="@(_profileRoleLoaded && RequiresAdministratorSurface)">
                 @if (ShouldDeferForRoleResolution)
@@ -149,7 +152,7 @@ else
                             case SettingsSection.Profiles:
                                 @if (IsProfileDetailRoute)
                                 {
-                                    <ProfileDetailPage ProfileId="@ProfileDetailId" NameChanged="OnProfileNameChanged" />
+                                    <ProfileDetailPage ProfileId="@ProfileDetailId" Tab="@ProfileTab" NameChanged="OnProfileNameChanged" />
                                 }
                                 else
                                 {
@@ -157,7 +160,7 @@ else
                                 }
                                 break;
                             case SettingsSection.Security:
-                                @if (_activeSubsection == "devices")
+                                @if (_activeSubsection == SettingsNav.DevicesSubsection)
                                 {
                                     <DevicesTab />
                                 }
@@ -171,28 +174,14 @@ else
                                 {
                                     <LogsPage Tab="@LogsTab" Filter="@LogsFilter" />
                                 }
+                                else if (_activeSubsection == SettingsNav.ScheduledTasksSubsection)
+                                {
+                                    <ScheduledTasksPage />
+                                }
                                 else
                                 {
                                     <SystemSummaryPage />
                                 }
-                                break;
-                            case SettingsSection.Preferences:
-                                <PreferencesSummaryPage />
-                                break;
-                            case SettingsSection.Playback:
-                                <PlaybackSettingsPage @key="@PlaybackProfileId"
-                                                      ProfileId="@PlaybackProfileId"
-                                                      TargetNameChanged="OnPlaybackTargetNameChanged" />
-                                break;
-                            case SettingsSection.Listening:
-                                <ListeningSettingsPage @key="@PlaybackProfileId"
-                                                       ProfileId="@PlaybackProfileId"
-                                                       TargetNameChanged="OnPlaybackTargetNameChanged" />
-                                break;
-                            case SettingsSection.Reading:
-                                <ReadingSettingsPage @key="@PlaybackProfileId"
-                                                     ProfileId="@PlaybackProfileId"
-                                                     TargetNameChanged="OnPlaybackTargetNameChanged" />
                                 break;
                             case SettingsSection.Libraries:
                                 <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
@@ -204,7 +193,7 @@ else
                                 <RecentlyAddedPageContent InitialSearch="@RecentSearch" />
                                 break;
                             case SettingsSection.Review:
-                                <NeedsReviewPageContent InitialSearch="@RecentSearch" />
+                                <NeedsReviewPageContent InitialSearch="@RecentSearch" Library="@Query.String("library")" />
                                 break;
                             case SettingsSection.DevHarness:
                                 @RenderInternalTool(
@@ -224,10 +213,8 @@ else
                                 <PlaybackDeliverySettingsTab Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Tools:
-                                <ToolsRequirementsTab />
-                                break;
                             case SettingsSection.Notifications:
-                                <NotificationsPanel />
+                                <ConfigurationPage />
                                 break;
                             case SettingsSection.Network:
                                 <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
@@ -241,6 +228,9 @@ else
                                 {
                                     <UsersAccessSettingsTab Subsection="@_activeSubsection" />
                                 }
+                                break;
+                            case SettingsSection.Integrations:
+                                <UsersAccessSettingsTab Subsection="applications" />
                                 break;
                             case SettingsSection.Server:
                                 <BackupRecoveryPanel />
@@ -291,23 +281,15 @@ else
     /// <summary>Opens the Activity page already narrowed to one person, household or everyone (for example from a person's page).</summary>
     public string? ActivityScope => Query.String("scope");
     public string? RecentSearch => Query.String("q");
-    public Guid? PlaybackProfileId => Query.Guid("profile");
-    private string? _playbackTargetName;
-    private void OnPlaybackTargetNameChanged(string? name)
-    {
-        _playbackTargetName = name;
-        StateHasChanged();
-    }
-
-    /// <summary>An administrator is editing another household profile's playback settings.</summary>
-    private bool IsEditingOtherPlaybackProfile => _activeSection is SettingsSection.Playback or SettingsSection.Listening or SettingsSection.Reading
-        && PlaybackProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
+    /// <summary>The profile an old Playback, Listening or Reading link names (<c>?profile={id}</c>); yours when it names none.</summary>
 
     private SettingsSection _activeSection = SettingsSection.Profiles;
     private string _activeSubsection = string.Empty;
     private ProfileViewModel? _activeProfile;
     private bool _profileRoleLoaded;
-    private bool _kidsBlocked;
+    // A Kids profile reaches Profile and nothing else in Settings; every other address sends it Home.
+    private bool _restricted;
+    private bool _leavingSettings;
 
     private bool _legacyRedirectIssued;
     private SystemStatusViewModel? _systemStatus;
@@ -324,7 +306,6 @@ else
     private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
     private SettingsMenuContext MenuContext => new(
         CanManageAdministration,
-        CanManageHousehold,
         DeviceContext.IsMobile,
         Attention.ReviewCount,
         ShowSecurityAttentionDot,
@@ -333,7 +314,8 @@ else
         Attention.PluginsBroken,
         Attention.AiFeaturesOn,
         Attention.IntegrationsBroken,
-        ToolsMissingReason);
+        ToolsMissingReason,
+        _restricted);
 
     // Red on Tools and requirements only for a required tool that is missing or broken; one being downloaded is not a problem.
     private string? ToolsMissingReason => Attention.MissingTools switch
@@ -343,29 +325,66 @@ else
         var many => $"{many.Count} missing",
     };
 
-    // One menu tree: the desktop rail and the phone page selector are both built from it.
+    // One flat menu: the desktop rail, the phone page selector and the tab strip are all built from it.
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);
 
     private IReadOnlyList<SettingsPhoneMenuGroup> PhoneMenuGroups => SettingsMenuBuilder.BuildPhoneSelector(SettingsNavigationGroups);
 
-    private SettingsMenuLocation? CurrentLocation => SettingsNav.FindMenuLocation(_activeSection, _activeSubsection);
+    // The page this person is on, with only the tabs they may open; null for a page the menu does not place.
+    private SettingsMenuLocation? CurrentLocation
+    {
+        get
+        {
+            // A metadata source's own page belongs to Plugins in the menu, the heading and the breadcrumb.
+            var location = IsProviderDetailRoute
+                ? SettingsNav.FindMenuLocation(SettingsSection.Plugins)
+                : SettingsNav.FindMenuLocation(_activeSection, _activeSubsection);
+            if (location is null)
+            {
+                return null;
+            }
+
+            var visible = SettingsMenuBuilder.FilteredGroups(MenuContext)
+                .SelectMany(group => group.Nodes)
+                .FirstOrDefault(node => node.Label == location.Page.Label);
+            return visible is null
+                ? location
+                : location with { Page = visible, Tab = location.Tab is null ? null : visible.TabFor(_activeSection, _activeSubsection) };
+        }
+    }
 
     private SettingsGroupDef CurrentGroup => CurrentLocation is { } location
         ? SettingsNav.AllGroups.First(group => group.Key == location.Group.Key)
         : SettingsNav.GetGroup(_activeSection);
+
+    // The one row of tabs under the page title: the page's own tabs, or a profile's three tabs on a profile's page.
+    private RenderFragment? PageTabsFragment => IsProfileDetailRoute
+        ? ProfileTabsFragment
+        : CurrentLocation is { Tab: not null, Page.HasTabs: true } location && !IsMobileRouteUnavailable
+            ? RenderPageTabs(location)
+            : null;
+
+    private RenderFragment ProfileTabsFragment => @<ProfileTabs ProfileId="@ProfileDetailId" Active="@ProfileTab" />;
+
+    private RenderFragment RenderPageTabs(SettingsMenuLocation location) =>
+        @<SettingsPageTabs Tabs="@location.Page.Tabs" Active="@location.Tab" PageLabel="@location.Page.Label" />;
     private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
+
+    /// <summary>The tab of a person's page: empty for Profile, otherwise <c>preferences</c> or <c>access</c>.</summary>
+    private string ProfileTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
+
     private string BrowserTitle => IsProfileDetailRoute
-        ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Library"
+        ? $"{_profileBreadcrumbName ?? "Profile"} - Manage Profiles - Library"
         : _activeSection == SettingsSection.Libraries
         ? LibrariesBrowserTitle
-        : CurrentLocation?.Parent is { } parent
-        ? $"{GetHeroTitle()} - {parent.Label} - Library"
+        : CurrentLocation?.Tab is { } tab && !string.Equals(tab.Label, GetHeroTitle(), StringComparison.Ordinal)
+        ? $"{tab.Label} - {GetHeroTitle()} - Library"
         : $"{GetHeroTitle()} - Library";
     // The Vault's title and breadcrumb follow the same rule as the Libraries page itself (an administrator with Vault mode on).
     private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(
-        LibraryKinds.Catalog, _activeSubsection, Detail, LibraryVaultAccess.CanShow(Nsfw, Session, _kidsBlocked), _libraryAddressConfiguration);
+        LibraryKinds.Catalog, _activeSubsection, Detail, LibraryVaultAccess.CanShow(Nsfw, Session, _restricted), _libraryAddressConfiguration);
     // A library's own page is titled with its name, so the libraries are read for it (once per library address).
     private LibrariesConfigurationDto? _libraryAddressConfiguration;
     private string? _libraryAddressConfigurationFor;
@@ -394,13 +413,13 @@ else
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
     private string MobileNavigationValue => IsMobileRouteUnavailable
         ? MobileFallbackRoute
-        : CurrentLocation?.Node.Route ?? SettingsNav.RouteFor(_activeSection);
+        : SettingsNavigationGroups
+            .SelectMany(group => group.Items)
+            .FirstOrDefault(item => item.ActiveRoutes?.Contains(SettingsNav.BaseRouteFor(_activeSection), StringComparer.OrdinalIgnoreCase) == true)?.Route
+          ?? SettingsNav.RouteFor(_activeSection);
     private bool IsMobileNavigationOptionSelected(string route) =>
         string.Equals(route, MobileNavigationValue, StringComparison.OrdinalIgnoreCase);
 
-    // Indents a sub-page under its parent in the native phone selector, which cannot nest rows.
-    private static string PhoneOptionLabel(SettingsPhoneMenuOption option) =>
-        option.Depth == 0 ? option.Label : new string('\u00A0', option.Depth * 3) + option.Label;
     private string MobileUnavailableMessage => SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.DesktopOnly
         ? $"{GetHeroTitle()} is intentionally withheld from mobile because it contains complex configuration or diagnostic tools. Use a desktop or tablet for this workflow."
         : $"This part of {GetHeroTitle()} contains configuration or diagnostic tools that are safer and easier to use on a desktop or tablet. The mobile overview remains available.";
@@ -446,7 +465,7 @@ else
 
         await LoadAuthorityAsync();
         ResolveSectionAndNormalize();
-        if (_kidsBlocked)
+        if (_leavingSettings)
         {
             return;
         }
@@ -595,34 +614,18 @@ else
         finally
         {
             _profileRoleLoaded = true;
-            // The links to Settings are hidden for a Kids profile, but a typed address or old link must not reach it either.
-            _kidsBlocked = _activeProfile?.IsRestricted == true;
+            // A Kids profile never reaches Settings; a typed address must not open it.
+            _restricted = _activeProfile?.IsRestricted == true;
         }
     }
 
     private bool CanManageAdministration => Session.HasNavigation("settings.administration");
 
-    // A household administrator who is not the server administrator reaches the administration pages marked for them.
-    private bool CanManageHousehold => Session.HasAction("household.manage");
-
-    // Administration pages need the administrator gate, except the page a household administrator reaches without being the server administrator.
-    private bool RequiresAdministratorSurface
-    {
-        get
-        {
-            var item = SettingsNav.GetItem(_activeSection);
-            return item.AdminOnly && !(item.HouseholdAdminAccess && !CanManageAdministration && CanManageHousehold);
-        }
-    }
+    // Administration pages need the administrator gate.
+    private bool RequiresAdministratorSurface => SettingsNav.GetItem(_activeSection).AdminOnly;
 
     private void ResolveSectionAndNormalize()
     {
-        if (_kidsBlocked)
-        {
-            Nav.NavigateTo("/", replace: true);
-            return;
-        }
-
         // A profile or authority change can reach this while the router has already moved to another settings page (or another tab of the same page) but has not
         // handed this component the new Section, Subsection and Detail yet. Redirecting from that stale Section sends the page to the old address, and the
         // same mistake then sends it back, flipping between two pages as fast as ingestion events arrive. The router's own parameter
@@ -653,8 +656,16 @@ else
             return;
         }
 
-        var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold);
+        var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted);
         _activeSection = resolution.Section;
+
+        if (_restricted)
+        {
+            // A Kids profile never reaches Settings (its own pages are My profile and My activity). Any Settings address goes Home.
+            _leavingSettings = true;
+            Nav.NavigateTo("/", replace: true);
+            return;
+        }
 
         if (!resolution.IsKnownRoute)
         {
@@ -706,7 +717,7 @@ else
         var targetRoute = _activeSection == SettingsSection.Libraries && IsLibraryRouteSegment(Subsection)
             ? $"/settings/libraries/{_activeSubsection}{(string.IsNullOrWhiteSpace(Detail) ? string.Empty : "/" + Detail.Trim().ToLowerInvariant())}"
             : IsProfileDetailRoute
-            ? $"/settings/profiles/{_activeSubsection}"
+            ? $"/settings/profiles/{_activeSubsection}{(ProfileTab.Length == 0 ? string.Empty : "/" + ProfileTab)}"
             : _activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail)
             ? $"{SettingsNav.RouteFor(_activeSection, _activeSubsection)}/{Detail!.Trim().ToLowerInvariant()}"
             : string.IsNullOrWhiteSpace(Subsection)
@@ -760,6 +771,8 @@ else
     private static bool IsValidDetailRoute(SettingsSection section, string subsection, string? detail)
     {
         if (string.IsNullOrWhiteSpace(detail)) return true;
+        // A person's page has two more tabs beside Profile: Preferences and Access & safety.
+        if (section == SettingsSection.Profiles) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "preferences" or "access";
         if (section == SettingsSection.Libraries) return SettingsNav.IsLibraryRouteSegment(subsection) && IsProviderRouteKey(detail);
         if (section != SettingsSection.Providers) return false;
         return subsection == "providers" && IsProviderRouteKey(detail);
@@ -840,59 +853,65 @@ else
             new("Settings", SettingsNav.RouteFor(SettingsSection.Overview)),
         };
 
-        if (IsEditingOtherPlaybackProfile)
+        // A metadata source's own page is a plugin page: Settings > Platform > Plugins > its friendly name.
+        if (IsProviderDetailRoute && SettingsNav.FindMenuLocation(SettingsSection.Plugins) is { } pluginsLocation)
         {
-            breadcrumbs.Add(new SettingsBreadcrumb("Profiles", SettingsNav.RouteFor(SettingsSection.Profiles)));
-            breadcrumbs.Add(new SettingsBreadcrumb(_playbackTargetName ?? "Profile", $"/settings/profiles/{PlaybackProfileId}"));
-            breadcrumbs.Add(new SettingsBreadcrumb(_activeSection switch
-            {
-                SettingsSection.Listening => "Listening",
-                SettingsSection.Reading => "Reading",
-                _ => "Playback",
-            }, null));
+            breadcrumbs.Add(new SettingsBreadcrumb(pluginsLocation.Group.Label, SettingsNav.RouteFor(SettingsSection.Plugins)));
+            breadcrumbs.Add(new SettingsBreadcrumb(pluginsLocation.Page.Label, SettingsNav.RouteFor(SettingsSection.Plugins)));
+            breadcrumbs.Add(new SettingsBreadcrumb(ProviderFriendlyName, null));
             return breadcrumbs;
         }
 
-        breadcrumbs.Add(new SettingsBreadcrumb(
-            CurrentGroup.Label,
-            SettingsNav.RouteFor(CurrentGroup.DefaultSection)));
+        // Settings > Group > Page > Tab, straight from the menu. Every step is a link except the last, which is where you are.
+        var location = CurrentLocation;
+        var pageLabel = location?.Page.Label ?? GetHeroTitle();
+        // A group with one page of the same name (System, Developer) is not said twice.
+        if (!string.Equals(CurrentGroup.Label, pageLabel, StringComparison.Ordinal))
+        {
+            breadcrumbs.Add(new SettingsBreadcrumb(
+                CurrentGroup.Label,
+                SettingsNav.RouteFor(CurrentGroup.DefaultSection)));
+        }
 
-        // Group > parent > page, straight from the menu tree.
-        var trail = CurrentLocation?.Trail ?? [];
-        foreach (var ancestor in trail.Take(Math.Max(trail.Count - 1, 0)))
-            breadcrumbs.Add(new SettingsBreadcrumb(ancestor.Label, ancestor.Route));
-
-        var pageLabel = trail.Count > 0 ? trail[^1].Label : GetHeroTitle();
-        var pageRoute = trail.Count > 0 ? trail[^1].Route : SettingsNav.RouteFor(_activeSection);
+        var pageRoute = location?.Page.Route ?? SettingsNav.RouteFor(_activeSection);
+        var steps = new List<SettingsBreadcrumb> { new(pageLabel, pageRoute) };
 
         if (_activeSection == SettingsSection.Libraries)
         {
-            // Libraries > Watch > Movies: the frame carries the level, so Libraries is a link once the page is deeper.
-            var steps = LibrariesLevel.Crumbs;
-            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, steps.Count > 0 ? pageRoute : null));
-            foreach (var step in steps.Skip(1))
-                breadcrumbs.Add(new SettingsBreadcrumb(step.Label, step.Href));
-            return breadcrumbs;
+            // Library & Ingestion > Libraries > Watch > Movies: the frame carries the level, so Libraries is a link once the page is deeper.
+            var levels = LibrariesLevel.Crumbs;
+            steps.Add(new SettingsBreadcrumb("Libraries", SettingsNav.RouteFor(SettingsSection.Libraries)));
+            foreach (var level in levels.Skip(1))
+                steps.Add(new SettingsBreadcrumb(level.Label, level.Href));
         }
-
-        if (IsProfileDetailRoute)
+        else if (IsProfileDetailRoute)
         {
-            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, pageRoute));
-            breadcrumbs.Add(new SettingsBreadcrumb(_profileBreadcrumbName ?? "Profile", null));
-            return breadcrumbs;
+            steps.Add(new SettingsBreadcrumb(_profileBreadcrumbName ?? "Profile", $"/settings/profiles/{ProfileDetailId:D}"));
+            if (ProfileTab.Length > 0)
+                steps.Add(new SettingsBreadcrumb(ProfileTab == "access" ? "Access & safety" : "Preferences", null));
+        }
+        else
+        {
+            var leaf = location?.Tab?.Label ?? location?.Leaf;
+            if (leaf is not null && !string.Equals(leaf, pageLabel, StringComparison.Ordinal))
+                steps.Add(new SettingsBreadcrumb(leaf, location?.Tab?.Route ?? SettingsNav.RouteFor(_activeSection)));
+            if (!string.IsNullOrWhiteSpace(Detail))
+                steps.Add(new SettingsBreadcrumb(GetDetailBreadcrumbLabel(), null));
         }
 
-        var hasDetail = !string.IsNullOrWhiteSpace(Detail);
-        breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, hasDetail ? pageRoute : null));
-        if (hasDetail)
-            breadcrumbs.Add(new SettingsBreadcrumb(GetDetailBreadcrumbLabel(), null));
-
+        steps[^1] = steps[^1] with { Href = null };
+        breadcrumbs.AddRange(steps);
         return breadcrumbs;
     }
 
+    private bool IsProviderDetailRoute => _activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail);
+
+    /// <summary>The name people know a metadata source by (Apple Books, TMDB), never its file name.</summary>
+    private string ProviderFriendlyName => ProviderNames.GetDisplayName(Detail ?? string.Empty);
+
     private string GetDetailBreadcrumbLabel() => _activeSection switch
     {
-        SettingsSection.Providers => Detail!.ToUpperInvariant(),
+        SettingsSection.Providers => ProviderFriendlyName,
         SettingsSection.Libraries => "Libraries",
         _ => FormatRouteLabel(Detail!),
     };
@@ -904,11 +923,11 @@ else
 
     private string GetHeroTitle()
     {
-        if (_activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail))
-            return "Provider Configuration";
+        if (IsProviderDetailRoute)
+            return ProviderFriendlyName;
         if (_activeSection == SettingsSection.Libraries)
             return LibrariesLevel.Title;
-        return CurrentLocation?.Node.Label ?? SettingsNav.GetItem(_activeSection).Label;
+        return CurrentLocation?.Page.Label ?? SettingsNav.GetItem(_activeSection).Label;
     }
 
     private string? GetSectionDescription(SettingsSection section) => section switch
@@ -920,17 +939,18 @@ else
             : _activeSubsection == SettingsNav.TasteSubsection
                 ? "What the Library has learned you enjoy. Remove what is not you, or add what is."
                 : "You, what you have been watching, reading and listening to, and your taste.",
-        SettingsSection.Profiles => "Add and look after the people in your household. Switch profile from the profile menu.",
-        SettingsSection.Preferences => "How you watch, listen and read.",
-        SettingsSection.Playback => "How you watch.",
-        SettingsSection.Listening => "How you listen.",
-        SettingsSection.Reading => "How you read.",
-        SettingsSection.Security => _activeSubsection == "devices"
+        SettingsSection.Profiles => IsProfileDetailRoute
+            ? "Details, preferences, and access and safety for this profile."
+            : "Add and look after the people in your household. Switch profile from the profile menu.",
+        SettingsSection.Security => _activeSubsection == SettingsNav.DevicesSubsection
             ? "The phones, TVs and browsers signed in to Library, and who they belong to."
             : "Password, email and extra protection.",
-        SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
-            ? "What the Library did, the Engine's technical log, and how long logs are kept."
-            : "How this server is doing: its version, processor, memory and storage.",
+        SettingsSection.AdminOverview => _activeSubsection switch
+        {
+            SettingsNav.LogsSubsection => "What the Library did, the Engine's technical log, and how long logs are kept.",
+            SettingsNav.ScheduledTasksSubsection => "What runs by itself, when it last ran, and when it runs next.",
+            _ => "How this server is doing: its version, processor, memory and storage.",
+        },
         // Only the overview has a subtitle; the pages below it are named by their title and breadcrumb.
         SettingsSection.Libraries => LibrariesLevel.Crumbs.Count == 0 ? "Your media, grouped the way you browse it." : null,
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
@@ -951,11 +971,11 @@ else
             "diagnostics" => "Technical checks on playback delivery reported by the server.",
             _ => "Set the limits and quality for streaming away from home.",
         },
-        SettingsSection.Notifications => "Choose what the Library tells you about, and where those messages go.",
-        SettingsSection.Tools => "See the tools and downloads the Library relies on, what each one affects, and fix anything that is missing.",
+        SettingsSection.Notifications or SettingsSection.Tools =>
+            "The tools and downloads the Library relies on, and what it tells you about and where those messages go.",
+        SettingsSection.Integrations => "Credentials and webhooks that let other software use Library.",
         SettingsSection.Access => _activeSubsection switch
         {
-            "applications" => "Credentials and webhooks that let other software use Library.",
             "authentication" => "How people sign in, and the rules for passwords, sessions and invitations.",
             SettingsNav.HouseholdsSubsection => "Add, rename and remove households. Each has its own people, library access and Shared Library.",
             _ => "Who can sign in, and which profile each sign-in opens.",

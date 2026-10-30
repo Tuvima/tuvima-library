@@ -14,7 +14,6 @@ internal sealed class CatalogueResourceAuthorizationService(
     IRequestAuthorityResolver authorities,
     IAccountAccessDecisionService accounts,
     IAuthorizationEvaluator evaluator,
-    IConfigurationLoader? configuration = null,
     TimeProvider? clock = null)
 {
     // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the
@@ -29,7 +28,7 @@ internal sealed class CatalogueResourceAuthorizationService(
 
     private NsfwIdleKeeper IdleKeeper => _idleKeeper ??= new(new NsfwAccessRepository(database), clock ?? TimeProvider.System);
 
-    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), VaultAccess, configuration);
+    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), VaultAccess);
 
     public async ValueTask<CatalogueResourceAccess> EvaluateArtworkLinkAsync(
         HttpContext context, Guid linkId, ApplicationPermissionId permission, CancellationToken ct = default)
@@ -424,20 +423,11 @@ internal sealed class CatalogueResourceAuthorizationService(
         if (!content.IsUnrestricted)
         {
             // A combined file is playable from every episode it covers, so each covered episode's rating must pass too. An episode
-            // with no rating passes when allowed, or when the file sits in a folder marked "Suitable for limited profiles" (D7).
+            // with no rating passes only when the household shows unrated items to Kid's profiles (library access D10).
             var ratings = await ReadContentRatingsAsync(connection, assetId, ct).ConfigureAwait(false);
-            // The file's path is read only when the folder rule could change the answer: an item with no rating that the limit refuses.
-            string? filePath = null;
-            if (content.SuitableFolderPrefixes.Count > 0
-                && ratings.Any(rating => !content.Allows(rating) && ContentLimitFilter.IsUnrated(rating)))
-            {
-                filePath = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-                    "SELECT file_path_root FROM media_assets WHERE id=@assetId;", new { assetId }, cancellationToken: ct)).ConfigureAwait(false);
-            }
-
             foreach (var rating in ratings)
             {
-                if (!content.AllowsItem(rating, filePath))
+                if (!content.AllowsItem(rating, resource.MediaType))
                 {
                     return CatalogueResourceAccess.Denied;
                 }

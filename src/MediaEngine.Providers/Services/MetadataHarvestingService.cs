@@ -115,7 +115,7 @@ public sealed class MetadataHarvestingService : BackgroundService, IMetadataHarv
         ArgumentNullException.ThrowIfNull(assetPathService);
         ArgumentNullException.ThrowIfNull(logger);
 
-        _providers = providers.ToList();
+        _providers = providers as IReadOnlyList<IExternalMetadataProvider> ?? providers.ToList();
         _claimRepo = claimRepo;
         _canonicalRepo = canonicalRepo;
         _personRepo = personRepo;

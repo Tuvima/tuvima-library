@@ -542,7 +542,7 @@ public sealed class DatabaseBackupServiceTests : IDisposable
     {
         using var connection = database.CreateConnection();
         connection.Execute(
-            "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,@name,'#7C4DFF','Administrator',NULL,@now);",
+            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,@name,'#7C4DFF','Administrator',@now);",
             new { id = id ?? Guid.NewGuid(), name, now = Now });
     }
 

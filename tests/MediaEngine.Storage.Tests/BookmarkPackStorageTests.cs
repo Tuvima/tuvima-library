@@ -32,8 +32,8 @@ public sealed class BookmarkPackStorageTests : IDisposable
         using var connection = _database.CreateConnection();
         connection.Execute(
             """
-            INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@owner,'Owner','#7C4DFF','StandardUser',NULL,@now);
-            INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@other,'Other','#7C4DFF','StandardUser',NULL,@now);
+            INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@owner,'Owner','#7C4DFF','StandardUser',@now);
+            INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@other,'Other','#7C4DFF','StandardUser',@now);
             INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@workId, 'Videos', 'standalone', 'accepted');
             INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @workId, 'Extended');
             INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)

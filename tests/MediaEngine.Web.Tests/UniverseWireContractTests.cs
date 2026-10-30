@@ -28,7 +28,7 @@ public sealed class UniverseWireContractTests : AsyncBunitContext
         Services.AddHttpClient();
         Services.AddScoped<DashboardSessionAccessor>();
         Services.AddScoped<DashboardIdentityClient>();
-        Services.AddScoped<MediaEngine.Web.Services.Editing.MediaEditorLauncherService>();
+        Services.AddSingleton<IAdministratorSurfaceAccessService>(new UnlockedAdministratorSurfaceAccess());
         Services.AddScoped<DeviceContextService>();
     }
 
@@ -182,6 +182,29 @@ public sealed class UniverseWireContractTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
             Assert.Contains("New Lore Discovered: 2 entities have been updated", cut.Markup));
+    }
+
+    [Fact]
+    public void ChronicleExplorer_ShowsTheNewUniverse_WhenTheRouteChangesToAnother()
+    {
+        var requested = new List<string>();
+        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetUniverseGraphAsync), args =>
+            {
+                requested.Add((string)args![0]!);
+                return Task.FromResult<UniverseGraphResponse?>(DuneGraph());
+            });
+            stub.SetHandler(nameof(IEngineApiClient.CheckLoreDeltaAsync), _ =>
+                Task.FromResult<IReadOnlyList<UniverseLoreDeltaResponse>>([]));
+        }));
+
+        var cut = Render<ChronicleExplorer>(parameters => parameters.Add(component => component.Qid, "Q1"));
+        cut.WaitForAssertion(() => Assert.Equal(["Q1"], requested));
+
+        cut.Render(parameters => parameters.Add(component => component.Qid, "Q2"));
+
+        cut.WaitForAssertion(() => Assert.Equal(["Q1", "Q2"], requested));
     }
 
     [Fact]

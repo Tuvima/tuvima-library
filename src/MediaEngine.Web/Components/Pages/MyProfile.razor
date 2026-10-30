@@ -1,0 +1,57 @@
+@page "/my-profile"
+@page "/my-profile/{Tab}"
+@namespace MediaEngine.Web.Components.Pages
+@inject NavigationManager Navigation
+
+<PageTitle>@Heading - Library</PageTitle>
+
+@* A Kids profile's own Profile pages outside Settings (D10): a Kids profile has no Settings, so Overview and Taste live here in the
+   normal app layout, next to its own Activity. Taste is read-only for a Kids profile; the Engine enforces that as well. *@
+<div class="my-profile-page">
+    <header class="my-profile-page__header">
+        <h1 class="my-profile-page__title">@Heading</h1>
+        <a class="my-profile-page__back" href="@ShellDock.MyLibraryPath">Back to My Library</a>
+    </header>
+    <AppTabs ActivePanelIndex="@ActiveIndex"
+             ActivePanelIndexChanged="OnTabChanged"
+             Rounded="false"
+             Border="false"
+             Elevation="0"
+             Label="Profile">
+        <AppTabPanel Text="Overview" />
+        <AppTabPanel Text="Activity" />
+        <AppTabPanel Text="Taste" />
+    </AppTabs>
+    @if (ActiveIndex == 2)
+    {
+        <OverviewTastePage />
+    }
+    else
+    {
+        <OverviewPage />
+    }
+</div>
+
+@code {
+    [Parameter] public string? Tab { get; set; }
+
+    private int ActiveIndex => string.Equals(Tab, "taste", StringComparison.OrdinalIgnoreCase) ? 2 : 0;
+
+    private string Heading => ActiveIndex == 2 ? "Taste" : "Profile";
+
+    private void OnTabChanged(int index)
+    {
+        switch (index)
+        {
+            case 1:
+                Navigation.NavigateTo(SettingsNav.MyActivityRoute);
+                break;
+            case 2:
+                Navigation.NavigateTo(SettingsNav.MyTasteRoute);
+                break;
+            default:
+                Navigation.NavigateTo(SettingsNav.MyProfileRoute);
+                break;
+        }
+    }
+}

@@ -82,6 +82,9 @@ public sealed class ImportFolderService : IImportFolderService
             && PathSafety.TryNormalizeRoot(root, out var normalizedRoot, out _)
             && IsContained(path, Path.Combine(normalizedRoot!, ImportFolderRules.WorkingFolderName));
 
+    public bool IsViewSectionPath(string path)
+        => GetImportPath() is { } root && ImportFolderRules.IsViewSectionPath(root, path);
+
     public MediaType? ResolveTypePrior(string path)
     {
         var folder = ResolveTypeFolder(path);
@@ -264,6 +267,9 @@ public sealed class ImportFolderService : IImportFolderService
         {
             var parent = directory.Parent;
             var isProtected = IsWorkingPath(directory.FullName)
+                || (parent is not null
+                    && PathSafety.Comparer.Equals(Path.TrimEndingDirectorySeparator(parent.FullName), normalizedRoot)
+                    && ImportFolderRules.ViewSections.Any(section => string.Equals(section, directory.Name, StringComparison.OrdinalIgnoreCase)))
                 || (parent is not null
                     && PathSafety.Comparer.Equals(Path.TrimEndingDirectorySeparator(parent.FullName), normalizedRoot)
                     && ImportFolderRules.LabelForSubfolder(directory.Name, ImportTypes()) is not null);

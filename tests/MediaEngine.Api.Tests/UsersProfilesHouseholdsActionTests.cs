@@ -124,7 +124,6 @@ public sealed class UsersProfilesHouseholdsActionTests
 
         var profile = (await world.Profiles.GetByIdAsync(created.Profile.Id))!;
         Assert.Equal(ProfileRole.StandardUser, profile.Role);
-        Assert.Null(profile.ContentLimit);
         Assert.Equal(world.Household.Id, profile.HouseholdId);
         Assert.False(profile.IsHouseholdAdministrator);
         Assert.False(profile.IsServerAdministrator);
@@ -134,7 +133,7 @@ public sealed class UsersProfilesHouseholdsActionTests
     }
 
     [Fact]
-    public async Task ANewProfile_IsAKidsProfileOnlyWhenAsked_WithTheKidsContentLimit_AndNeverAHouseholdAdministrator()
+    public async Task ANewProfile_IsAKidsProfileOnlyWhenAsked_AndNeverAHouseholdAdministrator()
     {
         await using var world = await World.CreateAsync();
 
@@ -144,7 +143,7 @@ public sealed class UsersProfilesHouseholdsActionTests
 
         var profile = (await world.Profiles.GetByIdAsync(created.Profile.Id))!;
         Assert.Equal(ProfileRole.RestrictedProfile, profile.Role);
-        Assert.Equal(ProfileContentLimits.KidsDefault, profile.ContentLimit);
+        Assert.True(profile.IsKidsProfile);
         Assert.False(profile.IsHouseholdAdministrator);
     }
 

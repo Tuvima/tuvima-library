@@ -12,7 +12,6 @@
 @inject NavigationManager Nav
 @inject ILogger<ProfilesTab> Logger
 @inject DeviceContextService DeviceContext
-@inject IJSRuntime JS
 @implements IDisposable
 
 @* Settings > Personal > Profiles: the editing page for administrators. A household administrator sees the people in their own
@@ -20,10 +19,8 @@
    from the profile menu in the top bar, never here. *@
 @if (!IsAdministrator)
 {
-    <AppPageState Kind="AppPageStateKind.Unavailable"
-                  Icon="@AppMaterialIcons.Outlined.Lock"
-                  Title="Not available"
-                  Message="Profiles are looked after by an administrator. You can change your own details from your Overview." />
+    @* Not an administrator: Manage Profiles opens your own profile, which is the only one you can look after. *@
+    <AppPageState Kind="AppPageStateKind.Loading" Title="Opening your profile" Class="tl-sp-py-8" />
 }
 else
 {
@@ -64,29 +61,29 @@ else
                 @foreach (var group in Groups)
                 {
                     <div class="profiles-tab__group" @key="group.Id" data-household-group="@group.Id">
-                        <SettingsSectionPanel Title="@group.Title" Description="@(CanExport(group) ? ExportHelp : null)">
-                            <Actions>
-                                @if (CanExport(group))
-                                {
-                                    <AppButton Label="Export this household" Loading="@(_exportingHouseholdId == group.Id)" Disabled="@(_exportingHouseholdId is not null)"
-                                               OnClick="@(() => ExportHouseholdAsync(group.Id))" data-testid="@($"export-household-{group.Id}")" />
-                                }
-                            </Actions>
+                        <SettingsSectionPanel Title="@group.Title">
                             <ChildContent>
-                            @if (_exportResultHouseholdId == group.Id && !string.IsNullOrWhiteSpace(_exportResult))
-                            {
-                                <AppAlert Severity="@(_exportFailed ? AppSeverity.Warning : AppSeverity.Info)" Variant="AppVariant.Outlined" Dense="true"
-                                          data-testid="@($"export-household-result-{group.Id}")">@_exportResult</AppAlert>
-                            }
                         <ul class="profiles-tab__list" role="list">
                             @foreach (var person in group.People)
                             {
-                                <li class="profiles-tab__item" @key="person.Id" data-profile-id="@person.Id">
+                                <li class="profiles-tab__item @(person.Id == _draggingId ? "is-dragging" : null)" @key="person.Id" data-profile-id="@person.Id"
+                                    @ondragover:preventDefault="@CanReorder(group)"
+                                    @ondrop="@(() => DropAsync(group, person.Id))">
                                     <div class="profiles-tab__line">
+                                        @if (CanReorder(group))
+                                        {
+                                            @* Drag to put people in the order Who's watching and the profile menu list them; the arrow keys do the same. *@
+                                            <AppNativeButton Type="button" Class="profiles-tab__drag" draggable="true" data-testid="@($"reorder-{person.Id}")"
+                                                             AriaLabel="@($"Reorder {person.DisplayName}. Drag, or use the up and down arrow keys.")"
+                                                             @ondragstart="@(() => _draggingId = person.Id)" @ondragend="@(() => _draggingId = null)"
+                                                             @onkeydown="@(args => ReorderByKeyAsync(group, person.Id, args))">
+                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
+                                            </AppNativeButton>
+                                        }
                                         <span class="profiles-tab__row-avatar"><ProfileAvatar DisplayName="@person.DisplayName" ImageUrl="@person.AvatarImageUrl" Color="@person.AvatarColor" Icon="@person.AvatarIcon" /></span>
                                         <span class="profiles-tab__who">
                                             <span class="profiles-tab__row-name">@person.DisplayName</span>
-                                            @* Read-only here: a sign-in is attached and removed by the server administrator in Users and Sign-in. *@
+                                            @* Read-only here: a sign-in is attached and removed by the server administrator in Users & Households. *@
                                             <small class="profiles-tab__signin" data-profile-signin="@person.Id">@SignInText(person.Id)</small>
                                         </span>
                                         <span class="profiles-tab__badges">
@@ -125,6 +122,10 @@ else
                                 </li>
                             }
                         </ul>
+                        @if (group.Id != Guid.Empty)
+                        {
+                            <HouseholdKidSettings HouseholdId="@group.Id" HouseholdName="@group.Title" ReadOnly="@DeviceContext.IsPhone" OnSave="SaveKidSettingsAsync" />
+                        }
                             </ChildContent>
                         </SettingsSectionPanel>
                     </div>
@@ -161,12 +162,8 @@ else
     private string? _unlockError;
     private Func<Task>? _afterUnlock;
     private readonly CancellationTokenSource _lifetime = new();
-    private Guid? _exportingHouseholdId;
-    private Guid? _exportResultHouseholdId;
-    private bool _exportFailed;
-    private string _exportResult = string.Empty;
-
-    private const string ExportHelp = "Download a file with this household's profiles, their sign-ins, progress, bookmarks and favourites. Anyone with this file can sign in as these people. Keep it somewhere safe.";
+    private Guid? _draggingId;
+    private bool _reordering;
 
     private ProfileEditingWorkflow Workflow => _workflow ??= new ProfileEditingWorkflow(Identity, Confirmed);
 
@@ -186,9 +183,6 @@ else
 
     private string SignInText(Guid profileId) => Managed(profileId)?.User?.Email is { Length: > 0 } email ? email : "No sign-in";
 
-    // A phone only reads the list, so the export is a computer or tablet action (checked again in the handler).
-    private bool CanExport(Household group) => IsServerAdministrator && !DeviceContext.IsPhone && group.Id != Guid.Empty;
-
     private static string AddLabel(Household group) => $"Add profile to {group.Title}";
 
     protected override async Task OnInitializedAsync()
@@ -201,6 +195,16 @@ else
         if (!IsAdministrator)
         {
             _loadingPeople = false;
+            try
+            {
+                _active = await Orchestrator.GetActiveProfileAsync();
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+            {
+                Logger.LogWarning(exception, "Could not find the active profile to open.");
+            }
+
+            Nav.NavigateTo(_active is null ? SettingsNav.RouteFor(SettingsSection.Overview) : $"/settings/profiles/{_active.Id:D}", replace: true);
             return;
         }
 
@@ -252,7 +256,7 @@ else
         var names = _households.ToDictionary(household => household.Id, household => household.Name);
         var groups = _managed
             .GroupBy(person => person.HouseholdId)
-            .Select(group => (Key: group.Key, People: group.OrderBy(person => person.CreatedAt).Select(ToProfile).ToList()))
+            .Select(group => (Key: group.Key, People: group.OrderBy(person => person.SortPosition).ThenBy(person => person.CreatedAt).Select(ToProfile).ToList()))
             .OrderByDescending(group => group.Key == ownId)
             .ThenBy(group => group.Key is { } id && names.TryGetValue(id, out var name) ? name : string.Empty, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
@@ -274,9 +278,88 @@ else
     {
         var known = _profiles.FirstOrDefault(profile => profile.Id == person.Id);
         return known ?? new ProfileViewModel(person.Id, person.DisplayName, person.AvatarColor,
-            person.IsRestricted ? "RestrictedProfile" : "Profile", person.CreatedAt,
-            AvatarIcon: person.AvatarIcon, ContentLimit: person.ContentLimit,
-            ContentLimitAllowUnrated: person.ContentLimitAllowUnrated);
+            person.IsKids ? "RestrictedProfile" : "Profile", person.CreatedAt,
+            AvatarIcon: person.AvatarIcon);
+    }
+
+    // The order is shared by the whole household, so only an administrator changes it, never on a phone, and only when there is
+    // more than one person to put in order.
+    private bool CanReorder(Household group) => CanManage && group.Id != Guid.Empty && group.People.Count > 1 && !_reordering;
+
+    private Task DropAsync(Household group, Guid targetId)
+    {
+        var dragged = _draggingId;
+        _draggingId = null;
+        if (dragged is not { } id || id == targetId || !CanReorder(group))
+        {
+            return Task.CompletedTask;
+        }
+
+        var order = group.People.Select(person => person.Id).ToList();
+        var from = order.IndexOf(id);
+        var to = order.IndexOf(targetId);
+        if (from < 0 || to < 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        order.RemoveAt(from);
+        order.Insert(to, id);
+        return SaveOrderAsync(group.Id, order);
+    }
+
+    private Task ReorderByKeyAsync(Household group, Guid personId, KeyboardEventArgs args)
+    {
+        var step = args.Key switch { "ArrowUp" => -1, "ArrowDown" => 1, _ => 0 };
+        if (step == 0 || !CanReorder(group))
+        {
+            return Task.CompletedTask;
+        }
+
+        var order = group.People.Select(person => person.Id).ToList();
+        var from = order.IndexOf(personId);
+        var to = from + step;
+        if (from < 0 || to < 0 || to >= order.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        order.RemoveAt(from);
+        order.Insert(to, personId);
+        return SaveOrderAsync(group.Id, order);
+    }
+
+    // The new order shows straight away and is saved at once; if the Engine refuses, the list is read again so it never lies.
+    private async Task SaveOrderAsync(Guid householdId, IReadOnlyList<Guid> order)
+    {
+        _reordering = true;
+        _notice = null;
+        for (var index = 0; index < order.Count; index++)
+        {
+            var position = _managed.FindIndex(person => person.Id == order[index]);
+            if (position >= 0)
+            {
+                _managed[position] = _managed[position] with { SortPosition = index };
+            }
+        }
+
+        try
+        {
+            var result = await Identity.ReorderHouseholdPeopleResultAsync(householdId, order, _lifetime.Token);
+            if (!result.Succeeded)
+            {
+                _notice = "The order couldn't be saved. Try again.";
+                await LoadPeopleAsync();
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The page was left while the order was being saved; nothing is shown.
+        }
+        finally
+        {
+            _reordering = false;
+        }
     }
 
     // Each person has their own page; the sheet here is only for adding someone.
@@ -291,50 +374,6 @@ else
         }
 
         Nav.NavigateTo($"{SettingsNav.RouteFor(SettingsSection.Access, SettingsNav.HouseholdsSubsection)}?add=1");
-    }
-
-    // Hands the household file to the browser. A failure is told in one plain sentence, the Engine's own when it gives one.
-    private async Task ExportHouseholdAsync(Guid householdId)
-    {
-        if (_exportingHouseholdId is not null || !IsServerAdministrator || DeviceContext.IsPhone || householdId == Guid.Empty)
-        {
-            return;
-        }
-
-        _exportingHouseholdId = householdId;
-        _exportResultHouseholdId = householdId;
-        _exportFailed = false;
-        _exportResult = string.Empty;
-        try
-        {
-            var result = await Confirmed.RunAsync(() => Identity.ExportHouseholdResultAsync(householdId, _lifetime.Token), _lifetime.Token);
-            if (result.Value is { } file)
-            {
-                await JS.SaveZipAsync(file);
-                _exportResult = "The household's file was downloaded. Keep it somewhere safe.";
-            }
-            else
-            {
-                _exportFailed = true;
-                _exportResult = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou ? "Nothing was downloaded. Confirm it's you to continue."
-                    : !string.IsNullOrWhiteSpace(result.Message) ? result.Message
-                    : result.Failure == DashboardAccessMutationFailure.Transient ? "The Engine is unavailable. Try again."
-                    : "The file couldn't be made. Try again.";
-            }
-        }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
-        {
-            // The page was left while the file was being made; nothing is shown.
-        }
-        catch (JSException)
-        {
-            _exportFailed = true;
-            _exportResult = "The file couldn't be saved. Try again.";
-        }
-        finally
-        {
-            _exportingHouseholdId = null;
-        }
     }
 
     public void Dispose()
@@ -362,6 +401,37 @@ else
             _editorOpen = false;
             _editorError = null;
         }
+    }
+
+    // Saves one household's Kid settings (library access D9, D10). Answers null when it went through, or the sentence to show beside the choices.
+    // A missing administrator PIN opens the unlock prompt; the person saves again once it is granted, so the choices are never lost.
+    private async Task<string?> SaveKidSettingsAsync(Guid householdId, UpdateHouseholdKidSettingsRequest request)
+    {
+        var result = await Confirmed.RunAsync(() => Identity.ReplaceHouseholdKidSettingsResultAsync(householdId, request));
+        if (result.Succeeded)
+        {
+            return null;
+        }
+
+        if (result.Failure == DashboardAccessMutationFailure.Forbidden)
+        {
+            _needsUnlock = true;
+            _unlockError = null;
+            _afterUnlock = null;
+            return "Confirm it's you, then save again.";
+        }
+
+        return !string.IsNullOrWhiteSpace(result.Message)
+            ? result.Message
+            : result.Failure switch
+            {
+                DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
+                DashboardAccessMutationFailure.NotFound => "That household is no longer there.",
+                DashboardAccessMutationFailure.Validation => "One of those levels isn't available. Reload and try again.",
+                DashboardAccessMutationFailure.Unauthorized => "Sign in again to continue.",
+                DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+                _ => "That couldn't be saved. Try again.",
+            };
     }
 
     private Task SaveEditorAsync(ProfileEditorResult result)

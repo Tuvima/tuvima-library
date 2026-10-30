@@ -58,18 +58,6 @@
                     {
                         <span class="folder-table__status folder-table__status--warning">@issue</span>
                     }
-                    @if (OnSetSuitableForLimited.HasDelegate && !IsMerged(source))
-                    {
-                        @* Simpler access D7: unrated items from this folder reach profiles with a rating limit. Saved straight away by the host. *@
-                        <div class="folder-table__limited" title="@SuitableForLimitedHint">
-                            <AppSwitchRow Label="Suitable for limited profiles"
-                                          Size="AppSize.Small"
-                                          AriaLabel="@($"Suitable for limited profiles: {name}")"
-                                          Value="@source.OkForLimitedProfiles"
-                                          Disabled="@(ReadOnly || Busy)"
-                                          ValueChanged="@((bool value) => OnSetSuitableForLimited.InvokeAsync(new SuitableForLimitedChange(source, value)))" />
-                        </div>
-                    }
                     @if (OnKeepGoing.HasDelegate && source.FirstCheck is { } firstCheck)
                     {
                         @* The first check of a folder added just now (Library setup D35): checking is only a status; a paused folder says why and offers
@@ -192,15 +180,6 @@
 
     /// <summary>Raised from the row menu, or the paused first-check line, to change what a folder is (Library setup D40(c)). Without a handler (first-run setup) neither is offered.</summary>
     [Parameter] public EventCallback<LibrarySourceDto> OnChangeKind { get; set; }
-
-    /// <summary>Raised when a folder's Suitable for limited profiles switch is turned on or off. Without a handler (first-run setup) no switch is drawn.</summary>
-    [Parameter] public EventCallback<SuitableForLimitedChange> OnSetSuitableForLimited { get; set; }
-
-    /// <summary>One turn of a folder's Suitable for limited profiles switch.</summary>
-    public sealed record SuitableForLimitedChange(LibrarySourceDto Source, bool Value);
-
-    /// <summary>What the switch's tooltip says. Shared with tests so the wording has one owner.</summary>
-    public const string SuitableForLimitedHint = "Unrated items from this folder are shown to profiles with a rating limit. Rated items still follow each profile's limit.";
 
     /// <summary>One press of Pause, Resume or Cancel on a folder's job.</summary>
     public sealed record FolderJobControl(LibrarySourceDto Source, FolderJobStatusDto Job, string Action);

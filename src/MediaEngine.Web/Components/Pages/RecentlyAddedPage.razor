@@ -9,6 +9,8 @@
     [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
 
     public string? Type => RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("type");
-    private string SelectedType => Type?.ToLowerInvariant() is "watch" or "read" or "listen" or "view" ? Type.ToLowerInvariant() : "all";
+    // Toggle pills: "watch,read" is allowed; anything unknown falls back to everything.
+    private string SelectedType => MediaEngine.Web.Components.MediaTiles.RecentFilterLogic.Selected(Type?.ToLowerInvariant()) is { Count: > 0 } selected
+        ? string.Join(',', new[] { "watch", "read", "listen", "view" }.Where(selected.Contains)) : "all";
     private void TypeChanged(string type) => Navigation.NavigateTo($"/recently-added?type={type}");
 }

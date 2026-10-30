@@ -153,44 +153,6 @@ internal sealed class ArtworkScopeService(
             or ("Audiobooks", "audiobook" or "item")
             or ("Comics", "issue" or "item");
 
-    /// <summary>
-    /// The canonical values of every entity this scope's match can have been recorded on, merged with
-    /// the show or scope's own first. The same set the refresh target reads, so discovery and refresh
-    /// agree on which provider identified the item.
-    /// </summary>
-    public async Task<IReadOnlyDictionary<string, string>> ResolveSharedIdentityValuesAsync(
-        EditorScopeResolution scope, CancellationToken ct)
-    {
-        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var assetId = await metadataData.ResolveRepresentativeAssetAsync(
-            [scope.FieldEntityId, scope.ArtworkOwnerEntityId ?? Guid.Empty], ct);
-        var ids = new List<Guid> { scope.FieldEntityId };
-        if (scope.ArtworkOwnerEntityId is { } owner)
-        {
-            ids.Add(owner);
-        }
-        if (assetId is { } asset)
-        {
-            var lineage = await workRepo.GetLineageByAssetAsync(asset, ct);
-            if (lineage is not null)
-            {
-                ids.Add(lineage.TargetForSelfScope);
-            }
-            ids.Add(asset);
-        }
-        foreach (var id in ids.Where(id => id != Guid.Empty).Distinct())
-        {
-            foreach (var canonical in await canonicalRepo.GetByEntityAsync(id, ct))
-            {
-                if (!string.IsNullOrWhiteSpace(canonical.Key) && !string.IsNullOrWhiteSpace(canonical.Value))
-                {
-                    merged.TryAdd(canonical.Key, canonical.Value);
-                }
-            }
-        }
-        return merged;
-    }
-
     public async Task<ProviderArtworkRefreshTarget> ResolveProviderArtworkRefreshTargetAsync(
         EditorScopeResolution scope,
         CancellationToken ct, bool discoveryOnly = false)

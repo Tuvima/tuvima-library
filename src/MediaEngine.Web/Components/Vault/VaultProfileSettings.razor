@@ -27,7 +27,7 @@
                               Description="@ModeDescription"
                               Value="@Nsfw.Unlocked"
                               ValueChanged="SwitchAsync" />
-                <AppSwitchRow Label="Show Vault in the navigation bar"
+                <AppSwitchRow Label="Show Vault in the menu"
                               Description="Adds the Vault to the top bar and the phone menu. Off until you turn it on; you can always open it from here."
                               Value="@Nsfw.ShowInNavigation"
                               ValueChanged="NavigationAsync" />
@@ -63,33 +63,55 @@
         <SettingsSectionPanel Title="Vault access">
             @if (!AdministratorHasPin)
             {
-                <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true">@VaultMessages.SetProfilePinFirst</AppAlert>
+                <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true" data-pin-suggestion>@VaultMessages.PinStronglySuggested</AppAlert>
             }
-            else
-            {
-                <div class="vault-settings">
-                    <AppSwitchRow Label="@($"Vault mode for {Person.DisplayName}")"
-                                  Description="Lets them open the Vault. Kids and limited profiles can never have it."
-                                  Value="@_allow" ValueChanged="AllowChangedAsync" Disabled="@_busy" />
-                    @if (_allow)
+            <div class="vault-settings">
+                <AppSwitchRow Label="@($"Vault mode for {Person.DisplayName}")"
+                              Description="Lets them open the Vault. Kids and limited profiles can never have it."
+                              Value="@_allow" ValueChanged="AllowChangedAsync" Disabled="@_busy" />
+                @if (_allow)
+                {
+                    <AppSwitchRow Label="@AskPinLabel"
+                                  Description="@AskPinDescription"
+                                  Value="@_askPin" ValueChanged="AskPinChangedAsync" Disabled="@_busy" />
+                }
+                @if (_allow && !IsAdministratorPerson)
+                {
+                    @if (_sections is { Sections.Count: > 0 } sections)
                     {
-                        <AppSwitchRow Label="@AskPinLabel"
-                                      Description="@AskPinDescription"
-                                      Value="@_askPin" ValueChanged="AskPinChangedAsync" Disabled="@_busy" />
+                        <strong data-vault-sections-title>Vault sections @Person.DisplayName can open</strong>
+                        @foreach (var section in sections.Sections)
+                        {
+                            <AppSwitchRow Label="@section.Name"
+                                          Description="@(section.Granted ? "They can open this section." : "Closed to them.")"
+                                          Value="@section.Granted"
+                                          ValueChanged="@(granted => SectionChangedAsync(section.LibraryId, granted))"
+                                          Disabled="@_busy" />
+                        }
+                        <small>Nothing is open until you tick it. Administrators open every section.</small>
                     }
-                    @if (!_modeKnown)
+                    else if (_sectionsLoaded && _sections is { Sections.Count: 0 })
                     {
-                        <small>The current setting isn't shown for other people. Choose one and save to change it.</small>
+                        <small>There are no Vault sections yet. Make one from Settings, Libraries (Access: Vault-protected).</small>
                     }
-                    @if (!string.IsNullOrEmpty(_notice))
+                    else if (_sectionsLoaded)
                     {
-                        <small role="alert" data-vault-access-notice>@_notice</small>
+                        <small>Turn on your own Vault mode to choose which sections @Person.DisplayName can open.</small>
                     }
-                    <div class="vault-settings__actions">
-                        <AppButton Label="Save access" Size="AppControlSize.Compact" Disabled="@(_busy || !_chosen)" OnClick="SaveAccessAsync" />
-                    </div>
+                }
+                @if (!_modeKnown)
+                {
+                    <small>The current setting isn't shown for other people. Choose one and save to change it.</small>
+                }
+                @if (!string.IsNullOrEmpty(_notice))
+                {
+                    <small role="alert" data-vault-access-notice>@_notice</small>
+                }
+                <div class="vault-settings__actions">
+                    <AppButton Label="Save access" Size="AppControlSize.Compact" Disabled="@(_busy || !_chosen)" OnClick="SaveAccessAsync" />
                 </div>
-            }
+            </div>
+        
         </SettingsSectionPanel>
     </div>
 }
@@ -105,6 +127,8 @@
     private bool _busy;
     private Guid _readFor;
     private bool _stateRequested;
+    private ProfileVaultSectionsDto? _sections;
+    private bool _sectionsLoaded;
 
     /// <summary>The person whose page this is.</summary>
     [Parameter, EditorRequired] public ProfileViewModel Person { get; set; } = default!;
@@ -115,15 +139,18 @@
     /// <summary>True when the signed-in person is an administrator.</summary>
     [Parameter] public bool IsAdministrator { get; set; }
 
-    /// <summary>True when the signed-in administrator has a profile PIN of their own (Videos spec D25).</summary>
+    /// <summary>True when the signed-in administrator has a profile PIN of their own; without one the Vault steps still go ahead, with the PIN suggestion (Vault sections D44).</summary>
     [Parameter] public bool AdministratorHasPin { get; set; }
 
-    private bool IsLimited => Person.IsRestricted || !string.IsNullOrWhiteSpace(Person.ContentLimit);
+    private bool IsLimited => Person.IsRestricted;
 
     // Only the Engine's status route decides: a profile it answers "not found" to gets none of the person's own rows.
     private bool ShowOwn => IsSelf && !IsLimited && Nsfw.IsAvailable;
 
     private bool ShowAccess => IsAdministrator && !IsLimited;
+
+    // A server administrator's own page: an administrator opens every section, so there is nothing to tick.
+    private bool IsAdministratorPerson => _sections?.OpensAll == true;
 
     private string AskPinLabel => IsSelf ? "Ask for my PIN to open Vault mode" : "Ask for their PIN to open Vault mode";
 
@@ -155,6 +182,59 @@
         {
             _readFor = Person.Id;
             ReadOwnAccess();
+            await LoadSectionsAsync();
+        }
+    }
+
+    // The sections name Vault libraries, so the Engine answers only an administrator whose own Vault mode is on; anyone else gets nothing here.
+    private async Task LoadSectionsAsync()
+    {
+        _sections = null;
+        _sectionsLoaded = false;
+        if (!ShowAccess)
+        {
+            return;
+        }
+
+        var call = await ApiClient.GetProfileVaultSectionsAsync(Person.Id);
+        _sections = call.Succeeded ? call.Value : null;
+        _sectionsLoaded = true;
+    }
+
+    private async Task SectionChangedAsync(string libraryId, bool granted)
+    {
+        if (_busy || _sections is null)
+        {
+            return;
+        }
+
+        var wanted = _sections.Sections.Where(section => section.Granted).Select(section => section.LibraryId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (granted)
+        {
+            wanted.Add(libraryId);
+        }
+        else
+        {
+            wanted.Remove(libraryId);
+        }
+
+        _busy = true;
+        try
+        {
+            var call = await ApiClient.SetProfileVaultSectionsAsync(Person.Id, [.. wanted]);
+            if (call.Succeeded)
+            {
+                _sections = call.Value;
+                Toasts.Add("Vault sections saved.", AppSeverity.Success);
+            }
+            else
+            {
+                Toasts.Add(VaultMessages.For(call) ?? VaultMessages.Unreachable, AppSeverity.Warning);
+            }
+        }
+        finally
+        {
+            _busy = false;
         }
     }
 
@@ -310,10 +390,10 @@
             }
         }
 
-        // Closing access needs no PIN; opening or changing it asks for the administrator's own profile PIN again.
+        // Closing access needs no PIN; opening or changing it asks for the administrator's own profile PIN again when they have one.
         var saved = mode == "off"
             ? await ApplyAsync(null) is null
-            : await VaultPinPrompt.AskAsync(Dialogs, "Enter your PIN to continue",
+            : await VaultPinPrompt.AskIfSetAsync(AdministratorHasPin, Dialogs, "Enter your PIN to continue",
                 "This is your own profile PIN, asked for again before Vault access is opened.", "Save access", "Your profile PIN", ApplyAsync);
         if (!saved)
         {

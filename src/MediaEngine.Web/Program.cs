@@ -373,7 +373,6 @@ builder.Services.AddScoped<ViewWorkspaceService>();
 builder.Services.AddScoped<ViewAssetDragService>();
 builder.Services.AddScoped<UIOrchestratorService>();
 builder.Services.AddScoped<IngestionLiveDashboardState>();
-builder.Services.AddScoped<MediaEditorLauncherService>();
 builder.Services.AddScoped<CollectionEditorLauncherService>();
 builder.Services.AddScoped<GalleryEditorLauncherService>();
 builder.Services.AddScoped<MediaTileComposerService>();
@@ -432,6 +431,7 @@ builder.Services.AddScoped<ListenContextSidebarState>();
 builder.Services.AddScoped<ContextSidebarCoordinator>();
 builder.Services.AddScoped<IDetailsOverlayHistory, DetailsOverlayJsHistory>();
 builder.Services.AddScoped<DetailsOverlayState>();
+builder.Services.AddScoped<DetailPreviewState>();
 
 // Provider Catalogue (scoped = one API client per SignalR circuit).
 // Caches provider UI metadata from GET /providers/catalogue in IMemoryCache while

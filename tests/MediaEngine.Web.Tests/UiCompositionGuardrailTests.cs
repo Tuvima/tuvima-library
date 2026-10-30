@@ -231,19 +231,19 @@ public sealed class UiCompositionGuardrailTests
         {
             WriteFile(planted, "src/MediaEngine.Web/Components/Pages/Sample.razor", $"<h1>{RetiredRegistryLabel}</h1>");
             WriteFile(planted, "src/MediaEngine.Web/Resources/Sample.resx", $"<data name=\"Nav\"><value>{RetiredRegistryLabel}</value></data>");
-            WriteFile(planted, "docs/guides/sample.md", $"Open the {RetiredRegistryLabel} to fix an item.");
+            WriteFile(planted, "SAMPLE.md", $"Open the {RetiredRegistryLabel} to fix an item.");
             WriteFile(planted, "src/MediaEngine.Web/Services/Sample.cs", $"class A {{ string Label = \"Open {RetiredRegistryLabel}\"; }}");
             WriteFile(planted, "src/MediaEngine.Api/Services/Sample.cs", $"class B {{ string Title = $@\"The {RetiredRegistryLabel} {{x}}\"; }}");
 
             WriteFile(clean, "src/MediaEngine.Web/Components/Pages/Sample.razor", $"@inject Permission{RetiredRegistryLabel} Permissions\r\n<h1>Needs Review</h1>");
             WriteFile(clean, "src/MediaEngine.Web/Resources/Sample.resx", "<data name=\"Nav\"><value>Needs Review</value></data>");
-            WriteFile(clean, "docs/guides/sample.md", "Start without pulling the registry image.");
+            WriteFile(clean, "SAMPLE.md", "Start without pulling the registry image.");
             WriteFile(clean, "src/MediaEngine.Web/Services/Sample.cs", $"// the old {RetiredRegistryLabel} screen\r\nclass A {{ IPermission{RetiredRegistryLabel} Source; string Label = \"capability registry\"; }}");
             WriteFile(clean, "src/MediaEngine.Api/Services/Sample.cs", "class B { string Title = \"Needs Review\"; }");
 
             Assert.Equal(
                 [
-                    "docs/guides/sample.md",
+                    "SAMPLE.md",
                     "src/MediaEngine.Api/Services/Sample.cs",
                     "src/MediaEngine.Web/Components/Pages/Sample.razor",
                     "src/MediaEngine.Web/Resources/Sample.resx",
@@ -259,7 +259,7 @@ public sealed class UiCompositionGuardrailTests
         }
     }
 
-    // Everything a person can read: Dashboard markup and resources, docs, and the C# string literals of the Dashboard
+    // Everything a person can read: Dashboard markup and resources, the root README and guides (the public docs now live in tuvima-docs), and the C# string literals of the Dashboard
     // and the Engine (labels, messages and titles built in code).
     private static List<string> RegistryScanFiles(string repoRoot)
     {
@@ -271,8 +271,7 @@ public sealed class UiCompositionGuardrailTests
         }
 
         files.AddRange(EnumerateFiles(Path.Combine(webRoot, "Resources"), "*.resx"));
-        files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "docs"), "*.md"));
-        files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "docs"), "*.mdx"));
+        files.AddRange(Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.TopDirectoryOnly));
         files.AddRange(EnumerateFiles(webRoot, "*.cs"));
         files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "src", "MediaEngine.Api"), "*.cs"));
 
@@ -355,40 +354,12 @@ public sealed class UiCompositionGuardrailTests
     {
         var detailPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
         var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "NeedsReviewPageContent.razor"));
-        var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
 
-        // A single item, person or series edits in place and Needs Review opens its page; the pop-up stays only for the Chronicle explorer.
+        // A single item, person or series edits in place and Needs Review opens its page; there is no pop-up editor left.
         Assert.DoesNotContain("MediaEditorLauncher.OpenAsync", detailPage);
         Assert.DoesNotContain("MediaEditorLauncher.BeginInline", detailPage);
         Assert.DoesNotContain("MediaEditorLauncher", reviewTab);
-        Assert.DoesNotContain("MediaEditorInlineSession", launcher);
         Assert.Contains("EditingSection.Match", reviewTab);
-        Assert.Contains("SharedMediaEditorMode.Batch", launcher);
-    }
-
-    // No route opens the old pop-up for a single item (universal editor spec D1 and D17): the only caller left is the
-    // Chronicle explorer's shared entity target, and the launcher itself refuses any other request.
-    [Fact]
-    public void TheOldPopUpOpensOnlyForTheChronicleExplorer()
-    {
-        var webSource = Path.Combine(RepoRoot, "src", "MediaEngine.Web");
-        var callers = Directory.EnumerateFiles(webSource, "*.*", SearchOption.AllDirectories)
-            .Where(path => path.EndsWith(".razor", StringComparison.Ordinal) || path.EndsWith(".cs", StringComparison.Ordinal))
-            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                && !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-            .Where(path => File.ReadAllText(path).Contains("MediaEditorLauncher.OpenAsync", StringComparison.Ordinal)
-                || File.ReadAllText(path).Contains("MediaEditorLauncher.TryOpenAsync", StringComparison.Ordinal))
-            .Select(ToRelativePath)
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Equal(
-        [
-            "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor",
-        ], callers);
-
-        var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
-        Assert.Contains("if (sharedTarget is null)", launcher);
     }
 
     [Fact]
@@ -398,16 +369,6 @@ public sealed class UiCompositionGuardrailTests
 
         Assert.Matches(@"RefreshAfterEditSavedAsync\(\)\s*\{[^}]*RefreshCurrentDetailAsync", detailPage);
         Assert.Contains("GetDetailPageAsync", detailPage);
-    }
-
-    [Fact]
-    public void MediaEditorLauncher_RejectsEmptyAndMultiItemLaunches()
-    {
-        var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
-
-        Assert.Contains("request.EntityIds.Count == 0", launcher);
-        Assert.Contains("return false", launcher);
-        Assert.Contains("request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1", launcher);
     }
 
     private static string Sanitize(string contents)

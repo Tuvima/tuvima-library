@@ -158,7 +158,9 @@ public sealed record ViewUploadResponseDto(
     [property: JsonPropertyName("item_id")] Guid ItemId,
     [property: JsonPropertyName("item_added")] bool ItemAdded,
     [property: JsonPropertyName("files_added")] int FilesAdded,
-    [property: JsonPropertyName("sources_added")] int SourcesAdded);
+    [property: JsonPropertyName("sources_added")] int SourcesAdded,
+    [property: JsonPropertyName("outcome")] string Outcome = "filed",
+    [property: JsonPropertyName("message")] string? Message = null);
 
 public sealed record ViewPreferencesRequest(
     [property: JsonPropertyName("scope")] string? Scope,

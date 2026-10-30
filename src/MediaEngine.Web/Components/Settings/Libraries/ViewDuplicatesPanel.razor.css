@@ -1,0 +1,8 @@
+.view-duplicates__when { margin:0 0 8px; color:var(--tl-text-muted); font-size:14px; }
+.view-duplicates__groups { list-style:none; margin:8px 0 0; padding:0; display:grid; gap:12px; }
+.view-duplicates__groups > li { padding:12px; border:1px solid var(--tl-border-subtle); border-radius:8px; display:grid; gap:8px; }
+.view-duplicates__copies { list-style:none; margin:0; padding:0; }
+.view-duplicates__copies li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 0; }
+.view-duplicates__copies li + li { border-top:1px solid var(--tl-border-subtle); }
+.view-duplicates__name { min-width:0; overflow-wrap:anywhere; }
+small { display:block; color:var(--tl-text-muted); font-size:12px; margin-top:2px; }

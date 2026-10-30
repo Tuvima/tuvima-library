@@ -13,10 +13,10 @@ public enum ViewerAccessStage
     /// <summary>The Vault and, once sections exist, which Vault sections this session may open.</summary>
     VaultAndSections = 1,
 
-    /// <summary>The Shared Library: the profile's areas, libraries hidden from it, and Selected-profiles libraries it was not chosen for.</summary>
+    /// <summary>The Shared Library: the profile's areas, libraries hidden for its household, and libraries hidden from it.</summary>
     SharedLibrary = 2,
 
-    /// <summary>The profile's content limit, with the "Suitable for limited profiles" folder rule for unrated items.</summary>
+    /// <summary>A Kid's profile's content limit: the household's level for the item's area, and the household's "Show unrated items" switch.</summary>
     ContentLimit = 3,
 
     /// <summary>The profile's View documents switch: documents stay on the Documents page and out of every shared list.</summary>
@@ -36,9 +36,9 @@ public static class ViewerAccessStages
     [
         new(ViewerAccessStage.VaultAndSections, "A Vault item is absent unless this session unlocked Vault mode; never part of a shared list.",
             $"{nameof(VaultVisibility)} / {nameof(VaultAccessResolver)}"),
-        new(ViewerAccessStage.SharedLibrary, "Areas, hidden libraries and Selected profiles decide which libraries the profile sees.",
+        new(ViewerAccessStage.SharedLibrary, "Areas, libraries hidden for the household and libraries hidden for the profile decide which libraries the profile sees.",
             nameof(LibraryVisibilityRule)),
-        new(ViewerAccessStage.ContentLimit, "A rated item follows the limit; an unrated one follows allow-unrated or a marked folder.",
+        new(ViewerAccessStage.ContentLimit, "A Kid's profile follows the household's level for the item's area; an unrated item follows the household's Show unrated items switch.",
             nameof(ContentLimitFilter)),
         new(ViewerAccessStage.DocumentsOff, "Documents are private to the Documents page and need the profile's Documents switch.",
             "View routes (profile documents_enabled); documents never enter the shared catalogue"),
@@ -74,7 +74,7 @@ public sealed class ViewerAccessService(IDisplayProjectionReadService display) :
     public async ValueTask<ViewerCatalogue> GetCatalogueAsync(CancellationToken ct = default)
     {
         // Every (work, file) row the request may see: the authorized projection has already dropped the Vault, hidden libraries,
-        // Selected libraries the profile was not chosen for, items over the content limit and files that are only Unmatched. A request
+        // libraries hidden for its household, items over the content limit and files that are only Unmatched. A request
         // with no usable authority gets no rows, so the catalogue is empty and fails closed.
         var rows = await display.LoadWorkLibraryRowsAsync(ct).ConfigureAwait(false);
         return CatalogueOf(rows);

@@ -70,7 +70,7 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
 
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@id,'Administrator','#7C4DFF','Administrator',NULL,@now);",
+            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@id,'Administrator','#7C4DFF','Administrator',@now);",
             new { id = _admin, now = DateTimeOffset.UtcNow.ToString("O") });
     }
 
@@ -166,14 +166,15 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AnAdministratorWithoutAProfilePin_CannotAddAFolder()
+    public async Task AnAdministratorWithoutAProfilePin_CanAddAFolder_BecauseAPinIsSuggestedButNeverRequired()
     {
         var vault = await NewVaultLibraryAsync();
         await _identity.SetProfilePinAsync(_admin, null);
 
-        await Assert.ThrowsAsync<VaultAdminPinNotSetException>(() => _service.AttachAsync(_admin, vault.LibraryId, _vaultFolder, AdminPin, default));
+        var outcome = await _service.AttachAsync(_admin, vault.LibraryId, _vaultFolder, null, default);
 
-        Assert.Empty(_configuration.LoadLibraries().Libraries);
+        Assert.Equal(VaultFolderAttachmentStatus.Attached, outcome.Status);
+        Assert.Single(_configuration.LoadLibraries().Libraries);
     }
 
     [Fact]
@@ -340,7 +341,7 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
             Id = Guid.NewGuid().ToString("D"),
             Name = "Private Movies",
             KindKey = "movies",
-            Access = LibraryAccessLevels.Vault,
+            IsVault = true,
         };
         current.Libraries.Add(orphan);
         var none = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -349,10 +350,10 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
 
         // A save that sends back an entry saying vault cannot add one, and the existing one is kept as it was.
         var sent = new LibrariesConfiguration { StorageLocations = current.StorageLocations, Libraries = [.. current.Libraries.Where(library => library.Id == MoviesLibraryId)] };
-        sent.Libraries.Add(new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Sneaky", KindKey = "movies", Access = LibraryAccessLevels.Vault });
+        sent.Libraries.Add(new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Sneaky", KindKey = "movies", IsVault = true });
         VaultLibrarySettings.KeepVault(current, sent, none);
         Assert.Equal(2, sent.Libraries.Count);
-        Assert.Same(orphan, Assert.Single(sent.Libraries, library => library.Access == LibraryAccessLevels.Vault));
+        Assert.Same(orphan, Assert.Single(sent.Libraries, library => library.IsVault));
     }
 
     // ── Setup ───────────────────────────────────────────────────────────────────────────────────

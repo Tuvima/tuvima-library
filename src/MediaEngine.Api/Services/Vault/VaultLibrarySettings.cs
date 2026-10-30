@@ -12,12 +12,12 @@ namespace MediaEngine.Api.Services.Vault;
 public static class VaultLibrarySettings
 {
     /// <summary>
-    /// Whether an entry is a Vault library: it has a row in the Vault's own tables, or its access says so. Either one is enough, so an entry that
+    /// Whether an entry is a Vault library: it has a row in the Vault's own tables, or it carries the vault marker. Either one is enough, so an entry that
     /// says vault without a row (a hand-edited file, a half-finished save) is still kept out of every ordinary list.
     /// </summary>
     public static bool IsVault(LibraryFolderConfig library, IReadOnlySet<string> vaultIds) =>
         vaultIds.Contains(library.Id)
-        || string.Equals(library.Access, LibraryAccessLevels.Vault, StringComparison.OrdinalIgnoreCase);
+        || library.IsVault;
 
     /// <summary>A copy of <paramref name="settings"/> without the Vault libraries. The libraries inside are the same objects.</summary>
     public static LibrariesConfiguration WithoutVault(LibrariesConfiguration settings, IReadOnlySet<string> vaultIds)

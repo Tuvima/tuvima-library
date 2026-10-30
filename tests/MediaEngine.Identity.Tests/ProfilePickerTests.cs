@@ -76,9 +76,21 @@ public sealed class ProfilePickerTests : IDisposable
     }
 
     [Fact]
-    public async Task PasswordSignIn_WithOneProfile_StillLeavesTheSessionPending()
+    public async Task PasswordSignIn_WithOneProfileAndNoPin_GoesStraightIn_WithoutAPicker()
     {
         await BootstrapWithProfilesAsync(extraProfiles: 0);
+
+        var signedIn = await SignInAsync("laptop");
+
+        Assert.False(signedIn.ChooseProfile);
+        Assert.False(signedIn.Session.ProfilePending);
+    }
+
+    [Fact]
+    public async Task PasswordSignIn_WithOneProfileThatHasAPin_StillAsksForThePin()
+    {
+        var owner = await BootstrapWithProfilesAsync(extraProfiles: 0);
+        await _service.SetProfilePinAsync(owner.Profile.Id, "2468");
 
         var signedIn = await SignInAsync("laptop");
 

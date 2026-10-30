@@ -55,9 +55,7 @@ public sealed class PersonalStateBackupRepository
         ArgumentNullException.ThrowIfNull(scope);
         using var connection = _db.CreateConnection();
         using var transaction = connection.BeginTransaction(deferred: true);
-        var export = scope.IsUserFile
-            ? BuildUser(connection, transaction, scope, _portableValues, _isWithheld, afterSnapshotStarted, ct)
-            : Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, _portableValues, _isWithheld, afterSnapshotStarted, ct);
+        var export = Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, _portableValues, _isWithheld, afterSnapshotStarted, ct);
         transaction.Commit();
         return export;
     }
@@ -202,165 +200,6 @@ public sealed class PersonalStateBackupRepository
         return new BackupExport(tables, choices, book.Titles, contents, corrections);
     }
 
-    /// <summary>
-    /// A user file: one profile and the sign-in that opens it, or every profile of a household and their sign-ins, with those profiles' own
-    /// state and what they built, as listed by <see cref="UserExportScope"/>. No other profile or sign-in, no roles, no library access, and
-    /// no choices or corrections on catalogue rows.
-    /// </summary>
-    private static BackupExport BuildUser(
-        SqliteConnection connection,
-        SqliteTransaction transaction,
-        BackupScope scope,
-        IBackupPortableValueCodec? portableValues,
-        Func<CatalogueTarget, byte[], bool>? isWithheld,
-        Action? afterSnapshotStarted,
-        CancellationToken ct)
-    {
-        var live = ReadLiveStructure(connection, transaction);
-        afterSnapshotStarted?.Invoke();
-        List<Guid> profiles;
-        if (scope.AccountId is { } accountId)
-        {
-            if (!AccountExists(connection, transaction, accountId))
-            {
-                throw new InvalidOperationException("The account to export was not found.");
-            }
-
-            profiles = ReadProfileIds(connection, transaction, accountId);
-        }
-        else
-        {
-            var householdId = scope.HouseholdId ?? throw new ArgumentException("A user export needs an account or a household.", nameof(scope));
-            profiles = ReadHouseholdProfileIds(connection, transaction, householdId);
-            if (profiles.Count == 0)
-            {
-                throw new InvalidOperationException("The household to export was not found.");
-            }
-        }
-
-
-        // A household file leaves out a sign-in that has no email (the this-computer administrator before it is secured): its profile and
-        // personal state still go, but nothing that opens it, so the file can always be imported. A one-profile file is refused earlier.
-        var accountIds = ReadAccountIds(connection, transaction, profiles, onlyWithEmail: scope.IsHousehold);
-        var book = new TitleBook(new TitleRecognitionReader(connection, transaction, isWithheld));
-        var tables = new List<BackupExportTable>();
-        var dropped = 0;
-        var withheld = 0;
-        var keptMachineBound = 0;
-        foreach (var entry in UserExportScope.Tables)
-        {
-            ct.ThrowIfCancellationRequested();
-            var rule = BackupTableClassification.Find(entry.Table)
-                ?? throw new InvalidOperationException($"The user export holds '{entry.Table}', which has no backup rule.");
-            if (rule.Kind is not (BackupDataKind.Configuration or BackupDataKind.PersonalState))
-            {
-                throw new InvalidOperationException($"The user export holds '{entry.Table}', which a backup never keeps.");
-            }
-
-            if (!live.TryGetValue(entry.Table, out var liveColumns))
-            {
-                continue;
-            }
-
-            // Someone exporting another person never carries that person's two-step secret; only the exporting person's own stays.
-            var accountsForTable = accountIds;
-            if (scope.LeaveOutTwoStep && string.Equals(entry.Table, UserExportScope.TwoStepTable, StringComparison.OrdinalIgnoreCase))
-            {
-                if (scope.KeepTwoStepForAccountId is not { } keep || !accountIds.Contains(keep))
-                {
-                    continue;
-                }
-
-                accountsForTable = [keep];
-            }
-
-            var filter = UserExportScope.FilterFor(entry, accountsForTable, profiles);
-            var predicate = string.IsNullOrWhiteSpace(rule.KeepWhere) ? filter : "(" + rule.KeepWhere + ") AND (" + filter + ")";
-            tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, predicate, portableValues, ref dropped, ref withheld, ref keptMachineBound, ct, entry.ExcludedColumns, entry.ZeroedColumns));
-        }
-
-        var configuration = tables.Where(table => table.Kind == BackupDataKind.Configuration).ToList();
-        var contents = new BackupExportContents(
-            scope,
-            configuration.Count,
-            configuration.Sum(table => table.Rows.Count),
-            tables.Where(table => table.Kind == BackupDataKind.PersonalState).Sum(table => table.Rows.Count),
-            0,
-            book.Titles.Count,
-            book.Titles.Count(title => title.IsRecognisedByFileOnly),
-            profiles.Count,
-            dropped,
-            0,
-            keptMachineBound,
-            withheld);
-        return new BackupExport(tables, [], book.Titles, contents, []);
-    }
-
-    private static bool AccountExists(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
-    {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "SELECT COUNT(*) FROM accounts WHERE id = $id";
-        command.Parameters.AddWithValue("$id", GuidSql.ToBlob(accountId));
-        return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
-    }
-
-    /// <summary>The profiles of a household, oldest first.</summary>
-    private static List<Guid> ReadHouseholdProfileIds(SqliteConnection connection, SqliteTransaction transaction, Guid householdId)
-    {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "SELECT id FROM profiles WHERE household_id = $id ORDER BY created_at, id";
-        command.Parameters.AddWithValue("$id", GuidSql.ToBlob(householdId));
-        var ids = new List<Guid>();
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            ids.Add(GuidSql.FromDb(reader.GetValue(0)));
-        }
-
-        return ids;
-    }
-
-    /// <summary>The users (sign-ins) that open the given profiles: at most one each; optionally only those that have an email.</summary>
-    private static List<Guid> ReadAccountIds(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyCollection<Guid> profiles, bool onlyWithEmail = false)
-    {
-        var ids = new List<Guid>();
-        foreach (var profile in profiles)
-        {
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = onlyWithEmail
-                ? "SELECT id FROM accounts WHERE profile_id = $profile AND email IS NOT NULL AND TRIM(email) <> ''"
-                : "SELECT id FROM accounts WHERE profile_id = $profile";
-            command.Parameters.AddWithValue("$profile", GuidSql.ToBlob(profile));
-            using var reader = command.ExecuteReader();
-            while (reader.Read())
-            {
-                ids.Add(GuidSql.FromDb(reader.GetValue(0)));
-            }
-        }
-
-        return ids;
-    }
-
-    /// <summary>The profile the user opens (a user opens exactly one).</summary>
-    private static List<Guid> ReadProfileIds(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
-    {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "SELECT profile_id FROM accounts WHERE id = $id";
-        command.Parameters.AddWithValue("$id", GuidSql.ToBlob(accountId));
-        var ids = new List<Guid>();
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            ids.Add(GuidSql.FromDb(reader.GetValue(0)));
-        }
-
-        return ids;
-    }
-
     private static BackupExportTable ExportTable(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -373,13 +212,9 @@ public sealed class PersonalStateBackupRepository
         ref int dropped,
         ref int withheld,
         ref int keptMachineBound,
-        CancellationToken ct,
-        IReadOnlyList<string>? alsoExcluded = null,
-        IReadOnlyList<string>? alsoZeroed = null)
+        CancellationToken ct)
     {
-        var excluded = new HashSet<string>(rule.ExcludedColumns.Concat(alsoExcluded ?? []), StringComparer.OrdinalIgnoreCase);
-        // A zeroed column is never read either: its value is written as 0 (a NOT NULL role flag that must not travel).
-        var zeroed = new HashSet<string>(alsoZeroed ?? [], StringComparer.OrdinalIgnoreCase);
+        var excluded = new HashSet<string>(rule.ExcludedColumns, StringComparer.OrdinalIgnoreCase);
 
         // An excluded column is never read. One that may be NULL (and has no default) stays in the column list as NULL;
         // any other is left out of the list, so a restore uses the table's own default.
@@ -447,7 +282,7 @@ public sealed class PersonalStateBackupRepository
         }
 
         command.CommandText =
-            $"SELECT {string.Join(", ", columns.Select(column => excluded.Contains(column) ? "NULL AS " + Quote(column) : zeroed.Contains(column) ? "0 AS " + Quote(column) : Quote(column)))} FROM {Quote(rule.Table)}" +
+            $"SELECT {string.Join(", ", columns.Select(column => excluded.Contains(column) ? "NULL AS " + Quote(column) : Quote(column)))} FROM {Quote(rule.Table)}" +
             (where.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", where));
 
         var rows = new List<IReadOnlyList<BackupValue>>();

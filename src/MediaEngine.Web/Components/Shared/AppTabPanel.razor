@@ -8,6 +8,10 @@
     [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
     [Parameter] public string? Icon { get; set; }
     [Parameter] public string? ToolTip { get; set; }
+    /// <summary>Gives the tab its own address; the tab then renders as a link instead of a button.</summary>
+    [Parameter] public string? Href { get; set; }
+    /// <summary>Optional small muted number shown after the label.</summary>
+    [Parameter] public int? Count { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     internal ElementReference HeaderElement;

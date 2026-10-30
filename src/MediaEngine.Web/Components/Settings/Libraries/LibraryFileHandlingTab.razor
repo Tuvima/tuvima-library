@@ -176,7 +176,7 @@
 
     private LibraryTypeOption? Kind => Kinds.Find(Library.KindKey);
     private string? TemplateKey => Kind?.NamingTemplate;
-    private bool IsVault => string.Equals(Library.Access, LibraryFileHandlingChoices.VaultAccess, StringComparison.OrdinalIgnoreCase);
+    private bool IsVault => Library.IsVault;
     private bool CanChange => LibraryFileHandlingChoices.CanChangeFiles(Library, Kind);
     private bool Locked => ReadOnly || _saving || !CanChange;
     private int ChangeableCount => LibraryFileHandlingChoices.ChangeableFolders(Library).Count;

@@ -72,7 +72,6 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<UIOrchestratorService>();
-        Services.AddScoped<MediaEditorLauncherService>();
         Services.AddScoped<CollectionEditorLauncherService>();
         Services.AddSingleton(new SavedItemService(api));
         Services.AddSingleton(new MediaReactionService(api));

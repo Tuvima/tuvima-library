@@ -221,14 +221,8 @@ public partial interface IEngineApiClient
     Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default);
 
-    /// <summary>GET /settings/libraries/{libraryId}/access — a library's access value, the profiles chosen for it and every profile to choose from (administrators); null when the Engine refused, the library is unknown or it could not be read.</summary>
-    Task<LibraryAccessGrantsDto?> GetLibraryAccessAsync(string libraryId, CancellationToken ct = default);
-
     /// <summary>GET /library/libraries/{libraryId}/activity — what has happened in one library, newest first, in plain sentences (administrators); null when the Engine refused, the library is unknown or it could not be read.</summary>
     Task<MediaEngine.Contracts.Library.LibraryActivityDto?> GetLibraryActivityAsync(string libraryId, int take = 50, CancellationToken ct = default);
-
-    /// <summary>PUT /settings/libraries/{libraryId}/access/profiles — replaces the profiles chosen for a Selected-profiles library (administrators); the saved choice, or null when the Engine refused.</summary>
-    Task<LibraryAccessGrantsDto?> SetLibraryProfilesAsync(string libraryId, IReadOnlyList<Guid> profileIds, CancellationToken ct = default);
 
     /// <summary>GET /settings/vault-libraries — the Vault-protected libraries of the content types, for an administrator whose Vault mode is on; null for anyone else (the Engine answers "not found") or when it could not be read.</summary>
     Task<IReadOnlyList<LibraryFolderDto>?> GetVaultSiblingLibrariesAsync(CancellationToken ct = default);
@@ -407,6 +401,12 @@ public partial interface IEngineApiClient
 
     /// <summary>PUT /settings/pipelines — save pipeline configuration.</summary>
     Task<bool> SavePipelinesAsync(PipelineConfiguration pipelines, CancellationToken ct = default);
+
+    /// <summary>GET /settings/pipelines/options — installed providers that can be added to a media type's ingestion flow.</summary>
+    Task<PipelineFlowOptionsResponse?> GetPipelineFlowOptionsAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /settings/pipelines/flow — save the order, role and on/off of providers per media type. A refused edit comes back with the plain-English problems and nothing saved.</summary>
+    Task<PipelineFlowSaveResponse> SavePipelineFlowAsync(PipelineFlowSaveRequest request, CancellationToken ct = default);
 
     // ── Media types (/settings/media-types) ────────────────────────────────
 

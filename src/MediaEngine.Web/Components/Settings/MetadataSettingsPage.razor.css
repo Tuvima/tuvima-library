@@ -70,37 +70,8 @@
 .metadata-next-card p { margin:0; color:var(--tl-text-secondary); font-size:.82rem; line-height:1.55; }
 .metadata-savebar { display:flex; justify-content:flex-end; gap:var(--tl-space-3); padding-top:var(--tl-space-4); border-top:1px solid var(--tl-border-subtle); }
 
-.metadata-flow-intro { display:grid; gap:var(--tl-space-4); }
-.metadata-flow-table { display:grid; min-width:0; }
-.metadata-flow-header,.metadata-flow-row { display:grid; grid-template-columns:minmax(135px,.72fr) minmax(210px,1.2fr) minmax(190px,1fr) minmax(225px,1.3fr) minmax(190px,1fr); }
-.metadata-flow-header { padding:0 0 9px; color:var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
-.metadata-flow-row { border-top:1px solid var(--tl-border-subtle); overflow:hidden; }
-.metadata-flow-row > div { min-width:0; padding:14px; border-left:1px solid var(--tl-border-subtle); }
-.metadata-flow-row > div:first-child { padding-left:0; border-left:0; }
-.metadata-flow-media { display:flex; align-items:center; gap:10px; }
-.metadata-flow-media > span:last-child { display:grid; gap:2px; }
-.metadata-flow-media strong { color:var(--tl-text-primary); }
-.metadata-flow-media small { color:var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
 .metadata-icon-box { display:grid; place-items:center; flex:0 0 auto; width:42px; height:42px; border:1px solid color-mix(in srgb,var(--tl-accent-primary) 36%,transparent); border-radius:50%; color:var(--tl-accent-primary); background:color-mix(in srgb,var(--tl-accent-primary) 13%,transparent); }
-.metadata-flow-participants { display:grid; gap:10px; }
-.metadata-flow-provider { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:9px; align-items:center; }
-.metadata-flow-provider.is-inactive { opacity:.58; }
-.metadata-flow-provider > span { display:grid; min-width:0; gap:2px; }
-.metadata-flow-provider a { overflow:hidden; color:var(--tl-text-primary); font-size:.8rem; font-weight:700; text-decoration:none; text-overflow:ellipsis; white-space:nowrap; }
-.metadata-flow-provider a:hover,.metadata-flow-provider a:focus-visible { color:var(--tl-accent-primary); text-decoration:underline; }
-.metadata-flow-provider small { color:var(--tl-text-muted); font-size: var(--tl-font-size-xs); line-height:1.35; }
-.metadata-not-configured { color:var(--tl-text-muted); font-size:.75rem; }
-.metadata-flow-results { display:flex; gap:10px; align-items:center; color:var(--tl-text-secondary); font-size:.75rem; line-height:1.45; }
-.metadata-flow-results ::deep .tl-icon-root { flex:0 0 auto; color:var(--tl-success); }
 
-@container metadata-module (max-width:1050px) {
-    .metadata-flow-header { display:none; }
-    .metadata-flow-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
-    .metadata-flow-row > div { border-left:0; border-top:1px solid var(--tl-border-subtle); }
-    .metadata-flow-row > div:first-child { grid-column:1/-1; border-top:0; }
-    .metadata-flow-row > div::before { content:attr(data-label); display:block; margin-bottom:9px; color:var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-weight:700; text-transform:uppercase; }
-    .metadata-flow-media::before { display:none !important; }
-}
 @container metadata-module (max-width:900px) {
     .metadata-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .metadata-detail-layout { grid-template-columns:1fr; }
@@ -119,9 +90,8 @@
 @container metadata-module (max-width:620px) {
     .metadata-provider-toolbar,.metadata-provider-detail-heading,.metadata-provider-connection__heading { align-items:stretch; flex-direction:column; }
     ::deep .metadata-search { width:100%; flex-basis:auto; }
-    .metadata-summary-grid,.metadata-detail-aside,.metadata-provider-fields,.metadata-flow-row { grid-template-columns:1fr; }
+    .metadata-summary-grid,.metadata-detail-aside,.metadata-provider-fields { grid-template-columns:1fr; }
     .metadata-next-card { grid-column:auto; }
-    .metadata-flow-row > div:first-child { grid-column:auto; }
     .metadata-provider-stage-list > div { grid-template-columns:auto minmax(0,1fr); }
     .metadata-provider-stage-list > div ::deep .app-chip { grid-column:2; justify-self:start; }
     .metadata-capability-grid { grid-template-columns:1fr; }

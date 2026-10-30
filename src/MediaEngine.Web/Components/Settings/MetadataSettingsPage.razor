@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Settings
 @inject MetadataSettingsStateService StateService
 @inject IEngineApiClient ApiClient
 @inject ProviderCatalogueService CatalogueService
@@ -49,12 +50,11 @@
     private readonly HashSet<string> _testing = new(StringComparer.OrdinalIgnoreCase);
     private string _providerFilter = "all";
     private string _providerSearch = string.Empty;
-    private string _flowFilter = "all";
-    private string _flowSearch = string.Empty;
     private string? _loadedRoute;
     private string? _loadError;
     private bool _loading = true;
     private bool _saving;
+    private int _detailTab;
 
     private string ActiveSurface => string.Equals(Subsection, "ingestion-flow", StringComparison.OrdinalIgnoreCase)
         ? "ingestion-flow"
@@ -200,6 +200,8 @@
         }
     </div>;
 
+    // A metadata source's own page is a plugin page: Overview (what it supplies and where it is used), Settings (today's
+    // controls) and Activity (connection and last check). The breadcrumb and the page title carry its friendly name.
     private RenderFragment ProviderDetailPage() => @<div class="metadata-experience metadata-detail">
         @{ var provider = _snapshot!.ProviderFor(Detail); }
         @if (provider is null)
@@ -212,46 +214,65 @@
                 <div class="metadata-provider-detail-title">
                     <AppProviderLogo ImageUrl="@provider.LogoUrl" Icon="@provider.Icon" AccentColor="@provider.AccentColor"
                                      FallbackText="@Initials(provider.DisplayName)" AltText="" />
-                    <div><h2>@provider.DisplayName</h2><p>@provider.Description</p></div>
+                    <p>@provider.Description</p>
                 </div>
                 <AppStatusBadge Text="@provider.HealthLabel" Tone="@provider.HealthTone" />
             </div>
 
-            <section class="metadata-detail-layout">
-                <div class="metadata-detail-main">
-                    @ProviderConfiguration(provider)
-                </div>
-                <aside class="metadata-detail-aside">
-                    <AppCard Class="metadata-summary-card">
-                        <SettingsSectionHeader Title="Used During Ingestion" Description="Roles are derived from the active media pipelines." />
-                        <div class="metadata-provider-stage-list">
-                            @foreach (var participation in provider.Participations)
-                            {
-                                <div>
-                                    <span class="metadata-stage-number">@participation.Stage</span>
-                                    <span><strong>@MetadataSettingsStateService.MediaTypeLabel(participation.MediaType)</strong><small>@participation.StageLabel</small></span>
-                                    <AppChip Text="@participation.RoleLabel" Tone="@RoleTone(participation.RoleLabel)" />
+            @if (NotUsedInAnyFlow(provider))
+            {
+                <AppAlert Tone="AppUiTone.Info" data-testid="provider-not-in-flow">
+                    Not used in any flow yet. Add it to @MetadataSettingsStateService.MediaTypeLabel(provider.MediaTypes[0]) on the
+                    <a href="/settings/metadata/ingestion-flow">Ingestion Flow</a>.
+                </AppAlert>
+            }
+
+            <AppTabs Label="Provider sections" ActivePanelIndex="@_detailTab" ActivePanelIndexChanged="@(index => _detailTab = index)">
+                <AppTabPanel Text="Overview" Icon="@AppMaterialIcons.Outlined.Dashboard">
+                    <section class="metadata-detail-layout">
+                        <div class="metadata-detail-main">
+                            <AppCard Class="metadata-summary-card">
+                                <SettingsSectionHeader Title="Used During Ingestion" Description="Roles are derived from the active media pipelines." />
+                                <div class="metadata-provider-stage-list">
+                                    @foreach (var participation in provider.Participations)
+                                    {
+                                        <div>
+                                            <span class="metadata-stage-number">@participation.Stage</span>
+                                            <span><strong>@MetadataSettingsStateService.MediaTypeLabel(participation.MediaType)</strong><small>@participation.StageLabel</small></span>
+                                            <AppChip Text="@participation.RoleLabel" Tone="@RoleTone(participation.RoleLabel)" />
+                                        </div>
+                                    }
                                 </div>
-                            }
+                            </AppCard>
                         </div>
+                        <aside class="metadata-detail-aside">
+                            <AppCard Class="metadata-summary-card">
+                                <SettingsSectionHeader Title="What This Provider Supplies" />
+                                <div class="metadata-capability-grid">
+                                    @foreach (var output in ProviderOutputs(provider))
+                                    {
+                                        <div><AppMaterialIcon Icon="@CapabilityIcon(output)" /><span>@output</span></div>
+                                    }
+                                </div>
+                            </AppCard>
+                            <AppCard Class="metadata-next-card">
+                                <SettingsSectionHeader Title="What Happens Next" Icon="@AppMaterialIcons.Outlined.Info" />
+                                <p>@NextStepCopy(provider)</p>
+                                <AppButton Label="View Ingestion Flow" Href="/settings/metadata/ingestion-flow" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
+                            </AppCard>
+                        </aside>
+                    </section>
+                </AppTabPanel>
+                <AppTabPanel Text="Settings" Icon="@AppMaterialIcons.Outlined.Settings">
+                    @ProviderConfiguration(provider)
+                    @SaveBar()
+                </AppTabPanel>
+                <AppTabPanel Text="Activity" Icon="@AppMaterialIcons.Outlined.History">
+                    <AppCard Class="metadata-provider-configuration">
+                        @ProviderConnection(provider)
                     </AppCard>
-                    <AppCard Class="metadata-summary-card">
-                        <SettingsSectionHeader Title="What This Provider Supplies" />
-                        <div class="metadata-capability-grid">
-                            @foreach (var output in ProviderOutputs(provider))
-                            {
-                                <div><AppMaterialIcon Icon="@CapabilityIcon(output)" /><span>@output</span></div>
-                            }
-                        </div>
-                    </AppCard>
-                    <AppCard Class="metadata-next-card">
-                        <SettingsSectionHeader Title="What Happens Next" Icon="@AppMaterialIcons.Outlined.Info" />
-                        <p>@NextStepCopy(provider)</p>
-                        <AppButton Label="View Ingestion Flow" Href="/settings/metadata/ingestion-flow" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
-                    </AppCard>
-                </aside>
-            </section>
-            @SaveBar()
+                </AppTabPanel>
+            </AppTabs>
         }
     </div>;
 
@@ -263,7 +284,6 @@
             <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><span><strong>Provides</strong><small>@string.Join(", ", ProviderOutputs(provider)).</small></span></div>
             <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.NetworkCheck" /><span><strong>Connection status</strong><small>@ConnectionCopy(provider)</small></span></div>
         </div>
-        @ProviderConnection(provider)
         <div class="metadata-provider-fields">
             <AppSwitchRow Label="Provider enabled"
                           Description="@(provider.RequiredSystemProvider ? "Required system providers cannot be disabled." : "Disabled providers are skipped during metadata work.")"
@@ -324,63 +344,7 @@
     </section>;
 
     private RenderFragment IngestionFlowPage() => @<div class="metadata-experience metadata-flow-page">
-        <AppCard Title="Ingestion Flow" Description="See which providers run for each media type, their role, and the results they add to your library.">
-        <div class="metadata-flow-intro">
-            <div class="metadata-provider-toolbar">
-                <div class="metadata-filter-row" aria-label="Filter ingestion flow">
-                    @foreach (var filter in FlowFilters)
-                    {
-                        <AppChip Text="@filter.Label" Icon="@filter.Icon" Class="@FilterClass(_flowFilter, filter.Value)" OnClick="@(() => _flowFilter = filter.Value)" />
-                    }
-                </div>
-                <AppTextField Value="@_flowSearch"
-                              ValueChanged="@(value => _flowSearch = value ?? string.Empty)"
-                              Placeholder="Search media type"
-                              Adornment="AppAdornment.Start"
-                              AdornmentIcon="@AppMaterialIcons.Outlined.Search"
-                              Class="metadata-search" />
-            </div>
-        </div>
-
-        <div class="metadata-flow-table" role="table" aria-label="Configured ingestion flow">
-            <div class="metadata-flow-header" role="row">
-                <span role="columnheader">Media type</span><span role="columnheader">1. Identify &amp; initial metadata</span><span role="columnheader">2. Canonical identity</span><span role="columnheader">3. Enrichment after match</span><span role="columnheader">Results you get</span>
-            </div>
-            @foreach (var flow in FilteredFlows)
-            {
-                <article class="metadata-flow-row" role="row">
-                    <div class="metadata-flow-media" role="cell"><span class="metadata-icon-box"><AppMaterialIcon Icon="@flow.Icon" /></span><span><strong>@flow.Label</strong><small>@flow.Lane · @flow.Strategy</small></span></div>
-                    <div class="metadata-flow-stage" role="cell" data-label="Identify & initial metadata">@FlowParticipants(flow.Identification)</div>
-                    <div class="metadata-flow-stage" role="cell" data-label="Canonical identity">@FlowParticipants(flow.CanonicalIdentity)</div>
-                    <div class="metadata-flow-stage" role="cell" data-label="Enrichment after match">@FlowParticipants(flow.Enrichment)</div>
-                    <div class="metadata-flow-results" role="cell" data-label="Results you get">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />
-                        <span>@(flow.Results.Count == 0 ? "No active provider outputs" : string.Join(", ", flow.Results))</span>
-                    </div>
-                </article>
-            }
-        </div>
-        </AppCard>
-        <AppAlert Tone="AppUiTone.Info">Order and roles come from the active Engine configuration. Disabled or incomplete providers remain visible so gaps are clear.</AppAlert>
-    </div>;
-
-    private RenderFragment FlowParticipants(IReadOnlyList<MetadataFlowParticipant> participants) => @<div class="metadata-flow-participants">
-        @if (participants.Count == 0)
-        {
-            <span class="metadata-not-configured">Not configured</span>
-        }
-        else
-        {
-            @foreach (var participant in participants)
-            {
-                <div class="metadata-flow-provider @(participant.Enabled && !participant.NeedsSetup ? null : "is-inactive")">
-                    <AppProviderLogo ImageUrl="@participant.LogoUrl" Icon="@participant.Icon" AccentColor="@participant.AccentColor"
-                                     FallbackText="@Initials(participant.DisplayName)" Size="AppControlSize.Compact" AltText="" />
-                    <span><a href="@ProviderRoute(participant.ProviderKey)">@participant.DisplayName</a><small>@string.Join(" · ", participant.Outputs)</small></span>
-                    <AppChip Text="@(participant.NeedsSetup ? "Needs setup" : participant.RoleLabel)" Tone="@(participant.NeedsSetup ? AppUiTone.Warning : RoleTone(participant.RoleLabel))" />
-                </div>
-            }
-        }
+        <IngestionFlowEditor Snapshot="@_snapshot" />
     </div>;
 
     private RenderFragment SaveBar() => @<footer class="metadata-savebar">
@@ -531,13 +495,6 @@
             || ProviderSearchText(provider).Contains(_providerSearch.Trim(), StringComparison.OrdinalIgnoreCase))
         .ToList();
 
-    private IReadOnlyList<MetadataMediaPipeline> FilteredFlows => _snapshot!.MediaPipelines
-        .Where(flow => _flowFilter == "all" || string.Equals(flow.Lane, _flowFilter, StringComparison.OrdinalIgnoreCase))
-        .Where(flow => string.IsNullOrWhiteSpace(_flowSearch)
-            || flow.Label.Contains(_flowSearch.Trim(), StringComparison.OrdinalIgnoreCase)
-            || flow.MediaType.Contains(_flowSearch.Trim(), StringComparison.OrdinalIgnoreCase))
-        .ToList();
-
     private bool MatchesProviderFilter(MetadataProviderInventoryItem provider) => _providerFilter switch
     {
         "read" or "watch" or "listen" => provider.Lanes.Contains(_providerFilter, StringComparer.OrdinalIgnoreCase),
@@ -590,14 +547,6 @@
         ? ProviderFilters.Where(filter => filter.Value is "all" or "needs-setup" or "disabled").ToList()
         : ProviderFilters;
 
-    private static readonly IReadOnlyList<MetadataFilterOption> FlowFilters =
-    [
-        new("all", "All", AppMaterialIcons.Outlined.Apps),
-        new("read", "Read", AppMaterialIcons.Outlined.MenuBook),
-        new("watch", "Watch", AppMaterialIcons.Outlined.PlayCircleOutline),
-        new("listen", "Listen", AppMaterialIcons.Outlined.Headphones),
-    ];
-
     private static string ProviderRoute(string providerKey) => $"/settings/metadata/providers/{Uri.EscapeDataString(providerKey.ToLowerInvariant())}";
     private static string FilterClass(string current, string value) => string.Equals(current, value, StringComparison.OrdinalIgnoreCase) ? "metadata-filter is-active" : "metadata-filter";
     private static string Initials(string name) => string.Concat(name.Split([' ', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries).Take(2).Select(word => char.ToUpperInvariant(word[0])));
@@ -624,10 +573,27 @@
     {
         var value = provider.Status?.ConnectionCheckedAt
             ?? provider.Status?.LastSuccessAt ?? provider.Status?.LastFailureAt;
-        return string.IsNullOrWhiteSpace(value)
-            ? "Connection status uses the last recorded Engine check."
-            : $"Last recorded provider check: {value}";
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Not checked yet.";
+        }
+
+        if (!DateTimeOffset.TryParse(value, out var when))
+        {
+            return "Last checked a while ago.";
+        }
+
+        var words = StateCardHealth.RelativeTime(when, DateTimeOffset.UtcNow);
+        return words.EndsWith("ago", StringComparison.Ordinal) || words == "Just now"
+            ? $"Last checked {words.ToLowerInvariant()}."
+            : $"Last checked on {words}.";
     }
+
+    // A source that identifies media but is in no media type's flow (a newly added plugin) says so, with a way to put it to work.
+    private static bool NotUsedInAnyFlow(MetadataProviderInventoryItem provider) =>
+        provider.Catalogue.HydrationStages.Contains(1)
+        && provider.MediaTypes.Count > 0
+        && !provider.Participations.Any(item => item.Stage == 1);
     private static string NextStepCopy(MetadataProviderInventoryItem provider) => provider.Participations.Any(item => item.Stage == 1) ? "After a successful match, canonical identity is established before optional post-match enrichment adds any remaining details." : provider.Participations.Any(item => item.Stage == 2) ? "Canonical identity makes the item available for relationship, people, artwork, lyric, or subtitle enrichment." : "These optional outputs are added only after the item has been identified.";
     private static AppUiTone RoleTone(string role) => role switch { "Primary" or "Required" => AppUiTone.Primary, "Secondary" or "Fallback" => AppUiTone.Info, "Optional" => AppUiTone.Neutral, _ => AppUiTone.Neutral };
     private static string CapabilityIcon(string value) => value.ToLowerInvariant() switch { var text when text.Contains("identity") => AppMaterialIcons.Outlined.Fingerprint, var text when text.Contains("rating") => AppMaterialIcons.Outlined.StarOutline, var text when text.Contains("people") || text.Contains("portrait") => AppMaterialIcons.Outlined.People, var text when text.Contains("cover") || text.Contains("poster") || text.Contains("background") || text.Contains("logo") => AppMaterialIcons.Outlined.Image, var text when text.Contains("lyric") => AppMaterialIcons.Outlined.Lyrics, var text when text.Contains("subtitle") || text.Contains("text track") => AppMaterialIcons.Outlined.Subtitles, var text when text.Contains("relationship") => AppMaterialIcons.Outlined.AccountTree, _ => AppMaterialIcons.Outlined.Description };

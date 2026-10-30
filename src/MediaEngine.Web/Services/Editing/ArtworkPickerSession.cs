@@ -15,7 +15,7 @@ public sealed record ArtworkPickerPicture(Guid AssetId, string ThumbnailUrl, str
 /// <summary>Which tabs the picker offers and how a slot maps to the Engine's artwork roles.</summary>
 public static class ArtworkPickerRules
 {
-    private static readonly string[] SlotOrder = ["Background", "CoverArt", "Headshot", "Logo", "SeasonPoster", "SeasonThumb", "EpisodeStill"];
+    private static readonly string[] SlotOrder = ["Background", "CoverArt", "Headshot", "CharacterPortrait", "Logo", "SeasonPoster", "SeasonThumb", "EpisodeStill"];
 
     /// <summary>The tabs for the slots an item can hold: Background, Poster (Cover for books, comics and music) and Logo, or the season and episode pictures.</summary>
     public static IReadOnlyList<ArtworkPickerTab> TabsFor(IReadOnlyList<string> slots, string? mediaType)
@@ -34,7 +34,7 @@ public static class ArtworkPickerRules
     {
         "coverart" or "seasonposter" or "episodestill" => "Primary",
         "background" or "seasonthumb" => "Background",
-        "headshot" => "Portrait",
+        "headshot" or "characterportrait" => "Portrait",
         "logo" => "Logo",
         _ => null,
     };
@@ -43,6 +43,7 @@ public static class ArtworkPickerRules
     {
         "coverart" => coverLabel,
         "headshot" => "Photo",
+        "characterportrait" => "Portrait",
         "background" => "Background",
         "logo" => "Logo",
         "seasonposter" => "Season poster",

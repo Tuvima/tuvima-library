@@ -128,8 +128,8 @@ public static class SettingsEndpoints
     {
         var grp = app.MapGroup("/settings").WithTags("Settings");
         grp.MapLibraryMutations();
-        grp.MapLibraryAccess();
         grp.MapVaultLibraries();
+        grp.MapVaultMoves();
 
         grp.MapGet("/security/auth", (AuthenticationProviderConfigurationService providerConfiguration, IConfigurationLoader configLoader) =>
         {
@@ -428,7 +428,7 @@ public static class SettingsEndpoints
         .Produces<IReadOnlyList<MediaEngine.Contracts.Settings.LibraryKindDto>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
 
-        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, [FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService libraryKinds, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Libraries.FolderFirstCheckService firstChecks, [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Libraries.LibraryAccessChangeService accessChanges, CancellationToken ct) =>
+        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, [FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService libraryKinds, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Libraries.FolderFirstCheckService firstChecks, CancellationToken ct) =>
         {
             await LibraryMutationEndpoints.WriteGate.WaitAsync(ct);
             try
@@ -464,7 +464,7 @@ public static class SettingsEndpoints
                     return ApiErrors.BadRequest(sourceError);
                 }
 
-                // Vault-protected is never switched on or off here, and a library whose access changed starts with no profiles chosen.
+                // Vault-protected is never switched on or off here.
                 var accessError = MediaEngine.Api.Services.Libraries.LibraryAccessChangeService.Validate(
                     configLoader.LoadLibraries(), MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds), vaultIds);
                 if (accessError is not null)
@@ -472,9 +472,6 @@ public static class SettingsEndpoints
                     return ApiErrors.BadRequest(accessError);
                 }
 
-                await accessChanges.ClearChangedAsync(
-                    MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(configLoader.LoadLibraries(), vaultIds),
-                    MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds), ct);
                 await firstChecks.SaveLibrariesWithFirstChecksAsync(configLoader.SaveLibraries, configLoader.LoadLibraries(), config, vaultIds, ct);
                 await folderJobs.StopJobsForUnmanagedFoldersAsync(config, ct);
                 await importFolder.ApplyAsync(ct);
@@ -1240,6 +1237,34 @@ public static class SettingsEndpoints
         .WithName("SavePipelines")
         .WithDescription("Save pipeline configuration")
         .Produces<SettingsSavedResponse>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministrator();
+
+        // ── PUT /settings/pipelines/flow ─────────────────────────────────
+        grp.MapPut("/pipelines/flow", (
+            MediaEngine.Contracts.Settings.PipelineFlowSaveRequest request,
+            MediaEngine.Api.Services.Settings.PipelineFlowEditor editor) =>
+        {
+            var result = editor.Save(request);
+            return result.Saved
+                ? Results.Ok(result)
+                : Results.Problem(
+                    title: "The flow was not saved",
+                    detail: result.Problems[0].Message,
+                    statusCode: StatusCodes.Status400BadRequest,
+                    extensions: new Dictionary<string, object?> { ["problems"] = result.Problems });
+        })
+        .WithName("SavePipelineFlow")
+        .WithSummary("Save the order, role and on/off of providers per media type. Applies to new ingestion only.")
+        .Produces<MediaEngine.Contracts.Settings.PipelineFlowSaveResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministrator();
+
+        // ── GET /settings/pipelines/options ──────────────────────────────
+        grp.MapGet("/pipelines/options", (MediaEngine.Api.Services.Settings.PipelineFlowEditor editor) =>
+            Results.Ok(editor.Options()))
+        .WithName("GetPipelineFlowOptions")
+        .WithSummary("Installed providers that can be added to a media type's ingestion flow.")
+        .Produces<MediaEngine.Contracts.Settings.PipelineFlowOptionsResponse>(StatusCodes.Status200OK)
         .RequireEffectiveAdministrator();
 
         // ── GET /settings/media-types ──────────────────────────────────────────

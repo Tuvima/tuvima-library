@@ -6,7 +6,7 @@ namespace MediaEngine.Web.Tests;
 /// Keeps the Dashboard on one width scale. New CSS may only use the 600 / 840 / 1180 breakpoints and
 /// the existing tokens (640, 960); older off-scale literals are listed in the allow-list fixture and
 /// shrink over time. A bare <c>100vh</c> is refused: keep it only as a fallback line next to its <c>100dvh</c> twin.
-/// See docs/reference/ui-supported-devices.md.
+/// See the supported-devices page on docs.tuvima.com.
 /// </summary>
 public sealed partial class ResponsiveBreakpointGuardrailTests
 {
@@ -34,7 +34,7 @@ public sealed partial class ResponsiveBreakpointGuardrailTests
             offenders.Count == 0,
             "New CSS breakpoints must use 600px, 840px or 1180px (or the existing 640px / 960px tokens). Off-scale values: "
             + string.Join("; ", offenders.Distinct())
-            + ". See docs/reference/ui-supported-devices.md.");
+            + ". See the supported-devices page on docs.tuvima.com.");
     }
 
     [Fact]

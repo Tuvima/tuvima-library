@@ -88,6 +88,29 @@ public static class ImportFolderRules
     /// <summary>Name of the folder, inside the import folder, that Tuvima uses for its own working files. It is never scanned for media.</summary>
     public const string WorkingFolderName = ".data";
 
+    /// <summary>The Import folder's section for photos. Library files what lands here by the date it was taken; the catalogue pipeline never reads it.</summary>
+    public const string PhotosSectionName = "Photos";
+
+    /// <summary>The Import folder's section for personal videos. Same rules as <see cref="PhotosSectionName"/>.</summary>
+    public const string PersonalVideosSectionName = "Personal videos";
+
+    /// <summary>The sections the personal photo and video filer owns inside the import folder (Photo and video filing spec D1, D18).</summary>
+    public static IReadOnlyList<string> ViewSections { get; } = [PhotosSectionName, PersonalVideosSectionName];
+
+    /// <summary>
+    /// True when <paramref name="path"/> is inside one of the personal photo or video sections of the import folder. The catalogue
+    /// pipeline leaves these alone: they belong to the View filer, which files them by the date they were taken.
+    /// </summary>
+    public static bool IsViewSectionPath(string importPath, string path)
+    {
+        if (string.IsNullOrWhiteSpace(importPath) || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        return ViewSections.Any(section => IsInside(Path.Combine(importPath, section), path));
+    }
+
     /// <summary>True when <paramref name="path"/> is the import folder or anywhere inside it.</summary>
     public static bool IsInside(string importPath, string path)
     {

@@ -72,6 +72,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     private const string DisambiguationFileName = "disambiguation.json";
     private const string TranscodingFileName = "transcoding.json";
     private const string OcrFileName = "ocr.json";
+    private const string PhotoFilingFileName = "photo_filing.json";
     private const string ToolDownloadsFileName = "tool_downloads.json";
     private const string NetworkFileName = "network.json";
     private const string FieldPrioritiesFileName = "field_priorities.json";
@@ -187,6 +188,14 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
         SaveFile(OcrFileName, settings);
 
     /// <inheritdoc/>
+    public PhotoFilingSettings LoadPhotoFiling() =>
+        LoadFile<PhotoFilingSettings>(PhotoFilingFileName) ?? new();
+
+    /// <inheritdoc/>
+    public void SavePhotoFiling(PhotoFilingSettings settings) =>
+        SaveFile(PhotoFilingFileName, settings);
+
+    /// <inheritdoc/>
     public ToolDownloadSettings LoadToolDownloads()
     {
         var settings = LoadFile<ToolDownloadSettings>(ToolDownloadsFileName) ?? new();
@@ -248,7 +257,23 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
 
     /// <inheritdoc/>
     public LibrariesConfiguration LoadLibraries() =>
-        LoadFile<LibrariesConfiguration>(LibrariesFileName) ?? new();
+        LoadFile<LibrariesConfiguration>(LibrariesFileName) ?? FreshLibraries();
+
+    // A fresh install has no libraries.json. Without a storage location for View, every library save is refused, so start
+    // from the same one the shipped file names.
+    private static LibrariesConfiguration FreshLibraries() => new()
+    {
+        StorageLocations =
+        [
+            new()
+            {
+                Id = "media",
+                Label = "Library data",
+                Path = TuvimaDataPaths.ExpandConfigToken("{TuvimaData}/library") ?? string.Empty,
+                AllowWrite = true,
+            },
+        ],
+    };
 
     /// <inheritdoc/>
     public void SaveLibraries(LibrariesConfiguration config)

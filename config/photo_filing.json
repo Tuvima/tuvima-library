@@ -1,0 +1,14 @@
+{
+  "_comment": "How photos and personal videos that arrive in Library's Import area are filed. The layout uses {year}, {month} and {day} (the date taken); the file keeps its own name. Refused files stay in the Rejected area for rejected_retention_days. A file must stay unchanged for settle_seconds before it is filed.",
+
+  "layout_pattern": "{year}/{year}-{month}-{day}",
+  "rejected_retention_days": 30,
+  "settle_seconds": 30,
+  "scan_interval_seconds": 60,
+  "max_files_per_pass": 500,
+
+  "_comment_duplicates": "The duplicates cleanup job finds exact copies already inside a space or the Shared Library and writes a report for administrators; nothing is removed without a person choosing it.",
+  "duplicate_scan_enabled": true,
+  "duplicate_scan_hour": 3,
+  "tidy_hour": 2
+}

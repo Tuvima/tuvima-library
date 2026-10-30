@@ -98,13 +98,14 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         var cut = Render<PluginSettingsTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-state-card=plugin]").Count));
-        Assert.Equal("Plugins", cut.Find(".app-list-page-header__title").TextContent);
-        Assert.Contains("Manage extensions and integrations", cut.Markup);
+        // The page name appears once (in the Settings page header), never again inside the list.
+        Assert.Empty(cut.FindAll(".app-list-page-header__title"));
+        Assert.Contains("Upload plugin", cut.Find(".app-list-page-header__actions").TextContent);
         var strip = Squash(cut.Find(".app-summary-strip"));
         Assert.Contains("3installed", strip);
         Assert.Contains("2switchedon", strip);
         Assert.Contains("0needattention", strip);
-        Assert.Contains("Showing 3 of 3 plugins", cut.Markup);
+        Assert.Empty(cut.FindAll(".app-pager"));
     }
 
     [Fact]
@@ -397,17 +398,17 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MoreThanTwelvePlugins_PageThroughTheList()
+    public void MoreThanTwentyFourPlugins_PageThroughTheList()
     {
-        _plugins = Enumerable.Range(1, 13).Select(i => Plugin("p" + i, "Plugin" + i.ToString("00"), enabled: true)).ToList();
+        _plugins = Enumerable.Range(1, 25).Select(i => Plugin("p" + i, "Plugin" + i.ToString("00"), enabled: true)).ToList();
         var cut = Render<PluginSettingsTab>();
-        cut.WaitForAssertion(() => Assert.Equal(12, CardCount(cut)));
-        Assert.Contains("Showing 12 of 13 plugins", cut.Markup);
+        cut.WaitForAssertion(() => Assert.Equal(24, CardCount(cut)));
+        Assert.Contains("Showing 24 of 25 plugins", cut.Markup);
 
         cut.FindAll(".app-pager__pages button").First(button => button.TextContent.Trim() == "Next").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
-        Assert.Contains("Plugin13", cut.Find("[data-state-card=plugin]").TextContent);
+        Assert.Contains("Plugin25", cut.Find("[data-state-card=plugin]").TextContent);
     }
 
     [Fact]

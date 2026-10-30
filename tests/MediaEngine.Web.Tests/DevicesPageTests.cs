@@ -12,21 +12,22 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>Settings &gt; Personal &gt; Security &gt; Devices: where it sits in the menu, who can open it, and that the old Server entry is gone.</summary>
+/// <summary>Settings &gt; Personal &gt; Security &amp; Devices: its two tabs, who can open them, and that the old Server entry is gone.</summary>
 public sealed class DevicesNavTests
 {
     [Fact]
-    public void Devices_IsTheOnlyChildOfSecurity_AtTheSecurityDevicesAddress()
+    public void SecurityAndDevices_HasSignInThenDevicesAndSessionsAsTabs_AtTheSecurityDevicesAddress()
     {
         var personal = SettingsNav.MenuGroups.Single(group => group.Key == "personal");
         var security = personal.Nodes.Single(node => node.Section == SettingsSection.Security);
 
-        var devices = Assert.Single(security.Children);
-        Assert.Equal("Devices", devices.Label);
+        Assert.Equal("Security & Devices", security.Label);
+        Assert.Equal(["Sign-in", "Devices & Sessions"], security.Tabs.Select(tab => tab.Label));
+        var devices = security.Tabs[1];
         Assert.Equal(SettingsSection.Security, devices.Section);
         Assert.Equal("devices", devices.Subsection);
         Assert.Equal("/settings/security/devices", devices.Route);
-        // Security still opens on the sign-in page; its child is a different page.
+        // The page still opens on the sign-in tab.
         Assert.Equal("/settings/security", security.Route);
         Assert.Equal("/settings/security", SettingsNav.RouteFor(SettingsSection.Security));
         Assert.Equal("/settings/security/devices", SettingsNav.RouteFor(SettingsSection.Security, "devices"));
@@ -38,13 +39,13 @@ public sealed class DevicesNavTests
     {
         var server = SettingsNav.MenuGroups.Single(group => group.Key == "server");
 
-        Assert.DoesNotContain(SettingsNav.Flatten(server.Nodes), node => node.Label == "Devices");
+        Assert.DoesNotContain(server.Nodes, node => node.Label == "Devices" || node.Tabs.Any(tab => tab.Label == "Devices"));
         Assert.DoesNotContain(SettingsNav.AllItems, item => item.Slug == "devices" || item.Aliases.Contains("apps"));
         Assert.DoesNotContain(SettingsNav.GetSubsections(SettingsSection.Network), subsection => subsection.Slug == "apps");
 
         foreach (var segment in new[] { "devices", "apps" })
         {
-            var resolution = SettingsNav.ResolveRoute(segment, administrationAllowed: true, householdAdministrator: true);
+            var resolution = SettingsNav.ResolveRoute(segment, administrationAllowed: true);
             Assert.False(resolution.IsKnownRoute);
             Assert.Equal("/not-found", resolution.CanonicalRoute);
         }
@@ -54,53 +55,52 @@ public sealed class DevicesNavTests
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public void Devices_IsInTheMenuAndReachableForEveryKindOfSignedInPerson(bool server, bool household)
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SecurityAndDevices_IsInTheMenuAndReachableForEveryKindOfSignedInPerson(bool server)
     {
-        Assert.True(SettingsNav.IsVisible(SettingsSection.Security, server, household));
-        var resolution = SettingsNav.ResolveRoute("security", server, household);
+        Assert.True(SettingsNav.IsVisible(SettingsSection.Security, server));
+        var resolution = SettingsNav.ResolveRoute("security", server);
         Assert.True(resolution.RequestedSectionAllowed);
 
-        var groups = SettingsNav.FilteredMenuGroups(server, household);
-        var security = SettingsNav.Flatten(groups.Single(group => group.Key == "personal").Nodes)
-            .Single(node => node.Section == SettingsSection.Security && node.Subsection is null);
-        Assert.Equal(["Devices"], security.Children.Select(child => child.Label));
+        var groups = SettingsNav.FilteredMenuGroups(server);
+        var security = groups.Single(group => group.Key == "personal").Nodes.Single(node => node.Section == SettingsSection.Security);
+        Assert.Equal(["Sign-in", "Devices & Sessions"], security.Tabs.Select(tab => tab.Label));
 
         var location = SettingsNav.FindMenuLocation(SettingsSection.Security, "devices");
         Assert.NotNull(location);
-        Assert.Equal(["Security", "Devices"], location.Trail.Select(node => node.Label));
+        Assert.Equal("Security & Devices", location.Page.Label);
+        Assert.Equal("Devices & Sessions", location.Tab?.Label);
         Assert.Equal("personal", location.Group.Key);
     }
 
     [Fact]
-    public void Devices_ShowsInThePhonePageSelectorUnderSecurity()
+    public void SecurityAndDevices_ShowsOnceInThePhonePageSelector_AndItsTabsAreOnThePage()
     {
         var context = new MediaEngine.Web.Services.Navigation.SettingsMenuContext(
-            AdministrationAllowed: false, HouseholdAdministrator: false, IsMobile: true, ReviewCount: 0, SecurityNeedsAttention: false);
+            AdministrationAllowed: false, IsMobile: true, ReviewCount: 0, SecurityNeedsAttention: false);
 
         var selector = MediaEngine.Web.Services.Navigation.SettingsMenuBuilder.BuildPhoneSelector(
             MediaEngine.Web.Services.Navigation.SettingsMenuBuilder.Build(context));
 
         var lines = selector.Single().Options;
-        var security = lines.Single(line => line.Label == "Security");
-        var devices = lines.Single(line => line.Label == "Devices");
-        Assert.Equal("/settings/security/devices", devices.Route);
-        Assert.Equal(security.Depth + 1, devices.Depth);
+        var security = lines.Single(line => line.Label == "Security & Devices");
+        Assert.Equal("/settings/security", security.Route);
+        Assert.DoesNotContain(lines, line => line.Label is "Devices" or "Devices & Sessions");
     }
 
     [Fact]
-    public void ARestrictedKidsProfileNeverReachesTheSettingsPageThatHostsDevices()
+    public void ARestrictedKidsProfileOnlyReachesProfile_NotTheSettingsPageThatHostsDevices()
     {
         var root = RepositoryRoot();
         var settings = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
 
-        // Settings turns a Kids profile away before it draws any page, Security's Devices child included.
-        Assert.Contains("_kidsBlocked = _activeProfile?.IsRestricted == true;", settings, StringComparison.Ordinal);
-        Assert.True(settings.IndexOf("@if (_kidsBlocked)", StringComparison.Ordinal) < settings.IndexOf("<DevicesTab />", StringComparison.Ordinal));
-        Assert.Contains("if (_kidsBlocked)", settings[settings.IndexOf("private void ResolveSectionAndNormalize()", StringComparison.Ordinal)..], StringComparison.Ordinal);
+        // A Kids profile never reaches Settings: every Settings address goes Home, and the menu lists nothing else.
+        Assert.Contains("_restricted = _activeProfile?.IsRestricted == true;", settings, StringComparison.Ordinal);
+        var resolve = settings[settings.IndexOf("private void ResolveSectionAndNormalize()", StringComparison.Ordinal)..];
+        Assert.Contains("if (_restricted)", resolve, StringComparison.Ordinal);
+        Assert.False(SettingsNav.IsVisible(SettingsSection.Security, administrationAllowed: false, restricted: true));
+        Assert.False(SettingsNav.ResolveRoute("security", administrationAllowed: false, restricted: true).RequestedSectionAllowed);
     }
 
     [Fact]
@@ -120,10 +120,6 @@ public sealed class DevicesNavTests
             Assert.DoesNotContain("AppsAndDevicesPanel", text, StringComparison.Ordinal);
             Assert.DoesNotContain("LegacyRedirect", text, StringComparison.Ordinal);
         }
-
-        var presentationRules = File.ReadAllText(Path.Combine(root, "docs", "product", "presentation-rules.md"));
-        Assert.DoesNotContain("Administration > Devices", presentationRules, StringComparison.Ordinal);
-        Assert.Contains("/settings/security/devices", presentationRules, StringComparison.Ordinal);
     }
 
     private static string RepositoryRoot()

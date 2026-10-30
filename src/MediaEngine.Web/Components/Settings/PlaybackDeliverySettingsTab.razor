@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 
-@* Streaming. It opens on Limits and Quality; Hardware Acceleration, Optimized Copies and Diagnostics are its sub-pages.
-   The playback tools and services status lives on Tools and requirements. *@
+@* Streaming. It opens on Limits & Quality; Hardware Acceleration, Optimized Copies and Diagnostics are its other tabs.
+   The playback tools and services status shows once, under Diagnostics. *@
 <section class="tl-page playback-delivery"
          data-delivery-section="@ActiveSection"
          aria-label="@ActiveSectionLabel">
@@ -15,6 +15,7 @@
             break;
         case "diagnostics":
             <EncodeSettingsTab @key="ActiveSection" Section="diagnostics" />
+            <PlaybackToolsStatusCard />
             break;
         default:
             <StreamingLimitsSettingsTab />
