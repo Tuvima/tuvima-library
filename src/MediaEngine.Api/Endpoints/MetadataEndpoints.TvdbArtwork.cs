@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Providers.Services;
 
@@ -13,7 +14,7 @@ namespace MediaEngine.Api.Endpoints;
 public static partial class MetadataEndpoints
 {
     private static async Task<string?> ResolveTvdbArtworkIdAsync(
-        EditorScopeResolution scope, ICanonicalValueRepository canonicals, CancellationToken ct)
+        EditorScopeResolution scope, ICanonicalValueRepository canonicals, ArtworkScopeService scopes, CancellationToken ct)
     {
         var key = scope.ScopeId switch
         {
@@ -27,12 +28,18 @@ public static partial class MetadataEndpoints
             return null;
         }
         var values = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
-        var source = GetCanonicalValue(values, MetadataFieldConstants.IdentityProvider);
-        if (!string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase))
+        var id = GetCanonicalValue(values, key);
+        if (string.IsNullOrWhiteSpace(id))
         {
             return null;
         }
-        return GetCanonicalValue(values, key);
+        // TV is identified by TheTVDB only, and the scan records the provider on the matched file rather
+        // than on the show, so the scope's own TheTVDB id is itself the confirmation unless another
+        // provider is named.
+        var source = GetCanonicalValue(values, MetadataFieldConstants.IdentityProvider)
+            ?? GetCanonicalValue(await scopes.ResolveSharedIdentityValuesAsync(scope, ct), MetadataFieldConstants.IdentityProvider);
+        return string.IsNullOrWhiteSpace(source) || string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase)
+            ? id : null;
     }
 
     private static async Task<IReadOnlyList<(string Role, string AssetType, ProviderArtworkCandidate Candidate)>>
@@ -109,37 +116,16 @@ public static partial class MetadataEndpoints
         return output;
     }
 
-    private static (string Role, string AssetType)? ClassifyTvdbArtwork(string scope, string name)
-    {
-        var normalized = name.ToLowerInvariant();
-        if (scope == "series")
+    private static (string Role, string AssetType)? ClassifyTvdbArtwork(string scope, string name) =>
+        TvdbArtworkSelection.Classify(scope, name) switch
         {
-            if (normalized.Contains("logo"))
-            {
-                return ("Logo", "Logo");
-            }
-            if (normalized.Contains("background") || normalized.Contains("fanart"))
-            {
-                return ("Background", "Background");
-            }
-            if (normalized.Contains("poster"))
-            {
-                return ("Primary", "CoverArt");
-            }
-        }
-        else if (scope == "season")
-        {
-            if (normalized.Contains("background"))
-            {
-                return ("Background", "SeasonThumb");
-            }
-            if (normalized.Contains("poster"))
-            {
-                return ("Primary", "SeasonPoster");
-            }
-        }
-        return null;
-    }
+            AssetType.Logo => ("Logo", "Logo"),
+            AssetType.Background => ("Background", "Background"),
+            AssetType.CoverArt => ("Primary", "CoverArt"),
+            AssetType.SeasonThumb => ("Background", "SeasonThumb"),
+            AssetType.SeasonPoster => ("Primary", "SeasonPoster"),
+            _ => null,
+        };
 
     private static string? SafeTvdbArtworkUrl(string? value)
     {

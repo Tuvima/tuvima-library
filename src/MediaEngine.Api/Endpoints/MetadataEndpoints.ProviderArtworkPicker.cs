@@ -54,7 +54,8 @@ public static partial class MetadataEndpoints
             {
                 return Results.Ok(new ProviderArtworkDiscoveryDto([], "Provider discovery is not available for this artwork type. Use Match & Identity to check the item's identity."));
             }
-            var requestContext = await ResolveProviderArtworkRequestContextAsync(scope, role, sourceType, canonicals, ct);
+            var requestContext = await ResolveProviderArtworkRequestContextAsync(scope, role, sourceType, canonicals, ct,
+                await ResolveSharedIdentityValuesAsync(scope, scopes, ct));
             if (requestContext is null)
             {
                 return Results.Ok(new ProviderArtworkDiscoveryDto([], "No confirmed provider identity is available for this exact artwork scope. Use Match & Identity first."));
@@ -153,7 +154,8 @@ public static partial class MetadataEndpoints
                 return ApiErrors.BadRequest("Artwork results expired. Reload the provider gallery and try again.");
             }
             var currentContext = await ResolveProviderArtworkRequestContextAsync(
-                scope, role, session.SourceAssetType, canonicals, ct);
+                scope, role, session.SourceAssetType, canonicals, ct,
+                await ResolveSharedIdentityValuesAsync(scope, scopes, ct));
             if (currentContext is null || currentContext != session.Context)
             {
                 return ApiErrors.Conflict("The provider identity or selected artwork context changed. Reload the provider gallery before importing.");
@@ -188,15 +190,27 @@ public static partial class MetadataEndpoints
         string role,
         string sourceAssetType,
         ICanonicalValueRepository canonicals,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyDictionary<string, string>? sharedValues = null)
     {
         var values = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
-        var provider = GetCanonicalValue(values, MetadataFieldConstants.IdentityProvider)?.Trim().ToLowerInvariant();
+        var mediaType = NormalizeEditorMediaType(scope.MediaType);
+        // The scan records which provider identified an item on the file it matched, and a show's
+        // TheTVDB id on the show, so the exact scope often holds one without the other. Fill the
+        // provider (never an id of another scope) from the entities the match was recorded on.
+        var provider = (GetCanonicalValue(values, MetadataFieldConstants.IdentityProvider)
+            ?? (sharedValues is null ? null : GetCanonicalValue(sharedValues, MetadataFieldConstants.IdentityProvider)))
+            ?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(provider) && mediaType == "TV"
+            && !string.IsNullOrWhiteSpace(GetCanonicalValue(values, TvdbIdKeyForScope(scope.ScopeId))))
+        {
+            // TV is identified by TheTVDB only; a TheTVDB id on the scope is the confirmation.
+            provider = "tvdb";
+        }
         if (string.IsNullOrWhiteSpace(provider))
         {
             return null;
         }
-        var mediaType = NormalizeEditorMediaType(scope.MediaType);
         var idKey = (mediaType, scope.ScopeId, provider) switch
         {
             ("TV", "series", "tvdb") => BridgeIdKeys.TvdbId,
@@ -235,4 +249,19 @@ public static partial class MetadataEndpoints
         return new(scope.ScopeId, role, sourceAssetType, provider, providerId.Trim(), release,
             string.IsNullOrWhiteSpace(order) ? null : order);
     }
+
+    private static string TvdbIdKeyForScope(string scopeId) => scopeId switch
+    {
+        "season" => BridgeIdKeys.TvdbSeasonId,
+        "episode" => BridgeIdKeys.TvdbEpisodeId,
+        _ => BridgeIdKeys.TvdbId,
+    };
+
+    /// <summary>
+    /// Values recorded for the same item on the entities its match was written to (the file it was
+    /// scanned from, the show above it), first one wins. Used only to learn which provider matched.
+    /// </summary>
+    private static async Task<IReadOnlyDictionary<string, string>> ResolveSharedIdentityValuesAsync(
+        EditorScopeResolution scope, ArtworkScopeService scopes, CancellationToken ct) =>
+        await scopes.ResolveSharedIdentityValuesAsync(scope, ct);
 }

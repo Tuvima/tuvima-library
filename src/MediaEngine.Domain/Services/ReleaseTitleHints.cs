@@ -6,7 +6,7 @@ namespace MediaEngine.Domain.Services;
 public static class ReleaseTitleHints
 {
     private static readonly Regex TechnicalSuffix = new(
-        @"(?i)(?:\s+[-–]\s+|[ ._]+|\s*\[)(?=(?:2160p|1080[pi]|720p|480p|VC-?1|HEVC|x26[45]|H[.]?26[45]|AV1|BluRay|WEB-DL|WEBRip|BDRemux|REMUX|TrueHD|DTS(?:-HD)?|DDP\d)(?:\b|[ ._-]))[^\r\n]*$",
+        @"(?i)(?:\s+[-–]\s+|[ ._]+|\s*\[)(?=(?:2160p|1080[pi]|720p|480p|VC-?1|AVC|MPEG-?[24]|XviD|DivX|HEVC|x26[45]|H[.]?26[45]|AV1|BluRay|Blu-Ray|WEB-DL|WEBRip|BDRip|BRRip|DVDRip|HDRip|BDRemux|REMUX|TrueHD|DTS(?:-HD)?|DDP\d)(?:\b|[ ._-]))[^\r\n]*$",
         RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
     private static readonly Regex YearSuffix = new(
         @"^(?<title>.+?)\s*[([](?<year>(?:18|19|20)\d{2})[)\]]\s*$",

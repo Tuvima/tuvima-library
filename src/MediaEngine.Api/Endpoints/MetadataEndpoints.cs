@@ -907,7 +907,7 @@ public static partial class MetadataEndpoints
                     mediaType: scope.MediaType));
             }
 
-            if (await ResolveTvdbArtworkIdAsync(scope, canonicalRepo, ct) is { } tvdbId)
+            if (await ResolveTvdbArtworkIdAsync(scope, canonicalRepo, artworkScopeService, ct) is { } tvdbId)
             {
                 if (!tvdb.IsConfigured("tvdb"))
                 {
