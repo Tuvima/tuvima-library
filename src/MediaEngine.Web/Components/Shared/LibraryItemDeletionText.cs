@@ -69,4 +69,11 @@ public static class LibraryItemDeletionText
 /// How the confirmation dialog ended when it did not simply cancel: the titles were deleted, or they were already gone.
 /// <see cref="Noun"/> is "songs" or "titles", for the toast.
 /// </summary>
-public sealed record LibraryItemDeletionDialogResult(LibraryItemDeletionResultDto? Deleted, bool NoLongerInLibrary, string Noun);
+/// <param name="GroupName">For a group delete, the group as the toast names it; null for titles.</param>
+/// <param name="RemovedParent">True when the last season went and took its show with it.</param>
+public sealed record LibraryItemDeletionDialogResult(
+    LibraryItemDeletionResultDto? Deleted,
+    bool NoLongerInLibrary,
+    string Noun,
+    string? GroupName = null,
+    bool RemovedParent = false);

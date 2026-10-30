@@ -51,6 +51,7 @@ else if (Model is not null)
         <EditingBar Mode="_editing"
                     Flow="_flow"
                     CanDelete="@CanDeleteFromLibrary"
+                    GroupDeleteActions="GroupDeleteMenuActions"
                     GuardInternalNavigation="@(Overlay is null)"
                     OnActionSelected="HandleDetailActionAsync" />
 
@@ -64,6 +65,7 @@ else if (Model is not null)
 
             <DetailHero Model="Model"
                         CanDelete="@CanDeleteFromLibrary"
+                        DeleteActions="GroupDeleteMenuActions"
                         OnActionSelected="HandleDetailActionAsync"
                         OnTabRequested="SetActiveTabAsync"
                         ActionAttributes="@(IsAudiobook ? AudiobookActionAttributes : null)" />
@@ -567,8 +569,69 @@ else if (Model is not null)
     private bool CanDeleteFromLibrary =>
         Model is not null
         && !_removed
-        && LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType)
+        && (LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType) || GroupTargets.Count > 0)
         && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>());
+
+    /// <summary>
+    /// The groups this page can delete (Delete a show, season, album or Series D2): a show page offers its show, and also the season
+    /// selected in the season control, which has no page of its own; an album page its album; a book or comic Series page its Series.
+    /// The season comes first so the menu reads "Delete Season 2…" above "Delete show…".
+    /// </summary>
+    private IReadOnlyList<LibraryGroupTarget> GroupTargets
+    {
+        get
+        {
+            if (Model is null || !Guid.TryParse(Model.Id, out var id) || !LibraryItemDeletionFlow.IsGroupPage(Model.EntityType))
+            {
+                return [];
+            }
+
+            var kind = Model.EntityType switch
+            {
+                DetailEntityType.TvShow => LibraryGroupKinds.Show,
+                DetailEntityType.MusicAlbum => LibraryGroupKinds.Album,
+                _ => LibraryGroupKinds.Series,
+            };
+            var owned = (Model.SequencePlacement?.Groups ?? [])
+                .SelectMany(group => group.Items)
+                .Concat(Model.SequencePlacement?.OrderedItems ?? [])
+                .Where(item => item.IsOwned && Guid.TryParse(item.Id, out _))
+                .Select(item => Guid.Parse(item.Id))
+                .Distinct()
+                .ToList();
+            var targets = new List<LibraryGroupTarget>();
+            if (kind == LibraryGroupKinds.Show
+                && SelectedSeasonId is { } seasonId
+                && Model.SequencePlacement?.Groups.FirstOrDefault(group =>
+                    Guid.TryParse(group.EntityId, out var groupId) && groupId == seasonId && group.OwnedCount > 0) is { } season)
+            {
+                targets.Add(new LibraryGroupTarget(seasonId, LibraryGroupKinds.Season, season.Title, season.Items.Where(item => item.IsOwned && Guid.TryParse(item.Id, out _)).Select(item => Guid.Parse(item.Id)).ToList()));
+            }
+
+            targets.Add(new LibraryGroupTarget(id, kind, Model.Title, owned));
+            return targets;
+        }
+    }
+
+    // The "..." entries for a group page; null for a single title, whose menu keeps "Delete from library…".
+    private IReadOnlyList<DetailAction>? GroupDeleteMenuActions
+    {
+        get
+        {
+            var targets = GroupTargets;
+            return targets.Count == 0
+                ? null
+                : [.. targets.Select(target => DetailMenuGrouping.DeleteGroupAction(GroupDeleteLabel(target), target.Kind == LibraryGroupKinds.Season))];
+        }
+    }
+
+    private static string GroupDeleteLabel(LibraryGroupTarget target) => target.Kind switch
+    {
+        LibraryGroupKinds.Season => $"Delete {target.Title}…",
+        LibraryGroupKinds.Show => "Delete show…",
+        LibraryGroupKinds.Album => "Delete album…",
+        _ => "Delete Series…",
+    };
 
     private void UpdateEditingEligibility()
     {
@@ -731,7 +794,7 @@ else if (Model is not null)
         }
     }
 
-    private async Task DeleteFromLibraryAsync()
+    private async Task DeleteFromLibraryAsync(bool season = false)
     {
         if (Model is null || _deleting || _leaving || _removed || !Guid.TryParse(Model.Id, out var workId))
         {
@@ -746,6 +809,7 @@ else if (Model is not null)
 
         if (!LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType))
         {
+            await DeleteGroupAsync(season);
             return;
         }
 
@@ -772,6 +836,43 @@ else if (Model is not null)
         }
     }
 
+    // Delete show, season, album or Series: the dialog asks the Engine for the whole group. Deleting a season leaves the show, so the page
+    // stays and shows the show again; deleting anything else (or the last season) takes the page's own subject, so it closes as for a title.
+    private async Task DeleteGroupAsync(bool season)
+    {
+        var target = GroupTargets.FirstOrDefault(candidate => (candidate.Kind == LibraryGroupKinds.Season) == season);
+        if (target is null)
+        {
+            return;
+        }
+
+        _deleting = true;
+        LibraryItemDeletionDialogResult? answer = null;
+        try
+        {
+            answer = await LibraryItemDeletionFlow.RunGroupAsync(Dialogs, Snackbar, target);
+        }
+        finally
+        {
+            _leaving = answer is not null && (target.Kind != LibraryGroupKinds.Season || answer.RemovedParent);
+            _deleting = false;
+        }
+
+        if (_leaving)
+        {
+            await LeaveAfterRemovalAsync();
+        }
+        else if (answer?.Deleted is not null && target.Kind == LibraryGroupKinds.Season && Guid.TryParse(Model?.Id, out var showId))
+        {
+            // The season is gone; the show page opens on its first season again.
+            DetailsOverlayNavigation.ReplaceAddress(Nav, Overlay, $"/details/tvshow/{showId:D}");
+        }
+        else if (_removedWhileDeleting && !_disposed)
+        {
+            await HandleRemovedByAnotherAsync();
+        }
+    }
+
     // Another window (or another person) deleted the title this page shows.
     private void OnLibraryItemsRemoved(LibraryItemsRemovedEvent removed) => _ = InvokeAsync(async () =>
     {
@@ -780,7 +881,7 @@ else if (Model is not null)
             return;
         }
 
-        if (!removed.WorkIds.Contains(id))
+        if (!removed.WorkIds.Contains(id) && removed.GroupIds?.Contains(id) != true)
         {
             // A show, album, series or collection page that lists a deleted title refreshes so the row leaves it.
             if (!_deleting && ListsRemovedTitle(removed))
@@ -895,8 +996,10 @@ else if (Model is not null)
     }
 
     private bool ListsRemovedTitle(LibraryItemsRemovedEvent removed) => Model is not null
-        && Model.MediaGroups.SelectMany(group => group.Items)
-            .Any(item => Guid.TryParse(item.Id, out var workId) && removed.WorkIds.Contains(workId));
+        && (Model.MediaGroups.SelectMany(group => group.Items)
+                .Any(item => Guid.TryParse(item.Id, out var workId) && removed.WorkIds.Contains(workId))
+            || (Model.SequencePlacement?.Groups ?? []).SelectMany(group => group.Items)
+                .Any(item => Guid.TryParse(item.Id, out var workId) && removed.WorkIds.Contains(workId)));
 
     // The title is gone: end Editing Mode (nothing typed matters now, and it must not ask) and go back to where the person came from.
     private async Task LeaveAfterRemovalAsync()
@@ -1026,9 +1129,9 @@ else if (Model is not null)
             return;
         }
 
-        if (action.Key == DetailActionKeys.DeleteFromLibrary)
+        if (action.Key is DetailActionKeys.DeleteFromLibrary or DetailActionKeys.DeleteSeason)
         {
-            await DeleteFromLibraryAsync();
+            await DeleteFromLibraryAsync(action.Key == DetailActionKeys.DeleteSeason);
             return;
         }
 

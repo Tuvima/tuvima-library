@@ -125,6 +125,58 @@ public static class LibraryItemEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministratorInPerson();
 
+        // Delete a show, season, album or Series: the same two halves for a whole group. The Engine finds the owned titles inside it,
+        // so the dialog never has to send hundreds of ids; the fingerprint, the safety gate and the audience are exactly the single-title ones.
+        group.MapPost("/group-deletion-preview", async (
+            LibraryGroupDeletionPreviewRequest request,
+            LibraryItemDeletionService deletion,
+            CancellationToken ct) =>
+        {
+            var result = await deletion.PreviewGroupAsync(
+                new LibraryItemGroupRequest(request.GroupId, request.GroupKind, request.GroupTitle, request.WorkIds ?? []), ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : GroupDeletionRefusal(result.Refusal!);
+        })
+        .WithName("PreviewLibraryGroupDeletion")
+        .WithSummary("Preview deleting a whole show, season, album or Series: every owned title and file in it, the totals, whether the name must be typed, and a fingerprint of the plan.")
+        .Produces<LibraryItemDeletionPreview>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministratorInPerson();
+
+        group.MapPost("/group-delete", async (
+            LibraryGroupDeletionRequest request,
+            HttpContext http,
+            IRequestAuthorityResolver resolver,
+            IProfileRepository profiles,
+            LibraryItemDeletionService deletion,
+            CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            var profile = authority.ActiveProfileId is { } profileId
+                ? await profiles.GetByIdAsync(profileId, ct)
+                : null;
+            var actor = new LibraryItemDeletionActor(
+                authority.AccountId,
+                authority.ActiveProfileId,
+                string.IsNullOrWhiteSpace(profile?.DisplayName) ? "An administrator" : profile.DisplayName);
+
+            var result = await deletion.DeleteGroupAsync(
+                new LibraryItemGroupRequest(request.GroupId, request.GroupKind, request.GroupTitle, request.WorkIds ?? []),
+                request.Fingerprint,
+                actor,
+                ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : GroupDeletionRefusal(result.Refusal!);
+        })
+        .WithName("DeleteLibraryGroup")
+        .WithSummary("Delete a whole show, season, album or Series as one action. Confirms the plan by its fingerprint: a changed plan answers 409 with a fresh preview and nothing is deleted.")
+        .Produces<LibraryItemDeletionResultDto>(StatusCodes.Status200OK)
+        .Produces<LibraryItemDeletionConflictDto>(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministratorInPerson();
+
         // The recycle bin of the library types that have it switched on. Same audience as deleting: effective administrators at
         // the Dashboard. Restoring never overwrites; emptying is the only step that removes files from the disk.
         group.MapGet("/recycle-bin", async (HttpContext http, [FromServices] IRequestAuthorityResolver authorities, [FromServices] VaultAccessResolver vaultAccess,
@@ -182,6 +234,16 @@ public static class LibraryItemEndpoints
 
         return app;
     }
+
+    private static IResult GroupDeletionRefusal(LibraryItemDeletionRefusal refusal) => refusal.Kind switch
+    {
+        LibraryItemDeletionRefusalKind.NotFound => ApiErrors.NotFound(refusal.Message),
+        // A 409 that carries the fresh preview so the dialog can show it. A typed body, not a bare error.
+        LibraryItemDeletionRefusalKind.Changed => Results.Json(
+            new LibraryItemDeletionConflictDto { Message = refusal.Message, Preview = refusal.FreshPreview! },
+            statusCode: StatusCodes.Status409Conflict),
+        _ => ApiErrors.BadRequest(refusal.Message),
+    };
 
     // The Vault's entries in the recycle bin are visible only inside Vault mode (Videos spec D34). Anyone else, administrators included,
     // sees the bin as if those files were not there, and cannot restore or empty them.

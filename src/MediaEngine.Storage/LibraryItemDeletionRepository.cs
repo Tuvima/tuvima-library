@@ -15,7 +15,7 @@ namespace MediaEngine.Storage;
 /// </summary>
 /// <param name="leaseWaitLimit">How long <see cref="CancelProcessingAsync"/> waits for a running job to let go (default 30 seconds).</param>
 /// <param name="leasePollInterval">How often it looks (default 400 ms).</param>
-public sealed class LibraryItemDeletionRepository(
+public sealed partial class LibraryItemDeletionRepository(
     IDatabaseConnection db,
     ILogger<LibraryItemDeletionRepository>? logger = null,
     TimeSpan? leaseWaitLimit = null,

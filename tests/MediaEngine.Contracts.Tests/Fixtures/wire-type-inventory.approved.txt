@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1319; api=0; web-client=54
+# scopes: contracts=1323; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4094,6 +4094,23 @@
   Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"entity_id":"11111111-2222-3333-4444-555555555555","fields_updated":7,"updated_keys":[],"message":"sample"}
 
+[contracts] MediaEngine.Contracts.Items.LibraryGroupDeletionPreviewRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  GroupId: System.Guid | json=group_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GroupKind: System.String | json=group_kind | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GroupTitle: System.String | json=group_title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"group_id":"11111111-2222-3333-4444-555555555555","group_kind":"sample","group_title":"sample","work_ids":[]}
+
+[contracts] MediaEngine.Contracts.Items.LibraryGroupDeletionRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  GroupId: System.Guid | json=group_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GroupKind: System.String | json=group_kind | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GroupTitle: System.String | json=group_title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Fingerprint: System.String | json=fingerprint | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"group_id":"11111111-2222-3333-4444-555555555555","group_kind":"sample","group_title":"sample","work_ids":[],"fingerprint":"sample"}
+
 [contracts] MediaEngine.Contracts.Items.LibraryItemCanonicalValueDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Key: System.String | json=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -4149,6 +4166,19 @@
   IsSidecar: System.Boolean | json=is_sidecar | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"work_id":"11111111-2222-3333-4444-555555555555","asset_id":"11111111-2222-3333-4444-555555555555","library_name":"sample","folder_label":"sample","file_name":"sample","size_bytes":7,"outcome":"sample","reason":"sample","is_sidecar":true}
 
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionGroupDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ConfirmName: System.String | json=confirm_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RequiresTypedConfirmation: System.Boolean | json=requires_typed_confirmation | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TitlesOwned: System.Int32 | json=titles_owned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TitlesNotOwned: System.Int32 | json=titles_not_owned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SubGroups: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionSubGroupDto> | json=sub_groups | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RemovesParent: System.Boolean | json=removes_parent | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ParentTitle: System.String | json=parent_title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind":"sample","title":"sample","confirm_name":"sample","requires_typed_confirmation":true,"titles_owned":7,"titles_not_owned":7,"sub_groups":[],"removes_parent":true,"parent_title":"sample"}
+
 [contracts] MediaEngine.Contracts.Items.LibraryItemDeletionItemDto
   kind=class | converter=default | number-handling=default | unmapped=default
   WorkId: System.Guid | json=work_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -4167,6 +4197,7 @@
   BytesFreed: System.Int64 | json=bytes_freed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GoesToRecycleBin: System.Boolean | json=goes_to_recycle_bin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Fingerprint: System.String | json=fingerprint | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Group: MediaEngine.Contracts.Items.LibraryItemDeletionGroupDto | json=group | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   sample={"items":[],"files":[],"curated_collections":[],"profiles_with_progress":7,"processing_running":true,"bytes_freed":7,"goes_to_recycle_bin":true,"fingerprint":"sample"}
 
 [contracts] MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
@@ -4196,6 +4227,13 @@
   BytesFreed: System.Int64 | json=bytes_freed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CollectionsDeleted: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionRemovedCollectionDto> | json=collections_deleted | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"deleted_work_ids":[],"titles":[],"files_deleted":7,"files_left_on_disk":7,"files_failed":[],"bytes_freed":7,"collections_deleted":[]}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionSubGroupDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Owned: System.Int32 | json=owned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Total: System.Int32 | json=total | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"title":"sample","owned":7,"total":7}
 
 [contracts] MediaEngine.Contracts.Items.LibraryItemDetailDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9409,6 +9447,7 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AssetIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=asset_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GroupIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=group_ids | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Realtime.ManualMetadataHarvestedEvent
   kind=class | converter=default | number-handling=default | unmapped=default

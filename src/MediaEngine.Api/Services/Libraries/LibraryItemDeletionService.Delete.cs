@@ -197,7 +197,7 @@ public sealed partial class LibraryItemDeletionService
         // 10. Open screens drop the titles. Vault titles are not announced to everyone; the Vault screens read the list again.
         if (announce)
         {
-            await PublishRemovedAsync(plan.WorkIds, data.AssetIds).ConfigureAwait(false);
+            await PublishRemovedAsync(plan.WorkIds, data.AssetIds, GroupIdsToAnnounce(plan.Group)).ConfigureAwait(false);
         }
 
         return result;
@@ -594,7 +594,7 @@ public sealed partial class LibraryItemDeletionService
 
     private async Task LogActivityAsync(LibraryItemDeletionPlan plan, LibraryItemDeletionActor actor, LibraryItemDeletionResultDto result)
     {
-        var titles = DescribeTitles(plan);
+        var titles = plan.Group is { } group ? DescribeGroupForActivity(group, plan) : DescribeTitles(plan);
         var parts = new List<string>
         {
             result.FilesDeleted == 0
@@ -612,7 +612,7 @@ public sealed partial class LibraryItemDeletionService
         var entry = new SystemActivityEntry
         {
             ActionType = SystemActionType.MediaRemoved,
-            CollectionName = titles,
+            CollectionName = plan.Group?.Title ?? titles,
             // The titles are gone, so the entry points at no entity; it stands on its own.
             EntityType = "Work",
             ProfileId = actor.ProfileId,
@@ -658,13 +658,13 @@ public sealed partial class LibraryItemDeletionService
         }
     }
 
-    private async Task PublishRemovedAsync(IReadOnlyList<Guid> workIds, IReadOnlyList<Guid> assetIds)
+    private async Task PublishRemovedAsync(IReadOnlyList<Guid> workIds, IReadOnlyList<Guid> assetIds, IReadOnlyList<Guid> groupIds)
     {
         try
         {
             await events.PublishAsync(
                 SignalREvents.LibraryItemsRemoved,
-                new LibraryItemsRemovedEvent([.. workIds], [.. assetIds])).ConfigureAwait(false);
+                new LibraryItemsRemovedEvent([.. workIds], [.. assetIds], groupIds.Count == 0 ? null : [.. groupIds])).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

@@ -8,4 +8,5 @@ namespace MediaEngine.Contracts.Realtime;
 /// </summary>
 public sealed record LibraryItemsRemovedEvent(
     [property: JsonPropertyName("work_ids")] IReadOnlyList<Guid> WorkIds,
-    [property: JsonPropertyName("asset_ids")] IReadOnlyList<Guid> AssetIds);
+    [property: JsonPropertyName("asset_ids")] IReadOnlyList<Guid> AssetIds,
+    [property: JsonPropertyName("group_ids"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<Guid>? GroupIds = null);

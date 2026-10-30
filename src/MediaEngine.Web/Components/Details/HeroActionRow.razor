@@ -53,6 +53,9 @@
     /// after a divider, whether or not Editing Mode is on (details overlay spec D18, D19). The page's handler checks again.
     /// </summary>
     [Parameter] public bool CanDelete { get; set; }
+
+    /// <summary>The Delete entries to list for a show, season, album or Series; empty for a single title, which gets "Delete from library…".</summary>
+    [Parameter] public IReadOnlyList<DetailAction>? DeleteActions { get; set; }
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }
 
@@ -75,7 +78,7 @@
             }
 
             return CanDelete && !actions.Any(action => action.Key == DetailActionKeys.DeleteFromLibrary)
-                ? [.. actions, DetailMenuGrouping.DeleteFromLibraryAction]
+                ? [.. actions, .. (DeleteActions is { Count: > 0 } ? DeleteActions : [DetailMenuGrouping.DeleteFromLibraryAction])]
                 : actions;
         }
     }

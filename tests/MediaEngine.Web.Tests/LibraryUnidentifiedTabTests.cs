@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Bunit;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
@@ -48,7 +49,7 @@ public sealed class LibraryUnidentifiedTabTests : AsyncBunitContext
                 Total = 2,
                 Items =
                 [
-                    new() { AssetId = Guid.NewGuid(), LibraryId = TvId, FileName = "Episode 12.mkv", Folder = "Z:\\TV Shows\\Drama\\Season 1", Reason = "no_match", LastTriedAt = DateTimeOffset.UtcNow },
+                    new() { AssetId = Guid.NewGuid(), WorkId = Guid.NewGuid(), LibraryId = TvId, FileName = "Episode 12.mkv", Folder = "Z:\\TV Shows\\Drama\\Season 1", Reason = "no_match", LastTriedAt = DateTimeOffset.UtcNow },
                     new() { AssetId = Guid.NewGuid(), LibraryId = TvId, FileName = "Loose.mkv", Folder = "Y:\\Elsewhere", Reason = "no_match", LastTriedAt = DateTimeOffset.UtcNow },
                 ],
             }));
@@ -76,6 +77,25 @@ public sealed class LibraryUnidentifiedTabTests : AsyncBunitContext
         var rows = cut.FindAll("[data-asset]");
         Assert.Contains(rows[0].QuerySelectorAll("button"), button => Text(button) == "Change what this folder is");
         Assert.DoesNotContain(rows[1].QuerySelectorAll("button"), button => Text(button) == "Change what this folder is");
+    }
+
+    [Fact]
+    public async Task ARowWithAnItemOffersRemoveFromLibrary_OnlyToAnAdministratorOnADesktop()
+    {
+        var cut = Render<LibraryUnidentifiedTab>(parameters => parameters.Add(x => x.Library, Tv));
+        cut.WaitForElement("[data-asset]");
+        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Remove from library");
+
+        await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var id = Guid.NewGuid();
+        Services.GetRequiredService<DashboardSessionAccessor>().Set("token", id, id, Guid.NewGuid(),
+            new DashboardAuthorityResponse(id, id, true, true, 1, 1, true, true, null, 1, [], [], []));
+        var admin = Render<LibraryUnidentifiedTab>(parameters => parameters.Add(x => x.Library, Tv));
+        admin.WaitForElement("[data-asset]");
+
+        var rows = admin.FindAll("[data-asset]");
+        Assert.Contains(rows[0].QuerySelectorAll("button"), button => Text(button) == "Remove from library");
+        Assert.DoesNotContain(rows[1].QuerySelectorAll("button"), button => Text(button) == "Remove from library");
     }
 
     [Fact]

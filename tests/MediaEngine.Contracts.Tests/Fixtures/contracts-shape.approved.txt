@@ -3412,6 +3412,19 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.ItemPreferencesResponse
   UpdatedKeys: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryGroupDeletionPreviewRequest
+  GroupId: System.Guid | nullability=not-null | accessors=get,init
+  GroupKind: System.String | nullability=nullable | accessors=get,init
+  GroupTitle: System.String | nullability=nullable | accessors=get,init
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryGroupDeletionRequest
+  GroupId: System.Guid | nullability=not-null | accessors=get,init
+  GroupKind: System.String | nullability=nullable | accessors=get,init
+  GroupTitle: System.String | nullability=nullable | accessors=get,init
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemCanonicalValueDto
   Key: System.String | nullability=not-null | accessors=get,init
   Value: System.String | nullability=not-null | accessors=get,init
@@ -3455,6 +3468,17 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionFileD
   Reason: System.String | nullability=nullable | accessors=get,init
   IsSidecar: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionGroupDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  ConfirmName: System.String | nullability=not-null | accessors=get,init
+  RequiresTypedConfirmation: System.Boolean | nullability=not-null | accessors=get,init
+  TitlesOwned: System.Int32 | nullability=not-null | accessors=get,init
+  TitlesNotOwned: System.Int32 | nullability=not-null | accessors=get,init
+  SubGroups: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionSubGroupDto> | nullability=not-null | accessors=get,init
+  RemovesParent: System.Boolean | nullability=not-null | accessors=get,init
+  ParentTitle: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionItemDto
   WorkId: System.Guid | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
@@ -3472,6 +3496,7 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPrevi
   BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
   GoesToRecycleBin: System.Boolean | nullability=not-null | accessors=get,init
   Fingerprint: System.String | nullability=not-null | accessors=get,init
+  Group: MediaEngine.Contracts.Items.LibraryItemDeletionGroupDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
   WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
@@ -3492,6 +3517,11 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionResul
   FilesFailed: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionFailedFileDto> | nullability=not-null | accessors=get,init
   BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
   CollectionsDeleted: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionRemovedCollectionDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionSubGroupDto
+  Title: System.String | nullability=not-null | accessors=get,init
+  Owned: System.Int32 | nullability=not-null | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDetailDto
   EntityId: System.Guid | nullability=not-null | accessors=get,init
@@ -7991,6 +8021,7 @@ MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.LibraryChangedEven
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent
   WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
   AssetIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  GroupIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.ManualMetadataHarvestedEvent
   EntityId: System.Guid | nullability=not-null | accessors=get,init
