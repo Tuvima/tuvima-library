@@ -205,6 +205,12 @@ public sealed class VideoProcessor : IMediaProcessor
         @"^[Ss](?<season>\d{1,2})\s*[Ee](?<ep1>\d{1,4})(?:\s*[Ee](?<ep2>\d{1,4}))?\s*[\-–—._ ]*\s*(?<epTitle>.+)?$",
         RegexOptions.Compiled);
 
+    /// <summary>Leading ordinal then a title — e.g. "03 Form Shooting Practice". One to three digits, so a
+    /// leading year never matches.</summary>
+    private static readonly Regex NumberedEntryRegex = new(
+        @"^(?<n>\d{1,3})\s*[\-–—._ ]+\s*(?<t>\S.*)$",
+        RegexOptions.Compiled);
+
     private static IReadOnlyList<ExtractedClaim> BuildClaims(
         string filePath, VideoContainer container, VideoMetadata? meta)
     {
@@ -311,6 +317,19 @@ public sealed class VideoProcessor : IMediaProcessor
                 if (hints.Year is not null)
                 {
                     claims.Add(Claim("year", hints.Year, 0.50));
+                }
+
+                // A numbered lesson or episode ("03 Form Shooting Practice") in a folder of its own
+                // carries no show name; the folder is the best evidence for one. Kept low so a real
+                // filename or retail match always wins, and only read when the file is filed as TV.
+                var numbered = NumberedEntryRegex.Match(basicTitle);
+                var folderShow = numbered.Success ? InferShowNameFromPath(filePath) : null;
+                if (!string.IsNullOrWhiteSpace(folderShow))
+                {
+                    claims.Add(Claim("show_name", folderShow, 0.40));
+                    claims.Add(Claim("series", folderShow, 0.40));
+                    claims.Add(Claim("episode_number", numbered.Groups["n"].Value.TrimStart('0').PadLeft(1, '0'), 0.40));
+                    claims.Add(Claim("episode_title", numbered.Groups["t"].Value.Trim(), 0.40));
                 }
             }
         }
