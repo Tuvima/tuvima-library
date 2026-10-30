@@ -26,7 +26,7 @@ public sealed class DisplayCardBuilder
             GroupingType: "work",
             Title: title,
             Subtitle: SubtitleFor(mediaKind, CreatorFor(row), row.Series, row.SeriesPosition, row.ShowName, row.SeasonNumber, row.EpisodeNumber),
-            Facts: BuildFacts(mediaKind, title, row.Year, row.Author, row.Artist, row.ContentRating, row.Runtime, row.Duration, row.PageCount, row.Rating, row.Narrator, row.Publisher),
+            Facts: BuildFacts(mediaKind, title, row.Year, row.Author, row.Artist, row.ContentRating, row.Runtime, row.Duration, row.PageCount, row.Rating, row.Narrator, row.Publisher, durationSeconds: row.FileDurationSeconds),
             Artwork: ArtworkFor(row, row.AssetId),
             PreferredShape: PreferredShape(row.MediaType, row.BackgroundUrl, row.BannerUrl, row.SquareUrl),
             Presentation: PresentationFor(mediaKind),
@@ -86,7 +86,7 @@ public sealed class DisplayCardBuilder
                 ? ContinueEpisodeSubtitle(row.SeasonNumber, row.EpisodeNumber)
                     ?? SubtitleFor(mediaKind, StringHelpers.FirstNonBlank(row.Author, row.Artist, row.Narrator), row.Series, row.SeriesPosition, row.ShowName, row.SeasonNumber, row.EpisodeNumber)
                 : SubtitleFor(mediaKind, StringHelpers.FirstNonBlank(row.Author, row.Artist, row.Narrator), row.Series, row.SeriesPosition, row.ShowName, row.SeasonNumber, row.EpisodeNumber),
-            Facts: BuildFacts(mediaKind, title, row.Year, row.Author, row.Artist, row.ContentRating, row.Runtime, row.Duration, row.PageCount, row.Rating, row.Narrator),
+            Facts: BuildFacts(mediaKind, title, row.Year, row.Author, row.Artist, row.ContentRating, row.Runtime, row.Duration, row.PageCount, row.Rating, row.Narrator, durationSeconds: row.FileDurationSeconds),
             Artwork: ArtworkFor(row, row.AssetId),
             PreferredShape: PreferredShape(row.MediaType, row.BackgroundUrl, row.BannerUrl, row.SquareUrl),
             Presentation: PresentationFor(mediaKind),
@@ -662,7 +662,8 @@ public sealed class DisplayCardBuilder
         string? pageCount,
         string? starRating,
         string? narrator = null,
-        string? publisher = null)
+        string? publisher = null,
+        string? durationSeconds = null)
         => DisplayFactBuilder.Build(
             mediaKind,
             title,
@@ -675,6 +676,7 @@ public sealed class DisplayCardBuilder
             runtime: runtime,
             duration: duration,
             pageCount: pageCount,
+            durationSeconds: durationSeconds,
             starRating: starRating);
 
     private static string PreferredShape(string mediaType, string? backgroundUrl, string? bannerUrl, string? squareUrl)
@@ -767,7 +769,8 @@ public sealed class DisplayCardBuilder
                 representative.Runtime,
                 representative.Duration,
                 representative.PageCount,
-                representative.Rating)
+                representative.Rating,
+                durationSeconds: representative.FileDurationSeconds)
             .ToList();
         facts.Insert(Math.Min(2, facts.Count), CollectionCountLabel("TV", summary.EpisodeCount));
         facts.AddRange(DisplayMediaRules.SplitValues(representative.Genre)
@@ -1113,7 +1116,8 @@ public sealed class DisplayCardBuilder
                     item.Work.PageCount,
                     item.Work.Rating,
                     item.Work.Narrator,
-                    item.Work.Publisher)))
+                    item.Work.Publisher,
+                    item.Work.FileDurationSeconds)))
             .ToList();
     }
 

@@ -490,7 +490,8 @@ public sealed class DisplayWorkProjectionReader
                      ELSE {FirstOf(workRootAsset.Select(slot => r.Value(slot, "content_rating", "certification")))} END
                 """),
             From("Runtime", workRootAsset, "runtime"),
-            From("Duration", workRootAsset, "duration", "duration_sec", "duration_seconds"),
+            From("Duration", workRootAsset, "duration"),
+            From("FileDurationSeconds", workRootAsset, "duration_sec", "duration_seconds"),
             From("PageCount", workRootAsset, "page_count"),
             From("Rating", rootWorkAsset, "rating"),
             Column("Genre", r => FirstOf(

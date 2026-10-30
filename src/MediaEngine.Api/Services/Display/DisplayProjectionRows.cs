@@ -60,6 +60,8 @@ public sealed class DisplayWorkRow : IDisplayArtworkRow
     public string? ContentRating { get; set; }
     public string? Runtime { get; set; }
     public string? Duration { get; set; }
+    /// <summary>Length in seconds from the file probe (<c>duration_sec</c>); <see cref="Duration"/> keeps the provider's own unit.</summary>
+    public string? FileDurationSeconds { get; set; }
     public string? PageCount { get; set; }
     public string? Rating { get; set; }
     public string? Genre { get; set; }
@@ -173,6 +175,8 @@ public sealed class DisplayJourneyRow : IDisplayArtworkRow
     public string MediaType { get; set; } = string.Empty;
     public double ProgressPct { get; set; }
     public double? PositionSeconds { get; set; }
+    /// <summary>Length in seconds from the file probe (<c>duration_sec</c>); <see cref="Duration"/> keeps the provider's own unit.</summary>
+    public string? FileDurationSeconds { get; set; }
     public double? DurationSeconds { get; set; }
     public DateTimeOffset LastAccessed { get; set; }
     public string Title { get; set; } = string.Empty;
