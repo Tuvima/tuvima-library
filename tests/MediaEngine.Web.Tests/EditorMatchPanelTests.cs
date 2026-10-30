@@ -104,7 +104,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         cut.Find($"input[role=switch][aria-label='{label}']").HasAttribute("checked");
 
     [Fact]
-    public void ChoosingAResult_MovesFocusToTheReview_AndBackToResults_PutsItOnThatResultsSelectButton()
+    public void ChoosingAResult_MovesFocusToTheReview_AndChooseAnother_PutsItOnThatResultsSelectButton()
     {
         var cut = RenderPanel();
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".tl-match__row").Count));
@@ -115,7 +115,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Equal("group", cut.Find("#tl-match-review").GetAttribute("role"));
         Assert.Equal("Review selected match", cut.Find("#tl-match-review").GetAttribute("aria-label"));
 
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Back to results").Click();
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Choose another").Click();
         cut.WaitForAssertion(() => Assert.Equal("tl-match-select-1", LastFocusedId()));
     }
 
