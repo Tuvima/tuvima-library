@@ -5,21 +5,10 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
-@inject DashboardSessionAccessor Session
-@inject DashboardIdentityClient Identity
-@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthenticationStateProvider
-@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 
 @* "What do you have?": the same Libraries table Settings shows (LibrariesOverview), with Simple on (Library pages D13). Add library opens the
    one Create library dialog, which saves through setup's own session; View's rows take folders through the View folder dialog (add-folder v2 D14, D15).
-   The footer, the step key and the deferral belong to this step. After Continue, the first administrator is offered the Vault once (D17); everyone else
-   goes straight on and sees nothing about it. *@
-@if (_offeringVault && _vaultProfile is { } vaultProfile)
-{
-    <SetupVaultOffer ProfileId="@vaultProfile.Id" AdministratorHasPin="@vaultProfile.HasPin" SetupSession="@SetupSession" Finished="VaultFinishedAsync" />
-}
-else
-{
+   The footer, the step key and the deferral belong to this step. The optional private step that may follow is the page's to offer. *@
 <div class="setup-stage-content">
     <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">What do you have?</h2><p>Add a library for what you'd like Library to show. You can add more later in Settings.</p></div></div>
 
@@ -54,7 +43,6 @@ else
         }
     </SetupStageFooter>
 </div>
-}
 
 @code {
     [Parameter] public bool HasLibraries { get; set; }
@@ -71,8 +59,6 @@ else
     private LibrariesConfigurationDto? _configuration;
     private string? _loadError;
     private IReadOnlyDictionary<string, int>? _viewFolders;
-    private bool _offeringVault;
-    private ProfileViewModel? _vaultProfile;
 
     // The list of library kinds the setup session can read; the areas and the Create library dialog are drawn from it.
     private LibraryKindCatalog _kinds = LibraryKindCatalog.Empty;
@@ -118,56 +104,7 @@ else
                 .Count());
     }
 
-    // Continue: the first administrator, on a desktop or tablet and with no Vault access yet, is offered the Vault once; anyone else goes straight on.
-    private bool _continuing;
-
-    private async Task ContinueAsync()
-    {
-        if (_continuing) return;
-        _continuing = true;
-        try
-        {
-            if (!DeviceContext.IsMobile && await IsAdministratorAsync() && Session.ActiveProfileId is { } activeId)
-            {
-                var profile = (await ApiClient.GetProfilesAsync()).FirstOrDefault(candidate => candidate.Id == activeId);
-                if (profile is { IsRestricted: false })
-                {
-                    await Nsfw.EnsureLoadedAsync(profile.Id, isKids: false);
-                    if (!Nsfw.IsAvailable)
-                    {
-                        _vaultProfile = profile;
-                        _offeringVault = true;
-                        return;
-                    }
-                }
-            }
-
-            await ValidateMedia.InvokeAsync();
-        }
-        finally
-        {
-            _continuing = false;
-        }
-    }
-
-    // The setup circuit has not seen the new sign-in yet, so read it from the cookie and ask the Engine once, as Settings does.
-    private async Task<bool> IsAdministratorAsync()
-    {
-        if (Session.Authority is null)
-        {
-            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
-            if (!Session.InitializeFromPrincipal(principal)) return false;
-            await Identity.EnsureInitialAuthorityAsync(Session);
-        }
-
-        return Session.Authority?.EffectiveAdministrator == true;
-    }
-
-    private async Task VaultFinishedAsync()
-    {
-        _offeringVault = false;
-        await ValidateMedia.InvokeAsync();
-    }
+    private Task ContinueAsync() => ValidateMedia.InvokeAsync();
 
     private async Task LibraryAddedAsync()
     {

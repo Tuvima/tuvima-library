@@ -20,6 +20,8 @@
 @inject ILogger<SetupPage> Logger
 @inject MediaEngine.Web.Services.Integration.SetupSignInHandoff SignInHandoff
 @inject MediaEngine.Web.Services.Integration.DashboardSessionAccessor DashboardSession
+@inject MediaEngine.Web.Services.Integration.DashboardIdentityClient Identity
+@inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 
 <PageTitle>Set up Library</PageTitle>
 
@@ -49,7 +51,7 @@
         <div class="setup-shell">
         <aside class="setup-sidebar">
             <div class="setup-brand"><img src="/images/tuvima-icon.svg" alt="" width="32" height="32" /><span>Library</span></div>
-            <SetupStepper Steps="@_status.Steps" CurrentStep="@CurrentStep" WorkflowStep="@WorkflowStep" ShowVault="false" StepSelected="GoToStepAsync" />
+            <SetupStepper Steps="@_status.Steps" CurrentStep="@CurrentStep" WorkflowStep="@WorkflowStep" ShowVault="@ShowVault" StepSelected="GoToStepAsync" />
         </aside>
         <section class="setup-stage" aria-labelledby="setup-stage-title">
             @switch (CurrentStep)
@@ -81,12 +83,15 @@
                                              Continue="ContinueAfterProfileAsync" Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "libraries":
-                    <SetupMediaStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
+                    <SetupLibrariesStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
                                      LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Any(library => library.Sources.Count > 0) == true)" DeferMedia="DeferMediaAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
+                case "vault" when _vaultProfileId is { } vaultProfileId:
+                    <SetupVaultOffer ProfileId="@vaultProfileId" AdministratorHasPin="@_vaultProfileHasPin" SetupSession="@_setupSession" Finished="VaultFinishedAsync" />
+                    break;
                 case "metadata":
-                    <SetupProvidersStage Catalogue="@_providerCatalogue" SetupSession="@_setupSession" Busy="@_busy"
+                    <SetupMetadataStage Catalogue="@_providerCatalogue" LibraryMediaTypes="@LibraryMediaTypes" SetupSession="@_setupSession" Busy="@_busy"
                                          Locale="@_locale" LocaleChanged="@((SetupLocaleDto value) => _locale = value)"
                                          RefreshRequested="RefreshProvidersAsync" Continue="SaveProviderResultAsync" Defer="DeferProviderResultAsync"
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
@@ -120,6 +125,12 @@
     private string _displayName = "Administrator";
     private IReadOnlyList<string> _recoveryCodes = [];
     private IReadOnlyList<ProviderCatalogueDto> _providerCatalogue = [];
+
+    // The media types of the libraries that have at least one folder; the Metadata step lists the sources that fit them.
+    private IReadOnlyCollection<string> LibraryMediaTypes => _setupLibraries?.Libraries
+        .Where(library => library.Sources.Count > 0)
+        .SelectMany(library => library.MediaTypes)
+        .ToList() ?? [];
     private string? _sampleScanDetail;
     private bool _loading = true;
     private bool _busy;
@@ -178,7 +189,12 @@
     private string WorkflowStep => NormalizeStep(_status?.CurrentStep);
     private string CurrentStep => _selectedStep ?? WorkflowStep;
     // The Vault entry is wired in with the Libraries step; until then Back, Next and the sidebar pass over it.
-    private static readonly string[] NavigableSteps = SetupWorkflow.StepKeys.Where(key => key != "vault").ToArray();
+    // The Vault is an optional step: it is walked only while it is being offered, and its entry is drawn only until the person says Not now.
+    private string[] NavigableSteps => SetupWorkflow.StepKeys.Where(key => key != "vault" || VaultOpen).ToArray();
+    private bool VaultOpen => _vaultProfileId is not null && StepState("vault") is not ("passed" or "deferred");
+    private bool ShowVault => _vaultProfileId is not null && StepState("vault") != "deferred";
+    private Guid? _vaultProfileId;
+    private bool _vaultProfileHasPin;
     private int CurrentIndex => Math.Max(0, Array.IndexOf(NavigableSteps, CurrentStep));
     private bool PasswordsMatch => string.Equals(_password, _passwordConfirmation, StringComparison.Ordinal);
     private string PageTitleText => CurrentStep == "welcome" ? "Welcome to your library" : Friendly(CurrentStep);
@@ -551,7 +567,29 @@
     }
     private async Task ClearSetupSessionAsync() { _setupSession = null; try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } }
     private void SignIn() => Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
-    private async Task ValidateMediaAsync() { _busy = true; _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession); _busy = false; if (_media?.Passed == true) { _readiness = null; await ReloadAsync(); } }
+    private async Task ValidateMediaAsync()
+    {
+        _busy = true;
+        _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession);
+        _busy = false;
+        if (_media?.Passed != true) return;
+        _readiness = null;
+        await ReloadAsync();
+        await OfferVaultAsync();
+    }
+
+    // After Libraries, the first administrator on a desktop or tablet with no Vault yet is offered it once, as its own step; everyone else sees nothing about it.
+    private async Task OfferVaultAsync()
+    {
+        if (StepState("vault") is "passed" or "deferred") return;
+        var profile = await SetupVaultEligibility.FindProfileAsync(ApiClient, DashboardSession, Identity, Nsfw, DeviceContext, AuthenticationStateProvider);
+        if (profile is null) return;
+        _vaultProfileId = profile.Id;
+        _vaultProfileHasPin = profile.HasPin;
+        _selectedStep = "vault";
+    }
+
+    private Task VaultFinishedAsync(bool turnedOn) => DecideStepAsync("vault", turnedOn ? "passed" : "deferred", turnedOn ? "The Vault was turned on during setup." : "The Vault was left for later.");
     // The Libraries panel saves each folder as it is added; the person moves on with Continue.
     private async Task LibraryCreatedAsync() { _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession); }
     private async Task LoadProvidersAsync() { _busy = true; _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); _busy = false; }
@@ -621,7 +659,7 @@
     private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }
     private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { await Nsfw.LockAsync(); try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", AppSeverity.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
-    private bool CanNavigateTo(string key) => key != "vault"
+    private bool CanNavigateTo(string key) => (key != "vault" || VaultOpen)
         && (Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep) || StepState(key) is "passed" or "deferred");
     private async Task GoToStepAsync(string key)
     {

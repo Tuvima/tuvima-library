@@ -21,3 +21,7 @@
 @keyframes libs-row-glow { from { background: color-mix(in srgb, var(--tl-accent-primary) 38%, transparent); } to { background: transparent; } }
 .libs__row--new > td { animation: libs-row-glow 2.2s ease-out 1; }
 @media (prefers-reduced-motion: reduce) { .libs__row--new > td { animation: none; background: color-mix(in srgb, var(--tl-accent-primary) 16%, transparent); } }
+.libs__cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.libs__card-slot { min-width: 0; border-radius: var(--tl-radius-lg); cursor: pointer; }
+@keyframes libs-card-glow { from { box-shadow: 0 0 0 4px color-mix(in srgb, var(--tl-accent-primary) 38%, transparent); } to { box-shadow: 0 0 0 4px transparent; } }
+.libs__card-slot--new { animation: libs-card-glow 2.2s ease-out 1; }

@@ -162,7 +162,7 @@ public sealed class ServerFolderPickerUiTests
     public void SetupWizard_SidebarListsEnhanceStep_AndRecommendedAppearsOnce()
     {
         var stepper = Read("src/MediaEngine.Web/Components/Setup/SetupStepper.razor");
-        var providers = Read("src/MediaEngine.Web/Components/Setup/SetupProvidersStage.razor");
+        var providers = Read("src/MediaEngine.Web/Components/Setup/SetupMetadataStage.razor");
         var picker = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor");
         var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupToolsStage.razor");
 

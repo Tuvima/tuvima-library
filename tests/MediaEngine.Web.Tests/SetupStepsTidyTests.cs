@@ -8,6 +8,8 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class SetupStepsTidyTests : AsyncBunitContext
 {
+    public SetupStepsTidyTests() => JSInterop.Mode = JSRuntimeMode.Loose;
+
     private static readonly string[] SixSteps =
         ["Welcome", "Your profile", "Tools", "Libraries", "Metadata", "All set"];
 
@@ -148,11 +150,11 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     [Fact]
     public void EnhanceStep_ShowsSkipForNow_UntilAKeyIsSaved()
     {
-        var none = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: false)]));
+        var none = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: false)]));
         Assert.Contains("Skip for now", none.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Set up later", none.Markup, StringComparison.Ordinal);
 
-        var saved = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: true)]));
+        var saved = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: true)]));
         Assert.DoesNotContain("Skip for now", saved.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Set up later", saved.Markup, StringComparison.Ordinal);
         Assert.Contains("Continue", saved.Markup, StringComparison.Ordinal);
@@ -163,7 +165,7 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     {
         var source = new ProviderCatalogueDto { DisplayName = "Example", MediaTypes = ["Movies"], Capabilities = ["artwork"] };
 
-        var cut = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [source]));
+        var cut = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [source]));
 
         Assert.DoesNotContain("What your library needs", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-testid='setup-need']"));
@@ -177,18 +179,65 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         var withKeyAlso = Provider(configured: false);
         withKeyAlso.DisplayName = "Needs a key";
 
-        var cut = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [free, withKey, withKeyAlso]));
+        var cut = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [free, withKey, withKeyAlso]));
 
         var noKey = cut.FindAll(".app-status-badge").Single(x => x.TextContent.Contains("No key needed", StringComparison.Ordinal));
         Assert.Contains("app-tone--success", noKey.ClassList);
         Assert.NotNull(noKey.QuerySelector("svg, .tl-icon-root"));
 
-        var configured = cut.FindAll(".app-status-badge").Single(x => x.TextContent.Contains("Key configured", StringComparison.Ordinal));
+        var configured = cut.FindAll(".app-status-badge").Single(x => x.TextContent.Contains("Key saved", StringComparison.Ordinal));
         Assert.Contains("app-tone--success", configured.ClassList);
         Assert.NotNull(configured.QuerySelector("svg, .tl-icon-root"));
 
         // A provider whose key is still missing shows no done-badge.
-        Assert.Single(cut.FindAll(".app-status-badge"), x => x.TextContent.Contains("Key configured", StringComparison.Ordinal));
+        Assert.Single(cut.FindAll(".app-status-badge"), x => x.TextContent.Contains("Key saved", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MetadataStep_ListsOnlySourcesThatFitTheLibrariesAdded_AndShowAllBringsTheRestBack()
+    {
+        var movies = new ProviderCatalogueDto { DisplayName = "Movie source", RequiresKey = false, MediaTypes = ["Movies"] };
+        var comics = new ProviderCatalogueDto { DisplayName = "Comic source", RequiresKey = false, MediaTypes = ["Comics"] };
+
+        var cut = Render<SetupMetadataStage>(parameters => parameters
+            .Add(p => p.Catalogue, [movies, comics])
+            .Add(p => p.LibraryMediaTypes, ["movies"]));
+
+        Assert.Contains("Movie source", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Comic source", cut.Markup, StringComparison.Ordinal);
+
+        cut.FindAll("button").Single(button => button.TextContent.Contains("Show all sources", StringComparison.Ordinal)).Click();
+
+        Assert.Contains("Comic source", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MetadataStep_ListsEverySourceWhenNoLibraryWasAdded()
+    {
+        var movies = new ProviderCatalogueDto { DisplayName = "Movie source", RequiresKey = false, MediaTypes = ["Movies"] };
+        var comics = new ProviderCatalogueDto { DisplayName = "Comic source", RequiresKey = false, MediaTypes = ["Comics"] };
+
+        var cut = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [movies, comics]));
+
+        Assert.Contains("Movie source", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Comic source", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Show all sources", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MetadataStep_OffersConnectOnlyWhereAKeyIsNeeded_WithNoSwitchOrMenu()
+    {
+        var free = new ProviderCatalogueDto { DisplayName = "Free source", RequiresKey = false };
+        var needsKey = Provider(configured: false);
+        needsKey.DisplayName = "Keyed source";
+
+        var cut = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [free, needsKey]));
+
+        Assert.Contains("Needs a key", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("No key needed", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("button"), button => button.TextContent.Trim() == "Connect");
+        Assert.Empty(cut.FindAll("[role='switch']"));
+        Assert.Contains("data-testid=\"setup-sources-cards\"", cut.Markup, StringComparison.Ordinal);
     }
 
     private static ProviderCatalogueDto Provider(bool configured) => new()

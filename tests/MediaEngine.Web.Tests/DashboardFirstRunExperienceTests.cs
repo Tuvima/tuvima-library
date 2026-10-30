@@ -103,7 +103,7 @@ public sealed class DashboardFirstRunExperienceTests
         var administrator = Read("src/MediaEngine.Web/Components/Setup/SetupProfileStage.razor");
         var recoveryCodes = Read("src/MediaEngine.Web/Components/Shared/RecoveryCodesDisplay.razor");
         var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupToolsStage.razor");
-        var providers = Read("src/MediaEngine.Web/Components/Setup/SetupProvidersStage.razor");
+        var providers = Read("src/MediaEngine.Web/Components/Setup/SetupMetadataStage.razor");
         var providerDialog = Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor");
         var metadataSettings = Read("src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor");
         var readiness = Read("src/MediaEngine.Web/Components/Setup/SetupReadinessStage.razor");
