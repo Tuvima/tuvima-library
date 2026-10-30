@@ -87,7 +87,9 @@ public sealed class PlaybackTelemetryLifecycleService(
             isExplicitSeek, hasPlaybackEnded, completionReason, delivery, clientFacts.Facts);
         var transitions = await repository.ObserveAsync(observation, ct).ConfigureAwait(false);
         // The person's own activity record follows the session; it is best effort and never fails playback.
-        await activity.RecordPlaybackAsync(transitions, asset, clientFacts.Device, ct).ConfigureAwait(false);
+        // The light asset row above carries ids only; a new session's record keeps the title, so it gets the full row.
+        var shown = transitions.Any(transition => transition.WasCreated) ? await catalogue.DisplayContextAsync(asset, ct).ConfigureAwait(false) : asset;
+        await activity.RecordPlaybackAsync(transitions, shown, clientFacts.Device, ct).ConfigureAwait(false);
         return transitions;
     }
 
