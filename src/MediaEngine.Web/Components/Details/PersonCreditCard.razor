@@ -24,7 +24,8 @@ else
                           ImageUrl="@PreferredImageUrl"
                           Initials="@Credit.FallbackInitials"
                           Role="@Credit.PrimaryRole"
-                          Size="@AvatarSize" />
+                          Size="@AvatarSize"
+                          DrawnPx="@AvatarDrawnPx" />
         </div>
         <div class="tl-credit-card__body">
             <div class="tl-credit-card__name">@Credit.DisplayName</div>
@@ -54,6 +55,10 @@ else
     }
 
     private string AvatarSize => Compact ? "sm" : "md";
+
+    // The card, not the avatar size, sets how large the face is drawn: a compact card is up to 10rem wide and a full one
+    // fills its grid column. Asking for the 96px copy (what "sm" derives) drew a 160px face from a 96px picture.
+    private int AvatarDrawnPx => Compact ? 160 : 240;
 
     private string? PreferredImageUrl
         => !string.IsNullOrWhiteSpace(Credit.CharacterName) && !string.IsNullOrWhiteSpace(Credit.CharacterImageUrl)

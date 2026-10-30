@@ -55,7 +55,7 @@
 
 :where(.tl-detail-page) .tl-credit-card--compact {
     min-width: 0;
-    max-width: 8.75rem;
+    max-width: 10rem;
 }
 
 :where(.tl-detail-page) .tl-credit-card--compact .tl-credit-card__image {
