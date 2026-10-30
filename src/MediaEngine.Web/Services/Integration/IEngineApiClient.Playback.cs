@@ -22,7 +22,8 @@ public partial interface IEngineApiClient
         string client = "web",
         Guid? profileId = null,
         CancellationToken ct = default,
-        PlaybackConnectionContextDto? connection = null);
+        PlaybackConnectionContextDto? connection = null,
+        bool adaptive = false);
 
     Task<PlayerStateDto?> GetPlayerStateAsync(Guid? profileId = null, string? deviceId = null, string client = "web", CancellationToken ct = default);
 

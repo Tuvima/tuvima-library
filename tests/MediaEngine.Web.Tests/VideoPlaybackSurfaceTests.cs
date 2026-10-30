@@ -13,7 +13,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("data-playback-chrome-bottom", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
         Assert.Contains("Close video", razor);
         Assert.DoesNotContain("Back to details", razor);
-        Assert.Contains("<PlaybackPopover Title=\"Captions\"", razor);
+        Assert.Contains("<PlaybackPopover Title=\"Subtitles &amp; Audio\"", razor);
         Assert.Contains("<VideoContextPanel", razor);
         Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);

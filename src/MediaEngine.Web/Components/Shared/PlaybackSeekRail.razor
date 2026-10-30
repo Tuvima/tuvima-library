@@ -5,6 +5,7 @@
 <div class="playback-seek-rail playback-seek-rail--@Surface" @ref="_root" data-playback-seek-rail data-duration="@Duration.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-chapters="@ChapterJson">
     <output class="playback-seek-rail__start" aria-label="@($"Elapsed time {Time(Position)}")">@Time(Position)</output>
     <div class="playback-seek-rail__track">
+        @if (!string.IsNullOrWhiteSpace(Notice)) { <output class="playback-seek-rail__notice" role="status">@Notice</output> }
         <AppRangeSlider Value="@Position" Min="0" Max="@Math.Max(1, Duration)" Step="1" SnapValueToStep="false" CommitOnChange="true"
                              ShowTicks="@(ChapterTicks is { Count: > 0 })" TickValues="@ChapterTicks" ShowTickText="false" Surface="@Surface"
                              AriaLabel="Playback position" ValueFormatter="@(value => $"{Time(value)} of {Time(Duration)}")" ValueChanged="ValueChanged" disabled="@(Duration <= 0)" />
@@ -31,7 +32,12 @@
                                     else { <button type="button" class="playback-seek-rail__more" @onclick="@(() => _moreId = bookmark.Id)">More</button> }
                                 }
                                 <span>
-                                    <button type="button" class="playback-seek-rail__more" @onclick="@(() => JumpAsync(bookmark))">Jump here</button>
+                                    <button type="button" class="playback-seek-rail__more" @onclick="@(() => JumpAsync(bookmark))">Play</button>
+                                    @if (BookmarkDelete.HasDelegate && !bookmark.IsPack && !bookmark.IsGlobal)
+                                    {
+                                        @if (_deleteId == bookmark.Id) { <button type="button" class="playback-seek-rail__more" @onclick="@(() => DeleteAsync(bookmark))">Delete?</button> }
+                                        else { <button type="button" class="playback-seek-rail__more" @onclick="@(() => _deleteId = bookmark.Id)">Delete</button> }
+                                    }
                                     @if (_pinnedId == bookmark.Id) { <button type="button" class="playback-seek-rail__more" @onclick="CloseQuickLook">Close</button> }
                                 </span>
                             </div>
@@ -54,7 +60,12 @@
     [Parameter] public IReadOnlyList<PlaybackRailBookmark>? Bookmarks { get; set; }
     /// <summary>Raised when "Jump here" is chosen in a quick-look card.</summary>
     [Parameter] public EventCallback<PlaybackRailBookmark> BookmarkJump { get; set; }
-    private Guid? _quickLookId, _pinnedId, _moreId;
+    /// <summary>Raised when "Delete?" is confirmed in a quick-look card (personal bookmarks only).</summary>
+    [Parameter] public EventCallback<PlaybackRailBookmark> BookmarkDelete { get; set; }
+    /// <summary>A short line shown over the rail, such as "Bookmark added 13:42".</summary>
+    [Parameter] public string? Notice { get; set; }
+    private Guid? _quickLookId, _pinnedId, _moreId, _deleteId;
+    private async Task DeleteAsync(PlaybackRailBookmark bookmark) { CloseQuickLook(); await BookmarkDelete.InvokeAsync(bookmark); }
     private string Percent(double seconds) => (Math.Clamp(seconds / Math.Max(1, Duration), 0, 1) * 100).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
     private string CardStyle(double seconds)
     {
@@ -70,7 +81,7 @@
         if (_pinnedId == id) { CloseQuickLook(); return; }
         _pinnedId = id; _quickLookId = id; _moreId = null;
     }
-    private void CloseQuickLook() { _pinnedId = null; _quickLookId = null; _moreId = null; }
+    private void CloseQuickLook() { _pinnedId = null; _quickLookId = null; _moreId = null; _deleteId = null; }
     private async Task JumpAsync(PlaybackRailBookmark bookmark) { CloseQuickLook(); await BookmarkJump.InvokeAsync(bookmark); }
     [Parameter] public string Surface { get; set; } = "video";
     [Parameter] public bool? ShowRemaining { get; set; }

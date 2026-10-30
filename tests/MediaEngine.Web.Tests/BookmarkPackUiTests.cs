@@ -305,6 +305,7 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
                 .Add(component => component.Position, 750d)
                 .Add(component => component.Duration, 7200d)
                 .Add(component => component.AllowPacks, allowPacks));
+            await cut.Find(".video-bookmark-quick__more").ClickAsync();
             cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.audiobook-bookmark-dialog__tab")));
             await cut.FindAll("button.audiobook-bookmark-dialog__tab").First(tab => tab.TextContent.Trim() == "Saved").ClickAsync();
             return cut;

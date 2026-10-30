@@ -237,7 +237,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         Assert.Contains("For everyone", card.TextContent);
         Assert.DoesNotContain(cut.FindAll(".playback-seek-rail__quicklook button.playback-seek-rail__more"), button => button.TextContent == "More");
 
-        var jump = cut.FindAll(".playback-seek-rail__quicklook button.playback-seek-rail__more").First(button => button.TextContent == "Jump here");
+        var jump = cut.FindAll(".playback-seek-rail__quicklook button.playback-seek-rail__more").First(button => button.TextContent == "Play");
         await jump.ClickAsync();
         Assert.Equal(1800, Assert.Single(jumped).Seconds);
         Assert.Empty(cut.FindAll(".playback-seek-rail__quicklook"));
@@ -289,6 +289,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
             })
             .Add(component => component.JumpTo, (Func<double, bool, Task>)((seconds, play) => { jumps.Add((seconds, play)); return Task.CompletedTask; })));
 
+        await cut.Find(".video-bookmark-quick__more").ClickAsync();
         cut.WaitForAssertion(() => Assert.Contains("00:12:30", cut.Markup));
         Assert.Contains("The Bridge", cut.Markup);
         Assert.Equal("Add", cut.Find("button.audiobook-bookmark-dialog__tab.is-selected").TextContent.Trim());
@@ -318,6 +319,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
             .Add(component => component.Duration, 7200d)
             .Add(component => component.CanShare, true)
             .Add(component => component.SavedChanged, EventCallback.Factory.Create<IReadOnlyList<AudiobookBookmarkDto>>(this, saved => reported = saved)));
+        await cut.Find(".video-bookmark-quick__more").ClickAsync();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("textarea")));
 
         // The video keeps playing while the person types: the new position must not replace the captured one.

@@ -2663,7 +2663,8 @@ public sealed partial class PlaybackSessionController
                 {
                     return;
                 }
-                var refreshed = await _apiClient.GetPlaybackManifestAsync(preparingAsset, _clientContext.Client, null, ct, ToConnectionContext());
+                var refreshed = await _apiClient.GetPlaybackManifestAsync(preparingAsset, _clientContext.Client, null, ct, ToConnectionContext(),
+                    adaptive: _adaptiveAudioAssets.Contains(preparingAsset));
                 ct.ThrowIfCancellationRequested();
                 if ((guard is not null && !IsCurrentRequest(guard)) || index >= _queue.Count || _queue[index].AssetId != preparingAsset)
                 {
@@ -2840,6 +2841,38 @@ public sealed partial class PlaybackSessionController
         PlaybackDeliveryModes.DirectStream => manifest.DirectStreamUrl,
         _ => manifest.DirectPlaySupported ? manifest.DirectStreamUrl : null,
     };
+
+    private readonly HashSet<Guid> _adaptiveAudioAssets = [];
+
+    /// <summary>
+    /// Restarts the playing video on the Engine's adaptive stream, which carries every audio track, and resumes from the same second.
+    /// A browser cannot switch the audio of a direct-play file itself (video-player-controls-and-bookmarks D10). False when the Engine
+    /// could not provide the stream; the video keeps playing as it was.
+    /// </summary>
+    public async Task<bool> SwitchVideoToAdaptiveAsync(CancellationToken ct = default)
+    {
+        if (CurrentItem is not { AssetId: Guid assetId } item || !MediaKindClassifier.IsVideo(item.MediaType)) return false;
+        if (item.Manifest?.RecommendedDelivery == PlaybackDeliveryModes.Hls && !string.IsNullOrWhiteSpace(item.StreamUrl)) return true;
+        var index = _queue.FindIndex(entry => entry.AssetId == assetId && entry.WorkId == item.WorkId);
+        if (index < 0) return false;
+        var profileId = _preferences is null ? null : (await _preferences.GetAsync(ct))?.ProfileId;
+        var manifest = await _apiClient.GetPlaybackManifestAsync(assetId, _clientContext.Client,
+            profileId == Guid.Empty ? null : profileId, ct, ToConnectionContext(), adaptive: true);
+        if (manifest is null || manifest.RecommendedDelivery != PlaybackDeliveryModes.Hls
+            || manifest.HlsStatus is "failed" or "unavailable"
+            || index >= _queue.Count || _queue[index].AssetId != assetId)
+        {
+            return false;
+        }
+
+        _adaptiveAudioAssets.Add(assetId);
+        _queue[index] = _queue[index] with { Manifest = manifest, StreamUrl = null, InitialPositionSeconds = CurrentTimeSeconds, StartAtExactPosition = true };
+        await EnsurePlayableAsync(index, ct);
+        if (index >= _queue.Count || string.IsNullOrWhiteSpace(_queue[index].StreamUrl)) return false;
+        MarkPlaybackStart();
+        NotifyChanged();
+        return true;
+    }
 
     private string? NormalizeStreamUrl(string? streamUrl)
     {
