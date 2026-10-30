@@ -259,8 +259,8 @@ public static class RealMediaEndpoints
         }
         return path.TrimEnd('/').ToLowerInvariant() is
             "/setup/v1/begin" or "/setup/v1/preflight" or "/setup/v1/administrator"
-            or "/setup/v1/media-locations/validate" or "/setup/v1/steps/providers"
-            or "/setup/v1/steps/media-locations" or "/setup/v1/complete";
+            or "/setup/v1/media-locations/validate" or "/setup/v1/steps/metadata"
+            or "/setup/v1/steps/libraries" or "/setup/v1/steps/tools" or "/setup/v1/steps/vault" or "/setup/v1/complete";
     }
 
     // Provider checks and credential rotation do not change the protected media

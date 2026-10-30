@@ -297,7 +297,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     }
 
     // Add-folder v2 (A4 for View and the Vault): setup's View folders use Settings' own folder dialog and shared pop-up, the Vault step draws the same Libraries
-    // table, and no other setup screen knows the word Vault, so a skipped Vault step leaves nothing behind.
+    // table, and no other setup screen knows the word Vault (the step list draws its optional entry only while it is offered), so a skipped Vault step leaves nothing behind.
     [Fact]
     public void SetupsViewFoldersAndVaultStepReuseSettingsComponentsAndTheVaultStaysInOneStep()
     {
@@ -315,7 +315,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.DoesNotContain("<CreateLibraryDialog", vaultStep, StringComparison.Ordinal);
 
         var others = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories)
-            .Where(file => Path.GetFileName(file) is not ("SetupVaultOffer.razor" or "SetupMediaStage.razor"));
+            .Where(file => Path.GetFileName(file) is not ("SetupVaultOffer.razor" or "SetupMediaStage.razor" or "SetupStepper.razor"));
         Assert.All(others, file => Assert.DoesNotContain("Vault", File.ReadAllText(file), StringComparison.OrdinalIgnoreCase));
     }
 

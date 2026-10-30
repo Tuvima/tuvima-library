@@ -25,14 +25,14 @@ public sealed class OnboardingRepositoryTests : IDisposable
         Assert.True(await _repository.TryBeginAsync("session-hash", Guid.NewGuid(), expires, CancellationToken.None));
         Assert.True(await _repository.TryBeginAsync("other-hash", Guid.NewGuid(), expires, CancellationToken.None));
 
-        await _repository.SetStepAsync("server", "passed", "Named.", null, null, CancellationToken.None);
-        await _repository.SetStepAsync("preflight", "passed", "Ready.", null, null, CancellationToken.None);
-        await _repository.SetStepAsync("preflight", "passed", "Ready.", null, null, CancellationToken.None);
+        await _repository.SetStepAsync("welcome", "passed", "Named.", null, null, CancellationToken.None);
+        await _repository.SetStepAsync("tools", "passed", "Ready.", null, null, CancellationToken.None);
+        await _repository.SetStepAsync("tools", "passed", "Ready.", null, null, CancellationToken.None);
 
         var workflow = _repository.Get();
         Assert.Equal(1, workflow.WorkflowVersion);
-        Assert.Equal("administrator", workflow.CurrentStep);
-        Assert.Equal("passed", workflow.Steps.Single(step => step.Key == "preflight").Status);
+        Assert.Equal("profile", workflow.CurrentStep);
+        Assert.Equal("passed", workflow.Steps.Single(step => step.Key == "tools").Status);
         Assert.False(await _repository.ValidateSessionAsync("session-hash", CancellationToken.None));
         Assert.True(await _repository.ValidateSessionAsync("other-hash", CancellationToken.None));
     }
@@ -42,33 +42,58 @@ public sealed class OnboardingRepositoryTests : IDisposable
     {
         Assert.True(await _repository.TryBeginAsync(
             "session-hash", Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(1), CancellationToken.None));
-        await _repository.SetStepAsync("preflight", "passed", null, null, null, CancellationToken.None);
-        await _repository.SetStepAsync("administrator", "passed", null, null, null, CancellationToken.None);
-        await _repository.SetStepAsync("providers", "deferred", null, "/setup?step=providers", null, CancellationToken.None);
+        await _repository.SetStepAsync("welcome", "passed", null, null, null, CancellationToken.None);
+        await _repository.SetStepAsync("tools", "passed", null, null, null, CancellationToken.None);
+        await _repository.SetStepAsync("profile", "passed", null, null, null, CancellationToken.None);
+        await _repository.SetStepAsync("metadata", "deferred", null, "/setup?step=metadata", null, CancellationToken.None);
         Assert.False(await _repository.CompleteAsync(CancellationToken.None));
 
-        await _repository.SetStepAsync("media-locations", "passed", null, null, null, CancellationToken.None);
+        await _repository.SetStepAsync("libraries", "passed", null, null, null, CancellationToken.None);
         Assert.True(await _repository.CompleteAsync(CancellationToken.None));
         Assert.Equal("complete", _repository.Get().State);
         Assert.False(await _repository.ValidateSessionAsync("session-hash", CancellationToken.None));
     }
 
     [Fact]
+    public void TheWorkflowListsExactlyTheSevenSetupStepsInOrder()
+    {
+        var keys = _repository.Get().Steps.Select(step => step.Key).ToArray();
+        Assert.Equal(["welcome", "profile", "tools", "libraries", "vault", "metadata", "done"], keys);
+        Assert.Equal("welcome", _repository.Get().CurrentStep);
+    }
+
+    [Fact]
+    public async Task AnOpenToolsStepKeepsSetupOnToolsUntilItIsPassed_AndTheVaultNeverBlocksCompletion()
+    {
+        await _repository.TryBeginAsync("session", Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(1), CancellationToken.None);
+        await _repository.SetStepAsync("welcome", "passed", null, null, null, CancellationToken.None);
+        await _repository.SetStepAsync("profile", "passed", null, null, null, CancellationToken.None);
+        await _repository.SetStepAsync("tools", "in_progress", null, null, null, CancellationToken.None);
+        Assert.Equal("tools", _repository.Get().CurrentStep);
+        Assert.False(await _repository.CompleteAsync(CancellationToken.None));
+
+        await _repository.SetStepAsync("tools", "passed", null, null, null, CancellationToken.None);
+        await _repository.SetStepAsync("libraries", "deferred", null, null, null, CancellationToken.None);
+        await _repository.SetStepAsync("metadata", "deferred", null, null, null, CancellationToken.None);
+        Assert.True(await _repository.CompleteAsync(CancellationToken.None));
+    }
+
+    [Fact]
     public async Task MediaDeferralSurvivesReloadAndAllowsCompletion()
     {
         await _repository.TryBeginAsync("session", Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(1), CancellationToken.None);
-        foreach (var key in new[] { "preflight", "administrator" })
+        foreach (var key in new[] { "welcome", "tools", "profile" })
         {
             await _repository.SetStepAsync(key, "passed", null, null, null, CancellationToken.None);
         }
 
-        foreach (var key in new[] { "media-locations", "providers" })
+        foreach (var key in new[] { "libraries", "metadata" })
         {
             await _repository.SetStepAsync(key, "deferred", "Later", null, null, CancellationToken.None);
         }
 
         var reloaded = new OnboardingRepository(_database);
-        Assert.Equal("deferred", reloaded.Get().Steps.Single(step => step.Key == "media-locations").Status);
+        Assert.Equal("deferred", reloaded.Get().Steps.Single(step => step.Key == "libraries").Status);
         Assert.True(await reloaded.CompleteAsync(CancellationToken.None));
     }
 

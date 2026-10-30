@@ -10,8 +10,7 @@ public static class SetupWorkflow
     public const int CurrentVersion = 1;
     public static readonly string[] StepKeys =
     [
-        "server", "preflight", "administrator", "media-locations",
-        "providers", "readiness",
+        "welcome", "profile", "tools", "libraries", "vault", "metadata", "done",
     ];
 }
 

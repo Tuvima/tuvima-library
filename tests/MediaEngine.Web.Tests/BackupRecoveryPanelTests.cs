@@ -340,7 +340,7 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
     [Fact]
     public void TheFirstLookAtASetupUpload_SummarisesTheCounts_ThenSaysTheAppRestarts()
     {
-        var cut = Render<SetupServerStage>(parameters => parameters
+        var cut = Render<SetupWelcomeStage>(parameters => parameters
             .Add(component => component.ServerName, "Home")
             .Add(component => component.ShowRestore, true)
             .Add(component => component.Backup, new SetupBackupInspectionDto(
@@ -359,7 +359,7 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
     [Fact]
     public void ASetupUploadWithoutCounts_FallsBackToTheEnginesWarningSentence()
     {
-        var cut = Render<SetupServerStage>(parameters => parameters
+        var cut = Render<SetupWelcomeStage>(parameters => parameters
             .Add(component => component.ServerName, "Home")
             .Add(component => component.ShowRestore, true)
             .Add(component => component.Backup, new SetupBackupInspectionDto(
@@ -374,7 +374,7 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
     {
         const string sentence = "This backup file is damaged and can't be restored.";
 
-        var cut = Render<SetupServerStage>(parameters => parameters
+        var cut = Render<SetupWelcomeStage>(parameters => parameters
             .Add(component => component.ServerName, "Home")
             .Add(component => component.ShowRestore, true)
             .Add(component => component.BackupError, sentence));

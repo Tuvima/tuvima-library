@@ -39,6 +39,16 @@
             <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
         </div>
     }
+    else if (!Busy && Preflight is { Passed: true })
+    {
+        <div class="setup-stage__heading">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
+            <div><h2 id="setup-stage-title">Your tools are ready</h2><p>Everything Library needs on this server was checked and is in place.</p></div>
+        </div>
+        <div class="setup-actions">
+            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
+        </div>
+    }
     else
     {
         <div class="setup-stage__heading">

@@ -147,12 +147,12 @@ public sealed class ProviderStartupCheckServiceTests : IDisposable
     private async Task CompleteOnboardingAsync()
     {
         await _onboarding.TryBeginAsync("session", Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(1), CancellationToken.None);
-        foreach (var key in new[] { "preflight", "administrator" })
+        foreach (var key in new[] { "welcome", "tools", "profile" })
         {
             await _onboarding.SetStepAsync(key, "passed", null, null, null, CancellationToken.None);
         }
 
-        foreach (var key in new[] { "media-locations", "providers" })
+        foreach (var key in new[] { "libraries", "metadata" })
         {
             await _onboarding.SetStepAsync(key, "deferred", "Later", null, null, CancellationToken.None);
         }

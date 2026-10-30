@@ -148,7 +148,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
             .Add(p => p.Preflight, Passed(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready)))));
 
         Assert.DoesNotContain("A few things to install", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Getting things ready", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Your tools are ready", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -188,7 +188,8 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     {
         var setup = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Pages", "SetupPage.razor"));
 
-        Assert.Contains("Tools.NeedsAttention: false", setup, StringComparison.Ordinal);
+        // The Tools step is always shown and only Continue passes it; nothing advances it by itself.
+        Assert.DoesNotContain("automaticallyAdvance", setup, StringComparison.Ordinal);
         Assert.Contains("Continue=\"ContinuePastToolsAsync\"", setup, StringComparison.Ordinal);
     }
 
