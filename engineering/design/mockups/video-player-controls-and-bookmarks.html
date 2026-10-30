@@ -1,0 +1,345 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video player controls</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a column of 1440-wide player frames, each scaled to fit, with a short note under each. Dark-only, like the player itself. */
+:root{
+  --bg:#070A12; --fg:#F5F7FB; --fg-2:#B6C2D6; --fg-3:#94A3B8;
+  --accent:#8852FC; --accent-hover:#A46FFF; --accent-soft:rgba(136,82,252,.22);
+  --cyan:#38BDF8; --surface:#111827; --raised:#151E2F; --border:rgba(255,255,255,.12);
+  --font-ui:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-ui);padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1200px;margin:0 auto;display:grid;gap:44px}
+h1{font-size:28px;margin:0 0 6px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.lede{color:var(--fg-2);margin:0;max-width:68ch;line-height:1.5}
+h2{font-size:18px;margin:0 0 4px;font-weight:600}
+.sub{color:var(--fg-3);margin:0 0 12px;font-size:14px;max-width:80ch;line-height:1.5}
+.frame{position:relative;width:100%;aspect-ratio:16/9;max-width:100%;overflow:hidden;border-radius:10px;border:1px solid var(--border);background:#000}
+.stage{position:absolute;left:0;top:0;width:1440px;height:810px;transform-origin:0 0;background:radial-gradient(120% 90% at 30% 20%,#2a2f3f 0%,#101420 45%,#05070c 100%)}
+.stage.lit{background:radial-gradient(90% 70% at 60% 40%,#3b2f3a 0%,#1a1522 50%,#07080f 100%)}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.45),transparent 22%,transparent 55%,rgba(0,0,0,.78))}
+.close{position:absolute;top:24px;right:28px;width:44px;height:44px;display:grid;place-items:center;color:#fff}
+.cb{position:absolute;left:32px;right:32px;bottom:22px;display:grid;gap:10px}
+.rail{position:relative;height:28px;display:flex;align-items:center}
+.rail .track{position:relative;flex:1;height:4px;background:rgba(255,255,255,.28);border-radius:2px}
+.rail .fill{position:absolute;left:0;top:0;height:100%;width:31%;background:var(--accent);border-radius:2px}
+.rail .knob{position:absolute;left:31%;top:50%;width:16px;height:16px;transform:translate(-50%,-50%);border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
+.rail .chapter{position:absolute;top:50%;width:2px;height:10px;transform:translate(-50%,-50%);background:rgba(255,255,255,.55)}
+.rail .bm{position:absolute;top:50%;width:12px;height:12px;transform:translate(-50%,-50%);border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px rgba(0,0,0,.55),0 0 0 3.5px rgba(255,255,255,.35)}
+.rail .bm.everyone{background:#fff}
+.rail .bm.pack{background:var(--cyan)}
+.rail .time{margin-left:16px;font-size:16px;font-variant-numeric:tabular-nums;color:#fff}
+.row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:56px}
+.left,.right{display:flex;align-items:center;gap:14px}
+.right{justify-content:flex-end}
+.btn{width:52px;height:52px;display:grid;place-items:center;color:#fff;border-radius:10px;position:relative}
+.btn svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn.play svg{width:40px;height:40px;fill:#fff;stroke:none}
+.btn.hover{color:var(--accent-hover);transform:scale(1.08)}
+.btn.on::after{content:"";position:absolute;left:14px;right:14px;bottom:5px;height:3px;border-radius:2px;background:var(--accent-hover)}
+.btn.on{color:var(--accent-hover)}
+.btn .n{position:absolute;font-size:12px;font-weight:700;top:19px;left:0;right:0;text-align:center;color:#fff}
+.title{text-align:center;font-size:18px;color:#fff;white-space:nowrap}
+.title b{font-weight:600}
+.title span{color:var(--fg-2);margin-right:8px}
+.tip{position:absolute;bottom:62px;left:50%;transform:translateX(-50%);background:rgba(13,18,28,.96);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:14px;white-space:nowrap;color:#fff}
+.pause-title{position:absolute;left:0;right:0;top:40%;text-align:center;transform:translateY(-50%)}
+.pause-title .k{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-2);margin-bottom:8px}
+.pause-title .t{font-size:48px;font-weight:600;color:#fff;letter-spacing:-.01em}
+.pause-title .e{font-size:22px;color:var(--fg-2);margin-top:8px}
+.pop{position:absolute;bottom:106px;background:rgba(13,18,28,.96);border:1px solid var(--border);border-radius:12px;color:#fff;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.pop h3{margin:0;font-size:15px;font-weight:600;color:var(--fg-2);text-transform:uppercase;letter-spacing:.08em}
+/* bookmarks */
+.bm-pop{right:300px;width:420px;padding:14px}
+.addrow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:var(--accent);color:#fff;font-size:17px;font-weight:600}
+.addrow svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.addrow .t{margin-left:auto;font-weight:500;font-variant-numeric:tabular-nums;opacity:.9}
+.note{margin-top:8px;display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;color:var(--fg-3);font-size:15px}
+.note .k{margin-left:auto;font-size:12px;border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+.list{margin-top:14px;display:grid}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 8px;border-radius:8px;font-size:16px}
+.item.cur{background:rgba(255,255,255,.07)}
+.item .tm{font-variant-numeric:tabular-nums;color:#fff;width:56px;display:flex;align-items:center;gap:8px}
+.item .dot{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+.item .dot.everyone{background:#fff}.item .dot.pack{background:var(--cyan)}
+.item .tx{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .tx small{display:block;color:var(--fg-3);font-size:13px}
+.item .ac{display:flex;gap:4px;opacity:.9}
+.item .ac span{width:32px;height:32px;display:grid;place-items:center;border-radius:6px;color:var(--fg-2)}
+.item .ac svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8}
+.chip{font-size:12px;padding:1px 7px;border-radius:999px;border:1px solid var(--border);color:var(--fg-2);margin-left:8px;vertical-align:middle}
+/* quick look */
+.ql{position:absolute;bottom:126px;left:548px;width:300px;background:rgba(13,18,28,.96);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:#fff;font-size:15px}
+.ql b{display:block;font-variant-numeric:tabular-nums;margin-bottom:2px}
+.ql .act{margin-top:8px;display:flex;gap:14px;color:var(--accent-hover);font-size:14px}
+/* subs & audio */
+.sa-pop{right:140px;width:560px;padding:16px 18px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.sa-pop ul{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:2px}
+.sa-pop li{padding:8px 10px;border-radius:8px;font-size:16px;display:flex;align-items:center;gap:8px}
+.sa-pop li.sel{background:rgba(255,255,255,.08);font-weight:600}
+.sa-pop li.sel::before{content:"✓";color:var(--accent-hover)}
+.sa-pop li.dim{color:var(--fg-3);font-size:14px}
+.sa-pop .more{grid-column:1/-1;border-top:1px solid var(--border);padding-top:10px;color:var(--fg-2);font-size:14px;display:flex;gap:18px}
+/* speed */
+.sp-pop{right:84px;width:340px;padding:14px 18px}
+.sp-pop .val{font-size:22px;font-weight:600;text-align:center}
+.sp-pop .sl{height:4px;background:rgba(255,255,255,.3);border-radius:2px;margin:14px 0 6px;position:relative}
+.sp-pop .sl i{position:absolute;left:20%;top:50%;width:16px;height:16px;border-radius:50%;background:#fff;transform:translate(-50%,-50%)}
+.sp-pop .ticks{display:flex;justify-content:space-between;font-size:13px;color:var(--fg-3)}
+/* notes under frames */
+.notes{margin-top:12px;display:grid;gap:6px;color:var(--fg-2);font-size:14px;line-height:1.5;padding-left:18px}
+.notes li::marker{color:var(--accent-hover)}
+.ref{display:grid;gap:8px}
+.ref img{width:100%;border-radius:8px;border:1px solid var(--border)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--fg-2)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:6px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.card h3{margin:0 0 6px;font-size:15px}
+.card p{margin:0;color:var(--fg-2);font-size:14px;line-height:1.5}
+@media (prefers-reduced-motion:reduce){*{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Video player controls and bookmarks</h1>
+    <p class="lede">Mockups for Shy's review, drawn at 1440 px wide. Every frame is the real player size scaled down, so icon sizes and spacing are true to what you would see on your monitor. Layout follows the reference bar you sent: play first, the episode name centred, the tools on the right.</p>
+  </header>
+
+  <section>
+    <h2>1. Playing, nothing hovered</h2>
+    <p class="sub">The resting look. Icons are the size they used to be only on hover (34 px glyphs in 52 px targets). Bookmarks sit on the progress rail as small round bubbles: purple for yours, white for shared, blue for pack bookmarks. Chapters stay thin lines so the two never look alike.</p>
+    <div class="frame"><div class="stage">
+      <div class="shade"></div>
+      <div class="close"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+      <div class="cb">
+        <div class="rail"><div class="track"><div class="fill"></div><i class="chapter" style="left:18%"></i><i class="chapter" style="left:46%"></i><i class="chapter" style="left:73%"></i><i class="bm" style="left:12%"></i><i class="bm everyone" style="left:39%"></i><i class="bm" style="left:58%"></i><i class="bm pack" style="left:84%"></i><div class="knob"></div></div><div class="time">13:42 / 44:10</div></div>
+        <div class="row">
+          <div class="left">
+            <div class="btn play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 1-6.4 4.1"/><path d="M4 4v5h5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 0 6.4 4.1"/><path d="M20 4v5h-5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg></div>
+          </div>
+          <div class="title"><span>From E4</span><b>The Lighthouse Keeper</b></div>
+          <div class="right">
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M6 5v14l10-7z"/><path d="M19 5v14"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="14" height="11" rx="2"/><path d="M7 5h14v11"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M7 4h10v17l-5-4-5 4z"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 11h4M13 11h4M7 14h7"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="notes">
+      <li><b>Order, left:</b> Play, back 10, forward 10, Mute (volume slider slides out on hover). <b>Right:</b> Next episode, Episodes, Bookmarks, Subtitles &amp; Audio, Speed, Full screen. Up Next and the other panel tools move into the Episodes panel so the bar has six tools, like the reference.</li>
+      <li><b>Sizes:</b> every glyph 34 px inside a 52 px target, including Play. No separate hover size. The circle around Play goes; it made the icon look smaller than its neighbours.</li>
+      <li><b>Rail:</b> chapter ticks stay thin and white; bookmarks are 12 px bubbles with a dark ring so they sit on the bar rather than cut through it. The time sits at the end of the rail.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>2. Paused</h2>
+    <p class="sub">Pausing brings the show and episode name to the centre of the picture, the way the reference does, and dims the video a little. The bar stays where it is so your hand does not have to move.</p>
+    <div class="frame"><div class="stage lit">
+      <div class="shade" style="background:rgba(0,0,0,.45)"></div>
+      <div class="pause-title"><div class="k">You're watching</div><div class="t">Harbour Lights</div><div class="e">Season 2, Episode 4 · The Lighthouse Keeper</div></div>
+      <div class="cb">
+        <div class="rail"><div class="track"><div class="fill"></div><i class="chapter" style="left:18%"></i><i class="chapter" style="left:46%"></i><i class="chapter" style="left:73%"></i><i class="bm" style="left:12%"></i><i class="bm everyone" style="left:39%"></i><i class="bm" style="left:58%"></i><div class="knob"></div></div><div class="time">13:42 / 44:10</div></div>
+        <div class="row">
+          <div class="left">
+            <div class="btn play"><svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 1-6.4 4.1"/><path d="M4 4v5h5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 0 6.4 4.1"/><path d="M20 4v5h-5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg></div>
+          </div>
+          <div class="title"><span>From E4</span><b>The Lighthouse Keeper</b></div>
+          <div class="right">
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M6 5v14l10-7z"/><path d="M19 5v14"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="14" height="11" rx="2"/><path d="M7 5h14v11"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M7 4h10v17l-5-4-5 4z"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 11h4M13 11h4M7 14h7"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="notes">
+      <li>The Play glyph swaps to Pause while playing and back to Play when paused; it stays first in the bar in both states.</li>
+      <li>The big title fades out when playback resumes; the bar then hides after 3 seconds of no mouse movement, as today.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>3. Hover on a right-hand tool, and the Bookmarks list</h2>
+    <p class="sub">Hovering any tool turns it purple and shows its name; the Subtitles icon keeps a small purple underline whenever captions are on. Hovering Bookmarks opens the quick list; moving the mouse away closes it, and a click pins it open.</p>
+    <div class="frame"><div class="stage">
+      <div class="shade"></div>
+      <div class="pop bm-pop">
+        <div class="addrow"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Add bookmark here <span class="t">13:42</span></div>
+        <div class="note">Add a note (optional)… <span class="k">Enter</span></div>
+        <div class="list">
+          <div class="item"><div class="tm"><i class="dot pack"></i>37:05</div><div class="tx">Confrontation at the pier<small>From pack “Harbour Lights scenes” by Mara</small></div><div class="ac"><span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></div></div>
+          <div class="item"><div class="tm"><i class="dot"></i>25:36</div><div class="tx">Boat engine foley · check for season 3<small>Mine · scene until 27:10</small></div><div class="ac"><span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span></div></div>
+          <div class="item cur"><div class="tm"><i class="dot everyone"></i>17:12</div><div class="tx">Opening credits end <span class="chip">Everyone</span><small>Shared by Shy</small></div><div class="ac"><span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span></div></div>
+          <div class="item"><div class="tm"><i class="dot"></i>05:18</div><div class="tx">Cold open: the rowing boat<small>Mine</small></div><div class="ac"><span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span></div></div>
+        </div>
+      </div>
+      <div class="cb">
+        <div class="rail"><div class="track"><div class="fill"></div><i class="chapter" style="left:18%"></i><i class="chapter" style="left:46%"></i><i class="chapter" style="left:73%"></i><i class="bm" style="left:12%"></i><i class="bm everyone" style="left:39%"></i><i class="bm" style="left:58%"></i><i class="bm pack" style="left:84%"></i><div class="knob"></div></div><div class="time">13:42 / 44:10</div></div>
+        <div class="row">
+          <div class="left">
+            <div class="btn play"><svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 1-6.4 4.1"/><path d="M4 4v5h5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 0 6.4 4.1"/><path d="M20 4v5h-5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg></div>
+          </div>
+          <div class="title"><span>From E4</span><b>The Lighthouse Keeper</b></div>
+          <div class="right">
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M6 5v14l10-7z"/><path d="M19 5v14"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="14" height="11" rx="2"/><path d="M7 5h14v11"/></svg></div>
+            <div class="btn hover"><svg viewBox="0 0 24 24"><path d="M7 4h10v17l-5-4-5 4z"/></svg><div class="tip">Bookmarks</div></div>
+            <div class="btn on"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 11h4M13 11h4M7 14h7"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="notes">
+      <li><b>One click to add.</b> The purple row at the top saves a bookmark at the current time immediately, with no note. Typing in the note field first and pressing Enter saves it with the note. Keyboard: <b>B</b> adds a bookmark without opening anything, and a small "Bookmark added 13:42" line shows on the rail for two seconds (no toast).</li>
+      <li><b>The list is the quick list.</b> Newest at the bottom? No: in time order, so it reads like chapters. Each row: marker colour, time, note, who it belongs to; Play jumps there; the bin deletes with an inline "Delete?" confirm. The row nearest the current time is highlighted.</li>
+      <li><b>Administrators</b> see a small "Share with everyone" switch under the note field, off by default (spec D43 unchanged). The long description, scene end time, and packs (export/import) move behind a "More…" link at the bottom of the list, so the everyday panel stays short.</li>
+      <li><b>Hover behaviour fix:</b> a hover-opened panel always closes when the mouse leaves it; only a click pins it. Today the Speed panel pins itself by mistake (details in the spec).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. Pointing at a marker on the rail</h2>
+    <p class="sub">Hovering a bubble grows it a little and shows its quick-look card with the time, the note, who made it, and two actions. Scenes with an end time are drawn as a shaded span.</p>
+    <div class="frame"><div class="stage">
+      <div class="shade"></div>
+      <div class="ql"><b>25:36 → 27:10 · Scene</b>Boat engine foley · check for season 3<div style="color:var(--fg-3);font-size:13px;margin-top:2px">Mine</div><div class="act"><span>Play scene</span><span>More</span><span>Delete</span></div></div>
+      <div class="cb">
+        <div class="rail"><div class="track"><div class="fill"></div><i class="chapter" style="left:18%"></i><i class="chapter" style="left:46%"></i><i class="chapter" style="left:73%"></i><i class="bm" style="left:12%"></i><i class="bm everyone" style="left:39%"></i><i style="position:absolute;left:58%;width:3.5%;top:0;height:100%;background:var(--accent-soft)"></i><i class="bm" style="left:58%;transform:translate(-50%,-50%) scale(1.25)"></i><i class="bm pack" style="left:84%"></i><div class="knob"></div></div><div class="time">13:42 / 44:10</div></div>
+        <div class="row">
+          <div class="left">
+            <div class="btn play"><svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 1-6.4 4.1"/><path d="M4 4v5h5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 0 6.4 4.1"/><path d="M20 4v5h-5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg></div>
+          </div>
+          <div class="title"><span>From E4</span><b>The Lighthouse Keeper</b></div>
+          <div class="right">
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M6 5v14l10-7z"/><path d="M19 5v14"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="14" height="11" rx="2"/><path d="M7 5h14v11"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M7 4h10v17l-5-4-5 4z"/></svg></div>
+            <div class="btn on"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 11h4M13 11h4M7 14h7"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="legend"><span><i style="background:var(--accent)"></i>Mine</span><span><i style="background:#fff"></i>Shared with everyone</span><span><i style="background:var(--cyan)"></i>From an imported pack</span><span><i style="background:rgba(255,255,255,.55);width:2px;height:12px;border-radius:1px"></i>Chapter (from the file)</span></div>
+  </section>
+
+  <section>
+    <h2>5. Subtitles &amp; Audio in one panel</h2>
+    <p class="sub">One tool for both, two columns, like the reference. Audio always lists the languages the file has, even when the browser cannot switch them itself; then Library switches the track through the Engine and restarts from the same second.</p>
+    <div class="frame"><div class="stage">
+      <div class="shade"></div>
+      <div class="pop sa-pop">
+        <div><h3>Audio</h3><ul><li class="sel">English (5.1)</li><li>Français</li><li>Deutsch</li><li class="dim">Audio description · English</li></ul></div>
+        <div><h3>Subtitles</h3><ul><li>Off</li><li class="sel">English [CC]</li><li>English (forced only)</li><li>Español</li><li class="dim">Find better subtitles…</li></ul></div>
+        <div class="more"><span>Subtitle size and background: Settings › Playback</span></div>
+      </div>
+      <div class="cb">
+        <div class="rail"><div class="track"><div class="fill"></div><i class="chapter" style="left:18%"></i><i class="chapter" style="left:46%"></i><i class="chapter" style="left:73%"></i><i class="bm" style="left:12%"></i><i class="bm everyone" style="left:39%"></i><i class="bm" style="left:58%"></i><div class="knob"></div></div><div class="time">13:42 / 44:10</div></div>
+        <div class="row">
+          <div class="left">
+            <div class="btn play"><svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 1-6.4 4.1"/><path d="M4 4v5h5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 0 6.4 4.1"/><path d="M20 4v5h-5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg></div>
+          </div>
+          <div class="title"><span>From E4</span><b>The Lighthouse Keeper</b></div>
+          <div class="right">
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M6 5v14l10-7z"/><path d="M19 5v14"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="14" height="11" rx="2"/><path d="M7 5h14v11"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M7 4h10v17l-5-4-5 4z"/></svg></div>
+            <div class="btn hover on"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 11h4M13 11h4M7 14h7"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="notes">
+      <li>The Subtitles icon is lit (purple underline) whenever a subtitle track is on, so you can tell at a glance.</li>
+      <li>Today the Audio tool only appears when the browser exposes every audio track; Chrome and Edge do not, so the tool is usually missing. The spec moves track switching to the Engine so the list is always there.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>6. Speed</h2>
+    <p class="sub">Unchanged in content; the fix is behaviour. Hover shows it, leaving hides it, a click keeps it open.</p>
+    <div class="frame" style="aspect-ratio:16/5"><div class="stage" style="height:450px">
+      <div class="shade"></div>
+      <div class="pop sp-pop"><div class="val">1.25×</div><div class="sl"><i></i></div><div class="ticks"><span>0.5×</span><span>1×</span><span>1.5×</span><span>2×</span><span>3×</span></div><div style="text-align:center;margin-top:10px;color:var(--accent-hover);font-size:14px">Reset to 1×</div></div>
+      <div class="cb">
+        <div class="rail"><div class="track"><div class="fill"></div><div class="knob"></div></div><div class="time">13:42 / 44:10</div></div>
+        <div class="row">
+          <div class="left">
+            <div class="btn play"><svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 1-6.4 4.1"/><path d="M4 4v5h5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 0 6.4 4.1"/><path d="M20 4v5h-5"/></svg><span class="n">10</span></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg></div>
+          </div>
+          <div class="title"><span>From E4</span><b>The Lighthouse Keeper</b></div>
+          <div class="right">
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M6 5v14l10-7z"/><path d="M19 5v14"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="14" height="11" rx="2"/><path d="M7 5h14v11"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M7 4h10v17l-5-4-5 4z"/></svg></div>
+            <div class="btn on"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 11h4M13 11h4M7 14h7"/></svg></div>
+            <div class="btn hover"><svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></svg></div>
+            <div class="btn"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <section>
+    <h2>Reference you sent</h2>
+    <div class="ref"><img id="ref" alt="Reference control bar: play, back 10, forward 10, mute on the left; episode name centred; next episode, episodes, subtitles, speed, full screen on the right" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAACd8AAAB7CAYAAACPOWtRAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAADhpSURBVHhe7d17eFx1ncfxT3qDoqEFdbFYmQm05ZGWogt1K66ZSSBiRbzAulQk04mpPqDooj5YlE4ml3IT3BVEgW3ipAmyFZcFBIqSpJMJcnmM7rO0DZckdmYgoFwsbSO0zaQ5+8d2ZuecM5PMTG4z6fv1PJ+HzPmdc+bM78xMafvt91ckyVCSbkkrkjdk6OCSJfrT1q3WzcCkKCoqsm6aMA888IB1E1KYzHuAwsR7In9xbyYX8wsAAAAAAAAAAABgJqmtrbVuytn3vvc9nXLKKbrnnnv0zDPPJLY/8sgjqqio0M0336yamhrTMZJ0xhlnyO/363Of+5xCoZAuuOAC6y425eXlamlp0b59+7R8+XLrcMJNN92kb3/727r//vt12WWXWYezUmQtvrtJ0r8kb8jQbZKutW4EAAAAAAAAAAAAAAAAACDJTTfdpO985ztqaWnR+vXrrcOSpOLiYv3+979XcXGxPB6Ptm/fbt3FJJPiu+LiYoVCITkcDn3jG9/Q1nE2m5tl3fAfkl61bhzDq0eOAwAAAAAAAAAAAAAAAABARzrfbd68WW63O7GtuLhYq1at0vDwsHp7e7Vhwwa98cYbuueee0zHnn/++TrxxBMVi8U0ODgoHSmwKy8vN+2Xjauuukof+tCH9PTTT4+78E6piu+elbRZ0gHrQBoHjuz/rHUAAAAAAAAAAAAAAAAAAHDUOu6443T55Zfr17/+tbZt26atW7eqp6dHZWVl6u3t1YMPPqiHH35Yr776qi677DL19vZq69atevjhh9XY2Kj3vOc92r59u7q7u/WFL3xB9913n+677z594QtfsD7VmIqLi3XhhRdqeHhY27Ztsw7nxFZ8J0kBSY0ZdMB79ch+AesAAAAAAAAAAAAAAAAAAOCoVltbq+uuu05vvvmmKioqdOmll+qEE07Qtm3bEsV2zz33nL70pS9p27ZtWrRokS699FJdeOGFGhoa0u23366rr75akrRv3z698847euedd7Rv3z7rU42psrJSZ511lp599lm1trZah3NSJMmwbpSkkyR9WtIaSWdIOlnS/COd7l6V9JykxyRtk/Sa9WAAAAAAAAAAAAAAAAAAAGawtMV3cWdJ+lCK4rvnWWoWAAAAAAAAAAAAAAAAAHCUGrP4DgAAAAAAAAAAAAAAAAAAmM2ybgAAAAAAAAAAAAAAAAAAAKOj+A4AAAAAAAAAAAAAAAAAgCxRfAcAAAAAAAAAAAAAAAAAQJYovgMAAAAAAAAAAAAAAAAAIEsU3wEAAAAAAAAAAAAAAAAAkCWK7wAAAAAAAAAAAAAAAAAAyBLFdwAAAAAAAAAAAAAAAAAAZIniOwAAAAAAAAAAAAAAAAAAskTxHQAAAAAAAAAAAAAAAAAAWaL4DgAAAAAAAAAAAAAAAACALFF8BwAAAAAAAAAAAAAAAABAlii+AwAAAAAAAAAAAAAAAAAgSxTfAQAAAAAAAAAAAAAAAACQJYrvAAAAAAAAAAAAAAAAAADIEsV3AAAAAAAAAAAAAAAAAABkieI7AAAAAAAAAAAAAAAAAACyRPEdAAAAAAAAAAAAAAAAAABZovgOAAAAAAAAAAAAAAAAAIAsUXwHAAAAAAAAAAAAAAAAAECWKL4DAAAAAAAAAAAAAAAAACBLFN8BAAAAAAAAAAAAAAAAAJAliu8AAAAAAAAAAAAAAAAAAMgSxXcAAAAAAAAAAAAAAAAAAGSJ4jsAAAAAAAAAAAAAAAAAALJE8R0AAAAAAAAAAAAAAAAAAFmi+A4AAAAAAAAAAAAAAAAAgCxRfAcAAAAAAAAAAAAAAAAAQJYovgMAAAAAAAAAAAAAAAAAIEsU3wEAAAAAAAAAAAAAAAAAkCWK7wAAAAAAAAAAAAAAAAAAyBLFdwAAAAAAAAAAAAAAAAAAZIniOwAAAAAAAAAAAAAAAAAAslQkybBuRP4qLS1VaWmpXC5X4nFcNBpN/DcUCqmrq0tdXV2Jcfw/j8cjh8Mhh8ORmEuHwyEdmb9IJCJJiTmMRCKJ+QUAAAAAAAAAAAAAAAAAiu/yQLzoK85a5OVwOFRZWSmfz2fanol4Id4TTzyhlpYW6/BRxePxqLS0VB6PxzqUkVAopE2bNikUCpm2j3X/AAAAAAAAAAAAAAAAAMw8FN/lgY0bN5oK65YtW6ZoNKrS0lI1NjbairtyFY1GtWnTpqOuCM/j8aiysjLR4W68kovwHA6H+vr6EmMNDQ1qaGgw7Q8AAAAAAAAAAAAAAICji9frlY40dXI6nZIkp9OpSCSSWIEx/nN8hUYUngktvnM4HIlisZaWFm3atMm6C1KwFt9VVFTI5/OZlpRNJRqN2rqsjXWMjiylun79etuxM038/ZhJ0Z21m53T6Ryz6DFehNfW1pbYRvEdAAAAAAAAAAAAAADIB/Hir3wSiUTU2dlp3TxjeL1euVyurOe+s7NTdXV1FOIVoAktvtu8ebNpSc9oNKr169erq6vLtB/MrMV36cSXkI1Go2ptbU1bPOdwOORwOFRaWpr2vNFodEYXSLpcLlNRnFVLS4u6uroS85mOy+VKLFU7VjGeKL4DAAAAAAAAAAAAAAB5IBAIZF0ANlWam5tVVVVl3VzQ/H6/amtrrZtzUlVVpc7OTorwCsSEFt/19vamLFCKF3mNVuR0NBur+G48hXIOh0Mul0uVlZUpu+I1NDTkdN585vP5Us5n8nKxuXC5XNq4ceOonfSOxuI7l8slh8MxZiEjAAAAAAAAAAAAABxNnE6n1q1bl3gcCoVmdMcv6+udTDN9LsfL6XQqHA5bN+eVkpKSGVFc5vV65ff7E8vKjiUSiWS0b7wT3kx5nycvwZuNbD7rbrd71JqedLJ5jnSMiUpvb69x6NChlOnt7TU2btxoOBwO23FHezZu3Gibr3g2btxo2z/XpHueiXyO6U5jY6MxNDRki8fjse2bazwej9HX12d7jqGhIcPn89n2n8nxeDxGLBYzYrGY0d/fbxsnhBBCCCGEEEIIIYQQQgghhJDpTCAQMILBoOH3+w2n02kbn8x4vV4jmdfrte0zk2J9vZMtGAxO+T0tlDidTut05Z2ZcO+CwaD1ZZkEAgHD6/UaTqfT9nrdbrfhdruNQCBghMNh66EJM+F9PtY8jcbv99vOly5+v996eMbGM89T0vku2Xi6uM0EmzdvTvz8xBNPqKWlJW3nu5aWlsTP8X3Hy+FwqLGx0dYFbyZ0wEvV8S4UCqmiosK0LVcejycxb/GOglbxznfJ+0rS+vXrTfvNBB6PR01NTaZtS5YsofsdAAAAAAAAAAAAgLwQDAbldrsTjyORiOrq6tTc3Gzab7J4vV4FAoHE46qqqil77ulgfb1Toba2VnV1ddbNRz1r57vm5uacVwmcKOvWrTN9Hgu5853T6VQgEDC9nrjm5mZt2bIl605qbrc7MUfWznidnZ2qqqoqyPka73K82XzGp/K5rGwVeblmtM531sQ74VnPMdOTPAebN282NEpHulT7TkQcDkfK55zI7nBTHZfLZetC19bWZttvPEnXVS9V5zvrvtZzFXqSO94lh86WhBBCCCGEEEIIIYQQQgghhJB8yGidv8bT4SibWDvB0flu4oXDYdt1EPv7P5vuYZMVa1eyqfgMTkascxsXDAYNt9tt2z/buN3ulJ3iwuFwQc7ZeGXz3rW+x7KV6/fJLGsl3lRxOBzy+Xzq7e2Vx+OxDh9VXnrpJeumSRWNRtXa2qrW1lYVFRUl4vP5xuxcmI8cDofa2tpM21paWias4x3MUnW8AwAAAABgspWXl2tgYED79+9XZWWldRgFaPHixaqvr9eWLVu0atUq6/C0qays1N13360LLrjAOpSx9vZ2GYahxsZG61BKbrdbd999t374wx9ahwAAAADkKFVHqji3261wOCy/32/rMIXcNTc3q6SkZNKT3D2Q+4epZO0oGFdWVqaysrKsu92l0tnZqbKyMtXW1po63TmdTgWDwYJ+z+fyHbFlyxbradKqq6uzHT9WJur7xFaRl2uy6XxnTW9vr1FaWmo750xL8muOd7NzOBzG5s2bbXOSat+JjMPhMNra2ia1W9xUZKpeg7WbnTWNjY1p97Weq1CTruMdne8IIYQQQggpnPT09Fj/QZ/NoUOHjPr6etux+ZxMXtf+/fuNyspK27GSjDVr1hitra1GNBo1HnvsMdt4NmlsbDQMwzDa29ttY4WYdHMbi8WM3bt3GzfccINRXFxsO24y0tPTM+p9nKi0t7cbhmGYfq9PzJmI93llZaWxf/9+Y2BgwCgvL7eNjyfx63vllVeMNWvW2Mbjsd7rT3ziE8bLL79sGIZh7Nixw7Z/prGed6xMxHwSQgghhBBCzLF2YQuHw6bHcRPVrSpVrNcw0zvfTVUCgYBpXq3jxN6dLZvuYZMVa1eyQuzilqoj3WR9f+hIFzzrd1ehdcBLFggEbOPTnYn4Ppm2zndW8e5lmzdvLsjua+MRjUb11a9+Vcccc0zafPWrX7UeNm7RaFTr1683bXO5XHK5XKZt+cx6vdFodNI63q1fv17z5s1LG+tczjR0vAMAAACQ7wzD0DvvvKPBwcGU+dvf/qZYLJbYf/Xq1frP//xPvfbaa3r00Ud1+eWX65RTTtHcuXNN50XquZWkkpISXXvtteru7taaNWushwHT7uSTT1Z9fb2Ki4utQyk98cQT2rp1q7q7u03/8hkAAABA4aurq1NVVZWpk5SOdMELBoMKBALj6noEYGYLBAKmjpqRSGTCut2lE++CZ+2At27dOtN+mF55U3wX5/F41NbWpo0bN1qHZhyn0ymHw2HLVEpVgJfpchj5wHqtLS0tpsdTwXr/puM+TrZUhXehUEj19fWmbQAAAAAKx/DwsDo6OtTa2mrLL37xC/3xj3+0HpL3YrGYfvSjH+n4449PmZNPPllbt25N7L906VJ98pOf1MKFC7Vjxw719vaazof/l2puS0pK9NOf/lT79+/X6aefrptuuklnnHGG9VBg2n3kIx/RHXfcYd2c1jXXXKOPfvSj+td//VfrEAAAAIACF1/ysLm52VaE5/V6FQ6H5fV6KcIbg9PpnJJgclnnO1Wy3d+amcLtdsvr9Zq2VVVVTWrhXVwkErF9Z9XW1tquB9PL1g4v14xn2dlU6e3tNTZu3Gh7nkKOdanSVJnqpTtTLT/rcrls++VbHA6H6Zr7+vps+0x2rNeQLtbjCimplpqNL4Hi8/lYdpYQQgghhJACS3wJ0UMZLi0bXwrx0KFDxr/9278Z3d3dxvDwsGkpxQ0bNhi7d+82YrGYYRiGcfDgQeO///u/jS9+8Ytpz9XS0mLs3r3bGBkZMWKxmPHUU08Zq1evNjZs2GC88sorxsjIiDE8PGx0d3dntHRDT09Pxq8pntWrVxtXXnmlsXjxYkNJy0SOd9nHXJaPdLvdRjAYNN5++23DOLKk644dO4zq6mrTfvX19cahQ4eMjo4O4/bbbzf++te/JuYw3Vxdfvnlxo4dO4xYLGaMjIwYe/bsMe6++26jqanJMDJYFnOsub3iiiuMt956yxgZGTHuvfde09gFF1xgdHd3GwcPHjS9rssvv9yQZHz96183BgcHjT179hiXXXaZ7dwPPfSQaS5TLTv7ne98xwiHw8bw8LBhGIYxODhoPPLII8YZZ5xhO1+mSbdkaLb3qaenx3buVO+P+Ou6+uqrbZ+x9vZ249ChQ8Ytt9xitLW1GQcOHEi8znvuuSflkr8bNmwYdU6ynfdUSfU6Mn1/lpeXGwMDA4aV9d5+85vfNHp7exPfLYODg8ajjz5qrF692nY91sSvr7+/3zhw4ICxd+9e48orr7Ttl+pep9qmLD9L8XPcc889o963+JxZpXrvEEIIIYQQQrLLWEu+plrOMS4YDE7Iso5jXUMhxrpE42RKdx+s12AdJ2MvO5vuvZ/M+n7NVjgcNh1fyMvOWufLOp9TEev8Fcrys8lYdnYaOBwO+Xw+9fb2HhWd8KZLNBrVpk2bTNsKYb49Ho/pcUNDg+kxMuNyueTxeFLG5/Ol7Hh3/vnnm7YBAAAAmPlmzZqlqqoqnXPOOZo9e3Zie3NzszZt2qSSkhLNmTNHknTMMcfoIx/5iJqamuT3+5PO8n/mzp2rL3/5yyopKVFRUZHmzJmjj33sY7rvvvtUW1urk08+WUVFRZo9e7bOOecc/fjHP9ayZcuspxm3Z555RnfeeacGBgasQ1NqzZo1am1tldvtViwW065du/Taa69pxYoVuuOOO3T99ddbD9FZZ52lK6+8UgcOHNDzzz+voaGhlHN1xRVX6Cc/+YnOPPNMvf322+rp6dHhw4f1la98RR//+MdN58zVXXfdpa1bt8owDH3sYx/TqlWrpCOvq7GxUWeffbYGBwe1Y8cO7d27VytWrNBtt92mtWvXqr29Xa+88ooWLFigT3ziE6bzrlq1SitXrtTBgwfV0dEhSVq+fLmOP/54tba2Skf+le/111+vD37wg4pGo9q1a5cOHz6sCy+8UPfee++Evm9yuU/ZmD17tq6++mqdc845Ghoa0sGDBxNjs2bNUnV1tUpLS/XSSy9p9+7dmj9/vtauXasf//jHpvPEP5Op5uQ//uM/dMYZZ2Q979ka6/05ODio559/Xi+88IJisZgOHDignp4e9fT0aM+ePZKk66+/Xj/84Q+1ZMkSvfbaa4nX8elPf1q/+tWvMl7mOBKJ6Ne//rWOP/54XXPNNVq9erV1l4zk+lm6+OKLR71vf/7zn7Vz5069/PLLkqQ33nhDO3bs0Isvvmg5EwAAAICJ1tnZqZKSkrRL0YbDYZainWbxJYG5B5hOfr/f9B6MRCKqq6sz7TMV6urqbMvPJi+Di+mT18V3cclFeKWlpdbhghIKhayb8oL1fyYK4Rcvn8+X+DkajU7LkrNjKSoqyuuiQJ/Pp/b2djU1NaVMTU2Naf+JKrxramoadWneeEEgAAAAgMkza9YsnXvuuWppabHl7rvvthWozJkzRwsWLNCbb76pBx54QL/73e/0rW99S//0T/+kOXPmaHBwUFu2bFF1dbUeffRRDQ8Pq7i4WF/96ldVXl5uOldRUZEGBwd122236cYbb9S+ffskSR/84AcVi8V01113ye/36y9/+YskadmyZfr85z9vOsdMUVxcrPr6en3gAx/Q9u3btWLFCp155plavHix7rzzzkTRlbXQaOHChbr33nu1ePFiLV++XJdffrlef/11nX766brkkksS5/7a176mBQsWmM596qmn6pe//KWWLFliOud4bN++XXv37tV73/tenXnmmdKRYqUPfOAD6ujo0KmnnqqzzjpLp556qoLBoE488UR9/vOfV29vr4LBoCTpH/7hH1RcXJw4Z1lZmU466SQNDAzo/vvvT2xPdtFFF2nevHnaunWrTjvtNJ155pk699xztXPnTp188sn61Kc+ZT0kJ7nep2wcd9xxOumkk3TnnXfqpJNO0lVXXZUYmzNnjoqKivQv//IvOv3003Xaaafptttu08jIiM4777zE53Xt2rW66KKLNDw8rJtvvjkxJ5/61KfU39+vD33oQ/J4POOe97GM9f7s7u5WRUWFbrjhBh08eFB79uzRt771LX3sYx/To48+qrVr1+qKK66QJN1yyy1avHhx4t4++eSTWrx4sb7//e9bnzaturo67dy5U06nUw0NDabXm4nxfJYOHTo06n278847dc455+jxxx+XJO3YsUNnnXWWLr74YuupAAAAAEyS5uZmlZWVqbm52Tokr9erYDDI8o7TiAIjTDfr57+qqsr0eCKNtey19bmthYGYHnlTfFdUVDRmnE6n2tvb1djYOGrhTj5bv3691q9fr4aGhrQZi8PhkMvlsm6WjnSD8/l88ng8afdJxVq8Ntpz5APrteVaeGc9T1xy57d0++jIvFnvX3Kqq6szuqfTxVpcN5qJKrxrb2+Xx+NRR0dHys+xy+VKFARSgAcAAABMnjlz5ui8885TZWWlLV/60pe0dOlS6yHq7+/XRRddpIsvvljNzc367Gc/q3e9612KxWLavHmzvF6vfv7zn+szn/mMfvvb30qSFi1aZCsiMQxD999/v66++mr94Ac/0G9+85vE2OOPP64rr7xS9fX1evDBBzUyMqL58+dn1MFs3rx58vl8MgwjZXp6eqyHTLtLLrlEy5Yt0+uvv65bb73V1IXv2muvVU9Pj973vvfpwgsvNB338ssv64477kg8fuCBB7Rz504de+yxOu200yRJlZWVWrp0qe3cg4ODqq+vV39/f+L48frrX/+q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jonr7OzUwYMHdd555+lnP/tZosBr8eLFuv7663XKKado3759evLJJ6Uc7lNfX5/27Nmj97///aY/qL3iiit09tlnJx5PtI6ODu3du1erVq3S9ddfn9heXFysxx57TPv27dPmzZtNx2Q77xPp4MGDisViOu644/T+978/sb2trU1vvfWWzj77bG3cuDGx/YwzztCGDRt0wgknqKenR7/61a8SY9m4/fbbdf/992vevHk6/fTTrcM2k/1Z0pG5GBkZ0YknnmgrOAQAAACQH6qqqtJ2wZtpf4/sdDoVDocTy1lORtxut9xud6IQCVPLej8yiZV1PFUKmfX6rd3mMuX3+xUMBuX1ehPv+9raWtOStsqi8E4prsV6rZhaM674TjksQzqVhoaGEmlra7MOZ22sZVCTl0ydacV0ccnd63KV/EU02vsn03lsb29XLBZLBKml+wUg3XYAAAAA+WXz5s166KGHNDw8rPnz5+vyyy9XU1OTLrzwQs2ZM0eDg4PavHmztm/fbj10UsydO1ff/e53tX///pR59dVXtXbtWuthk+Yf//EfbddgvZbBwUHV1NTolVdeUXl5uXbt2qWdO3dqYGBAlZWVisViampqyqkYanBwUP/+7/+uffv2mc69e/duXXrpperv77ceklaquQ2Hw/rGN76h448/Xi+++KKuvfZaPffcc9KR7mI9PT2aP3++br75Zr344ot68cUXdd999+nw4cN65513rE+h+++/XwMDA1qwYIEOHz6srq4u6y4m3d3d+uUvf6mRkRF997vf1cDAgJ599lnt3r1b5557rl555RU9+OCD1sOkIwVzHR0dmjt3rq688kq98cYbiddUXl6uw4cP68EHH9QDDzwgHZnLbO7TM888o46ODknSl7/8Zf3pT3/Siy++qNtuu03HHHOM6Vom0ubNm/XrX/9ac+fO1YYNG/Tyyy9r586dikajuuCCC7R//35bMWy28z6RfvOb32j37t064YQT9JOf/ERPP/20LrzwQm3dulV33XWXJOmaa67RwMCAdu7cqaeeekorV67UwMCAbrzxRuvpsnL99ddr165d1s0pTeRnKZ3f/e532rt3rz784Q/r2Weftd0nAAAAAPnDWnw3E011MVxtbS1/R4y8k/yezPVz7/f7bUV2qWRTeBeXfE18fqbXjCu+i0ajam1ttW7OG8mFXRPx5h+t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"></div>
+  </section>
+
+  <section>
+    <h2>Choices decided (Shy, 2026-10-30: 1A 2A 3A 4A)</h2>
+    <div class="cols">
+      <div class="card"><h3>A. Where Up Next goes</h3><p>Recommended: fold the queue and chapters into the Episodes panel (tabs: Episodes · Chapters · Up next) so the bar has six tools. Alternative: keep a seventh icon.</p></div>
+      <div class="card"><h3>B. Paused title</h3><p>Recommended: large centred title over the picture when paused (frame 2). Alternative: only the bar's centre text, no big title.</p></div>
+      <div class="card"><h3>C. Bookmark list order</h3><p>Recommended: by time in the video, with the nearest one highlighted. Alternative: newest first, as the Saved tab does today.</p></div>
+      <div class="card"><h3>D. The B key</h3><p>Recommended: B adds a bookmark instantly without opening anything, Shift+B opens the list. Alternative: no shortcut.</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  function fit(){
+    document.querySelectorAll('.frame').forEach(function(f){
+      var s=f.querySelector('.stage'); if(!s) return;
+      var scale=f.clientWidth/1440; s.style.transform='scale('+scale+')';
+    });
+  }
+  fit(); window.addEventListener('resize',fit);
+})();
+</script>
+</body></html>
