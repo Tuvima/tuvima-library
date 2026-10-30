@@ -276,6 +276,36 @@ public sealed class AiRuntimeSafetyTests
     }
 
     [Fact]
+    public async Task MissingRuntime_ReportsModelUnavailableWithoutLoggingAnError()
+    {
+        using var directory = new TemporaryDirectory();
+        var settings = CreateSettings(directory.Path);
+        var inventory = CreateInventory(settings);
+        inventory.SetState(AiModelRole.TextFast, AiModelState.Ready);
+        await using var lifecycle = CreateLifecycle(settings, inventory);
+        var backend = new ScriptedBackend(new Script("", Throws: new AiRuntimeNotInstalledException("not installed", "manifest.json")));
+        var logger = new CapturingLogger<LlamaInferenceService>();
+        await using var inference = new LlamaInferenceService(settings, lifecycle, inventory, logger, backend);
+
+        var outcome = await inference.InferWithOutcomeAsync(AiModelRole.TextFast, "prompt");
+
+        Assert.Equal(InferenceOutcomeStatus.ModelUnavailable, outcome.Status);
+        Assert.DoesNotContain(logger.Levels, level => level >= Microsoft.Extensions.Logging.LogLevel.Warning);
+    }
+
+    private sealed class CapturingLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
+    {
+        public List<Microsoft.Extensions.Logging.LogLevel> Levels { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Levels.Add(logLevel);
+    }
+
+    [Fact]
     public async Task InvalidJson_DoesNotTriggerAnotherFullInference()
     {
         using var directory = new TemporaryDirectory();
@@ -579,7 +609,8 @@ public sealed class AiRuntimeSafetyTests
     private sealed record Script(
         string Output,
         bool WaitForCancellation = false,
-        TimeSpan? Delay = null);
+        TimeSpan? Delay = null,
+        Exception? Throws = null);
 
     private sealed class ScriptedBackend(params Script[] scripts) : ILlamaExecutionBackend
     {
@@ -603,6 +634,11 @@ public sealed class AiRuntimeSafetyTests
             try
             {
                 Assert.True(_scripts.TryDequeue(out var script));
+                if (script.Throws is not null)
+                {
+                    throw script.Throws;
+                }
+
                 if (!string.IsNullOrEmpty(script.Output))
                 {
                     yield return script.Output;
