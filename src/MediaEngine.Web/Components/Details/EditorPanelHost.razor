@@ -2,14 +2,20 @@
 @using MediaEngine.Web.Services.Editing
 @implements IDisposable
 @inject IJSRuntime JS
+@inject IAppDialogService Dialogs
 
-@* The universal editor's right-hand panel (spec D2, D10, D22): fixed to the right edge under the bar, about 450px wide for Details and
-   650px for Match, with one header, one close button and one scroll area. The page behind it does not move or scroll when it
-   opens. The close button only closes the panel: edit mode and the pending changes stay. What it shows is chosen by the page.
-   Artwork is not a panel: it is the floating picker (spec D8), which the page draws itself. *@
-@if (Mode is { IsOn: true, CanEdit: true } && Flow?.Session is { IsActive: true, ActiveTool: { } tool and not EditTool.Artwork })
+@* The universal editor's window (v2 spec D1, D2): a large modal window over the dimmed page, with one header (title and close), a rail of
+   tools on the left (Details, Artwork, Match, only where the item has them), one scroll area for the tool, and a footer whose Cancel and
+   Save are always in the same place. Closing it with the X, Esc or Cancel asks "Unsaved changes" when something is staged. What the tool
+   shows is chosen by the page; Artwork is drawn here, docked, from the page's picker session. *@
+@if (Mode is { IsOn: true, CanEdit: true } mode && Flow?.Session is { IsActive: true, ActiveTool: { } tool } session)
 {
-    <aside class="@($"tl-editor-panel tl-editor-panel--{(IsWide(tool) ? "wide" : "narrow")}")"
+    var count = session.Pending.ChangeCount;
+    var flow = Flow;
+    <div class="tl-editor-scrim" aria-hidden="true"></div>
+    <aside class="tl-editor-panel tl-editor-window"
+           role="dialog"
+           aria-modal="true"
            aria-labelledby="tl-editor-panel-title"
            data-tool="@tool.ToString().ToLowerInvariant()">
         <header class="tl-editor-panel__header">
@@ -20,11 +26,60 @@
                            Class="tl-editor-panel__close"
                            Tooltip="@($"Close {TitleOverride ?? TitleFor(tool)}")"
                            AriaLabel="@($"Close {TitleOverride ?? TitleFor(tool)}")"
-                           OnClick="@(() => Flow.ClosePanelAsync())" />
+                           OnClick="@(() => flow.LeaveAsync())" />
         </header>
-        <div class="tl-editor-panel__body">
-            @ChildContent?.Invoke(tool)
+        <div class="tl-editor-window__main">
+            @if (TitleOverride is null)
+            {
+                <nav class="tl-editor-window__rail" aria-label="Editing tools">
+                    @foreach (var (railTool, label, icon) in RailTools(mode))
+                    {
+                        var isOpen = railTool == tool;
+                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                   Tone="AppUiTone.Neutral"
+                                   Class="@($"tl-editor-window__tool{(isOpen ? " is-open" : string.Empty)}")"
+                                   StartIcon="@icon"
+                                   Disabled="@(flow.Saving || flow.Switching)"
+                                   aria-pressed="@(isOpen ? "true" : "false")"
+                                   OnClick="@(() => railTool == tool ? Task.CompletedTask : flow.SelectToolAsync(railTool))">
+                            @label
+                        </AppButton>
+                    }
+                </nav>
+            }
+            <div class="tl-editor-panel__body">
+                @if (tool == EditTool.Artwork && Picker is not null)
+                {
+                    <FloatingArtworkPicker Mode="Mode" Flow="Flow" Picker="Picker" Docked="true" />
+                }
+                else
+                {
+                    @ChildContent?.Invoke(tool)
+                }
+            </div>
         </div>
+        <footer class="tl-editor-window__footer">
+            <span class="tl-editor-window__changes" role="status">@(count == 0 ? "No changes yet" : $"{count} {(count == 1 ? "change" : "changes")} waiting")</span>
+            <div class="tl-editor-window__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral"
+                           Size="AppControlSize.Large"
+                           Class="tl-editor-window__cancel"
+                           Disabled="@flow.Saving"
+                           OnClick="@(() => flow.LeaveAsync())">
+                    Cancel
+                </AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Filled"
+                           Tone="AppUiTone.Primary"
+                           Size="AppControlSize.Large"
+                           Class="tl-editor-window__save"
+                           StartIcon="@AppMaterialIcons.Outlined.Check"
+                           Disabled="@(count == 0 || flow.Saving)"
+                           OnClick="OpenReviewAsync">
+                    @(flow.Saving ? "Saving..." : count == 0 ? "Save changes" : $"Save {count} {(count == 1 ? "change" : "changes")}")
+                </AppButton>
+            </div>
+        </footer>
     </aside>
 }
 
@@ -42,7 +97,35 @@
     /// <summary>What the open tool shows; the page decides (the Details fields, or the section the tool hosts).</summary>
     [Parameter] public RenderFragment<EditTool>? ChildContent { get; set; }
 
-    private static bool IsWide(EditTool tool) => tool != EditTool.Details;
+    /// <summary>The page's artwork picker session; when set, the Artwork tool is drawn inside the window instead of by the page.</summary>
+    [Parameter] public ArtworkPickerSession? Picker { get; set; }
+
+    private static IReadOnlyList<(EditTool Tool, string Label, string Icon)> RailTools(EditingModeContext mode)
+    {
+        var tools = new List<(EditTool, string, string)> { (EditTool.Details, "Details", AppMaterialIcons.Outlined.Description) };
+        if (mode.Fields.CanEditArtwork)
+        {
+            tools.Add((EditTool.Artwork, "Artwork", AppMaterialIcons.Outlined.PhotoLibrary));
+        }
+
+        if (mode.Fields.CanMatch)
+        {
+            tools.Add((EditTool.Match, "Match", AppMaterialIcons.Outlined.TravelExplore));
+        }
+
+        return tools;
+    }
+
+    // Save changes never saves straight away: it settles any open input, then opens Review changes, which checks the list and saves it.
+    private async Task OpenReviewAsync()
+    {
+        if (Flow is not { Saving: false, Session.HasPendingChanges: true } flow || !await flow.SettleForReviewAsync())
+        {
+            return;
+        }
+
+        await ReviewChangesDialog.ShowAsync(Dialogs, flow);
+    }
 
     private static string TitleFor(EditTool tool) => tool switch
     {

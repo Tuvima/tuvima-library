@@ -118,15 +118,10 @@ else if (Model is not null)
             }
         </section>
 
-        @* The Artwork tool is a floating picker, not a panel (spec D8): it hangs over the page so the preview stays in view. *@
-        @if (_editing is { IsOn: true, CanEdit: true } && _flow.Session is { IsActive: true, ActiveTool: EditTool.Artwork })
-        {
-            <FloatingArtworkPicker Mode="_editing" Flow="_flow" Picker="_artworkPicker" />
-        }
 
         @* The right-hand panel of the editor: Details here (or the bulk panel while rows are ticked and the bar opened it), Match through the
            editor section it has always used. *@
-        <EditorPanelHost Mode="_editing" Flow="_flow" TitleOverride="@BulkPanelTitle">
+        <EditorPanelHost Mode="_editing" Flow="_flow" Picker="_artworkPicker" TitleOverride="@BulkPanelTitle">
             @if (context == EditTool.Details)
             {
                 @if (_batch.Panel != BulkPanelKind.None)

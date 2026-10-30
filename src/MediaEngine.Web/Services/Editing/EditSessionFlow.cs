@@ -210,7 +210,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     /// <summary>The overlay is closing (close button, Esc, backdrop, Back, a link to another title): leaving goes through <see cref="LeaveAsync"/>.</summary>
     public async ValueTask<bool> CanDismissAsync() => await LeaveAsync();
 
-    /// <summary>Esc from outside a field: closes the open panel; with the panel closed and changes pending it asks "Unsaved changes". False means the press was not ours.</summary>
+    /// <summary>Esc from outside a field: closes the open window (asking first when changes are staged); with the panel closed and changes pending it asks "Unsaved changes". False means the press was not ours.</summary>
     public async ValueTask<bool> HandleEscapeAsync()
     {
         if (!_mode.IsOn || !_session.IsActive)
@@ -225,7 +225,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
         if (_session.ActiveTool is not null)
         {
-            await ClosePanelAsync();
+            // The editor is a window (v2 spec D15): Esc closes it, asking "Unsaved changes" first when something is staged.
+            await LeaveAsync();
             return true;
         }
 
