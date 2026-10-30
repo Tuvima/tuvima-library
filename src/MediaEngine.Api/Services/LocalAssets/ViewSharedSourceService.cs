@@ -38,6 +38,7 @@ public sealed class ViewSharedSourceService(
             throw new ArgumentException("Choose managed or linked storage.", nameof(request));
         }
 
+        storage.RequireConfigured();
         var library = await shared.GetAsync(ct);
         var id = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;

@@ -374,7 +374,6 @@ public sealed partial class EngineApiClient
         return LastStatusCode switch
         {
             404 => VaultCall<T>.Of(VaultOutcome.NotAvailable),
-            428 when error.Contains("Administrator PIN required", StringComparison.OrdinalIgnoreCase) => VaultCall<T>.Of(VaultOutcome.AdministratorPinNotSet),
             428 => VaultCall<T>.Of(VaultOutcome.PinRequired),
             429 => VaultCall<T>.Of(VaultOutcome.TooManyAttempts),
             403 when error.Contains("Confirm it's you", StringComparison.OrdinalIgnoreCase) => VaultCall<T>.Of(VaultOutcome.ConfirmItsYou),

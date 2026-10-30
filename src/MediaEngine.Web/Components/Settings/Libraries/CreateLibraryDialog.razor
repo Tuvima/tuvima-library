@@ -150,7 +150,7 @@
     [Parameter] public string? StartAreaKey { get; set; }
     /// <summary>Opens with this content type chosen when it can still take a library.</summary>
     [Parameter] public string? StartKindKey { get; set; }
-    /// <summary>First-run setup: Standard access only, no Vault. The dialog stays where it is after Create instead of opening the library page.</summary>
+    /// <summary>First-run setup: the dialog stays where it is after Create instead of opening the library page.</summary>
     [Parameter] public bool Simple { get; set; }
     /// <summary>The first-run setup session; the setup calls are used instead of the signed-in ones.</summary>
     [Parameter] public string? SetupSession { get; set; }
@@ -178,9 +178,9 @@
     private string? _error;
 
     private FolderAddScope Scope => new(Simple, SetupSession);
-    // Only a server administrator whose Vault mode is on can make a Vault library, and never in first-run setup. Anyone else never gets Vault mode, so
-    // the dialog holds no Vault word at all and nothing here can tell them the Vault exists.
-    private bool VaultAllowed => !Simple && LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false);
+    // Only a server administrator whose Vault mode is on can make a Vault library, which first-run setup allows only after the administrator turned the
+    // Vault on there. Anyone else never gets Vault mode, so the dialog holds no Vault word at all and nothing here can tell them the Vault exists.
+    private bool VaultAllowed => LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false);
 
     private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Groups.Where(group => OfferedAreas.Contains(group.Key, StringComparer.Ordinal))];
 

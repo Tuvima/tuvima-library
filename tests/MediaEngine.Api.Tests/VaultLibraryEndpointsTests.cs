@@ -240,12 +240,12 @@ public sealed class VaultLibraryEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AMoveCannotBeStartedWithoutTheAdministratorsOwnPin_AndNothingIsSaved()
+    public async Task AMoveOfAnUnknownFolder_NeedsNoPinWhenTheAdministratorHasNone_AndNothingIsSaved()
     {
         var response = await SendAsync(HttpMethod.Post, "/settings/vault-moves", "admin",
             new StartVaultMoveRequest { Direction = "in", SourceId = Guid.NewGuid().ToString("D"), AdminPin = "0000" });
 
-        Assert.Equal(HttpStatusCode.PreconditionRequired, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode); // no profile PIN to ask for (Vault sections D44); an administrator with a PIN is still asked, see VaultAdministrationServiceTests
         var list = await SendAsync(HttpMethod.Get, "/settings/vault-moves", "admin");
         Assert.Equal("[]", (await list.Content.ReadAsStringAsync()).Trim());
     }

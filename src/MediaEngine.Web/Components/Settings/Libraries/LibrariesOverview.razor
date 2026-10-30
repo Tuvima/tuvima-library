@@ -9,9 +9,10 @@
 @* The Libraries overview (Library pages D2, D17, D19; library setup D0b): icon buttons for the areas (Watch, Listen, Read, View, and the Vault for
    someone who may open it), then one table of that area's libraries, one row per library. The whole row opens the library; the name is the real link
    for the keyboard. The selected area lives in the address (?area=). A Vault library is listed only inside the Vault area. A library that was just
-   added glows for about two seconds (no toast). First-run setup draws this same table with Simple on (Library pages D13): Watch, Listen and Read
-   only, no Vault, rows that do not open a page (a library's page belongs to Settings), no Import folder line, and Add library saves through the
-   setup session. *@
+   added glows for about two seconds (no toast). First-run setup draws this same table with Simple on (Library pages D13; library setup and add-folder
+   v2): Watch, Listen, Read and View, and the Vault only once the person turned it on in setup (ShowVault), rows that do not open a page (a library's page
+   belongs to Settings), no Import folder line, and Add library saves through the setup session. View's rows have no Add library, so each has its own
+   Add folder, which opens the View folder dialog. *@
 <div class="libs">
     @if (ReadOnly)
     {
@@ -136,11 +137,14 @@
                             else if (CanAddFolder)
                             {
                                 <td data-card-role="hidden" class="libs__add-folder">
-                                    <AppButton Label="Add folder"
-                                               StartIcon="@AppMaterialIcons.Outlined.Add"
-                                               ButtonStyle="AppButtonStyle.Text"
-                                               aria-label="@($"Add a folder to {row.Name}")"
-                                               OnClick="@(() => AddFolderAsync(row))" />
+                                    @if (row.Access != LibraryListing.Vault)
+                                    {
+                                        <AppButton Label="Add folder"
+                                                   StartIcon="@AppMaterialIcons.Outlined.Add"
+                                                   ButtonStyle="AppButtonStyle.Text"
+                                                   aria-label="@($"Add a folder to {row.Name}")"
+                                                   OnClick="@(() => AddFolderAsync(row))" />
+                                    }
                                 </td>
                             }
                         </tr>
@@ -152,7 +156,7 @@
 
     @if (Simple)
     {
-        <p class="libs__note" data-later>Photos and personal videos, the Import folder and each library's own settings are added after setup, in Settings &gt; Libraries.</p>
+        <p class="libs__note" data-later>The Import folder, who sees what and each library's own settings are in Settings &gt; Libraries.</p>
     }
     else
     {
@@ -173,7 +177,7 @@
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     /// <summary>A Vault-protected library is listed only while the Vault may be shown; the host decides (see <see cref="LibraryVaultAccess"/>).</summary>
     [Parameter] public bool ShowVault { get; set; }
-    /// <summary>First-run setup (Library pages D13): Watch, Listen and Read, Standard access only, no Vault, rows that do not open a page, saves through the setup session.</summary>
+    /// <summary>First-run setup (Library pages D13; add-folder v2): Watch, Listen, Read and View, rows that do not open a page, saves through the setup session. The Vault area joins only when <see cref="ShowVault"/> is set.</summary>
     [Parameter] public bool Simple { get; set; }
     /// <summary>The first-run setup session the Create library dialog saves through; used only with <see cref="Simple"/>.</summary>
     [Parameter] public string? SetupSession { get; set; }
@@ -192,8 +196,8 @@
     private string? _addError;
 
     // Watch, Listen, Read, View, then the Vault for someone who may open it (library access D6); the Vault never exists for anyone else.
-    // Setup leaves View and the Vault out: View's folders are added from its own pages in Settings, and nobody has Vault access yet.
-    private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Visible(ShowVault && !Simple).Where(group => !(Simple && group.Key == LibraryTypeCatalog.ViewArea))];
+    // Setup shows View too (add-folder v2 D14); it shows the Vault only after the administrator turned it on there.
+    private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Visible(ShowVault)];
 
     private IReadOnlyList<AppSelectOption> AreaOptions => [.. Areas.Select(group => new AppSelectOption(group.Key, group.Label, group.Icon))];
 
@@ -215,7 +219,7 @@
 
     private LibraryGroup SelectedArea => Areas.Count == 0 ? new LibraryGroup("watch", "Watch", AppMaterialIcons.Outlined.LiveTv, []) : Areas[ActiveIndex];
 
-    private IReadOnlyList<LibraryListRow> AreaRows => LibraryListing.RowsFor(Kinds, SelectedArea.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault && !Simple);
+    private IReadOnlyList<LibraryListRow> AreaRows => LibraryListing.RowsFor(Kinds, SelectedArea.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault);
 
     private IReadOnlyList<LibraryListRow> VisibleRows => [.. AreaRows.Where(Matches)];
 
@@ -272,6 +276,7 @@
             { component => component.Kinds, Kinds },
             { component => component.StartAreaKey, SelectedArea.Key },
             { component => component.VaultVisible, ShowVault },
+            { component => component.OpenCreated, !Simple },
             { component => component.Simple, Simple },
             { component => component.SetupSession, SetupSession },
             { component => component.OnCreated, (Func<string, Task>)(id => { _newLibraryId = id; return FolderAdded.InvokeAsync(); }) },
@@ -280,10 +285,17 @@
     }
 
     // Setup rows do not open a page, so each one adds its own folders here: the same pop-up and the same save as a library's page, through the setup session.
+    // A Vault library takes its folders from its own page after setup, so its row has no Add folder here.
     private bool CanAddFolder => Simple && !ReadOnly;
 
     private async Task AddFolderAsync(LibraryListRow row)
     {
+        if (string.Equals(row.Area, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase))
+        {
+            await AddViewFolderAsync(row);
+            return;
+        }
+
         if (row.Library is not { } library) return;
         var managed = row.Type.DefaultHandling == "managed";
         var parameters = new AppDialogParameters<ServerFolderPicker>
@@ -306,6 +318,23 @@
             _addError = result.Error ?? "The folder could not be added. Check it and try again.";
             return;
         }
+
+        _addError = null;
+        _newLibraryId = row.Key;
+        await FolderAdded.InvokeAsync();
+    }
+
+    // View has no Add library: its kinds always exist, and a folder joins one of them through the View folder dialog (shared with everyone, read where it is).
+    private async Task AddViewFolderAsync(LibraryListRow row)
+    {
+        var parameters = new AppDialogParameters<AddViewFolderDialog>
+        {
+            { component => component.Kind, row.Type },
+            { component => component.Configuration, Configuration },
+            { component => component.SetupSession, SetupSession },
+        };
+        var dialog = await DialogService.ShowAsync<AddViewFolderDialog>(string.Empty, parameters, AddViewFolderDialog.DialogOptions);
+        if (await dialog.Result is not { Canceled: false }) return;
 
         _addError = null;
         _newLibraryId = row.Key;

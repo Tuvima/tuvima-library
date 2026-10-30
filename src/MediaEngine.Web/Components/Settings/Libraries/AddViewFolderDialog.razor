@@ -1,0 +1,253 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient Api
+@inject IAppDialogService DialogService
+
+@* Add a View folder in first-run setup (library setup and add-folder v2, D15, D16): the same look as the second screen of Add library. The
+   content type is the row the person clicked (Photos, Personal videos or Documents), so the dialog asks one thing: the folder. Browse opens
+   the shared "Choose your ... folder" pop-up. In setup a View folder is always shared with everyone and read where it already is, so nothing is
+   copied or changed; choosing who sees what is a Settings job. If View has nowhere to keep its files yet, the dialog asks for that location too,
+   pre-filled, and Add folder stays off until both are valid, so a View folder can never be saved with no storage behind it. *@
+<AppDialogShell Eyebrow="View"
+                Title="@Heading"
+                Subtitle="@($"Pick the folder on the Library server that holds your {Noun}.")"
+                Size="Large"
+                OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="add-view-folder">
+            <section class="add-view-folder__section">
+                <span class="add-view-folder__caption" id="add-view-folder-caption">Folder</span>
+                <div class="add-view-folder__folder">
+                    <div class="add-view-folder__path" data-folder-path aria-labelledby="add-view-folder-caption">
+                        @if (_folder is { } chosen)
+                        {
+                            <AppMaterialIcon Icon="@(FolderUsable ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.WarningAmber)" />
+                            <span class="add-view-folder__text">@chosen.Path</span>
+                        }
+                        else
+                        {
+                            <span class="add-view-folder__text add-view-folder__text--empty">Browse for a folder</span>
+                        }
+                    </div>
+                    <AppButton Label="Browse" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="BrowseFolderAsync" />
+                </div>
+                @if (_folder is { } problem && !FolderUsable)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" Dense="true">@FolderProblemText(problem)</AppAlert>
+                }
+                else if (ServerFolderResultText.For(_folder) is { } accessible)
+                {
+                    <p class="add-view-folder__check" data-folder-result="accessible"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />@accessible</p>
+                }
+                <p class="add-view-folder__line">Library scans this folder and its subfolders. Your files are never changed.</p>
+            </section>
+
+            <section class="add-view-folder__section">
+                <span class="add-view-folder__caption">Folder name</span>
+                <AppTextField Label="Folder name" HideLabel="true" Value="@_name" ValueChanged="NameChanged" MaxLength="80" ReadOnly="@_saving" />
+                <p class="add-view-folder__line">This is how it appears in your list. You can rename it later.</p>
+            </section>
+
+            @if (!StorageReady)
+            {
+                <section class="add-view-folder__section" data-view-storage>
+                    <span class="add-view-folder__caption">Where View keeps its files</span>
+                    @if (_storageWritable.Count == 0)
+                    {
+                        <AppAlert Tone="AppUiTone.Warning" Dense="true">Library has no place to keep View files yet. You can add one in Settings after setup, then add this folder.</AppAlert>
+                    }
+                    else
+                    {
+                        <div class="add-view-folder__folder">
+                            <div class="add-view-folder__path" data-storage-path>
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" />
+                                <span class="add-view-folder__text">@StoragePath</span>
+                            </div>
+                            <AppButton Label="Browse" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="BrowseStorageAsync" />
+                        </div>
+                        <p class="add-view-folder__line">View keeps thumbnails and anything Library creates here. Your own files stay where they are.</p>
+                    }
+                </section>
+            }
+
+            @if (_folder is null)
+            {
+                <p class="add-view-folder__line" data-choose-folder>Choose a folder to continue.</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar Align="AppHorizontalAlignment.End">
+            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
+            <AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanAdd)" OnClick="AddAsync" />
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    private const int MaxNameLength = 80;
+
+    /// <summary>The centred dialog the host opens this with.</summary>
+    public static AppDialogOptions DialogOptions { get; } = new()
+    {
+        MaxWidth = AppMaxWidth.Medium,
+        FullWidth = true,
+        CloseButton = false,
+        NoHeader = true,
+        CloseOnEscapeKey = true,
+    };
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>The View kind the folder belongs to (its key is photos, personal_videos or documents).</summary>
+    [Parameter, EditorRequired] public LibraryTypeOption Kind { get; set; } = default!;
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter] public string? SetupSession { get; set; }
+
+    private ServerFolderValidationResultDto? _folder;
+    private string _name = string.Empty;
+    private bool _nameTouched;
+    private bool _saving;
+    private string? _error;
+
+    // The View storage this dialog will save when the configuration has none that can be written to: a writable storage location and a folder inside it.
+    private string? _storageLocationId;
+    private string _storageRelative = "View";
+
+    private string Heading => $"Choose your {Kind.Label} folder";
+
+    // "Photos" reads "photos" in the middle of a sentence; "Personal videos" and "Documents" follow the same rule.
+    private string Noun => char.ToLowerInvariant(Kind.PluralLabel[0]) + Kind.PluralLabel[1..];
+
+    private IReadOnlyList<ServerStorageLocationDto> _storageWritable = [];
+
+    private bool StorageReady => Configuration.StorageLocations.Any(location =>
+        location.AllowWrite && string.Equals(location.Id, Configuration.ViewStorage.StorageLocationId, StringComparison.OrdinalIgnoreCase));
+
+    private string StoragePath
+    {
+        get
+        {
+            var location = _storageWritable.FirstOrDefault(item => string.Equals(item.Id, _storageLocationId, StringComparison.OrdinalIgnoreCase));
+            return location is null ? string.Empty : Path.Combine(location.Path, _storageRelative);
+        }
+    }
+
+    private bool FolderUsable => _folder is { CanSelect: true, Exists: true, HasRead: true };
+
+    private bool CanAdd => !_saving
+        && FolderUsable
+        && !string.IsNullOrWhiteSpace(_name)
+        && _name.Trim().Length <= MaxNameLength
+        && (StorageReady || _storageLocationId is not null);
+
+    protected override void OnInitialized()
+    {
+        _storageWritable = [.. Configuration.StorageLocations.Where(location => location.AllowWrite)];
+        _storageLocationId = StorageReady ? null : _storageWritable.FirstOrDefault()?.Id;
+        _name = Kind.Label;
+    }
+
+    private void NameChanged(string? value)
+    {
+        _name = value ?? string.Empty;
+        _nameTouched = true;
+    }
+
+    private static string FolderProblemText(ServerFolderValidationResultDto folder) =>
+        folder.Issues.FirstOrDefault(issue => issue.Severity == "error")?.Message ?? "Library can't use this folder. Choose another one.";
+
+    private async Task<ServerFolderValidationResultDto?> PickAsync(string title, string help, string mode, string? start)
+    {
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { component => component.Title, title },
+            { component => component.HelpText, help },
+            { component => component.ConfirmLabel, "Choose folder" },
+            { component => component.SelectionMode, mode },
+            { component => component.SetupSession, SetupSession },
+            { component => component.InitialPath, start },
+        };
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
+        return await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto selected } ? selected : null;
+    }
+
+    private async Task BrowseFolderAsync()
+    {
+        var selected = await PickAsync(Heading, $"Choose the folder on the Library server that holds your {Noun}.", ServerFolderSelectionModes.PersonalSpaceExisting, _folder?.Path);
+        if (selected is null) return;
+        _folder = selected;
+        _error = null;
+        if (!_nameTouched && selected.CanSelect && !string.IsNullOrWhiteSpace(selected.Path))
+        {
+            // The server may be Windows or Linux, so the last name is read at either kind of slash.
+            var last = selected.Path.TrimEnd('\\', '/').Split('\\', '/')[^1];
+            if (!string.IsNullOrWhiteSpace(last)) _name = last.Length > MaxNameLength ? last[..MaxNameLength] : last;
+        }
+    }
+
+    private async Task BrowseStorageAsync()
+    {
+        var selected = await PickAsync("Where View keeps its files", "Choose the folder on the Library server where View keeps its files.", ServerFolderSelectionModes.PersonalSpaceManaged, StoragePath);
+        if (selected is not { CanSelect: true } || string.IsNullOrWhiteSpace(selected.StorageLocationId)) return;
+        _storageLocationId = selected.StorageLocationId;
+        _storageRelative = string.IsNullOrWhiteSpace(selected.RelativePath) ? "." : selected.RelativePath;
+        _error = null;
+    }
+
+    private async Task AddAsync()
+    {
+        if (!CanAdd || _folder is not { } folder) return;
+        _saving = true;
+        _error = null;
+        try
+        {
+            if (!StorageReady && !await SaveStorageAsync()) return;
+
+            // Shared with everyone and read where it is: a linked folder, subfolders included. Documents never join the Photos timeline.
+            var created = await Api.CreateViewSharedSourceAsync(new CreateViewSourceRequest(
+                _name.Trim(), "linked", folder.Path, true, Kind.Key != ViewContentKinds.Documents, Kind.Key));
+            if (created is null)
+            {
+                _error = Api.LastError ?? "The folder could not be added. Check it and try again.";
+                return;
+            }
+
+            Dialog.Close(AppDialogResult.Ok(created.Id));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // Saves the View storage through setup's own libraries save, which checks it against the storage locations before it keeps anything.
+    private async Task<bool> SaveStorageAsync()
+    {
+        var saved = await Api.UpdateSetupLibrariesAsync(new UpdateLibrariesRequest
+        {
+            SchemaVersion = Configuration.SchemaVersion,
+            StorageLocations = Configuration.StorageLocations,
+            ViewStorage = new ViewStorageDto { StorageLocationId = _storageLocationId!, RelativeRoot = _storageRelative },
+            Libraries = [.. Configuration.Libraries.Where(library => !library.IsVault)],
+            PersonalLibraryPolicy = Configuration.PersonalLibraryPolicy,
+            FileHandling = Configuration.FileHandling,
+        }, SetupSession);
+        if (saved is null)
+        {
+            _error = Api.LastError ?? "View's storage could not be saved. Check the location and try again.";
+            return false;
+        }
+
+        return true;
+    }
+}

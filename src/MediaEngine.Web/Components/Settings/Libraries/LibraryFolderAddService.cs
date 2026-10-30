@@ -187,7 +187,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
     {
         if (scope.Embedded)
         {
-            var libraries = baseline.Libraries.Where(item => item.Id != library.Id).ToList();
+            var libraries = baseline.Libraries.Where(item => item.Id != library.Id && !item.IsVault).ToList(); // setup never sends a Vault library; the Engine refuses one
             libraries.Add(library);
             return await apiClient.UpdateSetupLibrariesAsync(new UpdateLibrariesRequest
             {

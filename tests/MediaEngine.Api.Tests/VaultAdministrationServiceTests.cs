@@ -19,8 +19,8 @@ using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Tests;
 
-// Creating a Vault library or opening Vault access to a profile needs the administrator's own profile PIN, set and typed again at
-// that moment (Videos spec D25); Vault mode itself follows the profile's mode, the profile's one PIN and the five-wrong-tries pause
+// Creating a Vault library or opening Vault access to a profile asks for the administrator's own profile PIN again at that moment when
+// the administrator has one; a PIN is strongly suggested but never required (Vault sections D44, which replaced Videos spec D25). Vault mode itself follows the profile's mode, the profile's one PIN and the five-wrong-tries pause
 // (D18, D52). There is no separate Vault PIN any more (owner decision 2026-10-21). No PIN is ever returned or logged.
 public sealed class VaultAdministrationServiceTests : IDisposable
 {
@@ -62,13 +62,15 @@ public sealed class VaultAdministrationServiceTests : IDisposable
 
     // ── The administrator's own PIN ─────────────────────────────────────────────────────────────
 
-    [Fact]
-    public async Task ALibraryCannotBeCreated_WhenTheAdministratorHasNoProfilePin()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(AdminPin)]
+    public async Task ALibraryCanBeCreated_WhenTheAdministratorHasNoProfilePin(string? typed)
     {
-        await Assert.ThrowsAsync<VaultAdminPinNotSetException>(() => Create(AdminPin));
-        await Assert.ThrowsAsync<VaultAdminPinNotSetException>(() => Create(null));
+        var created = await Create(typed);
 
-        Assert.False(await _libraries.AnyAsync());
+        Assert.True(await _libraries.AnyAsync());
+        Assert.Equal(created.LibraryId, (await _libraries.GetAllAsync()).Single().LibraryId);
     }
 
     [Theory]
@@ -141,10 +143,9 @@ public sealed class VaultAdministrationServiceTests : IDisposable
     [Theory]
     [InlineData(NsfwAccessMode.Pin)]
     [InlineData(NsfwAccessMode.Allowed)]
-    public async Task OpeningNsfwAccess_NeedsTheAdministratorPin_SetAndTypedAgain(NsfwAccessMode mode)
+    public async Task OpeningNsfwAccess_AsksForTheAdministratorPinAgain_WhenTheAdministratorHasOne(NsfwAccessMode mode)
     {
         await _identity.SetProfilePinAsync(_adult, AdultPin);
-        await Assert.ThrowsAsync<VaultAdminPinNotSetException>(() => _service.SetAccessAsync(_admin, _adult, mode, null, AdminPin, default));
         await _identity.SetProfilePinAsync(_admin, AdminPin);
         await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.SetAccessAsync(_admin, _adult, mode, null, null, default));
         await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.SetAccessAsync(_admin, _adult, mode, null, WrongPin, default));
@@ -153,6 +154,30 @@ public sealed class VaultAdministrationServiceTests : IDisposable
         var access = await _service.SetAccessAsync(_admin, _adult, mode, null, AdminPin, default);
 
         Assert.Equal(mode, access.EffectiveMode);
+    }
+
+    [Theory]
+    [InlineData(NsfwAccessMode.Pin)]
+    [InlineData(NsfwAccessMode.Allowed)]
+    public async Task OpeningNsfwAccess_NeedsNoAdministratorPin_WhenTheAdministratorHasNone(NsfwAccessMode mode)
+    {
+        await _identity.SetProfilePinAsync(_adult, AdultPin);
+
+        var access = await _service.SetAccessAsync(_admin, _adult, mode, null, null, default);
+
+        Assert.Equal(mode, access.EffectiveMode);
+    }
+
+    [Fact]
+    public async Task AProfileCreatedAfterTheAdministrator_StartsWithVaultOff_EvenWhenTheAdministratorHasAccess()
+    {
+        await _service.SetAccessAsync(_admin, _admin, NsfwAccessMode.Allowed, null, null, default);
+        var newcomer = Guid.NewGuid();
+        InsertProfile(newcomer, "StandardUser");
+
+        Assert.Equal(NsfwAccessMode.Allowed, (await _nsfw.GetAsync(_admin)).EffectiveMode);
+        Assert.Equal(NsfwAccessMode.Off, (await _nsfw.GetAsync(newcomer)).EffectiveMode);
+        Assert.False((await _nsfw.GetAsync(newcomer)).CanUnlock);
     }
 
     [Fact]

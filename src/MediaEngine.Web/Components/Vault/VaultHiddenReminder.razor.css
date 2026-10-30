@@ -1,0 +1,16 @@
+.vault-hidden-reminder {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin-block: var(--tl-space-2);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.vault-hidden-reminder__text {
+    flex: 1 1 auto;
+    min-width: 0;
+}

@@ -166,14 +166,15 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AnAdministratorWithoutAProfilePin_CannotAddAFolder()
+    public async Task AnAdministratorWithoutAProfilePin_CanAddAFolder_BecauseAPinIsSuggestedButNeverRequired()
     {
         var vault = await NewVaultLibraryAsync();
         await _identity.SetProfilePinAsync(_admin, null);
 
-        await Assert.ThrowsAsync<VaultAdminPinNotSetException>(() => _service.AttachAsync(_admin, vault.LibraryId, _vaultFolder, AdminPin, default));
+        var outcome = await _service.AttachAsync(_admin, vault.LibraryId, _vaultFolder, null, default);
 
-        Assert.Empty(_configuration.LoadLibraries().Libraries);
+        Assert.Equal(VaultFolderAttachmentStatus.Attached, outcome.Status);
+        Assert.Single(_configuration.LoadLibraries().Libraries);
     }
 
     [Fact]

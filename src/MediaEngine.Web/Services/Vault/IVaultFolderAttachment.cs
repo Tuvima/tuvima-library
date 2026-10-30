@@ -41,7 +41,7 @@ public sealed class EngineVaultFolderAttachment(IEngineApiClient api) : IVaultFo
         return call.Outcome switch
         {
             VaultOutcome.Ok => VaultFolderAttachmentOutcome.Attached,
-            VaultOutcome.PinRequired or VaultOutcome.TooManyAttempts or VaultOutcome.AdministratorPinNotSet
+            VaultOutcome.PinRequired or VaultOutcome.TooManyAttempts
                 => new VaultFolderAttachmentOutcome(VaultFolderAttachmentResult.PinNotAccepted, message),
             _ => new VaultFolderAttachmentOutcome(VaultFolderAttachmentResult.NotAdded, message),
         };

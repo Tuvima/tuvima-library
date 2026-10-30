@@ -5,15 +5,6 @@ using MediaEngine.Identity.Contracts;
 
 namespace MediaEngine.Api.Services.Vault;
 
-/// <summary>The administrator has no profile PIN yet, so nothing that opens up the Vault can happen (Videos spec D25).</summary>
-public sealed class VaultAdminPinNotSetException : InvalidOperationException
-{
-    public VaultAdminPinNotSetException()
-        : base("Set a PIN on your own profile first. It is asked for again before the Vault can be created or opened to anyone.")
-    {
-    }
-}
-
 /// <summary>The profile that asked cannot use Vault mode (a Kids or content-limited profile), or does not exist.</summary>
 public sealed class NsfwNotAvailableException : InvalidOperationException
 {
@@ -24,9 +15,9 @@ public sealed class NsfwNotAvailableException : InvalidOperationException
 }
 
 /// <summary>
-/// Everything that creates a Vault library or opens Vault access to a profile (Videos spec D18, D19, D25). The actions that open
-/// the Vault up ask for the administrator's own profile PIN again at that moment, with the same wrong-try count and pause as
-/// switching profile, and refuse when the administrator has no profile PIN. Nothing here logs, returns or throws a PIN.
+/// Everything that creates a Vault library or opens Vault access to a profile (Videos spec D18, D19; Vault sections D44). The actions
+/// that open the Vault up ask for the administrator's own profile PIN again at that moment, with the same wrong-try count and pause as
+/// switching profile, when the administrator has one. A PIN is strongly suggested but never required. Nothing here logs, returns or throws a PIN.
 /// </summary>
 public sealed class VaultAdministrationService(
     IVaultLibraryRepository libraries,
@@ -38,14 +29,14 @@ public sealed class VaultAdministrationService(
     ILogger<VaultAdministrationService> logger)
 {
     /// <summary>
-    /// Passes only when <paramref name="adminProfileId"/> has a profile PIN and <paramref name="adminPin"/> is it. A missing PIN is
-    /// a different answer from a wrong one so the Dashboard can send the administrator to set one.
+    /// Passes when <paramref name="adminProfileId"/> has no profile PIN (a PIN is strongly suggested, never required: Vault sections D44), or
+    /// when <paramref name="adminPin"/> is the PIN it has. A missing or wrong PIN for an administrator who has one is refused.
     /// </summary>
     public async Task RequireAdminPinAsync(Guid adminProfileId, string? adminPin, CancellationToken ct)
     {
         if (await identities.GetCredentialAsync(adminProfileId, MediaEngine.Domain.Entities.ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is null)
         {
-            throw new VaultAdminPinNotSetException();
+            return;
         }
 
         await profilePins.VerifyProfilePinAsync(adminProfileId, adminPin, countsTowardLockout: true, ct).ConfigureAwait(false);
