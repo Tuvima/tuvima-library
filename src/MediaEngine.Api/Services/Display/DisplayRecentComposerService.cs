@@ -28,7 +28,8 @@ internal sealed class DisplayRecentComposerService(RecentCatalogueReadService ca
         {
             items.AddRange(await catalogue.LoadAsync(scope, profileId, boundary, take + 1, ct, cursor is null ? available : null));
         }
-        if (DisplayRecentCursor.Includes(scope, "view"))
+        // Photos and videos sit behind the View pill: the default All scope is Watch, Read and Listen only.
+        if (scope != "all" && DisplayRecentCursor.Includes(scope, "view"))
         {
             // Home shows photos and videos only. A document's title, file name or id never reaches Home, for anyone;
             // documents live on the Documents page behind the profile's Documents permission.
