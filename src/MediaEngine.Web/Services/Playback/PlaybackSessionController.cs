@@ -2851,10 +2851,22 @@ public sealed partial class PlaybackSessionController
     /// </summary>
     public async Task<bool> SwitchVideoToAdaptiveAsync(CancellationToken ct = default)
     {
-        if (CurrentItem is not { AssetId: Guid assetId } item || !MediaKindClassifier.IsVideo(item.MediaType)) return false;
-        if (item.Manifest?.RecommendedDelivery == PlaybackDeliveryModes.Hls && !string.IsNullOrWhiteSpace(item.StreamUrl)) return true;
+        if (CurrentItem is not { AssetId: Guid assetId } item || !MediaKindClassifier.IsVideo(item.MediaType))
+        {
+            return false;
+        }
+
+        if (item.Manifest?.RecommendedDelivery == PlaybackDeliveryModes.Hls && !string.IsNullOrWhiteSpace(item.StreamUrl))
+        {
+            return true;
+        }
+
         var index = _queue.FindIndex(entry => entry.AssetId == assetId && entry.WorkId == item.WorkId);
-        if (index < 0) return false;
+        if (index < 0)
+        {
+            return false;
+        }
+
         var profileId = _preferences is null ? null : (await _preferences.GetAsync(ct))?.ProfileId;
         var manifest = await _apiClient.GetPlaybackManifestAsync(assetId, _clientContext.Client,
             profileId == Guid.Empty ? null : profileId, ct, ToConnectionContext(), adaptive: true);
@@ -2868,7 +2880,11 @@ public sealed partial class PlaybackSessionController
         _adaptiveAudioAssets.Add(assetId);
         _queue[index] = _queue[index] with { Manifest = manifest, StreamUrl = null, InitialPositionSeconds = CurrentTimeSeconds, StartAtExactPosition = true };
         await EnsurePlayableAsync(index, ct);
-        if (index >= _queue.Count || string.IsNullOrWhiteSpace(_queue[index].StreamUrl)) return false;
+        if (index >= _queue.Count || string.IsNullOrWhiteSpace(_queue[index].StreamUrl))
+        {
+            return false;
+        }
+
         MarkPlaybackStart();
         NotifyChanged();
         return true;
