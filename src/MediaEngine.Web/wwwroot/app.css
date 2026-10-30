@@ -6010,7 +6010,7 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-bulk__actions,.tl-bulk__renumber,.tl-bulk__change-album{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-2)}
 .tl-bulk__mixed{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm);font-style:italic}
 .tl-bulk__list{display:flex;flex-direction:column;gap:var(--tl-space-2)}
-.tl-bulk__chips{display:flex;flex-wrap:wrap;gap:var(--tl-space-1)}
+.tl-bulk__chips{display:flex;flex-wrap:wrap;gap:var(--tl-space-1)}.tl-bulk__items{display:flex;flex-wrap:wrap;gap:var(--tl-space-2);max-height:6.5rem;overflow-y:auto}
 .tl-bulk__staged{color:var(--tl-text-secondary);font-size:var(--tl-font-size-sm)}
 .tl-art-picker{position:fixed;right:1.5rem;bottom:1.5rem;z-index:21;display:flex;flex-direction:column;box-sizing:border-box;width:min(26rem,calc(100vw - 2rem));max-height:min(40rem,calc(100dvh - 6rem));border:1px solid var(--tl-border-default);border-radius:var(--tl-radius-lg,.75rem);background:var(--tl-bg-surface);color:var(--tl-text-primary);box-shadow:var(--tl-shadow-lg)}
 .tl-art-picker.is-minimised{width:auto;max-width:calc(100vw - 2rem);border-radius:999px}

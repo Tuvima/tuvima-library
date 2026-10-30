@@ -1,0 +1,140 @@
+@namespace MediaEngine.Web.Components.Details
+@using System.Globalization
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject ILogger<EditorHistoryTool> Logger
+
+@* The History tool of the universal editor window (v2 spec D3, D5): what happened to this item, newest first, grouped by day, with a
+   filter by kind of activity. It is read-only; nothing here is staged or saved. It reads again whenever the item being edited changes. *@
+<div class="tl-history">
+    <div class="tl-history__toolbar">
+        <small>What has happened to this item.</small>
+        <AppSelect T="string"
+                   Value="@_filter"
+                   ValueChanged="OnFilterChanged"
+                   Options="@FilterOptions"
+                   Class="tl-history__filter" />
+    </div>
+
+    @if (_loading)
+    {
+        <EditorPanelBusy Label="Loading this item's history" />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="tl-history__empty" role="alert">@_error</div>
+    }
+    else if (Visible.Count == 0)
+    {
+        <div class="tl-history__empty">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History" />
+            <span>@(_all.Count == 0 ? "Nothing has happened to this item yet." : "Nothing matches this filter.")</span>
+        </div>
+    }
+    else
+    {
+        <div class="tl-history__list">
+            @foreach (var day in Visible.GroupBy(entry => entry.OccurredAt.LocalDateTime.Date))
+            {
+                <section class="tl-history__day">
+                    <h3 class="tl-history__date">@DayLabel(day.Key)</h3>
+                    @foreach (var entry in day)
+                    {
+                        var look = AppHistoryPresentation.For(entry.EventType, entry.Category);
+                        <div class="tl-history__row">
+                            <span class="tl-history__time">@entry.OccurredAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)</span>
+                            <span class="tl-history__icon @look.ToneClass" aria-hidden="true">
+                                <AppMaterialIcon Icon="@look.Icon" Size="AppSize.Small" />
+                            </span>
+                            <div class="tl-history__copy">
+                                <div class="tl-history__title">@entry.Label</div>
+                                @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                                {
+                                    <div class="tl-history__detail">@entry.Detail</div>
+                                }
+                                <div class="tl-history__actor">by @entry.ActorLabel</div>
+                            </div>
+                        </div>
+                    }
+                </section>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly IReadOnlyList<AppSelectOption> FilterOptions =
+    [
+        new("all", "All activity"),
+        new("match", "Matching"),
+        new("artwork", "Artwork"),
+        new("metadata", "Metadata"),
+        new("file", "Files and processing"),
+    ];
+
+    private List<LibraryItemHistoryDto> _all = [];
+    private Guid _loadedFor;
+    private string _filter = "all";
+    private string? _error;
+    private bool _loading;
+
+    /// <summary>The item being edited now; the history is read again when it changes.</summary>
+    [Parameter, EditorRequired] public Guid EntityId { get; set; }
+
+    private IReadOnlyList<LibraryItemHistoryDto> Visible => _all
+        .Where(entry => _filter switch
+        {
+            "match" => string.Equals(entry.Category, "match", StringComparison.OrdinalIgnoreCase),
+            "artwork" => string.Equals(entry.Category, "artwork", StringComparison.OrdinalIgnoreCase),
+            "metadata" => entry.Category is "metadata" or "manual",
+            "file" => string.Equals(entry.Category, "file", StringComparison.OrdinalIgnoreCase),
+            _ => true,
+        })
+        .OrderByDescending(entry => entry.OccurredAt)
+        .ToArray();
+
+    private static string DayLabel(DateTime day) =>
+        day.Date == DateTime.Today ? "Today"
+        : day.Date == DateTime.Today.AddDays(-1) ? "Yesterday"
+        : day.ToString("D", CultureInfo.CurrentCulture);
+
+    private void OnFilterChanged(string value) => _filter = value;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EntityId == _loadedFor)
+        {
+            return;
+        }
+
+        _loadedFor = EntityId;
+        _all = [];
+        _error = null;
+        if (EntityId == Guid.Empty)
+        {
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            var (items, error) = await Api.GetItemHistoryWithStatusAsync(EntityId);
+            if (_loadedFor != EntityId)
+            {
+                return;
+            }
+
+            _all = items;
+            _error = string.IsNullOrWhiteSpace(error) ? null : "The history could not be read just now. Try again in a moment.";
+            if (error is not null)
+            {
+                Logger.LogWarning("History could not be read for an item: {Error}", error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

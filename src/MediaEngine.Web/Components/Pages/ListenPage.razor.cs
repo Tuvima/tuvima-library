@@ -1731,7 +1731,7 @@ public partial class ListenPage
         }
 
         var row = new BulkEditRow(work.Id, DisplayTrackTitle(work), DetailEntityType.Work, album.AlbumId, "Music");
-        (Overlay ?? Services.GetService<DetailsOverlayState>())?.OfferEditResume(new DetailsEditResume(album.AlbumId, EditingSection.History, null, row));
+        (Overlay ?? Services.GetService<DetailsOverlayState>())?.OfferEditResume(new DetailsEditResume(album.AlbumId, EditingSection.Details, null, row));
         NavigateTo(album.Route);
         return Task.CompletedTask;
     }

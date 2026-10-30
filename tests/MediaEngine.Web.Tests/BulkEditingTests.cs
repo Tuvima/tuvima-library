@@ -230,6 +230,18 @@ public sealed class BulkEditingTests : AsyncBunitContext
     // -- Tick boxes ----------------------------------------------------------------------------
 
     [Fact]
+    public async Task ThePanel_ShowsAChipForEveryTickedItem_AndTheChipsCloseTakesThatItemOut()
+    {
+        var (panel, _, selection) = await OpenPanelAsync();
+        var before = selection.Count;
+        Assert.Equal(before, panel.FindAll(".tl-bulk__items [role='listitem']").Count);
+
+        panel.Find(".tl-bulk__items [role='listitem'] button").Click();
+
+        Assert.Equal(before - 1, selection.Count);
+    }
+
+    [Fact]
     public async Task ARowsOwnEdit_StartsEditMode_TicksTheRow_AndOpensTheEditPanel()
     {
         var (mode, selection) = await EditingModeAsync(enter: false);

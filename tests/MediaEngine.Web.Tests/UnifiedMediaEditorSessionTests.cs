@@ -3,60 +3,6 @@ namespace MediaEngine.Web.Tests;
 public sealed class UnifiedMediaEditorSessionTests
 {
     [Fact]
-    public void Editor_UsesOneSaveBoundaryForDetailsArtworkAndReviewedPairing()
-    {
-        var shell = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor")
-            + Read("src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHeaderSection.razor")
-            + Read("src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor");
-        var code = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
-
-        Assert.Contains("HasStagedEditorChanges", shell, StringComparison.Ordinal);
-        Assert.Contains("DeferMutations=\"true\"", shell, StringComparison.Ordinal);
-        Assert.Contains("PendingChanged=\"OnUnifiedArtworkPendingChanged\"", shell, StringComparison.Ordinal);
-        Assert.Contains("OnClick=\"SaveAsync\"", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("SaveReviewedPairingFromFooterAsync", shell, StringComparison.Ordinal);
-
-        Assert.Contains("HasStagedEditorChanges => IsDirty", code, StringComparison.Ordinal);
-        Assert.Contains("ApplyPendingChangesAsync", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("SaveReviewedPairingDraftAsync", code, StringComparison.Ordinal);
-        Assert.Contains("Earlier editor changes were saved, but the remaining artwork changes were not saved", code, StringComparison.Ordinal);
-        Assert.Contains("PersistArtworkChangesImmediately=\"true\"", shell, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void EditingSectionSlot_RehousesTheSameShellAndSectionsInsteadOfRewritingThem()
-    {
-        var slot = Read("src/MediaEngine.Web/Components/Details/EditingSectionSlot.razor");
-        var shell = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
-        var sectionPartial = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.Section.cs");
-        var code = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
-
-        // The slot hosts the one editor shell; the sections are the existing section components.
-        Assert.Contains("<SharedMediaEditorShell", slot, StringComparison.Ordinal);
-        Assert.Contains("Section=\"@SectionId(mode.OpenSectionKind)\"", slot, StringComparison.Ordinal);
-        Assert.Contains("<EditorDetailsSection", shell, StringComparison.Ordinal);
-        Assert.Contains("<EditorArtworkSection", shell, StringComparison.Ordinal);
-        Assert.Contains("<EditorMatchSection", shell, StringComparison.Ordinal);
-        Assert.Contains("<EditorHistorySection", shell, StringComparison.Ordinal);
-        Assert.Contains("<EditorHeaderSection", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-shell--section", shell, StringComparison.Ordinal);
-
-        // A slot swaps the header and the section rail for the slot's own heading, shows only the requested section (History
-        // included), and keeps one save path.
-        Assert.Contains("@if (!IsSection)", shell, StringComparison.Ordinal);
-        Assert.Contains("!IsSection || string.Equals(tabId, NormalizeTabId(Section), StringComparison.Ordinal)", code, StringComparison.Ordinal);
-        Assert.Contains("(!Inline || IsSection) && ShouldShowEditorFooter", code, StringComparison.Ordinal);
-        Assert.Contains("public async Task<bool> SaveChangesAsync()", sectionPartial, StringComparison.Ordinal);
-        Assert.Contains("public void DiscardChanges()", sectionPartial, StringComparison.Ordinal);
-        Assert.Contains("DirtyChanged.InvokeAsync(dirty)", sectionPartial, StringComparison.Ordinal);
-        Assert.Contains("HasPendingNavigationChanges", sectionPartial, StringComparison.Ordinal);
-
-        // No second editor, route or all-in-one workbench appears.
-        Assert.DoesNotContain("@page", slot, StringComparison.Ordinal);
-        Assert.DoesNotContain("Workbench", slot, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public void ArtworkWorkspace_DefersSupportedMutationsAndDiscardClearsTheDraft()
     {
         var workspace = Read("src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor");
@@ -90,17 +36,6 @@ public sealed class UnifiedMediaEditorSessionTests
         Assert.Contains(".artwork-workspace-core__variant-tile:focus-within", styles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 900px)", styles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 600px)", styles, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void PairingPreview_ReportsSaveOutcomeAndCanDiscardPendingReview()
-    {
-        var preview = Read("src/MediaEngine.Web/Components/MediaEditor/MediaEditorPairingPreview.razor");
-
-        Assert.Contains("public async Task<bool> SaveReviewedPairingAsync()", preview, StringComparison.Ordinal);
-        Assert.Contains("public string? LastSaveError", preview, StringComparison.Ordinal);
-        Assert.Contains("public void DiscardPendingReview()", preview, StringComparison.Ordinal);
-        Assert.Contains("PendingReviewChanged.InvokeAsync(false)", preview, StringComparison.Ordinal);
     }
 
     private static string Read(

@@ -2,9 +2,6 @@
 # One per line: file under src/MediaEngine.Web|src expression exactly as in the markup|reason.
 # Prefer sizing the picture over adding a line here.
 # WP4b
-Components/MediaEditor/Sections/EditorDetailsSection.razor|@DetailsImageUrl|Already the medium copy: SharedMediaEditorShell.DetailsPresentation.cs builds it with MediaTileArtworkUrl.Sized(..., "m") plus a width list; drawn up to 340px.
-Components/MediaEditor/Sections/EditorHeaderSection.razor|@HeaderProviderLogoUrl(selectedIdentity.ProviderName)|Static provider icon file from the provider catalogue (wwwroot), not an Engine picture.
-Components/MediaEditor/Sections/EditorHeaderSection.razor|@(HeaderProviderLogoUrl(|Static provider icon file (Wikidata) from the provider catalogue (wwwroot), not an Engine picture.
 Components/MediaTiles/MediaGroupTile.razor|@Item.LogoUrl|Brand logo: logos have no size copies (the Engine serves them as stored).
 Components/MediaTiles/MediaTile.razor|@Item.LogoUrl|Title logo: logos have no size copies (the Engine serves them as stored).
 Components/MediaTiles/RecentMediaFeed.razor|@ViewAdapter.ThumbnailUrl(asset, profile)|Photo (View) thumbnail: photos keep their own sized copies and are out of this rule's scope.

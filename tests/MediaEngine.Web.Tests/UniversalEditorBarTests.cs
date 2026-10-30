@@ -140,6 +140,7 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
                 builder.OpenComponent<EditorPanelHost>(0);
                 builder.AddComponentParameter(1, nameof(EditorPanelHost.Mode), editor.Mode);
                 builder.AddComponentParameter(2, nameof(EditorPanelHost.Flow), editor.Flow);
+                builder.AddComponentParameter(8, nameof(EditorPanelHost.ShowHistory), true);
                 builder.AddComponentParameter(3, nameof(EditorPanelHost.ChildContent), (RenderFragment<EditTool>)(tool => inner =>
                 {
                     if (tool == EditTool.Details)
@@ -360,6 +361,25 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Match));
         cut.WaitForAssertion(() => Assert.Equal("match", cut.Find(".tl-editor-window").GetAttribute("data-tool")));
         Assert.NotEmpty(cut.FindAll(".tl-editor-window__save"));
+    }
+
+    [Fact]
+    public async Task HistoryIsATabOfTheWindow_AndOpeningDetailsAgainClosesIt()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForAssertion(() => Assert.Contains("History", cut.FindAll(".tl-editor-window__tool").Select(tool => tool.TextContent.Trim())));
+
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.History));
+        cut.WaitForAssertion(() => Assert.Equal("history", cut.Find(".tl-editor-window").GetAttribute("data-tool")));
+        Assert.Equal(EditingSection.History, editor.Mode.OpenSectionKind);
+        Assert.Equal("History", cut.Find(".tl-editor-panel__title").TextContent.Trim());
+
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForAssertion(() => Assert.Equal("details", cut.Find(".tl-editor-window").GetAttribute("data-tool")));
+        Assert.Equal(EditingSection.Details, editor.Mode.OpenSectionKind);
     }
 
     [Fact]

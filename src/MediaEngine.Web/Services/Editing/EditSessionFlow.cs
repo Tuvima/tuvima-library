@@ -133,7 +133,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             _session.SetTool(open);
         }
-        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match)
+        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match or EditTool.History)
         {
             _session.SetTool(null);
         }
@@ -155,8 +155,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
         var opened = tool switch
         {
-            // History is the block at the bottom of Details, so the Details tool hosts it.
-            EditTool.Details => await _mode.ShowSectionAsync(EditingSection.History),
+            EditTool.Details => await _mode.ShowSectionAsync(EditingSection.Details),
+            EditTool.History => await _mode.ShowSectionAsync(EditingSection.History),
             EditTool.Artwork => _mode.Fields.CanEditArtwork && await _mode.ShowSectionAsync(EditingSection.Artwork),
             EditTool.Match => _mode.Fields.CanMatch && await _mode.ShowSectionAsync(EditingSection.Match),
             _ => false,
@@ -487,7 +487,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     {
         EditingSection.Artwork => EditTool.Artwork,
         EditingSection.Match => EditTool.Match,
-        EditingSection.History => EditTool.Details,
+        EditingSection.History => EditTool.History,
+        EditingSection.Details => EditTool.Details,
         _ => null,
     };
 
