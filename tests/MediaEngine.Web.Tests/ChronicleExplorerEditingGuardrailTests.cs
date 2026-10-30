@@ -13,7 +13,7 @@ public sealed class ChronicleExplorerEditingGuardrailTests
 
         Assert.Contains("<EditingBar", explorer, StringComparison.Ordinal);
         Assert.Contains("<EditorPanelHost", explorer, StringComparison.Ordinal);
-        Assert.Contains("<FloatingArtworkPicker", explorer, StringComparison.Ordinal);
+        Assert.Contains("Picker=\"_artworkPicker\"", explorer, StringComparison.Ordinal);
         Assert.Contains("LoadSubjectAsync", explorer, StringComparison.Ordinal);
         Assert.Contains("LoadUniverseSubjectAsync", explorer, StringComparison.Ordinal);
         Assert.Contains("EditorDeviceRule.TryRefuse", explorer, StringComparison.Ordinal);

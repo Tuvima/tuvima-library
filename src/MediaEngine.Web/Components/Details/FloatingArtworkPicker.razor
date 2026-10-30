@@ -17,8 +17,8 @@
     var staged = picker.IsStaged;
     var tabs = picker.Tabs;
     <section @ref="_root"
-             class="@($"tl-art-picker{(_minimised ? " is-minimised" : string.Empty)}")"
-             role="dialog"
+             class="@($"tl-art-picker{(_minimised ? " is-minimised" : string.Empty)}{(Docked ? " tl-art-picker--docked" : string.Empty)}")"
+             role="@(Docked ? "region" : "dialog")"
              aria-modal="false"
              aria-labelledby="tl-art-picker-title">
         <header @ref="_handle" class="tl-art-picker__header">
@@ -43,7 +43,7 @@
                            OnClick="CloseAsync" />
         </header>
 
-        @if (!_minimised)
+        @if (!_minimised || Docked)
         {
             <div class="tl-art-picker__body">
                 @if (tabs.Count > 1)
@@ -163,6 +163,9 @@
     // People, series, curated collections and universes have no provider artwork to offer, so the Providers source is left out for them.
     private static readonly IReadOnlyList<AppSelectOption> SourcesWithoutProviders = Sources.Where(option => option.Value != SourceProviders).ToList();
 
+    /// <summary>True when the picker sits inside the editor window: no dragging, no chip, no header of its own.</summary>
+    [Parameter] public bool Docked { get; set; }
+
     private ElementReference _root;
     private ElementReference _handle;
     private IJSObjectReference? _module;
@@ -239,6 +242,12 @@
     {
         if (_attached || Picker?.ActiveSlot is null)
         {
+            return;
+        }
+
+        if (Docked)
+        {
+            _attached = true;
             return;
         }
 

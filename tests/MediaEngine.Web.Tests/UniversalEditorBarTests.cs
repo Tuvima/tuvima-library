@@ -345,18 +345,21 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     // -- The panel -------------------------------------------------------------------------------
 
     [Fact]
-    public async Task ThePanelIsClosedUntilAToolIsChosen_AndDetailsIsNarrowerThanMatch()
+    public async Task TheWindowIsClosedUntilAToolIsChosen_AndHasTheSameSizeForEveryTool()
     {
         var editor = await StartEditorAsync();
         var cut = RenderPanel(editor);
         Assert.Empty(cut.FindAll(".tl-editor-panel"));
 
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-panel.tl-editor-panel--narrow")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-window")));
         Assert.Equal("Details", cut.Find(".tl-editor-panel__title").TextContent.Trim());
+        Assert.NotEmpty(cut.FindAll(".tl-editor-window__cancel"));
+        Assert.NotEmpty(cut.FindAll(".tl-editor-window__save"));
 
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Match));
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-panel.tl-editor-panel--wide")));
+        cut.WaitForAssertion(() => Assert.Equal("match", cut.Find(".tl-editor-window").GetAttribute("data-tool")));
+        Assert.NotEmpty(cut.FindAll(".tl-editor-window__save"));
     }
 
     [Fact]

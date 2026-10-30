@@ -124,14 +124,13 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheArtworkTab_OpensTheFloatingPicker_NotAPanel()
+    public async Task TheArtworkTab_OpensThePickerDockedInTheEditorWindow()
     {
         var cut = await StartEditingAsync();
 
         OpenArtworkTool(cut);
 
-        Assert.Single(cut.FindAll(".tl-art-picker"));
-        Assert.Empty(cut.FindAll(".tl-editor-panel"));
+        Assert.Single(cut.FindAll(".tl-editor-window .tl-art-picker.tl-art-picker--docked"));
         Assert.Empty(cut.FindAll(".tl-editing-slot"));
         Assert.Equal("true", cut.Find(".tl-editing-bar__tool.is-open").GetAttribute("aria-pressed"));
     }
