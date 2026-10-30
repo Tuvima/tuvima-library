@@ -129,7 +129,7 @@ public sealed class DashboardFirstRunExperienceTests
         Assert.Contains("Ownership", providerDialog, StringComparison.Ordinal);
         Assert.Contains("await RunPreflightAsync();", setup, StringComparison.Ordinal);
         Assert.Contains("LoadReadinessAsync", setup, StringComparison.Ordinal);
-        Assert.Contains("Ready · later", readiness, StringComparison.Ordinal);
+        Assert.Contains("\"Later\"", readiness, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"local-ai\"", setup, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"access\"", setup, StringComparison.Ordinal);
         Assert.DoesNotContain("\"local-ai\", \"access\"", workflow, StringComparison.Ordinal);

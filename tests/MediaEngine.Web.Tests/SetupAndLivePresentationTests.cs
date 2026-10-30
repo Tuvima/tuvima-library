@@ -81,7 +81,7 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ReadinessHidesTheSilentServerCheckAndUsesTheStepNames()
+    public void ReadinessListsEveryStepByItsName()
     {
         var readiness = new SetupReadinessDto(true,
         [
@@ -93,10 +93,10 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
         var cut = Render<SetupReadinessStage>(parameters => parameters.Add(component => component.Readiness, readiness));
 
         var names = cut.FindAll(".setup-checks strong").Select(item => item.TextContent.Trim()).ToList();
-        Assert.Equal(["Your profile", "Libraries", "Metadata"], names);
+        Assert.Equal(["Tools", "Your profile", "Libraries", "Metadata"], names);
         Assert.DoesNotContain("Core server capabilities", cut.Markup, StringComparison.Ordinal);
         var links = cut.FindAll(".setup-checks a").Select(link => link.TextContent.Trim()).ToList();
-        Assert.Equal(["Set up", "Set up"], links);
+        Assert.Equal(["Set up in Settings", "Set up in Settings"], links);
         Assert.DoesNotContain("Set up later", cut.Markup, StringComparison.Ordinal);
     }
 

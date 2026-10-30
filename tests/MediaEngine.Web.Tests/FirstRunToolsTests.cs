@@ -242,101 +242,57 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     // ── Setup: the last step ─────────────────────────────────────────────────
 
     [Fact]
-    public void ReadinessStep_ListsEveryToolIncludingReadyOnes_WithATickAndItsVersion()
+    public void AllSetStep_NeverRepeatsTheToolsList()
     {
         var cut = RenderReadiness(Tools(
-            Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready) with { Version = "7.1" },
-            Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional)));
+            Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready),
+            Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional),
+            Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional)));
 
-        var ffmpeg = cut.Find("[data-testid=setup-media-tools] [data-tool-id=ffmpeg]");
-        Assert.Contains("Ready. Version 7.1.", ffmpeg.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Ready", ffmpeg.QuerySelector(".tl-badge, [class*=badge]")?.TextContent ?? ffmpeg.TextContent, StringComparison.Ordinal);
-        Assert.Equal(2, cut.FindAll("[data-testid=setup-media-tools] article").Count);
-    }
-
-    [Theory]
-    [InlineData(ToolRequirementStates.Missing, "Download Tesseract", "You can download it now or later")]
-    [InlineData(ToolRequirementStates.Downloading, null, "Downloading. Library finishes this in the background.")]
-    [InlineData(ToolRequirementStates.InstallerReady, "Run installer", "Downloaded. One more step: run its installer.")]
-    [InlineData(ToolRequirementStates.Problem, null, "did not start")]
-    [InlineData(ToolRequirementStates.Ready, null, "Ready.")]
-    public void ReadinessStep_ShowsTesseractWithExactlyOneMessageThatDependsOnlyOnItsState(string state, string? button, string line)
-    {
-        var cut = RenderReadiness(Tools(Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, state: state)));
-
-        var row = cut.Find("[data-tool-id=tesseract]");
-        Assert.Single(row.QuerySelectorAll("small"));
-        Assert.Contains(line, row.QuerySelector("small")!.TextContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("won't be readable", row.TextContent, StringComparison.Ordinal);
-        if (button is null)
-        {
-            Assert.Empty(row.QuerySelectorAll("button"));
-        }
-        else
-        {
-            Assert.Contains(button, Assert.Single(row.QuerySelectorAll("button")).TextContent, StringComparison.Ordinal);
-        }
+        Assert.Empty(cut.FindAll("[data-testid=setup-media-tools]"));
+        Assert.Empty(cut.FindAll("[data-tool-id]"));
+        Assert.DoesNotContain("Your media tools", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Local AI", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Download Tesseract", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ReadinessStep_NeverShowsLocalAiAtAnyState()
+    public void AllSetStep_SaysOnceThatADownloadIsStillRunning_AndNothingWhenNoneIs()
     {
-        foreach (var state in new[] { ToolRequirementStates.Missing, ToolRequirementStates.Problem, ToolRequirementStates.Downloading, ToolRequirementStates.Ready })
-        {
-            var cut = RenderReadiness(Tools(
-                Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional, state: state),
-                Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready)));
+        var running = RenderReadiness(Tools(Tool("exiftool", "ExifTool", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Downloading, percent: 40)));
+        Assert.Single(running.FindAll("[data-testid=setup-download-note]"));
 
-            Assert.DoesNotContain("Local AI", cut.Markup, StringComparison.Ordinal);
-            Assert.Empty(cut.FindAll("[data-tool-id=ai_runtime]"));
-        }
+        var idle = RenderReadiness(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready)));
+        Assert.Empty(idle.FindAll("[data-testid=setup-download-note]"));
     }
 
     [Fact]
-    public void ReadinessStep_ShowsAMissingRequiredToolAsOneShortWarningBubble_ButNeverAnAiModel()
+    public void AllSetStep_ShowsATickForDoneStepsALaterLinkToSettingsAndNeedsAttentionForTheRest()
     {
-        var cut = RenderReadiness(Tools(
-            Tool("ffmpeg", "FFmpeg"),
-            Tool("ai_model:audio", "Local AI audio model", kind: "ai_model", requirement: ToolRequirementLevels.Optional)));
+        var cut = Render<SetupReadinessStage>(parameters => parameters.Add(p => p.Readiness, new SetupReadinessDto(false,
+        [
+            new SetupCapabilityDto("welcome", "Welcome", "passed", false, "Named.", null),
+            new SetupCapabilityDto("tools", "Tools", "passed", true, "Reviewed.", null),
+            new SetupCapabilityDto("libraries", "Libraries", "deferred", false, "Later.", null),
+            new SetupCapabilityDto("metadata", "Metadata", "blocked", false, "Missing.", "/setup?step=metadata"),
+        ])));
 
-        var bubble = Assert.Single(cut.FindAll(".setup-tool-warning"));
-        Assert.Contains("tl-alert-warning", bubble.ClassName, StringComparison.Ordinal);
-        Assert.Equal("FFmpeg is missing", bubble.QuerySelector("strong")!.TextContent.Trim());
-        Assert.Contains(FfmpegEffect, bubble.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Next step:", bubble.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Tools and requirements", bubble.TextContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("still missing", cut.Markup, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll(".setup-tool-notes"));
+        Assert.Equal(["Welcome", "Tools", "Libraries", "Metadata"], cut.FindAll("[data-testid=setup-summary] strong").Select(item => item.TextContent.Trim()));
+        Assert.Equal("Ready", cut.Find("[data-step=welcome] .app-status-badge").TextContent.Trim());
+        Assert.NotNull(cut.Find("[data-step=welcome] .app-status-badge").QuerySelector("svg, .tl-icon-root"));
+        Assert.Equal("Later", cut.Find("[data-step=libraries] .app-status-badge").TextContent.Trim());
+        Assert.Equal("/settings", cut.Find("[data-step=libraries] a").GetAttribute("href"));
+        Assert.Equal("Needs attention", cut.Find("[data-step=metadata] .app-status-badge").TextContent.Trim());
+        Assert.Equal("/setup?step=metadata", cut.Find("[data-step=metadata] a").GetAttribute("href"));
     }
 
     [Fact]
-    public void ReadinessStep_ShowsWhyADownloadFailed_AndStaysAWarning()
+    public void AllSetStep_AskAnUnsignedBrowserToSignInInsteadOfSpinning()
     {
-        var failed = Tool("ffmpeg", "FFmpeg") with { StateReason = "The download didn't finish. Check the connection and try again." };
+        var cut = Render<SetupReadinessStage>(parameters => parameters.Add(p => p.Failed, true));
 
-        var cut = RenderReadiness(Tools(failed));
-
-        var bubble = Assert.Single(cut.FindAll(".setup-tool-warning"));
-        Assert.Contains("The download didn't finish.", bubble.TextContent, StringComparison.Ordinal);
-        Assert.Contains("tl-alert-warning", bubble.ClassName, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ReadinessStep_ShowsADownloadInProgressAsAnInfoBubbleWithItsPercentage()
-    {
-        var cut = RenderReadiness(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Downloading, percent: 40)));
-
-        var bubble = Assert.Single(cut.FindAll(".setup-tool-warning"));
-        Assert.Equal("Downloading FFmpeg (40%)", bubble.QuerySelector("strong")!.TextContent.Trim());
-        Assert.DoesNotContain("tl-alert-warning", bubble.ClassName, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ReadinessStep_SaysNothingAboutARequiredToolThatIsReady()
-    {
-        var cut = RenderReadiness(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready)));
-
-        Assert.Empty(cut.FindAll(".setup-tool-notes"));
+        Assert.Contains("Sign in to finish setup", cut.Find("[data-testid=setup-sign-in-card]").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".setup-preparing"));
     }
 
     // ── Settings: Tools and requirements ─────────────────────────────────────

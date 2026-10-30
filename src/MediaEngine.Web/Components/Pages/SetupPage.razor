@@ -97,7 +97,7 @@
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 default:
-                    <SetupReadinessStage Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" InstallTool="InstallOptionalToolAsync" RunInstaller="RunToolInstallerAsync" Tools="@_preflight?.Tools" SampleScanDetail="@_sampleScanDetail" Busy="@_busy" SampleScan="SampleScanAsync" Complete="CompleteAsync"
+                    <SetupReadinessStage Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" Tools="@_preflight?.Tools" Busy="@_busy" Complete="CompleteAsync"
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
             }
@@ -131,7 +131,6 @@
         .Where(library => library.Sources.Count > 0)
         .SelectMany(library => library.MediaTypes)
         .ToList() ?? [];
-    private string? _sampleScanDetail;
     private bool _loading = true;
     private bool _busy;
     private bool _showRestore;
@@ -638,15 +637,6 @@
         _readiness = null;
         await LoadReadinessAsync();
     }
-    private async Task InstallOptionalToolAsync(ToolRequirementDto tool)
-    {
-        bool started;
-        try { started = (await ApiClient.InstallToolAsync(tool.Id)).Success; }
-        catch (Exception) { started = false; }
-        if (started) Snackbar.Add($"Downloading {tool.Name}. Library finishes this in the background.", AppSeverity.Info);
-        else Snackbar.Add($"The download of {tool.Name} could not start. You can try again from Settings, System, Configuration.", AppSeverity.Warning);
-        _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
-    }
     private async Task RunToolInstallerAsync(ToolRequirementDto tool)
     {
         bool started;
@@ -656,7 +646,6 @@
         else Snackbar.Add($"The {tool.Name} installer could not start from here. After setup, open Settings, System, Configuration and choose Run installer.", AppSeverity.Warning);
         _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
     }
-    private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }
     private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { await Nsfw.LockAsync(); try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", AppSeverity.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
     private bool CanNavigateTo(string key) => (key != "vault" || VaultOpen)
