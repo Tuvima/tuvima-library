@@ -117,10 +117,7 @@ public static class SettingsMenuBuilder
             AttentionLabel: toolsMissing ? context.ToolsMissingReason
                 : securityRed ? "No password"
                 : localAiOff || pluginsBroken || integrationsBroken ? "Broken" : null,
-            ActiveRoutes: sections.Select(SettingsNav.BaseRouteFor).Concat(node.Section == SettingsSection.Plugins ? [ProviderPagesRoute] : []).Distinct().ToList(),
-            // A metadata source's own page is a plugin page, so Library & Ingestion does not stay lit on it.
-            InactiveRoutes: sections.Contains(SettingsSection.Providers) ? [ProviderPagesRoute] : null);
+            ActiveRoutes: sections.Select(SettingsNav.BaseRouteFor).Distinct().ToList(),
+            InactiveRoutes: null);
     }
-
-    private static string ProviderPagesRoute => $"{SettingsNav.BaseRouteFor(SettingsSection.Providers)}/providers";
 }

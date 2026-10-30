@@ -10,6 +10,7 @@
        drawn with the shared list card. The detail facts show only when ShowFacts is set ("View what it can access"). *@
     <AppListCard Title="@Name"
                  Icon="@Icon"
+                 Logo="@Logo"
                  Kind="@(KindText ?? StateCardHealth.KindLabel(Kind))"
                  Description="@Description"
                  Class="app-state-card app-state-card--compact"
@@ -232,6 +233,9 @@ else
 
     /// <summary>Compact only: the icon at the top left.</summary>
     [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Compact only: a brand logo drawn instead of the icon.</summary>
+    [Parameter] public RenderFragment? Logo { get; set; }
 
     /// <summary>Compact only: the small label under the name (a category such as "Metadata"); the kind word when null.</summary>
     [Parameter] public string? KindText { get; set; }

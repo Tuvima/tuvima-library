@@ -126,8 +126,8 @@ public sealed class IngestionFlowEditorTests : AsyncBunitContext
 
         var ingestion = items.Single(item => item.Label == "Library & Ingestion");
         var plugins = items.Single(item => item.Label == "Plugins");
-        Assert.Contains("/settings/metadata/providers", ingestion.InactiveRoutes!);
-        Assert.Contains("/settings/metadata/providers", plugins.ActiveRoutes!);
+        Assert.DoesNotContain("/settings/metadata/providers", ingestion.ActiveRoutes!);
+        Assert.DoesNotContain("/settings/metadata/providers", plugins.ActiveRoutes!);
     }
 
     private static PipelineConfiguration SamplePipelines()

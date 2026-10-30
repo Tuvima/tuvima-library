@@ -149,7 +149,6 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.LocalAi, "models", "/settings/ai/models")]
     [InlineData(SettingsSection.Delivery, "hardware", "/settings/delivery/hardware")]
     [InlineData(SettingsSection.Delivery, "optimized-copies", "/settings/delivery/optimized-copies")]
-    [InlineData(SettingsSection.Providers, "providers", "/settings/metadata/providers")]
     [InlineData(SettingsSection.Providers, "ingestion-flow", "/settings/metadata/ingestion-flow")]
     public void RouteFor_Subsection_UsesNestedCanonicalUrl(
         SettingsSection section,
@@ -173,12 +172,12 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void MetadataManagement_UsesTwoClearSubsections()
+    public void MetadataManagement_HoldsOnlyTheIngestionFlow()
     {
         var subsections = SettingsNav.GetSubsections(SettingsSection.Providers).ToArray();
 
-        Assert.Equal(["Providers", "Ingestion Flow"], subsections.Select(item => item.Label));
-        Assert.Equal(["providers", "ingestion-flow"], subsections.Select(item => item.Slug));
+        Assert.Equal(["Ingestion Flow"], subsections.Select(item => item.Label));
+        Assert.Equal(["ingestion-flow"], subsections.Select(item => item.Slug));
     }
 
     [Fact]
@@ -209,8 +208,8 @@ public sealed class SettingsNavTests
 
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "overview"));
         Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "advanced"));
-        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers, "providers"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers, "providers", "tmdb"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers, "ingestion-flow"));
+        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers, "ingestion-flow", "tmdb"));
     }
 
     [Theory]
@@ -219,7 +218,7 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Ingestion, "/settings/ingestion")]
     [InlineData(SettingsSection.RecentlyAdded, "/settings/recently-added")]
     [InlineData(SettingsSection.DevHarness, "/settings/development-data")]
-    [InlineData(SettingsSection.Providers, "/settings/metadata/providers")]
+    [InlineData(SettingsSection.Providers, "/settings/metadata/ingestion-flow")]
     [InlineData(SettingsSection.LocalAi, "/settings/ai")]
     [InlineData(SettingsSection.Plugins, "/settings/plugins")]
     [InlineData(SettingsSection.Delivery, "/settings/delivery")]
@@ -453,8 +452,6 @@ public sealed class SettingsNavTests
         Assert.Equal("Overview", SettingsNav.FindMenuLocation(SettingsSection.Network, "overview")!.Tab!.Label);
         var flow = SettingsNav.FindMenuLocation(SettingsSection.Providers, "ingestion-flow")!;
         Assert.Equal(["Library & Ingestion", "Ingestion Flow"], [flow.Page.Label, flow.Tab!.Label]);
-        // The providers landing view and a provider's own page sit under the Ingestion Flow tab's page.
-        Assert.Equal("Library & Ingestion", SettingsNav.FindMenuLocation(SettingsSection.Providers, "providers")!.Page.Label);
     }
 
     [Theory]
@@ -478,7 +475,7 @@ public sealed class SettingsNavTests
     [InlineData("libraries", SettingsSection.Libraries, "/settings/libraries")]
     [InlineData("ingestion", SettingsSection.Ingestion, "/settings/ingestion")]
     [InlineData("recently-added", SettingsSection.RecentlyAdded, "/settings/recently-added")]
-    [InlineData("metadata", SettingsSection.Providers, "/settings/metadata/providers")]
+    [InlineData("metadata", SettingsSection.Providers, "/settings/metadata/ingestion-flow")]
     [InlineData("network", SettingsSection.Network, "/settings/network/overview")]
     [InlineData("delivery", SettingsSection.Delivery, "/settings/delivery")]
     [InlineData("tools", SettingsSection.Tools, "/settings/tools")]
@@ -509,7 +506,6 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Network, "local")]
     [InlineData(SettingsSection.Network, "remote")]
     [InlineData(SettingsSection.Network, "advanced")]
-    [InlineData(SettingsSection.Providers, "providers")]
     [InlineData(SettingsSection.Providers, "ingestion-flow")]
     [InlineData(SettingsSection.Access, "users")]
     [InlineData(SettingsSection.Access, "authentication")]

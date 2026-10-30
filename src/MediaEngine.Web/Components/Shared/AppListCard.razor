@@ -6,7 +6,14 @@
    plugins-and-integrations-screens-v3 D19/D23: the status pill lives in the pill row so names never truncate). *@
 <article class="@RootClass" aria-label="@Title" @attributes="AdditionalAttributes">
     <div class="app-list-card__top">
-        <span class="app-list-card__icon" aria-hidden="true"><AppMaterialIcon Icon="@(Icon ?? AppMaterialIcons.Outlined.Extension)" /></span>
+        @if (Logo is not null)
+        {
+            <span class="app-list-card__logo" aria-hidden="true">@Logo</span>
+        }
+        else
+        {
+            <span class="app-list-card__icon" aria-hidden="true"><AppMaterialIcon Icon="@(Icon ?? AppMaterialIcons.Outlined.Extension)" /></span>
+        }
         <div class="app-list-card__copy">
             <strong class="app-list-card__title" title="@Title">@Title</strong>
         </div>
@@ -45,6 +52,9 @@
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
     [Parameter] public string? Icon { get; set; }
+
+    /// <summary>A brand logo drawn instead of the icon (a metadata provider's own mark in its colour).</summary>
+    [Parameter] public RenderFragment? Logo { get; set; }
     [Parameter] public string? Description { get; set; }
 
     /// <summary>The small category or kind label under the name.</summary>

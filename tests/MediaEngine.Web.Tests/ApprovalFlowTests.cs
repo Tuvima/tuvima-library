@@ -175,7 +175,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
             },
         ];
 
-        var cut = Render<PluginSettingsTab>();
+        var cut = Render<PluginSettingsTab>(parameters => parameters.Add(page => page.DetailPluginId, "a.plugin"));
 
         cut.WaitForAssertion(() =>
         {
