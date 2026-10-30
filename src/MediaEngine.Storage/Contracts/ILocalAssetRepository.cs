@@ -122,7 +122,8 @@ public sealed record LocalAssetQuery(
     bool IncludeHidden = false,
     bool HiddenOnly = false,
     Guid? GalleryId = null,
-    LocalAssetLifecycleFilter Lifecycle = LocalAssetLifecycleFilter.Active);
+    LocalAssetLifecycleFilter Lifecycle = LocalAssetLifecycleFilter.Active,
+    bool IncludeMissing = false);
 
 public sealed record LocalAssetTimelineQuery(
     IReadOnlyCollection<Guid> AuthorizedLibraryIds,
@@ -150,7 +151,8 @@ public sealed record LocalAssetTimelineQuery(
     LocalAssetDocumentFilter? DocumentFilter = null,
     IReadOnlyCollection<string>? ExcludedContentKinds = null,
     IReadOnlyCollection<Guid>? AddedByProfileIds = null,
-    LocalAssetVaultScope? Vault = null);
+    LocalAssetVaultScope? Vault = null,
+    bool IncludeMissing = false);
 
 /// <summary>One profile that added items, and how many (the filter chips on the shared galleries).</summary>
 public sealed record LocalAssetAddedByCount(Guid ProfileId, string Name, int ItemCount);

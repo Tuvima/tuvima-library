@@ -95,7 +95,7 @@ public sealed class DocumentFilingRepository(IDatabaseConnection database) : IDo
     {
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
-        var rows = connection.Query<SubjectRow>($"{SubjectSelect} WHERE li.id = @itemId AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.media_kind = 'document';",
+        var rows = connection.Query<SubjectRow>($"{SubjectSelect} WHERE li.id = @itemId AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.missing_since IS NULL AND li.media_kind = 'document';",
             new { itemId }).ToList();
         return Task.FromResult(rows.Count == 0 ? null : ToSubjects(connection, rows).Single());
     }
@@ -116,7 +116,7 @@ public sealed class DocumentFilingRepository(IDatabaseConnection database) : IDo
         var rows = connection.Query<SubjectRow>($"""
             {SubjectSelect}
              WHERE li.library_id = @libraryId AND li.media_kind = 'document'
-               AND li.archived_at IS NULL AND li.trashed_at IS NULL
+               AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.missing_since IS NULL
                AND (li.hidden = 0 OR li.owner_profile_id = @viewer)
              ORDER BY COALESCE(li.captured_at, li.created_at) DESC, li.id DESC
              LIMIT @take OFFSET @skip;
@@ -506,7 +506,7 @@ public sealed class DocumentFilingRepository(IDatabaseConnection database) : IDo
     /// <summary>Filed, organised, visible documents of the library: the ones a suggestion may learn from.</summary>
     private const string CorpusPredicate = """
         li.library_id = @libraryId AND li.media_kind = 'document'
-        AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.hidden = 0
+        AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.missing_since IS NULL AND li.hidden = 0
         AND COALESCE(dd.filing_state, 'filed') = 'filed'
         AND (dd.correspondent_id IS NOT NULL OR dd.doc_type_id IS NOT NULL
              OR EXISTS (SELECT 1 FROM local_item_tag_links tl WHERE tl.item_id = li.id))
@@ -534,7 +534,7 @@ public sealed class DocumentFilingRepository(IDatabaseConnection database) : IDo
             SELECT COUNT(*) FROM local_items li
               JOIN doc_item_details dd ON dd.item_id = li.id
              WHERE {libraries} AND li.media_kind = 'document' AND dd.filing_state = 'inbox'
-               AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.hidden = 0;
+               AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.missing_since IS NULL AND li.hidden = 0;
             """, parameters);
     }
 
@@ -708,7 +708,7 @@ public sealed class DocumentFilingRepository(IDatabaseConnection database) : IDo
         using var connection = database.CreateConnection();
         return Task.FromResult(connection.ExecuteScalar<int>("""
             SELECT COUNT(*) FROM local_items
-             WHERE library_id = @libraryId AND media_kind = 'document' AND trashed_at IS NULL;
+             WHERE library_id = @libraryId AND media_kind = 'document' AND trashed_at IS NULL AND missing_since IS NULL;
             """, new { libraryId }));
     }
 
@@ -720,12 +720,12 @@ public sealed class DocumentFilingRepository(IDatabaseConnection database) : IDo
         IReadOnlyList<Guid> ids = afterItemId is { } after
             ? connection.Query<Guid>("""
                 SELECT id FROM local_items
-                 WHERE library_id = @libraryId AND media_kind = 'document' AND trashed_at IS NULL AND id > @after
+                 WHERE library_id = @libraryId AND media_kind = 'document' AND trashed_at IS NULL AND missing_since IS NULL AND id > @after
                  ORDER BY id LIMIT @limit;
                 """, new { libraryId, after, limit }).ToList()
             : connection.Query<Guid>("""
                 SELECT id FROM local_items
-                 WHERE library_id = @libraryId AND media_kind = 'document' AND trashed_at IS NULL
+                 WHERE library_id = @libraryId AND media_kind = 'document' AND trashed_at IS NULL AND missing_since IS NULL
                  ORDER BY id LIMIT @limit;
                 """, new { libraryId, limit }).ToList();
         return Task.FromResult(ids);

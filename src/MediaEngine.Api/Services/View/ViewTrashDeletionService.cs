@@ -112,6 +112,7 @@ public sealed class ViewTrashDeletionService(
         var ct = CancellationToken.None;
         var failed = new List<ViewTrashEmptyFailureDto>();
         var deleted = 0;
+        var alreadyMissing = 0;
         long bytesFreed = 0;
 
         var context = await PrepareAsync(plan, ct).ConfigureAwait(false);
@@ -127,6 +128,10 @@ public sealed class ViewTrashDeletionService(
                 {
                     deleted++;
                     bytesFreed += outcome.Bytes;
+                    if (ViewTrashDeletionPlanner.IsAlreadyMissing(item))
+                    {
+                        alreadyMissing++;
+                    }
                 }
                 else
                 {
@@ -152,7 +157,7 @@ public sealed class ViewTrashDeletionService(
             await LogActivityAsync(plan.OwnerProfileId, deleted, bytesFreed, skipped + failed.Count).ConfigureAwait(false);
         }
 
-        return new ViewTrashEmptyResultDto(deleted, bytesFreed, skipped, failed);
+        return new ViewTrashEmptyResultDto(deleted, bytesFreed, skipped, failed, alreadyMissing);
     }
 
     // ----- one group of items (usually one item; several only when they share a file on disk) ---------------------------------

@@ -38,6 +38,7 @@ public static class ActivityLogCategories
         SystemActionType.ServerStopped,
         SystemActionType.MediaRemoved,
         SystemActionType.PersonalTrashEmptied,
+        SystemActionType.PersonalMissingPurged,
         SystemActionType.ToolMissing,
         SystemActionType.ToolFound,
         SystemActionType.ToolDownloadStarted,

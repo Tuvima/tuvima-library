@@ -109,7 +109,7 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
                    external_path AS ExternalPath, include_subdirectories AS IncludeSubdirectories,
                    enabled AS Enabled,
                    content_kind AS ContentKind, added_by_profile_id AS AddedByProfileId,
-                   skipped_file_count AS SkippedFileCount,
+                   skipped_file_count AS SkippedFileCount, folder_reachable AS FolderReachable,
                    {ViewItemFileWriteRepository.KeptInLibraryCountSql} AS KeptInLibraryCount,
                    COALESCE((SELECT include_in_timeline FROM view_source_policies
                               WHERE source_id = view_sources.id),
@@ -349,7 +349,7 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
         ParseNullableDate(row.LastActivityAt), ParseDate(row.CreatedAt), ParseDate(row.UpdatedAt),
         ParseStorageMode(row.StorageMode), row.RelativePath, row.ExternalPath,
         row.IncludeSubdirectories, row.Enabled, row.IncludeInTimeline,
-        row.ContentKind, row.AddedByProfileId, checked((int)row.SkippedFileCount), checked((int)row.KeptInLibraryCount));
+        row.ContentKind, row.AddedByProfileId, checked((int)row.SkippedFileCount), checked((int)row.KeptInLibraryCount), row.FolderReachable == 0);
 
     private static ViewDevice Map(DeviceRow row) => new(
         row.Id, row.PersonalSpaceId, row.SourceId, row.ClientDeviceId, row.Name, row.Make, row.Model,
@@ -448,6 +448,7 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
         public Guid? AddedByProfileId { get; init; }
         public long SkippedFileCount { get; init; }
         public long KeptInLibraryCount { get; init; }
+        public long FolderReachable { get; init; } = 1;
         public string CreatedAt { get; init; } = string.Empty; public string UpdatedAt { get; init; } = string.Empty;
     }
     private sealed class DeviceRow

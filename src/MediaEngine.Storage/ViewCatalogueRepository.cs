@@ -737,7 +737,7 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
                    e.created_by_profile_id AS CreatedBy, {spec.KindColumn} AS FieldKind,
                    (SELECT COUNT(DISTINCT li.id) FROM {spec.UsageFrom}
                      WHERE {spec.UsageKey} = e.id AND {libraries} AND {ViewCatalogueSql.ItemVisibleToViewer}
-                       AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.hidden = 0
+                       AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.missing_since IS NULL AND li.hidden = 0
                        AND (@hasKinds = 0 OR li.media_kind IN @kinds)) AS Usage
               FROM {spec.Table} e
              WHERE (@onlyId IS NULL OR e.id = @onlyId)

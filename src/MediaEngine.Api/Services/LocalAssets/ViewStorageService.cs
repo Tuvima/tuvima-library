@@ -408,6 +408,20 @@ public sealed class ViewStorageService(
         return result;
     }
 
+    /// <summary>Every enabled folder with the identity needed to mark its files missing: personal and Shared alike.</summary>
+    public async Task<IReadOnlyList<(Guid LibraryId, Guid SourceId, string Path)>> GetEnabledSourceRootsAsync(CancellationToken ct = default)
+    {
+        var result = (await GetEnabledSourcesAsync(ct))
+            .Select(entry => (entry.Space.LibraryId, entry.Source.Id, entry.Path))
+            .ToList();
+        foreach (var source in (await sharedLibrary.GetSourcesAsync(ct)).Where(candidate => candidate.Enabled))
+        {
+            result.Add((source.LibraryId, source.Id, GetSharedSourcePath(source)));
+        }
+
+        return result;
+    }
+
     public static bool Contains(string root, string path, bool includeSubdirectories = true)
     {
         var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));

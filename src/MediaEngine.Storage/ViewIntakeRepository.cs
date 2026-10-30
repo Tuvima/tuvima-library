@@ -297,7 +297,7 @@ public sealed class ViewIntakeRepository(IDatabaseConnection database) : IViewIn
               FROM local_items li
               JOIN local_item_files lif ON lif.item_id = li.id AND lif.role = 'primary'
               JOIN local_files lf ON lf.id = lif.file_id
-             WHERE li.trashed_at IS NULL AND li.content_kind IN ('photos', 'personal_videos') AND lf.content_hash <> ''
+             WHERE li.trashed_at IS NULL AND li.missing_since IS NULL AND li.content_kind IN ('photos', 'personal_videos') AND lf.content_hash <> ''
              GROUP BY li.scope_kind, li.library_id, lf.content_hash
             HAVING COUNT(DISTINCT li.id) > 1;
             """, cancellationToken: ct)).Select(row => new ViewDuplicateCandidate(row.ScopeKind, row.LibraryId, row.ContentHash, row.Copies)).ToList();
@@ -315,7 +315,7 @@ public sealed class ViewIntakeRepository(IDatabaseConnection database) : IViewIn
               FROM local_items li
               JOIN local_item_files lif ON lif.item_id = li.id AND lif.role = 'primary'
               JOIN local_files lf ON lf.id = lif.file_id
-             WHERE li.scope_kind = @scopeKind AND li.library_id = @libraryId AND li.trashed_at IS NULL
+             WHERE li.scope_kind = @scopeKind AND li.library_id = @libraryId AND li.trashed_at IS NULL AND li.missing_since IS NULL
                AND li.content_kind IN ('photos', 'personal_videos') AND lf.content_hash = @contentHash COLLATE NOCASE
              ORDER BY li.created_at, li.id;
             """, new { scopeKind, libraryId, contentHash }, cancellationToken: ct))

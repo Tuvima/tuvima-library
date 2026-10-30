@@ -39,6 +39,14 @@ public sealed record ViewFilingLayoutDto(
 public sealed record UpdateViewFilingLayoutRequest(
     [property: JsonPropertyName("pattern")] string? Pattern);
 
+/// <summary>How long Library keeps what it knows about a file that was deleted outside Library. <c>retention_days</c> 0 means never remove.</summary>
+public sealed record ViewMissingFileSettingsDto(
+    [property: JsonPropertyName("retention_days")] int RetentionDays,
+    [property: JsonPropertyName("default_retention_days")] int DefaultRetentionDays);
+
+public sealed record UpdateViewMissingFileSettingsRequest(
+    [property: JsonPropertyName("retention_days")] int RetentionDays);
+
 /// <summary>One line of a View library's Activity tab.</summary>
 public sealed record ViewActivityEntryDto(
     [property: JsonPropertyName("occurred_at")] DateTimeOffset OccurredAt,

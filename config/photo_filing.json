@@ -10,5 +10,8 @@
   "_comment_duplicates": "The duplicates cleanup job finds exact copies already inside a space or the Shared Library and writes a report for administrators; nothing is removed without a person choosing it.",
   "duplicate_scan_enabled": true,
   "duplicate_scan_hour": 3,
-  "tidy_hour": 2
+  "tidy_hour": 2,
+
+  "_comment_missing": "How many days Library keeps what it knows about a file that was deleted outside Library (its notes, tags and Gallery spots) before removing that record. 0 means never remove. Library never deletes a file because it went missing.",
+  "missing_file_retention_days": 90
 }

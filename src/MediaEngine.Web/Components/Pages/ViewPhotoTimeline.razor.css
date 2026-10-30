@@ -35,3 +35,4 @@
 @media (max-width:900px){.view-timeline{padding-right:0}}
 @media (max-width:640px){.view-timeline{--target-row-height:7.5rem;--gallery-gap:.32rem;gap:1.5rem}.view-density--relaxed{--target-row-height:9rem}.view-date-group__heading{padding-left:1.6rem}::deep .view-date-group__select{right:auto;left:-.12rem}}
 @media (hover:none),(max-width:1023px){.view-date-group__heading{padding-left:0}}
+.view-tile.is-missing img,.view-tile.is-missing .view-tile__file-icon{opacity:.4;filter:grayscale(1)}

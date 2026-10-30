@@ -1,7 +1,7 @@
 namespace MediaEngine.Domain.Contracts;
 
 /// <summary>One file behind a person's personal photos and videos. <paramref name="IsManaged"/> is true when Tuvima owns the copy on disk.</summary>
-public sealed record ProfilePersonalFile(Guid FileId, string FilePath, bool IsManaged);
+public sealed record ProfilePersonalFile(Guid FileId, string FilePath, bool IsManaged, Guid LibraryId = default, Guid? SourceId = null);
 
 /// <summary>What removing a person has to know about their personal photos and videos (View).</summary>
 public interface IProfilePersonalMediaRepository

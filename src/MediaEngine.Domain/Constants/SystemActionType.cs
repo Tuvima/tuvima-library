@@ -309,6 +309,9 @@ public static class SystemActionType
     /// <summary>A person emptied their View Trash: how many items, how much space, how many skipped. Counts only; never a file name or title.</summary>
     public const string PersonalTrashEmptied = "PersonalTrashEmptied";
 
+    /// <summary>Records of files deleted outside Library were removed after their keep-for period. A count only; never a file name or title.</summary>
+    public const string PersonalMissingPurged = "PersonalMissingPurged";
+
     /// <summary>Exact copies of photos or personal videos that were already in the library and so were not filed twice. Counts only.</summary>
     public const string PersonalMediaSkipped = "PersonalMediaSkipped";
 

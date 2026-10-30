@@ -128,6 +128,42 @@ public sealed class ViewSourceIndexingHostedServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ADeletedOrRenamedFile_AsksForAFolderCheckAfterAShortWait_AndAScanIsFollowedByOne()
+    {
+        var root = Directory.CreateDirectory(Path.Combine(_root, "deleted-events")).FullName;
+        var libraryId = Guid.NewGuid();
+        AddSource(libraryId, root, true);
+        var factory = new FakeWatcherFactory();
+        var sweeper = new RecordingSweeper();
+        using var service = Service(new RecordingIndexer(), factory, sweeper);
+        await service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => factory.Watchers.Count == 1);
+        var watcher = Assert.Single(factory.Watchers);
+
+        // The startup scan is always followed by a check, so files deleted while the Engine was off are noticed.
+        await WaitUntilAsync(() => sweeper.Calls.Count == 1);
+        Assert.Equal(libraryId, sweeper.Calls[0]);
+
+        var gone = Path.Combine(root, "gone.jpg");
+        watcher.Raise(new ViewSourceFileEvent(gone, ViewSourceFileEventKind.Deleted));
+        watcher.Raise(new ViewSourceFileEvent(gone, ViewSourceFileEventKind.Deleted));
+        Assert.Single(sweeper.Calls); // not at once: a move or a short hiccup must not look like a deletion
+        await WaitUntilAsync(() => sweeper.Calls.Count == 2);
+        await Task.Delay(150);
+        Assert.Equal(2, sweeper.Calls.Count); // two events in the same wait ask once
+
+        var moved = Path.Combine(root, "moved.jpg");
+        watcher.Raise(new ViewSourceFileEvent(moved, ViewSourceFileEventKind.Renamed, gone));
+        await WaitUntilAsync(() => sweeper.Calls.Count == 3);
+
+        var outside = Path.Combine(_root, "not-watched.jpg");
+        watcher.Raise(new ViewSourceFileEvent(outside, ViewSourceFileEventKind.Deleted));
+        await Task.Delay(200);
+        Assert.Equal(3, sweeper.Calls.Count);
+        await service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
     public async Task FilesInTheHiddenTrashStagingFolderAreNeverDispatchedForIndexing()
     {
         var root = Directory.CreateDirectory(Path.Combine(_root, "Profiles", "staging-events")).FullName;
@@ -188,7 +224,8 @@ public sealed class ViewSourceIndexingHostedServiceTests : IDisposable
 
     private ViewSourceIndexingHostedService Service(
         IViewPathIndexer indexer,
-        IViewSourceWatcherFactory watcherFactory) => new(
+        IViewSourceWatcherFactory watcherFactory,
+        IViewMissingFileSweeper? sweeper = null) => new(
             _storage,
             indexer,
             watcherFactory,
@@ -201,8 +238,10 @@ public sealed class ViewSourceIndexingHostedServiceTests : IDisposable
                 DispatchAttempts = 3,
                 DispatchRetryDelay = TimeSpan.FromMilliseconds(10),
                 QueueCapacity = 16,
+                MissingRecheckDelay = TimeSpan.FromMilliseconds(60),
             },
-            NullLogger<ViewSourceIndexingHostedService>.Instance);
+            NullLogger<ViewSourceIndexingHostedService>.Instance,
+            sweeper);
 
     private void AddSource(Guid libraryId, string path, bool includeSubdirectories)
     {
@@ -243,6 +282,21 @@ public sealed class ViewSourceIndexingHostedServiceTests : IDisposable
         if (Directory.Exists(_root))
         {
             Directory.Delete(_root, recursive: true);
+        }
+    }
+
+    private sealed class RecordingSweeper : IViewMissingFileSweeper
+    {
+        public List<Guid?> Calls { get; } = [];
+
+        public Task<int> SweepAsync(Guid? libraryId, CancellationToken ct = default)
+        {
+            lock (Calls)
+            {
+                Calls.Add(libraryId);
+            }
+
+            return Task.FromResult(0);
         }
     }
 
