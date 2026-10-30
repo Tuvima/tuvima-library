@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1324; api=0; web-client=54
+# scopes: contracts=1326; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4839,6 +4839,8 @@
   ContentKind: System.String | json=content_kind | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AddedByProfileId: System.Guid? | json=added_by_profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AddedByName: System.String | json=added_by_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileMissing: System.Boolean | json=file_missing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PartMissing: System.Boolean | json=part_missing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.LocalAssetFileDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4931,6 +4933,10 @@
 [contracts] MediaEngine.Contracts.LocalAssets.UpdateViewFilingLayoutRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Pattern: System.String | json=pattern | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.LocalAssets.UpdateViewMissingFileSettingsRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  RetentionDays: System.Int32 | json=retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.UpdateViewSourceRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -5365,6 +5371,11 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Removed: System.Int32 | json=removed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.LocalAssets.ViewMissingFileSettingsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  RetentionDays: System.Int32 | json=retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DefaultRetentionDays: System.Int32 | json=default_retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
 [contracts] MediaEngine.Contracts.LocalAssets.ViewOtherHouseholdDto
   kind=class | converter=default | number-handling=default | unmapped=default
   HouseholdId: System.Guid | json=household_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -5626,6 +5637,7 @@
   AddedByProfileId: System.Guid? | json=added_by_profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AcceptsPhotosAndVideos: System.Boolean | json=accepts_photos_and_videos | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   KeptInLibraryCount: System.Int32 | json=kept_in_library_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FolderOffline: System.Boolean | json=folder_offline | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewTagDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -5690,6 +5702,7 @@
   BytesFreed: System.Int64 | json=bytes_freed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasCompound: System.Boolean | json=has_compound | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Fingerprint: System.String | json=fingerprint | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AlreadyMissingCount: System.Int32 | json=already_missing_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewTrashEmptyRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -5701,6 +5714,7 @@
   BytesFreed: System.Int64 | json=bytes_freed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SkippedCount: System.Int32 | json=skipped_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Failed: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashEmptyFailureDto> | json=failed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AlreadyMissingCount: System.Int32 | json=already_missing_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewTrashPreviewGalleryDto
   kind=class | converter=default | number-handling=default | unmapped=default

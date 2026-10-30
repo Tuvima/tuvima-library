@@ -46,7 +46,7 @@ else
                            SearchAriaLabel="Search Photos"
                            QuickFilterAriaLabel="Photos quick filters"
                            AdvancedFilterAriaLabel="More photo filters"
-                           HasActiveAdvancedFilters="@(_filter is "hidden" or "trash" or "documents" || _addedBy.Count > 0 || _tags.Count > 0)">
+                           HasActiveAdvancedFilters="@(_filter is "hidden" or "trash" or "documents" || _addedBy.Count > 0 || _tags.Count > 0 || _includeMissing)">
         <QuickFilters>
             @foreach (var filter in PrimaryFilters)
             {
@@ -59,6 +59,10 @@ else
             @if (Workspace.CanViewDocuments)
             {
                 <AppNativeButton Type="button" Class="@FilterClass("documents")" OnClick="@(_ => SetFilterAsync("documents"))">Documents</AppNativeButton>
+            }
+            @if (!string.IsNullOrWhiteSpace(_search))
+            {
+                <AppNativeButton Type="button" Class="@FilterClass(_includeMissing ? _filter : string.Empty)" aria-pressed="@(_includeMissing ? "true" : "false")" OnClick="@(_ => ToggleMissingAsync())">Include missing files</AppNativeButton>
             }
             @* Who added the items: only in the Shared Library and only when two or more people did. The chips carry the bare name. *@
             <ViewFilterChipRow Label="Added by" Choices="_addedByChoices" Selected="_addedBy" MinimumChoices="2" OnToggle="ToggleAddedByAsync" />
@@ -78,7 +82,7 @@ else
     {
         @if (_olderWindow) { <AppButton Label="Back to newest photos" OnClick="@(() => LoadAsync(preserveSelection: true))" /> }
         <div class="view-timeline-layout">
-            <ViewPhotoTimeline Items="@_page.Items" NoteFor="@TrashNote" Selected="@_selected" SelectMode="@_selectMode" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
+            <ViewPhotoTimeline Items="@_page.Items" NoteFor="@ItemNote" Selected="@_selected" SelectMode="@_selectMode" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
             <ViewTimelineScrubber Buckets="@(_timelineIndex?.Buckets ?? [])" ActiveYear="@_activeYear" ActiveMonth="@_activeMonth" OnJump="JumpToBucketAsync" />
         </div>
         <span class="view-timeline-observer-anchor" @ref="_timelineSentinel" aria-hidden="true"></span>
@@ -101,6 +105,8 @@ else
     // The Shared Library's "added by" chips and the tag chips; the choices come from the Engine, the chosen ids are sent as added_by and tag.
     private readonly HashSet<Guid> _addedBy = [];
     private readonly HashSet<Guid> _tags = [];
+    // Missing files (deleted outside Library) are found only by searching, and only when this is on.
+    private bool _includeMissing;
     private IReadOnlyList<ViewFilterChoice> _addedByChoices = [];
     private IReadOnlyList<ViewFilterChoice> _tagChoices = [];
     private ViewSectionShell? _viewSectionShell; private ViewAssetTimelinePageDto? _page; private ViewTimelineIndexDto? _timelineIndex; private LocalAssetDto? _activeItem; private readonly HashSet<Guid> _selected = []; private readonly Dictionary<(Guid, Guid, ViewMediaResourceKind, ViewMediaResourceRole, ViewScopeKind, Guid?), CachedMediaGrant> _grants = [];
@@ -114,7 +120,8 @@ else
     // A new profile starts with no chips and no filter: a chip or a kind filter left from the last profile could not be seen, so it could not be switched off.
     private async Task InitializeAsync() { _initializing = true; _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; _filter = "all"; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; if (!Workspace.CanViewPhotoTimeline) { _loading = false; return; } await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); }
     private ViewAssetQueryOptions Query(string? cursor = null, DateTimeOffset? anchorBefore = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, _filter switch { "videos" => ["video"], "documents" => ["document"], _ => null }, _filter == "favorites", _filter == "hidden", _filter switch { "archive" => "archived", "trash" => "trashed", _ => "active" }, AnchorBefore: anchorBefore,
-        Documents: _tags.Count > 0 ? new ViewDocumentFilterDto(TagIds: _tags.ToList()) : null, AddedBy: _addedBy.Count > 0 ? _addedBy.ToList() : null);
+        Documents: _tags.Count > 0 ? new ViewDocumentFilterDto(TagIds: _tags.ToList()) : null, AddedBy: _addedBy.Count > 0 ? _addedBy.ToList() : null,
+        IncludeMissing: _includeMissing && !string.IsNullOrWhiteSpace(_search));
     private async Task LoadFilterChoicesAsync()
     {
         var scope = Workspace.ScopeKind;
@@ -192,6 +199,7 @@ else
         }
         catch (OperationCanceledException) { }
     }
+    private async Task ToggleMissingAsync() { _includeMissing = !_includeMissing; await LoadAsync(); }
     private async Task SetFilterAsync(string filter) { _filter = filter; await LoadAsync(); } private string FilterClass(string filter) => $"app-discovery-filter__tab{(_filter == filter ? " is-active" : "")}"; private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId); private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private string ScopeDescription => Workspace.ScopeKind switch
     {
@@ -312,6 +320,8 @@ else
     // Only items on the loaded page are known; one selected from a date group that isn't loaded is left to the Engine's refusal.
     private bool IsKnownReadOnly(Guid id) => _page?.Items.FirstOrDefault(item => item.Id == id) is { CanTrash: false };
     private bool AnySelectedTrashable => _selected.Any(id => !IsKnownReadOnly(id));
+    // A file deleted outside Library shows dimmed with this note; a Trash failure note shows in Trash.
+    private string? ItemNote(LocalAssetDto item) => item.FileMissing ? "File missing" : TrashNote(item);
     private string? TrashNote(LocalAssetDto item) => _filter == "trash" && Workspace.TrashFailureReason(item.Id) is { } reason ? EmptyTrashText.FailureNote(reason) : null;
     private bool _mutatingSelection;
     private async Task MutateSelectionAsync(Func<Guid, CancellationToken, Task<bool>> action, string message, IReadOnlySet<Guid>? skip = null)

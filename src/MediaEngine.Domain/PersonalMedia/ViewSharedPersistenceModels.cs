@@ -26,4 +26,5 @@ public sealed record ViewSharedSource(
     string ContentKind = ViewContentKinds.Photos,
     Guid? AddedByProfileId = null,
     int SkippedFileCount = 0,
-    int KeptInLibraryCount = 0);
+    int KeptInLibraryCount = 0,
+    bool FolderOffline = false);

@@ -86,7 +86,14 @@
                         <span>@SourcePolicy(source)</span>
                         @if (ShowsTimeline) { <AppSwitchRow Label="Show in Photos timeline" Value="@source.IncludeInTimeline" ValueChanged="@((bool value) => SetTimelineAsync(profile.Id, source, value))" Disabled="@(ReadOnly || _busy)" /> }
                         else { <span></span> }
-                        <AppStatusBadge Text="@(source.Enabled ? "Indexing enabled" : "Disabled")" Tone="AppUiTone.Neutral" />
+                        @if (source.FolderOffline)
+                        {
+                            <AppTooltip Text="Library can't reach this folder, so nothing in it is marked missing. It checks again on its own."><AppStatusBadge Text="Folder offline" Tone="AppUiTone.Warning" /></AppTooltip>
+                        }
+                        else
+                        {
+                            <AppStatusBadge Text="@(source.Enabled ? "Indexing enabled" : "Disabled")" Tone="AppUiTone.Neutral" />
+                        }
                         @if (CanTidy(source))
                         {
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.CalendarMonth" AriaLabel="@($"Tidy {source.Name}")" Tooltip="Tidy this folder by date" Disabled="@(ReadOnly || _busy)" OnClick="@(() => TidyAsync(source))" />

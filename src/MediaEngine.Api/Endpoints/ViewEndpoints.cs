@@ -1963,7 +1963,8 @@ public static partial class ViewEndpoints
             source.SkippedFileCount,
             source.AddedByProfileId,
             ViewKindAcceptance.IsIntakeSource(source.SourceKey),
-            source.KeptInLibraryCount);
+            source.KeptInLibraryCount,
+            source.FolderOffline);
 
     private static ViewSourceAdminDto ToAdminSource(
         ViewSharedSource source,
@@ -1984,7 +1985,8 @@ public static partial class ViewEndpoints
             source.SkippedFileCount,
             source.AddedByProfileId,
             ViewKindAcceptance.IsIntakeSource(source.SourceKey),
-            source.KeptInLibraryCount);
+            source.KeptInLibraryCount,
+            source.FolderOffline);
 
     private static string SourceTypeValue(ViewSourceType value) => value switch
     {

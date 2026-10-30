@@ -39,6 +39,19 @@
         <div class="view-policy-row"><div><strong>Contribute to Shared Library</strong><small>Files transfer only after acceptance and destination verification.</small></div><span>Managed originals move · Linked originals copy</span></div>
         <p>View uses local file details, capture dates, available location metadata, and supported thumbnails. Personal media does not use external catalog providers or the Review Queue.</p>
     </SettingsSectionPanel>
+    <SettingsSectionPanel Title="Missing files" Description="What Library does when a file is deleted or moved outside Library.">
+        <p>Library never deletes anything because a file went missing. Missing items stay hidden from the library, and you can still find them in search.</p>
+        <div class="view-missing-row">
+            <AppSwitchRow Label="Remove the record after a while" Description="Forgets the notes, tags and Gallery spots of a file that stays missing."
+                          Value="@_removeAfterWhile" ValueChanged="SetRemoveAfterWhileAsync" Disabled="@(ReadOnly || _missingBusy || _missing is null)" />
+            @if (_removeAfterWhile)
+            {
+                <AppNumericField Label="Days to wait" Min="1" Max="3650" Value="@_days" ValueChanged="SetDaysAsync" ReadOnly="@(ReadOnly || _missingBusy)" HelpText="Counted from when the file was first seen missing." />
+            }
+        </div>
+        @if (_missingError is not null) { <AppAlert Tone="AppUiTone.Error">@_missingError</AppAlert> }
+        else if (_missingSaved) { <small class="view-missing-saved">Saved</small> }
+    </SettingsSectionPanel>
     @if (Kind == ViewContentKinds.Documents)
     {
         <DocumentTextSettings ReadOnly="@ReadOnly" />
@@ -56,14 +69,48 @@
     private string _pattern = string.Empty;
     private string? _error;
     private bool _busy;
+    private ViewMissingFileSettingsDto? _missing;
+    private bool _removeAfterWhile;
+    private int _days = 90;
+    private bool _missingBusy;
+    private bool _missingSaved;
+    private string? _missingError;
 
     protected override async Task OnInitializedAsync()
     {
+        _missing = await ApiClient.GetViewMissingFileSettingsAsync();
+        ShowMissing(_missing);
         if (Kind is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos)
         {
             _layout = await ApiClient.GetViewFilingLayoutAsync();
             _pattern = _layout?.Pattern ?? string.Empty;
         }
+    }
+
+    private void ShowMissing(ViewMissingFileSettingsDto? settings)
+    {
+        if (settings is null) return;
+        _missing = settings;
+        _removeAfterWhile = settings.RetentionDays > 0;
+        _days = settings.RetentionDays > 0 ? settings.RetentionDays : settings.DefaultRetentionDays;
+    }
+
+    private Task SetRemoveAfterWhileAsync(bool on) => SaveMissingAsync(on ? Math.Max(1, _days) : 0);
+
+    private Task SetDaysAsync(int days) => SaveMissingAsync(Math.Max(1, days));
+
+    private async Task SaveMissingAsync(int days)
+    {
+        if (_missingBusy) return;
+        _missingBusy = true;
+        _missingSaved = false;
+        try
+        {
+            var saved = await ApiClient.UpdateViewMissingFileSettingsAsync(days);
+            if (saved is null) _missingError = ApiClient.LastError ?? "The setting could not be saved.";
+            else { _missingError = null; _missingSaved = true; ShowMissing(saved); }
+        }
+        finally { _missingBusy = false; }
     }
 
     private Task SaveAsync() => ApplyAsync(_pattern);

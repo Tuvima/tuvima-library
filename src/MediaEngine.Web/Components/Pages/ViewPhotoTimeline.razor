@@ -92,7 +92,7 @@
     protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
     public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
     private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
-    private string TileClass(LocalAssetDto item) => $"view-tile view-tile--{Kind(item)} view-tile--{Orientation(item)}{(Aspect(item) > 3 ? " view-tile--panorama" : string.Empty)}{(Selected.Contains(item.Id) ? " is-selected" : string.Empty)}";
+    private string TileClass(LocalAssetDto item) => $"view-tile view-tile--{Kind(item)} view-tile--{Orientation(item)}{(Aspect(item) > 3 ? " view-tile--panorama" : string.Empty)}{(Selected.Contains(item.Id) ? " is-selected" : string.Empty)}{(item.FileMissing ? " is-missing" : string.Empty)}";
     private Task ToggleAsync(Guid id, MouseEventArgs args) => OnToggleSelectionRequested.HasDelegate
         ? OnToggleSelectionRequested.InvokeAsync(new SelectionRequest(id, args.ShiftKey))
         : OnToggleSelection.InvokeAsync(id);

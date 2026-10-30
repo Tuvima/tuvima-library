@@ -163,6 +163,7 @@ public sealed partial class EngineApiClient
         AddQuery(query, "from", options.From?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
         AddQuery(query, "to", options.To?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
         AddQuery(query, "q", options.Search?.Trim());
+        AddQuery(query, "missing", options.IncludeMissing ? "true" : null);
         foreach (var kind in options.Kinds ?? [])
         {
             AddQuery(query, "kind", kind);
@@ -339,6 +340,13 @@ public sealed partial class EngineApiClient
     public Task<ViewFilingLayoutDto?> UpdateViewFilingLayoutAsync(string? pattern, CancellationToken ct = default) =>
         PutAsync<UpdateViewFilingLayoutRequest, ViewFilingLayoutDto>(
             "PUT /view/admin/intake/layout", "/view/admin/intake/layout", new UpdateViewFilingLayoutRequest(pattern), ct: ct);
+
+    public Task<ViewMissingFileSettingsDto?> GetViewMissingFileSettingsAsync(CancellationToken ct = default) =>
+        GetAsync<ViewMissingFileSettingsDto>("GET /view/admin/missing-files", "/view/admin/missing-files", ct: ct);
+
+    public Task<ViewMissingFileSettingsDto?> UpdateViewMissingFileSettingsAsync(int retentionDays, CancellationToken ct = default) =>
+        PutAsync<UpdateViewMissingFileSettingsRequest, ViewMissingFileSettingsDto>(
+            "PUT /view/admin/missing-files", "/view/admin/missing-files", new UpdateViewMissingFileSettingsRequest(retentionDays), ct: ct);
 
     public Task<ViewActivityDto?> GetViewKindActivityAsync(string contentKind, int take = 100, CancellationToken ct = default) =>
         GetAsync<ViewActivityDto>("GET /view/admin/intake/{kind}/activity",

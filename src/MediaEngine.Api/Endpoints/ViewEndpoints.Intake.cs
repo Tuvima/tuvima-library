@@ -37,6 +37,27 @@ public static partial class ViewEndpoints
             .Produces<ViewFilingLayoutDto>()
             .RequireEffectiveAdministrator();
 
+        group.MapGet("/admin/missing-files", ([FromServices] ViewIntakeAdminService service) => Results.Ok(service.GetMissingFileSettings()))
+            .WithName("GetViewMissingFileSettings")
+            .WithSummary("How many days Library keeps what it knows about a file deleted outside Library (0 means never remove).")
+            .Produces<ViewMissingFileSettingsDto>()
+            .RequireEffectiveAdministrator();
+
+        group.MapPut("/admin/missing-files", (UpdateViewMissingFileSettingsRequest request, [FromServices] ViewIntakeAdminService service) =>
+        {
+            try
+            {
+                return Results.Ok(service.SetMissingFileSettings(request.RetentionDays));
+            }
+            catch (ArgumentException exception)
+            {
+                return ApiErrors.BadRequest(exception.Message);
+            }
+        }).WithName("UpdateViewMissingFileSettings")
+            .WithSummary("Change how long records of missing files are kept. Library never deletes a file because it went missing.")
+            .Produces<ViewMissingFileSettingsDto>()
+            .RequireEffectiveAdministrator();
+
         group.MapPost("/admin/intake/scan", async ([FromServices] ViewIntakeAdminService service, CancellationToken ct) =>
             Results.Ok(await service.ScanNowAsync(ct)))
             .WithName("ScanViewImportArea")

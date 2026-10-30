@@ -20,7 +20,7 @@
                   OnRestore="@OnRestore"
                   OnTrash="@OnTrash"
                   OnAddToGallery="@OnAddToGallery"
-                  InfoInitiallyOpen="@Workspace.ViewerInfoOpen"
+                  InfoInitiallyOpen="@(Workspace.ViewerInfoOpen || Item.FileMissing)"
                   InfoOpenChanged="InfoOpenChangedAsync">
     <ContextActions>
         @if (!string.IsNullOrWhiteSpace(MotionUrl))
@@ -32,6 +32,10 @@
         }
     </ContextActions>
     <InfoContent>
+        @if (Item.FileMissing)
+        {
+            <section class="view-viewer-info__section view-viewer-info__missing" role="status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" /><span><strong>File missing</strong><small>The file was deleted or moved outside Library. If you want it back, tell an administrator.</small></span></section>
+        }
         <section class="view-viewer-info__section view-viewer-info__description">
             @if (_editingDescription)
             {
@@ -111,7 +115,7 @@
     [Parameter] public EventCallback<LocalAssetDto> OnItemUpdated { get; set; }
     [Parameter] public bool CanEdit { get; set; }
     // Editing is desktop-only (EditorDeviceRule): phones and tablets only view photo details.
-    private bool CanEditHere => CanEdit && DeviceContext.CanEdit;
+    private bool CanEditHere => CanEdit && DeviceContext.CanEdit && !Item.FileMissing;
     [Parameter] public bool CanManage { get; set; }
     private Guid _editingItemId; private string? _description, _locationName, _locationCity, _locationRegion, _locationCountry, _latitude, _longitude, _capturedAt, _personToAdd; private bool _saving, _showMotion, _editingDescription, _editingDate, _editingLocation; private ViewPlaceDto? _selectedPlace; private List<string> _people = []; private List<string> _tagValues = [];
     private string Title => string.IsNullOrWhiteSpace(Item.Title) ? Item.FileName : Item.Title;
@@ -276,14 +280,14 @@
         PositionLabel,
         Title);
     private MediaViewerCapabilities ViewerCapabilities => new(
-        CanFavorite: CanManage,
+        CanFavorite: CanManage && !Item.FileMissing,
         IsFavorite: Item.Favorite,
-        CanAddToGallery: ManualGalleries.Count > 0,
-        CanDownload: true,
-        CanArchive: CanManage && !Item.ArchivedAt.HasValue && !Item.TrashedAt.HasValue,
+        CanAddToGallery: ManualGalleries.Count > 0 && !Item.FileMissing,
+        CanDownload: !Item.FileMissing,
+        CanArchive: CanManage && !Item.FileMissing && !Item.ArchivedAt.HasValue && !Item.TrashedAt.HasValue,
         CanRestore: CanManage && (Item.ArchivedAt.HasValue || Item.TrashedAt.HasValue),
         // An item with a file in a read-only (linked) folder can't go to Trash, so the button isn't offered; Restore stays.
-        CanTrash: CanManage && !Item.TrashedAt.HasValue && Item.CanTrash,
+        CanTrash: CanManage && !Item.FileMissing && !Item.TrashedAt.HasValue && Item.CanTrash,
         CanShowInfo: true,
         CanZoom: Item.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase),
         CanPlay: Item.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase),

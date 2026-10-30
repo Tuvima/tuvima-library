@@ -35,3 +35,5 @@
 .view-viewer-info__save,.view-viewer-info__reset{justify-self:start;padding:.42rem .65rem;border:1px solid rgba(136, 82, 252,.7);border-radius:.45rem;background:rgba(136, 82, 252,.24);color:#ede9fe;cursor:pointer}
 .view-viewer-info__reset{border-color:rgba(148,163,184,.3);background:transparent}
 .view-viewer-info__save:disabled,.view-viewer-info__reset:disabled{opacity:.5;cursor:wait}
+.view-viewer-info__missing{display:flex;gap:.6rem;align-items:flex-start;color:var(--tl-text-primary)}
+.view-viewer-info__missing small{display:block;color:var(--tl-text-muted);font-size:var(--tl-font-size-xs);line-height:1.4}

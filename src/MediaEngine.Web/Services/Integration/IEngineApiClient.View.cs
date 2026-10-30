@@ -44,6 +44,10 @@ public partial interface IEngineApiClient
     Task<ViewFilingLayoutDto?> GetViewFilingLayoutAsync(CancellationToken ct = default);
     /// <summary>PUT /view/admin/intake/layout - changes the layout from now on. Null with <see cref="LastError"/> set when it is not usable.</summary>
     Task<ViewFilingLayoutDto?> UpdateViewFilingLayoutAsync(string? pattern, CancellationToken ct = default);
+
+    Task<ViewMissingFileSettingsDto?> GetViewMissingFileSettingsAsync(CancellationToken ct = default);
+
+    Task<ViewMissingFileSettingsDto?> UpdateViewMissingFileSettingsAsync(int retentionDays, CancellationToken ct = default);
     /// <summary>GET /view/admin/intake/{kind}/activity - what was added, skipped and refused, newest first.</summary>
     Task<ViewActivityDto?> GetViewKindActivityAsync(string contentKind, int take = 100, CancellationToken ct = default);
 
@@ -121,7 +125,8 @@ public sealed record ViewAssetQueryOptions(
     DateTimeOffset? From = null,
     DateTimeOffset? To = null,
     ViewDocumentFilterDto? Documents = null,
-    IReadOnlyList<Guid>? AddedBy = null);
+    IReadOnlyList<Guid>? AddedBy = null,
+    bool IncludeMissing = false);
 
 public sealed record ViewUploadResult(bool Success, ViewUploadResponseDto? Upload = null, string? ErrorMessage = null);
 

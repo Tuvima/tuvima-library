@@ -112,6 +112,23 @@ public sealed class ViewIntakeAdminService(
 
     public ViewFilingLayoutDto GetLayout() => LayoutDto(configuration.LoadPhotoFiling().LayoutPattern);
 
+    public ViewMissingFileSettingsDto GetMissingFileSettings() => new(
+        configuration.LoadPhotoFiling().MissingFileRetentionDays, PhotoFilingSettings.DefaultMissingFileRetentionDays);
+
+    /// <summary>Saves how long records of missing files are kept. A negative number is refused; 0 means never remove.</summary>
+    public ViewMissingFileSettingsDto SetMissingFileSettings(int retentionDays)
+    {
+        if (retentionDays < 0)
+        {
+            throw new ArgumentException("Choose a number of days of 1 or more, or turn removal off.", nameof(retentionDays));
+        }
+
+        var settings = configuration.LoadPhotoFiling();
+        settings.MissingFileRetentionDays = retentionDays;
+        configuration.SavePhotoFiling(settings);
+        return GetMissingFileSettings();
+    }
+
     /// <summary>Saves the layout. An unusable layout is refused with the reason; an empty one goes back to the default.</summary>
     public ViewFilingLayoutDto SetLayout(string? pattern)
     {
