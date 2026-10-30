@@ -19,7 +19,7 @@
            aria-labelledby="tl-editor-panel-title"
            data-tool="@tool.ToString().ToLowerInvariant()">
         <header class="tl-editor-panel__header">
-            <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@(TitleOverride ?? TitleFor(tool))</h2>
+            <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@(_reviewing ? "Review changes" : TitleOverride ?? TitleFor(tool))</h2>
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                            Size="AppControlSize.Large"
                            Tone="AppUiTone.Neutral"
@@ -29,7 +29,7 @@
                            OnClick="@(() => flow.LeaveAsync())" />
         </header>
         <div class="tl-editor-window__main">
-            @if (TitleOverride is null)
+            @if (TitleOverride is null && !_reviewing)
             {
                 <nav class="tl-editor-window__rail" aria-label="Editing tools">
                     @foreach (var (railTool, label, icon) in RailTools(mode))
@@ -48,7 +48,11 @@
                 </nav>
             }
             <div class="tl-editor-panel__body">
-                @if (tool == EditTool.Artwork && Picker is not null)
+                @if (_reviewing)
+                {
+                    <ReviewChangesView Source="flow" ShowHeading="true" OnOutcome="OnReviewOutcome" />
+                }
+                else if (tool == EditTool.Artwork && Picker is not null)
                 {
                     <FloatingArtworkPicker Mode="Mode" Flow="Flow" Picker="Picker" Docked="true" />
                 }
@@ -58,6 +62,8 @@
                 }
             </div>
         </div>
+        @if (!_reviewing)
+        {
         <footer class="tl-editor-window__footer">
             <span class="tl-editor-window__changes" role="status">@(count == 0 ? "No changes yet" : $"{count} {(count == 1 ? "change" : "changes")} waiting")</span>
             <div class="tl-editor-window__actions">
@@ -80,11 +86,13 @@
                 </AppButton>
             </div>
         </footer>
+        }
     </aside>
 }
 
 @code {
     private EditTool? _focused;
+    private bool _reviewing;
     private EditSessionFlow? _subscribed;
 
     [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
@@ -124,8 +132,11 @@
             return;
         }
 
-        await ReviewChangesDialog.ShowAsync(Dialogs, flow);
+        _reviewing = true;
     }
+
+    // Review is a page of the window (spec D8): any way out of it returns to the tool, and a save or discard has already ended the session.
+    private void OnReviewOutcome(ReviewChangesOutcome outcome) => _reviewing = false;
 
     private static string TitleFor(EditTool tool) => tool switch
     {

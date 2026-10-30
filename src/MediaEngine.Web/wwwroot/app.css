@@ -6027,6 +6027,11 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .tl-match__switches{display:flex;flex-direction:column;gap:var(--tl-space-2)}
 .tl-match__actions{display:flex;justify-content:space-between;gap:var(--tl-space-3)}
 .tl-match__problem{align-items:center}
+.review-changes--page{align-content:start;min-height:100%;padding:var(--tl-space-5) var(--tl-space-6)}
+.review-changes__heading h2{margin:0;font-size:var(--tl-font-size-lg);font-weight:var(--tl-font-weight-semibold)}
+.review-changes__heading p{color:var(--tl-text-secondary)}
+.review-changes__footer{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--tl-space-3)}
+.review-changes--page .review-changes__footer{position:sticky;bottom:0;padding:var(--tl-space-3) 0;background:var(--tl-bg-surface,var(--tl-bg))}
 .tl-match__happen{margin:0;font-size:var(--tl-font-size-md);font-weight:var(--tl-font-weight-semibold)}
 
 /* Universe hero: the Universe's own cover, description and background once the editor has set them (spec D17a). */

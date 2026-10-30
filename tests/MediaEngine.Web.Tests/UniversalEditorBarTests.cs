@@ -396,6 +396,27 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         bar.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
     }
 
+    [Fact]
+    public async Task SaveInTheWindow_OpensReviewAsAPageOfTheWindow_AndBackToEditingReturnsToTheTool()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editor-details")));
+        editor.Session.Pending.SetField(MovieId, "title", "Dune");
+
+        cut.Find(".tl-editor-window__save").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".review-changes--page")));
+        Assert.Equal("Review changes", cut.Find(".tl-editor-panel__title").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".app-dialog-shell"));
+        Assert.Empty(cut.FindAll(".tl-editor-window__save"));
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Back to editing").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editor-details")));
+        Assert.Equal("Details", cut.Find(".tl-editor-panel__title").TextContent.Trim());
+        Assert.True(editor.Session.IsActive);
+    }
+
     private List<string?> FocusedIds() => JSInterop.Invocations
         .Where(call => call.Identifier == "tuvimaFocusById")
         .Select(call => call.Arguments[0] as string)
