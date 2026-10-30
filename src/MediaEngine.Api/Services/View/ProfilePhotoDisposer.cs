@@ -2,10 +2,10 @@ using System.Globalization;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Services;
-using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.View;
 
