@@ -90,9 +90,9 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Sources = [new() { Id = "movies-main", Path = "E:\\Library\\Movies", ManagementMode = "existing_library", AccessMode = "read_only" }],
     });
 
-    private IRenderedComponent<SetupMediaStage> RenderStage(bool hasLibraries = false)
+    private IRenderedComponent<SetupLibrariesStage> RenderStage(bool hasLibraries = false)
     {
-        var cut = Render<SetupMediaStage>(parameters => parameters
+        var cut = Render<SetupLibrariesStage>(parameters => parameters
             .Add(x => x.SetupSession, Session)
             .Add(x => x.HasLibraries, hasLibraries)
             .Add(x => x.DeferMedia, EventCallback.Factory.Create(this, () => _deferred++))
@@ -102,7 +102,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         return cut;
     }
 
-    private static AngleSharp.Dom.IElement Button(IRenderedComponent<SetupMediaStage> cut, string text) => cut.FindAll("button").Single(x => Text(x) == text);
+    private static AngleSharp.Dom.IElement Button(IRenderedComponent<SetupLibrariesStage> cut, string text) => cut.FindAll("button").Single(x => Text(x) == text);
 
     // 1. The step draws the shared Libraries table, in simple mode.
     [Fact]
@@ -262,7 +262,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     [Fact]
     public void TheStageSourceHoldsNoTickCardsNoWizardAndNoSecondFoldersPanel()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Setup", "SetupMediaStage.razor");
+        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Setup", "SetupLibrariesStage.razor");
         var source = File.ReadAllText(path);
 
         Assert.Contains("<LibrariesOverview", source, StringComparison.Ordinal);
@@ -278,7 +278,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     {
         var root = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components");
         var setupSources = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories).Select(File.ReadAllText).ToArray();
-        var stage = File.ReadAllText(Path.Combine(root, "Setup", "SetupMediaStage.razor"));
+        var stage = File.ReadAllText(Path.Combine(root, "Setup", "SetupLibrariesStage.razor"));
         var overview = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibrariesOverview.razor"));
 
         Assert.Contains("<LibrariesOverview", stage, StringComparison.Ordinal);
@@ -297,7 +297,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     }
 
     // Add-folder v2 (A4 for View and the Vault): setup's View folders use Settings' own folder dialog and shared pop-up, the Vault step draws the same Libraries
-    // table, and no other setup screen knows the word Vault, so a skipped Vault step leaves nothing behind.
+    // table, and no other setup screen knows the word Vault (the step list draws its optional entry only while it is offered; the page itself only routes to it), so a skipped Vault step leaves nothing behind.
     [Fact]
     public void SetupsViewFoldersAndVaultStepReuseSettingsComponentsAndTheVaultStaysInOneStep()
     {
@@ -305,18 +305,40 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var overview = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibrariesOverview.razor"));
         var viewDialog = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "AddViewFolderDialog.razor"));
         var vaultStep = File.ReadAllText(Path.Combine(root, "Setup", "SetupVaultOffer.razor"));
-        var stage = File.ReadAllText(Path.Combine(root, "Setup", "SetupMediaStage.razor"));
+        var eligibility = File.ReadAllText(Path.Combine(root, "Setup", "SetupVaultEligibility.cs"));
 
         Assert.Contains("AppDialogParameters<AddViewFolderDialog>", overview, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", viewDialog, StringComparison.Ordinal);
         Assert.Contains("<LibrariesOverview", vaultStep, StringComparison.Ordinal);
-        Assert.Contains("EffectiveAdministrator == true", stage, StringComparison.Ordinal);
+        Assert.Contains("EffectiveAdministrator != true", eligibility, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTable", vaultStep, StringComparison.Ordinal);
         Assert.DoesNotContain("<CreateLibraryDialog", vaultStep, StringComparison.Ordinal);
 
         var others = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories)
-            .Where(file => Path.GetFileName(file) is not ("SetupVaultOffer.razor" or "SetupMediaStage.razor"));
+            .Where(file => Path.GetFileName(file) is not ("SetupVaultOffer.razor" or "SetupStepper.razor"));
         Assert.All(others, file => Assert.DoesNotContain("Vault", File.ReadAllText(file), StringComparison.OrdinalIgnoreCase));
+    }
+
+    // First-run setup D14: nothing a person clicks inside a step changes the browser address. Only All set may link out (to Settings, and to sign in).
+    [Fact]
+    public void NoSetupStepChangesTheBrowserAddressExceptAllSetsTwoLinks()
+    {
+        var root = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components");
+        var offenders = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories)
+            .Where(file => Path.GetFileName(file) != "SetupReadinessStage.razor")
+            .Where(file =>
+            {
+                var source = File.ReadAllText(file);
+                return source.Contains("NavigateTo(", StringComparison.Ordinal)
+                    || source.Contains("href=", StringComparison.OrdinalIgnoreCase)
+                    || source.Contains("Href=", StringComparison.Ordinal);
+            })
+            .Select(Path.GetFileName)
+            .ToList();
+        Assert.Empty(offenders);
+
+        var overview = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibrariesOverview.razor"));
+        Assert.Contains("if (!Simple) Navigation.NavigateTo(row.Href);", overview, StringComparison.Ordinal);
     }
 
     private sealed class IdleClientFactory : IHttpClientFactory

@@ -4,26 +4,36 @@
 @if (Value is not null)
 {
     <section class="setup-locale-form" aria-label="Language and region">
-        <label>Display language
-            <AppNativeSelect Value="@Value.DisplayLanguage" OnChange="@(args => Change(display: args.Value?.ToString()))">
-                @foreach (var culture in Languages) { <option value="@culture.Name">@culture.NativeName</option> }
-            </AppNativeSelect>
-        </label>
-        <label>Metadata language
-            <AppNativeSelect Value="@Value.MetadataLanguage" OnChange="@(args => Change(metadata: args.Value?.ToString()))">
-                @foreach (var culture in Languages) { <option value="@culture.Name">@culture.NativeName</option> }
-            </AppNativeSelect>
-        </label>
-        <label>Country or region
-            <AppNativeSelect Value="@Value.Country" OnChange="@(args => Change(country: args.Value?.ToString()))">
-                @foreach (var region in Regions) { <option value="@region.TwoLetterISORegionName">@region.EnglishName</option> }
-            </AppNativeSelect>
-        </label>
+        @if (ShowDisplay)
+        {
+            <label>Display language
+                <AppNativeSelect Value="@Value.DisplayLanguage" OnChange="@(args => Change(display: args.Value?.ToString()))">
+                    @foreach (var culture in Languages) { <option value="@culture.Name">@culture.NativeName</option> }
+                </AppNativeSelect>
+            </label>
+            <label>Country or region
+                <AppNativeSelect Value="@Value.Country" OnChange="@(args => Change(country: args.Value?.ToString()))">
+                    @foreach (var region in Regions) { <option value="@region.TwoLetterISORegionName">@region.EnglishName</option> }
+                </AppNativeSelect>
+            </label>
+        }
+        @if (ShowMetadata)
+        {
+            <label>Metadata language
+                <AppNativeSelect Value="@Value.MetadataLanguage" OnChange="@(args => Change(metadata: args.Value?.ToString()))">
+                    @foreach (var culture in Languages) { <option value="@culture.Name">@culture.NativeName</option> }
+                </AppNativeSelect>
+            </label>
+        }
     </section>
 }
 @code {
     [Parameter] public SetupLocaleDto? Value { get; set; }
     [Parameter] public EventCallback<SetupLocaleDto> ValueChanged { get; set; }
+
+    /// <summary>Welcome asks for the display language and region; the Metadata step asks for the metadata language alone.</summary>
+    [Parameter] public bool ShowDisplay { get; set; } = true;
+    [Parameter] public bool ShowMetadata { get; set; } = true;
     private static readonly CultureInfo[] Languages = CultureInfo.GetCultures(CultureTypes.NeutralCultures | CultureTypes.SpecificCultures)
         .Where(c => c.Name.Length > 0).OrderBy(c => c.NativeName).ToArray();
     private static readonly RegionInfo[] Regions = CultureInfo.GetCultures(CultureTypes.SpecificCultures)

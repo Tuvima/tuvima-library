@@ -8,8 +8,13 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class SetupStepsTidyTests : AsyncBunitContext
 {
+    public SetupStepsTidyTests() => JSInterop.Mode = JSRuntimeMode.Loose;
+
     private static readonly string[] SixSteps =
-        ["Name your server", "Your account", "Libraries", "Language", "Enhance your library", "All set"];
+        ["Welcome", "Your profile", "Tools", "Libraries", "Metadata", "All set"];
+
+    private static readonly string[] SevenSteps =
+        ["Welcome", "Your profile", "Tools", "Libraries", "Vault", "Metadata", "All set"];
 
     private static readonly ToolRequirementsDto NoToolsNeeded = new(
         ToolInstallKinds.Source, DateTimeOffset.UnixEpoch, false, []);
@@ -19,44 +24,63 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         .ToList();
 
     [Fact]
-    public void Stepper_ShowsSixSteps_WithoutAServerCheck()
+    public void Stepper_ShowsTheEnginesStepsInOrder_AndNoVaultEntryUnlessOffered()
     {
         var cut = Render<SetupStepper>(parameters => parameters
             .Add(p => p.Steps, Statuses())
-            .Add(p => p.CurrentStep, "administrator")
-            .Add(p => p.WorkflowStep, "administrator"));
+            .Add(p => p.CurrentStep, "profile")
+            .Add(p => p.WorkflowStep, "profile"));
 
         var labels = cut.FindAll("li small").Select(item => item.TextContent.Trim()).ToList();
         Assert.Equal(SixSteps, labels);
-        Assert.DoesNotContain("Server check", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Stepper_KeepsTheFirstStepCurrent_WhileTheSilentCheckRuns()
+    public void Stepper_ShowsAllSevenSteps_WhenTheVaultIsOffered_AndDropsItAfterNotNow()
+    {
+        var offered = Render<SetupStepper>(parameters => parameters
+            .Add(p => p.Steps, Statuses())
+            .Add(p => p.ShowVault, true)
+            .Add(p => p.CurrentStep, "profile")
+            .Add(p => p.WorkflowStep, "profile"));
+        Assert.Equal(SevenSteps, offered.FindAll("li small").Select(item => item.TextContent.Trim()).ToList());
+
+        var declined = Render<SetupStepper>(parameters => parameters
+            .Add(p => p.Steps, Statuses("vault"))
+            .Add(p => p.ShowVault, true)
+            .Add(p => p.CurrentStep, "done")
+            .Add(p => p.WorkflowStep, "done"));
+        Assert.Equal(SixSteps, declined.FindAll("li small").Select(item => item.TextContent.Trim()).ToList());
+        Assert.DoesNotContain("Vault", declined.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Stepper_MarksTheWorkflowStepCurrent_WithNoMappingToAnotherEntry()
     {
         var cut = Render<SetupStepper>(parameters => parameters
             .Add(p => p.Steps, Statuses())
-            .Add(p => p.CurrentStep, "preflight")
-            .Add(p => p.WorkflowStep, "preflight"));
+            .Add(p => p.CurrentStep, "tools")
+            .Add(p => p.WorkflowStep, "tools"));
 
         var current = cut.FindAll("li.is-current");
         Assert.Single(current);
-        Assert.Contains("Name your server", current[0].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Tools", current[0].TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Stepper_ShowsLater_OnlyWhenTheEnhanceStepWasSkipped()
+    public void Stepper_ShowsLater_OnlyWhenTheMetadataStepWasSkipped()
     {
         var skipped = Render<SetupStepper>(parameters => parameters
-            .Add(p => p.Steps, Statuses("providers"))
-            .Add(p => p.CurrentStep, "readiness")
-            .Add(p => p.WorkflowStep, "readiness"));
+            .Add(p => p.Steps, Statuses("metadata"))
+            .Add(p => p.CurrentStep, "done")
+            .Add(p => p.WorkflowStep, "done"));
         Assert.Single(skipped.FindAll("em"));
 
         var passed = Render<SetupStepper>(parameters => parameters
             .Add(p => p.Steps, Statuses())
-            .Add(p => p.CurrentStep, "readiness")
-            .Add(p => p.WorkflowStep, "readiness"));
+            .Add(p => p.CurrentStep, "done")
+            .Add(p => p.WorkflowStep, "done"));
         Assert.Empty(passed.FindAll("em"));
     }
 
@@ -70,7 +94,7 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         ],
             NoToolsNeeded);
 
-        var cut = Render<SetupPreflightStage>(parameters => parameters.Add(p => p.Preflight, failed));
+        var cut = Render<SetupToolsStage>(parameters => parameters.Add(p => p.Preflight, failed));
 
         Assert.Contains("We could not check this server. Check that the data folder is writable and has free space, then try again.", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Tuvima cannot write to the folder it keeps your library in.", cut.Markup, StringComparison.Ordinal);
@@ -94,7 +118,7 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         ],
             NoToolsNeeded);
 
-        var cut = Render<SetupPreflightStage>(parameters => parameters
+        var cut = Render<SetupToolsStage>(parameters => parameters
             .Add(p => p.Preflight, failed)
             .Add(p => p.Error, "System.IO.IOException: disk I/O error"));
 
@@ -107,18 +131,18 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SilentCheck_ShowsGettingThingsReady()
+    public void SilentCheck_ShowsCheckingYourTools()
     {
-        var cut = Render<SetupPreflightStage>(parameters => parameters.Add(p => p.Busy, true));
+        var cut = Render<SetupToolsStage>(parameters => parameters.Add(p => p.Busy, true));
 
-        Assert.Contains("Getting things ready", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Checking your tools", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Retry", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
     public void FirstScreen_OffersRestoreAsATextLink()
     {
-        var cut = Render<SetupServerStage>(parameters => parameters.Add(p => p.ServerName, "Home"));
+        var cut = Render<SetupWelcomeStage>(parameters => parameters.Add(p => p.ServerName, "Home"));
 
         Assert.Contains("Restore a backup instead", cut.Markup, StringComparison.Ordinal);
     }
@@ -126,11 +150,11 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     [Fact]
     public void EnhanceStep_ShowsSkipForNow_UntilAKeyIsSaved()
     {
-        var none = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: false)]));
+        var none = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: false)]));
         Assert.Contains("Skip for now", none.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Set up later", none.Markup, StringComparison.Ordinal);
 
-        var saved = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: true)]));
+        var saved = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: true)]));
         Assert.DoesNotContain("Skip for now", saved.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Set up later", saved.Markup, StringComparison.Ordinal);
         Assert.Contains("Continue", saved.Markup, StringComparison.Ordinal);
@@ -141,7 +165,7 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     {
         var source = new ProviderCatalogueDto { DisplayName = "Example", MediaTypes = ["Movies"], Capabilities = ["artwork"] };
 
-        var cut = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [source]));
+        var cut = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [source]));
 
         Assert.DoesNotContain("What your library needs", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-testid='setup-need']"));
@@ -155,18 +179,65 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         var withKeyAlso = Provider(configured: false);
         withKeyAlso.DisplayName = "Needs a key";
 
-        var cut = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [free, withKey, withKeyAlso]));
+        var cut = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [free, withKey, withKeyAlso]));
 
         var noKey = cut.FindAll(".app-status-badge").Single(x => x.TextContent.Contains("No key needed", StringComparison.Ordinal));
         Assert.Contains("app-tone--success", noKey.ClassList);
         Assert.NotNull(noKey.QuerySelector("svg, .tl-icon-root"));
 
-        var configured = cut.FindAll(".app-status-badge").Single(x => x.TextContent.Contains("Key configured", StringComparison.Ordinal));
+        var configured = cut.FindAll(".app-status-badge").Single(x => x.TextContent.Contains("Key saved", StringComparison.Ordinal));
         Assert.Contains("app-tone--success", configured.ClassList);
         Assert.NotNull(configured.QuerySelector("svg, .tl-icon-root"));
 
         // A provider whose key is still missing shows no done-badge.
-        Assert.Single(cut.FindAll(".app-status-badge"), x => x.TextContent.Contains("Key configured", StringComparison.Ordinal));
+        Assert.Single(cut.FindAll(".app-status-badge"), x => x.TextContent.Contains("Key saved", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MetadataStep_ListsOnlySourcesThatFitTheLibrariesAdded_AndShowAllBringsTheRestBack()
+    {
+        var movies = new ProviderCatalogueDto { DisplayName = "Movie source", RequiresKey = false, MediaTypes = ["Movies"] };
+        var comics = new ProviderCatalogueDto { DisplayName = "Comic source", RequiresKey = false, MediaTypes = ["Comics"] };
+
+        var cut = Render<SetupMetadataStage>(parameters => parameters
+            .Add(p => p.Catalogue, [movies, comics])
+            .Add(p => p.LibraryMediaTypes, ["movies"]));
+
+        Assert.Contains("Movie source", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Comic source", cut.Markup, StringComparison.Ordinal);
+
+        cut.FindAll("button").Single(button => button.TextContent.Contains("Show all sources", StringComparison.Ordinal)).Click();
+
+        Assert.Contains("Comic source", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MetadataStep_ListsEverySourceWhenNoLibraryWasAdded()
+    {
+        var movies = new ProviderCatalogueDto { DisplayName = "Movie source", RequiresKey = false, MediaTypes = ["Movies"] };
+        var comics = new ProviderCatalogueDto { DisplayName = "Comic source", RequiresKey = false, MediaTypes = ["Comics"] };
+
+        var cut = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [movies, comics]));
+
+        Assert.Contains("Movie source", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Comic source", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Show all sources", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MetadataStep_OffersConnectOnlyWhereAKeyIsNeeded_WithNoSwitchOrMenu()
+    {
+        var free = new ProviderCatalogueDto { DisplayName = "Free source", RequiresKey = false };
+        var needsKey = Provider(configured: false);
+        needsKey.DisplayName = "Keyed source";
+
+        var cut = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [free, needsKey]));
+
+        Assert.Contains("Needs a key", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("No key needed", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("button"), button => button.TextContent.Trim() == "Connect");
+        Assert.Empty(cut.FindAll("[role='switch']"));
+        Assert.Contains("data-testid=\"setup-sources-cards\"", cut.Markup, StringComparison.Ordinal);
     }
 
     private static ProviderCatalogueDto Provider(bool configured) => new()

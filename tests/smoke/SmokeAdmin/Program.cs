@@ -55,7 +55,7 @@ if (args.Length >= 3 && args[2] is "--complete" or "--probe")
         Console.WriteLine($"Probe status: {(int)probe.StatusCode}; body: {body[..Math.Min(body.Length, limit)]}");
         return;
     }
-    foreach (var step in new[] { "media-locations", "providers" })
+    foreach (var step in new[] { "libraries", "metadata" })
     {
         using var stepResponse = await client.PostAsJsonAsync($"/setup/v1/steps/{step}", new
         {

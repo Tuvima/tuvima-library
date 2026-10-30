@@ -43,6 +43,7 @@
                            Options="StatusOptions"
                            Size="AppControlSize.Compact" />
             </div>
+            <AppLayoutSwitch StorageKey="tuvima.libraries.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Libraries layout" />
             @if (CanAddLibrary)
             {
                 <AppButton Label="Add library"
@@ -76,7 +77,27 @@
                     }
                 }
             </h3>
-            @if (rows.Count > 0)
+            @if (rows.Count > 0 && _layout == AppLayoutSwitch.Cards)
+            {
+                <div class="libs__cards" data-area="@area.Key">
+                    @foreach (var row in rows)
+                    {
+                        <div @key="row.Key" class="@(row.Key == _newLibraryId ? "libs__card-slot libs__card-slot--new" : "libs__card-slot")" data-library="@row.Key" data-new="@(row.Key == _newLibraryId ? "true" : null)" @onclick="@(() => OpenRow(row))">
+                            <AppListCard Title="@row.Name" Icon="@row.Type.Icon" Kind="@row.Type.Label" Description="@CountsFor(row)">
+                                <Status><LibraryStatusCell Row="@row" /></Status>
+                                <Footer>
+                                    @if (CanAddFolder && row.Access != LibraryListing.Vault)
+                                    {
+                                        <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Text"
+                                                   aria-label="@($"Add a folder to {row.Name}")" OnClick="@(() => AddFolderAsync(row))" />
+                                    }
+                                </Footer>
+                            </AppListCard>
+                        </div>
+                    }
+                </div>
+            }
+            else if (rows.Count > 0)
             {
                 <AppTable Hover="true" CardsOn="AppTableCardsMode.Phone" Class="libs__table" data-area="@area.Key">
                     <caption class="sr-only">@area.Label libraries</caption>
@@ -166,6 +187,9 @@
 </div>
 
 @code {
+    // The Cards / List switch (Plugins v3 D27); List is the table Settings has always shown, and the choice is remembered on this device.
+    private string _layout = AppLayoutSwitch.List;
+
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     /// <summary>The Engine's list of library kinds; the area tabs, content types and icons are drawn from it.</summary>
     [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;

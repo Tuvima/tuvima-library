@@ -4,7 +4,7 @@
 
 > Written 2026-10-30 after Shy's review of the built Libraries pages: "the UI has gotten better, but the UX is still very bad." It was checked against the code on main (commit 90283826) and replaces piecemeal fixes with one redesign of the Libraries area in Settings, the library page, Add library, Add folder and the setup step. Locked by Shy on 2026-10-30 ("Agree lock it"), accepting every recommendation (Q1 to Q6: A). It supersedes parts of Library pages v15, Library setup and add-folder v2 and Library access v3 (section 9).
 
-> *Companion note (2026-10-30):* [First-run setup v3](../../../engineering/specs/first-run-setup-flow.md) is Locked. It reuses this spec's components in setup mode: D13 (setup mode) is adopted as its D10, it adds a Cards / List switch to the shared overview (shared with Settings), and its WP4 depends on WP1, WP5 and WP7 here. Screen 8 of the mockups is replaced by the setup mockups.
+> *Companion note (2026-10-30):* [First-run setup v3](../../../engineering/specs/archive/first-run-setup-flow.md) is Locked. It reuses this spec's components in setup mode: D13 (setup mode) is adopted as its D10, it adds a Cards / List switch to the shared overview (shared with Settings), and its WP4 depends on WP1, WP5 and WP7 here. Screen 8 of the mockups is replaced by the setup mockups.
 
 
 ## Plain-English product walkthrough
