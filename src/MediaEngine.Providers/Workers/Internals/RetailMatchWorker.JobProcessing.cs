@@ -367,6 +367,11 @@ public sealed partial class RetailMatchWorker
                     Country = configuredCountry,
                 };
 
+                _logger.LogInformation(
+                    "Retail search: {Provider} for entity {EntityId} ({MediaType}) with title '{Title}', show '{ShowName}', season {Season}, episode {Episode}",
+                    providerName, job.EntityId, mediaType, lookupRequest.Title, lookupRequest.ShowName,
+                    lookupRequest.SeasonNumber, lookupRequest.EpisodeNumber);
+
                 var claims = await provider.FetchAsync(lookupRequest, ct);
                 if (claims.Count == 0)
                 {
