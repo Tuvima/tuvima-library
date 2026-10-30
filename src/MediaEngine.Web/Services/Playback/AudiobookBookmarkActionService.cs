@@ -365,7 +365,6 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             state.IsSaving = false;
             state.Message = result.Message;
             var responseMatchesCapture = result.Value is { } responseBookmark
-                && responseBookmark.ProfileId == context.ProfileId
                 && responseBookmark.WorkId == context.WorkId
                 && responseBookmark.AssetId == draft.AssetId
                 && responseBookmark.PositionSeconds == draft.PositionSeconds;
@@ -450,7 +449,6 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             }
 
             var bookmark = state.Saved.FirstOrDefault(item => item.Id == bookmarkId
-                && (item.ProfileId == context.ProfileId || item.IsGlobal)
                 && item.WorkId == context.WorkId
                 && authorizedAssetIds.Contains(item.AssetId));
             return bookmark is null
@@ -479,7 +477,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
         {
             if (!TryGetCurrent(context, out var state)
                 || state.IsDeleting
-                || !state.Saved.Any(item => item.Id == bookmarkId && (item.ProfileId == context.ProfileId || item.IsGlobal)
+                || !state.Saved.Any(item => item.Id == bookmarkId
                     && item.WorkId == context.WorkId && authorizedAssetIds.Contains(item.AssetId)))
             {
                 return false;
@@ -511,7 +509,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
         lock (_sync)
         {
             if (!TryGetCurrent(context, out state) || state.IsDeleting || state.DeleteConfirmationBookmarkId is not Guid selectedId
-                || !state.Saved.Any(item => item.Id == selectedId && (item.ProfileId == context.ProfileId || item.IsGlobal)
+                || !state.Saved.Any(item => item.Id == selectedId
                     && item.WorkId == context.WorkId && authorizedAssetIds.Contains(item.AssetId)))
             {
                 return AudiobookBookmarkOperationResult<bool>.Failed("The selected bookmark is no longer available.");
@@ -729,8 +727,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
         IEnumerable<AudiobookBookmarkDto> bookmarks,
         AudiobookBookmarkActionContext context,
         IReadOnlySet<Guid> authorizedAssetIds) => bookmarks
-        .Where(bookmark => (bookmark.ProfileId == context.ProfileId || bookmark.IsGlobal)
-            && bookmark.WorkId == context.WorkId
+        .Where(bookmark => bookmark.WorkId == context.WorkId
             && authorizedAssetIds.Contains(bookmark.AssetId))
         .OrderByDescending(bookmark => bookmark.CreatedAt)
         .ToArray();

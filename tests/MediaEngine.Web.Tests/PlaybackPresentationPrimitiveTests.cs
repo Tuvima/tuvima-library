@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Playback;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -91,6 +92,24 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
         Assert.Equal("true", cut.Find("section[role='dialog']").GetAttribute("aria-modal"));
         await cut.Find("button[aria-label='Close Queue']").ClickAsync();
         Assert.DoesNotContain("Upcoming songs", cut.Markup);
+    }
+
+    [Fact]
+    public async Task AHoverOpenedPopoverReportedBackAsOpen_IsNotPinned_AndSoStillClosesWhenTheMouseLeaves()
+    {
+        var tools = Services.GetRequiredService<PlaybackTransientToolCoordinator>();
+        var open = (bool?)false;
+        var cut = Render<PlaybackPopover>(parameters => parameters.Add(component => component.Title, "Speed").Add(component => component.ToolId, "speed")
+            .Add(component => component.HoverPreview, true).Add(component => component.Open, open)
+            .Add(component => component.OpenChanged, EventCallback.Factory.Create<bool>(this, _ => { })).AddChildContent("Slider"));
+
+        await cut.InvokeAsync(() => cut.Instance.OpenAsync(false));
+        // The host echoes the popover's own report back through the controlled Open parameter.
+        cut.Render(parameters => parameters.Add(component => component.Title, "Speed").Add(component => component.ToolId, "speed")
+            .Add(component => component.HoverPreview, true).Add(component => component.Open, true).AddChildContent("Slider"));
+
+        Assert.Equal("speed", tools.OpenToolId);
+        Assert.False(tools.IsPinnedFor("speed"));
     }
 
     [Theory]
