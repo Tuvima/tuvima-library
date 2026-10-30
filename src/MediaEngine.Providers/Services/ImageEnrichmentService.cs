@@ -90,7 +90,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             .Select(n => new ProviderArtworkCandidate("tmdb:" + n!["file_path"]!.GetValue<string>(), "TMDB",
                 TmdbImageBaseUrl + n["file_path"]!.GetValue<string>(),
                 "https://image.tmdb.org/t/p/w300" + n["file_path"]!.GetValue<string>(),
-                n["width"]?.GetValue<int>(), n["height"]?.GetValue<int>())).DistinctBy(n => n.Id).Take(150).ToList();
+                n["width"]?.GetValue<int>(), n["height"]?.GetValue<int>(), n["iso_639_1"]?.GetValue<string>())).DistinctBy(n => n.Id).Take(150).ToList();
         return new(items, items.Count == 0 ? "The provider returned no artwork for this type." : null);
     }
 

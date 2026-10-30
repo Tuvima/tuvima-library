@@ -191,7 +191,7 @@ public static partial class MetadataEndpoints
                 output.Add((category.Value.Role, category.Value.AssetType, new ProviderArtworkCandidate(
                     "tvdb:artwork:" + (TvdbText(artwork, "id") ?? url), "TheTVDB", url,
                     thumbnail, ParseTvdbNumber(TvdbText(artwork, "width")),
-                    ParseTvdbNumber(TvdbText(artwork, "height")))));
+                    ParseTvdbNumber(TvdbText(artwork, "height")), TvdbText(artwork, "language"))));
             }
         }
         if (output.Count == 0 && SafeTvdbArtworkUrl(TvdbText(detail, "image")) is { } primary)

@@ -701,6 +701,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     /// </summary>
     public event Action<LibraryItemsRemovedEvent>? OnLibraryItemsRemoved;
 
+    /// <summary>The Engine finished a step of its follow-up work on an item (a provider's details arrived); the saved ribbon names it.</summary>
+    public event Action<HydrationStageCompletedEvent>? OnHydrationStageCompleted;
+
     /// <summary>Fires on every re-tag sweep progress tick broadcast by the Engine.</summary>
     public event Action<RetagSweepProgressEvent>? OnRetagSweepProgress;
 
@@ -1530,6 +1533,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
                 "Intercom ? HydrationStageCompleted: EntityId={Id} Stage={Stage} Claims={Claims}",
                 ev.EntityId, ev.Stage, ev.ClaimsAdded);
             _state.Invalidate();
+            RaiseHydrationStageCompleted(ev);
         });
 
         // -- "FolderHealthChanged" -------------------------------------------
@@ -1664,6 +1668,8 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     /// <summary>Tells every open screen that titles were deleted; the live handler and tests share this one way to raise the event.</summary>
     internal void RaiseLibraryItemsRemoved(LibraryItemsRemovedEvent removed) => OnLibraryItemsRemoved?.Invoke(removed);
+
+    internal void RaiseHydrationStageCompleted(HydrationStageCompletedEvent stage) => OnHydrationStageCompleted?.Invoke(stage);
 
     internal void SetEngineConnectionState(EngineConnectionState state)
     {
