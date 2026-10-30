@@ -16,6 +16,8 @@ public sealed class ProfilePersonalMediaRepository(IDatabaseConnection database)
         public Guid FileId { get; init; }
         public string FilePath { get; init; } = string.Empty;
         public long IsManaged { get; init; }
+        public Guid LibraryId { get; init; }
+        public Guid? SourceId { get; init; }
     }
 
     public Task<IReadOnlyList<Guid>> GetPersonalItemIdsAsync(Guid profileId, CancellationToken ct = default) =>
@@ -44,7 +46,7 @@ public sealed class ProfilePersonalMediaRepository(IDatabaseConnection database)
         {
             token.ThrowIfCancellationRequested();
             return (IReadOnlyList<ProfilePersonalFile>)connection.Query<FileRow>("""
-                SELECT DISTINCT lf.id AS FileId, lfs.file_path AS FilePath,
+                SELECT DISTINCT lf.id AS FileId, lfs.file_path AS FilePath, lfs.library_id AS LibraryId, lfs.source_id AS SourceId,
                        CASE WHEN COALESCE(vs.storage_mode, 'linked') = 'managed' THEN 1 ELSE 0 END AS IsManaged
                   FROM local_items li
                   JOIN local_item_files lif ON lif.item_id = li.id
@@ -53,7 +55,7 @@ public sealed class ProfilePersonalMediaRepository(IDatabaseConnection database)
                   LEFT JOIN view_sources vs ON vs.id = lfs.source_id
                  WHERE li.scope_kind = 'personal' AND li.owner_profile_id = @profileId;
                 """, new { profileId }, transaction)
-                .Select(row => new ProfilePersonalFile(row.FileId, row.FilePath, row.IsManaged != 0))
+                .Select(row => new ProfilePersonalFile(row.FileId, row.FilePath, row.IsManaged != 0, row.LibraryId, row.SourceId))
                 .ToList();
         }, ct);
 

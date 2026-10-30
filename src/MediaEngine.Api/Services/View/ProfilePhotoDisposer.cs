@@ -2,6 +2,9 @@ using System.Globalization;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Ingestion.Contracts;
+using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Services;
 using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.View;
@@ -40,6 +43,7 @@ public sealed class ProfilePhotoDisposer(
     IProfilePersonalMediaRepository media,
     ViewSharedTransferService transfers,
     ViewStorageService storage,
+    ISourceMutationPolicyGate gate,
     TuvimaDataPaths dataPaths,
     TimeProvider clock,
     ILogger<ProfilePhotoDisposer> logger) : IProfilePhotoDisposer
@@ -88,6 +92,12 @@ public sealed class ProfilePhotoDisposer(
                 continue;
             }
 
+            // Like every other removal of a personal original, this one needs the shared source-file safety gate's yes.
+            if (!GateAllowsDelete(file, path))
+            {
+                continue;
+            }
+
             try
             {
                 File.Delete(path);
@@ -104,6 +114,51 @@ public sealed class ProfilePhotoDisposer(
         if (plan.ProfileId is { } profileId)
         {
             DeleteAvatar(plan.AvatarPath, AvatarFolder(dataPaths), profileId, logger);
+        }
+    }
+
+    /// <summary>
+    /// Asks the safety gate about one managed file of a removed person. The gate's root is that person's own profile folder
+    /// (<c>Profiles/&lt;label&gt;</c> under the View storage), so a path anywhere else, or a file with no known source, stays.
+    /// </summary>
+    private bool GateAllowsDelete(ProfilePersonalFile file, string path)
+    {
+        if (file.SourceId is not { } sourceId || file.LibraryId == Guid.Empty)
+        {
+            return false;
+        }
+
+        try
+        {
+            var viewRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(storage.GetRootPath()));
+            var parts = Path.GetRelativePath(viewRoot, path).Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 3 || !string.Equals(parts[0], "Profiles", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var policy = ViewSourceMutationPolicyFactory.CreateForRoot(
+                file.LibraryId, sourceId, managed: file.IsManaged,
+                Path.Combine(viewRoot, parts[0], parts[1]), storage.IsStorageWritable());
+            var verdict = gate.Evaluate(new SourceMutationRequest
+            {
+                Source = policy,
+                Mutation = SourceMutationKind.Delete,
+                Path = path,
+            });
+            if (!verdict.Allowed)
+            {
+                logger.LogInformation("The source-file safety gate left a removed profile's photo file {FileId} in place: {Reason}", file.FileId, verdict.Reason);
+            }
+
+            return verdict.Allowed;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException
+            or ArgumentException or NotSupportedException or MediaEngine.Storage.Configuration.ConfigValidationException)
+        {
+            logger.LogWarning(exception, "A removed profile's photo file {FileId} was left in place because the safety gate could not be asked.", file.FileId);
+            return false;
         }
     }
 
