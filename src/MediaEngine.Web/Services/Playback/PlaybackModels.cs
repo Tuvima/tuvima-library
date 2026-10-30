@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Services;
+using MediaEngine.Web.Components.Library;
 using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Playback;
@@ -578,19 +579,12 @@ public static class ListenQueueItemFactory
 
     private static string? GetDuration(WorkViewModel work)
     {
-        var raw = work.CanonicalValues.FirstOrDefault(cv =>
-            string.Equals(cv.Key, "duration_seconds", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(cv.Key, "duration_sec", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(cv.Key, "duration", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(cv.Key, "runtime", StringComparison.OrdinalIgnoreCase))?.Value;
-
-        var seconds = PlaybackTimeParser.TryParseDurationSeconds(raw);
-        if (seconds is not > 0)
-        {
-            return raw;
-        }
-
-        return PlaybackTimeParser.FormatDuration(seconds.Value);
+        var seconds = LibraryHelpers.NormalizeTrackDurationSeconds(
+            Canonical(work, "duration_sec"),
+            Canonical(work, "duration_seconds"),
+            Canonical(work, "duration"),
+            Canonical(work, "runtime"));
+        return seconds is > 0 ? PlaybackTimeParser.FormatDuration(seconds.Value) : null;
     }
 }
 

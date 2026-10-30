@@ -490,7 +490,17 @@ public sealed class DisplayWorkProjectionReader
                      ELSE {FirstOf(workRootAsset.Select(slot => r.Value(slot, "content_rating", "certification")))} END
                 """),
             From("Runtime", workRootAsset, "runtime"),
-            From("Duration", workRootAsset, "duration", "duration_sec", "duration_seconds"),
+            // Always whole seconds. The file's measured length (on any level) beats a provider's "duration",
+            // which is minutes; checking by name first stops a work-level provider value hiding the file's.
+            Column("Duration", r =>
+            {
+                static string Seconds(string value, string scale = "")
+                    => $"NULLIF(CAST(ROUND(CAST(NULLIF(CAST({value} AS TEXT), '') AS REAL){scale}) AS INTEGER), 0)";
+                var measured = workRootAsset.Select(slot => Seconds(r.ValueInOrder(slot, "duration_sec")))
+                    .Concat(workRootAsset.Select(slot => Seconds(r.ValueInOrder(slot, "duration_seconds"))));
+                var provider = workRootAsset.Select(slot => Seconds(r.ValueInOrder(slot, "duration"), " * 60"));
+                return $"CAST({FirstOf(measured.Concat(provider))} AS TEXT)";
+            }),
             From("PageCount", workRootAsset, "page_count"),
             From("Rating", rootWorkAsset, "rating"),
             Column("Genre", r => FirstOf(

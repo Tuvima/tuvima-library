@@ -92,15 +92,22 @@ public sealed class DisplayFactBuilderTests
     }
 
     [Fact]
-    public void MusicFacts_FormatProviderMillisecondsAsTrackLength()
+    public void MusicFacts_FormatDurationSecondsAsTrackLength()
     {
         var facts = DisplayFactBuilder.Build(
             "Music",
             "Soul Love",
             artist: "David Bowie",
-            duration: "214200");
+            duration: "214");
 
         Assert.Equal(["David Bowie", "3:34"], facts);
+    }
+
+    [Fact]
+    public void MovieFacts_ReadRuntimeAsMinutesAndDurationAsSeconds()
+    {
+        Assert.Contains("142 min", DisplayFactBuilder.Build("Movie", "Heat", runtime: "142"));
+        Assert.Contains("120 min", DisplayFactBuilder.Build("Movie", "Heat", duration: "7200"));
     }
 
     [Fact]

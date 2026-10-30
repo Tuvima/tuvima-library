@@ -2468,7 +2468,7 @@ public partial class ListenPage
            ?? work.Title;
 
     private static long GetTrackDurationSeconds(WorkViewModel work)
-        => LibraryHelpers.NormalizeDurationSeconds(
+        => LibraryHelpers.NormalizeTrackDurationSeconds(
             GetCanonicalValue(work, "duration_sec"),
             GetCanonicalValue(work, "duration_seconds"),
             GetCanonicalValue(work, "duration"),

@@ -315,6 +315,48 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
         Assert.Equal("1975", row.Year);
     }
 
+    [Theory]
+    [InlineData("212.000", "3.5", "212")]
+    [InlineData(null, "3.5", "210")]
+    [InlineData(null, null, null)]
+    public async Task LoadAsync_DurationIsAlwaysWholeSecondsAndPrefersTheFilesLength(string? fileSeconds, string? providerMinutes, string? expected)
+    {
+        var workId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO works (id, media_type, curator_state) VALUES (@workId, 'Music', 'accepted');
+                INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
+                VALUES (@assetId, @editionId, @contentHash, 'C:/library/music/track.flac', CURRENT_TIMESTAMP);
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@assetId, 'title', 'Track', CURRENT_TIMESTAMP);
+                """,
+                new { workId, editionId, assetId, contentHash = Guid.NewGuid().ToString("N") });
+            if (fileSeconds is not null)
+            {
+                await conn.ExecuteAsync(
+                    "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@assetId, 'duration_sec', @fileSeconds, CURRENT_TIMESTAMP)",
+                    new { assetId, fileSeconds });
+            }
+
+            if (providerMinutes is not null)
+            {
+                await conn.ExecuteAsync(
+                    "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'duration', @providerMinutes, CURRENT_TIMESTAMP)",
+                    new { workId, providerMinutes });
+            }
+        }
+
+        var row = Assert.Single(await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None));
+
+        Assert.Equal(expected, row.Duration);
+    }
+
     [Fact]
     public async Task LoadAsync_PrefersExplicitCollectivePseudonymAndFormatsRealCoauthors()
     {
