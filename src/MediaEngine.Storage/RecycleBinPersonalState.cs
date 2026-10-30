@@ -100,25 +100,6 @@ internal static class RecycleBinPersonalState
         return kept;
     }
 
-    /// <summary>How many profiles have kept progress or history on the files, for the delete dialog. Counts distinct people, never rows.</summary>
-    public static int CountPeopleWithProgress(IDbConnection connection, IReadOnlyCollection<Guid> assetIds)
-    {
-        if (assetIds.Count == 0)
-        {
-            return 0;
-        }
-
-        return connection.ExecuteScalar<int>("""
-            SELECT COUNT(*) FROM (
-                SELECT user_id AS person FROM user_states WHERE asset_id IN @ids AND progress_pct > 0
-                UNION
-                SELECT profile_id FROM consumption_history WHERE asset_id IN @ids
-                UNION
-                SELECT profile_id FROM audiobook_listen_history WHERE asset_id IN @ids
-            );
-            """, new { ids = assetIds });
-    }
-
     /// <summary>
     /// Puts kept rows back on a file that has just been added, then drops the kept copies. <paramref name="assetId"/> is the new file's
     /// row; its title is read from the data store. Rows already present are left alone. Returns how many rows were put back.
