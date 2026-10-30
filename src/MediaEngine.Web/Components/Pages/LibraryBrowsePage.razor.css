@@ -138,8 +138,12 @@
     }
 }
 
-.home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-portrait, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-square, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-landscape { --media-tile-media-height:var(--home-shelf-height); }
-@media(max-width:720px) { .home-discovery-shelves { --home-shelf-height:180px; padding:0 .75rem 1rem; } }
+/* On a desktop-sized window Home shelves keep the shared shelf tile sizes, so a tile is the same size here as on the Read, Watch and Listen pages.
+   Only narrow windows use one shared height. */
+@media(max-width:720px) {
+    .home-discovery-shelves { --home-shelf-height:180px; padding:0 .75rem 1rem; }
+    .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-portrait, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-square, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-landscape { --media-tile-media-height:var(--home-shelf-height); }
+}
 
 /* Phones: every Home shelf shares one artwork height (about 2.6 portrait cards across) and a 16 px gutter. */
 :root[data-form-factor="phone"] .home-discovery-shelves {

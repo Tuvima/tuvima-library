@@ -23,18 +23,6 @@ public static class PhoneContinueLogic
             .Select(entry => entry.item)
             .ToList();
 
-    /// <summary>
-    /// The "Pick up where you left off" row: started items, plus albums you played recently (music has no progress),
-    /// most recently touched first.
-    /// </summary>
-    public static IReadOnlyList<MediaTileViewModel> SelectPickUp(IEnumerable<MediaTileViewModel> items)
-        => items.Where(item => HasProgress(item) || item.MediaKind == "Music")
-            .Select((item, index) => (item, index))
-            .OrderByDescending(entry => entry.item.SortTimestamp)
-            .ThenBy(entry => entry.index)
-            .Select(entry => entry.item)
-            .ToList();
-
     /// <summary>The Read / Listen / Watch label on a pick-up card.</summary>
     public static string ActionWord(string? mediaKind) => mediaKind switch
     {
@@ -46,11 +34,6 @@ public static class PhoneContinueLogic
     /// <summary>"62% complete" for a real position, otherwise the time left when the Engine knows it.</summary>
     public static string? PickUpProgressText(MediaTileViewModel item)
     {
-        if (item.MediaKind == "Music")
-        {
-            return "Recently played";
-        }
-
         if (item.ProgressPct is > 0 and < 99.5)
         {
             var percent = $"{Math.Round(item.ProgressPct.Value).ToString(CultureInfo.InvariantCulture)}% complete";

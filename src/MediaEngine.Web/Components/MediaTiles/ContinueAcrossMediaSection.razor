@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @* One mixed row of compact cards, most recently touched first. Nothing started hides the whole section (no empty heading). *@
 @{
-    var items = PhoneContinueLogic.SelectPickUp(Shelf.Items);
+    var items = PhoneContinueLogic.Select(Shelf.Items);
 }
 @if (items.Count > 0)
 {

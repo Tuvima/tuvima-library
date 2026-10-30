@@ -11,6 +11,10 @@
     .media-tile.is-landscape { width:calc(var(--media-tile-media-height) * 16 / 9); --media-tile-media-aspect:16 / 9; --media-tile-hover-panel-width:clamp(420px,36vw,560px); }
     .media-tile.is-collection-card.is-landscape { width:clamp(380px, 25.8vw, 500px); --media-tile-media-aspect:16 / 7.25; --media-tile-media-height:clamp(170px, 11vw, 218px); --media-tile-hover-panel-width:clamp(420px,34vw,540px); }
     .media-tile.is-ordered-series-card.is-landscape { width:clamp(340px, 21vw, 430px); --media-tile-media-aspect:16 / 9.2; --media-tile-media-height:clamp(170px, 10.8vw, 206px); }
+    @media (min-width:600px) {
+        :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-portrait, :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-square { --media-tile-media-height:clamp(176px,16.1vw,240px); }
+        :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-landscape { --media-tile-media-height:clamp(134px,12.9vw,162px); }
+    }
     .media-tile.is-square { --media-tile-media-height:clamp(252px,23vw,342px);  --media-tile-media-aspect:1 / 1; --media-tile-hover-panel-width:clamp(300px,25vw,360px); --media-tile-hover-clearance:clamp(104px,12vw,164px); }
     .media-tile.is-dismissed { display:none; }
     .media-tile-frame { position:relative; display:flex; flex-direction:column; overflow:visible; width:100%; }

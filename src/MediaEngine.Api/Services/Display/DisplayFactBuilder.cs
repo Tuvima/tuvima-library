@@ -26,6 +26,7 @@ public static class DisplayFactBuilder
         string? runtime = null,
         string? duration = null,
         string? pageCount = null,
+        string? durationSeconds = null,
         string? starRating = null)
     {
         var facts = new List<string>();
@@ -35,7 +36,7 @@ public static class DisplayFactBuilder
             case "TV":
                 AddFact(facts, NormalizeContentRating(contentRating), title);
                 AddFact(facts, year, title);
-                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(runtime, duration), mediaKind), title);
+                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(runtime, duration), durationSeconds, mediaKind), title);
                 AddFact(facts, FormatStarRating(starRating ?? rating), title);
                 break;
             case "Book":
@@ -55,21 +56,21 @@ public static class DisplayFactBuilder
                 AddFact(facts, string.IsNullOrWhiteSpace(narrator) ? null : $"Narrated by {narrator.Trim()}", title);
                 AddFact(facts, NormalizeContentRating(contentRating), title);
                 AddFact(facts, year, title);
-                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(duration, runtime), mediaKind), title);
+                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(duration, runtime), durationSeconds, mediaKind), title);
                 AddFact(facts, FormatStarRating(starRating ?? rating), title);
                 break;
             case "Music":
                 AddFact(facts, artist ?? author, title);
                 AddFact(facts, NormalizeContentRating(contentRating), title);
                 AddFact(facts, year, title);
-                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(duration, runtime), mediaKind), title);
+                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(duration, runtime), durationSeconds, mediaKind), title);
                 AddFact(facts, FormatStarRating(starRating ?? rating), title);
                 break;
             default:
                 AddFact(facts, author ?? artist, title);
                 AddFact(facts, NormalizeContentRating(contentRating), title);
                 AddFact(facts, year, title);
-                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(runtime, duration), mediaKind), title);
+                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(runtime, duration), durationSeconds, mediaKind), title);
                 AddFact(facts, FormatStarRating(starRating ?? rating), title);
                 break;
         }
@@ -138,15 +139,18 @@ public static class DisplayFactBuilder
             : $"{cleaned} pages";
     }
 
-    private static string? FormatDuration(string? duration, string mediaKind)
+    // "duration" and "runtime" carry the provider's own unit (minutes for video, milliseconds for songs); "duration_sec"
+    // always carries seconds. Keeping them apart stops a file-probed 1361.4 seconds reading as 1361.4 minutes.
+    private static string? FormatDuration(string? duration, string? durationSeconds, string mediaKind)
     {
+        var hasSeconds = TryParseNumber(durationSeconds, out var seconds) && seconds > 0;
         if (string.IsNullOrWhiteSpace(duration))
         {
-            return null;
+            return hasSeconds ? FormatFromSeconds(seconds, mediaKind) : null;
         }
 
         var cleaned = duration.Trim();
-        if (!double.TryParse(cleaned, NumberStyles.Float, CultureInfo.InvariantCulture, out var numeric))
+        if (!TryParseNumber(cleaned, out var numeric))
         {
             return cleaned;
         }
@@ -165,6 +169,18 @@ public static class DisplayFactBuilder
         }
 
         return $"{numeric:0.#} min";
+    }
+
+    private static string FormatFromSeconds(double seconds, string mediaKind)
+        => mediaKind is "Music" or "Audiobook"
+            ? FormatElapsed(TimeSpan.FromSeconds(seconds))
+            : $"{Math.Max(1, Math.Round(seconds / 60d, MidpointRounding.AwayFromZero)):0} min";
+
+    private static bool TryParseNumber(string? text, out double value)
+    {
+        value = 0;
+        return !string.IsNullOrWhiteSpace(text)
+            && double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
     private static string FormatElapsed(TimeSpan elapsed)

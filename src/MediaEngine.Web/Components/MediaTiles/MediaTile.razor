@@ -11,7 +11,7 @@
 
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
-<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {(IsContinueCard ? "is-continue-card" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowsCompactTitleCaption ? "has-compact-caption" : "")}")'
+<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {(IsContinueCard ? "is-continue-card" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowsCompactTitleCaption ? "has-compact-caption" : "")} {(UseShelfTileSize ? "is-shelf-sized" : "")}")'
          @ref="_cardRef"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
@@ -324,6 +324,8 @@
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
     [Parameter] public MediaTileHoverMode? HoverMode { get; set; }
     [Parameter] public bool IsHomeSurface { get; set; }
+    /// <summary>Sizes the tile like the tiles of a compact shelf, for rows that are not a MediaTileShelf (Recently Added).</summary>
+    [Parameter] public bool UseShelfTileSize { get; set; }
     [Parameter] public bool HideMediaKindBadge { get; set; }
     [Parameter] public bool HideSourceBadge { get; set; }
     [Parameter] public bool HideGroupIndicators { get; set; }

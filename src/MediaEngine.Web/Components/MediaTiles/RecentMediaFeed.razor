@@ -38,7 +38,7 @@
         @foreach (var item in OrderedItems)
         {
             <div class="@(IsSettling(item) ? "recent-item recent-item--settling" : "recent-item")" @key="item.Key">
-                @if (item.Catalogue is { } card) { <MediaTile IsHomeSurface="@(!Browse)" ShowCompactCaption="true" HideMediaKindBadge="@(!Browse)" HideSourceBadge="@(!Browse)" HideGroupIndicators="@(!Browse)" Item="@_tiles[item.Key]" HoverMode="@(Browse ? MediaTileHoverMode.GlowOnly : MediaTileHoverPolicy.ForShelf(_tiles[item.Key]))" /> }
+                @if (item.Catalogue is { } card) { <MediaTile IsHomeSurface="@(!Browse)" UseShelfTileSize="@(!Browse)" ShowCompactCaption="true" HideMediaKindBadge="@(!Browse)" HideSourceBadge="@(!Browse)" HideGroupIndicators="@(!Browse)" Item="@_tiles[item.Key]" HoverMode="@(Browse ? MediaTileHoverMode.GlowOnly : MediaTileHoverPolicy.ForShelf(_tiles[item.Key]))" /> }
                 else if (item.ViewAsset is { } asset && _profileId is { } profile)
                 {
                     <AppNativeButton Class="recent-view-card" Type="button" AriaLabel="@($"Open {asset.Title} in View")" OnClick="() => OpenViewAsync(asset)">

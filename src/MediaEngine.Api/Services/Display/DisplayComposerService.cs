@@ -1378,7 +1378,7 @@ public sealed partial class DisplayComposerService
     {
         var total = TimeSpan.Zero;
         var found = false;
-        foreach (var duration in works.Select(work => work.Duration).Where(value => !string.IsNullOrWhiteSpace(value)))
+        foreach (var duration in works.Select(work => work.Duration ?? work.FileDurationSeconds).Where(value => !string.IsNullOrWhiteSpace(value)))
         {
             if (double.TryParse(duration, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var milliseconds))
             {
