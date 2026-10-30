@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Ui
 @inject LibraryFolderAddService AddService
+@inject IAppDialogService DialogService
 @inject IEngineApiClient Api
 @inject NavigationManager Navigation
 @inject DashboardSessionAccessor Session
@@ -24,6 +25,17 @@
         <div class="create-library" data-step="@_step">
             @if (_step == 1)
             {
+                @if (!_vaultMode && Areas.Count > 1)
+                {
+                    <div class="create-library__areas" data-area-tabs>
+                        <AppSegmentedControl Options="@AreaOptions"
+                                             Value="@_area"
+                                             ValueChanged="ChooseAreaAsync"
+                                             AriaLabel="Area"
+                                             Disabled="@_saving" />
+                    </div>
+                }
+
                 @if (KindsOfArea.Count == 0)
                 {
                     <AppQuietNote>There are no content types in this area yet.</AppQuietNote>
@@ -110,8 +122,8 @@
         CloseOnEscapeKey = true,
     };
 
-    // Watch, Listen and Read take Add library; View keeps its own add form.
-    private static readonly string[] OfferedAreas = ["watch", "listen", "read"];
+    // Watch, Listen and Read make a new library; View's three kinds always exist, so its tab goes straight to the View folder pop-up (Libraries spec D8, Q6).
+    private static readonly string[] OfferedAreas = ["watch", "listen", "read", "view"];
 
     // What the Vault's own Add library offers, in this order (library access D6). "Other" is the plain video kind: the Vault holds one library per content type.
     private static readonly string[] VaultKindKeys = ["movies", "tv", "music", "books", AdultContentKindKey, "other_videos"];
@@ -156,7 +168,13 @@
     // Vault on there. Anyone else never gets Vault mode, so the dialog holds no Vault word at all and nothing here can tell them the Vault exists.
     private bool VaultAllowed => LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false);
 
-    private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Groups.Where(group => OfferedAreas.Contains(group.Key, StringComparer.Ordinal))];
+    private IReadOnlyList<LibraryGroup> Areas => [.. OfferedAreas.Select(Kinds.TryGetGroup).OfType<LibraryGroup>()];
+
+    private IReadOnlyList<AppSelectOption> AreaOptions => [.. Areas.Select(group => new AppSelectOption(group.Key, group.Label))];
+
+    private bool IsViewArea => !_vaultMode && string.Equals(_area, ViewAreaKey, StringComparison.Ordinal);
+
+    private const string ViewAreaKey = "view";
 
     // Adult content exists only in the Vault (library access D6), so only the Vault's own Add library offers it, and the Vault offers its own list.
     private IReadOnlyList<LibraryTypeOption> KindsOfArea => _vaultMode
@@ -192,7 +210,7 @@
         }
     }
 
-    private string AreaNoun => _area switch { "watch" => "videos", "listen" => "audio", "read" => "reading", _ => "media" };
+    private string AreaNoun => _area switch { "watch" => "videos", "listen" => "audio", "read" => "reading", "view" => "photos and files", _ => "media" };
 
     // Library only ever reads a folder it is not told to manage, so the plain sentence says so; a managed folder is kept tidy as well.
     private string ScanLine => Handling == AddFolderHandling.Managed
@@ -204,6 +222,12 @@
     // A kind that holds one library cannot start a second (its folders merge instead); a kind that holds several stops at its limit.
     private (bool Enabled, string? Reason) AvailabilityOf(LibraryTypeOption kind)
     {
+        // View's kinds always exist; they take folders, never a second library.
+        if (!_vaultMode && string.Equals(kind.Area, ViewAreaKey, StringComparison.Ordinal))
+        {
+            return (true, null);
+        }
+
         // Each content type has one Vault library beside its ordinary one; the Engine refuses a second in any case.
         if (_vaultMode && Configuration.Libraries.Any(library => library.IsVault && string.Equals(library.KindKey, kind.Key, StringComparison.Ordinal)))
         {
@@ -279,10 +303,44 @@
         PrefillName();
     }
 
-    private Task NextAsync()
+    private async Task NextAsync()
     {
-        if (Kind is not null) _step = 2;
+        if (Kind is not { } kind) return;
+        if (IsViewArea)
+        {
+            await AddViewFolderAsync(kind);
+            return;
+        }
+
+        _step = 2;
+    }
+
+    // A different area shows its own content types, with the first one that can still take a library chosen.
+    private Task ChooseAreaAsync(string area)
+    {
+        if (_saving || string.Equals(_area, area, StringComparison.Ordinal)) return Task.CompletedTask;
+        _area = area;
+        _error = null;
+        _kindKey = KindsOfArea.FirstOrDefault(kind => AvailabilityOf(kind).Enabled)?.Key;
+        PrefillName();
         return Task.CompletedTask;
+    }
+
+    // View has no library to create: the folder joins the View kind through the View folder pop-up, shared with everyone and read where it is.
+    private async Task AddViewFolderAsync(LibraryTypeOption kind)
+    {
+        var parameters = new AppDialogParameters<AddViewFolderDialog>
+        {
+            { component => component.Kind, kind },
+            { component => component.Configuration, Configuration },
+            { component => component.SetupSession, SetupSession },
+        };
+        var dialog = await DialogService.ShowAsync<AddViewFolderDialog>(string.Empty, parameters, AddViewFolderDialog.DialogOptions);
+        if (await dialog.Result is not { Canceled: false }) return;
+
+        var libraryId = LibraryRollup.LibrariesOf(Configuration, kind).FirstOrDefault()?.Id ?? string.Empty;
+        if (OnCreated is not null) await OnCreated(libraryId);
+        Dialog.Close(AppDialogResult.Ok(libraryId));
     }
 
     private Task BackAsync()

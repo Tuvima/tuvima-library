@@ -145,6 +145,20 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
     private static IReadOnlyList<AngleSharp.Dom.IElement> Rows<T>(IRenderedComponent<T> cut) where T : Microsoft.AspNetCore.Components.IComponent => cut.FindAll("tbody tr");
 
     [Fact]
+    public void TheLibraryHeaderHasARenamePencilForALibraryButNotOnAPhone()
+    {
+        var cut = OpenPage();
+        Assert.NotEmpty(cut.FindAll(".libpage__facts button[aria-label='Rename Movies']"));
+
+        var phone = Render<LibraryShell>(parameters => parameters
+            .Add(x => x.Library, _configuration.Libraries.Single(item => item.Id == MoviesId))
+            .Add(x => x.Configuration, _configuration)
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
+            .Add(x => x.ReadOnly, true));
+        Assert.Empty(phone.FindAll(".libpage__facts button[aria-label='Rename Movies']"));
+    }
+
+    [Fact]
     public void TheFoldersTableHasTheFiveColumnsAndOneRowPerFolderWithTitlesAndAccessWords()
     {
         var cut = OpenTable();

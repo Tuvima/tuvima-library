@@ -83,3 +83,8 @@
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-sm);
 }
+
+.create-library__areas {
+    display: flex;
+    margin-bottom: var(--tl-space-3, 12px);
+}

@@ -217,6 +217,42 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task StepOneHasAnAreaTabForEachAreaAndShowsOnlyThatAreasTypes()
+    {
+        await OpenAsync(chooseFolder: false);
+
+        var tabs = _dialogs.Find("[data-area-tabs]").QuerySelectorAll("button").Select(Text).ToArray();
+        Assert.Equal(["Watch", "Listen", "Read", "View"], tabs);
+
+        _dialogs.Find("[data-area-tabs]").QuerySelectorAll("button").Single(x => Text(x) == "Listen").Click();
+        _dialogs.WaitForAssertion(() => Assert.DoesNotContain("Movies", KindRows.Select(row => row.QuerySelector("strong")!.TextContent)));
+        Assert.Contains("Music", KindRows.Select(row => row.QuerySelector("strong")!.TextContent));
+    }
+
+    [Fact]
+    public async Task TheViewTabOffersItsThreeKindsAndNextOpensTheViewFolderPopUp()
+    {
+        await OpenAsync(chooseFolder: false);
+
+        _dialogs.Find("[data-area-tabs]").QuerySelectorAll("button").Single(x => Text(x) == "View").Click();
+        _dialogs.WaitForAssertion(() => Assert.Equal(["Photos", "Personal videos", "Documents"], KindRows.Select(row => row.QuerySelector("strong")!.TextContent).ToArray()));
+        Assert.All(KindRows, row => Assert.False(row.HasAttribute("disabled")));
+
+        Next();
+
+        _dialogs.WaitForAssertion(() => Assert.Contains("add-view-folder", _dialogs.Markup, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TheVaultsOwnAddLibraryHasNoAreaTabs()
+    {
+        await SignInAsAdministratorAsync();
+        await OpenAsync(area: "vault", chooseFolder: false);
+
+        Assert.Empty(_dialogs.FindAll("[data-area-tabs]"));
+    }
+
+    [Fact]
     public async Task NeitherScreenHasAnInfoButtonAnAccessChoiceOrTheWordsStandardOrSelectedProfiles()
     {
         await SignInAsAdministratorAsync();
