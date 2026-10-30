@@ -1,6 +1,6 @@
 # Spec: Library setup and add-folder flow (fewer steps, fewer info buttons, one screen for setup and Settings)
 
-> **Status:** In progress (Version 2 locked by Shy 2026-10-29; packets 1 to 5 of Version 1 are Built, awaiting Local checks; packet 6 is waiting on a local check of the faster checks in PR #543; packets 7 to 10 are Built, awaiting Local checks) · **Version:** 2 · **Last updated:** 2026-10-29 · **Related docs:** [Library pages](library-pages.md) (v14, Built; D3, D4, D5, D10) · [Simpler library access](library-access.md) (v3, Built, awaiting Local checks) · [One shared look for pages](one-shared-look.md) · [First-run setup flow](first-run-setup-flow.md) · [Library setup](library-setup-groups.md) (D13)
+> **Status:** In progress (Version 2 locked by Shy 2026-10-29; packets 1 to 5 of Version 1 are Built, awaiting Local checks; packet 6 is waiting on a local check of the faster checks in PR #543; packets 7 to 10 are Built, awaiting Local checks) · **Version:** 2 · **Last updated:** 2026-10-29 · **Related docs:** [Library pages](library-pages.md) (v14, Built; D3, D4, D5, D10) · [Simpler library access](library-access.md) (v3, Built, awaiting Local checks) · [One shared look for pages](one-shared-look.md) · [First-run setup flow](archive/first-run-setup-flow.md) · [Library setup](library-setup-groups.md) (D13)
 > Version 3 note (2026-10-30): the Browse button and separate pop-up (D0, D0d) and packets 1, 2, 3 and 6 are superseded by the [Libraries redesign](libraries-redesign.md) (Built): Add library step 2 is the folder pop-up itself with the name in the footer, and Add folder uses the same pop-up. D13 to D21 (setup View and Vault step) stand.
 
 
@@ -130,6 +130,8 @@ On SHY-DESKTOP with a small test library: add a library from Settings and from f
 - **Version 2:** the Vault step is the one place a first-time person is introduced to private content. It is limited to the first administrator and defaults to Not now, so it cannot surprise anyone; if Shy later prefers the Vault only in Settings, packet 8 is the only thing to remove.
 - View in setup touches the area of the open "View storage" bug; packet 7 must not ship before its storage check (A9).
 - Performance: none; setup screens are tiny and nothing runs until a folder is added.
+
+> **Note (2026-10-30, first-run setup v3):** the optional Vault offer described here is now its own listed step after Libraries (offered once, only to the first administrator on a desktop or tablet); the "last part of the Libraries step" wording and the old Vault-step guardrail are replaced by the new setup guardrail that no setup step changes the address. See [First-run setup flow](archive/first-run-setup-flow.md).
 
 ## 9. Open questions
 Version 1: asked in the thread; defaults above are the recommendations.

@@ -5,8 +5,10 @@
 <div class="setup-stage-content">
     <div class="setup-stage__heading">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Dns" />
-        <div><h2 id="setup-stage-title">Name your server</h2><p>Pick a friendly name. Phones, TVs and other computers on your network can then find it by name instead of by number.</p></div>
+        <div><h2 id="setup-stage-title">Welcome to your library</h2><p>Choose your language, then give this server a friendly name. Phones, TVs and other computers on your network can then find it by name instead of by number.</p></div>
     </div>
+
+    <SetupLocaleStage Value="@Locale" ValueChanged="LocaleChanged" ShowDisplay="true" ShowMetadata="false" />
 
     <div class="setup-server-form">
         <AppTextField Label="Server name" Value="@ServerName" ValueChanged="OnNameChanged" Placeholder="Shaya's Library" />
@@ -58,6 +60,9 @@
 </div>
 
 @code {
+    /// <summary>Display language and region, saved together with the server name when Continue is pressed.</summary>
+    [Parameter] public SetupLocaleDto? Locale { get; set; }
+    [Parameter] public EventCallback<SetupLocaleDto> LocaleChanged { get; set; }
     [Parameter] public string ServerName { get; set; } = string.Empty;
     [Parameter] public EventCallback<string> ServerNameChanged { get; set; }
     [Parameter] public string HostName { get; set; } = string.Empty;

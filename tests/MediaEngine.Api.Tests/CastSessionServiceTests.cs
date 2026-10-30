@@ -185,6 +185,18 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AskingForTheAdaptiveStream_SwitchesADirectPlayFileToHls_SoEveryAudioTrackCanBeChosen()
+    {
+        var assetId = await SeedVideoAsync("two-audio.mp4", "h264", "aac", 1080, durationSeconds: 3600);
+
+        var ordinary = await _playback.BuildManifestAsync(assetId, "web");
+        var adaptive = await _playback.BuildManifestAsync(assetId, "web", forceAdaptive: true);
+
+        Assert.NotEqual(PlaybackDeliveryModes.Hls, ordinary!.RecommendedDelivery);
+        Assert.Equal(PlaybackDeliveryModes.Hls, adaptive!.RecommendedDelivery);
+    }
+
+    [Fact]
     public async Task EachProfileResumesFromItsOwnPositionOnASharedTitle()
     {
         var assetId = await SeedVideoAsync("shared.mp4", "h264", "aac", 1080, durationSeconds: 7200);

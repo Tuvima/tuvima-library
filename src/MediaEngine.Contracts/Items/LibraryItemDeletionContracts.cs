@@ -46,6 +46,74 @@ public sealed class LibraryItemDeletionPreview
 
     /// <summary>Identifies this exact plan. Confirming a deletion sends it back so the Engine can tell nothing changed since the preview.</summary>
     [JsonPropertyName("fingerprint")] public string Fingerprint { get; init; } = string.Empty;
+
+    /// <summary>Set when the titles are a whole show, season, album or Series (see <see cref="LibraryGroupDeletionPreviewRequest"/>); null for a plain list of titles.</summary>
+    [JsonPropertyName("group")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public LibraryItemDeletionGroupDto? Group { get; init; }
+}
+
+/// <summary>What the whole group is, for the dialog's heading, totals and typed confirmation.</summary>
+public sealed class LibraryItemDeletionGroupDto
+{
+    /// <summary>One of <c>show</c>, <c>season</c>, <c>album</c> or <c>series</c>.</summary>
+    [JsonPropertyName("kind")] public string Kind { get; init; } = string.Empty;
+
+    /// <summary>The group's name as the heading shows it ("The Expanse", "Season 2").</summary>
+    [JsonPropertyName("title")] public string Title { get; init; } = string.Empty;
+
+    /// <summary>What the person types to confirm. Empty when no typing is asked (the counted button is enough).</summary>
+    [JsonPropertyName("confirm_name")] public string ConfirmName { get; init; } = string.Empty;
+
+    /// <summary>True when files will be removed for good and the delete is a whole show, a whole Series, a big group or a big space (D4).</summary>
+    [JsonPropertyName("requires_typed_confirmation")] public bool RequiresTypedConfirmation { get; init; }
+
+    /// <summary>Titles the library owns in the group; these are the ones deleted.</summary>
+    [JsonPropertyName("titles_owned")] public int TitlesOwned { get; init; }
+
+    /// <summary>Titles the group lists that the library does not own. Never deleted, never counted.</summary>
+    [JsonPropertyName("titles_not_owned")] public int TitlesNotOwned { get; init; }
+
+    /// <summary>The parts that hold something owned (the seasons of a show), with how much of each is owned.</summary>
+    [JsonPropertyName("sub_groups")] public List<LibraryItemDeletionSubGroupDto> SubGroups { get; init; } = [];
+
+    /// <summary>True for the last owned season of a show: the show goes too.</summary>
+    [JsonPropertyName("removes_parent")] public bool RemovesParent { get; init; }
+
+    /// <summary>The show a season belongs to.</summary>
+    [JsonPropertyName("parent_title")] public string? ParentTitle { get; init; }
+}
+
+public sealed class LibraryItemDeletionSubGroupDto
+{
+    [JsonPropertyName("title")] public string Title { get; init; } = string.Empty;
+    [JsonPropertyName("owned")] public int Owned { get; init; }
+    [JsonPropertyName("total")] public int Total { get; init; }
+}
+
+/// <summary>
+/// Asks what deleting a whole show, season, album or Series would do. <see cref="GroupId"/> is the show's, season's or album's own id,
+/// or the Series' id. <see cref="WorkIds"/> and <see cref="GroupTitle"/> are used only for a group the Engine cannot find by id itself
+/// (a grouping the page builds from its titles); the Engine still checks every id is a title the library owns.
+/// </summary>
+public sealed class LibraryGroupDeletionPreviewRequest
+{
+    [JsonPropertyName("group_id")] public Guid GroupId { get; init; }
+
+    /// <summary>One of <c>show</c>, <c>season</c>, <c>album</c> or <c>series</c>; used only with <see cref="WorkIds"/>.</summary>
+    [JsonPropertyName("group_kind")] public string? GroupKind { get; init; }
+
+    [JsonPropertyName("group_title")] public string? GroupTitle { get; init; }
+
+    [JsonPropertyName("work_ids")] public IReadOnlyList<Guid> WorkIds { get; init; } = [];
+}
+
+/// <summary>Deletes the group as confirmed. A changed plan answers 409 with a fresh preview, exactly as a single-title delete does.</summary>
+public sealed class LibraryGroupDeletionRequest
+{
+    [JsonPropertyName("group_id")] public Guid GroupId { get; init; }
+    [JsonPropertyName("group_kind")] public string? GroupKind { get; init; }
+    [JsonPropertyName("group_title")] public string? GroupTitle { get; init; }
+    [JsonPropertyName("work_ids")] public IReadOnlyList<Guid> WorkIds { get; init; } = [];
+    [JsonPropertyName("fingerprint")] public string Fingerprint { get; init; } = string.Empty;
 }
 
 public sealed class LibraryItemDeletionItemDto

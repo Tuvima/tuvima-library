@@ -106,7 +106,7 @@
                 </AppTooltip>
                 @if (CanDelete)
                 {
-                    <OverflowActionMenu Actions="DeleteActions"
+                    <OverflowActionMenu Actions="MenuDeleteActions"
                                         ButtonClass="tl-editing-bar__more"
                                         OnActionSelected="OnActionSelected" />
                 }
@@ -144,7 +144,7 @@
 @code {
     private sealed record BarTool(EditTool Tool, string Label, string Icon);
 
-    private static readonly DetailAction[] DeleteActions = [DetailMenuGrouping.DeleteFromLibraryAction];
+    private static readonly DetailAction[] SingleTitleDeleteActions = [DetailMenuGrouping.DeleteFromLibraryAction];
 
     private EditSessionFlow? _subscribed;
     private EditingModeContext? _subscribedMode;
@@ -156,6 +156,11 @@
 
     /// <summary>Whether Delete from library is offered in the "..." menu (the page decides, and its handler checks again); with no Delete the "..." is not drawn.</summary>
     [Parameter] public bool CanDelete { get; set; }
+
+    /// <summary>The Delete entries for a show, season, album or Series page; null for a single title.</summary>
+    [Parameter] public IReadOnlyList<DetailAction>? GroupDeleteActions { get; set; }
+
+    private IReadOnlyList<DetailAction> MenuDeleteActions => GroupDeleteActions is { Count: > 0 } ? GroupDeleteActions : SingleTitleDeleteActions;
 
     /// <summary>True for a page outside the details overlay: it then asks "Unsaved changes" itself when the person navigates away in the app.</summary>
     [Parameter] public bool GuardInternalNavigation { get; set; }

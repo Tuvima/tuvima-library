@@ -10,7 +10,12 @@
 @* The video player's Bookmarks panel (Videos spec D43). It is the audiobook Add and Saved dialog, driven by the same bookmark owner
    service, with the video player supplying the captured position, the preview and the jump. The position is captured when the
    panel opens, so the moment is not lost while the person types. *@
-@if (_context is not null && _service is not null)
+@if (!_more)
+{
+    <VideoBookmarkQuickList Position="@_openedAt" Current="@Current" Bookmarks="@RailBookmarks" CanShare="CanShare"
+                            Add="Add" Play="PlayAsync" Delete="Delete" More="ShowMoreAsync" />
+}
+else if (_context is not null && _service is not null)
 {
     <div class="video-bookmark-panel">
         <AudiobookBookmarkDialog Context="_context" Actions="_service" AuthorizedAssetIds="_assets" WorkTitle="@Title"
@@ -47,6 +52,14 @@ else
     /// <summary>Raised whenever the title's saved bookmarks change, so the progress rail can redraw its ticks.</summary>
     [Parameter] public EventCallback<IReadOnlyList<AudiobookBookmarkDto>> SavedChanged { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+    /// <summary>Every bookmark on the title (mine, Everyone, packs) in time order, for the quick list.</summary>
+    [Parameter] public IReadOnlyList<PlaybackRailBookmark> RailBookmarks { get; set; } = [];
+    /// <summary>Where the video is now; only used to highlight the nearest row.</summary>
+    [Parameter] public double Current { get; set; }
+    /// <summary>Saves a bookmark at a time with an optional note (true when saved).</summary>
+    [Parameter] public Func<double, string?, Task<bool>>? Add { get; set; }
+    /// <summary>Deletes one bookmark (true when deleted).</summary>
+    [Parameter] public Func<PlaybackRailBookmark, Task<bool>>? Delete { get; set; }
     /// <summary>Offers bookmark packs (Export and Import). False in the Vault, where a pack can never be made or added (Videos spec D46).</summary>
     [Parameter] public bool AllowPacks { get; set; }
     /// <summary>The packs already imported on this title.</summary>
@@ -58,9 +71,21 @@ else
     private AudiobookBookmarkActionContext? _context;
     private IReadOnlySet<Guid> _assets = new HashSet<Guid>();
     private IReadOnlyList<AudiobookBookmarkDto> _saved = [];
-    private bool _disposed;
+    private bool _disposed, _more;
+    private double _openedAt;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized() => _openedAt = Position;
+
+    private Task PlayAsync(double seconds) => JumpTo is null ? Task.CompletedTask : JumpTo(seconds, true);
+
+    /// <summary>Opens the full panel (long description, scene end, packs). It loads fresh so quick adds are included.</summary>
+    private async Task ShowMoreAsync()
+    {
+        await StartFullAsync();
+        _more = true;
+    }
+
+    private async Task StartFullAsync()
     {
         if (ProfileId == Guid.Empty || WorkId == Guid.Empty || AssetId == Guid.Empty) return;
         _assets = new HashSet<Guid> { AssetId };
@@ -68,8 +93,8 @@ else
         var context = new AudiobookBookmarkActionContext(Guid.NewGuid(), ProfileId, WorkId, Guid.NewGuid(), 0, AssetId);
         service.Changed += HandleChanged;
         await service.OpenAsync(context);
-        var duration = Duration > 0 && Position <= Duration ? (double?)Duration : null;
-        if (!service.TryCapture(context, AssetId, _assets, Math.Max(0, Position), duration, ChapterAt(Position), out _))
+        var duration = Duration > 0 && _openedAt <= Duration ? (double?)Duration : null;
+        if (!service.TryCapture(context, AssetId, _assets, Math.Max(0, _openedAt), duration, ChapterAt(_openedAt), out _))
         {
             Logger.LogDebug("The video position could not be captured for a bookmark.");
         }

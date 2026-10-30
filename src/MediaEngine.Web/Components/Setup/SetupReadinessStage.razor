@@ -5,18 +5,19 @@
     <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "You're all set" : "Almost there…")</h2><p>@Subtitle</p></div></div>
     @if (Readiness is null && Failed && !Busy)
     {
-        <AppAlert Tone="AppUiTone.Warning">
-            <strong>Library could not finish checking your setup.</strong>
-            <p>This can happen when this browser is not signed in or the server did not answer. Sign in with the account you just created, or try again.</p>
+        @* A browser with no session cannot read the server's answer. One plain card, no spinner (first-run setup B20). *@
+        <AppAlert Tone="AppUiTone.Warning" data-testid="setup-sign-in-card">
+            <strong>Sign in to finish setup</strong>
+            <p>This browser is not signed in yet. Sign in with the profile you just created, or try again.</p>
         </AppAlert>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Retry" />
-            <AppButton Label="Sign in" ButtonStyle="AppButtonStyle.Outlined" Href="/auth/login" />
+            <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
+            <AppButton Label="Sign in" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Href="/auth/login?returnUrl=%2Fsetup" />
         </SetupStageFooter>
     }
     else if (Readiness is null || Busy && !Readiness.CanComplete)
     {
-        <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="AppColor.Primary" /><span>Checking your account, libraries and providers…</span></div>
+        <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="AppColor.Primary" /><span>Checking your profile, libraries and sources…</span></div>
     }
     else
     {
@@ -24,66 +25,25 @@
         {
             <AppAlert Tone="AppUiTone.Warning">Needs attention</AppAlert>
         }
-        <div class="setup-checks">
-            @foreach (var capability in Readiness.Capabilities.Where(ShowRow))
+        <div class="setup-checks" data-testid="setup-summary">
+            @foreach (var capability in Readiness.Capabilities.Where(item => item.Key != "done"))
             {
-                <article>
+                <article data-step="@capability.Key">
                     <span class="setup-checks__icon"><AppMaterialIcon Icon="@CapabilityIcon(capability.Key)" /></span>
-                    <div><strong>@CapabilityLabel(capability.Key)</strong><small>@capability.Detail</small>@if (!string.IsNullOrWhiteSpace(capability.RepairTarget) && capability.Status is not "passed") { <a href="@capability.RepairTarget">@(capability.Status == "deferred" ? "Set up" : "Fix") <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Small" /></a> }</div>
-                    <AppStatusBadge Text="@StatusLabel(capability.Status)" Tone="@StatusTone(capability.Status)" />
+                    <div>
+                        <strong>@CapabilityLabel(capability.Key)</strong><small>@capability.Detail</small>
+                        @if (capability.Status is not "passed")
+                        {
+                            <a href="@(string.IsNullOrWhiteSpace(capability.RepairTarget) ? "/settings" : capability.RepairTarget)">@(capability.Status == "deferred" ? "Set up in Settings" : "Fix") <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Small" /></a>
+                        }
+                    </div>
+                    <AppStatusBadge Text="@StatusLabel(capability.Status)" Tone="@StatusTone(capability.Status)" Icon="@(capability.Status == "passed" ? AppMaterialIcons.Filled.CheckCircle : null)" />
                 </article>
             }
         </div>
-        @* The server check only lists missing tools the first time it runs; this reminds anyone who continued past it.
-           One short warning bubble per tool: what is held back, then the next step. *@
-        @foreach (var tool in RequiredTools)
+        @if (DownloadRunning)
         {
-            var downloading = tool.State == ToolRequirementStates.Downloading;
-            <AppAlert Tone="@(downloading ? AppUiTone.Info : AppUiTone.Warning)" Class="setup-tool-warning" data-tool-id="@tool.Id">
-                <strong>@ToolHeadline(tool)</strong>
-                <p>@tool.Effect</p>
-                @if (!downloading && !string.IsNullOrWhiteSpace(tool.StateReason))
-                {
-                    <p>@tool.StateReason</p>
-                }
-                <p><b>Next step:</b> @NextStep(tool)</p>
-            </AppAlert>
-        }
-        @* Every tool the Library uses, ready or not, so a ready tool is visibly checked. The sentence under each name comes from
-           SetupToolRules, so a tool never says two things at once. Local AI is not part of setup: its engine and models are
-           handled in Settings. *@
-        @if (MediaTools.Count > 0)
-        {
-            <h3 class="setup-tools__title">Your media tools</h3>
-            <div class="setup-checks setup-tools" data-testid="setup-media-tools">
-                @foreach (var tool in MediaTools)
-                {
-                    <article data-tool-id="@tool.Id">
-                        <span class="setup-checks__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Build" /></span>
-                        <div>
-                            <strong>@tool.Name</strong>
-                            <small>@SetupToolRules.StateLine(tool)</small>
-                            @if (tool.State == ToolRequirementStates.Downloading && tool.DownloadPercent is { } percent)
-                            {
-                                <AppProgressBar Value="@percent" Decorative="true" />
-                            }
-                            @if (SetupToolRules.Action(tool) == SetupToolAction.RunInstaller)
-                            {
-                                <AppButton Label="Run installer" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => RunInstaller.InvokeAsync(tool))" />
-                            }
-                            else if (SetupToolRules.Action(tool) == SetupToolAction.Download)
-                            {
-                                <AppButton Label="@($"Download {tool.Name}")" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => InstallTool.InvokeAsync(tool))" />
-                            }
-                        </div>
-                        <AppStatusBadge Text="@SetupToolRules.BadgeText(tool)" Tone="@BadgeTone(tool)" />
-                    </article>
-                }
-            </div>
-        }
-        @if (!string.IsNullOrWhiteSpace(SampleScanDetail))
-        {
-            <AppAlert Tone="AppUiTone.Info">@SampleScanDetail</AppAlert>
+            <AppAlert Tone="AppUiTone.Info" data-testid="setup-download-note">A download is still running. It finishes in the background, so you can open your library now.</AppAlert>
         }
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
             <AppButton Label="Open my library" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="Complete" />
@@ -93,20 +53,16 @@
 
 @code {
     [Parameter] public SetupReadinessDto? Readiness { get; set; }
+    /// <summary>Only used to say that a download is still running; the tools themselves are listed on the Tools step.</summary>
     [Parameter] public ToolRequirementsDto? Tools { get; set; }
-    [Parameter] public string? SampleScanDetail { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public bool Failed { get; set; }
     [Parameter] public EventCallback Retry { get; set; }
-    [Parameter] public EventCallback<ToolRequirementDto> InstallTool { get; set; }
-    [Parameter] public EventCallback<ToolRequirementDto> RunInstaller { get; set; }
-    [Parameter] public EventCallback SampleScan { get; set; }
     [Parameter] public EventCallback Complete { get; set; }
     [Parameter] public EventCallback Back { get; set; }
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
-    // The server check runs silently after the server is named, so it has no row unless it is blocked (then the person is told why
-    // they cannot open the library yet). Names match the step list.
+
     // Neutral until the check has an answer, so the spinner never claims something needs attention.
     private string Subtitle => Readiness is null
         ? "One moment while Library checks your setup."
@@ -114,30 +70,10 @@
             ? "Library is ready to start finding your media."
             : "A few things need attention before you open your library.";
 
-    private IReadOnlyList<ToolRequirementDto> RequiredTools => Tools?.Tools
-        .Where(tool => tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Required && tool.State != ToolRequirementStates.Ready)
-        .ToList() ?? [];
+    private bool DownloadRunning => Tools?.Tools.Any(tool => tool.State == ToolRequirementStates.Downloading) == true;
 
-    private static string ToolHeadline(ToolRequirementDto tool) => tool.State == ToolRequirementStates.Downloading
-        ? tool.DownloadPercent is { } percent ? $"Downloading {tool.Name} ({percent}%)" : $"Downloading {tool.Name}"
-        : $"{tool.Name} is missing";
-
-    private static string NextStep(ToolRequirementDto tool) => tool.State == ToolRequirementStates.Downloading
-        ? "None. Library finishes this in the background."
-        : "Open your library, then go to Settings, Tools and requirements to install it.";
-
-    private IReadOnlyList<ToolRequirementDto> MediaTools => SetupToolRules.ListedTools(Tools);
-
-    private static AppUiTone BadgeTone(ToolRequirementDto tool) => tool.State switch
-    {
-        ToolRequirementStates.Ready => AppUiTone.Success,
-        ToolRequirementStates.Problem => AppUiTone.Warning,
-        _ => AppUiTone.Neutral,
-    };
-
-    private static bool ShowRow(SetupCapabilityDto item) => item.Key != "readiness" && (item.Key != "preflight" || item.Status == "blocked");
-    private static string CapabilityLabel(string key) => key switch { "server" => "Server", "preflight" => "Server check", "administrator" => "Your Account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };
-    private static string CapabilityIcon(string key) => key switch { "server" or "preflight" => AppMaterialIcons.Outlined.Dns, "administrator" => AppMaterialIcons.Outlined.PersonOutline, "media-locations" => AppMaterialIcons.Outlined.FolderOpen, "providers" => AppMaterialIcons.Outlined.Storage, _ => AppMaterialIcons.Outlined.CheckCircleOutline };
-    private static string StatusLabel(string status) => status switch { "passed" => "Ready", "deferred" => "Ready · later", "blocked" => "Needs attention", _ => "Not checked" };
-    private static AppUiTone StatusTone(string status) => status switch { "passed" => AppUiTone.Success, "blocked" => AppUiTone.Error, "deferred" => AppUiTone.Neutral, _ => AppUiTone.Neutral };
+    private static string CapabilityLabel(string key) => key switch { "welcome" => "Welcome", "profile" => "Your profile", "tools" => "Tools", "libraries" => "Libraries", "metadata" => "Metadata", _ => key.Replace('-', ' ') };
+    private static string CapabilityIcon(string key) => key switch { "welcome" => AppMaterialIcons.Outlined.Dns, "tools" => AppMaterialIcons.Outlined.Build, "profile" => AppMaterialIcons.Outlined.PersonOutline, "libraries" => AppMaterialIcons.Outlined.FolderOpen, "metadata" => AppMaterialIcons.Outlined.Storage, _ => AppMaterialIcons.Outlined.CheckCircleOutline };
+    private static string StatusLabel(string status) => status switch { "passed" => "Ready", "deferred" => "Later", "blocked" => "Needs attention", _ => "Needs attention" };
+    private static AppUiTone StatusTone(string status) => status switch { "passed" => AppUiTone.Success, "deferred" => AppUiTone.Neutral, _ => AppUiTone.Error };
 }

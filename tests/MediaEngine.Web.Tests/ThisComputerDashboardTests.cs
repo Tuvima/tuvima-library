@@ -16,25 +16,26 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
 {
     private static readonly RegisteredExternalAuthProvider[] NoProviders = [];
 
-    private IRenderedComponent<SetupAdministratorStage> RenderStage(bool available, string mode, Action<string>? onMode = null) =>
-        Render<SetupAdministratorStage>(parameters => parameters
+    private IRenderedComponent<SetupProfileStage> RenderStage(bool available, string mode, Action<string>? onMode = null) =>
+        Render<SetupProfileStage>(parameters => parameters
             .Add(stage => stage.ThisComputerAvailable, available)
             .Add(stage => stage.SignInMode, mode)
             .Add(stage => stage.SignInModeChanged, new Microsoft.AspNetCore.Components.EventCallbackFactory()
                 .Create<string>(this, value => onMode?.Invoke(value))));
 
     [Fact]
-    public void Setup_ShowsTheTwoChoicesOnlyWhenThisComputerIsAvailableAndNothingIsChosenYet()
+    public void Setup_ShowsTheTwoChoicesOnlyWhenThisComputerIsAvailable_AndPreselectsJustMyName()
     {
         var choices = RenderStage(available: true, mode: string.Empty);
 
-        Assert.Contains("Start without a password", choices.Markup);
-        Assert.Contains("Set a password now", choices.Markup);
+        Assert.Contains("Just my name", choices.Markup);
+        Assert.Contains("Email and password", choices.Markup);
+        Assert.Equal("true", choices.FindAll("button.app-choice-row").First(row => row.TextContent.Contains("Just my name")).GetAttribute("aria-pressed"));
         Assert.DoesNotContain("Confirm password", choices.Markup);
 
         var elsewhere = RenderStage(available: false, mode: string.Empty);
 
-        Assert.DoesNotContain("Start without a password", elsewhere.Markup);
+        Assert.DoesNotContain("Just my name", elsewhere.Markup);
         Assert.Contains("Confirm password", elsewhere.Markup);
     }
 
@@ -43,22 +44,18 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     {
         var form = RenderStage(available: true, mode: SetupSignInModes.ThisComputer);
 
-        Assert.Contains("Display name", form.Markup);
-        Assert.DoesNotContain("Email", form.Markup);
-        Assert.Equal(1, form.Markup.Split("You can add a password later.").Length - 1);
-        Assert.DoesNotContain("Password", form.Markup);
-        Assert.DoesNotContain("PIN", form.Markup);
+        Assert.Contains("Your name", form.Markup);
+        Assert.DoesNotContain("Confirm password", form.Markup);
+        Assert.DoesNotContain("profile PIN", form.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Setup_StartWithoutAPassword_SaysAPasswordIsNeededBeforeAnotherHousehold()
+    public void Setup_JustMyName_SaysAPasswordIsNeededBeforeAnotherHousehold()
     {
         var choices = RenderStage(available: true, mode: string.Empty);
-        var form = RenderStage(available: true, mode: SetupSignInModes.ThisComputer);
 
-        const string note = "You can add a password later. You'll need one before adding another household.";
-        Assert.Contains(note, choices.Find(".setup-choice-card").TextContent, StringComparison.Ordinal);
-        Assert.Contains(note, form.Find("small").TextContent, StringComparison.Ordinal);
+        const string note = "You can add a password later; you'll need one before adding another household.";
+        Assert.Contains(note, choices.FindAll("button.app-choice-row").First().TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -68,22 +65,32 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
 
         Assert.Contains("Confirm password", form.Markup);
         Assert.Contains("Email", form.Markup);
-        Assert.DoesNotContain("Start without a password", form.Markup);
+        Assert.Equal("true", form.FindAll("button.app-choice-row").First(row => row.TextContent.Contains("Email and password")).GetAttribute("aria-pressed"));
+    }
+
+    [Fact]
+    public void Setup_ThePinIsAnExpandingLinkOnTheEmailAndPasswordChoice()
+    {
+        var form = RenderStage(available: true, mode: SetupSignInModes.Password);
+
+        Assert.DoesNotContain("Confirm PIN", form.Markup);
+        form.FindAll("button").Single(button => button.TextContent.Contains("Add a profile PIN")).Click();
+        Assert.Contains("Confirm PIN", form.Markup);
     }
 
     [Fact]
     public void Setup_UseOnThisComputer_CanBeCreatedWithJustAName()
     {
         var form = RenderStage(available: true, mode: SetupSignInModes.ThisComputer);
-        var create = () => form.FindAll("button").Single(button => button.TextContent.Contains("Create administrator", StringComparison.Ordinal));
+        var create = () => form.FindAll("button").Single(button => button.TextContent.Contains("Create profile", StringComparison.Ordinal));
         Assert.True(create().HasAttribute("disabled"));
 
-        var named = Render<SetupAdministratorStage>(parameters => parameters
+        var named = Render<SetupProfileStage>(parameters => parameters
             .Add(stage => stage.ThisComputerAvailable, true)
             .Add(stage => stage.SignInMode, SetupSignInModes.ThisComputer)
             .Add(stage => stage.DisplayName, "Owner"));
 
-        Assert.False(named.FindAll("button").Single(button => button.TextContent.Contains("Create administrator", StringComparison.Ordinal)).HasAttribute("disabled"));
+        Assert.False(named.FindAll("button").Single(button => button.TextContent.Contains("Create profile", StringComparison.Ordinal)).HasAttribute("disabled"));
     }
 
     [Fact]
@@ -92,9 +99,9 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         string? chosen = null;
         var choices = RenderStage(available: true, mode: string.Empty, value => chosen = value);
 
-        choices.FindAll("button.app-choice-card")[0].Click();
+        choices.FindAll("button.app-choice-row").Last().Click();
 
-        Assert.Equal(SetupSignInModes.ThisComputer, chosen);
+        Assert.Equal(SetupSignInModes.Password, chosen);
     }
 
     [Fact]

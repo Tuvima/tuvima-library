@@ -79,7 +79,8 @@ public sealed class PlaybackCapabilitiesService
         CancellationToken ct = default,
         PlaybackConnectionContextDto? connection = null,
         ClientCapabilitiesDto? negotiatedCapabilities = null,
-        Guid? deviceId = null)
+        Guid? deviceId = null,
+        bool forceAdaptive = false)
     {
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
@@ -130,6 +131,15 @@ public sealed class PlaybackCapabilitiesService
             recommendedDelivery = PlaybackDeliveryModes.Hls;
             conversionReason = networkReason;
             warnings.Add(networkReason);
+        }
+
+        // A viewer's browser cannot switch audio tracks of a direct-play file, so the player asks for the adaptive stream, which carries
+        // every audio track as a selectable rendition (video-player-controls-and-bookmarks D10).
+        if (forceAdaptive && recommendedDelivery != PlaybackDeliveryModes.Hls
+            && !mediaType.Equals("Books", StringComparison.OrdinalIgnoreCase) && !mediaType.Equals("Comics", StringComparison.OrdinalIgnoreCase))
+        {
+            recommendedDelivery = PlaybackDeliveryModes.Hls;
+            conversionReason ??= "The viewer chose an audio track the browser cannot switch itself.";
         }
 
         var audioTracks = BuildAudioTracks(probe);

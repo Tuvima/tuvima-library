@@ -115,7 +115,7 @@ public static class SetupEndpoints
             var network = configuration.LoadNetwork();
             network.Local.PreferredServerName = hostName;
             configuration.SaveNetwork(network);
-            await onboarding.SetStepAsync("server", "passed", $"This server is called \"{serverName}\" and shows up on your home network as {hostName}.local.", null, null, ct).ConfigureAwait(false);
+            await onboarding.SetStepAsync("welcome", "passed", $"This server is called \"{serverName}\" and shows up on your home network as {hostName}.local.", null, null, ct).ConfigureAwait(false);
             return Results.Ok(new SetupServerIdentityDto(serverName, hostName));
         }).Produces<SetupServerIdentityDto>();
 
@@ -145,10 +145,12 @@ public static class SetupEndpoints
             }
 
             var result = await preflight.RunAsync(ct).ConfigureAwait(false);
+            // The check passing leaves the Tools step open (in progress) so the person sees it; Continue on that step passes it.
+            var existing = onboarding.Get().Steps.FirstOrDefault(step => step.Key == "tools");
             await onboarding.SetStepAsync(
-                "preflight", result.Passed ? "passed" : "blocked",
+                "tools", result.Passed ? (existing?.Status == "passed" ? "passed" : "in_progress") : "blocked",
                 result.Passed ? "Required storage and configuration checks passed." : "One or more required paths are blocked.",
-                result.Passed ? null : "/setup?step=preflight", null, ct).ConfigureAwait(false);
+                result.Passed ? null : "/setup?step=tools", null, ct).ConfigureAwait(false);
             return Results.Ok(result);
         }).Produces<SetupPreflightDto>();
 
@@ -168,7 +170,7 @@ public static class SetupEndpoints
         group.MapPost("/administrator", async (
             SetupAdministratorRequest request, HttpContext context, ClaimsPrincipal user,
             SetupSessionService sessions, IFirstPartyIdentityService identity,
-            IContainerProbe container, OnboardingRepository onboarding, CancellationToken ct) =>
+            IContainerProbe container, OnboardingRepository onboarding, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {
@@ -177,7 +179,7 @@ public static class SetupEndpoints
 
             if (await identity.IsAdministratorConfiguredAsync(ct).ConfigureAwait(false))
             {
-                await onboarding.SetStepAsync("administrator", "passed", "Administrator account is configured.", null, null, ct).ConfigureAwait(false);
+                await onboarding.SetStepAsync("profile", "passed", "Administrator account is configured.", null, null, ct).ConfigureAwait(false);
                 return Results.Ok(new SetupAdministratorResponse(false, []));
             }
             try
@@ -225,9 +227,10 @@ public static class SetupEndpoints
                 }
 
                 await onboarding.SetStepAsync(
-                    "administrator", "passed", "Administrator account and initial profile created.",
+                    "profile", "passed", "Administrator account and initial profile created.",
                     null, issued.Profile.Id, ct).ConfigureAwait(false);
-                return Results.Ok(new SetupAdministratorResponse(true, issued.RecoveryCodes));
+                // The sign-in the Engine just issued goes back to the Dashboard so setup continues signed in on the same page.
+                return Results.Ok(new SetupAdministratorResponse(true, issued.RecoveryCodes, await AuthenticationEndpoints.ToResponseAsync(issued, projector, ct).ConfigureAwait(false)));
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
@@ -245,8 +248,8 @@ public static class SetupEndpoints
             }
 
             var result = mediaLocations.Validate();
-            await onboarding.SetStepAsync("media-locations", result.Passed ? "passed" : "blocked", result.Detail,
-                result.Passed ? null : "/setup?step=media-locations", null, ct).ConfigureAwait(false);
+            await onboarding.SetStepAsync("libraries", result.Passed ? "passed" : "blocked", result.Detail,
+                result.Passed ? null : "/setup?step=libraries", null, ct).ConfigureAwait(false);
             return Results.Ok(result);
         }).Produces<SetupMediaLocationsDto>();
 
@@ -412,9 +415,23 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
-            if (stepKey != "providers" && !(stepKey == "media-locations" && request.Status == "deferred"))
+            // Libraries can only be deferred here (passing it goes through the folder validator); Tools and Vault are
+            // accepted by the person; Metadata may be passed or deferred. Tools cannot be deferred, only passed.
+            var accepted = stepKey switch
+            {
+                "metadata" or "vault" => true,
+                "libraries" => request.Status == "deferred",
+                "tools" => request.Status == "passed",
+                _ => false,
+            };
+            if (!accepted)
             {
                 return ApiErrors.BadRequest("This setup step has a dedicated server-side validator.");
+            }
+
+            if (stepKey == "tools" && onboarding.Get().Steps.FirstOrDefault(step => step.Key == "tools")?.Status == "blocked")
+            {
+                return ApiErrors.BadRequest("The server check has to pass before this step can continue.");
             }
 
             if (request.Status is not ("passed" or "deferred"))
@@ -558,8 +575,9 @@ public static class SetupEndpoints
 
     private static SetupReadinessDto BuildReadiness(OnboardingWorkflowRecord workflow)
     {
-        var required = new HashSet<string>(["preflight", "administrator"], StringComparer.Ordinal);
-        var capabilities = workflow.Steps.Select(step => new SetupCapabilityDto(
+        var required = new HashSet<string>(["welcome", "profile", "tools"], StringComparer.Ordinal);
+        // The Vault is optional and has no row of its own here: setup never lists a step the person was not offered.
+        var capabilities = workflow.Steps.Where(step => step.Key != "vault").Select(step => new SetupCapabilityDto(
             step.Key,
             step.Key.Replace('-', ' '),
             step.Status,
@@ -567,7 +585,7 @@ public static class SetupEndpoints
             step.Detail ?? "Not checked yet.",
             step.RepairTarget ?? (step.Status is "passed" ? null : $"/setup?step={step.Key}"))).ToList();
         var canComplete = capabilities
-            .Where(capability => capability.Key != "readiness")
+            .Where(capability => capability.Key != "done")
             .All(capability => capability.Required
                 ? capability.Status == "passed"
                 : capability.Status is "passed" or "deferred");

@@ -57,6 +57,55 @@ public static class LibraryItemDeletionFlow
         return true;
     }
 
+    /// <summary>True for a page that is a show, an album or a Series (the group menu entries; a season is a part of a show page).</summary>
+    public static bool IsGroupPage(DetailEntityType entityType) =>
+        entityType is DetailEntityType.TvShow or DetailEntityType.MusicAlbum or DetailEntityType.BookSeries or DetailEntityType.ComicSeries;
+
+    /// <summary>
+    /// Opens the confirmation for a whole show, season, album or Series and shows the toasts that follow. The Engine finds the titles
+    /// inside it, so nothing is sent but the group.
+    /// </summary>
+    public static async Task<LibraryItemDeletionDialogResult?> RunGroupAsync(
+        IAppDialogService dialogs,
+        IAppToastService toasts,
+        LibraryGroupTarget target)
+    {
+        var dialog = await dialogs.ShowAsync<DeleteFromLibraryDialog>(
+            string.Empty,
+            new AppDialogParameters<DeleteFromLibraryDialog>
+            {
+                { component => component.WorkIds, (IReadOnlyList<Guid>)[] },
+                { component => component.Group, target },
+            },
+            new AppDialogOptions
+            {
+                MaxWidth = AppMaxWidth.Medium,
+                FullWidth = true,
+                CloseButton = false,
+                NoHeader = true,
+                CloseOnEscapeKey = true,
+            });
+
+        if (await dialog.Result is not { Canceled: false, Data: LibraryItemDeletionDialogResult answer })
+        {
+            return null;
+        }
+
+        if (answer.NoLongerInLibrary || answer.Deleted is null)
+        {
+            toasts.Add(LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+            return answer;
+        }
+
+        toasts.Add(LibraryGroupDeletionText.Success(answer.Deleted, answer.GroupName ?? $"\"{target.Title}\""), AppSeverity.Success);
+        if (LibraryItemDeletionText.FailedFiles(answer.Deleted) is { } warning)
+        {
+            toasts.Add(warning, AppSeverity.Warning);
+        }
+
+        return answer;
+    }
+
     /// <summary>Opens the confirmation for these Works and shows the toasts that follow. <paramref name="title"/> names a single title.</summary>
     public static async Task<LibraryItemDeletionFlowOutcome> RunAsync(
         IAppDialogService dialogs,

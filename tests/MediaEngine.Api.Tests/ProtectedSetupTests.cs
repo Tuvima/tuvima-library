@@ -12,7 +12,7 @@ public sealed class ProtectedSetupTests
     [InlineData("POST", "/setup/v1/preflight", true)]
     [InlineData("POST", "/setup/v1/administrator", true)]
     [InlineData("POST", "/setup/v1/media-locations/validate", true)]
-    [InlineData("POST", "/setup/v1/steps/providers", true)]
+    [InlineData("POST", "/setup/v1/steps/metadata", true)]
     [InlineData("POST", "/setup/v1/complete", true)]
     [InlineData("PUT", "/setup/v1/locale", true)]
     [InlineData("PUT", "/setup/v1/providers/comicvine/credentials", true)]

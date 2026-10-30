@@ -16,6 +16,12 @@
 @inject IAppToastService Snackbar
 @inject SignInAttemptLimiter SignInLimiter
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
+@inject Microsoft.JSInterop.IJSRuntime JS
+@inject ILogger<SetupPage> Logger
+@inject MediaEngine.Web.Services.Integration.SetupSignInHandoff SignInHandoff
+@inject MediaEngine.Web.Services.Integration.DashboardSessionAccessor DashboardSession
+@inject MediaEngine.Web.Services.Integration.DashboardIdentityClient Identity
+@inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 
 <PageTitle>Set up Library</PageTitle>
 
@@ -45,24 +51,27 @@
         <div class="setup-shell">
         <aside class="setup-sidebar">
             <div class="setup-brand"><img src="/images/tuvima-icon.svg" alt="" width="32" height="32" /><span>Library</span></div>
-            <SetupStepper Steps="@_status.Steps" CurrentStep="@StepperCurrent" WorkflowStep="@StepperWorkflow" StepSelected="GoToStepAsync" />
+            <SetupStepper Steps="@_status.Steps" CurrentStep="@CurrentStep" WorkflowStep="@WorkflowStep" ShowVault="@ShowVault" StepSelected="GoToStepAsync" />
         </aside>
         <section class="setup-stage" aria-labelledby="setup-stage-title">
             @switch (CurrentStep)
             {
-                case "server":
-                    <SetupServerStage ServerName="@_serverName" ServerNameChanged="@((string value) => _serverName = value)"
+                case "welcome":
+                    <SetupWelcomeStage Locale="@_locale" LocaleChanged="@((SetupLocaleDto value) => _locale = value)"
+                                      ServerName="@_serverName" ServerNameChanged="@((string value) => _serverName = value)"
                                       HostName="@_hostName" HostNameChanged="@((string value) => _hostName = value)"
-                                      Busy="@_busy" Save="SaveServerIdentityAsync"
+                                      Busy="@_busy" Save="SaveWelcomeAsync"
                                       Backup="@_backup" BackupError="@_backupError" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
                                       UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync"
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
-                case "preflight":
-                    <SetupPreflightStage Preflight="@_preflight" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync" />
+                case "tools":
+                    <SetupToolsStage Preflight="@_preflight" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync"
+                                     Skipped="@_skippedDownloads" DownloadChanged="DownloadChanged" RunInstaller="RunToolInstallerAsync"
+                                     Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
-                case "administrator":
-                    <SetupAdministratorStage DisplayName="@_displayName" DisplayNameChanged="@((string? value) => _displayName = value ?? string.Empty)"
+                case "profile":
+                    <SetupProfileStage DisplayName="@_displayName" DisplayNameChanged="@((string? value) => _displayName = value ?? string.Empty)"
                                              Email="@_email" EmailChanged="@((string? value) => _email = value ?? string.Empty)"
                                              Password="@_password" PasswordChanged="@((string? value) => _password = value ?? string.Empty)"
                                              PasswordConfirmation="@_passwordConfirmation" PasswordConfirmationChanged="@((string? value) => _passwordConfirmation = value ?? string.Empty)"
@@ -71,25 +80,24 @@
                                              RecoveryCodes="@_recoveryCodes"
                                              AdministratorConfigured="@(_status.AdministratorConfigured)" Busy="@_busy" CreateAdministrator="CreateAdministratorAsync"
                                              ThisComputerAvailable="@ThisComputerAvailable" SignInMode="@_signInMode" SignInModeChanged="SignInModeChangedAsync" Notice="@_signInNotice"
-                                             SignIn="SignIn" Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                             Continue="ContinueAfterProfileAsync" Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
-                case "media-locations":
-                    <SetupMediaStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
+                case "libraries":
+                    <SetupLibrariesStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
                                      LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Any(library => library.Sources.Count > 0) == true)" DeferMedia="DeferMediaAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
-                case "providers" when !_languageConfirmed:
-                    <SetupLanguageStage Value="@_locale" ValueChanged="@(value => _locale = value)" Busy="@_busy"
-                                        Continue="ConfirmLanguageAsync" Back="GoBackAsync"
-                                        ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                case "vault" when _vaultProfileId is { } vaultProfileId:
+                    <SetupVaultOffer ProfileId="@vaultProfileId" AdministratorHasPin="@_vaultProfileHasPin" SetupSession="@_setupSession" Finished="VaultFinishedAsync" />
                     break;
-                case "providers":
-                    <SetupProvidersStage Catalogue="@_providerCatalogue" SetupSession="@_setupSession" Busy="@_busy"
+                case "metadata":
+                    <SetupMetadataStage Catalogue="@_providerCatalogue" LibraryMediaTypes="@LibraryMediaTypes" SetupSession="@_setupSession" Busy="@_busy"
+                                         Locale="@_locale" LocaleChanged="@((SetupLocaleDto value) => _locale = value)"
                                          RefreshRequested="RefreshProvidersAsync" Continue="SaveProviderResultAsync" Defer="DeferProviderResultAsync"
-                                         Back="@(() => { _languageConfirmed = false; return Task.CompletedTask; })" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                         Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 default:
-                    <SetupReadinessStage Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" InstallTool="InstallOptionalToolAsync" RunInstaller="RunToolInstallerAsync" Tools="@_preflight?.Tools" SampleScanDetail="@_sampleScanDetail" Busy="@_busy" SampleScan="SampleScanAsync" Complete="CompleteAsync"
+                    <SetupReadinessStage Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" Tools="@_preflight?.Tools" Busy="@_busy" Complete="CompleteAsync"
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
             }
@@ -117,7 +125,12 @@
     private string _displayName = "Administrator";
     private IReadOnlyList<string> _recoveryCodes = [];
     private IReadOnlyList<ProviderCatalogueDto> _providerCatalogue = [];
-    private string? _sampleScanDetail;
+
+    // The media types of the libraries that have at least one folder; the Metadata step lists the sources that fit them.
+    private IReadOnlyCollection<string> LibraryMediaTypes => _setupLibraries?.Libraries
+        .Where(library => library.Sources.Count > 0)
+        .SelectMany(library => library.MediaTypes)
+        .ToList() ?? [];
     private bool _loading = true;
     private bool _busy;
     private bool _showRestore;
@@ -132,7 +145,6 @@
     private SetupLocaleDto? _locale;
     private string _serverName = string.Empty, _hostName = string.Empty;
     private bool _serverIdentityLoaded;
-    private bool _languageConfirmed;
 
     // The Dashboard's own classification of this visitor, set by the host page. Never read from the browser.
     [CascadingParameter(Name = "ClientIngress")]
@@ -174,22 +186,24 @@
     public string? RequestedStep => RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("step");
 
     private string WorkflowStep => NormalizeStep(_status?.CurrentStep);
-    // The sidebar lists the language screen and the Enhance your library screen as separate steps.
-    private string StepperCurrent => CurrentStep == "providers" && !_languageConfirmed ? "language" : CurrentStep;
-    private string StepperWorkflow => WorkflowStep == "providers" && !_languageConfirmed ? "language" : WorkflowStep;
     private string CurrentStep => _selectedStep ?? WorkflowStep;
-    // The server check runs silently after the server name is saved, so Back, Next and the sidebar never stop on it.
-    private static readonly string[] NavigableSteps = SetupWorkflow.StepKeys.Where(key => key != "preflight").ToArray();
-    private int CurrentIndex => Math.Max(0, Array.IndexOf(NavigableSteps, CurrentStep == "preflight" ? "server" : CurrentStep));
+    // The Vault entry is wired in with the Libraries step; until then Back, Next and the sidebar pass over it.
+    // The Vault is an optional step: it is walked only while it is being offered, and its entry is drawn only until the person says Not now.
+    private string[] NavigableSteps => SetupWorkflow.StepKeys.Where(key => key != "vault" || VaultOpen).ToArray();
+    private bool VaultOpen => _vaultProfileId is not null && StepState("vault") is not ("passed" or "deferred");
+    private bool ShowVault => _vaultProfileId is not null && StepState("vault") != "deferred";
+    private Guid? _vaultProfileId;
+    private bool _vaultProfileHasPin;
+    private int CurrentIndex => Math.Max(0, Array.IndexOf(NavigableSteps, CurrentStep));
     private bool PasswordsMatch => string.Equals(_password, _passwordConfirmation, StringComparison.Ordinal);
-    private string PageTitleText => CurrentStep == "server" ? "Welcome to your library" : Friendly(CurrentStep);
+    private string PageTitleText => CurrentStep == "welcome" ? "Welcome to your library" : Friendly(CurrentStep);
     private string PageSubtitle => CurrentStep switch
     {
-        "server" => "Give this server a name, then add your libraries.",
-        "preflight" => "Getting this server ready.",
-        "administrator" => "Create the first authenticated administrator and household profile.",
-        "media-locations" => "Connect read-only sources separately from storage Library may manage.",
-        "providers" => "Connect the metadata services that make each media lane useful.",
+        "welcome" => "Choose your language and give this server a name.",
+        "tools" => "Check the tools Library needs on this server.",
+        "profile" => "Create the first authenticated administrator and household profile.",
+        "libraries" => "Connect read-only sources separately from storage Library may manage.",
+        "metadata" => "Connect the metadata services that make each media lane useful.",
         _ => "Review what passed, what was deferred, and anything that still needs repair.",
     };
 
@@ -213,7 +227,7 @@
             && CanNavigateTo(RequestedStep!))
         {
             _selectedStep = RequestedStep;
-            if (RequestedStep == "readiness") _readiness = null;
+            if (RequestedStep == "done") _readiness = null;
             await EnsureCurrentStageDataAsync();
         }
     }
@@ -304,7 +318,7 @@
             Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true, replace: true);
             return;
         }
-        if (_status?.RequiresAuthentication == true && !_authenticated && _status.CurrentStep != "administrator")
+        if (_status?.RequiresAuthentication == true && !_authenticated && _status.CurrentStep != "profile")
         {
             Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
             return;
@@ -325,7 +339,7 @@
 
     private async Task EnsureCurrentStageDataAsync()
     {
-        if (CurrentStep == "server" && !_serverIdentityLoaded && !_busy)
+        if (CurrentStep == "welcome" && !_serverIdentityLoaded && !_busy)
         {
             var identity = await ApiClient.GetSetupServerIdentityAsync(_setupSession);
             if (identity is not null)
@@ -334,49 +348,51 @@
                 _hostName = identity.HostName;
                 _serverIdentityLoaded = true;
             }
+            _locale ??= await ApiClient.GetSetupLocaleAsync(_setupSession);
         }
-        if (WorkflowStep == "preflight" && CurrentStep == "preflight" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
+        if (CurrentStep == "tools" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
         {
-            await RunPreflightAsync(automaticallyAdvance: true);
+            await RunPreflightAsync();
             return;
         }
-        if (CurrentStep == "media-locations" && _setupLibraries is null)
+        if (CurrentStep == "libraries" && _setupLibraries is null)
             _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession);
-        if (CurrentStep == "providers" && !_providersLoaded && !_busy)
+        if (CurrentStep == "metadata" && !_providersLoaded && !_busy)
         {
             _locale = await ApiClient.GetSetupLocaleAsync(_setupSession);
             _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession);
             await LoadProvidersAsync();
             _providersLoaded = true;
         }
-        if (CurrentStep == "readiness" && _readiness is null && !_busy)
+        if (CurrentStep == "done" && _readiness is null && !_busy)
             await LoadReadinessAsync();
     }
 
-    private async Task ConfirmLanguageAsync()
-    {
-        if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
-        {
-            Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
-            return;
-        }
-
-        _languageConfirmed = true;
-    }
-
-    private async Task SaveServerIdentityAsync()
+    // Welcome saves the display language, the region and the server name together: the language first, so a failure there leaves
+    // the step open, then the name, which is what passes the step.
+    private async Task SaveWelcomeAsync()
     {
         _busy = true;
-        var saved = await ApiClient.SaveSetupServerIdentityAsync(new SetupServerIdentityDto(_serverName, _hostName), _setupSession);
-        _busy = false;
-        if (saved is null) { Snackbar.Add("The server name could not be saved. Use 1 to 64 characters.", AppSeverity.Error); return; }
-        _serverName = saved.ServerName;
-        _hostName = saved.HostName;
+        try
+        {
+            if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
+            {
+                Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
+                return;
+            }
+
+            var saved = await ApiClient.SaveSetupServerIdentityAsync(new SetupServerIdentityDto(_serverName, _hostName), _setupSession);
+            if (saved is null) { Snackbar.Add("The server name could not be saved. Use 1 to 64 characters.", AppSeverity.Error); return; }
+            _serverName = saved.ServerName;
+            _hostName = saved.HostName;
+        }
+        finally { _busy = false; }
         _selectedStep = null;
+        _ = StartBackgroundCheckAsync();
         await ReloadAsync();
     }
 
-    private async Task RunPreflightAsync(bool automaticallyAdvance = false)
+    private async Task RunPreflightAsync()
     {
         _busy = true;
         StateHasChanged();
@@ -398,14 +414,41 @@
             StateHasChanged();
             await FollowToolDownloadsAsync();
         }
-        // A missing tool never blocks setup, but the person sees the list first and moves on with Continue.
-        if (_preflight is { Passed: true, Tools.NeedsAttention: false } && automaticallyAdvance && !_showRestore && _selectedStep is null)
-        {
-            StateHasChanged();
-            await ReloadAsync();
-        }
     }
-    private Task ContinuePastToolsAsync() => ReloadAsync();
+
+    // The Tools step is always shown, even when every tool is ready; Continue is what passes it, and a missing tool never blocks it.
+    // Every missing optional tool still ticked "Download now" starts its download here; the downloads finish in the background.
+    private async Task ContinuePastToolsAsync()
+    {
+        foreach (var tool in SetupToolRules.ListedTools(_preflight?.Tools))
+        {
+            if (SetupToolRules.Action(tool) != SetupToolAction.Download || _skippedDownloads.Contains(tool.Id)) continue;
+            try { await ApiClient.InstallToolAsync(tool.Id); }
+            catch (Exception ex) { Logger.LogWarning(ex, "Setup could not start the {Tool} download", tool.Id); }
+        }
+        await DecideStepAsync("tools", "passed", "Tools reviewed during first-run setup.");
+    }
+
+    private readonly HashSet<string> _skippedDownloads = new(StringComparer.Ordinal);
+
+    private Task DownloadChanged((string ToolId, bool Download) change)
+    {
+        if (change.Download) _skippedDownloads.Remove(change.ToolId); else _skippedDownloads.Add(change.ToolId);
+        return Task.CompletedTask;
+    }
+
+    // Welcome starts the server check in the background so the Tools step already has its answers; a failure here just leaves the
+    // check to run again when the Tools step opens.
+    private async Task StartBackgroundCheckAsync()
+    {
+        try
+        {
+            var result = await ApiClient.RunSetupPreflightAsync(_setupSession);
+            if (result is not null && _preflight is null) _preflight = result;
+        }
+        catch (Exception ex) { Logger.LogWarning(ex, "The background server check could not run"); }
+        await InvokeAsync(StateHasChanged);
+    }
 
     private static readonly TimeSpan ToolPollInterval = TimeSpan.FromSeconds(1.5);
     private readonly CancellationTokenSource _closed = new();
@@ -453,7 +496,7 @@
         if (!_setupSessionReadyForCircuit && !_authenticated)
             await ReloadAsync();
         else
-            await RunPreflightAsync(automaticallyAdvance: WorkflowStep == "preflight");
+            await RunPreflightAsync();
     }
     private void CancelRestore() { _showRestore = false; _backup = null; _backupError = null; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backupError = null; _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) { _backupError = ApiClient.LastError is { Length: > 0 } sentence ? sentence : "The backup failed validation."; Snackbar.Add(_backupError, AppSeverity.Error); } } finally { _busy = false; } }
@@ -463,7 +506,8 @@
     private bool ThisComputerAvailable =>
         MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress) != MediaEngine.Web.Services.Configuration.IngressKind.Remote
         && !ClientForwarded;
-    private bool UsesThisComputer => ThisComputerAvailable && _signInMode == SetupSignInModes.ThisComputer;
+    // "Just my name" is the recommended default on this computer; anywhere else the password choice is the only one.
+    private bool UsesThisComputer => ThisComputerAvailable && _signInMode != SetupSignInModes.Password;
     private string _signInMode = string.Empty;
     private string? _signInNotice;
     private Task SignInModeChangedAsync(string mode) { _signInMode = mode; _signInNotice = null; return Task.CompletedTask; }
@@ -487,11 +531,64 @@
             if (UsesThisComputer && outcome.Code == SetupAdministratorRefusalCodes.NotAvailableHere) _signInNotice = "Starting without a password only works on the computer that runs Library. Choose another way to set a password instead.";
             else Snackbar.Add("The administrator could not be created.", AppSeverity.Error);
         }
-        else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); }
+        else
+        {
+            await ClearSetupSessionAsync();
+            var signedIn = await SignInInlineAsync(result);
+            if (!signedIn) { SignIn(); return; }
+            if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes;
+            else await ContinueAfterProfileAsync();
+        }
+    }
+
+    // Signs the person in without leaving this page: the circuit takes the Engine's session for its own calls, and the browser's
+    // cookie is set by redeeming a one-time code (SetupSignInHandoff), so a reload or a later visit is signed in too.
+    private async Task<bool> SignInInlineAsync(SetupAdministratorResponse created)
+    {
+        if (created.Session is not { } issued) return false;
+        try
+        {
+            var code = SignInHandoff.Issue(issued);
+            await using var module = await JS.InvokeAsync<Microsoft.JSInterop.IJSObjectReference>("import", "./js/setup-signin.js");
+            if (!await module.InvokeAsync<bool>("redeem", code)) return false;
+        }
+        catch (Exception) { return false; }
+        DashboardSession.Set(issued.SessionToken, issued.AccountId, issued.ActiveProfileId, issued.SessionId, issued.Authority);
+        _authenticated = true;
+        return true;
+    }
+
+    private async Task ContinueAfterProfileAsync()
+    {
+        _recoveryCodes = [];
+        _selectedStep = null;
+        await ReloadAsync();
     }
     private async Task ClearSetupSessionAsync() { _setupSession = null; try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } }
     private void SignIn() => Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
-    private async Task ValidateMediaAsync() { _busy = true; _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession); _busy = false; if (_media?.Passed == true) { _readiness = null; await ReloadAsync(); } }
+    private async Task ValidateMediaAsync()
+    {
+        _busy = true;
+        _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession);
+        _busy = false;
+        if (_media?.Passed != true) return;
+        _readiness = null;
+        await ReloadAsync();
+        await OfferVaultAsync();
+    }
+
+    // After Libraries, the first administrator on a desktop or tablet with no Vault yet is offered it once, as its own step; everyone else sees nothing about it.
+    private async Task OfferVaultAsync()
+    {
+        if (StepState("vault") is "passed" or "deferred") return;
+        var profile = await SetupVaultEligibility.FindProfileAsync(ApiClient, DashboardSession, Identity, Nsfw, DeviceContext, AuthenticationStateProvider);
+        if (profile is null) return;
+        _vaultProfileId = profile.Id;
+        _vaultProfileHasPin = profile.HasPin;
+        _selectedStep = "vault";
+    }
+
+    private Task VaultFinishedAsync(bool turnedOn) => DecideStepAsync("vault", turnedOn ? "passed" : "deferred", turnedOn ? "The Vault was turned on during setup." : "The Vault was left for later.");
     // The Libraries panel saves each folder as it is added; the person moves on with Continue.
     private async Task LibraryCreatedAsync() { _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession); }
     private async Task LoadProvidersAsync() { _busy = true; _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); _busy = false; }
@@ -503,9 +600,9 @@
             Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
             return;
         }
-        await DecideStepAsync("providers", "passed", "Language and provider setup reviewed.");
+        await DecideStepAsync("metadata", "passed", "Language and provider setup reviewed.");
     }
-    private Task DeferMediaAsync() => DecideStepAsync("media-locations", "deferred", "Media folders can be added later in Settings · Libraries.");
+    private Task DeferMediaAsync() => DecideStepAsync("libraries", "deferred", "Media folders can be added later in Settings · Libraries.");
     private async Task DeferProviderResultAsync()
     {
         if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
@@ -513,7 +610,7 @@
             Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
             return;
         }
-        await DecideStepAsync("providers", "deferred", "Languages saved; optional provider credentials deferred.");
+        await DecideStepAsync("metadata", "deferred", "Languages saved; optional provider credentials deferred.");
     }
     private async Task DecideStepAsync(string step, string status, string detail) { _status = await ApiClient.DecideSetupStepAsync(step, status, detail, _setupSession); _selectedStep = null; _readiness = null; if (_status is null) Snackbar.Add("The setup choice could not be saved.", AppSeverity.Error); else await EnsureCurrentStageDataAsync(); }
     private async Task LoadReadinessAsync()
@@ -540,15 +637,6 @@
         _readiness = null;
         await LoadReadinessAsync();
     }
-    private async Task InstallOptionalToolAsync(ToolRequirementDto tool)
-    {
-        bool started;
-        try { started = (await ApiClient.InstallToolAsync(tool.Id)).Success; }
-        catch (Exception) { started = false; }
-        if (started) Snackbar.Add($"Downloading {tool.Name}. Library finishes this in the background.", AppSeverity.Info);
-        else Snackbar.Add($"The download of {tool.Name} could not start. You can try again from Settings, System, Configuration.", AppSeverity.Warning);
-        _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
-    }
     private async Task RunToolInstallerAsync(ToolRequirementDto tool)
     {
         bool started;
@@ -558,26 +646,17 @@
         else Snackbar.Add($"The {tool.Name} installer could not start from here. After setup, open Settings, System, Configuration and choose Run installer.", AppSeverity.Warning);
         _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
     }
-    private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }
     private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { await Nsfw.LockAsync(); try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", AppSeverity.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
-    private bool CanNavigateTo(string key) => key != "preflight"
+    private bool CanNavigateTo(string key) => (key != "vault" || VaultOpen)
         && (Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep) || StepState(key) is "passed" or "deferred");
     private async Task GoToStepAsync(string key)
     {
-        if (key == "language")
-        {
-            if (!CanNavigateTo("providers")) return;
-            _selectedStep = "providers";
-            _languageConfirmed = false;
-            await EnsureCurrentStageDataAsync();
-            return;
-        }
-        if (key == "providers" && !_languageConfirmed) { if (!CanNavigateTo("providers")) return; _languageConfirmed = true; }
-        if (CanNavigateTo(key)) { _selectedStep = key; if (key == "readiness") _readiness = null; await EnsureCurrentStageDataAsync(); } }
+        if (CanNavigateTo(key)) { _selectedStep = key; if (key == "done") _readiness = null; await EnsureCurrentStageDataAsync(); }
+    }
     private async Task GoNextAsync() { var index = Math.Min(NavigableSteps.Length - 1, CurrentIndex + 1); _selectedStep = NavigableSteps[index]; await EnsureCurrentStageDataAsync(); }
     private async Task GoBackAsync() { var index = Math.Max(0, CurrentIndex - 1); _selectedStep = NavigableSteps[index]; await EnsureCurrentStageDataAsync(); }
     private void ReturnToCurrentStep() => _selectedStep = null;
-    private static string NormalizeStep(string? step) => SetupWorkflow.StepKeys.Contains(step, StringComparer.Ordinal) ? step! : "server";
+    private static string NormalizeStep(string? step) => SetupWorkflow.StepKeys.Contains(step, StringComparer.Ordinal) ? step! : "welcome";
     private static string Friendly(string value) => string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 }

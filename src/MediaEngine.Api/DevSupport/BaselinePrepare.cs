@@ -205,7 +205,7 @@ public static class BaselinePrepare
         connection.Execute("""
             UPDATE onboarding_steps SET status = 'passed', detail = 'Ingestion baseline run.',
                 completed_at = @now, updated_at = @now WHERE workflow_version = 1;
-            UPDATE onboarding_workflows SET state = 'complete', current_step = 'readiness',
+            UPDATE onboarding_workflows SET state = 'complete', current_step = 'done',
                 administrator_profile_id = @administrator, completed_at = @now, updated_at = @now,
                 revision = revision + 1 WHERE workflow_version = 1;
             """, new { now, administrator = GuidSql.ToBlob(administratorProfileId) });

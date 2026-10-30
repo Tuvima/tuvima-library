@@ -12,7 +12,7 @@ em { margin-left: auto; color: var(--tl-text-muted); font-size: var(--tl-font-si
 .is-current span { border-color: color-mix(in srgb, var(--tl-accent-primary) 78%, white); color: var(--tl-accent-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
 .is-blocked { color: var(--tl-error); }
 .is-deferred { color: var(--tl-warning); }
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
     .setup-stepper { display: flex; justify-content: space-between; gap: 6px; }
     .setup-stepper li { flex: 1 1 0; }
     .setup-stepper li:not(:last-child)::after { top: 24px; bottom: auto; left: calc(50% + 20px); width: calc(100% - 40px); height: 1px; }

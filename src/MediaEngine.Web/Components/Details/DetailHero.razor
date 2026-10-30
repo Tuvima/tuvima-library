@@ -191,6 +191,7 @@
                                IsMusicAlbum="@(Model.EntityType == DetailEntityType.MusicAlbum)"
                                HideStatusActions="@(Editing is { IsOn: true })"
                                CanDelete="CanDelete"
+                               DeleteActions="DeleteActions"
                                ActionAttributes="ActionAttributes"
                                OnActionSelected="OnActionSelected" />
             </ActionContent>
@@ -216,6 +217,9 @@
 
     /// <summary>Whether the page "..." lists Delete from library (the page decides who may delete a single title).</summary>
     [Parameter] public bool CanDelete { get; set; }
+
+    /// <summary>The Delete entries for a show, season, album or Series page; null for a single title.</summary>
+    [Parameter] public IReadOnlyList<DetailAction>? DeleteActions { get; set; }
 
     [CascadingParameter] private EditingModeContext? Editing { get; set; }
 

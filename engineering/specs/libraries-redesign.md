@@ -4,7 +4,7 @@
 
 > Written 2026-10-30 after Shy's review of the built Libraries pages: "the UI has gotten better, but the UX is still very bad." It was checked against the code on main (commit 90283826) and replaces piecemeal fixes with one redesign of the Libraries area in Settings, the library page, Add library, Add folder and the setup step. Locked by Shy on 2026-10-30 ("Agree lock it"), accepting every recommendation (Q1 to Q6: A). It supersedes parts of Library pages v15, Library setup and add-folder v2 and Library access v3 (section 9).
 
-> *Companion note (2026-10-30):* [First-run setup v3](../../../engineering/specs/first-run-setup-flow.md) is Locked. It reuses this spec's components in setup mode: D13 (setup mode) is adopted as its D10, it adds a Cards / List switch to the shared overview (shared with Settings), and its WP4 depends on WP1, WP5 and WP7 here. Screen 8 of the mockups is replaced by the setup mockups.
+> *Companion note (2026-10-30):* [First-run setup v3](../../../engineering/specs/archive/first-run-setup-flow.md) is Locked. It reuses this spec's components in setup mode: D13 (setup mode) is adopted as its D10, it adds a Cards / List switch to the shared overview (shared with Settings), and its WP4 depends on WP1, WP5 and WP7 here. Screen 8 of the mockups is replaced by the setup mockups.
 
 
 ## Plain-English product walkthrough
@@ -195,6 +195,16 @@ On SHY-DESKTOP at 1440 px wide and at about 1280 px, with the small test library
 - **Library access v3 (Locked):** D1 (ticks on the person) is superseded by D16 here; D2, D4, D5, D6, D7, D9, D10 stand. Needs v4, written on lock, before WP8 builds.
 - **Simpler access v5:** its per-profile area switches (D1) are removed by D16 and D19 (Q3: A); a note on its next version.
 - **Universal editor (Locked):** Identify from the Unidentified tab is a new launcher of the existing Match panel, on the library's own page, desktop only; no change to the editor's rules.
+
+## Built notes (2026-10-30)
+
+- **Add library step 1** has the Watch, Listen, Read and View tabs. The View tab lists Photos, Personal videos and Documents; Next opens the existing View folder pop-up (its own Browse button, not the shared inline picker), so "View's extras in the footer of the shared pop-up" (D8, Q6) is still open.
+- **Header rename:** a pencil on the library page header (not for View libraries, the Vault or phones).
+- **Unidentified rows** offer Change what this folder is for a file inside one of the library's folders.
+- **Not built, needs a decision or another spec:**
+  - *Remove from library* on an Unidentified row needs an Engine action that deletes a Media Asset through the Recycle bin; that action belongs to `delete-groups.md` (Locked, not built). Add the button when that lands.
+  - *Identify opening the Match panel* conflicts with the editing rules (no pop-up editor for a single item, never started from a deep link). Identify opens the item's own page, where Edit > Match works. Shy to say if a Match-only launcher on the library page is wanted.
+  - Picker speed beyond the listing change waits for the Engine log.
 
 ## Plain English summary
 
