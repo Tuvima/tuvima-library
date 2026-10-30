@@ -4,6 +4,8 @@ Items built and merged in cloud sessions that still need a check on SHY-DESKTOP.
 
 | Item | PR | What to check | Status |
 |---|---|---|---|
+| Home: Pick up uses the Continue tiles | Home bugs PR 2 | Start a movie, an episode, a book and an audiobook, then open Home. Pick up where you left off shows the same tiles as Continue on Watch, Read and Listen, in one row, newest first, with progress. Nothing started hides the row. | Awaiting |
+| Home: photos and videos only behind View | Home bugs PR 2 | On Home, Recently Added with All shows only Watch, Read and Listen items. Tap the View pill: your photos and videos appear there (and View all shows them). | Awaiting |
 | Home: show length on the hero | Home bugs PR | On Shy's real library at 1440 wide, open Home and step through the hero. A TV show with 20-odd minute episodes shows about "23 min", never "1361.4min". A film shows its provider runtime. Open an album: the song length matches the song in the player (also helps the "track times are wrong" check). | Awaiting |
 | Home: Pick up where you left off has no albums | Home bugs PR | Play an album, then open Home. The Pick up row lists only things you started watching, reading or listening to with a real position, newest first. No album appears. | Awaiting |
 | Home: tiles match Read, Watch and Listen | Home bugs PR | At 1440 wide and a little narrower, compare the shelf tiles and Recently Added tiles on Home with the Read and Watch discover pages: posters and landscape tiles are the same height. Photos from View under Recently Added are the same size too. Narrow windows and phones are unchanged. | Awaiting |
