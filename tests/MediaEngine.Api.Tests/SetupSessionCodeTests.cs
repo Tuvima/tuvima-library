@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Api.Endpoints;
+using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Contracts.Authentication;
@@ -127,6 +128,7 @@ public sealed class SetupSessionCodeTests : IDisposable
         builder.Services.AddSingleton<SetupMediaLocationValidationService>(_ => null!);
         builder.Services.AddSingleton<SetupPreflightService>(_ => null!);
         builder.Services.AddSingleton<IContainerProbe>(_ => null!);
+        builder.Services.AddSingleton(new DashboardAuthorityProjector(null!, null!, null!, null!));
         await using var app = builder.Build();
         app.MapSetupEndpoints();
         var endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
