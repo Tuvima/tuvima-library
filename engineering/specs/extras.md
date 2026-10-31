@@ -1,4 +1,4 @@
-# Spec: Extras for TV shows
+# Spec: Extras
 
 > **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-31 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [TV artwork, cast and matching](tv-artwork-cast-and-matching.md) (D9, Steph Curry Masterclass) · [Videos](videos.md) · [Photo and video filing](photo-video-filing.md) · [Details overlay and edit mode](details-overlay-and-edit-mode.md) (the "Extras" row) · [Universal editor v2](universal-editor-v2.md) · [Mockup](../design/mockups/extras-for-tv-shows.html)
 
