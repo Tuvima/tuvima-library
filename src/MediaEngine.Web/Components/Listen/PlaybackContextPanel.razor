@@ -122,7 +122,7 @@
             }
             else
             {
-                <div class="listen-context-sidebar__section-action"><span>Recently played · @MusicHistory.Count</span><AppNativeButton Type="button" Disabled="@(MusicHistory.Count == 0)" OnClick="@(() => RequestClearHistory(panelSnapshot))">Clear History</AppNativeButton></div>
+                <div class="listen-context-sidebar__section-action"><span>Recently played · @MusicHistory.Count</span><AppButton ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.PlaylistRemove" Class="listen-context-sidebar__clear" Disabled="@(MusicHistory.Count == 0)" OnClick="@(() => RequestClearHistory(panelSnapshot))" aria-label="Clear history">Clear</AppButton></div>
                 @if (MusicHistory.Count == 0)
                 {
                     <p class="listen-context-sidebar__empty">Played songs appear here for this session.</p>
@@ -145,7 +145,7 @@
             break;
     }
 </div>
-<p class="sr-only" role="status" aria-live="polite">@_moveAnnouncement</p>
+<p class="listen-context-sidebar__announce" role="status" aria-live="polite">@_moveAnnouncement</p>
 @if (_moveFailure is not null) { <AppAlert Tone="AppUiTone.Warning" Dense="true" Class="listen-context-sidebar__feedback">@_moveFailure</AppAlert> }
 @if (_historyConfirmation is not null)
 {

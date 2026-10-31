@@ -177,7 +177,7 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
 
         await cut.FindAll("button[data-playback-queue-drag]").First().TriggerEventAsync("onkeydown", new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "ArrowDown", AltKey = true });
 
-        var announcement = cut.Find("p.sr-only[role='status']");
+        var announcement = cut.Find("p.listen-context-sidebar__announce[role='status']");
         Assert.Equal("Moved to position 2", announcement.TextContent);
         Assert.Empty(cut.FindAll(".listen-context-sidebar__feedback"));
     }
@@ -191,7 +191,7 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         await cut.FindAll("button[data-playback-queue-drag]").First().TriggerEventAsync("onkeydown", new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "ArrowDown", AltKey = true });
 
         Assert.Contains("The move did not go through", cut.Find(".listen-context-sidebar__feedback").TextContent);
-        Assert.Equal(string.Empty, cut.Find("p.sr-only[role='status']").TextContent);
+        Assert.Equal(string.Empty, cut.Find("p.listen-context-sidebar__announce[role='status']").TextContent);
     }
 
     [Fact]

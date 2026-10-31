@@ -1378,16 +1378,19 @@ public sealed partial class DisplayComposerService
     {
         var total = TimeSpan.Zero;
         var found = false;
-        foreach (var duration in works.Select(work => work.Duration ?? work.FileDurationSeconds).Where(value => !string.IsNullOrWhiteSpace(value)))
+        foreach (var work in works)
         {
-            if (double.TryParse(duration, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var milliseconds))
+            if (double.TryParse(work.FileDurationSeconds, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var seconds) && seconds > 0)
             {
-                total += TimeSpan.FromMilliseconds(milliseconds);
+                total += TimeSpan.FromSeconds(seconds);
                 found = true;
-                continue;
             }
-
-            if (TimeSpan.TryParse(duration, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            else if (double.TryParse(work.Duration, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var provider) && provider > 0)
+            {
+                total += DisplayFactBuilder.MusicProviderLength(provider);
+                found = true;
+            }
+            else if (TimeSpan.TryParse(work.Duration, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
             {
                 total += parsed;
                 found = true;

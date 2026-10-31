@@ -23,6 +23,8 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(10, 14, 25, 0.62);
     backdrop-filter: blur(14px);
+    /* Match the scroller's reserved scrollbar space so the toolbar ends where the rows end. */
+    padding-inline-end: calc(0.9rem + 10px);
 }
 
 .tl-embedded-audio__toolbar-leading,
