@@ -266,6 +266,17 @@ public sealed class DeleteFromLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task FileLines_WhenTheFilesGoToTheRecycleBin_SayTheyMoveThereNotThatTheyAreDeleted()
+    {
+        _preview = () => Task.FromResult(LibraryItemDeletionOutcome<LibraryItemDeletionPreview>.Ok(Movie(recycleBin: true)));
+        var (host, _) = await OpenAsync();
+        Ready(host);
+
+        Assert.Contains("will move to the Recycle bin", Body(host), StringComparison.Ordinal);
+        Assert.DoesNotContain("will be deleted from disk", Body(host), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task WithNoProgress_TheProgressSectionIsLeftOut()
     {
         var (host, _) = await OpenAsync();
