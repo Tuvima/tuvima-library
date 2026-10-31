@@ -107,3 +107,9 @@
     .collection-rule-builder__sort > * { grid-column: 1 !important; }
     .collection-rule-builder__add-secondary { margin-left: 8px; }
 }
+
+.collection-rule-builder__range {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}

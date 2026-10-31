@@ -222,6 +222,14 @@ public sealed record CollectionPreviewResponse(
 {
     [JsonPropertyName("media_type_counts")]
     public Dictionary<string, int> MediaTypeCounts { get; init; } = [];
+
+    /// <summary>True when the rules depend on who is looking (Unwatched, On My List, Your rating and the like).</summary>
+    [JsonPropertyName("uses_per_profile_fields")]
+    public bool UsesPerProfileFields { get; init; }
+
+    /// <summary>The profile the preview was evaluated for, set only when <see cref="UsesPerProfileFields"/> is true.</summary>
+    [JsonPropertyName("evaluated_for_profile_name")]
+    public string? EvaluatedForProfileName { get; init; }
 }
 
 public sealed class CollectionItemAddRequest

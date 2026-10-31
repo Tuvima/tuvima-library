@@ -6,6 +6,7 @@ namespace MediaEngine.Web.Components.Rules;
 public enum RuleValueProviderKind
 {
     Text,
+    Date,
     Boolean,
     StaticOptions,
     CollectionLibrary,
@@ -87,6 +88,34 @@ internal static class RuleOperators
         Is, new("gt", "greater than"), new("lt", "less than"), new("between", "between"),
         new("gte", "at least"), new("lte", "at most"),
     ];
+
+    // Sentence-style conditions for collection rules: each reads as "<field> <condition> <value>".
+    internal static readonly RuleOperatorDefinition IsBefore = new("lt", "is before");
+    internal static readonly RuleOperatorDefinition IsAfter = new("gt", "is after");
+    internal static readonly RuleOperatorDefinition IsBetween = new("between", "is between");
+    internal static readonly RuleOperatorDefinition AtLeast = new("gte", "at least");
+    internal static readonly RuleOperatorDefinition AtMost = new("lte", "at most");
+    internal static readonly RuleOperatorDefinition NotContains = new("not_contains", "does not contain");
+
+    /// <summary>A count or amount: "is 3", "at least 7.5", "at most 120", "is between 90 and 120".</summary>
+    internal static readonly IReadOnlyList<RuleOperatorDefinition> Amount = [Is, AtLeast, AtMost, IsBetween, Known, Unknown];
+
+    /// <summary>A calendar date: "is before 1990-01-01", "is after …", "is between … and …".</summary>
+    internal static readonly IReadOnlyList<RuleOperatorDefinition> Date = [IsBefore, IsAfter, IsBetween];
+
+    /// <summary>Release date also reads relative to today: "is within the last 6 months".</summary>
+    internal static readonly IReadOnlyList<RuleOperatorDefinition> ReleaseDate =
+    [
+        new("in_last_days", "is within the last (days)"), new("in_last_months", "is within the last (months)"),
+        new("in_last_years", "is within the last (years)"), IsBefore, IsAfter, IsBetween, Known, Unknown,
+    ];
+
+    /// <summary>True for conditions whose value is a whole number of days, months or years rather than text or a date.</summary>
+    internal static bool TakesWholeNumber(string op) =>
+        op is "in_last_days" or "in_last_months" or "in_last_years" or "within_days" or "not_within_days";
+
+    /// <summary>True for conditions that need two values (a start and an end).</summary>
+    internal static bool TakesRange(string op) => op == "between";
 
     internal static string DefaultIcon => AppMaterialIcons.Outlined.Tune;
 }

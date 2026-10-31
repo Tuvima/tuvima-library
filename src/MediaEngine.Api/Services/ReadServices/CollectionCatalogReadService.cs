@@ -67,14 +67,14 @@ public sealed class CollectionCatalogReadService(
 
             var collectionWorkIds = allowedWorkIds is null
                 ? []
-                : (await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false))
+                : (await GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id).ConfigureAwait(false))
                     .Where(allowedWorkIds.Contains)
                     .Distinct()
                     .ToList();
             var count = allowedWorkIds is not null
                 ? collectionWorkIds.Count
                 : collection.Resolution == CollectionResolution.Query
-                    ? (await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false)).Count
+                    ? (await GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id).ConfigureAwait(false)).Count
                     : GetManagedCollectionItemCount(collection, materializedCounts, []);
             results.Add(ManagedCollectionMapper.FromDomain(
                 collection,
@@ -125,7 +125,7 @@ public sealed class CollectionCatalogReadService(
             }
 
             var classification = ClassifyCollectionForCatalog(collection);
-            var sourceWorkIds = await GetCollectionCatalogSourceWorkIdsAsync(collection, collections, ct).ConfigureAwait(false);
+            var sourceWorkIds = await GetCollectionCatalogSourceWorkIdsAsync(collection, collections, ct, activeProfile?.Id).ConfigureAwait(false);
             // Only members the profile may see count; TV, comic and music members are then collapsed to their display
             // root, so an owned episode keeps its show tile, but a restricted episode never lends its show to the count.
             if (allowedMemberIds is not null)
@@ -412,7 +412,7 @@ public sealed class CollectionCatalogReadService(
                 CollectionOptionsPolicy.Arrange(collection, onePerRoot, item => item.WorkId, Today));
         }
 
-        var queryIds = await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false);
+        var queryIds = await GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id).ConfigureAwait(false);
         var queryRootIds = await CollapseToOwnedRootsAsync(queryIds, allowedMemberIds, ct).ConfigureAwait(false);
         return new CollectionRootMembers(
             CollectionOptionsPolicy.Arrange(collection, queryRootIds, id => id, Today),
@@ -1206,7 +1206,7 @@ public sealed class CollectionCatalogReadService(
             : null;
     }
 
-    private async Task<IReadOnlyList<Guid>> GetCollectionWorkIdsAsync(Collection collection, CancellationToken ct)
+    private async Task<IReadOnlyList<Guid>> GetCollectionWorkIdsAsync(Collection collection, CancellationToken ct, Guid? viewerProfileId = null)
     {
         if (collection.Resolution == CollectionResolution.Query
             && !string.IsNullOrWhiteSpace(collection.RuleJson))
@@ -1224,7 +1224,8 @@ public sealed class CollectionCatalogReadService(
                 collection.SortDirection.ToStorageValue(),
                 0,
                 secondarySortField: collection.SecondarySortField,
-                secondarySortDirection: collection.SecondarySortDirection?.ToStorageValue());
+                secondarySortDirection: collection.SecondarySortDirection?.ToStorageValue(),
+                viewerProfileId: viewerProfileId);
         }
 
         var items = await collectionRepo.GetCollectionItemsAsync(collection.Id, 5000, ct).ConfigureAwait(false);
@@ -1263,7 +1264,7 @@ public sealed class CollectionCatalogReadService(
         var workIds = new List<Guid>();
         foreach (var collection in ExpandWithChildCollections(siblingCollections, accessibleCollections))
         {
-            workIds.AddRange(await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false));
+            workIds.AddRange(await GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id).ConfigureAwait(false));
         }
 
         return workIds;
@@ -1272,12 +1273,13 @@ public sealed class CollectionCatalogReadService(
     private async Task<IReadOnlyList<Guid>> GetCollectionCatalogSourceWorkIdsAsync(
         Collection collection,
         IReadOnlyList<Collection> accessibleCollections,
-        CancellationToken ct)
+        CancellationToken ct,
+        Guid? viewerProfileId = null)
     {
         var workIds = new List<Guid>();
         foreach (var sourceCollection in ExpandWithChildCollections([collection], accessibleCollections))
         {
-            workIds.AddRange(await GetCollectionWorkIdsAsync(sourceCollection, ct).ConfigureAwait(false));
+            workIds.AddRange(await GetCollectionWorkIdsAsync(sourceCollection, ct, viewerProfileId).ConfigureAwait(false));
         }
 
         return workIds.Distinct().ToList();

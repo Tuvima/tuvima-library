@@ -1814,7 +1814,7 @@
                 {
                     <div class="collection-editor-preview">
                         <div class="collection-editor-preview-header">
-                            <span>@_previewResult.Count item(s) match right now</span>
+                            <span>@_previewResult.Count item(s) match right now@(_previewResult.UsesPerProfileFields && !string.IsNullOrWhiteSpace(_previewResult.EvaluatedForProfileName) ? $" for {_previewResult.EvaluatedForProfileName}" : string.Empty)</span>
                         </div>
 
                         @foreach (var item in _previewResult.Items)

@@ -1803,6 +1803,8 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPr
   Count: System.Int32 | nullability=not-null | accessors=get,init
   Items: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionResolvedItemDto> | nullability=not-null | accessors=get,init
   MediaTypeCounts: System.Collections.Generic.Dictionary<System.String, System.Int32> | nullability=not-null | accessors=get,init
+  UsesPerProfileFields: System.Boolean | nullability=not-null | accessors=get,init
+  EvaluatedForProfileName: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionResolvedItemDto
   EntityId: System.Guid | nullability=not-null | accessors=get,init
