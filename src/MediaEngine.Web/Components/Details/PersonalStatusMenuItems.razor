@@ -43,7 +43,7 @@
             var status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, subject.WorkId);
             if (!Current || subject != (WorkId, ProfileId)) return;
             _status = status;
-            Snackbar.Add("Listening status updated.", AppSeverity.Success, options => {
+            Snackbar.Add(L["PersonalStatusMenuItems_ListeningStatusUpdated"].Value, AppSeverity.Success, options => {
                 options.Action = "Undo";
                 options.OnClick = async _ => {
                     try { await Api.UndoPersonalStatusAsync(result.CommandId); }

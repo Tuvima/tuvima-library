@@ -212,7 +212,7 @@
         var jobOpen = job is not null && FolderJobFormat.IsOpen(job);
         var items = new List<AppRowMenuItem>
         {
-            new() { Label = "Override file handling for this folder…", Icon = AppMaterialIcons.Outlined.Tune, Disabled = Busy, OnClick = Raise(OnOverride, source) },
+            new() { Label = L["LibraryFolderGrid_OverrideFileHandlingForThis"].Value, Icon = AppMaterialIcons.Outlined.Tune, Disabled = Busy, OnClick = Raise(OnOverride, source) },
             new()
             {
                 Label = source.ScanEnabled ? "Pause scanning" : "Resume scanning",
@@ -223,28 +223,28 @@
         };
         if (OnChangeKind.HasDelegate && LibraryFolderTable.CanChangeKindOf(Library, source, jobOpen))
         {
-            items.Add(new() { Label = "Change what this folder is…", Icon = AppMaterialIcons.Outlined.Category, OnClick = Raise(OnChangeKind, source) });
+            items.Add(new() { Label = L["LibraryFolderTable_ChangeWhatThisFolderIs"].Value, Icon = AppMaterialIcons.Outlined.Category, OnClick = Raise(OnChangeKind, source) });
         }
 
         // What the older folder menu offered stays until the File handling tab (next step) decides where it belongs.
         if (managed && job is null)
         {
-            items.Add(new() { Label = "Organise files now", Icon = AppMaterialIcons.Outlined.DriveFileMove, OnClick = Raise(OnOrganiseNow, source) });
+            items.Add(new() { Label = L["LibraryFolderTable_OrganiseFilesNow"].Value, Icon = AppMaterialIcons.Outlined.DriveFileMove, OnClick = Raise(OnOrganiseNow, source) });
         }
 
         if (LibraryFolderTable.CanMergeInto(Library, source, jobOpen))
         {
-            items.Add(new() { Label = "Merge into…", Icon = AppMaterialIcons.Outlined.ArrowForward, OnClick = Raise(OnMerge, source) });
+            items.Add(new() { Label = L["LibraryFolderTable_MergeInto"].Value, Icon = AppMaterialIcons.Outlined.ArrowForward, OnClick = Raise(OnMerge, source) });
         }
 
         if (OnMoveToVault.HasDelegate && !IsMerged(source))
         {
-            items.Add(new() { Label = "Move to Vault…", Icon = AppMaterialIcons.Outlined.Lock, OnClick = Raise(OnMoveToVault, source) });
+            items.Add(new() { Label = L["LibraryFolderGrid_MoveToVault"].Value, Icon = AppMaterialIcons.Outlined.Lock, OnClick = Raise(OnMoveToVault, source) });
         }
 
         if (OnMoveOutOfVault.HasDelegate && !IsMerged(source))
         {
-            items.Add(new() { Label = "Move out of the Vault…", Icon = AppMaterialIcons.Outlined.LockOpen, OnClick = Raise(OnMoveOutOfVault, source) });
+            items.Add(new() { Label = L["LibraryFolderGrid_MoveOutOfTheVault"].Value, Icon = AppMaterialIcons.Outlined.LockOpen, OnClick = Raise(OnMoveOutOfVault, source) });
         }
 
         items.Add(new()
@@ -254,8 +254,8 @@
             Disabled = IsMerging(source),
             OnClick = Raise(OnChangeHandling, source),
         });
-        items.Add(new() { Label = "Label", Icon = AppMaterialIcons.Outlined.Edit, OnClick = Raise(OnLabel, source) });
-        items.Add(new() { Label = "Remove folder", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = Raise(OnRemove, source) });
+        items.Add(new() { Label = L["ApiKeys_Label"].Value, Icon = AppMaterialIcons.Outlined.Edit, OnClick = Raise(OnLabel, source) });
+        items.Add(new() { Label = L["LibraryFolderTable_RemoveFolder"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = Raise(OnRemove, source) });
         return items;
     }
 

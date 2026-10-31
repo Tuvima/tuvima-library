@@ -601,8 +601,8 @@
     {
         var items = new List<AppRowMenuItem>
         {
-            new() { Label = "Play next", Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => PlayItemNextAsync(item)) },
-            new() { Label = "Add to queue", Icon = AppMaterialIcons.Outlined.PlaylistAdd, Disabled = !CanQueue(item), OnClick = EventCallback.Factory.Create(this, () => QueueItemAsync(item)) },
+            new() { Label = L["Common_PlayNext"].Value, Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => PlayItemNextAsync(item)) },
+            new() { Label = L["Common_AddToQueue"].Value, Icon = AppMaterialIcons.Outlined.PlaylistAdd, Disabled = !CanQueue(item), OnClick = EventCallback.Factory.Create(this, () => QueueItemAsync(item)) },
         };
         if (EditingMode is { CanEdit: true } && BatchSelection is not null && BulkEditRules.IsSelectableKind(item.EntityType))
         {
@@ -617,7 +617,7 @@
 
         if (Guid.TryParse(ArtistId, out var artistGuid) && artistGuid != Guid.Empty)
         {
-            items.Add(new() { Label = "Go to artist", Icon = AppMaterialIcons.Outlined.Person, OnClick = EventCallback.Factory.Create(this, () => Navigation.NavigateTo($"/details/person/{artistGuid:D}")) });
+            items.Add(new() { Label = L["SongActions_GoToArtist"].Value, Icon = AppMaterialIcons.Outlined.Person, OnClick = EventCallback.Factory.Create(this, () => Navigation.NavigateTo($"/details/person/{artistGuid:D}")) });
         }
 
         return items;
@@ -662,7 +662,7 @@
         var profile = await Orchestrator.GetActiveProfileAsync();
         if (profile is null)
         {
-            Snackbar.Add("Favorites require an active profile.", AppSeverity.Warning);
+            Snackbar.Add(L["Common_FavoritesRequireAnActiveProfile"].Value, AppSeverity.Warning);
             return;
         }
         var id = ItemId(item);

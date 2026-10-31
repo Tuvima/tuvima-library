@@ -169,7 +169,7 @@
         _saving = false;
         if (updated is null) { Snackbar.Add(ApiClient.LastError ?? "The item could not be updated.", AppSeverity.Error); return; }
         await OnItemUpdated.InvokeAsync(updated);
-        Snackbar.Add("Item details updated.", AppSeverity.Success);
+        Snackbar.Add(L["ViewImmersiveViewer_ItemDetailsUpdated"].Value, AppSeverity.Success);
     }
     private void ToggleDescriptionEditor() { _description = Item.Description; _editingDescription = !_editingDescription; }
     private async Task SaveDescriptionAsync() { await ApplyAsync(ApiClient.UpdateViewItemDescriptionAsync(Item.Id, _description)); _editingDescription = false; }
@@ -178,7 +178,7 @@
     {
         if (!DateTime.TryParse(_capturedAt, System.Globalization.CultureInfo.CurrentCulture,
                 System.Globalization.DateTimeStyles.AllowWhiteSpaces, out var local))
-        { Snackbar.Add("Enter a valid captured date and time.", AppSeverity.Warning); return; }
+        { Snackbar.Add(L["ViewImmersiveViewer_EnterAValidCapturedDate"].Value, AppSeverity.Warning); return; }
         local = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
         await ApplyAsync(ApiClient.UpdateViewItemCapturedAtAsync(Item.Id,
             new(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)))));
@@ -190,7 +190,7 @@
     {
         if (!double.TryParse(_latitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var latitude)
             || !double.TryParse(_longitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var longitude))
-        { Snackbar.Add("Choose a valid map location.", AppSeverity.Warning); return; }
+        { Snackbar.Add(L["ViewImmersiveViewer_ChooseAValidMapLocation"].Value, AppSeverity.Warning); return; }
         await ApplyAsync(ApiClient.UpdateViewItemLocationAsync(Item.Id, new(latitude, longitude, _locationName, _locationCity, _locationRegion, _locationCountry)));
         _editingLocation = false;
     }
@@ -263,7 +263,7 @@
     private async Task InfoOpenChangedAsync(bool open)
     {
         if (!await Workspace.SetViewerInfoOpenAsync(open))
-            Snackbar.Add("The viewer preference could not be saved.", AppSeverity.Warning);
+            Snackbar.Add(L["ViewImmersiveViewer_TheViewerPreferenceCouldNot"].Value, AppSeverity.Warning);
     }
     private void ToggleMotion() => _showMotion = !_showMotion;
     private MediaViewerItem ViewerItem => new(

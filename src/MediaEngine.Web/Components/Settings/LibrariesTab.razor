@@ -280,7 +280,7 @@
         _configuration = await ReadConfigurationAsync();
         _engineUnavailable = _configuration is null;
         if (_configuration is null) _loadError = ApiClient.LastError;
-        else if (!LibraryKinds.Loaded) _loadError = "The list of library kinds could not be loaded, so the kinds of library are missing from this page. Try again in a moment.";
+        else if (!LibraryKinds.Loaded) _loadError = L["LibrariesTab_TheListOfLibraryKinds"].Value;
         _loading = false;
     }
 

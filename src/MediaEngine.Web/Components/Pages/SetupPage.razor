@@ -306,7 +306,7 @@
                 }
                 else
                 {
-                    _preflightError = "Setup could not start. The server rejected the request or could not be reached. Retry the checks.";
+                    _preflightError = L["SetupPage_SetupCouldNotStartThe"].Value;
                     _loading = false;
                     StateHasChanged();
                     return;
@@ -386,12 +386,12 @@
         {
             if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
             {
-                Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
+                Snackbar.Add(L["SetupPage_LanguageSettingsCouldNotBe"].Value, AppSeverity.Error);
                 return;
             }
 
             var saved = await ApiClient.SaveSetupServerIdentityAsync(new SetupServerIdentityDto(_serverName, _hostName), _setupSession);
-            if (saved is null) { Snackbar.Add("The server name could not be saved. Use 1 to 64 characters.", AppSeverity.Error); return; }
+            if (saved is null) { Snackbar.Add(L["SetupPage_TheServerNameCouldNot"].Value, AppSeverity.Error); return; }
             _serverName = saved.ServerName;
             _hostName = saved.HostName;
         }
@@ -410,11 +410,11 @@
         {
             _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession);
             if (_preflight is null)
-                _preflightError = "Library could not get ready. The server did not answer the request. Check that it is running, then try again.";
+                _preflightError = L["SetupPage_LibraryCouldNotGetReady"].Value;
         }
         catch (Exception)
         {
-            _preflightError = "Library could not finish getting ready. Try again.";
+            _preflightError = L["SetupPage_LibraryCouldNotFinishGetting"].Value;
         }
         finally { _busy = false; }
         // A missing Required tool the Library can fetch (FFmpeg) is already downloading; show its progress until it ends.
@@ -509,7 +509,7 @@
     }
     private void CancelRestore() { _showRestore = false; _backup = null; _backupError = null; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backupError = null; _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) { _backupError = ApiClient.LastError is { Length: > 0 } sentence ? sentence : "The backup failed validation."; Snackbar.Add(_backupError, AppSeverity.Error); } } finally { _busy = false; } }
-    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Library is restarting.", AppSeverity.Info); }
+    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add(L["Common_TheRestoreCouldNotBe"].Value, AppSeverity.Error); else Snackbar.Add(L["SetupPage_RestoreScheduledLibraryIsRestarting"].Value, AppSeverity.Info); }
     // The no-password start is offered to a visitor on this computer or the home network, never to one a tunnel or
     // proxy may be relaying. The Engine checks all of this again.
     private bool ThisComputerAvailable =>
@@ -522,7 +522,7 @@
     private Task SignInModeChangedAsync(string mode) { _signInMode = mode; _signInNotice = null; return Task.CompletedTask; }
     private async Task CreateAdministratorAsync()
     {
-        if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", AppSeverity.Error); return; }
+        if (_setupSession is null || !PasswordsMatch) { Snackbar.Add(L["SetupPage_EnterTheSamePasswordTwice"].Value, AppSeverity.Error); return; }
         if (!TryCountGuess()) { Snackbar.Add(_guessRefusal, AppSeverity.Error); return; }
         _busy = true;
         var outcome = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest
@@ -537,8 +537,8 @@
         var result = outcome.Created;
         if (result is null)
         {
-            if (UsesThisComputer && outcome.Code == SetupAdministratorRefusalCodes.NotAvailableHere) _signInNotice = "Starting without a password only works on the computer that runs Library. Choose another way to set a password instead.";
-            else Snackbar.Add("The administrator could not be created.", AppSeverity.Error);
+            if (UsesThisComputer && outcome.Code == SetupAdministratorRefusalCodes.NotAvailableHere) _signInNotice = L["SetupPage_StartingWithoutAPasswordOnly"].Value;
+            else Snackbar.Add(L["SetupPage_TheAdministratorCouldNotBe"].Value, AppSeverity.Error);
         }
         else
         {
@@ -606,7 +606,7 @@
     {
         if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
         {
-            Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
+            Snackbar.Add(L["SetupPage_LanguageSettingsCouldNotBe"].Value, AppSeverity.Error);
             return;
         }
         await DecideStepAsync("metadata", "passed", "Language and provider setup reviewed.");
@@ -616,12 +616,12 @@
     {
         if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
         {
-            Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
+            Snackbar.Add(L["SetupPage_LanguageSettingsCouldNotBe"].Value, AppSeverity.Error);
             return;
         }
         await DecideStepAsync("metadata", "deferred", "Languages saved; optional provider credentials deferred.");
     }
-    private async Task DecideStepAsync(string step, string status, string detail) { _status = await ApiClient.DecideSetupStepAsync(step, status, detail, _setupSession); _selectedStep = null; _readiness = null; if (_status is null) Snackbar.Add("The setup choice could not be saved.", AppSeverity.Error); else await EnsureCurrentStageDataAsync(); }
+    private async Task DecideStepAsync(string step, string status, string detail) { _status = await ApiClient.DecideSetupStepAsync(step, status, detail, _setupSession); _selectedStep = null; _readiness = null; if (_status is null) Snackbar.Add(L["SetupPage_TheSetupChoiceCouldNot"].Value, AppSeverity.Error); else await EnsureCurrentStageDataAsync(); }
     private async Task LoadReadinessAsync()
     {
         _busy = true;
@@ -655,7 +655,7 @@
         else Snackbar.Add($"The {tool.Name} installer could not start from here. After setup, open Settings, System, Configuration and choose Run installer.", AppSeverity.Warning);
         _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
     }
-    private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { await Nsfw.LockAsync(); try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", AppSeverity.Error); }
+    private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { await Nsfw.LockAsync(); try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add(L["SetupPage_RequiredSetupChecksAreStill"].Value, AppSeverity.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
     private bool CanNavigateTo(string key) => (key != "vault" || VaultOpen)
         && (Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep) || StepState(key) is "passed" or "deferred");

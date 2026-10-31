@@ -225,13 +225,13 @@
 
         if (saved is null)
         {
-            Snackbar.Add("Optimized copy settings could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["EncodeSettingsTab_OptimizedCopySettingsCouldNot"].Value, AppSeverity.Error);
             return;
         }
 
         _settings = saved;
         HydrateForm(_settings);
-        Snackbar.Add("Playback delivery settings saved.", AppSeverity.Success);
+        Snackbar.Add(L["EncodeSettingsTab_PlaybackDeliverySettingsSaved"].Value, AppSeverity.Success);
     }
 
     private void HydrateForm(TranscodingSettings settings)

@@ -317,7 +317,7 @@
 
         if (type is not ("image/jpeg" or "image/png" or "image/webp"))
         {
-            _localError = "Choose a JPEG, PNG or WebP photo.";
+            _localError = L["ProfileEditorSheet_ChooseAJPEGPNGOr"].Value;
             return;
         }
 
@@ -335,7 +335,7 @@
         }
         catch (IOException)
         {
-            _localError = "A profile photo must be 5 MB or smaller.";
+            _localError = L["ProfileEditorSheet_AProfilePhotoMustBe"].Value;
         }
     }
 

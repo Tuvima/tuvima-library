@@ -105,7 +105,7 @@
             var result = await ApiClient.QueueEnrichmentRefreshNowAsync(item.EntityType, item.EntityId);
             if (result is null)
             {
-                Snackbar.Add("The enrichment refresh could not be queued.", AppSeverity.Error);
+                Snackbar.Add(L["EnrichmentRefreshSchedulePanel_TheEnrichmentRefreshCouldNot"].Value, AppSeverity.Error);
                 return;
             }
 

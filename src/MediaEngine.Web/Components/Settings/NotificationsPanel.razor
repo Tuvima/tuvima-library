@@ -151,7 +151,7 @@
         }
         else
         {
-            Snackbar.Add("The messages could not be marked read.", AppSeverity.Error);
+            Snackbar.Add(L["NotificationsPanel_TheMessagesCouldNotBe"].Value, AppSeverity.Error);
         }
     }
 
@@ -169,7 +169,7 @@
         _busy = true;
         if (!await ApiClient.EnableNotificationChannelAsync(channel.Id))
         {
-            Snackbar.Add("The channel could not be turned back on.", AppSeverity.Error);
+            Snackbar.Add(L["NotificationsPanel_TheChannelCouldNotBe"].Value, AppSeverity.Error);
         }
 
         _settings = await ApiClient.GetNotificationSettingsAsync() ?? _settings;
@@ -209,7 +209,7 @@
         var saved = await ApiClient.UpdateNotificationSettingsAsync(request);
         if (saved is null)
         {
-            Snackbar.Add("That change could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["NotificationsPanel_ThatChangeCouldNotBe"].Value, AppSeverity.Error);
         }
         else
         {

@@ -256,7 +256,7 @@
             {
                 Success = false,
                 Status = "engine_unavailable",
-                Message = "The Engine did not return a provider connection result.",
+                Message = L["ProviderOnboardingDialog_TheEngineDidNotReturn"].Value,
             };
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or InvalidOperationException or System.Text.Json.JsonException)
@@ -266,7 +266,7 @@
             {
                 Success = false,
                 Status = "engine_unavailable",
-                Message = "The Dashboard could not reach the Engine. Check that it is running and try again.",
+                Message = L["ProviderOnboardingDialog_TheDashboardCouldNotReach"].Value,
             };
         }
         finally

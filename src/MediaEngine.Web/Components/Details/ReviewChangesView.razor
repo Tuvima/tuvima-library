@@ -205,7 +205,7 @@
     [
         new AppRowMenuItem
         {
-            Label = "Remove this change",
+            Label = L["ReviewChangesView_RemoveThisChange"].Value,
             Icon = AppMaterialIcons.Outlined.Close,
             Destructive = true,
             Disabled = Busy,
@@ -282,7 +282,7 @@
         }
         else if (_results.Count == 0)
         {
-            _notice = "Nothing was saved. Try again.";
+            _notice = L["ReviewChangesView_NothingWasSavedTryAgain"].Value;
         }
     }
 }

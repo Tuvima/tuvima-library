@@ -114,7 +114,7 @@
             }
             if (!reset && _discovery?.Context is { } existingContext && result.Context != existingContext)
             {
-                _error = "The matched provider or artwork scope changed. Reload provider results before continuing.";
+                _error = L["ArtworkAssetPickerDialog_TheMatchedProviderOrArtwork"].Value;
                 return;
             }
             var items = reset
@@ -129,7 +129,7 @@
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             if (reset) _discovery = null;
-            else _error = "More provider artwork could not be loaded. Reload provider results before continuing.";
+            else _error = L["ArtworkAssetPickerDialog_MoreProviderArtworkCouldNot"].Value;
         }
         finally { _loading = false; _loadingMore = false; }
     }

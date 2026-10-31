@@ -126,7 +126,7 @@
         {
             var saved = await ApiClient.UpdateViewFilingLayoutAsync(pattern);
             if (saved is null) _error = ApiClient.LastError ?? "The layout could not be saved.";
-            else { _error = null; _layout = saved; _pattern = saved.Pattern; Snackbar.Add("Filing layout saved. It applies to files filed from now on.", AppSeverity.Success); }
+            else { _error = null; _layout = saved; _pattern = saved.Pattern; Snackbar.Add(L["ViewFileHandlingTab_FilingLayoutSavedItApplies"].Value, AppSeverity.Success); }
         }
         finally { _busy = false; }
     }

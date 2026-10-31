@@ -1326,7 +1326,7 @@ else
         {
             _showMissing = previous;
             ResetWindowToCurrentItem();
-            Snackbar.Add("An active profile and stable series identity are required to remember this setting.", AppSeverity.Warning);
+            Snackbar.Add(L["SequencePlacementPanel_AnActiveProfileAndStable"].Value, AppSeverity.Warning);
             return;
         }
 
@@ -1342,7 +1342,7 @@ else
             {
                 _showMissing = previous;
                 ResetWindowToCurrentItem();
-                Snackbar.Add("The series preference could not be saved.", AppSeverity.Error);
+                Snackbar.Add(L["SequencePlacementPanel_TheSeriesPreferenceCouldNot"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -1381,7 +1381,7 @@ else
                 containerKey);
             if (reset is null)
             {
-                Snackbar.Add("The series preference could not be reset.", AppSeverity.Error);
+                Snackbar.Add(L["SequencePlacementPanel_TheSeriesPreferenceCouldNot2"].Value, AppSeverity.Error);
                 return;
             }
 

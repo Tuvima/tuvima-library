@@ -110,7 +110,7 @@
         try
         {
             var updated = await ApiClient.UpdateArtworkWritebackSettingsAsync(new UpdateArtworkWritebackSettingsDto(enabled));
-            if (updated is null) _error = "The artwork setting could not be saved.";
+            if (updated is null) _error = L["LibraryServerRulesCard_TheArtworkSettingCouldNot"].Value;
             else { _artwork = updated; _saved = true; }
         }
         finally { _saving = false; }

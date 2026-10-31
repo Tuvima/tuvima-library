@@ -353,7 +353,7 @@
         var session = await Companion.FollowAsync(device.DeviceId, _lifetime.Token);
         if (session is null)
         {
-            Snackbar.Add("Couldn't follow that device. Try again.", AppSeverity.Error);
+            Snackbar.Add(L["CompanionPage_CouldnTFollowThatDevice"].Value, AppSeverity.Error);
             return;
         }
 
@@ -389,7 +389,7 @@
             var session = await Companion.HoldAsync(choice.WorkId, choice.ChapterIndex, _lifetime.Token);
             if (session is null)
             {
-                Snackbar.Add("Couldn't set your place. Try again.", AppSeverity.Error);
+                Snackbar.Add(L["CompanionPage_CouldnTSetYourPlace"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -418,7 +418,7 @@
             var saved = await Companion.SaveSpoilerLevelAsync(level, _lifetime.Token);
             if (saved is null)
             {
-                Snackbar.Add("The spoiler setting could not be saved.", AppSeverity.Error);
+                Snackbar.Add(L["Common_TheSpoilerSettingCouldNot"].Value, AppSeverity.Error);
                 return;
             }
 

@@ -573,7 +573,7 @@
             .ToList();
         if (path is not null)
         {
-            locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = "Library import folder", Path = path, AllowWrite = true });
+            locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = L["LibraryFoldersPanel_LibraryImportFolder"].Value, Path = path, AllowWrite = true });
         }
 
         return new UpdateLibrariesRequest

@@ -242,12 +242,12 @@
             !int.TryParse(_sessionLifetimeHours, out var sessions) || sessions is < 1 or > 8760 ||
             !int.TryParse(_maximumActiveSessions, out var maximum) || maximum is < 1 or > 100)
         {
-            Snackbar.Add("Enter valid invitation and session policy values.", AppSeverity.Error);
+            Snackbar.Add(L["SecurityTab_EnterValidInvitationAndSession"].Value, AppSeverity.Error);
             return;
         }
         if (!_passwordSignInEnabled && !_passkeySignInEnabled && !_externalSignInEnabled)
         {
-            Snackbar.Add("Keep at least one account sign-in method enabled.", AppSeverity.Error);
+            Snackbar.Add(L["SecurityTab_KeepAtLeastOneAccount"].Value, AppSeverity.Error);
             return;
         }
 
@@ -268,17 +268,17 @@
             }, _lifetime.Token);
             if (saved is null)
             {
-                Snackbar.Add("Authentication settings could not be saved.", AppSeverity.Error);
+                Snackbar.Add(L["SecurityTab_AuthenticationSettingsCouldNotBe"].Value, AppSeverity.Error);
                 return;
             }
             Apply(saved);
-            Snackbar.Add("Authentication settings saved. Restart the Engine and Dashboard to apply provider changes.", AppSeverity.Success);
+            Snackbar.Add(L["SecurityTab_AuthenticationSettingsSavedRestartThe"].Value, AppSeverity.Success);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication settings save failed");
-            Snackbar.Add("Authentication settings could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["SecurityTab_AuthenticationSettingsCouldNotBe"].Value, AppSeverity.Error);
         }
         finally
         {
@@ -312,7 +312,7 @@
         if (_saving || _disposed) return;
         if (string.IsNullOrWhiteSpace(provider.Id))
         {
-            Snackbar.Add("Enter a stable provider id.", AppSeverity.Error);
+            Snackbar.Add(L["SecurityTab_EnterAStableProviderId"].Value, AppSeverity.Error);
             return;
         }
 
@@ -340,7 +340,7 @@
             }, _lifetime.Token);
             if (saved is null)
             {
-                Snackbar.Add("Provider settings could not be saved.", AppSeverity.Error);
+                Snackbar.Add(L["Common_ProviderSettingsCouldNotBe"].Value, AppSeverity.Error);
                 return;
             }
             if (!string.IsNullOrWhiteSpace(provider.ClientSecret) || provider.ClearClientSecret)
@@ -348,13 +348,13 @@
                 RegisteredProviders.MarkSecretChanged();
             }
             Apply(saved);
-            Snackbar.Add("Provider saved. Restart the Engine and Dashboard before using the new provider configuration.", AppSeverity.Success);
+            Snackbar.Add(L["SecurityTab_ProviderSavedRestartTheEngine"].Value, AppSeverity.Success);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication provider save failed");
-            Snackbar.Add("Provider settings could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["Common_ProviderSettingsCouldNotBe"].Value, AppSeverity.Error);
         }
         finally
         {
@@ -372,17 +372,17 @@
             var current = deleted ? await Orchestrator.GetAuthSettingsAsync(_lifetime.Token) : null;
             if (!deleted || current is null)
             {
-                Snackbar.Add("Provider could not be deleted.", AppSeverity.Error);
+                Snackbar.Add(L["SecurityTab_ProviderCouldNotBeDeleted"].Value, AppSeverity.Error);
                 return;
             }
             Apply(current);
-            Snackbar.Add("Provider deleted. Restart the Engine and Dashboard to apply the change.", AppSeverity.Success);
+            Snackbar.Add(L["SecurityTab_ProviderDeletedRestartTheEngine"].Value, AppSeverity.Success);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication provider delete failed");
-            Snackbar.Add("Provider could not be deleted.", AppSeverity.Error);
+            Snackbar.Add(L["SecurityTab_ProviderCouldNotBeDeleted"].Value, AppSeverity.Error);
         }
         finally
         {
@@ -405,7 +405,7 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication test email failed");
-            Snackbar.Add("Test email could not be sent.", AppSeverity.Error);
+            Snackbar.Add(L["SecurityTab_TestEmailCouldNotBe"].Value, AppSeverity.Error);
         }
         finally
         {

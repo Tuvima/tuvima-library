@@ -164,4 +164,16 @@
   <data name="SecurityTab_AuthorizationEndpoint" xml:space="preserve">
     <value>Authorisation endpoint</value>
   </data>
+  <data name="MediaBrowseShell_TheFavoriteCouldNotBe" xml:space="preserve">
+    <value>The favourite could not be updated.</value>
+  </data>
+  <data name="Common_FavoritesRequireAnActiveProfile" xml:space="preserve">
+    <value>Favourites require an active profile.</value>
+  </data>
+  <data name="ListenPlayerPopupPage_FavoritesCouldNotBeUpdated" xml:space="preserve">
+    <value>Favourites could not be updated. Try again when the Engine reconnects.</value>
+  </data>
+  <data name="EncodeSettingsTab_OptimizedCopySettingsCouldNot" xml:space="preserve">
+    <value>Optimised copy settings could not be saved.</value>
+  </data>
 </root>

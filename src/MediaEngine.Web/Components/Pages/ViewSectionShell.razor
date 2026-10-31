@@ -178,7 +178,7 @@
         var created = await ApiClient.CreateViewGalleryAsync(new(createEvent.Name, ViewGalleryKind.Manual, SortOrder: NextGallerySortOrder()));
         if (created is null)
         {
-            Snackbar.Add("The Gallery could not be created.", AppSeverity.Error);
+            Snackbar.Add(L["ViewSectionShell_TheGalleryCouldNotBe"].Value, AppSeverity.Error);
             return false;
         }
         var pending = Workspace.TakePendingNewGalleryItems();
@@ -205,7 +205,7 @@
         var updated = await ApiClient.UpdateViewGalleryAsync(gallery.Id, GalleryRequest(gallery, renameEvent.Name, gallery.SortOrder));
         if (updated is null)
         {
-            Snackbar.Add("The Gallery could not be renamed.", AppSeverity.Error);
+            Snackbar.Add(L["ViewSectionShell_TheGalleryCouldNotBe2"].Value, AppSeverity.Error);
             return false;
         }
         await Workspace.LoadGalleriesAsync(force: true);
@@ -216,7 +216,7 @@
     {
         if (!await ApiClient.DeleteViewGalleryAsync(manageEvent.Management.ContainerId))
         {
-            Snackbar.Add("The Gallery could not be deleted.", AppSeverity.Error);
+            Snackbar.Add(L["Common_TheGalleryCouldNotBe"].Value, AppSeverity.Error);
             return false;
         }
         await Workspace.LoadGalleriesAsync(force: true);
@@ -248,7 +248,7 @@
             var gallery = ordered[index];
             if (await ApiClient.UpdateViewGalleryAsync(gallery.Id, GalleryRequest(gallery, gallery.Name, index)) is null)
             {
-                Snackbar.Add("The Gallery order could not be saved.", AppSeverity.Error);
+                Snackbar.Add(L["ViewSectionShell_TheGalleryOrderCouldNot"].Value, AppSeverity.Error);
                 return false;
             }
         }

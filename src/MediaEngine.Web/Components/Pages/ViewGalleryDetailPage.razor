@@ -13,7 +13,7 @@
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>@(_gallery is null ? "Gallery" : _gallery.Name) - Library</PageTitle>
+<PageTitle>@L["Common_Library", _gallery is null ? L["ViewGalleryDetailPage_GalleryTitle"].Value : _gallery.Name]</PageTitle>
 
 <ViewSectionShell>
     <div class="view-feature-page">
@@ -233,10 +233,10 @@
         var result = await ApiClient.RemoveViewGalleryItemsAsync(GalleryId, _selected);
         if (result is null)
         {
-            Snackbar.Add("The selected items could not be removed.", AppSeverity.Error);
+            Snackbar.Add(L["ViewGalleryDetailPage_TheSelectedItemsCouldNot"].Value, AppSeverity.Error);
             return;
         }
-        Snackbar.Add("Removed selected items from the Gallery.", AppSeverity.Success);
+        Snackbar.Add(L["ViewGalleryDetailPage_RemovedSelectedItemsFromThe"].Value, AppSeverity.Success);
         await OnParametersSetAsync();
     }
 
@@ -296,7 +296,7 @@
             var shares = await ApiClient.GetViewGallerySharesAsync(GalleryId);
             if (shares is null)
             {
-                _shareError = "Sharing details could not be loaded.";
+                _shareError = L["ViewGalleryDetailPage_SharingDetailsCouldNotBe"].Value;
                 return;
             }
 
@@ -347,7 +347,7 @@
                 .ToList();
             if (!await ApiClient.ReplaceViewGallerySharesAsync(GalleryId, shares))
             {
-                _shareError = "Gallery sharing could not be saved.";
+                _shareError = L["ViewGalleryDetailPage_GallerySharingCouldNotBe"].Value;
                 return;
             }
 

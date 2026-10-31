@@ -329,7 +329,7 @@
             _askPin = Person.HasPin;
             if (!Person.HasPin)
             {
-                _notice = "This profile has no PIN, so Vault mode would open without one. Set a PIN in Profile details to ask for it.";
+                _notice = L["VaultProfileSettings_ThisProfileHasNoPIN"].Value;
             }
         }
         else
@@ -347,7 +347,7 @@
         {
             if (!Person.HasPin)
             {
-                _notice = "Set a PIN for this profile first (Profile details), then turn this on.";
+                _notice = L["Common_SetAPINForThis"].Value;
                 return;
             }
 

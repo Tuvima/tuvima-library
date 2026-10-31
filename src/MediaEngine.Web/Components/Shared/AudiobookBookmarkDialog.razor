@@ -348,7 +348,7 @@
             await InvokeAsync(() =>
             {
                 if (!IsCurrent(context, generation)) return;
-                _localMessage = "Bookmark details could not be refreshed. Try reloading Saved.";
+                _localMessage = L["AudiobookBookmarkDialog_BookmarkDetailsCouldNotBe"].Value;
                 StateHasChanged();
             });
         }
@@ -427,7 +427,7 @@
             _share = false;
             _savedLoaded = true;
             SelectedTab = BookmarkTab.Saved;
-            _localMessage = "Bookmark saved.";
+            _localMessage = L["AudiobookBookmarkDialog_BookmarkSaved"].Value;
         }
         else if (result.Outcome == AudiobookBookmarkOperationOutcome.Unknown)
         {
@@ -464,7 +464,7 @@
         var authorizedAssetIds = AuthorizedAssetIds;
         var requested = await Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds);
         if (!IsCurrent(context, generation)) return;
-        if (!requested) _localMessage = "That bookmark is no longer available to delete.";
+        if (!requested) _localMessage = L["AudiobookBookmarkDialog_ThatBookmarkIsNoLonger"].Value;
         if (_gestureModule is not null)
         {
             try { await _gestureModule.InvokeVoidAsync("hideBookmarkSwipe", _gestureRoot); }

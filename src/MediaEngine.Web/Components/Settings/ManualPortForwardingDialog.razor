@@ -57,7 +57,7 @@
         switch (await JS.TryCopyAsync(RuleSummary, Logger))
         {
             case ClipboardCopyResult.Copied:
-                Snackbar.Add("Port-forwarding rule copied.", AppSeverity.Success);
+                Snackbar.Add(L["ManualPortForwardingDialog_PortForwardingRuleCopied"].Value, AppSeverity.Success);
                 break;
             case ClipboardCopyResult.Failed:
                 Snackbar.Add(ClipboardInterop.FailedMessage("the rule"), AppSeverity.Warning);

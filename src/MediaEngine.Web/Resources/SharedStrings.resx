@@ -8460,4 +8460,802 @@
   <data name="MainLayout_PrimaryMobileNavigation" xml:space="preserve">
     <value>Primary mobile navigation</value>
   </data>
+  <data name="ArtworkAssetPickerDialog_TheMatchedProviderOrArtwork" xml:space="preserve">
+    <value>The matched provider or artwork scope changed. Reload provider results before continuing.</value>
+  </data>
+  <data name="ArtworkAssetPickerDialog_MoreProviderArtworkCouldNot" xml:space="preserve">
+    <value>More provider artwork could not be loaded. Reload provider results before continuing.</value>
+  </data>
+  <data name="ArtworkWorkspace_ChooseAJPEGOrPNG" xml:space="preserve">
+    <value>Choose a JPEG or PNG image.</value>
+  </data>
+  <data name="ArtworkWorkspace_ArtworkMustBe10MB" xml:space="preserve">
+    <value>Artwork must be 10 MB or smaller.</value>
+  </data>
+  <data name="ArtworkWorkspace_ExistingArtworkLinkedWithoutCopying" xml:space="preserve">
+    <value>Existing artwork linked without copying the image.</value>
+  </data>
+  <data name="ArtworkWorkspace_PreferredArtworkChangeStaged" xml:space="preserve">
+    <value>Preferred artwork change staged.</value>
+  </data>
+  <data name="ArtworkWorkspace_PreferredArtworkUpdatedForThis" xml:space="preserve">
+    <value>Preferred artwork updated for this entity and role.</value>
+  </data>
+  <data name="ArtworkWorkspace_ArtworkRemovalStaged" xml:space="preserve">
+    <value>Artwork removal staged.</value>
+  </data>
+  <data name="ArtworkWorkspace_ArtworkLinkCouldNotBe" xml:space="preserve">
+    <value>Artwork link could not be removed.</value>
+  </data>
+  <data name="ArtworkWorkspace_ArtworkLinkRemovedTheImage" xml:space="preserve">
+    <value>Artwork link removed. The image remains in the library.</value>
+  </data>
+  <data name="MediaBrowseShell_CouldNotLoadThatYear" xml:space="preserve">
+    <value>Could not load that year. Please try again.</value>
+  </data>
+  <data name="MediaBrowseShell_TheFavoriteCouldNotBe" xml:space="preserve">
+    <value>The favorite could not be updated.</value>
+  </data>
+  <data name="MediaBrowseShell_ThisSongIsNotLinked" xml:space="preserve">
+    <value>This song is not linked to an album.</value>
+  </data>
+  <data name="MediaBrowseShell_Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="CinematicHeroCarousel_RestartFromBeginning" xml:space="preserve">
+    <value>Restart from beginning</value>
+  </data>
+  <data name="CinematicHeroCarousel_GoToDetails" xml:space="preserve">
+    <value>Go to details</value>
+  </data>
+  <data name="CollectionEditorShell_CollectionLogosMustBeTransparent" xml:space="preserve">
+    <value>Collection logos must be transparent PNG files.</value>
+  </data>
+  <data name="CollectionEditorShell_ArtworkPreviewCouldNotBe" xml:space="preserve">
+    <value>Artwork preview could not be loaded.</value>
+  </data>
+  <data name="CollectionEditorShell_FailedToAddTheItem" xml:space="preserve">
+    <value>Failed to add the item to this collection.</value>
+  </data>
+  <data name="CollectionEditorShell_FailedToReorderTheCollection" xml:space="preserve">
+    <value>Failed to reorder the collection.</value>
+  </data>
+  <data name="CollectionEditorShell_PleaseEnterANameFor" xml:space="preserve">
+    <value>Please enter a name for the collection.</value>
+  </data>
+  <data name="CollectionEditorShell_AnActiveProfileIsRequired" xml:space="preserve">
+    <value>An active profile is required to save a private collection.</value>
+  </data>
+  <data name="CollectionEditorShell_AddAtLeastOneComplete" xml:space="preserve">
+    <value>Add at least one complete rule before saving a dynamic collection.</value>
+  </data>
+  <data name="CollectionEditorShell_ChooseAtLeastOneOther" xml:space="preserve">
+    <value>Choose at least one other profile to share this collection with.</value>
+  </data>
+  <data name="CollectionEditorShell_ArtworkCouldNotBeRemoved" xml:space="preserve">
+    <value>Artwork could not be removed.</value>
+  </data>
+  <data name="CollectionEditorShell_TheCollectionCouldNotBe" xml:space="preserve">
+    <value>The collection could not be deleted.</value>
+  </data>
+  <data name="CollectionPersonalMediaSection_AddAtLeastOneComplete" xml:space="preserve">
+    <value>Add at least one complete condition to the personal-media smart View rule.</value>
+  </data>
+  <data name="CollectionsPage_OnlyAnAdministratorCanCreate" xml:space="preserve">
+    <value>Only an administrator can create a curated collection.</value>
+  </data>
+  <data name="CollectionsPage_AutomaticCollections" xml:space="preserve">
+    <value>Automatic Collections</value>
+  </data>
+  <data name="CollectionsPage_BroaderWorldsLibraryFoundBy" xml:space="preserve">
+    <value>Broader worlds Library found by connecting trusted relationships across your shelves</value>
+  </data>
+  <data name="CollectionsPage_CuratedCollections" xml:space="preserve">
+    <value>Curated Collections</value>
+  </data>
+  <data name="CollectionsPage_SelectionsMaintainedByYourLibrary" xml:space="preserve">
+    <value>Selections maintained by your library administrators</value>
+  </data>
+  <data name="CollectionsPage_ShelvesAcrossYourLibrary" xml:space="preserve">
+    <value>Shelves Across Your Library</value>
+  </data>
+  <data name="CollectionsPage_SeriesVolumesAlbumsAndAudiobook" xml:space="preserve">
+    <value>Series, volumes, albums, and audiobook sequences grouped within their media type</value>
+  </data>
+  <data name="GalleryEditorShell_EnterAGalleryName" xml:space="preserve">
+    <value>Enter a Gallery name.</value>
+  </data>
+  <data name="GalleryEditorShell_ASmartGalleryNeedsAt" xml:space="preserve">
+    <value>A Smart Gallery needs at least one complete rule.</value>
+  </data>
+  <data name="GalleryEditorShell_TheGalleryCouldNotBe" xml:space="preserve">
+    <value>The Gallery could not be saved.</value>
+  </data>
+  <data name="Common_TheGalleryCouldNotBe" xml:space="preserve">
+    <value>The Gallery could not be deleted.</value>
+  </data>
+  <data name="Common_FavoritesRequireAnActiveProfile" xml:space="preserve">
+    <value>Favorites require an active profile.</value>
+  </data>
+  <data name="Common_PlayNext" xml:space="preserve">
+    <value>Play next</value>
+  </data>
+  <data name="Common_SavedButThePageCould" xml:space="preserve">
+    <value>Saved, but the page could not refresh. Reload to see the change.</value>
+  </data>
+  <data name="DetailPage_Copied" xml:space="preserve">
+    <value>Copied.</value>
+  </data>
+  <data name="DetailPage_ThatCouldNotBeDone" xml:space="preserve">
+    <value>That could not be done. Try again in a moment.</value>
+  </data>
+  <data name="DetailPage_ThisItemCannotBeAdded" xml:space="preserve">
+    <value>This item cannot be added to My List yet.</value>
+  </data>
+  <data name="DetailPage_MyListRequiresAnActive" xml:space="preserve">
+    <value>My List requires an active profile.</value>
+  </data>
+  <data name="DetailPage_MyListCouldNotBe" xml:space="preserve">
+    <value>My List could not be updated.</value>
+  </data>
+  <data name="DetailPage_ThisItemCannotBeRated" xml:space="preserve">
+    <value>This item cannot be rated yet.</value>
+  </data>
+  <data name="DetailPage_ThisAlbumHasNoPlayable" xml:space="preserve">
+    <value>This album has no playable owned tracks.</value>
+  </data>
+  <data name="DetailPage_ThisCollectionHasNoOwned" xml:space="preserve">
+    <value>This collection has no owned items to shuffle.</value>
+  </data>
+  <data name="DetailPage_TheSelectedItemCannotBe" xml:space="preserve">
+    <value>The selected item cannot be opened yet.</value>
+  </data>
+  <data name="DetailsTab_FileDetailsCouldNotBe" xml:space="preserve">
+    <value>File details could not be loaded.</value>
+  </data>
+  <data name="EditingExplicitMark_ThatCouldNotBeSaved" xml:space="preserve">
+    <value>That could not be saved. Try again.</value>
+  </data>
+  <data name="EditingVideoIdentify_NoMatchWasFoundCheck" xml:space="preserve">
+    <value>No match was found. Check the link, and that online lookup is on for this library.</value>
+  </data>
+  <data name="EditingVideoOrder_ThatCouldNotBeSaved" xml:space="preserve">
+    <value>That could not be saved. The list may have changed; reload the page and try again.</value>
+  </data>
+  <data name="EditingVideoOrder_TheFilesCouldNotBe" xml:space="preserve">
+    <value>The files could not be renamed. Only files in a Managed folder can be; nothing was changed.</value>
+  </data>
+  <data name="EditingVideoSeries_ThatCouldNotBeSaved" xml:space="preserve">
+    <value>That could not be saved. The series may have changed; reload the page and try again.</value>
+  </data>
+  <data name="PersonalStatusMenuItems_ListeningStatusUpdated" xml:space="preserve">
+    <value>Listening status updated.</value>
+  </data>
+  <data name="ReviewChangesView_RemoveThisChange" xml:space="preserve">
+    <value>Remove this change</value>
+  </data>
+  <data name="ReviewChangesView_NothingWasSavedTryAgain" xml:space="preserve">
+    <value>Nothing was saved. Try again.</value>
+  </data>
+  <data name="SequencePlacementPanel_AnActiveProfileAndStable" xml:space="preserve">
+    <value>An active profile and stable series identity are required to remember this setting.</value>
+  </data>
+  <data name="SequencePlacementPanel_TheSeriesPreferenceCouldNot" xml:space="preserve">
+    <value>The series preference could not be saved.</value>
+  </data>
+  <data name="SequencePlacementPanel_TheSeriesPreferenceCouldNot2" xml:space="preserve">
+    <value>The series preference could not be reset.</value>
+  </data>
+  <data name="ListenNowPlayingBar_TheAudiobookPositionCouldNot" xml:space="preserve">
+    <value>The audiobook position could not be captured. Try again when playback is ready.</value>
+  </data>
+  <data name="ListenNowPlayingBar_TheSeparatePlayerWindowWas" xml:space="preserve">
+    <value>The separate player window was blocked. Now Playing is open here.</value>
+  </data>
+  <data name="ListenNowPlayingBar_FinishOrCloseTheAudiobook" xml:space="preserve">
+    <value>Finish or close the audiobook before adding music to its queue.</value>
+  </data>
+  <data name="ListenNowPlayingBar_PlaybackStateCouldNotBe" xml:space="preserve">
+    <value>Playback state could not be loaded. Your current player state is still shown.</value>
+  </data>
+  <data name="Common_TheMainPlayerConnectionWas" xml:space="preserve">
+    <value>The main player connection was interrupted. Try again when it reconnects.</value>
+  </data>
+  <data name="RecentMediaFeed_SelectAProfileToSee" xml:space="preserve">
+    <value>Select a profile to see recent additions.</value>
+  </data>
+  <data name="RecentMediaFeed_RecentAdditionsAreUnavailablePlease" xml:space="preserve">
+    <value>Recent additions are unavailable. Please try again.</value>
+  </data>
+  <data name="RecentMediaFeed_ThisViewItemIsNo" xml:space="preserve">
+    <value>This View item is no longer available.</value>
+  </data>
+  <data name="TopNavProfileSwitcher_ThatProfileCouldnTBe" xml:space="preserve">
+    <value>That profile couldn't be opened. Try again.</value>
+  </data>
+  <data name="ChronicleExplorer_ThisEntityIsNotAvailable" xml:space="preserve">
+    <value>This entity is not available for editing.</value>
+  </data>
+  <data name="Common_UniverseEditingIsUnavailablePlease" xml:space="preserve">
+    <value>Universe editing is unavailable. Please try again.</value>
+  </data>
+  <data name="ChronicleExplorer_SavedButTheGraphCould" xml:space="preserve">
+    <value>Saved, but the graph could not refresh. Reload to see the change.</value>
+  </data>
+  <data name="CompanionPage_CouldnTFollowThatDevice" xml:space="preserve">
+    <value>Couldn't follow that device. Try again.</value>
+  </data>
+  <data name="CompanionPage_CouldnTSetYourPlace" xml:space="preserve">
+    <value>Couldn't set your place. Try again.</value>
+  </data>
+  <data name="Common_TheSpoilerSettingCouldNot" xml:space="preserve">
+    <value>The spoiler setting could not be saved.</value>
+  </data>
+  <data name="ListenBrowsePage_ThoseSongsAreAlreadyIn" xml:space="preserve">
+    <value>Those songs are already in the playlist or could not be added.</value>
+  </data>
+  <data name="ListenBrowsePage_ThePlaylistCouldNotBe" xml:space="preserve">
+    <value>The Playlist could not be created.</value>
+  </data>
+  <data name="ListenBrowsePage_ThePlaylistCouldNotBe2" xml:space="preserve">
+    <value>The Playlist could not be renamed.</value>
+  </data>
+  <data name="ListenBrowsePage_ThePlaylistCouldNotBe3" xml:space="preserve">
+    <value>The Playlist could not be deleted.</value>
+  </data>
+  <data name="ListenBrowsePage_ThePlaylistOrderCouldNot" xml:space="preserve">
+    <value>The Playlist order could not be saved.</value>
+  </data>
+  <data name="ListenBrowsePage_YourPlaylists" xml:space="preserve">
+    <value>Your Playlists</value>
+  </data>
+  <data name="ListenBrowsePage_ManualAndSmartPlaylistsFrom" xml:space="preserve">
+    <value>Manual and smart playlists from your library</value>
+  </data>
+  <data name="ListenPlayerPopupPage_FavoritesCouldNotBeUpdated" xml:space="preserve">
+    <value>Favorites could not be updated. Try again when the Engine reconnects.</value>
+  </data>
+  <data name="ListenPlayerPopupPage_PlaybackStateCouldNotBe" xml:space="preserve">
+    <value>Playback state could not be loaded. Retry to reconnect.</value>
+  </data>
+  <data name="ListenPlayerPopupPage_PlaybackStateCouldNotBe2" xml:space="preserve">
+    <value>Playback state could not be read. Your current player state is still shown.</value>
+  </data>
+  <data name="ListenPlayerPopupPage_BookmarksAreUnavailableForThis" xml:space="preserve">
+    <value>Bookmarks are unavailable for this playback session.</value>
+  </data>
+  <data name="ProfilePickerPage_YourHouseholdCouldnTBe" xml:space="preserve">
+    <value>Your household couldn't be found. Try again.</value>
+  </data>
+  <data name="Common_ThatPINDidnTWork" xml:space="preserve">
+    <value>That PIN didn't work. Try again.</value>
+  </data>
+  <data name="Common_TheEngineIsUnavailableTry" xml:space="preserve">
+    <value>The Engine is unavailable. Try again.</value>
+  </data>
+  <data name="Common_TheListCouldnTBe" xml:space="preserve">
+    <value>The list couldn't be refreshed. Reload the page to see the latest.</value>
+  </data>
+  <data name="SetupPage_LanguageSettingsCouldNotBe" xml:space="preserve">
+    <value>Language settings could not be saved. Please retry.</value>
+  </data>
+  <data name="SetupPage_TheServerNameCouldNot" xml:space="preserve">
+    <value>The server name could not be saved. Use 1 to 64 characters.</value>
+  </data>
+  <data name="Common_TheRestoreCouldNotBe" xml:space="preserve">
+    <value>The restore could not be scheduled.</value>
+  </data>
+  <data name="SetupPage_RestoreScheduledLibraryIsRestarting" xml:space="preserve">
+    <value>Restore scheduled. Library is restarting.</value>
+  </data>
+  <data name="SetupPage_EnterTheSamePasswordTwice" xml:space="preserve">
+    <value>Enter the same password twice.</value>
+  </data>
+  <data name="SetupPage_TheAdministratorCouldNotBe" xml:space="preserve">
+    <value>The administrator could not be created.</value>
+  </data>
+  <data name="SetupPage_TheSetupChoiceCouldNot" xml:space="preserve">
+    <value>The setup choice could not be saved.</value>
+  </data>
+  <data name="SetupPage_RequiredSetupChecksAreStill" xml:space="preserve">
+    <value>Required setup checks are still blocked.</value>
+  </data>
+  <data name="SetupPage_SetupCouldNotStartThe" xml:space="preserve">
+    <value>Setup could not start. The server rejected the request or could not be reached. Retry the checks.</value>
+  </data>
+  <data name="SetupPage_LibraryCouldNotGetReady" xml:space="preserve">
+    <value>Library could not get ready. The server did not answer the request. Check that it is running, then try again.</value>
+  </data>
+  <data name="SetupPage_LibraryCouldNotFinishGetting" xml:space="preserve">
+    <value>Library could not finish getting ready. Try again.</value>
+  </data>
+  <data name="SetupPage_StartingWithoutAPasswordOnly" xml:space="preserve">
+    <value>Starting without a password only works on the computer that runs Library. Choose another way to set a password instead.</value>
+  </data>
+  <data name="ViewArtworkPage_ThisImageHasNoAccessible" xml:space="preserve">
+    <value>This image has no accessible artwork assignment to manage.</value>
+  </data>
+  <data name="ViewContributionsPage_EnterASharedFolderName" xml:space="preserve">
+    <value>Enter a Shared folder name before accepting.</value>
+  </data>
+  <data name="ViewDocumentDetailsDialog_SomeOfYourDetailsCould" xml:space="preserve">
+    <value>Some of your details could not be loaded, so custom fields stay as they are. You can still edit the rest.</value>
+  </data>
+  <data name="ViewDocumentsPage_YourSortCouldNotBe" xml:space="preserve">
+    <value>Your sort could not be remembered. It still applies for now.</value>
+  </data>
+  <data name="ViewDocumentsPage_ThisViewCouldNotBe" xml:space="preserve">
+    <value>This view could not be saved. Try again.</value>
+  </data>
+  <data name="ViewDocumentsPage_ThisViewIsTooLarge" xml:space="preserve">
+    <value>This view is too large to save. Remove some filters and try again.</value>
+  </data>
+  <data name="ViewDocumentsPage_ThisViewCouldNotBe2" xml:space="preserve">
+    <value>This view could not be renamed. Try again.</value>
+  </data>
+  <data name="ViewDocumentsPage_ThisViewCouldNotBe3" xml:space="preserve">
+    <value>This view could not be deleted. Try again.</value>
+  </data>
+  <data name="ViewDocumentsPage_Filed" xml:space="preserve">
+    <value>Filed.</value>
+  </data>
+  <data name="ViewDocumentsPage_DetailsSaved" xml:space="preserve">
+    <value>Details saved.</value>
+  </data>
+  <data name="ViewGalleryDetailPage_TheSelectedItemsCouldNot" xml:space="preserve">
+    <value>The selected items could not be removed.</value>
+  </data>
+  <data name="ViewGalleryDetailPage_RemovedSelectedItemsFromThe" xml:space="preserve">
+    <value>Removed selected items from the Gallery.</value>
+  </data>
+  <data name="ViewGalleryDetailPage_SharingDetailsCouldNotBe" xml:space="preserve">
+    <value>Sharing details could not be loaded.</value>
+  </data>
+  <data name="ViewGalleryDetailPage_GallerySharingCouldNotBe" xml:space="preserve">
+    <value>Gallery sharing could not be saved.</value>
+  </data>
+  <data name="ViewImmersiveViewer_ItemDetailsUpdated" xml:space="preserve">
+    <value>Item details updated.</value>
+  </data>
+  <data name="ViewImmersiveViewer_EnterAValidCapturedDate" xml:space="preserve">
+    <value>Enter a valid captured date and time.</value>
+  </data>
+  <data name="ViewImmersiveViewer_ChooseAValidMapLocation" xml:space="preserve">
+    <value>Choose a valid map location.</value>
+  </data>
+  <data name="ViewImmersiveViewer_TheViewerPreferenceCouldNot" xml:space="preserve">
+    <value>The viewer preference could not be saved.</value>
+  </data>
+  <data name="ViewPage_TimelineDensityCouldNotBe" xml:space="preserve">
+    <value>Timeline density could not be saved.</value>
+  </data>
+  <data name="ViewPage_TheFullDateCouldNot" xml:space="preserve">
+    <value>The full date could not be selected. Please retry.</value>
+  </data>
+  <data name="ViewPage_TheSelectedItemsCouldNot" xml:space="preserve">
+    <value>The selected items could not be added to the Gallery.</value>
+  </data>
+  <data name="ViewSectionShell_TheGalleryCouldNotBe" xml:space="preserve">
+    <value>The Gallery could not be created.</value>
+  </data>
+  <data name="ViewSectionShell_TheGalleryCouldNotBe2" xml:space="preserve">
+    <value>The Gallery could not be renamed.</value>
+  </data>
+  <data name="ViewSectionShell_TheGalleryOrderCouldNot" xml:space="preserve">
+    <value>The Gallery order could not be saved.</value>
+  </data>
+  <data name="ProfileEditorSheet_ChooseAJPEGPNGOr" xml:space="preserve">
+    <value>Choose a JPEG, PNG or WebP photo.</value>
+  </data>
+  <data name="ProfileEditorSheet_AProfilePhotoMustBe" xml:space="preserve">
+    <value>A profile photo must be 5 MB or smaller.</value>
+  </data>
+  <data name="Common_ThatPINDidNotWork" xml:space="preserve">
+    <value>That PIN did not work. Try again.</value>
+  </data>
+  <data name="AdministratorSurfaceGate_ThePINCouldNotBe" xml:space="preserve">
+    <value>The PIN could not be verified. Check the PIN and try again.</value>
+  </data>
+  <data name="AdministratorSurfaceGate_TheEngineIsUnavailableYour" xml:space="preserve">
+    <value>The Engine is unavailable. Your settings remain locked; try again.</value>
+  </data>
+  <data name="AdministratorSurfaceGate_TheEngineCouldNotConfirm" xml:space="preserve">
+    <value>The Engine could not confirm the lock. Keep this page closed and retry when it is available.</value>
+  </data>
+  <data name="AdministratorSurfaceGate_TheEngineCouldNotConfirm2" xml:space="preserve">
+    <value>The Engine could not confirm the lock. Retry when it is available.</value>
+  </data>
+  <data name="AdvancedNetworkSettingsPanel_TLSAndExternalPortsMust" xml:space="preserve">
+    <value>TLS and external ports must be between 1 and 65535.</value>
+  </data>
+  <data name="AdvancedNetworkSettingsPanel_RouterMappingReconciliationCompleted" xml:space="preserve">
+    <value>Router mapping reconciliation completed.</value>
+  </data>
+  <data name="AdvancedNetworkSettingsPanel_NetworkSettingsCouldNotBe" xml:space="preserve">
+    <value>Network settings could not be reset.</value>
+  </data>
+  <data name="AdvancedNetworkSettingsPanel_NetworkSettingsResetRemoteAccess" xml:space="preserve">
+    <value>Network settings reset. Remote access is off.</value>
+  </data>
+  <data name="AvailablePluginsPanel_ThePluginDirectoryCouldNot2" xml:space="preserve">
+    <value>The plugin directory could not be checked.</value>
+  </data>
+  <data name="AvailablePluginsPanel_ThePluginDirectorySwitchCould" xml:space="preserve">
+    <value>The plugin directory switch could not be saved.</value>
+  </data>
+  <data name="BackupDestinationsSection_TheBackupSettingsCouldNot" xml:space="preserve">
+    <value>The backup settings could not be saved.</value>
+  </data>
+  <data name="BackupDestinationsSection_TheDestinationWasNotAdded" xml:space="preserve">
+    <value>The destination was not added. Check the details, then try again.</value>
+  </data>
+  <data name="BackupDestinationsSection_DestinationAddedUseTestTo" xml:space="preserve">
+    <value>Destination added. Use Test to check it.</value>
+  </data>
+  <data name="BackupDestinationsSection_TheDestinationCouldNotBe" xml:space="preserve">
+    <value>The destination could not be removed.</value>
+  </data>
+  <data name="BackupDestinationsSection_TheBackupCouldNotBe" xml:space="preserve">
+    <value>The backup could not be made.</value>
+  </data>
+  <data name="BackupDestinationsSection_TheRestoreCouldNotBe" xml:space="preserve">
+    <value>The restore could not be staged. The backup may be damaged or not a Library backup.</value>
+  </data>
+  <data name="BackupRecoveryPanel_TheBackupCouldNotBe" xml:space="preserve">
+    <value>The backup could not be created.</value>
+  </data>
+  <data name="BackupRecoveryPanel_RecoveryPointCreated" xml:space="preserve">
+    <value>Recovery point created.</value>
+  </data>
+  <data name="BackupRecoveryPanel_TheBackupCouldNotBe2" xml:space="preserve">
+    <value>The backup could not be downloaded.</value>
+  </data>
+  <data name="BackupRecoveryPanel_RestoreTestPassedNoRestore" xml:space="preserve">
+    <value>Restore test passed. No restore was scheduled.</value>
+  </data>
+  <data name="BackupRecoveryPanel_TheRestoreTestFailedDo" xml:space="preserve">
+    <value>The restore test failed. Do not rely on this recovery point.</value>
+  </data>
+  <data name="BackupRecoveryPanel_TheWaitingPeriodCouldNot" xml:space="preserve">
+    <value>The waiting period could not be saved.</value>
+  </data>
+  <data name="ConfirmItsYouDialog_APasskeyIsnTAvailable" xml:space="preserve">
+    <value>A passkey isn't available here. Use your password instead.</value>
+  </data>
+  <data name="ConfirmItsYouDialog_ThePasskeyWasnTUsed" xml:space="preserve">
+    <value>The passkey wasn't used. Try again or use your password.</value>
+  </data>
+  <data name="DocumentRulesSettings_RuleSaved" xml:space="preserve">
+    <value>Rule saved.</value>
+  </data>
+  <data name="EncodeSettingsTab_OptimizedCopySettingsCouldNot" xml:space="preserve">
+    <value>Optimized copy settings could not be saved.</value>
+  </data>
+  <data name="EncodeSettingsTab_PlaybackDeliverySettingsSaved" xml:space="preserve">
+    <value>Playback delivery settings saved.</value>
+  </data>
+  <data name="EnrichmentRefreshSchedulePanel_TheEnrichmentRefreshCouldNot" xml:space="preserve">
+    <value>The enrichment refresh could not be queued.</value>
+  </data>
+  <data name="HomeSettingsPage_YourHomeSettingsCouldNot" xml:space="preserve">
+    <value>Your Home settings could not be saved. Nothing was changed.</value>
+  </data>
+  <data name="IngestionMediaDrawer_ChildDetailsCouldNotBe" xml:space="preserve">
+    <value>Child details could not be loaded. Try again.</value>
+  </data>
+  <data name="LibraryFileHandlingTab_EnterAPatternForExample" xml:space="preserve">
+    <value>Enter a pattern, for example the Library standard one.</value>
+  </data>
+  <data name="LibraryLookupTab_TheLibraryServerCouldNot" xml:space="preserve">
+    <value>The Library server could not be reached. Try again.</value>
+  </data>
+  <data name="LibraryServerRulesCard_TheArtworkSettingCouldNot" xml:space="preserve">
+    <value>The artwork setting could not be saved.</value>
+  </data>
+  <data name="LibraryUnidentifiedTab_MoreFilesCouldNotBe" xml:space="preserve">
+    <value>More files could not be loaded. Try again in a moment.</value>
+  </data>
+  <data name="ViewFileHandlingTab_FilingLayoutSavedItApplies" xml:space="preserve">
+    <value>Filing layout saved. It applies to files filed from now on.</value>
+  </data>
+  <data name="ViewFoldersTab_ViewRootSaved" xml:space="preserve">
+    <value>View root saved.</value>
+  </data>
+  <data name="ViewFoldersTab_FolderSavedIndexingRunsSeparately" xml:space="preserve">
+    <value>Folder saved. Indexing runs separately.</value>
+  </data>
+  <data name="ViewFoldersTab_FolderDetachedFilesKept" xml:space="preserve">
+    <value>Folder detached. Files kept.</value>
+  </data>
+  <data name="ViewImportPanel_Removed" xml:space="preserve">
+    <value>Removed.</value>
+  </data>
+  <data name="LibrariesTab_TheListOfLibraryKinds" xml:space="preserve">
+    <value>The list of library kinds could not be loaded, so the kinds of library are missing from this page. Try again in a moment.</value>
+  </data>
+  <data name="LibraryFolderGrid_OverrideFileHandlingForThis" xml:space="preserve">
+    <value>Override file handling for this folder…</value>
+  </data>
+  <data name="LibraryFolderGrid_MoveToVault" xml:space="preserve">
+    <value>Move to Vault…</value>
+  </data>
+  <data name="LibraryFolderGrid_MoveOutOfTheVault" xml:space="preserve">
+    <value>Move out of the Vault…</value>
+  </data>
+  <data name="LibraryFoldersPanel_LibraryImportFolder" xml:space="preserve">
+    <value>Library import folder</value>
+  </data>
+  <data name="LibraryWriteSchedulePanel_ThatCouldnTBeSaved" xml:space="preserve">
+    <value>That couldn't be saved. Try again in a moment.</value>
+  </data>
+  <data name="ListeningSettingsPage_ListeningSettingsCouldNotBe" xml:space="preserve">
+    <value>Listening settings could not be loaded.</value>
+  </data>
+  <data name="ListeningSettingsPage_ListeningSettingsCouldNotBe2" xml:space="preserve">
+    <value>Listening settings could not be saved.</value>
+  </data>
+  <data name="LogRetentionPanel_EnterAWholeNumberIn" xml:space="preserve">
+    <value>Enter a whole number in every field.</value>
+  </data>
+  <data name="LogRetentionPanel_TheLimitsCouldNotBe" xml:space="preserve">
+    <value>The limits could not be saved. Check that the server is online, then try again.</value>
+  </data>
+  <data name="ManagedAccessApplications_RevokeKeys" xml:space="preserve">
+    <value>Revoke keys</value>
+  </data>
+  <data name="ManagedAccessUsers_TurnOffTwoStepCodes" xml:space="preserve">
+    <value>Turn off two-step codes</value>
+  </data>
+  <data name="ManagedApplicationWebhooks_WebhooksCouldNotBeLoaded" xml:space="preserve">
+    <value>Webhooks could not be loaded. Try reopening the application.</value>
+  </data>
+  <data name="ManagedApplicationWebhooks_TheTestCouldNotBe" xml:space="preserve">
+    <value>The test could not be sent. Try again.</value>
+  </data>
+  <data name="ManagedApplicationWebhooks_TheWebhookCouldNotBe" xml:space="preserve">
+    <value>The webhook could not be saved. Try again.</value>
+  </data>
+  <data name="ManagedApplicationWebhooks_TheSigningSecretCouldNot" xml:space="preserve">
+    <value>The signing secret could not be rotated. Try again.</value>
+  </data>
+  <data name="ManagedApplicationWebhooks_TheWebhookCouldNotBe2" xml:space="preserve">
+    <value>The webhook could not be deleted. Try again.</value>
+  </data>
+  <data name="ManualPortForwardingDialog_PortForwardingRuleCopied" xml:space="preserve">
+    <value>Port-forwarding rule copied.</value>
+  </data>
+  <data name="MetadataSettingsPage_StartTheEngineAndRetry" xml:space="preserve">
+    <value>Start the Engine and retry. No sample provider state is being shown.</value>
+  </data>
+  <data name="NeedsReviewPageContent_KeptAsAnUnmatchedFilm" xml:space="preserve">
+    <value>Kept as an unmatched film. Its file details are unchanged.</value>
+  </data>
+  <data name="NeedsReviewPageContent_ReviewItemCouldNotBe" xml:space="preserve">
+    <value>Review item could not be dismissed.</value>
+  </data>
+  <data name="NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe" xml:space="preserve">
+    <value>Network settings could not be saved.</value>
+  </data>
+  <data name="NetworkRemoteAccessSettings_NetworkSettingsSaved" xml:space="preserve">
+    <value>Network settings saved.</value>
+  </data>
+  <data name="NotificationsPanel_TheMessagesCouldNotBe" xml:space="preserve">
+    <value>The messages could not be marked read.</value>
+  </data>
+  <data name="NotificationsPanel_TheChannelCouldNotBe" xml:space="preserve">
+    <value>The channel could not be turned back on.</value>
+  </data>
+  <data name="NotificationsPanel_ThatChangeCouldNotBe" xml:space="preserve">
+    <value>That change could not be saved.</value>
+  </data>
+  <data name="OverviewPage_ThatCouldnTBeSaved" xml:space="preserve">
+    <value>That couldn't be saved. Try again.</value>
+  </data>
+  <data name="OverviewPage_YourChangesWereSavedBut" xml:space="preserve">
+    <value>Your changes were saved, but the photo couldn't be changed. Try again.</value>
+  </data>
+  <data name="PairedDevicesSection_ThatDeviceCouldNotBe" xml:space="preserve">
+    <value>That device could not be signed out.</value>
+  </data>
+  <data name="PlaybackSettingsPage_PlaybackSettingsCouldNotBe" xml:space="preserve">
+    <value>Playback settings could not be loaded.</value>
+  </data>
+  <data name="PlaybackSettingsPage_PlaybackSettingsCouldNotBe2" xml:space="preserve">
+    <value>Playback settings could not be saved.</value>
+  </data>
+  <data name="PluginSettingsTab_TheLibrariesCouldNotBe" xml:space="preserve">
+    <value>The libraries could not be saved.</value>
+  </data>
+  <data name="PluginSettingsTab_TheSourceCouldNotBe" xml:space="preserve">
+    <value>The source could not be switched.</value>
+  </data>
+  <data name="PluginSettingsTab_PluginSettingCouldNotBe" xml:space="preserve">
+    <value>Plugin setting could not be saved.</value>
+  </data>
+  <data name="PluginSettingsTab_SettingNumberIsInvalid" xml:space="preserve">
+    <value>Setting number is invalid.</value>
+  </data>
+  <data name="PluginSettingsTab_SearchPluginsByNameOr" xml:space="preserve">
+    <value>Search plugins by name or capability</value>
+  </data>
+  <data name="PluginSettingsTab_CheckHealth" xml:space="preserve">
+    <value>Check health</value>
+  </data>
+  <data name="PluginSettingsTab_WhatItCanAccess" xml:space="preserve">
+    <value>What it can access</value>
+  </data>
+  <data name="PluginSettingsTab_PluginSettingsCouldNotBe" xml:space="preserve">
+    <value>Plugin settings could not be loaded.</value>
+  </data>
+  <data name="Common_ProviderSettingsCouldNotBe" xml:space="preserve">
+    <value>Provider settings could not be saved.</value>
+  </data>
+  <data name="ProviderDetail_StartTheEngineAndRetry" xml:space="preserve">
+    <value>Start the Engine and retry. Nothing shown here is sample data.</value>
+  </data>
+  <data name="StashBoxSettingsCard_TheServerCouldNotBe" xml:space="preserve">
+    <value>The server could not be removed.</value>
+  </data>
+  <data name="StashBoxSettingsCard_ThatCouldNotBeSaved" xml:space="preserve">
+    <value>That could not be saved.</value>
+  </data>
+  <data name="Common_SetAPINForThis" xml:space="preserve">
+    <value>Set a PIN for this profile first (Profile details), then turn this on.</value>
+  </data>
+  <data name="ProfileDetailPage_TheChangeWasSavedBut" xml:space="preserve">
+    <value>The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.</value>
+  </data>
+  <data name="ProfilesTab_TheOrderCouldnTBe" xml:space="preserve">
+    <value>The order couldn't be saved. Try again.</value>
+  </data>
+  <data name="ReadingSettingsPage_ReadingSettingsCouldNotBe" xml:space="preserve">
+    <value>Reading settings could not be loaded.</value>
+  </data>
+  <data name="ReadingSettingsPage_ReadingSettingsCouldNotBe2" xml:space="preserve">
+    <value>Reading settings could not be saved.</value>
+  </data>
+  <data name="SecuritySettingsPage_PasskeyAdded" xml:space="preserve">
+    <value>Passkey added.</value>
+  </data>
+  <data name="SecuritySettingsPage_PasskeyRemoved" xml:space="preserve">
+    <value>Passkey removed.</value>
+  </data>
+  <data name="SecuritySettingsPage_LinkedAccountDisconnected" xml:space="preserve">
+    <value>Linked account disconnected.</value>
+  </data>
+  <data name="SecuritySettingsPage_EnterAValidEmailAddress" xml:space="preserve">
+    <value>Enter a valid email address.</value>
+  </data>
+  <data name="SecuritySettingsPage_UseAtLeast12Characters" xml:space="preserve">
+    <value>Use at least 12 characters, and avoid common passwords or your email address.</value>
+  </data>
+  <data name="SecuritySettingsPage_SessionsCouldNotBeLoaded" xml:space="preserve">
+    <value>Sessions could not be loaded. The rest of your security settings are still available.</value>
+  </data>
+  <data name="SecuritySettingsPage_LinkedAccountsCouldNotBe" xml:space="preserve">
+    <value>Linked accounts could not be loaded. The rest of your security settings are still available.</value>
+  </data>
+  <data name="SecuritySettingsPage_PasskeysCouldNotBeLoaded" xml:space="preserve">
+    <value>Passkeys could not be loaded. The rest of your security settings are still available.</value>
+  </data>
+  <data name="SecurityTab_EnterValidInvitationAndSession" xml:space="preserve">
+    <value>Enter valid invitation and session policy values.</value>
+  </data>
+  <data name="SecurityTab_KeepAtLeastOneAccount" xml:space="preserve">
+    <value>Keep at least one account sign-in method enabled.</value>
+  </data>
+  <data name="SecurityTab_AuthenticationSettingsCouldNotBe" xml:space="preserve">
+    <value>Authentication settings could not be saved.</value>
+  </data>
+  <data name="SecurityTab_AuthenticationSettingsSavedRestartThe" xml:space="preserve">
+    <value>Authentication settings saved. Restart the Engine and Dashboard to apply provider changes.</value>
+  </data>
+  <data name="SecurityTab_EnterAStableProviderId" xml:space="preserve">
+    <value>Enter a stable provider id.</value>
+  </data>
+  <data name="SecurityTab_ProviderSavedRestartTheEngine" xml:space="preserve">
+    <value>Provider saved. Restart the Engine and Dashboard before using the new provider configuration.</value>
+  </data>
+  <data name="SecurityTab_ProviderCouldNotBeDeleted" xml:space="preserve">
+    <value>Provider could not be deleted.</value>
+  </data>
+  <data name="SecurityTab_ProviderDeletedRestartTheEngine" xml:space="preserve">
+    <value>Provider deleted. Restart the Engine and Dashboard to apply the change.</value>
+  </data>
+  <data name="SecurityTab_TestEmailCouldNotBe" xml:space="preserve">
+    <value>Test email could not be sent.</value>
+  </data>
+  <data name="StreamingLimitsPanel_BandwidthTestingNeedsATrusted" xml:space="preserve">
+    <value>Bandwidth testing needs a trusted external measurement target.</value>
+  </data>
+  <data name="StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe" xml:space="preserve">
+    <value>Streaming settings could not be saved.</value>
+  </data>
+  <data name="StreamingLimitsSettingsTab_StreamingSettingsSaved" xml:space="preserve">
+    <value>Streaming settings saved.</value>
+  </data>
+  <data name="SetupCodeStage_TuvimaAdminSetupCode" xml:space="preserve">
+    <value>tuvima-admin setup code</value>
+  </data>
+  <data name="SetupVaultOffer_YourPINCouldnTBe" xml:space="preserve">
+    <value>Your PIN couldn't be saved. Check it and try again.</value>
+  </data>
+  <data name="AudiobookBookmarkDialog_BookmarkDetailsCouldNotBe" xml:space="preserve">
+    <value>Bookmark details could not be refreshed. Try reloading Saved.</value>
+  </data>
+  <data name="AudiobookBookmarkDialog_BookmarkSaved" xml:space="preserve">
+    <value>Bookmark saved.</value>
+  </data>
+  <data name="AudiobookBookmarkDialog_ThatBookmarkIsNoLonger" xml:space="preserve">
+    <value>That bookmark is no longer available to delete.</value>
+  </data>
+  <data name="ProviderOnboardingDialog_TheEngineDidNotReturn" xml:space="preserve">
+    <value>The Engine did not return a provider connection result.</value>
+  </data>
+  <data name="ProviderOnboardingDialog_TheDashboardCouldNotReach" xml:space="preserve">
+    <value>The Dashboard could not reach the Engine. Check that it is running and try again.</value>
+  </data>
+  <data name="RecoveryCodesDisplay_RecoveryCodesCopied" xml:space="preserve">
+    <value>Recovery codes copied.</value>
+  </data>
+  <data name="ServerFolderPicker_LibraryCouldNotReachThis" xml:space="preserve">
+    <value>Library could not reach this server folder. Check that the location is online and try again.</value>
+  </data>
+  <data name="ServerFolderPicker_LibraryCouldNotValidateThis" xml:space="preserve">
+    <value>Library could not validate this server folder. Check that the location is online and try again.</value>
+  </data>
+  <data name="ServerFolderPicker_Copied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="ServerFolderPicker_CouldnTCopySelectThe" xml:space="preserve">
+    <value>Couldn't copy. Select the path and copy it.</value>
+  </data>
+  <data name="VaultProfileSettings_ThisProfileHasNoPIN" xml:space="preserve">
+    <value>This profile has no PIN, so Vault mode would open without one. Set a PIN in Profile details to ask for it.</value>
+  </data>
+  <data name="BookmarkPackSection_ThatFileIsTooLarge" xml:space="preserve">
+    <value>That file is too large to be a bookmark pack.</value>
+  </data>
+  <data name="VideoPlaybackHost_PlaybackPausedRestoreToContinue" xml:space="preserve">
+    <value>Playback paused. Restore to continue.</value>
+  </data>
+  <data name="VideoPlaybackHost_PreferredSubtitlesSaved" xml:space="preserve">
+    <value>Preferred subtitles saved.</value>
+  </data>
+  <data name="VideoPlaybackHost_CouldNotSaveThePreferred" xml:space="preserve">
+    <value>Could not save the preferred subtitles.</value>
+  </data>
+  <data name="VideoPlaybackHost_AudioCanTBeSwitched" xml:space="preserve">
+    <value>Audio can’t be switched right now.</value>
+  </data>
+  <data name="AppErrorState_Title" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="AppErrorState_Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="ViewAccessTab_SharingAndAccess" xml:space="preserve">
+    <value>Sharing &amp; Access</value>
+  </data>
+  <data name="ToolsRequirementsTab_OpenModelsAndHardware" xml:space="preserve">
+    <value>Open Models &amp; Hardware</value>
+  </data>
+  <data name="VideoPlaybackHost_SubtitlesAndAudio" xml:space="preserve">
+    <value>Subtitles &amp; Audio</value>
+  </data>
+  <data name="ExtraViewerPage_Extra" xml:space="preserve">
+    <value>Extra</value>
+  </data>
+  <data name="BookReader_Reader" xml:space="preserve">
+    <value>Reader</value>
+  </data>
+  <data name="ProfilePickerPage_ManageProfiles" xml:space="preserve">
+    <value>Manage profiles</value>
+  </data>
+  <data name="ProfilePickerPage_WhoSWatching" xml:space="preserve">
+    <value>Who's watching?</value>
+  </data>
+  <data name="ViewGalleryDetailPage_GalleryTitle" xml:space="preserve">
+    <value>Gallery</value>
+  </data>
 </root>

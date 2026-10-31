@@ -146,7 +146,7 @@
         }
         else
         {
-            _error = "That could not be saved. The list may have changed; reload the page and try again.";
+            _error = L["EditingVideoOrder_ThatCouldNotBeSaved"].Value;
         }
 
         _saving = false;
@@ -165,7 +165,7 @@
         var result = await Api.RenameVideoFilesToOrderAsync(Mode.Fields.EntityId, group.ParentId);
         if (result is null)
         {
-            _error = "The files could not be renamed. Only files in a Managed folder can be; nothing was changed.";
+            _error = L["EditingVideoOrder_TheFilesCouldNotBe"].Value;
         }
         else
         {

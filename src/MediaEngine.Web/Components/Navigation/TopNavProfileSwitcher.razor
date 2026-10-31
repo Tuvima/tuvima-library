@@ -152,7 +152,7 @@
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {
             Logger.LogWarning(exception, "Could not switch profile from the top bar.");
-            _error = "That profile couldn't be opened. Try again.";
+            _error = L["TopNavProfileSwitcher_ThatProfileCouldnTBe"].Value;
         }
         finally
         {

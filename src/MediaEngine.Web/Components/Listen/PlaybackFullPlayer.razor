@@ -246,7 +246,7 @@
             var reply = await Commands.SendAsync(displayed, new() { Action = action, Value = value, SleepTimer = sleep });
             if (SameSubject(displayed, Snapshot)) _commandError = reply?.Outcome == AudiobookBookmarkOperationOutcomes.Success ? null : reply?.Message ?? "The main player did not confirm this control action.";
         }
-        catch (Exception) { if (SameSubject(displayed, Snapshot)) _commandError = "The main player connection was interrupted. Try again when it reconnects."; }
+        catch (Exception) { if (SameSubject(displayed, Snapshot)) _commandError = L["Common_TheMainPlayerConnectionWas"].Value; }
     }
     private async Task PanelSelectedAsync(string key) { _tool = key; await PanelChanged.InvokeAsync(key); }
     private async Task SpeedMenuChangedAsync(PlaybackSpeedMenuState state) { _speedOpen = state.IsOpen; if (state.IsOpen) _sleepOpen = false; await ToolVisibilityChanged.InvokeAsync(_speedOpen); }

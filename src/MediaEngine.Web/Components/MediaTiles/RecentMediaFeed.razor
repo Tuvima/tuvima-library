@@ -122,7 +122,7 @@
             _loading = true;
         }
         _profileId = profileId;
-        if (profileId is null) { _loading = false; _error = "Select a profile to see recent additions."; return; }
+        if (profileId is null) { _loading = false; _error = L["RecentMediaFeed_SelectAProfileToSee"].Value; return; }
 
         _refreshVersion = version;
         try
@@ -132,7 +132,7 @@
             _loading = false;
             if (page is null)
             {
-                if (_items.Count == 0) _error = "Recent additions are unavailable. Please try again.";
+                if (_items.Count == 0) _error = L["RecentMediaFeed_RecentAdditionsAreUnavailablePlease"].Value;
                 return;
             }
             var tiles = page.Items.Where(item => item.Catalogue is not null)
@@ -161,7 +161,7 @@
         var page = await Api.GetDisplayRecentAsync(type, cursor, 48, BeginLoad());
         if (_disposed || version != _version) return;
         _loading = false;
-        if (page is null) { _error = "Recent additions are unavailable. Please try again."; return; }
+        if (page is null) { _error = L["RecentMediaFeed_RecentAdditionsAreUnavailablePlease"].Value; return; }
         foreach (var item in page.Items.Where(item => _items.All(existing => existing.Key != item.Key)))
         {
             if (item.Catalogue is { } card) _tiles[item.Key] = MediaTileComposerService.FromDisplayCard(card);
@@ -174,7 +174,7 @@
     {
         var version = _version;
         var item = await ViewAdapter.OpenAsync(asset);
-        if (!_disposed && version == _version) { _activeView = item; if (item is null) _error = "This View item is no longer available."; }
+        if (!_disposed && version == _version) { _activeView = item; if (item is null) _error = L["RecentMediaFeed_ThisViewItemIsNo"].Value; }
     }
     private void CloseView() => _activeView = null;
     public void Dispose() { _disposed = true; _version++; _loadCts?.Cancel(); _loadCts?.Dispose(); _loadCts = null; Orchestrator.OnProfileChanged -= ProfileChanged; ProgressChanges.Changed -= ProgressChanged; State.MediaAddedReceived -= MediaAdded; }

@@ -10,7 +10,7 @@
 @* Opens one Extras card: a guidebook in the browser's own reader, a picture folder in a gallery with a full-size view, a clip in
    a plain video or audio player. A clip never touches watching progress: it is not an episode. EPUB guidebooks are download-only. *@
 
-<PageTitle>@(_view?.Title ?? "Extra") - Library</PageTitle>
+<PageTitle>@L["Common_Library", _view?.Title ?? L["ExtraViewerPage_Extra"].Value]</PageTitle>
 
 <div class="tl-extra-viewer" data-state="@State" data-kind="@(_view?.Kind)">
     <header class="tl-extra-viewer__bar">

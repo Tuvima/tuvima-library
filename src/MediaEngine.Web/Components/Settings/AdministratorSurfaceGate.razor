@@ -61,11 +61,11 @@ else
             var result = await Identity.UnlockAdministratorAsync(new(pin));
             await Identity.RevalidateAuthorityAsync(Session);
             if (result?.Unlocked != true || Session.Authority?.AdministratorSurfaceUnlocked != true)
-                _error = "The PIN could not be verified. Check the PIN and try again.";
+                _error = L["AdministratorSurfaceGate_ThePINCouldNotBe"].Value;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
-            _error = "The Engine is unavailable. Your settings remain locked; try again.";
+            _error = L["AdministratorSurfaceGate_TheEngineIsUnavailableYour"].Value;
         }
         finally { _busy = false; }
     }
@@ -79,13 +79,13 @@ else
         try
         {
             if (!await Identity.ExitAdministratorAsync())
-                _error = "The Engine could not confirm the lock. Keep this page closed and retry when it is available.";
+                _error = L["AdministratorSurfaceGate_TheEngineCouldNotConfirm"].Value;
             else
                 await Identity.RevalidateAuthorityAsync(Session);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
-            _error = "The Engine could not confirm the lock. Retry when it is available.";
+            _error = L["AdministratorSurfaceGate_TheEngineCouldNotConfirm2"].Value;
         }
         finally { _busy = false; }
     }

@@ -125,7 +125,7 @@
                             </ChildContent>
                         </PlaybackPopover>
                     }
-                    <PlaybackPopover Title="Subtitles &amp; Audio" ToolId="video-captions" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey"
+                    <PlaybackPopover Title="@L["VideoPlaybackHost_SubtitlesAndAudio"].Value" ToolId="video-captions" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey"
                                      TriggerClass="@(_captionTracks.Any(track => track.Selected) ? "is-on" : null)">
                         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Captions" /></TriggerContent>
                         <ChildContent>
@@ -622,7 +622,7 @@
         if (!IsCurrentVideo()) return;
         await PauseAsync();
         if (!IsCurrentVideo()) return;
-        _continuationStatus = "Playback paused. Restore to continue.";
+        _continuationStatus = L["VideoPlaybackHost_PlaybackPausedRestoreToContinue"].Value;
         Playback.SetPresentationSurface(PlaybackPresentationSurface.RestorableVideo);
     }
 
@@ -1203,10 +1203,10 @@
         if (await ApiClient.SetPreferredTextTrackAsync(assetId, trackId))
         {
             if (identity is not null && !identity.IsCurrent(Playback)) return;
-            _textTrackStatus = "Preferred subtitles saved.";
+            _textTrackStatus = L["VideoPlaybackHost_PreferredSubtitlesSaved"].Value;
             await LoadSubtitleTracksAsync(assetId);
         }
-        else if (identity is null || identity.IsCurrent(Playback)) _textTrackStatus = "Could not save the preferred subtitles.";
+        else if (identity is null || identity.IsCurrent(Playback)) _textTrackStatus = L["VideoPlaybackHost_CouldNotSaveThePreferred"].Value;
     }
 
     private async Task RefreshSubtitlesAsync()
@@ -1264,7 +1264,7 @@
         {
             _switchingAudio = false;
             _pendingAudioIndex = null;
-            _textTrackStatus = "Audio can’t be switched right now.";
+            _textTrackStatus = L["VideoPlaybackHost_AudioCanTBeSwitched"].Value;
             await InvokeAsync(StateHasChanged);
         }
     }

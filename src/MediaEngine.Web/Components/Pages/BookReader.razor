@@ -23,7 +23,7 @@
    This component owns the chrome and the saved position;
    wwwroot/js/book-reader.js owns everything that touches the book. *@
 
-<PageTitle>@(string.IsNullOrWhiteSpace(_title) ? "Reader" : _title) - Library</PageTitle>
+<PageTitle>@L["Common_Library", string.IsNullOrWhiteSpace(_title) ? L["BookReader_Reader"].Value : _title]</PageTitle>
 
 <link href="css/book-reader.css" rel="stylesheet" />
 

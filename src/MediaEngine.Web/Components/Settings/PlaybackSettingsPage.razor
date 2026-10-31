@@ -269,7 +269,7 @@ else if (_settings is not null)
                 if (loaded.ProfileId != ProfileId)
                 {
                     Logger.LogWarning("Playback settings could not be loaded: the Engine answered for a different profile.");
-                    _loadError = "Playback settings could not be loaded.";
+                    _loadError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -284,7 +284,7 @@ else if (_settings is not null)
                 if (loaded is null)
                 {
                     Logger.LogWarning("Playback settings could not be loaded: the Engine returned no settings for the active profile.");
-                    _loadError = "Playback settings could not be loaded.";
+                    _loadError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -294,7 +294,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Playback settings could not be loaded.");
-            _loadError = "Playback settings could not be loaded.";
+            _loadError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe"].Value;
         }
         finally
         {
@@ -407,7 +407,7 @@ else if (_settings is not null)
             if (fresh is null)
             {
                 Logger.LogWarning("Playback settings were not saved: the profile's current settings could not be read.");
-                _saveError = "Playback settings could not be saved.";
+                _saveError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -428,7 +428,7 @@ else if (_settings is not null)
             if (saved is null)
             {
                 Logger.LogWarning("Playback settings could not be saved: the Engine did not accept the update.");
-                _saveError = "Playback settings could not be saved.";
+                _saveError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -440,7 +440,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Playback settings could not be saved.");
-            _saveError = "Playback settings could not be saved.";
+            _saveError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe2"].Value;
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally
@@ -464,7 +464,7 @@ else if (_settings is not null)
             if (saved is null || saved.ProfileId != _settings.ProfileId)
             {
                 Logger.LogWarning("The spoiler setting could not be saved: the Engine did not accept the update.");
-                _saveError = "The spoiler setting could not be saved.";
+                _saveError = L["Common_TheSpoilerSettingCouldNot"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -475,7 +475,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The spoiler setting could not be saved.");
-            _saveError = "The spoiler setting could not be saved.";
+            _saveError = L["Common_TheSpoilerSettingCouldNot"].Value;
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally

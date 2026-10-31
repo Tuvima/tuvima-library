@@ -182,7 +182,7 @@
         _busy = true;
         try
         {
-            if (await ApiClient.RemoveViewRejectedFileAsync(file.Id)) { await LoadAsync(); Snackbar.Add("Removed.", AppSeverity.Success); }
+            if (await ApiClient.RemoveViewRejectedFileAsync(file.Id)) { await LoadAsync(); Snackbar.Add(L["ViewImportPanel_Removed"].Value, AppSeverity.Success); }
             else _error = ApiClient.LastError ?? "The file could not be removed.";
         }
         finally { _busy = false; }

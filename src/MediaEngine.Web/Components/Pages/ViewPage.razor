@@ -185,7 +185,7 @@ else
         _observeTimeline = _page.Items.Count > 0;
     }
     private async Task ScopeChangedAsync(ChangeEventArgs args) { var parts = args.Value?.ToString()?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return; Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null; if (await Workspace.SelectScopeAsync(kind, profile)) { _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); } }
-    private async Task DensityChangedAsync(ChangeEventArgs args) { if (Enum.TryParse<ViewTimelineDensity>(args.Value?.ToString(), out var density) && !await Workspace.SetDensityAsync(density)) Snackbar.Add("Timeline density could not be saved.", AppSeverity.Error); }
+    private async Task DensityChangedAsync(ChangeEventArgs args) { if (Enum.TryParse<ViewTimelineDensity>(args.Value?.ToString(), out var density) && !await Workspace.SetDensityAsync(density)) Snackbar.Add(L["ViewPage_TimelineDensityCouldNotBe"].Value, AppSeverity.Error); }
     private async Task SearchChanged(object? value)
     {
         _search = value?.ToString() ?? "";
@@ -253,7 +253,7 @@ else
                     To = new DateTimeOffset(date.AddDays(1), TimeSpan.Zero).AddHours(14), Limit = 500 };
                 var page = await ApiClient.GetViewAssetsAsync(query);
                 if (version != _loadVersion) return;
-                if (page is null) { Snackbar.Add("The full date could not be selected. Please retry.", AppSeverity.Error); return; }
+                if (page is null) { Snackbar.Add(L["ViewPage_TheFullDateCouldNot"].Value, AppSeverity.Error); return; }
                 matching.UnionWith(page.Items.Where(value => (value.CapturedAt ?? value.CreatedAt).Date == date).Select(value => value.Id));
                 cursor = page.NextCursor;
             } while (cursor is not null);
@@ -299,7 +299,7 @@ else
         await _timelineModule.InvokeVoidAsync("downloadFiles", files);
     }
     private void BeginDrag(Guid id) => AssetDrag.Begin(_selected.Contains(id) ? _selected : [id]); private void EndDrag() => AssetDrag.Clear();
-    private async Task AddSelectionToGalleryAsync(Guid id) { var result = await ApiClient.AddViewGalleryItemsAsync(id, _selected); if (result is null) { Snackbar.Add("The selected items could not be added to the Gallery.", AppSeverity.Error); return; } Snackbar.Add(GalleryResult(result), AppSeverity.Success); ClearSelection(); await Workspace.LoadGalleriesAsync(force: true); }
+    private async Task AddSelectionToGalleryAsync(Guid id) { var result = await ApiClient.AddViewGalleryItemsAsync(id, _selected); if (result is null) { Snackbar.Add(L["ViewPage_TheSelectedItemsCouldNot"].Value, AppSeverity.Error); return; } Snackbar.Add(GalleryResult(result), AppSeverity.Success); ClearSelection(); await Workspace.LoadGalleriesAsync(force: true); }
     private async Task CreateGalleryFromSelectionAsync() { if (_viewSectionShell is null) return; await _viewSectionShell.BeginManualGalleryCreateAsync(_selected); ClearSelection(); }
     private async Task AddActiveToGalleryAsync(Guid id) { if (_activeItem is null) return; var result = await ApiClient.AddViewGalleryItemsAsync(id, [_activeItem.Id]); if (result is not null) Snackbar.Add(GalleryResult(result), AppSeverity.Success); }
     private static string GalleryResult(AddViewGalleryItemsResponseDto result) => result.AlreadyPresent > 0 ? $"{result.Added} added · {result.AlreadyPresent} already in Gallery" : $"{result.Added} added";

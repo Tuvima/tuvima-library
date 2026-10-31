@@ -221,7 +221,7 @@
         if (file is null) return;
         if (file.Size > BookmarkPackLimits.MaximumFileBytes)
         {
-            _message = "That file is too large to be a bookmark pack.";
+            _message = L["BookmarkPackSection_ThatFileIsTooLarge"].Value;
             return;
         }
 

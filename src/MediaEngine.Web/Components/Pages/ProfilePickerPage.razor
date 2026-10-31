@@ -18,7 +18,7 @@
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>@(_managing ? "Manage profiles" : "Who's watching?") - Library</PageTitle>
+<PageTitle>@L["Common_Library", _managing ? L["ProfilePickerPage_ManageProfiles"].Value : L["ProfilePickerPage_WhoSWatching"].Value]</PageTitle>
 
 <section class="who-page" aria-labelledby="who-title">
     <h1 id="who-title" class="who-page__title">@(_managing ? "Manage profiles" : "Who's watching?")</h1>
@@ -531,7 +531,7 @@
     {
         if (await EnsureHouseholdAsync() is not { } householdId)
         {
-            _editorError = "Your household couldn't be found. Try again.";
+            _editorError = L["ProfilePickerPage_YourHouseholdCouldnTBe"].Value;
             return false;
         }
 
@@ -677,14 +677,14 @@
             var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin));
             if (unlocked?.Unlocked != true)
             {
-                _error = "That PIN didn't work. Try again.";
+                _error = L["Common_ThatPINDidnTWork"].Value;
                 return;
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not unlock administrator access from the profile picker.");
-            _error = "The Engine is unavailable. Try again.";
+            _error = L["Common_TheEngineIsUnavailableTry"].Value;
             return;
         }
         finally
@@ -762,7 +762,7 @@
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not refresh the profile list.");
-            _error = "The list couldn't be refreshed. Reload the page to see the latest.";
+            _error = L["Common_TheListCouldnTBe"].Value;
         }
 
         await LoadManagedPeopleAsync();

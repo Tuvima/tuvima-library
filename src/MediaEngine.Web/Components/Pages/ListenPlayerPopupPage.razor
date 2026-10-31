@@ -148,7 +148,7 @@
         catch (Exception exception)
         {
             Logger.LogDebug(exception, "Favorite could not be updated in the popup.");
-            if (!_disposed && SameFavoriteSubject(snapshot, item)) _popupCommandError = "Favorites could not be updated. Try again when the Engine reconnects.";
+            if (!_disposed && SameFavoriteSubject(snapshot, item)) _popupCommandError = L["ListenPlayerPopupPage_FavoritesCouldNotBeUpdated"].Value;
         }
     }
 
@@ -173,7 +173,7 @@
         catch (Exception ex)
         {
             Logger.LogDebug(ex, "Could not restore listen popup playback state from browser storage.");
-            _playbackStateError = "Playback state could not be loaded. Retry to reconnect.";
+            _playbackStateError = L["ListenPlayerPopupPage_PlaybackStateCouldNotBe"].Value;
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -205,7 +205,7 @@
             {
                 if (_disposed || receiveGeneration != Volatile.Read(ref _playbackStateReceiveGeneration)) return;
                 Logger.LogDebug(ex, "Could not read synchronized listen playback state in the popup.");
-                _playbackStateError = "Playback state could not be read. Your current player state is still shown.";
+                _playbackStateError = L["ListenPlayerPopupPage_PlaybackStateCouldNotBe2"].Value;
                 await InvokeAsync(StateHasChanged);
                 return;
             }
@@ -288,7 +288,7 @@
         {
             if (_disposed || receiveGeneration != Volatile.Read(ref _playbackStateReceiveGeneration)) return;
             Logger.LogDebug(ex, "Could not retry popup playback state synchronization.");
-            _playbackStateError = "Playback state could not be loaded. Retry to reconnect.";
+            _playbackStateError = L["ListenPlayerPopupPage_PlaybackStateCouldNotBe"].Value;
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -310,7 +310,7 @@
             || _snapshot.AudiobookBookSessionLeaseId is not { } sessionLeaseId
             || !Guid.TryParse(OwnerRecipientId, out var ownerRecipientId) || ownerRecipientId == Guid.Empty)
         {
-            _bookmarkDialogError = "Bookmarks are unavailable for this playback session.";
+            _bookmarkDialogError = L["ListenPlayerPopupPage_BookmarksAreUnavailableForThis"].Value;
             return;
         }
 

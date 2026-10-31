@@ -98,7 +98,7 @@
         var result = await Api.IdentifyVideoFromLinkAsync(Mode.Fields.EntityId, _link.Trim());
         if (result is null)
         {
-            _message = "No match was found. Check the link, and that online lookup is on for this library.";
+            _message = L["EditingVideoIdentify_NoMatchWasFoundCheck"].Value;
         }
         else
         {

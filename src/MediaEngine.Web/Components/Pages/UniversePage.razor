@@ -286,7 +286,7 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not open the Universe editor for {UniverseQid}", Qid);
-            Snackbar.Add("Universe editing is unavailable. Please try again.", AppSeverity.Error);
+            Snackbar.Add(L["Common_UniverseEditingIsUnavailablePlease"].Value, AppSeverity.Error);
         }
         finally
         {
@@ -324,7 +324,7 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The Universe page could not refresh after an edit for {UniverseQid}", Qid);
-            Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
         }
     }
 

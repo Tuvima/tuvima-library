@@ -417,7 +417,7 @@
         // Remembered for this profile so the next visit, on any device, opens in the same order.
         if (!await ApiClient.SetViewDocumentsSortAsync(sort))
         {
-            Snackbar.Add("Your sort could not be remembered. It still applies for now.", AppSeverity.Warning);
+            Snackbar.Add(L["ViewDocumentsPage_YourSortCouldNotBe"].Value, AppSeverity.Warning);
         }
     }
 
@@ -457,7 +457,7 @@
             var created = await ApiClient.CreateViewGalleryAsync(new ViewGalleryRequest(name, ViewGalleryKind.Smart, SmartRuleJson: rule));
             if (created is null)
             {
-                Snackbar.Add("This view could not be saved. Try again.", AppSeverity.Error);
+                Snackbar.Add(L["ViewDocumentsPage_ThisViewCouldNotBe"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -466,7 +466,7 @@
         }
         catch (ArgumentException)
         {
-            Snackbar.Add("This view is too large to save. Remove some filters and try again.", AppSeverity.Error);
+            Snackbar.Add(L["ViewDocumentsPage_ThisViewIsTooLarge"].Value, AppSeverity.Error);
         }
         finally
         {
@@ -489,7 +489,7 @@
                 change.Name, view.Kind, view.Description, view.SmartRuleJson, view.CoverItemId, view.SortOrder, view.SoundtrackPlaylistId));
             if (updated is null)
             {
-                Snackbar.Add("This view could not be renamed. Try again.", AppSeverity.Error);
+                Snackbar.Add(L["ViewDocumentsPage_ThisViewCouldNotBe2"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -528,7 +528,7 @@
         {
             if (!await ApiClient.DeleteViewGalleryAsync(view.Id))
             {
-                Snackbar.Add("This view could not be deleted. Try again.", AppSeverity.Error);
+                Snackbar.Add(L["ViewDocumentsPage_ThisViewCouldNotBe3"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -598,7 +598,7 @@
                 _active = null;
             }
 
-            Snackbar.Add("Filed.", AppSeverity.Success);
+            Snackbar.Add(L["ViewDocumentsPage_Filed"].Value, AppSeverity.Success);
             // Names and tags the filing created, the count on this page and the badge on the Documents tab all change.
             await Task.WhenAll(LoadInboxCountAsync(), Workspace.RefreshDocumentInboxAsync(), LoadCatalogueAsync());
             // A sorted list pages by position, so after a card leaves it the next page must be asked for again from the top.
@@ -646,7 +646,7 @@
             ItemUpdated(refreshed);
         }
 
-        Snackbar.Add("Details saved.", AppSeverity.Success);
+        Snackbar.Add(L["ViewDocumentsPage_DetailsSaved"].Value, AppSeverity.Success);
         await LoadCatalogueAsync();
     }
 

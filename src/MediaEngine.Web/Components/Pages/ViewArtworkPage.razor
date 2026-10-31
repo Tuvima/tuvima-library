@@ -54,7 +54,7 @@
         var context = asset.DisplayContext ?? asset.Contexts.FirstOrDefault();
         if (context is null)
         {
-            Snackbar.Add("This image has no accessible artwork assignment to manage.", AppSeverity.Info);
+            Snackbar.Add(L["ViewArtworkPage_ThisImageHasNoAccessible"].Value, AppSeverity.Info);
             return;
         }
 

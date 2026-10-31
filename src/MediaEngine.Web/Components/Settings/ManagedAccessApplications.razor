@@ -402,8 +402,8 @@
             new() { Label = app.IsEnabled ? "Disable" : "Enable", Icon = app.IsEnabled ? AppMaterialIcons.Outlined.Block : AppMaterialIcons.Outlined.CheckCircle, OnClick = EventCallback.Factory.Create(this, () => SetEnabledAsync(app, !app.IsEnabled)) },
         };
         if (app.Credentials.Any(credential => credential.RevokedAt is null))
-            items.Add(new() { Label = "Revoke keys", Icon = AppMaterialIcons.Outlined.Key, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RevokeAllKeysAsync(app)) });
-        items.Add(new() { Label = "Delete", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(app)) });
+            items.Add(new() { Label = L["ManagedAccessApplications_RevokeKeys"].Value, Icon = AppMaterialIcons.Outlined.Key, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RevokeAllKeysAsync(app)) });
+        items.Add(new() { Label = L["Common_Delete"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(app)) });
         return items;
     }
 

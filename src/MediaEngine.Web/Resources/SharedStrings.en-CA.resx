@@ -86,4 +86,13 @@
   <data name="Glossary_Favorite" xml:space="preserve">
     <value>Favourite</value>
   </data>
+  <data name="MediaBrowseShell_TheFavoriteCouldNotBe" xml:space="preserve">
+    <value>The favourite could not be updated.</value>
+  </data>
+  <data name="Common_FavoritesRequireAnActiveProfile" xml:space="preserve">
+    <value>Favourites require an active profile.</value>
+  </data>
+  <data name="ListenPlayerPopupPage_FavoritesCouldNotBeUpdated" xml:space="preserve">
+    <value>Favourites could not be updated. Try again when the Engine reconnects.</value>
+  </data>
 </root>

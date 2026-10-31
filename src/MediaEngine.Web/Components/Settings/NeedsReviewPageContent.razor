@@ -282,9 +282,9 @@
             if (await Orchestrator.DismissReviewAsync(item.Id))
             {
                 _reviews.Remove(item);
-                Snackbar.Add("Kept as an unmatched film. Its file details are unchanged.", AppSeverity.Success);
+                Snackbar.Add(L["NeedsReviewPageContent_KeptAsAnUnmatchedFilm"].Value, AppSeverity.Success);
             }
-            else Snackbar.Add("Review item could not be dismissed.", AppSeverity.Warning);
+            else Snackbar.Add(L["NeedsReviewPageContent_ReviewItemCouldNotBe"].Value, AppSeverity.Warning);
         }
         catch (Exception ex) { Snackbar.Add($"Review item could not be dismissed: {ex.Message}", AppSeverity.Error); }
         finally { _busyReviewIds.Remove(item.Id); }

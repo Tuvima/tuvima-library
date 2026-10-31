@@ -78,7 +78,7 @@
             if (id is not Guid identity) return;
             string? error;
             try { var reply = await navigation.NavigateIdentityAsync(displayed, kind, identity); error = reply?.BooleanResult == true ? null : "That identity is no longer available in the main player."; }
-            catch (Exception) { error = "The main player connection was interrupted. Try again when it reconnects."; }
+            catch (Exception) { error = L["Common_TheMainPlayerConnectionWas"].Value; }
             if (Current() && Snapshot.ProfileId == displayed.ProfileId && Snapshot.PlaybackRequestVersion == displayed.PlaybackRequestVersion && Item?.AssetId == item.AssetId)
                 await NavigationCompleted.InvokeAsync(error);
             return;

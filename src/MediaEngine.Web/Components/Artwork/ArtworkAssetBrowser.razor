@@ -159,7 +159,7 @@
     private IReadOnlyList<AppRowMenuItem> RowMenuItems(ArtworkAssetDto asset) =>
     [
         new AppRowMenuItem { Label = "Open", Icon = AppMaterialIcons.Outlined.OpenInNew, OnClick = EventCallback.Factory.Create(this, () => SelectAssetAsync(asset)) },
-        new AppRowMenuItem { Label = "Manage usage", Icon = AppMaterialIcons.Outlined.Edit, Disabled = !ManageRequested.HasDelegate, OnClick = EventCallback.Factory.Create(this, () => ManageRequested.InvokeAsync(asset)) },
+        new AppRowMenuItem { Label = L["ViewArtworkPage_ManageUsage"].Value, Icon = AppMaterialIcons.Outlined.Edit, Disabled = !ManageRequested.HasDelegate, OnClick = EventCallback.Factory.Create(this, () => ManageRequested.InvokeAsync(asset)) },
     ];
 
     private ArtworkAssetPageDto? _page;

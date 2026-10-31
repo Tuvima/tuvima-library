@@ -203,7 +203,7 @@
         _checking = false;
         if (directory is null)
         {
-            Snackbar.Add("The plugin directory could not be checked.", AppSeverity.Error);
+            Snackbar.Add(L["AvailablePluginsPanel_ThePluginDirectoryCouldNot2"].Value, AppSeverity.Error);
             await InvokeAsync(StateHasChanged);
             return;
         }
@@ -215,7 +215,7 @@
     {
         if (!await Orchestrator.SavePluginDirectoryEnabledAsync(enabled, _disposed.Token))
         {
-            Snackbar.Add("The plugin directory switch could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["AvailablePluginsPanel_ThePluginDirectorySwitchCould"].Value, AppSeverity.Error);
             await InvokeAsync(StateHasChanged);
             return;
         }

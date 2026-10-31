@@ -167,7 +167,7 @@
     {
         _busy = true;
         var saved = await ApiClient.UpdateBackupSettingsAsync(request);
-        if (saved is null) Snackbar.Add("The backup settings could not be saved.", AppSeverity.Error);
+        if (saved is null) Snackbar.Add(L["BackupDestinationsSection_TheBackupSettingsCouldNot"].Value, AppSeverity.Error);
         else _settings = saved;
         _busy = false;
     }
@@ -205,13 +205,13 @@
         var saved = await ApiClient.SaveBackupDestinationAsync(_new);
         if (saved is null)
         {
-            Snackbar.Add("The destination was not added. Check the details, then try again.", AppSeverity.Error);
+            Snackbar.Add(L["BackupDestinationsSection_TheDestinationWasNotAdded"].Value, AppSeverity.Error);
         }
         else
         {
             _settings = saved;
             _adding = false;
-            Snackbar.Add("Destination added. Use Test to check it.", AppSeverity.Success);
+            Snackbar.Add(L["BackupDestinationsSection_DestinationAddedUseTestTo"].Value, AppSeverity.Success);
         }
         _busy = false;
     }
@@ -220,7 +220,7 @@
     {
         _busy = true;
         if (await ApiClient.RemoveBackupDestinationAsync(id)) _settings = await ApiClient.GetBackupSettingsAsync() ?? _settings;
-        else Snackbar.Add("The destination could not be removed.", AppSeverity.Error);
+        else Snackbar.Add(L["BackupDestinationsSection_TheDestinationCouldNotBe"].Value, AppSeverity.Error);
         _busy = false;
     }
 
@@ -236,7 +236,7 @@
     {
         _busy = true;
         _lastRun = await ApiClient.RunBackupNowAsync();
-        if (_lastRun is null) Snackbar.Add("The backup could not be made.", AppSeverity.Error);
+        if (_lastRun is null) Snackbar.Add(L["BackupDestinationsSection_TheBackupCouldNotBe"].Value, AppSeverity.Error);
         else
         {
             Snackbar.Add(_lastRun.AllOk ? "Backup copied everywhere it should go." : "Backup finished, but some copies need attention.", _lastRun.AllOk ? AppSeverity.Success : AppSeverity.Warning);
@@ -261,7 +261,7 @@
         _busy = true;
         var result = await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _restoreDestination ?? "", Name = _restoreName ?? "" });
         if (result?.Scheduled == true) Snackbar.Add(result.Message, AppSeverity.Warning);
-        else Snackbar.Add("The restore could not be staged. The backup may be damaged or not a Library backup.", AppSeverity.Error);
+        else Snackbar.Add(L["BackupDestinationsSection_TheRestoreCouldNotBe"].Value, AppSeverity.Error);
         _busy = false;
     }
 }

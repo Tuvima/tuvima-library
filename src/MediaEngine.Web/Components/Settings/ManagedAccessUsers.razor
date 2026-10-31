@@ -191,12 +191,12 @@
     {
         var items = new List<AppRowMenuItem>
         {
-            new() { Label = "Change email", Icon = AppMaterialIcons.Outlined.Mail, OnClick = EventCallback.Factory.Create(this, () => OpenEmail(user)) },
-            new() { Label = "Set temporary password", Icon = AppMaterialIcons.Outlined.Key, OnClick = EventCallback.Factory.Create(this, () => OpenTemporaryPassword(user)) },
+            new() { Label = L["ManagedAccessUsers_ChangeEmail"].Value, Icon = AppMaterialIcons.Outlined.Mail, OnClick = EventCallback.Factory.Create(this, () => OpenEmail(user)) },
+            new() { Label = L["ManagedAccessUsers_SetTemporaryPassword"].Value, Icon = AppMaterialIcons.Outlined.Key, OnClick = EventCallback.Factory.Create(this, () => OpenTemporaryPassword(user)) },
         };
         if (user.HasTwoStep)
-            items.Add(new() { Label = "Turn off two-step codes", Icon = AppMaterialIcons.Outlined.Lock, OnClick = EventCallback.Factory.Create(this, () => ResetTwoStep(user)) });
-        items.Add(new() { Label = "Delete sign-in", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(user)) });
+            items.Add(new() { Label = L["ManagedAccessUsers_TurnOffTwoStepCodes"].Value, Icon = AppMaterialIcons.Outlined.Lock, OnClick = EventCallback.Factory.Create(this, () => ResetTwoStep(user)) });
+        items.Add(new() { Label = L["ManagedAccessUsers_DeleteSignIn"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(user)) });
         return items;
     }
     private long _drawerGeneration;

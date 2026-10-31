@@ -110,11 +110,11 @@
         get
         {
             var items = new List<AppRowMenuItem>();
-            if (OnFavorite.HasDelegate) { items.Add(new() { Label = "Favorite", Icon = AppMaterialIcons.Outlined.FavoriteBorder, OnClick = OnFavorite }); }
-            if (ShowRestore) { items.Add(new() { Label = "Restore", Icon = AppMaterialIcons.Outlined.Restore, OnClick = OnRestore }); }
-            else if (OnArchive.HasDelegate) { items.Add(new() { Label = "Archive", Icon = AppMaterialIcons.Outlined.Inventory2, OnClick = OnArchive }); }
-            if (ShowTrash && OnTrash.HasDelegate) { items.Add(new() { Label = "Trash", Icon = AppMaterialIcons.Outlined.DeleteOutline, Destructive = true, OnClick = OnTrash }); }
-            if (OnRemoveFromGallery.HasDelegate) { items.Add(new() { Label = "Remove from Gallery", Icon = AppMaterialIcons.Outlined.RemoveCircleOutline, OnClick = OnRemoveFromGallery }); }
+            if (OnFavorite.HasDelegate) { items.Add(new() { Label = L["Glossary_Favorite"].Value, Icon = AppMaterialIcons.Outlined.FavoriteBorder, OnClick = OnFavorite }); }
+            if (ShowRestore) { items.Add(new() { Label = L["Common_Restore"].Value, Icon = AppMaterialIcons.Outlined.Restore, OnClick = OnRestore }); }
+            else if (OnArchive.HasDelegate) { items.Add(new() { Label = L["ViewSelectionToolbar_Archive"].Value, Icon = AppMaterialIcons.Outlined.Inventory2, OnClick = OnArchive }); }
+            if (ShowTrash && OnTrash.HasDelegate) { items.Add(new() { Label = L["Common_Trash"].Value, Icon = AppMaterialIcons.Outlined.DeleteOutline, Destructive = true, OnClick = OnTrash }); }
+            if (OnRemoveFromGallery.HasDelegate) { items.Add(new() { Label = L["ViewSelectionToolbar_RemoveFromGallery"].Value, Icon = AppMaterialIcons.Outlined.RemoveCircleOutline, OnClick = OnRemoveFromGallery }); }
             return items;
         }
     }

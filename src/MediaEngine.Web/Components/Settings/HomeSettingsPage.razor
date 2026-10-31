@@ -131,7 +131,7 @@ else
         if (!await ApiClient.SetDisplayHeroSettingsAsync(next))
         {
             _settings = previous;
-            Snackbar.Add("Your Home settings could not be saved. Nothing was changed.", AppSeverity.Error);
+            Snackbar.Add(L["HomeSettingsPage_YourHomeSettingsCouldNot"].Value, AppSeverity.Error);
         }
     }
 }

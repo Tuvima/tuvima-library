@@ -230,7 +230,7 @@ else
         {
             if (!await Orchestrator.UpdateProfileAsync(profile.Id, result.DisplayName, result.Color, profile.NavigationConfig))
             {
-                _editorError = "That couldn't be saved. Try again.";
+                _editorError = L["OverviewPage_ThatCouldnTBeSaved"].Value;
                 return;
             }
 
@@ -250,7 +250,7 @@ else
             _profile = await Orchestrator.GetActiveProfileAsync() ?? profile;
             if (photoFailed)
             {
-                _editorError = "Your changes were saved, but the photo couldn't be changed. Try again.";
+                _editorError = L["OverviewPage_YourChangesWereSavedBut"].Value;
                 return;
             }
 

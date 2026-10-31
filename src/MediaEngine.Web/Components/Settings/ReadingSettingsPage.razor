@@ -236,7 +236,7 @@ else if (_settings is not null)
                 if (loaded.ProfileId != ProfileId)
                 {
                     Logger.LogWarning("Reading settings could not be loaded: the Engine answered for a different profile.");
-                    _loadError = "Reading settings could not be loaded.";
+                    _loadError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -251,7 +251,7 @@ else if (_settings is not null)
                 if (loaded is null)
                 {
                     Logger.LogWarning("Reading settings could not be loaded: the Engine returned no settings for the active profile.");
-                    _loadError = "Reading settings could not be loaded.";
+                    _loadError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -261,7 +261,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Reading settings could not be loaded.");
-            _loadError = "Reading settings could not be loaded.";
+            _loadError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe"].Value;
         }
         finally
         {
@@ -292,7 +292,7 @@ else if (_settings is not null)
             if (fresh is null)
             {
                 Logger.LogWarning("Reading settings were not saved: the profile's current settings could not be read.");
-                _saveError = "Reading settings could not be saved.";
+                _saveError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -313,7 +313,7 @@ else if (_settings is not null)
             if (saved is null)
             {
                 Logger.LogWarning("Reading settings could not be saved: the Engine did not accept the update.");
-                _saveError = "Reading settings could not be saved.";
+                _saveError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -325,7 +325,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Reading settings could not be saved.");
-            _saveError = "Reading settings could not be saved.";
+            _saveError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe2"].Value;
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally

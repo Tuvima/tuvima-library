@@ -149,7 +149,7 @@
         _fieldsLoaded = _catalogue is not null && loadedInfo is not null;
         if (!_fieldsLoaded)
         {
-            _error = "Some of your details could not be loaded, so custom fields stay as they are. You can still edit the rest.";
+            _error = L["ViewDocumentDetailsDialog_SomeOfYourDetailsCould"].Value;
         }
 
         _fields = _catalogue?.Fields ?? [];

@@ -158,7 +158,7 @@
         if (!int.TryParse(_tlsPortText, out var tlsPort) || tlsPort is < 1 or > 65535
             || !int.TryParse(_externalPortText, out var externalPort) || externalPort is < 1 or > 65535)
         {
-            Snackbar.Add("TLS and external ports must be between 1 and 65535.", AppSeverity.Warning);
+            Snackbar.Add(L["AdvancedNetworkSettingsPanel_TLSAndExternalPortsMust"].Value, AppSeverity.Warning);
             return false;
         }
         Settings.Remote.TlsTerminationPort = tlsPort;
@@ -177,7 +177,7 @@
     {
         await ApiClient.RenewNetworkRouterMappingAsync();
         await StatusRefreshRequested.InvokeAsync();
-        Snackbar.Add("Router mapping reconciliation completed.", AppSeverity.Info);
+        Snackbar.Add(L["AdvancedNetworkSettingsPanel_RouterMappingReconciliationCompleted"].Value, AppSeverity.Info);
     }
 
     private async Task TestRemoteAsync() => _ = await ApiClient.TestRemoteNetworkAsync();
@@ -190,11 +190,11 @@
         var replacement = await ApiClient.ResetNetworkSettingsAsync();
         if (replacement is null)
         {
-            Snackbar.Add("Network settings could not be reset.", AppSeverity.Error);
+            Snackbar.Add(L["AdvancedNetworkSettingsPanel_NetworkSettingsCouldNotBe"].Value, AppSeverity.Error);
             return;
         }
         _resetDialogOpen = false;
-        Snackbar.Add("Network settings reset. Remote access is off.", AppSeverity.Success);
+        Snackbar.Add(L["AdvancedNetworkSettingsPanel_NetworkSettingsResetRemoteAccess"].Value, AppSeverity.Success);
         await SettingsReplaced.InvokeAsync(replacement);
     }
 

@@ -138,13 +138,13 @@
                     <AppTextField T="string" @bind-Value="_secureEmail" Label="Email" name="email" required="true"
                                   InputType="AppInputType.Email" autocomplete="email" MaxLength="254"
                                   Error="@(_secureEmail.Length > 0 && !SecureEmailValid)"
-                                  ErrorText="Enter a valid email address."
+                                  ErrorText="@L["SecuritySettingsPage_EnterAValidEmailAddress"].Value"
                                   HelpText="You'll sign in with this email away from home." />
                 }
                 <AppTextField T="string" @bind-Value="_securePassword" Label="Password" name="password"
                               InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
                               Error="@(_securePassword.Length > 0 && !SecurePasswordValid)"
-                              ErrorText="Use at least 12 characters, and avoid common passwords or your email address."
+                              ErrorText="@L["SecuritySettingsPage_UseAtLeast12Characters"].Value"
                               HelpText="Use at least 12 characters, and avoid common passwords or your email address." />
                 <AppTextField T="string" @bind-Value="_secureConfirm" Label="Confirm password" name="confirmPassword"
                               InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
@@ -515,7 +515,7 @@
         _sessionsError = null;
         try { _sessions = await Identity.GetSessionsAsync(_lifetime.Token); }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch { _sessionsError = "Sessions could not be loaded. The rest of your security settings are still available."; }
+        catch { _sessionsError = L["SecuritySettingsPage_SessionsCouldNotBeLoaded"].Value; }
         finally { _sessionsLoading = false; }
     }
 
@@ -526,7 +526,7 @@
         _loginsError = null;
         try { _externalLogins = await Identity.GetExternalLoginsAsync(_lifetime.Token); }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch { _loginsError = "Linked accounts could not be loaded. The rest of your security settings are still available."; }
+        catch { _loginsError = L["SecuritySettingsPage_LinkedAccountsCouldNotBe"].Value; }
         finally { _loginsLoading = false; }
     }
 
@@ -536,7 +536,7 @@
         _passkeysError = null;
         try { _passkeys = await Identity.GetPasskeysAsync(_lifetime.Token); }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch { _passkeysError = "Passkeys could not be loaded. The rest of your security settings are still available."; }
+        catch { _passkeysError = L["SecuritySettingsPage_PasskeysCouldNotBeLoaded"].Value; }
         finally { _passkeysLoading = false; }
     }
 
@@ -580,7 +580,7 @@
             if (!saved.Succeeded) { Snackbar.Add(NotChangedMessage(saved, "The passkey could not be registered."), AppSeverity.Error); return; }
             await LoadPasskeysAsync();
             await RefreshAccountAsync();
-            Snackbar.Add("Passkey added.", AppSeverity.Success);
+            Snackbar.Add(L["SecuritySettingsPage_PasskeyAdded"].Value, AppSeverity.Success);
         }
         catch (JSException exception) { Snackbar.Add(exception.Message, AppSeverity.Error); }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
@@ -598,7 +598,7 @@
             {
                 _passkeys.RemoveAll(item => item.CredentialId == passkey.CredentialId);
                 await RefreshAccountAsync();
-                Snackbar.Add("Passkey removed.", AppSeverity.Success);
+                Snackbar.Add(L["SecuritySettingsPage_PasskeyRemoved"].Value, AppSeverity.Success);
             }
             else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
                 ? "Add another sign-in method before removing this passkey." : NotChangedMessage(result, "The passkey could not be removed."), AppSeverity.Error);
@@ -617,7 +617,7 @@
             {
                 _externalLogins.RemoveAll(item => item.Id == login.Id);
                 await RefreshAccountAsync();
-                Snackbar.Add("Linked account disconnected.", AppSeverity.Success);
+                Snackbar.Add(L["SecuritySettingsPage_LinkedAccountDisconnected"].Value, AppSeverity.Success);
             }
             else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
                 ? "Add another sign-in method before disconnecting this account." : NotChangedMessage(result, "The linked account could not be disconnected."), AppSeverity.Error);

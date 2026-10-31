@@ -142,7 +142,7 @@
                 var set = await Confirmed.RunAsync(() => Identity.SetProfilePinResultAsync(ProfileId, pin));
                 if (!set.Succeeded)
                 {
-                    _error = "Your PIN couldn't be saved. Check it and try again.";
+                    _error = L["SetupVaultOffer_YourPINCouldnTBe"].Value;
                     _phase = Phase.Pin;
                     return;
                 }

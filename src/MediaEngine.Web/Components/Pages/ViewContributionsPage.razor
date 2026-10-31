@@ -146,7 +146,7 @@
     {
         if (decision == "accepted" && _decisionKind == "folder" && string.IsNullOrWhiteSpace(_decisionFolder))
         {
-            Snackbar.Add("Enter a Shared folder name before accepting.", AppSeverity.Error);
+            Snackbar.Add(L["ViewContributionsPage_EnterASharedFolderName"].Value, AppSeverity.Error);
             return;
         }
         var result = await ApiClient.DecideViewSharedContributionAsync(value.Id,

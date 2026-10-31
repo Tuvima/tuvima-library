@@ -91,7 +91,7 @@
     {
         if (!await ApiClient.RemoveStashBoxServerAsync(server.Id, _disposed.Token))
         {
-            Snackbar.Add("The server could not be removed.", AppSeverity.Error);
+            Snackbar.Add(L["StashBoxSettingsCard_TheServerCouldNotBe"].Value, AppSeverity.Error);
             return;
         }
 
@@ -103,7 +103,7 @@
         var updated = await ApiClient.SetStashBoxFingerprintPermissionAsync(allowed, _disposed.Token);
         if (updated is null)
         {
-            Snackbar.Add("That could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["StashBoxSettingsCard_ThatCouldNotBeSaved"].Value, AppSeverity.Error);
             return;
         }
 

@@ -186,7 +186,7 @@
             var saved = await ApiClient.UpdateFileWriteScheduleAsync(minutes);
             if (saved is null)
             {
-                _intervalError = "That couldn't be saved. Try again in a moment.";
+                _intervalError = L["LibraryWriteSchedulePanel_ThatCouldnTBeSaved"].Value;
                 return;
             }
 

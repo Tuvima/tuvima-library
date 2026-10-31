@@ -187,7 +187,7 @@
         catch
         {
             if (IsCurrent(generation, applicationId))
-                _error = "Webhooks could not be loaded. Try reopening the application.";
+                _error = L["ManagedApplicationWebhooks_WebhooksCouldNotBeLoaded"].Value;
         }
         finally
         {
@@ -263,7 +263,7 @@
         {
             Logger.LogWarning(ex, "The test delivery for webhook {WebhookId} could not be sent", webhook.Id);
             if (IsCurrent(generation, applicationId))
-                _error = "The test could not be sent. Try again.";
+                _error = L["ManagedApplicationWebhooks_TheTestCouldNotBe"].Value;
         }
         finally
         {
@@ -343,7 +343,7 @@
         catch
         {
             if (IsCurrent(generation, applicationId))
-                _error = "The webhook could not be saved. Try again.";
+                _error = L["ManagedApplicationWebhooks_TheWebhookCouldNotBe"].Value;
         }
         finally
         {
@@ -380,7 +380,7 @@
         catch
         {
             if (IsCurrent(generation, applicationId))
-                _error = "The signing secret could not be rotated. Try again.";
+                _error = L["ManagedApplicationWebhooks_TheSigningSecretCouldNot"].Value;
         }
         finally
         {
@@ -413,7 +413,7 @@
         catch
         {
             if (IsCurrent(generation, applicationId))
-                _error = "The webhook could not be deleted. Try again.";
+                _error = L["ManagedApplicationWebhooks_TheWebhookCouldNotBe2"].Value;
         }
         finally
         {

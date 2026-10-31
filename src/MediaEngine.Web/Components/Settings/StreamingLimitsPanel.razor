@@ -73,7 +73,7 @@
     {
         _bandwidth = await ApiClient.TestNetworkBandwidthAsync();
         if (_bandwidth?.Status == "unavailable")
-            Snackbar.Add("Bandwidth testing needs a trusted external measurement target.", AppSeverity.Info);
+            Snackbar.Add(L["StreamingLimitsPanel_BandwidthTestingNeedsATrusted"].Value, AppSeverity.Info);
         await StatusRefreshRequested.InvokeAsync();
     }
 

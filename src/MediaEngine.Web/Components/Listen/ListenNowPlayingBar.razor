@@ -842,7 +842,7 @@
         {
             if (_disposed || restoreGeneration != Volatile.Read(ref _playbackChangeNotificationVersion)) return _restored;
             Logger.LogDebug(exception, "Could not restore listen playback state from the browser stream.");
-            _playbackRestoreError = "Playback state could not be loaded. Your current player state is still shown.";
+            _playbackRestoreError = L["ListenNowPlayingBar_PlaybackStateCouldNotBe"].Value;
             return false;
         }
     }
@@ -1636,7 +1636,7 @@
         if (!Current()) return;
         if (profile is null || profile.Id != profileId)
         {
-            Snackbar.Add("Favorites require an active profile.", AppSeverity.Warning);
+            Snackbar.Add(L["Common_FavoritesRequireAnActiveProfile"].Value, AppSeverity.Warning);
             return;
         }
         if (_favoriteSongId != workId || _favoriteProfileId != profileId) await LoadFavoriteAsync();
@@ -1753,7 +1753,7 @@
             || assetId == Guid.Empty || PlaybackPreferences.ActiveProfileId is not Guid profileId
             || Playback.AudiobookBookSessionLeaseId is not Guid sessionLeaseId)
         {
-            Snackbar.Add("Bookmarks are unavailable until the current audiobook session is ready.", AppSeverity.Info);
+            Snackbar.Add(L["ListenNowPlayingBar_BookmarksAreUnavailableUntilThe"].Value, AppSeverity.Info);
             return;
         }
 
@@ -1783,7 +1783,7 @@
         catch (Exception ex)
         {
             Logger.LogInformation(ex, "The bookmark dialog could not be opened by the active playback owner.");
-            Snackbar.Add("The audiobook position could not be captured. Try again when playback is ready.", AppSeverity.Info);
+            Snackbar.Add(L["ListenNowPlayingBar_TheAudiobookPositionCouldNot"].Value, AppSeverity.Info);
         }
     }
 
@@ -1848,7 +1848,7 @@
         if (!opened)
         {
             await OpenNowPlaying();
-            Snackbar.Add("The separate player window was blocked. Now Playing is open here.", AppSeverity.Info);
+            Snackbar.Add(L["ListenNowPlayingBar_TheSeparatePlayerWindowWas"].Value, AppSeverity.Info);
         }
     }
 
@@ -1861,7 +1861,7 @@
 
         if (Playback.IsAudiobookMode)
         {
-            Snackbar.Add("Finish or close the audiobook before adding music to its queue.", AppSeverity.Info);
+            Snackbar.Add(L["ListenNowPlayingBar_FinishOrCloseTheAudiobook"].Value, AppSeverity.Info);
             AudioDrag.Clear();
             return;
         }

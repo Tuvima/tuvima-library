@@ -462,12 +462,12 @@
         try
         {
             if (!await LoadDisplayCardsAsync(false, period.Offset))
-                Snackbar.Add("Could not load that year. Please try again.", AppSeverity.Error);
+                Snackbar.Add(L["MediaBrowseShell_CouldNotLoadThatYear"].Value, AppSeverity.Error);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not jump to timeline year {Year}", year);
-            Snackbar.Add("Could not load that year. Please try again.", AppSeverity.Error);
+            Snackbar.Add(L["MediaBrowseShell_CouldNotLoadThatYear"].Value, AppSeverity.Error);
         }
         finally { _loading = false; }
     }
@@ -1352,7 +1352,7 @@
             LastPlayedAt = metadata?.LastPlayedAt ?? card.Progress?.LastAccessed,
             PlayCount = metadata?.PlayCount,
             IsFavorite = card.Flags.IsFavorite,
-            Status = "Ready",
+            Status = L["MediaBrowseShell_Ready"].Value,
             IsReadyForLibrary = true,
             LibraryVisibility = "visible",
             ArtworkState = string.IsNullOrWhiteSpace(coverUrl) ? "missing" : "settled",
@@ -1803,7 +1803,7 @@
     {
         if (!_activeProfileId.HasValue)
         {
-            Snackbar.Add("The favorite could not be updated.", AppSeverity.Warning);
+            Snackbar.Add(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppSeverity.Warning);
             return;
         }
         var kind = IsMusicSongsGrouping ? ProfileEntityKind.Song : ProfileEntityKindForBrowse();
@@ -1864,7 +1864,7 @@
     {
         if (track.RootWorkId is not Guid albumId || albumId == Guid.Empty)
         {
-            Snackbar.Add("This song is not linked to an album.", AppSeverity.Info);
+            Snackbar.Add(L["MediaBrowseShell_ThisSongIsNotLinked"].Value, AppSeverity.Info);
             return Task.CompletedTask;
         }
 

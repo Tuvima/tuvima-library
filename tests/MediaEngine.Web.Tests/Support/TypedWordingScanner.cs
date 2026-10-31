@@ -24,6 +24,9 @@ internal static partial class TypedWordingScanner
     [GeneratedRegex(@">([^<>{}]*)(?=<)")] private static partial Regex TextPattern();
     [GeneratedRegex(@"(?<![\w@:-])(" + AttributeNames + @")=""([^""@<>]*)""")] private static partial Regex AttributePattern();
     [GeneratedRegex(@"[A-Za-z]{2,}")] private static partial Regex WordPattern();
+    [GeneratedRegex(@"Snackbar\.Add\(\s*""([^""\\{}]*[A-Za-z]{2,}[^""\\{}]*)""")] private static partial Regex SnackbarPattern();
+    [GeneratedRegex(@"(?<![\w.])(_?[A-Za-z]*(?:[Ee]rror|[Ss]tatus|[Mm]essage|[Nn]otice|[Ff]ailure|[Ww]arning|[Hh]eading|[Tt]itle|[Ll]abel|[Tt]ext|[Dd]escription|[Ss]ubtitle|[Hh]int|[Cc]aption|[Pp]laceholder|[Tt]ooltip)[A-Za-z]*)\s*=\s*""([A-Z][^""\\{}]*)""(?=\s*[;,\n}])")] private static partial Regex AssignmentPattern();
+    [GeneratedRegex(@"\b(static|const|readonly)\b|\[Parameter")] private static partial Regex StaticOrParameter();
     [GeneratedRegex(@"(;|=>|==|!=|&&|\|\||\{|\}|\bcase\b|\bbreak\b|\breturn\b|^\s*(else|var|if|for|foreach|switch|while|default)\b)")] private static partial Regex CodeLike();
     [GeneratedRegex(@"^[a-z0-9_.\-/#]+$")] private static partial Regex Identifier();
     [GeneratedRegex(@"^[A-Z][a-z0-9]+([A-Z][a-z0-9]+)+$")] private static partial Regex PascalIdentifier();
@@ -70,7 +73,52 @@ internal static partial class TypedWordingScanner
             }
         }
 
+        foreach (var (start, end) in CodeBlocks(source))
+        {
+            var block = source[start..end];
+            foreach (var (pattern, group) in new[] { (SnackbarPattern(), 1), (AssignmentPattern(), 2) })
+            {
+                foreach (Match match in pattern.Matches(block))
+                {
+                    var literal = match.Groups[group].Value;
+                    var before = block[..match.Index];
+                    var lineStart = before.LastIndexOf('\n') + 1;
+                    var lineEnd = block.IndexOf('\n', match.Index);
+                    var line = block[lineStart..(lineEnd < 0 ? block.Length : lineEnd)];
+                    var open = before.LastIndexOf('<');
+                    if (open > before.LastIndexOf('>') && open + 1 < before.Length && (char.IsLetter(before[open + 1]) || before[open + 1] == '/')) continue;
+                    if (before[lineStart..].Contains("//") || StaticOrParameter().IsMatch(line)) continue;
+                    if (group == 2 && !(literal.Contains(' ') || literal.EndsWith('.') || literal.EndsWith('!') || literal.EndsWith('?') || literal.Length > 4)) continue;
+                    found.Add((LineOf(source, start + match.Groups[group].Index), literal));
+                }
+            }
+        }
+
         return found;
+    }
+
+    private static List<(int Start, int End)> CodeBlocks(string source)
+    {
+        var blocks = new List<(int, int)>();
+        foreach (Match m in CodeBlockStart().Matches(source))
+        {
+            var i = m.Index + m.Length;
+            var depth = 1;
+            while (i < source.Length && depth > 0)
+            {
+                var c = source[i];
+                if (c == '{') depth++;
+                else if (c == '}') depth--;
+                else if (c == '"')
+                {
+                    i++;
+                    while (i < source.Length && source[i] != '"') { if (source[i] == '\\') i++; i++; }
+                }
+                i++;
+            }
+            blocks.Add((m.Index + m.Length, Math.Min(i, source.Length)));
+        }
+        return blocks;
     }
 
     private static bool TryLiteralText(string text, out string literal)

@@ -33,6 +33,6 @@
         var reply = await Commands.SendAsync(shown, new() { Action = action, OutputDeviceId = id });
         if (shown.ProfileId != Snapshot.ProfileId || shown.PlaybackRequestVersion != Snapshot.PlaybackRequestVersion) return;
         _state = reply?.AudioOutput ?? new(); _message = reply?.Message ?? (reply is null ? "The main player did not confirm output selection." : null);
-        } catch (Exception) { _state ??= new(); _message = "The main player connection was interrupted. Try again when it reconnects."; }
+        } catch (Exception) { _state ??= new(); _message = L["Common_TheMainPlayerConnectionWas"].Value; }
     }
 }

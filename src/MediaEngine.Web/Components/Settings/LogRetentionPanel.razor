@@ -120,7 +120,7 @@ else
         if (!TryParse(_activityDays, out var activityDays) || !TryParse(_activityMax, out var activityMax)
             || !TryParse(_logDays, out var logDays) || !TryParse(_logMegabytes, out var logMegabytes))
         {
-            _error = "Enter a whole number in every field.";
+            _error = L["LogRetentionPanel_EnterAWholeNumberIn"].Value;
             return;
         }
 
@@ -144,7 +144,7 @@ else
 
             if (updated is null)
             {
-                _error = "The limits could not be saved. Check that the server is online, then try again.";
+                _error = L["LogRetentionPanel_TheLimitsCouldNotBe"].Value;
                 return;
             }
 

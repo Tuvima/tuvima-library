@@ -47,11 +47,11 @@
         var saved = await ApiClient.UpdateNetworkSettingsAsync(_settings);
         if (saved is null)
         {
-            Snackbar.Add("Streaming settings could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe"].Value, AppSeverity.Error);
             return;
         }
         _settings = saved;
-        Snackbar.Add("Streaming settings saved.", AppSeverity.Success);
+        Snackbar.Add(L["StreamingLimitsSettingsTab_StreamingSettingsSaved"].Value, AppSeverity.Success);
         await RefreshStatusAsync();
     }
 

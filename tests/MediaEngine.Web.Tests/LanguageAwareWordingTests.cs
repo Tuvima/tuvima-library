@@ -50,10 +50,10 @@ public sealed class LanguageAwareWordingTests : AsyncBunitContext
     [Fact]
     public void ACanadianServer_KeepsTheZSpellingsCanadiansUse()
     {
-        Assert.Equal("File Organization", Word("Libraries_FileOrganization", "en-CA"));
-        Assert.Equal("File Organisation", Word("Libraries_FileOrganization", "en-GB"));
-        Assert.Equal("File Organisation", Word("Libraries_FileOrganization", "en-AU"));
-        Assert.Equal("File Organization", Word("Libraries_FileOrganization", "en-US"));
+        Assert.Equal("Organizations", Word("Universe_GuideFilterOrgs", "en-CA"));
+        Assert.Equal("Organisations", Word("Universe_GuideFilterOrgs", "en-GB"));
+        Assert.Equal("Organisations", Word("Universe_GuideFilterOrgs", "en-AU"));
+        Assert.Equal("Organizations", Word("Universe_GuideFilterOrgs", "en-US"));
     }
 
     [Fact]

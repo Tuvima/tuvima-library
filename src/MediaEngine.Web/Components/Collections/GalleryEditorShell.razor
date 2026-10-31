@@ -199,9 +199,9 @@
 
     private async Task SaveAsync()
     {
-        if (string.IsNullOrWhiteSpace(_name)) { Snackbar.Add("Enter a Gallery name.", AppSeverity.Warning); _activeTab = "details"; return; }
+        if (string.IsNullOrWhiteSpace(_name)) { Snackbar.Add(L["GalleryEditorShell_EnterAGalleryName"].Value, AppSeverity.Warning); _activeTab = "details"; return; }
         var ruleJson = _smart ? SerializeRules(_rules) : null;
-        if (_smart && ruleJson is null) { Snackbar.Add("A Smart Gallery needs at least one complete rule.", AppSeverity.Warning); _activeTab = "membership"; return; }
+        if (_smart && ruleJson is null) { Snackbar.Add(L["GalleryEditorShell_ASmartGalleryNeedsAt"].Value, AppSeverity.Warning); _activeTab = "membership"; return; }
         if (Request.Vault)
         {
             await SaveVaultAsync(ruleJson);
@@ -215,7 +215,7 @@
             Request.EditingGallery?.SortOrder ?? 0, soundtrackPlaylistId);
         var saved = IsEditing ? await ApiClient.UpdateViewGalleryAsync(Request.EditingGallery!.Id, request) : await ApiClient.CreateViewGalleryAsync(request);
         _saving = false;
-        if (saved is null) { Snackbar.Add("The Gallery could not be saved.", AppSeverity.Error); return; }
+        if (saved is null) { Snackbar.Add(L["GalleryEditorShell_TheGalleryCouldNotBe"].Value, AppSeverity.Error); return; }
         Snackbar.Add(IsEditing ? "Gallery updated." : "Gallery created.", AppSeverity.Success);
         DialogContext?.Close(AppDialogResult.Ok(true));
     }
@@ -256,7 +256,7 @@
                 : IsEditing && await ApiClient.DeleteViewGalleryAsync(Request.EditingGallery!.Id);
         }
         finally { _saving = false; }
-        if (!deleted) { Snackbar.Add("The Gallery could not be deleted.", AppSeverity.Error); return; }
+        if (!deleted) { Snackbar.Add(L["Common_TheGalleryCouldNotBe"].Value, AppSeverity.Error); return; }
         Snackbar.Add(Request.Vault ? "Gallery deleted. The images were kept." : "Gallery deleted. Original media was kept.", AppSeverity.Success);
         DialogContext?.Close(AppDialogResult.Ok(true));
     }

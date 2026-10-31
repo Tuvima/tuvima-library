@@ -432,8 +432,8 @@
     private MediaTileShelfViewModel OverviewAutomaticShelf => new()
     {
         Key = "automatic-collections",
-        Title = "Automatic Collections",
-        Subtitle = "Broader worlds Library found by connecting trusted relationships across your shelves",
+        Title = L["CollectionsPage_AutomaticCollections"].Value,
+        Subtitle = L["CollectionsPage_BroaderWorldsLibraryFoundBy"].Value,
         Items = SortCollectionTiles(AutomaticTiles).Take(12).ToList(),
         SeeAllRoute = "/collections/automatic",
     };
@@ -441,8 +441,8 @@
     private MediaTileShelfViewModel OverviewCuratedShelf => new()
     {
         Key = "curated-collections",
-        Title = "Curated Collections",
-        Subtitle = "Selections maintained by your library administrators",
+        Title = L["CollectionsPage_CuratedCollections"].Value,
+        Subtitle = L["CollectionsPage_SelectionsMaintainedByYourLibrary"].Value,
         Items = SortCollectionTiles(CuratedTiles).Take(12).ToList(),
         SeeAllRoute = "/collections/curated",
     };
@@ -450,8 +450,8 @@
     private MediaTileShelfViewModel OverviewShelvesShelf => new()
     {
         Key = "library-shelves",
-        Title = "Shelves Across Your Library",
-        Subtitle = "Series, volumes, albums, and audiobook sequences grouped within their media type",
+        Title = L["CollectionsPage_ShelvesAcrossYourLibrary"].Value,
+        Subtitle = L["CollectionsPage_SeriesVolumesAlbumsAndAudiobook"].Value,
         Items = SortCollectionTiles(ShelfTiles).Take(12).ToList(),
         SeeAllRoute = "/collections/shelves",
     };
@@ -1139,7 +1139,7 @@
     {
         if (_activeProfile is null || !CanManageCuratedCollections)
         {
-            Snackbar.Add("Only an administrator can create a curated collection.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionsPage_OnlyAnAdministratorCanCreate"].Value, AppSeverity.Warning);
             return;
         }
 

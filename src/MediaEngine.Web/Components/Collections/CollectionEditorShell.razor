@@ -655,7 +655,7 @@
         var slot = IsPlaylistDialog ? "poster" : _activeArtworkSlot;
         if (slot == "logo" && !string.Equals(Path.GetExtension(file.Name), ".png", StringComparison.OrdinalIgnoreCase))
         {
-            Snackbar.Add("Collection logos must be transparent PNG files.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_CollectionLogosMustBeTransparent"].Value, AppSeverity.Warning);
             return;
         }
         _artworkFiles[slot] = file;
@@ -673,7 +673,7 @@
         {
             _artworkFiles.Remove(slot);
             _artworkPreviewUrls.Remove(slot);
-            Snackbar.Add("Artwork preview could not be loaded.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_ArtworkPreviewCouldNotBe"].Value, AppSeverity.Warning);
         }
     }
 
@@ -705,7 +705,7 @@
             var ok = await ApiClient.AddCollectionItemAsync(EditingCollection.Id, work.WorkId, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add("Failed to add the item to this collection.", AppSeverity.Error);
+                Snackbar.Add(L["CollectionEditorShell_FailedToAddTheItem"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -779,7 +779,7 @@
             var ok = await ApiClient.ReorderCollectionItemsAsync(EditingCollection.Id, itemIds, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add("Failed to reorder the collection.", AppSeverity.Error);
+                Snackbar.Add(L["CollectionEditorShell_FailedToReorderTheCollection"].Value, AppSeverity.Error);
                 await LoadManualItemsAsync();
                 return;
             }
@@ -823,21 +823,21 @@
     {
         if (string.IsNullOrWhiteSpace(_name))
         {
-            Snackbar.Add("Please enter a name for the collection.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_PleaseEnterANameFor"].Value, AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
 
         if (string.Equals(PersistenceVisibility, "private", StringComparison.OrdinalIgnoreCase) && !Request.ActiveProfileId.HasValue)
         {
-            Snackbar.Add("An active profile is required to save a private collection.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_AnActiveProfileIsRequired"].Value, AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
 
         if (_rulesEnabled && !_ruleDefinition.AllConditions.Any(IsCompleteRule))
         {
-            Snackbar.Add("Add at least one complete rule before saving a dynamic collection.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_AddAtLeastOneComplete"].Value, AppSeverity.Warning);
             _activeTab = "membership";
             return;
         }
@@ -851,7 +851,7 @@
 
         if (_ownerKind == "Profile" && _audience == "SelectedProfiles" && _selectedProfileIds.Count == 0)
         {
-            Snackbar.Add("Choose at least one other profile to share this collection with.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_ChooseAtLeastOneOther"].Value, AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
@@ -1119,7 +1119,7 @@
             return;
         if (!await ApiClient.DeleteCollectionArtworkAsync(EditingCollection.Id, _activeArtworkSlot, Request.ActiveProfileId))
         {
-            Snackbar.Add("Artwork could not be removed.", AppSeverity.Error);
+            Snackbar.Add(L["CollectionEditorShell_ArtworkCouldNotBeRemoved"].Value, AppSeverity.Error);
             return;
         }
         _artworkFiles.Remove(_activeArtworkSlot);
@@ -1156,7 +1156,7 @@
         {
             if (!await ApiClient.DeleteCollectionAsync(EditingCollection.Id, Request.ActiveProfileId))
             {
-                Snackbar.Add("The collection could not be deleted.", AppSeverity.Error);
+                Snackbar.Add(L["CollectionEditorShell_TheCollectionCouldNotBe"].Value, AppSeverity.Error);
                 return;
             }
 

@@ -134,7 +134,7 @@
             new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
         if (await dialog.Result is { Canceled: false })
         {
-            Snackbar.Add("Rule saved.", AppSeverity.Success);
+            Snackbar.Add(L["DocumentRulesSettings_RuleSaved"].Value, AppSeverity.Success);
             await LoadAsync();
         }
     }

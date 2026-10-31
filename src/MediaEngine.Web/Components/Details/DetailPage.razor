@@ -698,7 +698,7 @@ else if (Model is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The detail page could not refresh after Save changes");
-            Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
         }
     }
 
@@ -713,7 +713,7 @@ else if (Model is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The detail page could not refresh after {Field} was saved", fieldKey);
-            Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
         }
     }
 
@@ -730,7 +730,7 @@ else if (Model is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The detail page could not refresh after an editing section saved a change");
-            Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
         }
     }
 
@@ -956,7 +956,7 @@ else if (Model is not null)
         switch (await JS.TryCopyAsync(_removedInputText, Logger))
         {
             case ClipboardCopyResult.Copied:
-                Snackbar.Add("Copied.", AppSeverity.Success);
+                Snackbar.Add(L["DetailPage_Copied"].Value, AppSeverity.Success);
                 break;
             case ClipboardCopyResult.Failed:
                 Snackbar.Add(ClipboardInterop.FailedMessage("the text"), AppSeverity.Warning);
@@ -1241,7 +1241,7 @@ else if (Model is not null)
 
             if (failed == targets.Count)
             {
-                Snackbar.Add("That could not be done. Try again in a moment.", AppSeverity.Warning);
+                Snackbar.Add(L["DetailPage_ThatCouldNotBeDone"].Value, AppSeverity.Warning);
             }
             else if (failed > 0)
             {
@@ -1326,20 +1326,20 @@ else if (Model is not null)
         var profile = await Orchestrator.GetActiveProfileAsync();
         if (!TryResolveProfileEntity(out var entityKind, out var entityId))
         {
-            Snackbar.Add("This item cannot be added to My List yet.", AppSeverity.Warning);
+            Snackbar.Add(L["DetailPage_ThisItemCannotBeAdded"].Value, AppSeverity.Warning);
             return;
         }
 
         if (profile is null)
         {
-            Snackbar.Add("My List requires an active profile.", AppSeverity.Warning);
+            Snackbar.Add(L["DetailPage_MyListRequiresAnActive"].Value, AppSeverity.Warning);
             return;
         }
 
         var membership = await SavedItems.ToggleAsync(entityKind, entityId);
         if (membership is null)
         {
-            Snackbar.Add("My List could not be updated.", AppSeverity.Warning);
+            Snackbar.Add(L["DetailPage_MyListCouldNotBe"].Value, AppSeverity.Warning);
             return;
         }
 
@@ -1395,7 +1395,7 @@ else if (Model is not null)
     {
         if (!TryResolveProfileEntity(out var entityKind, out var workId))
         {
-            Snackbar.Add("This item cannot be rated yet.", AppSeverity.Warning);
+            Snackbar.Add(L["DetailPage_ThisItemCannotBeRated"].Value, AppSeverity.Warning);
             return;
         }
 
@@ -1456,7 +1456,7 @@ else if (Model is not null)
 
         if (tracks.Count == 0)
         {
-            Snackbar.Add("This album has no playable owned tracks.", AppSeverity.Info);
+            Snackbar.Add(L["DetailPage_ThisAlbumHasNoPlayable"].Value, AppSeverity.Info);
             return;
         }
 
@@ -1475,7 +1475,7 @@ else if (Model is not null)
             .ToList();
         if (candidates.Count == 0)
         {
-            Snackbar.Add("This collection has no owned items to shuffle.", AppSeverity.Info);
+            Snackbar.Add(L["DetailPage_ThisCollectionHasNoOwned"].Value, AppSeverity.Info);
             return;
         }
 
@@ -1512,7 +1512,7 @@ else if (Model is not null)
             return;
         }
 
-        Snackbar.Add("The selected item cannot be opened yet.", AppSeverity.Warning);
+        Snackbar.Add(L["DetailPage_TheSelectedItemCannotBe"].Value, AppSeverity.Warning);
     }
 
     private ListenQueueItem ToQueueItem(MediaGroupingItemViewModel item)

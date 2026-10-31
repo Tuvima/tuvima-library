@@ -491,7 +491,7 @@ else
                     selected = page?.items.FirstOrDefault(item => item.qid == entity.id);
                     offset += 100;
                 } while (selected is null && page?.has_more == true);
-                if (selected is null) { Snackbar.Add("This entity is not available for editing.", AppSeverity.Warning); return; }
+                if (selected is null) { Snackbar.Add(L["ChronicleExplorer_ThisEntityIsNotAvailable"].Value, AppSeverity.Warning); return; }
                 entityId = selected.id;
             }
             if (!await AdministratorAccess.EnsureUnlockedAsync(_lifetime.Token)) return;
@@ -503,7 +503,7 @@ else
                 await _flow.SelectToolAsync(EditTool.Details);
         }
         catch (OperationCanceledException) { /* the page was left while the unlock prompt was open */ }
-        catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add("Universe editing is unavailable. Please try again.", AppSeverity.Error); }
+        catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add(L["Common_UniverseEditingIsUnavailablePlease"].Value, AppSeverity.Error); }
         finally { _openingEditor = false; }
     }
 
@@ -523,7 +523,7 @@ else
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The Universe graph could not refresh after an edit for {UniverseQid}", Qid);
-            Snackbar.Add("Saved, but the graph could not refresh. Reload to see the change.", AppSeverity.Warning);
+            Snackbar.Add(L["ChronicleExplorer_SavedButTheGraphCould"].Value, AppSeverity.Warning);
         }
     }
 

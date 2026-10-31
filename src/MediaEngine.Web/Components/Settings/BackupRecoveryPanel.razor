@@ -221,12 +221,12 @@
         var backup = await ApiClient.CreateBackupAsync();
         if (backup is null)
         {
-            Snackbar.Add("The backup could not be created.", AppSeverity.Error);
+            Snackbar.Add(L["BackupRecoveryPanel_TheBackupCouldNotBe"].Value, AppSeverity.Error);
         }
         else
         {
             _lastCreated = backup;
-            Snackbar.Add("Recovery point created.", AppSeverity.Success);
+            Snackbar.Add(L["BackupRecoveryPanel_RecoveryPointCreated"].Value, AppSeverity.Success);
             await LoadAsync();
         }
         _busy = false;
@@ -238,7 +238,7 @@
         var bytes = await ApiClient.DownloadBackupAsync(backup.FileName);
         if (bytes is null)
         {
-            Snackbar.Add("The backup could not be downloaded.", AppSeverity.Error);
+            Snackbar.Add(L["BackupRecoveryPanel_TheBackupCouldNotBe2"].Value, AppSeverity.Error);
         }
         else
         {
@@ -257,11 +257,11 @@
 
         if (_lastValidation?.Valid == true)
         {
-            Snackbar.Add("Restore test passed. No restore was scheduled.", AppSeverity.Success);
+            Snackbar.Add(L["BackupRecoveryPanel_RestoreTestPassedNoRestore"].Value, AppSeverity.Success);
         }
         else
         {
-            Snackbar.Add("The restore test failed. Do not rely on this recovery point.", AppSeverity.Error);
+            Snackbar.Add(L["BackupRecoveryPanel_TheRestoreTestFailedDo"].Value, AppSeverity.Error);
         }
     }
 
@@ -298,7 +298,7 @@
         }
         else
         {
-            Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error);
+            Snackbar.Add(L["Common_TheRestoreCouldNotBe"].Value, AppSeverity.Error);
         }
         _busy = false;
     }
@@ -366,7 +366,7 @@
         var updated = await ApiClient.SetBackupWaitingPeriodAsync(days);
         if (updated is null)
         {
-            Snackbar.Add("The waiting period could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["BackupRecoveryPanel_TheWaitingPeriodCouldNot"].Value, AppSeverity.Error);
             // The browser kept the choice that was not saved; a new key redraws the field with the stored value.
             _waitingPeriodRenderKey++;
         }

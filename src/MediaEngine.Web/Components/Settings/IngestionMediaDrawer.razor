@@ -168,7 +168,7 @@
             {
                 Logger.LogWarning(ex, "Could not load ingestion child details for group {GroupId}.", item.GroupId);
                 _children = [];
-                _childrenError = "Child details could not be loaded. Try again.";
+                _childrenError = L["IngestionMediaDrawer_ChildDetailsCouldNotBe"].Value;
             }
         }
         finally

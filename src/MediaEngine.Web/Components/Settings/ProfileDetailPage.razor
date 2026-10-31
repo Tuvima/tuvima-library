@@ -409,7 +409,7 @@
         if (on && _person?.HasPin != true)
         {
             _protectionMessage = null;
-            _protectionError = "Set a PIN for this profile first (Profile details), then turn this on.";
+            _protectionError = L["Common_SetAPINForThis"].Value;
             return;
         }
 
@@ -566,7 +566,7 @@
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not refresh the profile list.");
-            _notice = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
+            _notice = L["ProfileDetailPage_TheChangeWasSavedBut"].Value;
         }
     }
 
@@ -636,7 +636,7 @@
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not refresh the profile after changing the Kid's profile switch.");
-            _kidError = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
+            _kidError = L["ProfileDetailPage_TheChangeWasSavedBut"].Value;
         }
         finally
         {
@@ -757,7 +757,7 @@
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not refresh the profile details.");
-            _notice = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
+            _notice = L["ProfileDetailPage_TheChangeWasSavedBut"].Value;
         }
     }
 
@@ -870,14 +870,14 @@
             var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin));
             if (unlocked?.Unlocked != true)
             {
-                _unlockError = "That PIN didn't work. Try again.";
+                _unlockError = L["Common_ThatPINDidnTWork"].Value;
                 return;
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not unlock administrator access from a profile page.");
-            _unlockError = "The Engine is unavailable. Try again.";
+            _unlockError = L["Common_TheEngineIsUnavailableTry"].Value;
             return;
         }
         finally

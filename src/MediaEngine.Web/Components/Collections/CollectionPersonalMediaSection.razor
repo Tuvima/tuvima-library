@@ -166,7 +166,7 @@
             return true;
         if (_viewRuleDefinition.AllConditions.Any(IsCompleteRule))
             return true;
-        error = "Add at least one complete condition to the personal-media smart View rule.";
+        error = L["CollectionPersonalMediaSection_AddAtLeastOneComplete"].Value;
         return false;
     }
 

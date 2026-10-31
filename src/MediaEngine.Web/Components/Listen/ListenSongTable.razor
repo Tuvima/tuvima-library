@@ -496,20 +496,20 @@ else
         var items = new List<AppRowMenuItem>();
         if (OnPlayNextRequested is not null)
         {
-            items.Add(new AppRowMenuItem { Label = "Play next", Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => OnPlayNextRequested(track)) });
+            items.Add(new AppRowMenuItem { Label = L["Common_PlayNext"].Value, Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => OnPlayNextRequested(track)) });
         }
 
-        items.Add(new AppRowMenuItem { Label = "Add to queue", Icon = AppMaterialIcons.Outlined.PlaylistAdd, OnClick = EventCallback.Factory.Create(this, () => QueueAsync(track)) });
+        items.Add(new AppRowMenuItem { Label = L["Common_AddToQueue"].Value, Icon = AppMaterialIcons.Outlined.PlaylistAdd, OnClick = EventCallback.Factory.Create(this, () => QueueAsync(track)) });
         items.Add(new AppRowMenuItem
         {
-            Label = "Go to album",
+            Label = L["SongActions_GoToAlbum"].Value,
             Icon = AppMaterialIcons.Outlined.Album,
             Disabled = track.RootWorkId is null || track.RootWorkId == Guid.Empty,
             OnClick = EventCallback.Factory.Create(this, () => OpenAlbumAsync(track)),
         });
         items.Add(new AppRowMenuItem
         {
-            Label = "Go to artist",
+            Label = L["SongActions_GoToArtist"].Value,
             Icon = AppMaterialIcons.Outlined.Person,
             Disabled = track.ArtistPersonId is null,
             OnClick = EventCallback.Factory.Create(this, () => OpenArtist(track)),

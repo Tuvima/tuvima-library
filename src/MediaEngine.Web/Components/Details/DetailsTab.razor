@@ -219,7 +219,7 @@
             // unexpected throw: log it and show a degraded panel rather than failing the whole tab.
             Logger.LogWarning(ex, "Details tab could not load file facts for {EntityId}", id);
             _blocks = [];
-            _fileFactsError = "File details could not be loaded.";
+            _fileFactsError = L["DetailsTab_FileDetailsCouldNotBe"].Value;
         }
         finally
         {

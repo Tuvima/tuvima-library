@@ -1,4 +1,4 @@
-﻿@namespace MediaEngine.Web.Components.Settings
+@namespace MediaEngine.Web.Components.Settings
 @using System.Globalization
 @using System.Text.Json
 @using MediaEngine.Web.Models.ViewDTOs
@@ -19,6 +19,7 @@
 @inject NavigationManager Navigation
 @inject IServiceProvider Services
 @using MediaEngine.Contracts.Plugins
+@inject IStringLocalizer<SharedStrings> L
 
 @if (_loading)
 {
@@ -269,7 +270,7 @@ else
             {
                 <AppSearchFilterRow Search="@_search"
                                     SearchChanged="@(value => Narrow(() => _search = value))"
-                                    Placeholder="Search plugins by name or capability"
+                                    Placeholder="@L["PluginSettingsTab_SearchPluginsByNameOr"].Value"
                                     Narrowed="@Narrowed"
                                     OnClear="@ClearFilters">
                     <AppSelect Label="Status" Value="@_statusFilter" Options="@StatusOptions" Native="true" FullWidth="false"
@@ -688,14 +689,14 @@ else
         var items = new List<AppRowMenuItem>();
         if (!IsProvider(plugin))
         {
-            items.Add(new() { Label = "Check health", Icon = AppMaterialIcons.Outlined.HealthAndSafety, OnClick = EventCallback.Factory.Create(this, () => CheckHealthFromMenuAsync(plugin)) });
+            items.Add(new() { Label = L["PluginSettingsTab_CheckHealth"].Value, Icon = AppMaterialIcons.Outlined.HealthAndSafety, OnClick = EventCallback.Factory.Create(this, () => CheckHealthFromMenuAsync(plugin)) });
         }
 
-        items.Add(new() { Label = "What it can access", Icon = AppMaterialIcons.Outlined.Visibility, OnClick = EventCallback.Factory.Create(this, () => ConfigurePlugin(plugin.Id, "access")) });
-        items.Add(new() { Label = "Activity", Icon = AppMaterialIcons.Outlined.History, OnClick = EventCallback.Factory.Create(this, () => ConfigurePlugin(plugin.Id, "activity")) });
+        items.Add(new() { Label = L["PluginSettingsTab_WhatItCanAccess"].Value, Icon = AppMaterialIcons.Outlined.Visibility, OnClick = EventCallback.Factory.Create(this, () => ConfigurePlugin(plugin.Id, "access")) });
+        items.Add(new() { Label = L["Common_Activity"].Value, Icon = AppMaterialIcons.Outlined.History, OnClick = EventCallback.Factory.Create(this, () => ConfigurePlugin(plugin.Id, "activity")) });
         if (!plugin.IsBuiltIn)
         {
-            items.Add(new() { Label = "Remove", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfigurePlugin(plugin.Id)) });
+            items.Add(new() { Label = L["Common_Remove"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfigurePlugin(plugin.Id)) });
         }
 
         return items;
@@ -985,7 +986,7 @@ else
     {
         if (!await ApiClient.SetPluginLibrariesAsync(plugin.Id, _pickedLibraries.ToList()))
         {
-            Snackbar.Add("The libraries could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["PluginSettingsTab_TheLibrariesCouldNotBe"].Value, AppSeverity.Error);
             return;
         }
 
@@ -994,7 +995,7 @@ else
         if (refreshed is not null)
             _libraryLimits[plugin.Id] = refreshed;
 
-        Snackbar.Add("Saved.", AppSeverity.Success);
+        Snackbar.Add(L["PluginPage_Saved"].Value, AppSeverity.Success);
     }
 
     // What the detail page shows beyond the plugin's own summary: what it needs, who needs it, where it works and what it did.
@@ -1271,7 +1272,7 @@ else
         }
         catch
         {
-            _error = "Plugin settings could not be loaded.";
+            _error = L["PluginSettingsTab_PluginSettingsCouldNotBe"].Value;
         }
         finally
         {
@@ -1368,7 +1369,7 @@ else
         {
             if (!await ApiClient.UpdateProviderAsync(plugin.Id, enabled, _disposed.Token))
             {
-                Snackbar.Add("The source could not be switched.", AppSeverity.Error);
+                Snackbar.Add(L["PluginSettingsTab_TheSourceCouldNotBe"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -1412,7 +1413,7 @@ else
         plugin.Settings[key] = value;
         if (!await Orchestrator.SavePluginSettingsAsync(plugin.Id, plugin.Settings))
         {
-            Snackbar.Add("Plugin setting could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["PluginSettingsTab_PluginSettingCouldNotBe"].Value, AppSeverity.Error);
             return;
         }
     }
@@ -1434,7 +1435,7 @@ else
     {
         if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
         {
-            Snackbar.Add("Setting number is invalid.", AppSeverity.Error);
+            Snackbar.Add(L["PluginSettingsTab_SettingNumberIsInvalid"].Value, AppSeverity.Error);
             return;
         }
 
@@ -1573,7 +1574,7 @@ else
         {
             if (!long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInteger))
             {
-                Snackbar.Add("Setting number is invalid.", AppSeverity.Error);
+                Snackbar.Add(L["PluginSettingsTab_SettingNumberIsInvalid"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -1583,7 +1584,7 @@ else
 
         if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
         {
-            Snackbar.Add("Setting number is invalid.", AppSeverity.Error);
+            Snackbar.Add(L["PluginSettingsTab_SettingNumberIsInvalid"].Value, AppSeverity.Error);
             return;
         }
 

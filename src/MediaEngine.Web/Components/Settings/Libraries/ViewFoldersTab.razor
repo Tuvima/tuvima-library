@@ -167,7 +167,7 @@
                 ViewStorage = new ViewStorageDto { StorageLocationId = selected.StorageLocationId, RelativeRoot = string.IsNullOrWhiteSpace(selected.RelativePath) ? "." : selected.RelativePath },
             });
             if (saved is null) _error = ApiClient.LastError ?? "Root could not be saved.";
-            else { _error = null; Snackbar.Add("View root saved.", AppSeverity.Success); await RootChanged.InvokeAsync(); await SourcesChanged.InvokeAsync(); }
+            else { _error = null; Snackbar.Add(L["ViewFoldersTab_ViewRootSaved"].Value, AppSeverity.Success); await RootChanged.InvokeAsync(); await SourcesChanged.InvokeAsync(); }
         }
         finally { _busy = false; }
     }
@@ -195,7 +195,7 @@
                 _error = null; _name = ""; _path = null;
                 await AddingChanged.InvokeAsync(false);
                 await SourcesChanged.InvokeAsync();
-                Snackbar.Add("Folder saved. Indexing runs separately.", AppSeverity.Success);
+                Snackbar.Add(L["ViewFoldersTab_FolderSavedIndexingRunsSeparately"].Value, AppSeverity.Success);
             }
         }
         finally { _busy = false; }
@@ -274,7 +274,7 @@
         _busy = true;
         try
         {
-            if (await ApiClient.DeleteViewProfileSourceAsync(owner, source.Id)) { await SourcesChanged.InvokeAsync(); Snackbar.Add("Folder detached. Files kept.", AppSeverity.Success); }
+            if (await ApiClient.DeleteViewProfileSourceAsync(owner, source.Id)) { await SourcesChanged.InvokeAsync(); Snackbar.Add(L["ViewFoldersTab_FolderDetachedFilesKept"].Value, AppSeverity.Success); }
             else _error = ApiClient.LastError ?? "Folder could not be detached.";
         }
         finally { _busy = false; }

@@ -294,14 +294,14 @@
             var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin), _lifetime.Token);
             if (unlocked?.Unlocked != true)
             {
-                _unlockError = "That PIN did not work. Try again.";
+                _unlockError = L["Common_ThatPINDidNotWork"].Value;
                 return;
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not unlock administrator access from the Devices page.");
-            _unlockError = "The Engine is unavailable. Try again.";
+            _unlockError = L["Common_TheEngineIsUnavailableTry"].Value;
             return;
         }
         finally

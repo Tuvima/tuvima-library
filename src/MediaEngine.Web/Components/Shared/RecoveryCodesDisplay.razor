@@ -42,7 +42,7 @@
         switch (await JS.TryCopyAsync(CodesText, Logger))
         {
             case ClipboardCopyResult.Copied:
-                Snackbar.Add("Recovery codes copied.", AppSeverity.Success);
+                Snackbar.Add(L["RecoveryCodesDisplay_RecoveryCodesCopied"].Value, AppSeverity.Success);
                 break;
             case ClipboardCopyResult.Failed:
                 Snackbar.Add(ClipboardInterop.FailedMessage("the codes"), AppSeverity.Warning);
