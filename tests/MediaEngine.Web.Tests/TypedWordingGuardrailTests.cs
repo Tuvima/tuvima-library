@@ -38,7 +38,10 @@ public sealed partial class TypedWordingGuardrailTests
         foreach (var path in RazorFiles())
         {
             var found = TypedWordingScanner.Find(File.ReadAllText(path));
-            if (found.Count > 0) current[Relative(path)] = found.ToList();
+            if (found.Count > 0)
+            {
+                current[Relative(path)] = found.ToList();
+            }
         }
 
         var worse = current
@@ -68,7 +71,10 @@ public sealed partial class TypedWordingGuardrailTests
         {
             foreach (Match use in KeyUse().Matches(File.ReadAllText(path)))
             {
-                if (!keys.Contains(use.Groups["key"].Value)) missing.Add($"{Relative(path)}: {use.Groups["key"].Value}");
+                if (!keys.Contains(use.Groups["key"].Value))
+                {
+                    missing.Add($"{Relative(path)}: {use.Groups["key"].Value}");
+                }
             }
         }
 
@@ -149,7 +155,11 @@ public sealed partial class TypedWordingGuardrailTests
     private static string FindRepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "MediaEngine.slnx"))) dir = dir.Parent;
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "MediaEngine.slnx")))
+        {
+            dir = dir.Parent;
+        }
+
         return dir?.FullName ?? throw new InvalidOperationException("Could not find the repository root.");
     }
 }

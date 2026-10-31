@@ -45,22 +45,47 @@ internal static partial class TypedWordingScanner
         for (var i = masked.IndexOf("@(", StringComparison.Ordinal); i >= 0; i = masked.IndexOf("@(", i + 2, StringComparison.Ordinal))
         {
             var end = Balanced(masked, i + 1, '(', ')');
-            if (end > 0) spans.Add((i, end));
+            if (end > 0)
+            {
+                spans.Add((i, end));
+            }
         }
 
         foreach (Match match in TextPattern().Matches(masked))
         {
             var start = match.Groups[1].Index;
-            if (start >= 2 && source[start - 2] == '=') continue;
-            if (spans.Any(span => span.Start < start - 1 && start - 1 < span.End)) continue;
+            if (start >= 2 && source[start - 2] == '=')
+            {
+                continue;
+            }
+
+            if (spans.Any(span => span.Start < start - 1 && start - 1 < span.End))
+            {
+                continue;
+            }
+
             var lineStart = masked.LastIndexOf('\n', Math.Max(0, start - 1)) + 1;
             var before = masked[lineStart..(start - 1)];
-            if (before.Count(c => c == '(') > before.Count(c => c == ')')) continue;
+            if (before.Count(c => c == '(') > before.Count(c => c == ')'))
+            {
+                continue;
+            }
 
             var core = source[start..(start + match.Groups[1].Length)].Trim();
-            if (core.Length == 0) continue;
-            if (!TryLiteralText(core, out var literal)) continue;
-            if (IsProse(literal)) found.Add((LineOf(source, start), core));
+            if (core.Length == 0)
+            {
+                continue;
+            }
+
+            if (!TryLiteralText(core, out var literal))
+            {
+                continue;
+            }
+
+            if (IsProse(literal))
+            {
+                found.Add((LineOf(source, start), core));
+            }
         }
 
         foreach (Match match in AttributePattern().Matches(masked))
@@ -86,9 +111,21 @@ internal static partial class TypedWordingScanner
                     var lineEnd = block.IndexOf('\n', match.Index);
                     var line = block[lineStart..(lineEnd < 0 ? block.Length : lineEnd)];
                     var open = before.LastIndexOf('<');
-                    if (open > before.LastIndexOf('>') && open + 1 < before.Length && (char.IsLetter(before[open + 1]) || before[open + 1] == '/')) continue;
-                    if (before[lineStart..].Contains("//") || StaticOrParameter().IsMatch(line)) continue;
-                    if (group == 2 && !(literal.Contains(' ') || literal.EndsWith('.') || literal.EndsWith('!') || literal.EndsWith('?') || literal.Length > 4)) continue;
+                    if (open > before.LastIndexOf('>') && open + 1 < before.Length && (char.IsLetter(before[open + 1]) || before[open + 1] == '/'))
+                    {
+                        continue;
+                    }
+
+                    if (before[lineStart..].Contains("//") || StaticOrParameter().IsMatch(line))
+                    {
+                        continue;
+                    }
+
+                    if (group == 2 && !(literal.Contains(' ') || literal.EndsWith('.') || literal.EndsWith('!') || literal.EndsWith('?') || literal.Length > 4))
+                    {
+                        continue;
+                    }
+
                     found.Add((LineOf(source, start + match.Groups[group].Index), literal));
                 }
             }
@@ -107,12 +144,18 @@ internal static partial class TypedWordingScanner
             while (i < source.Length && depth > 0)
             {
                 var c = source[i];
-                if (c == '{') depth++;
-                else if (c == '}') depth--;
+                if (c == '{')
+                {
+                    depth++;
+                }
+                else if (c == '}')
+                {
+                    depth--;
+                }
                 else if (c == '"')
                 {
                     i++;
-                    while (i < source.Length && source[i] != '"') { if (source[i] == '\\') i++; i++; }
+                    while (i < source.Length && source[i] != '"') { if (source[i] == '\\') { i++; } i++; }
                 }
                 i++;
             }
@@ -141,24 +184,49 @@ internal static partial class TypedWordingScanner
     private static int ExpressionEnd(string text, int at)
     {
         var i = at + 1;
-        if (text[i] == '(') return Balanced(text, i, '(', ')');
-        if (!(char.IsLetter(text[i]) || text[i] == '_')) return -1;
-        while (i < text.Length && (char.IsLetterOrDigit(text[i]) || text[i] == '_')) i++;
+        if (text[i] == '(')
+        {
+            return Balanced(text, i, '(', ')');
+        }
+
+        if (!(char.IsLetter(text[i]) || text[i] == '_'))
+        {
+            return -1;
+        }
+
+        while (i < text.Length && (char.IsLetterOrDigit(text[i]) || text[i] == '_'))
+        {
+            i++;
+        }
+
         while (i < text.Length)
         {
             if (text[i] == '.' && i + 1 < text.Length && (char.IsLetter(text[i + 1]) || text[i + 1] == '_'))
             {
                 i++;
-                while (i < text.Length && (char.IsLetterOrDigit(text[i]) || text[i] == '_')) i++;
+                while (i < text.Length && (char.IsLetterOrDigit(text[i]) || text[i] == '_'))
+                {
+                    i++;
+                }
             }
-            else if ((text[i] == '?' || text[i] == '!') && i + 1 < text.Length && text[i + 1] == '.') i++;
+            else if ((text[i] == '?' || text[i] == '!') && i + 1 < text.Length && text[i + 1] == '.')
+            {
+                i++;
+            }
             else if (text[i] == '(' || text[i] == '[')
             {
                 var end = Balanced(text, i, text[i], text[i] == '(' ? ')' : ']');
-                if (end < 0) return -1;
+                if (end < 0)
+                {
+                    return -1;
+                }
+
                 i = end;
             }
-            else break;
+            else
+            {
+                break;
+            }
         }
         return i;
     }
@@ -166,9 +234,21 @@ internal static partial class TypedWordingScanner
     private static bool IsProse(string text)
     {
         var trimmed = text.Trim();
-        if (!WordPattern().IsMatch(trimmed)) return false;
-        if (CodeLike().IsMatch(trimmed)) return false;
-        if (trimmed.Contains("://") || trimmed.Contains('\\')) return false;
+        if (!WordPattern().IsMatch(trimmed))
+        {
+            return false;
+        }
+
+        if (CodeLike().IsMatch(trimmed))
+        {
+            return false;
+        }
+
+        if (trimmed.Contains("://") || trimmed.Contains('\\'))
+        {
+            return false;
+        }
+
         return !Identifier().IsMatch(trimmed);
     }
 
@@ -177,11 +257,29 @@ internal static partial class TypedWordingScanner
         var chars = source.ToCharArray();
         void Blank(int start, int end)
         {
-            for (var i = start; i < Math.Min(end, chars.Length); i++) if (chars[i] != '\n') chars[i] = ' ';
+            for (var i = start; i < Math.Min(end, chars.Length); i++)
+            {
+                if (chars[i] != '\n')
+                {
+                    chars[i] = ' ';
+                }
+            }
         }
-        foreach (Match m in CommentPattern().Matches(source)) Blank(m.Index, m.Index + m.Length);
-        foreach (Match m in DirectivePattern().Matches(source)) Blank(m.Index, m.Index + m.Length);
-        foreach (Match m in BlockPattern().Matches(source)) Blank(m.Index, m.Index + m.Length);
+        foreach (Match m in CommentPattern().Matches(source))
+        {
+            Blank(m.Index, m.Index + m.Length);
+        }
+
+        foreach (Match m in DirectivePattern().Matches(source))
+        {
+            Blank(m.Index, m.Index + m.Length);
+        }
+
+        foreach (Match m in BlockPattern().Matches(source))
+        {
+            Blank(m.Index, m.Index + m.Length);
+        }
+
         foreach (Match m in CodeBlockStart().Matches(source))
         {
             var i = m.Index + m.Length;
@@ -189,12 +287,18 @@ internal static partial class TypedWordingScanner
             while (i < source.Length && depth > 0)
             {
                 var c = source[i];
-                if (c == '{') depth++;
-                else if (c == '}') depth--;
+                if (c == '{')
+                {
+                    depth++;
+                }
+                else if (c == '}')
+                {
+                    depth--;
+                }
                 else if (c == '"')
                 {
                     i++;
-                    while (i < source.Length && source[i] != '"') { if (source[i] == '\\') i++; i++; }
+                    while (i < source.Length && source[i] != '"') { if (source[i] == '\\') { i++; } i++; }
                 }
                 i++;
             }
@@ -212,10 +316,16 @@ internal static partial class TypedWordingScanner
             if (c == '"')
             {
                 i++;
-                while (i < text.Length && text[i] != '"') { if (text[i] == '\\') i++; i++; }
+                while (i < text.Length && text[i] != '"') { if (text[i] == '\\') { i++; } i++; }
             }
-            else if (c == open) depth++;
-            else if (c == close && --depth == 0) return i + 1;
+            else if (c == open)
+            {
+                depth++;
+            }
+            else if (c == close && --depth == 0)
+            {
+                return i + 1;
+            }
         }
         return -1;
     }
@@ -223,7 +333,14 @@ internal static partial class TypedWordingScanner
     private static int LineOf(string text, int index)
     {
         var line = 1;
-        for (var i = 0; i < index && i < text.Length; i++) if (text[i] == '\n') line++;
+        for (var i = 0; i < index && i < text.Length; i++)
+        {
+            if (text[i] == '\n')
+            {
+                line++;
+            }
+        }
+
         return line;
     }
 }

@@ -22,14 +22,25 @@ internal static class LocalizedSource
     public static string Localize(string source) =>
         Use.Replace(source, m =>
         {
-            if (!English.Value.TryGetValue(m.Groups["key"].Value, out var value)) return m.Value;
-            if (!m.Groups["args"].Success) return value;
+            if (!English.Value.TryGetValue(m.Groups["key"].Value, out var value))
+            {
+                return m.Value;
+            }
+
+            if (!m.Groups["args"].Success)
+            {
+                return value;
+            }
             // Put each argument back as the Razor expression it was, so a test can look for "@Name: Wikidata" as before.
             var args = SplitArguments(m.Groups["args"].Value);
             for (var i = 0; i < args.Count; i++)
             {
                 var expression = args[i].Trim();
-                if (expression.EndsWith(" ?? string.Empty", StringComparison.Ordinal)) expression = expression[..^" ?? string.Empty".Length];
+                if (expression.EndsWith(" ?? string.Empty", StringComparison.Ordinal))
+                {
+                    expression = expression[..^" ?? string.Empty".Length];
+                }
+
                 value = value.Replace("{" + i + "}", Simple.IsMatch(expression) ? "@" + expression : "@(" + expression + ")");
             }
             return value;
@@ -44,10 +55,22 @@ internal static class LocalizedSource
         for (var i = 0; i < text.Length; i++)
         {
             var c = text[i];
-            if (c == '"') inString = !inString;
-            else if (inString) continue;
-            else if (c is '(' or '[' or '{') depth++;
-            else if (c is ')' or ']' or '}') depth--;
+            if (c == '"')
+            {
+                inString = !inString;
+            }
+            else if (inString)
+            {
+                continue;
+            }
+            else if (c is '(' or '[' or '{')
+            {
+                depth++;
+            }
+            else if (c is ')' or ']' or '}')
+            {
+                depth--;
+            }
             else if (c == ',' && depth == 0) { parts.Add(text[start..i]); start = i + 1; }
         }
         parts.Add(text[start..]);
@@ -61,7 +84,11 @@ internal static class LocalizedSource
         {
             dir = dir.Parent;
         }
-        if (dir is null) throw new InvalidOperationException("Could not find the repository root from the test output folder.");
+        if (dir is null)
+        {
+            throw new InvalidOperationException("Could not find the repository root from the test output folder.");
+        }
+
         var doc = XDocument.Load(Path.Combine(dir.FullName, "src", "MediaEngine.Web", "Resources", "SharedStrings.resx"));
         return doc.Root!.Elements("data")
             .ToDictionary(e => (string)e.Attribute("name")!, e => (string?)e.Element("value") ?? string.Empty);

@@ -35,12 +35,24 @@ public static class AppCultures
     /// </summary>
     public static string Resolve(string? tag)
     {
-        if (string.IsNullOrWhiteSpace(tag)) return Default;
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            return Default;
+        }
+
         var normalized = tag.Trim().Replace('_', '-');
         var exact = Tags.FirstOrDefault(t => string.Equals(t, normalized, StringComparison.OrdinalIgnoreCase));
-        if (exact is not null) return exact == "en" ? Default : exact;
+        if (exact is not null)
+        {
+            return exact == "en" ? Default : exact;
+        }
+
         var language = normalized.Split('-')[0].ToLowerInvariant();
-        if (language == "en") return Default;
+        if (language == "en")
+        {
+            return Default;
+        }
+
         var baseTag = Tags.FirstOrDefault(t => string.Equals(t, language, StringComparison.OrdinalIgnoreCase));
         return baseTag ?? Default;
     }
