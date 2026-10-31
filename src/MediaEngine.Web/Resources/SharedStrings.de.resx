@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <!-- NEEDS HUMAN REVIEW: machine-drafted first pass (language-aware wording packet 9). A native speaker must check before this language is called finished. Missing keys fall back to English. -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
@@ -392,5 +393,491 @@
   </data>
   <data name="PluginPage_SaveFailed" xml:space="preserve">
     <value>Das konnte nicht gespeichert werden. Prüfen Sie das Formular und versuchen Sie es erneut.</value>
+  </data>
+  <data name="Common_MediaType" xml:space="preserve">
+    <value>Medientyp</value>
+  </data>
+  <data name="Common_Year" xml:space="preserve">
+    <value>Jahr</value>
+  </data>
+  <data name="Common_ClearAll" xml:space="preserve">
+    <value>Alle löschen</value>
+  </data>
+  <data name="Common_SortBy" xml:space="preserve">
+    <value>Sortieren nach</value>
+  </data>
+  <data name="Common_Source" xml:space="preserve">
+    <value>Quelle</value>
+  </data>
+  <data name="Common_Added" xml:space="preserve">
+    <value>Hinzugefügt</value>
+  </data>
+  <data name="Common_Any" xml:space="preserve">
+    <value>Beliebig</value>
+  </data>
+  <data name="Common_Filters" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Common_ViewAll" xml:space="preserve">
+    <value>Alle anzeigen</value>
+  </data>
+  <data name="Common_Resume" xml:space="preserve">
+    <value>Fortsetzen</value>
+  </data>
+  <data name="Common_BrowseAs" xml:space="preserve">
+    <value>Durchsuchen als</value>
+  </data>
+  <data name="Common_FilterBy" xml:space="preserve">
+    <value>Filtern nach</value>
+  </data>
+  <data name="Common_Sort" xml:space="preserve">
+    <value>Sortieren</value>
+  </data>
+  <data name="Common_Display" xml:space="preserve">
+    <value>Anzeige</value>
+  </data>
+  <data name="Common_TileSize" xml:space="preserve">
+    <value>Kachelgröße</value>
+  </data>
+  <data name="Common_Cards" xml:space="preserve">
+    <value>Karten</value>
+  </data>
+  <data name="Common_List" xml:space="preserve">
+    <value>Liste</value>
+  </data>
+  <data name="Common_LoadMore" xml:space="preserve">
+    <value>Mehr laden</value>
+  </data>
+  <data name="Common_Theme" xml:space="preserve">
+    <value>Design</value>
+  </data>
+  <data name="Common_Finished" xml:space="preserve">
+    <value>Beendet</value>
+  </data>
+  <data name="Common_Unmatched" xml:space="preserve">
+    <value>Nicht zugeordnet</value>
+  </data>
+  <data name="Common_Songs" xml:space="preserve">
+    <value>Titel</value>
+  </data>
+  <data name="Common_Tracks" xml:space="preserve">
+    <value>Titel</value>
+  </data>
+  <data name="Common_StillBeingMatched" xml:space="preserve">
+    <value>Wird noch zugeordnet</value>
+  </data>
+  <data name="Common_Progress" xml:space="preserve">
+    <value>Fortschritt</value>
+  </data>
+  <data name="Common_MoreActions" xml:space="preserve">
+    <value>Weitere Aktionen</value>
+  </data>
+  <data name="Common_More" xml:space="preserve">
+    <value>Mehr</value>
+  </data>
+  <data name="Common_Done" xml:space="preserve">
+    <value>Fertig</value>
+  </data>
+  <data name="Common_Media" xml:space="preserve">
+    <value>Medien</value>
+  </data>
+  <data name="Common_Smart" xml:space="preserve">
+    <value>Intelligent</value>
+  </data>
+  <data name="Common_NowPlaying" xml:space="preserve">
+    <value>Läuft gerade</value>
+  </data>
+  <data name="Common_PreviousChapter" xml:space="preserve">
+    <value>Vorheriges Kapitel</value>
+  </data>
+  <data name="Common_NextChapter" xml:space="preserve">
+    <value>Nächstes Kapitel</value>
+  </data>
+  <data name="Common_Spoilers" xml:space="preserve">
+    <value>Spoiler</value>
+  </data>
+  <data name="Common_Title" xml:space="preserve">
+    <value>Titel</value>
+  </data>
+  <data name="Common_Play" xml:space="preserve">
+    <value>Abspielen</value>
+  </data>
+  <data name="Common_AddToQueue" xml:space="preserve">
+    <value>Zur Warteschlange hinzufügen</value>
+  </data>
+  <data name="Common_UnsavedChanges" xml:space="preserve">
+    <value>Nicht gespeicherte Änderungen</value>
+  </data>
+  <data name="Common_Match" xml:space="preserve">
+    <value>Zuordnung</value>
+  </data>
+  <data name="Common_ProviderFacts" xml:space="preserve">
+    <value>Daten des Anbieters</value>
+  </data>
+  <data name="Common_Edit" xml:space="preserve">
+    <value>Bearbeiten</value>
+  </data>
+  <data name="Common_Retry" xml:space="preserve">
+    <value>Erneut versuchen</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Schließen</value>
+  </data>
+  <data name="Common_Files" xml:space="preserve">
+    <value>Dateien</value>
+  </data>
+  <data name="Common_Details" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="Common_Type" xml:space="preserve">
+    <value>Typ</value>
+  </data>
+  <data name="Common_Sources" xml:space="preserve">
+    <value>Quellen</value>
+  </data>
+  <data name="Common_Dismiss" xml:space="preserve">
+    <value>Verwerfen</value>
+  </data>
+  <data name="Common_Saved" xml:space="preserve">
+    <value>Gespeichert</value>
+  </data>
+  <data name="Common_MoveUp" xml:space="preserve">
+    <value>Nach oben</value>
+  </data>
+  <data name="Common_MoveDown" xml:space="preserve">
+    <value>Nach unten</value>
+  </data>
+  <data name="Common_Extras" xml:space="preserve">
+    <value>Extras</value>
+  </data>
+  <data name="Common_Season" xml:space="preserve">
+    <value>Staffel</value>
+  </data>
+  <data name="Common_Episode" xml:space="preserve">
+    <value>Folge</value>
+  </data>
+  <data name="Common_Open" xml:space="preserve">
+    <value>Öffnen</value>
+  </data>
+  <data name="Common_Select" xml:space="preserve">
+    <value>Auswählen</value>
+  </data>
+  <data name="Common_Genres" xml:space="preserve">
+    <value>Genres</value>
+  </data>
+  <data name="Common_Overview" xml:space="preserve">
+    <value>Überblick</value>
+  </data>
+  <data name="Common_AddToPlaylist" xml:space="preserve">
+    <value>Zur Wiedergabeliste hinzufügen</value>
+  </data>
+  <data name="Common_Copy" xml:space="preserve">
+    <value>Kopieren</value>
+  </data>
+  <data name="Common_CheckAgain" xml:space="preserve">
+    <value>Erneut prüfen</value>
+  </data>
+  <data name="Common_NotInLibrary" xml:space="preserve">
+    <value>Nicht in der Bibliothek</value>
+  </data>
+  <data name="Common_Lyrics" xml:space="preserve">
+    <value>Liedtext</value>
+  </data>
+  <data name="Common_Volume" xml:space="preserve">
+    <value>Lautstärke</value>
+  </data>
+  <data name="Common_Song" xml:space="preserve">
+    <value>Titel</value>
+  </data>
+  <data name="Common_Shuffle" xml:space="preserve">
+    <value>Zufallswiedergabe</value>
+  </data>
+  <data name="Common_Remove" xml:space="preserve">
+    <value>Entfernen</value>
+  </data>
+  <data name="Common_GoBack" xml:space="preserve">
+    <value>Zurück</value>
+  </data>
+  <data name="Common_NotSet" xml:space="preserve">
+    <value>Nicht festgelegt</value>
+  </data>
+  <data name="Common_Rename" xml:space="preserve">
+    <value>Umbenennen</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Löschen</value>
+  </data>
+  <data name="Common_ShowMore" xml:space="preserve">
+    <value>Mehr anzeigen</value>
+  </data>
+  <data name="Common_Kids" xml:space="preserve">
+    <value>Kinder</value>
+  </data>
+  <data name="Common_ManageProfiles" xml:space="preserve">
+    <value>Profile verwalten</value>
+  </data>
+  <data name="Common_Profile" xml:space="preserve">
+    <value>Profil</value>
+  </data>
+  <data name="Common_RecycleBin" xml:space="preserve">
+    <value>Papierkorb</value>
+  </data>
+  <data name="Common_NotNow" xml:space="preserve">
+    <value>Nicht jetzt</value>
+  </data>
+  <data name="Common_Back" xml:space="preserve">
+    <value>Zurück</value>
+  </data>
+  <data name="Common_TextSize" xml:space="preserve">
+    <value>Textgröße</value>
+  </data>
+  <data name="Common_LineSpacing" xml:space="preserve">
+    <value>Zeilenabstand</value>
+  </data>
+  <data name="Common_PageWidth" xml:space="preserve">
+    <value>Seitenbreite</value>
+  </data>
+  <data name="Common_Layout" xml:space="preserve">
+    <value>Layout</value>
+  </data>
+  <data name="Common_TryAgain" xml:space="preserve">
+    <value>Bitte versuche es erneut.</value>
+  </data>
+  <data name="Common_Note" xml:space="preserve">
+    <value>Notiz</value>
+  </data>
+  <data name="Common_ZoomIn" xml:space="preserve">
+    <value>Vergrößern</value>
+  </data>
+  <data name="Common_ZoomOut" xml:space="preserve">
+    <value>Verkleinern</value>
+  </data>
+  <data name="Common_YourProfile" xml:space="preserve">
+    <value>Dein Profil</value>
+  </data>
+  <data name="Glossary_Favorites" xml:space="preserve">
+    <value>Favoriten</value>
+  </data>
+  <data name="Glossary_Favorite" xml:space="preserve">
+    <value>Favorit</value>
+  </data>
+  <data name="Glossary_Playlists" xml:space="preserve">
+    <value>Wiedergabelisten</value>
+  </data>
+  <data name="Glossary_Bookmarks" xml:space="preserve">
+    <value>Lesezeichen</value>
+  </data>
+  <data name="Glossary_Series" xml:space="preserve">
+    <value>Serien</value>
+  </data>
+  <data name="Common_Length" xml:space="preserve">
+    <value>Länge</value>
+  </data>
+  <data name="Common_Formats" xml:space="preserve">
+    <value>Formate</value>
+  </data>
+  <data name="Common_SeeAll" xml:space="preserve">
+    <value>Alle ansehen</value>
+  </data>
+  <data name="Common_Continue" xml:space="preserve">
+    <value>Weiter</value>
+  </data>
+  <data name="Common_Activity" xml:space="preserve">
+    <value>Aktivität</value>
+  </data>
+  <data name="Common_RecentActivity" xml:space="preserve">
+    <value>Letzte Aktivität</value>
+  </data>
+  <data name="Common_AddProfile" xml:space="preserve">
+    <value>Profil hinzufügen</value>
+  </data>
+  <data name="Common_Titles" xml:space="preserve">
+    <value>Titel</value>
+  </data>
+  <data name="Common_KeepTyping" xml:space="preserve">
+    <value>Tippe weiter</value>
+  </data>
+  <data name="Common_To" xml:space="preserve">
+    <value>An</value>
+  </data>
+  <data name="Common_Loading" xml:space="preserve">
+    <value>Wird geladen</value>
+  </data>
+  <data name="Common_NothingMatchesTheseFilters" xml:space="preserve">
+    <value>Keine Treffer für diese Filter</value>
+  </data>
+  <data name="Common_ClearFilters" xml:space="preserve">
+    <value>Filter löschen</value>
+  </data>
+  <data name="Common_NothingHereYet" xml:space="preserve">
+    <value>Noch nichts vorhanden</value>
+  </data>
+  <data name="Common_OpenTheVault" xml:space="preserve">
+    <value>Tresor öffnen</value>
+  </data>
+  <data name="Common_SharedLibrary" xml:space="preserve">
+    <value>Gemeinsame Bibliothek</value>
+  </data>
+  <data name="Common_Date" xml:space="preserve">
+    <value>Datum</value>
+  </data>
+  <data name="Common_Tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="Common_Yes" xml:space="preserve">
+    <value>Ja</value>
+  </data>
+  <data name="Common_No" xml:space="preserve">
+    <value>Nein</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Speichern</value>
+  </data>
+  <data name="Common_Trash" xml:space="preserve">
+    <value>Papierkorb</value>
+  </data>
+  <data name="Common_File" xml:space="preserve">
+    <value>Datei</value>
+  </data>
+  <data name="Common_Documents" xml:space="preserve">
+    <value>Dokumente</value>
+  </data>
+  <data name="Common_Photos" xml:space="preserve">
+    <value>Fotos</value>
+  </data>
+  <data name="Common_Galleries" xml:space="preserve">
+    <value>Galerien</value>
+  </data>
+  <data name="Common_Location" xml:space="preserve">
+    <value>Ort</value>
+  </data>
+  <data name="Common_Restore" xml:space="preserve">
+    <value>Wiederherstellen</value>
+  </data>
+  <data name="Common_PIN" xml:space="preserve">
+    <value>PIN</value>
+  </data>
+  <data name="Common_ConfirmDelete" xml:space="preserve">
+    <value>Löschen bestätigen</value>
+  </data>
+  <data name="Common_Field" xml:space="preserve">
+    <value>Feld</value>
+  </data>
+  <data name="Common_Condition" xml:space="preserve">
+    <value>Bedingung</value>
+  </data>
+  <data name="Common_AllLibraries" xml:space="preserve">
+    <value>Alle Bibliotheken</value>
+  </data>
+  <data name="Common_Device" xml:space="preserve">
+    <value>Gerät</value>
+  </data>
+  <data name="Common_Export" xml:space="preserve">
+    <value>Exportieren</value>
+  </data>
+  <data name="Common_Events" xml:space="preserve">
+    <value>Ereignisse</value>
+  </data>
+  <data name="Common_Password" xml:space="preserve">
+    <value>Passwort</value>
+  </data>
+  <data name="Common_Notifications" xml:space="preserve">
+    <value>Benachrichtigungen</value>
+  </data>
+  <data name="Common_Test" xml:space="preserve">
+    <value>Testen</value>
+  </data>
+  <data name="Common_Household" xml:space="preserve">
+    <value>Haushalt</value>
+  </data>
+  <data name="Common_Folder" xml:space="preserve">
+    <value>Ordner</value>
+  </data>
+  <data name="Common_When" xml:space="preserve">
+    <value>Wann</value>
+  </data>
+  <data name="Common_Duplicates" xml:space="preserve">
+    <value>Duplikate</value>
+  </data>
+  <data name="Common_Now" xml:space="preserve">
+    <value>Jetzt</value>
+  </data>
+  <data name="Common_NeedsAttention" xml:space="preserve">
+    <value>Erfordert Aufmerksamkeit</value>
+  </data>
+  <data name="Common_AddFiles" xml:space="preserve">
+    <value>Dateien hinzufügen</value>
+  </data>
+  <data name="Common_AddFolder" xml:space="preserve">
+    <value>Ordner hinzufügen</value>
+  </data>
+  <data name="Common_LibraryName" xml:space="preserve">
+    <value>Name der Bibliothek</value>
+  </data>
+  <data name="Common_AddLibrary" xml:space="preserve">
+    <value>Bibliothek hinzufügen</value>
+  </data>
+  <data name="Common_Import" xml:space="preserve">
+    <value>Importieren</value>
+  </data>
+  <data name="Common_ScanNow" xml:space="preserve">
+    <value>Jetzt scannen</value>
+  </data>
+  <data name="Common_Lookup" xml:space="preserve">
+    <value>Abgleich</value>
+  </data>
+  <data name="Common_Organization" xml:space="preserve">
+    <value>Organisation</value>
+  </data>
+  <data name="Common_FileHandling" xml:space="preserve">
+    <value>Dateiverwaltung</value>
+  </data>
+  <data name="Common_Access" xml:space="preserve">
+    <value>Zugriff</value>
+  </data>
+  <data name="Common_KeepGoing" xml:space="preserve">
+    <value>Weitermachen</value>
+  </data>
+  <data name="Common_Choose" xml:space="preserve">
+    <value>Auswählen</value>
+  </data>
+  <data name="Common_Apply" xml:space="preserve">
+    <value>Anwenden</value>
+  </data>
+  <data name="Common_Off" xml:space="preserve">
+    <value>Aus</value>
+  </data>
+  <data name="Common_Skip" xml:space="preserve">
+    <value>Überspringen</value>
+  </data>
+  <data name="Common_Email" xml:space="preserve">
+    <value>E-Mail</value>
+  </data>
+  <data name="Common_Review" xml:space="preserve">
+    <value>Prüfen</value>
+  </data>
+  <data name="Common_You" xml:space="preserve">
+    <value>Du</value>
+  </data>
+  <data name="Common_Tools" xml:space="preserve">
+    <value>Tools</value>
+  </data>
+  <data name="Common_Subtitles" xml:space="preserve">
+    <value>Untertitel</value>
+  </data>
+  <data name="Common_UpNext" xml:space="preserve">
+    <value>Als Nächstes</value>
+  </data>
+  <data name="Common_PlayNext" xml:space="preserve">
+    <value>Als Nächstes abspielen</value>
+  </data>
+  <data name="Common_VaultMode" xml:space="preserve">
+    <value>Tresor-Modus</value>
+  </data>
+  <data name="Common_PlaySong" xml:space="preserve">
+    <value>Titel abspielen</value>
+  </data>
+  <data name="Common_Time" xml:space="preserve">
+    <value>Zeit</value>
   </data>
 </root>
