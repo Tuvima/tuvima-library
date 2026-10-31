@@ -24,7 +24,7 @@
 .playback-lyrics__alternative { display: grid; gap: 2px; width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 14px; text-align: left; border: 1px solid var(--playback-accent-border); border-radius: 12px; background: var(--playback-surface-elevated); color: var(--playback-text); }
 .playback-lyrics__alternative span, .playback-lyrics__alternative small { color: var(--playback-text-secondary); font-size: var(--tl-font-size-caption); overflow-wrap: anywhere; }
 a.playback-lyrics__manage { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; color: var(--playback-accent); }
-.playback-lyrics__notice { display:flex; align-items:flex-start; gap:12px; margin:16px 12px; padding:14px 16px; border:1px solid var(--playback-accent-border); border-radius:12px; background:var(--playback-surface-elevated); color:var(--playback-text-secondary); font-size:14px; line-height:1.4; }
+.playback-lyrics__notice { display:flex; align-items:flex-start; gap:12px; margin:16px 8px; padding:14px 16px; border:1px solid var(--playback-accent-border); border-radius:12px; background:var(--playback-surface-elevated); color:var(--playback-text-secondary); font-size:14px; line-height:1.4; }
 .playback-lyrics__notice-icon { flex:none; display:inline-flex; color:var(--playback-accent); font-size:22px; }
 .playback-lyrics__notice strong { display:block; color:var(--playback-text); font-weight:600; }
 .playback-lyrics__notice p { margin:4px 0 0; }
