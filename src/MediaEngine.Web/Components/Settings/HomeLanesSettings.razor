@@ -9,28 +9,31 @@
    shared lanes and switches one off for everyone; each person orders their own private lanes and can show again a lane they
    hid from its "..." menu. Up and down buttons stand in for dragging. The Engine applies every change. *@
 <div class="settings-listening-page" data-home-section="lanes">
-    <AppText Typo="AppTypo.h6">Lanes</AppText>
-    <AppSelect Label="Page"
-               Value="@_place"
-               ValueChanged="SelectPlaceAsync"
-               Options="Places"
-               Size="AppControlSize.Compact" />
+    <div class="listening-settings-grid">
+        <SettingsSectionPanel Title="Lanes"
+                              Description="Collections can show as rows on Home, Watch, Read and Listen. Choose a page to order its lanes."
+                              Class="tl-card settings-section-card listening-settings-card">
+            <AppSelect Label="Page"
+                       Value="@_place"
+                       ValueChanged="SelectPlaceAsync"
+                       Options="Places"
+                       Size="AppControlSize.Compact" />
+        </SettingsSectionPanel>
 
-    @if (_loading)
-    {
-        <div class="listening-settings-skeleton" aria-label="Loading lanes">
-            <AppSkeleton Height="160px" />
-        </div>
-    }
-    else if (_settings is null)
-    {
-        <AppErrorState Title="Lanes are unavailable"
-                       Message="The Library could not read your lanes. Try again in a moment."
-                       Retry="@(() => LoadAsync())" />
-    }
-    else
-    {
-        <div class="listening-settings-grid">
+        @if (_loading)
+        {
+            <div class="listening-settings-skeleton" aria-label="Loading lanes">
+                <AppSkeleton Height="160px" />
+            </div>
+        }
+        else if (_settings is null)
+        {
+            <AppErrorState Title="Lanes are unavailable"
+                           Message="The Library could not read your lanes. Try again in a moment."
+                           Retry="@(() => LoadAsync())" />
+        }
+        else
+        {
             @if (_settings.CanManageShared)
             {
                 <SettingsSectionPanel Title="Shared lanes"
@@ -124,8 +127,8 @@
                                       Description="Shared lanes are set by an administrator. Choose Hide this lane in a lane's menu to remove one from your pages, and it will be listed here."
                                       Class="tl-card settings-section-card listening-settings-card" />
             }
-        </div>
-    }
+        }
+    </div>
 </div>
 
 @code {
