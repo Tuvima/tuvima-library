@@ -747,12 +747,12 @@
             if (_disposed) return;
             if (settings is not null && !string.IsNullOrEmpty(settings.DisplayLanguage))
             {
-                var currentCulture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-                var desired = settings.DisplayLanguage.Split('-', '_')[0].ToLowerInvariant();
+                var currentCulture = System.Globalization.CultureInfo.CurrentUICulture.Name;
+                var desired = MediaEngine.Web.Services.Localization.AppCultures.Resolve(settings.DisplayLanguage);
                 if (!string.Equals(currentCulture, desired, StringComparison.OrdinalIgnoreCase))
                 {
                     var redirectBack = Uri.EscapeDataString(Nav.Uri);
-                    Nav.NavigateTo($"/culture/set?culture={Uri.EscapeDataString(settings.DisplayLanguage)}&redirectUri={redirectBack}", forceLoad: true);
+                    Nav.NavigateTo($"/culture/set?culture={Uri.EscapeDataString(desired)}&redirectUri={redirectBack}", forceLoad: true);
                 }
             }
         }

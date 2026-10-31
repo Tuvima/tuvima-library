@@ -1581,4 +1581,19 @@
   <data name="PluginPage_SaveFailed" xml:space="preserve">
     <value>That couldn't be saved. Check the form and try again.</value>
   </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Settings_Region" xml:space="preserve">
+    <value>Region</value>
+  </data>
+  <data name="Settings_LanguageAndRegion" xml:space="preserve">
+    <value>Language and region</value>
+  </data>
+  <data name="Settings_LanguageAndRegionNote" xml:space="preserve">
+    <value>Everyone sharing this Library sees the same language and spelling.</value>
+  </data>
+  <data name="Settings_LanguageSaveFailed" xml:space="preserve">
+    <value>The language could not be saved. Check the Engine connection.</value>
+  </data>
 </root>

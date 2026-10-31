@@ -348,7 +348,15 @@
                 _hostName = identity.HostName;
                 _serverIdentityLoaded = true;
             }
-            _locale ??= await ApiClient.GetSetupLocaleAsync(_setupSession);
+            if (_locale is null)
+            {
+                _locale = await ApiClient.GetSetupLocaleAsync(_setupSession);
+                // First setup: start from the browser's language (or US English); the administrator can change it here.
+                if (_locale is not null)
+                {
+                    _locale = _locale with { DisplayLanguage = MediaEngine.Web.Services.Localization.AppCultures.FirstRunDefault(_locale.DisplayLanguage, System.Globalization.CultureInfo.CurrentUICulture) };
+                }
+            }
         }
         if (CurrentStep == "tools" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
         {
