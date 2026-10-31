@@ -118,6 +118,40 @@ public sealed class CollectionAndTimelineRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task CollectionOptions_RoundTripThroughEveryReadPath()
+    {
+        var repository = new CollectionRepository(_db);
+        var collection = CreateCollection("Halloween picks");
+        collection.ClassifyAs(CollectionType.Custom);
+        collection.MinItems = 4;
+        collection.MaxItems = 20;
+        collection.SortField = "random";
+        collection.SetSeasonWindow(new MediaEngine.Domain.Models.CollectionSeasonWindow(new(10, 1), new(11, 1)));
+
+        await repository.CreateManagedCollectionAsync(collection, []);
+
+        var byId = await repository.GetByIdAsync(collection.Id);
+        var managed = Assert.Single(await repository.GetManagedCollectionsAsync());
+        var joined = Assert.Single(await repository.GetAllAsync());
+
+        foreach (var saved in new[] { byId!, managed, joined })
+        {
+            Assert.Equal(4, saved.MinItems);
+            Assert.Equal(20, saved.MaxItems);
+            Assert.Equal("10-01", saved.SeasonFrom);
+            Assert.Equal("11-01", saved.SeasonTo);
+        }
+
+        collection.MaxItems = null;
+        collection.SetSeasonWindow(null);
+        await repository.UpsertAsync(collection);
+
+        var cleared = await repository.GetByIdAsync(collection.Id);
+        Assert.Null(cleared!.MaxItems);
+        Assert.Null(cleared.SeasonWindow);
+    }
+
+    [Fact]
     public async Task EntityTimelineRepository_RoundTripsEventsAndFieldChanges()
     {
         var repository = new EntityTimelineRepository(_db);

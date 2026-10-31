@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.Collections;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Constants;
@@ -11,7 +12,8 @@ internal static class ManagedCollectionMapper
         Collection collection,
         int itemCount,
         Profile? activeProfile,
-        bool hasCollectionsWrite = false) => new()
+        bool hasCollectionsWrite = false,
+        DateOnly? today = null) => new()
         {
             Id = collection.Id,
             Name = collection.DisplayName ?? $"Collection {collection.Id.ToString("N")[..8]}",
@@ -39,6 +41,12 @@ internal static class ManagedCollectionMapper
             IsEnabled = collection.IsEnabled,
             IsFeatured = collection.IsFeatured,
             MinItems = collection.MinItems,
+            MaxItems = collection.MaxItems,
+            SeasonFrom = collection.SeasonFrom,
+            SeasonTo = collection.SeasonTo,
+            HiddenUntil = today is { } day && CollectionOptionsPolicy.HiddenUntil(collection, day) is { } until
+                ? until.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
+                : null,
             RuleJson = collection.RuleJson,
             Resolution = collection.Resolution.ToStorageValue(),
             RuleHash = collection.RuleHash,
@@ -97,6 +105,10 @@ internal static class ManagedCollectionMapper
             IsEnabled = baseDto.IsEnabled,
             IsFeatured = baseDto.IsFeatured,
             MinItems = baseDto.MinItems,
+            MaxItems = baseDto.MaxItems,
+            SeasonFrom = baseDto.SeasonFrom,
+            SeasonTo = baseDto.SeasonTo,
+            HiddenUntil = baseDto.HiddenUntil,
             RuleJson = baseDto.RuleJson,
             Resolution = baseDto.Resolution,
             RuleHash = baseDto.RuleHash,
@@ -174,6 +186,10 @@ internal static class ManagedCollectionMapper
             IsEnabled = source.IsEnabled,
             IsFeatured = source.IsFeatured,
             MinItems = source.MinItems,
+            MaxItems = source.MaxItems,
+            SeasonFrom = source.SeasonFrom,
+            SeasonTo = source.SeasonTo,
+            HiddenUntil = source.HiddenUntil,
             RuleJson = null,
             Resolution = source.Resolution,
             RuleHash = null,

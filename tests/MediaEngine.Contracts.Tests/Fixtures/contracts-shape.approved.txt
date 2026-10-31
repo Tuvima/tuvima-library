@@ -1524,6 +1524,10 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionCr
   SortDirection: System.String | nullability=not-null | accessors=get,init
   SecondarySortField: System.String | nullability=nullable | accessors=get,init
   SecondarySortDirection: System.String | nullability=nullable | accessors=get,init
+  MinItems: System.Int32 | nullability=not-null | accessors=get,init
+  MaxItems: System.Int32 | nullability=not-null | accessors=get,init
+  SeasonFrom: System.String | nullability=nullable | accessors=get,init
+  SeasonTo: System.String | nullability=nullable | accessors=get,init
   DisplayLimit: System.Int32 | nullability=not-null | accessors=get,init
   Placements: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionPlacementRequest> | nullability=nullable | accessors=get,init
   WorkIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
@@ -1674,6 +1678,10 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionMa
   IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
   IsFeatured: System.Boolean | nullability=not-null | accessors=get,init
   MinItems: System.Int32 | nullability=not-null | accessors=get,init
+  MaxItems: System.Int32? | nullability=nullable | accessors=get,init
+  SeasonFrom: System.String | nullability=nullable | accessors=get,init
+  SeasonTo: System.String | nullability=nullable | accessors=get,init
+  HiddenUntil: System.String | nullability=nullable | accessors=get,init
   RuleJson: System.String | nullability=nullable | accessors=get,init
   Resolution: System.String | nullability=not-null | accessors=get,init
   RuleHash: System.String | nullability=nullable | accessors=get,init
@@ -1845,6 +1853,10 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionUp
   SecondarySortDirection: System.String | nullability=nullable | accessors=get,init
   IsEnabled: System.Boolean? | nullability=nullable | accessors=get,init
   IsFeatured: System.Boolean? | nullability=nullable | accessors=get,init
+  MinItems: System.Int32? | nullability=nullable | accessors=get,init
+  MaxItems: System.Int32? | nullability=nullable | accessors=get,init
+  SeasonFrom: System.String | nullability=nullable | accessors=get,init
+  SeasonTo: System.String | nullability=nullable | accessors=get,init
   WorkIds: System.Collections.Generic.List<System.Guid> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.ContentGroupDto
@@ -1980,6 +1992,10 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.ManagedColle
   IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
   IsFeatured: System.Boolean | nullability=not-null | accessors=get,init
   MinItems: System.Int32 | nullability=not-null | accessors=get,init
+  MaxItems: System.Int32? | nullability=nullable | accessors=get,init
+  SeasonFrom: System.String | nullability=nullable | accessors=get,init
+  SeasonTo: System.String | nullability=nullable | accessors=get,init
+  HiddenUntil: System.String | nullability=nullable | accessors=get,init
   RuleJson: System.String | nullability=nullable | accessors=get,init
   Resolution: System.String | nullability=not-null | accessors=get,init
   RuleHash: System.String | nullability=nullable | accessors=get,init
