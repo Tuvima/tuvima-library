@@ -306,6 +306,10 @@
     cursor: pointer;
 }
 
+::deep .listen-song-table__favorite-head {
+    justify-content: center;
+}
+
 ::deep .listen-song-table__sort-header:hover {
     color: var(--tl-text-primary);
 }

@@ -116,6 +116,22 @@ public sealed class DisplayFactBuilderTests
     }
 
     [Fact]
+    public void MusicFacts_PreferTheFilesLengthOverTheProvidersRoundedMinutes()
+    {
+        var facts = DisplayFactBuilder.Build("Music", "Soul Love", artist: "David Bowie", duration: "3.5", durationSeconds: "214.2");
+
+        Assert.Equal(["David Bowie", "3:34"], facts);
+    }
+
+    [Fact]
+    public void MusicFacts_ReadASmallProviderLengthAsMinutes()
+    {
+        var facts = DisplayFactBuilder.Build("Music", "Soul Love", artist: "David Bowie", duration: "3.5");
+
+        Assert.Equal(["David Bowie", "3:30"], facts);
+    }
+
+    [Fact]
     public void MusicFacts_FormatProviderMillisecondsAsTrackLength()
     {
         var facts = DisplayFactBuilder.Build(

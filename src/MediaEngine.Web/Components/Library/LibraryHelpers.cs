@@ -145,6 +145,26 @@ public static class LibraryHelpers
         return null;
     }
 
+    /// <summary>
+    /// Track length in seconds from canonical fields. The file's measured length (<c>duration_sec</c>) wins;
+    /// the plain "duration" and "runtime" fields hold minutes (retail providers), so a bare number there is
+    /// never read as seconds.
+    /// </summary>
+    public static long? NormalizeTrackDurationSeconds(string? durationSec, string? durationSeconds, string? duration, string? runtime)
+        => NormalizeDurationSeconds(durationSec, durationSeconds, MinutesToClock(duration), MinutesToClock(runtime));
+
+    private static string? MinutesToClock(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Contains(':', StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var minutes) && minutes > 0
+            ? Math.Round(minutes * 60d, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture)
+            : null;
+    }
+
     /// <summary>Formats a normalized duration into m:ss or h:mm:ss, defaulting missing values to 0:00.</summary>
     public static string FormatDuration(long? durationSeconds, string? fallback = null)
     {

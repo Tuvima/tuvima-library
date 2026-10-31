@@ -144,6 +144,12 @@ public static class DisplayFactBuilder
     private static string? FormatDuration(string? duration, string? durationSeconds, string mediaKind)
     {
         var hasSeconds = TryParseNumber(durationSeconds, out var seconds) && seconds > 0;
+        // A song's or audiobook's own file length is exact; a provider's rounded figure only fills a gap.
+        if (hasSeconds && mediaKind is "Music" or "Audiobook")
+        {
+            return FormatFromSeconds(seconds, mediaKind);
+        }
+
         if (string.IsNullOrWhiteSpace(duration))
         {
             return hasSeconds ? FormatFromSeconds(seconds, mediaKind) : null;
@@ -157,7 +163,7 @@ public static class DisplayFactBuilder
 
         if (mediaKind == "Music")
         {
-            return FormatElapsed(TimeSpan.FromMilliseconds(numeric));
+            return FormatElapsed(MusicProviderLength(numeric));
         }
 
         if (mediaKind == "Audiobook")
@@ -170,6 +176,11 @@ public static class DisplayFactBuilder
 
         return $"{numeric:0.#} min";
     }
+
+    // Retail providers give a song's length in milliseconds or (Apple, after conversion) in minutes; nothing under a second
+    // is a song, so a small number is minutes.
+    internal static TimeSpan MusicProviderLength(double value)
+        => value >= 1000 ? TimeSpan.FromMilliseconds(value) : TimeSpan.FromMinutes(value);
 
     private static string FormatFromSeconds(double seconds, string mediaKind)
         => mediaKind is "Music" or "Audiobook"
