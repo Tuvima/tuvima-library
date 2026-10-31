@@ -2194,6 +2194,11 @@ public static class CollectionEndpoints
                 return ApiErrors.BadRequest("Collection name is required.");
             }
 
+            if (!CollectionLanePolicy.TryParseShowOn(body.ShowOn, out var showOnLocations))
+            {
+                return ApiErrors.BadRequest(ShowOnMessage);
+            }
+
             var normalizedCollectionType = string.Equals(body.CollectionType, "Smart", StringComparison.OrdinalIgnoreCase)
                 ? CollectionTypeNames.Playlist
                 : body.CollectionType;
@@ -2364,6 +2369,13 @@ public static class CollectionEndpoints
                 }
             }
 
+            if (showOnLocations.Count > 0)
+            {
+                await placementRepo.SyncSharedLocationsAsync(
+                    collection.Id, showOnLocations, CollectionLanePolicy.Locations, CollectionLanePolicy.LaneItemLimit, ct);
+                CollectionLanePolicy.MarkChanged();
+            }
+
             return Results.Created($"/collections/{collection.Id}", new CollectionCreatedResponse(collection.Id, collection.DisplayName));
         })
         .WithName("CreateCollection")
@@ -2376,6 +2388,7 @@ public static class CollectionEndpoints
             Guid id,
             CollectionUpdateRequest body,
             ICollectionRepository collectionRepo,
+            ICollectionPlacementRepository placementRepo,
             IProfileRepository profileRepo,
             HttpContext httpContext,
             Guid? profileId,
@@ -2383,6 +2396,11 @@ public static class CollectionEndpoints
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
+            if (!CollectionLanePolicy.TryParseShowOn(body.ShowOn, out var showOnLocations))
+            {
+                return ApiErrors.BadRequest(ShowOnMessage);
+            }
+
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
@@ -2580,6 +2598,15 @@ public static class CollectionEndpoints
             }
 
             await collectionRepo.ReplaceAudienceProfileIdsAsync(collection.Id, selectedAudienceProfileIds, ct);
+
+            // Absent leaves the lanes alone; a list (even an empty one) is the new set of places this collection is shown as a lane.
+            if (body.ShowOn is not null)
+            {
+                await placementRepo.SyncSharedLocationsAsync(
+                    collection.Id, showOnLocations, CollectionLanePolicy.Locations, CollectionLanePolicy.LaneItemLimit, ct);
+                CollectionLanePolicy.MarkChanged();
+            }
+
             return Results.Ok();
         })
         .WithName("UpdateCollection")
@@ -2710,6 +2737,8 @@ public static class CollectionEndpoints
                     CreatedAt = DateTimeOffset.UtcNow,
                 }, ct);
             }
+
+            CollectionLanePolicy.MarkChanged();
             return Results.Ok();
         })
         .WithName("UpdateCollectionPlacements")
@@ -2722,6 +2751,8 @@ public static class CollectionEndpoints
     }
 
     // ── Request bodies ────────────────────────────────────────────────────────
+
+    private const string ShowOnMessage = "Show on can be: home, watch, read, listen.";
 
     public sealed record EnabledRequest(bool Enabled);
     public sealed record FeaturedRequest(bool Featured);

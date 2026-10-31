@@ -1529,6 +1529,7 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionCr
   SeasonFrom: System.String | nullability=nullable | accessors=get,init
   SeasonTo: System.String | nullability=nullable | accessors=get,init
   DisplayLimit: System.Int32 | nullability=not-null | accessors=get,init
+  ShowOn: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,init
   Placements: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionPlacementRequest> | nullability=nullable | accessors=get,init
   WorkIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
 
@@ -1857,6 +1858,7 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionUp
   MaxItems: System.Int32? | nullability=nullable | accessors=get,init
   SeasonFrom: System.String | nullability=nullable | accessors=get,init
   SeasonTo: System.String | nullability=nullable | accessors=get,init
+  ShowOn: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,init
   WorkIds: System.Collections.Generic.List<System.Guid> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.ContentGroupDto
@@ -2935,6 +2937,30 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroSettingsD
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayItemsRequest
   Ids: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayLaneDto
+  CollectionId: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  CollectionType: System.String | nullability=not-null | accessors=get,init
+  IconName: System.String | nullability=nullable | accessors=get,init
+  Visible: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayLaneHideRequest
+  Hidden: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayLaneOrderEntry
+  CollectionId: System.Guid | nullability=not-null | accessors=get,init
+  Visible: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayLaneSettingsDto
+  Location: System.String | nullability=not-null | accessors=get,init
+  CanManageShared: System.Boolean | nullability=not-null | accessors=get,init
+  Shared: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayLaneDto> | nullability=not-null | accessors=get,init
+  Mine: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayLaneDto> | nullability=not-null | accessors=get,init
+  HiddenByMe: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayLaneDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayOwnLaneOrderRequest
+  CollectionIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayPageDto
   Key: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
@@ -2979,6 +3005,9 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayRecentViewAss
   Height: System.Int32? | nullability=nullable | accessors=get,init
   DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
   AddedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplaySharedLaneOrderRequest
+  Lanes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayLaneOrderEntry> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayShelfDto
   Key: System.String | nullability=not-null | accessors=get,init

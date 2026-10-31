@@ -151,6 +151,23 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
+    public async Task Vault_CollectionLanes_AreBuiltOnlyFromWorksTheProfileMaySee()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
+        var lockedRaw = RealReaders();
+        var locked = CreateService(VaultContext(shape.Account, NewVaultSession(shape.Account)), lockedRaw);
+        await locked.LoadCollectionLanesAsync(VaultProfile, "home", default);
+        Assert.Equal([shape.Normal.WorkId], lockedRaw.AllowedWorkIdsPassedToLanes!.ToArray());
+
+        var session = NewVaultSession(shape.Account);
+        await UnlockVaultAsync(session);
+        var unlockedRaw = RealReaders();
+        var unlocked = CreateService(VaultContext(shape.Account, session), unlockedRaw);
+        await unlocked.LoadCollectionLanesAsync(VaultProfile, "area:watch", default);
+        Assert.Equal([shape.Normal.WorkId], unlockedRaw.AllowedWorkIdsPassedToLanes!.ToArray());
+    }
+
+    [Fact]
     public async Task Vault_ASessionThatIsLocked_LosesTheVaultAtOnce_ForEveryWayItCanBeLocked()
     {
         var other = Guid.NewGuid();

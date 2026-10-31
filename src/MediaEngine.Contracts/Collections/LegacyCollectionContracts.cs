@@ -164,6 +164,8 @@ public sealed class CollectionCreateRequest
     /// <summary>Seasonal window end as MM-dd, edge included.</summary>
     [JsonPropertyName("season_to")] public string? SeasonTo { get; init; }
     [JsonPropertyName("display_limit")] public int DisplayLimit { get; init; }
+    /// <summary>Where the collection is shown as a lane: any of <c>home</c>, <c>watch</c>, <c>read</c>, <c>listen</c>. Absent or empty shows it on none.</summary>
+    [JsonPropertyName("show_on")] public List<string>? ShowOn { get; init; }
     [JsonPropertyName("placements")] public List<CollectionPlacementRequest>? Placements { get; init; }
     [JsonPropertyName("work_ids")] public List<Guid> WorkIds { get; init; } = [];
 }
@@ -201,6 +203,8 @@ public sealed class CollectionUpdateRequest
     /// <summary>Absent leaves the seasonal window unchanged; an empty string on both edges removes it.</summary>
     [JsonPropertyName("season_from")] public string? SeasonFrom { get; init; }
     [JsonPropertyName("season_to")] public string? SeasonTo { get; init; }
+    /// <summary>Absent leaves the lanes as they are; a list (possibly empty) replaces where the collection is shown as a lane: <c>home</c>, <c>watch</c>, <c>read</c>, <c>listen</c>.</summary>
+    [JsonPropertyName("show_on")] public List<string>? ShowOn { get; init; }
     /// <summary>Works to add in the same save, used when a rule-driven Custom collection is switched to manual membership.</summary>
     [JsonPropertyName("work_ids")] public List<Guid>? WorkIds { get; init; }
 }

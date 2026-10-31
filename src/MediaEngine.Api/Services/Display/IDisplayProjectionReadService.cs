@@ -29,6 +29,16 @@ public interface IDisplayProjectionReadService
         Guid? profileId,
         CancellationToken ct);
 
+    /// <summary>
+    /// The collections shown as lanes at a location ("home" or "area:watch", "area:read", "area:listen") for one profile:
+    /// shared lanes in the administrator's order, then the profile's own, minus the lanes it hid, the ones under their
+    /// minimum and the items the profile may not see. A source that has no lanes answers an empty list.
+    /// </summary>
+    Task<IReadOnlyList<DisplayCollectionLaneRow>> LoadCollectionLanesAsync(
+        Guid? profileId,
+        string location,
+        CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayCollectionLaneRow>>([]);
+
     /// <summary>Which libraries the current request may see files from (every one except those hidden from the account). Unscoped sources allow every library.</summary>
     Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct) => Task.FromResult(DisplayLibraryScope.All);
 
@@ -101,4 +111,10 @@ internal interface IRawDisplayProjectionReadService : IDisplayProjectionReadServ
         Guid? profileId,
         IReadOnlySet<Guid> allowedWorkIds,
         CancellationToken ct) => LoadHomeCollectionsAsync(profileId, ct);
+
+    Task<IReadOnlyList<DisplayCollectionLaneRow>> LoadCollectionLanesAsync(
+        Guid? profileId,
+        string location,
+        IReadOnlySet<Guid> allowedWorkIds,
+        CancellationToken ct) => LoadCollectionLanesAsync(profileId, location, ct);
 }
